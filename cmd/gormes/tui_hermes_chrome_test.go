@@ -55,9 +55,54 @@ func TestNativeTUIStartupUsesAltScreen(t *testing.T) {
 	}
 }
 
+func TestNativeTUIStartupDoesNotCaptureMouseByDefault(t *testing.T) {
+	setupNativeTUITestEnv(t)
+
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("Load config: %v", err)
+	}
+
+	cmd := newRootCommand()
+	if err := cmd.Flags().Set("offline", "true"); err != nil {
+		t.Fatalf("set offline flag: %v", err)
+	}
+
+	var captured []tea.ProgramOption
+	err = runResolvedTUIWithRuntime(cmd, tuiInvocation{Config: cfg}, rootRuntime{
+		tuiProgramFactory: func(_ tea.Model, opts ...tea.ProgramOption) tuiProgram {
+			captured = append(captured, opts...)
+			return fakeTUIProgram{}
+		},
+	})
+	if err != nil {
+		t.Fatalf("runResolvedTUIWithRuntime: %v", err)
+	}
+
+	mousePtr := reflect.ValueOf(tea.WithMouseAllMotion()).Pointer()
+	for _, opt := range captured {
+		ptr := reflect.ValueOf(opt).Pointer()
+		if ptr == mousePtr {
+			t.Fatal("local TUI startup enabled mouse tracking by default; terminal text selection must work without /mouse off")
+		}
+		if name := runtime.FuncForPC(ptr).Name(); name != "" && containsMouseAllMotion(name) {
+			t.Fatalf("local TUI startup enabled mouse tracking by default via %s; terminal text selection must work without /mouse off", name)
+		}
+	}
+}
+
 func containsAltScreen(name string) bool {
 	for i := 0; i+8 <= len(name); i++ {
 		if name[i:i+8] == "AltScree" {
+			return true
+		}
+	}
+	return false
+}
+
+func containsMouseAllMotion(name string) bool {
+	for i := 0; i+14 <= len(name); i++ {
+		if name[i:i+14] == "MouseAllMotion" {
 			return true
 		}
 	}

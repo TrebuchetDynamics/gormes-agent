@@ -149,10 +149,14 @@ func welcomePanel(skin HermesSkin, ctx welcomeContext, width int) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.title)).Bold(true)
 	accentStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.accent))
 	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.dim))
+	contentWidth := welcomeContentWidth(width)
 
-	body := []string{
-		titleStyle.Render("⚕ Gormes"),
-		dimStyle.Render("Go-native Hermes-compatible agent"),
+	var body []string
+	if skin.UseMinimalChrome(width) {
+		body = append(body,
+			titleStyle.Render("⚕ Gormes"),
+			dimStyle.Render("Go-native Hermes-compatible agent"),
+		)
 	}
 
 	var ctxLines []string
@@ -161,7 +165,7 @@ func welcomePanel(skin HermesSkin, ctx welcomeContext, width int) string {
 		if value == "" {
 			return
 		}
-		ctxLines = append(ctxLines, accentStyle.Render(label+" ")+dimStyle.Render(value))
+		appendWelcomeWrapped(&ctxLines, accentStyle.Render(label+" "), value, contentWidth, dimStyle)
 	}
 	// Overlay the startup seam: explicit frame-derived ctx values win;
 	// otherwise fall back to the cmd/gormes-seeded version/tool count;
@@ -183,20 +187,28 @@ func welcomePanel(skin HermesSkin, ctx welcomeContext, width int) string {
 	if id := strings.TrimSpace(ctx.SessionID); id != "" {
 		addCtx("session", shortSessionID(id))
 	}
-	addCtx("version", version)
+	if skin.UseMinimalChrome(width) {
+		addCtx("version", version)
+	}
 	if len(ctxLines) > 0 {
-		body = append(body, "")
+		if len(body) > 0 {
+			body = append(body, "")
+		}
 		body = append(body, ctxLines...)
 	}
-	if summary := welcomeSummary(ctx, toolCount, toolsets, dimStyle, accentStyle); summary != "" {
-		body = append(body, "")
-		body = append(body, summary)
+	if summary := welcomeSummaryLines(ctx, toolCount, toolsets, contentWidth, dimStyle, accentStyle); len(summary) > 0 {
+		if len(body) > 0 {
+			body = append(body, "")
+		}
+		body = append(body, summary...)
 	}
 
-	body = append(body, "")
-	body = append(body, dimStyle.Render("Welcome to Gormes."))
-	body = append(body, dimStyle.Render("Type your message or /help for commands."))
-	body = append(body, dimStyle.Render("Tip: Type /new for a fresh session, /model to switch models, or /skills list."))
+	if len(body) > 0 {
+		body = append(body, "")
+	}
+	appendWelcomeWrapped(&body, "", "Welcome to Gormes.", contentWidth, dimStyle)
+	appendWelcomeWrapped(&body, "", "Type your message or /help for commands.", contentWidth, dimStyle)
+	appendWelcomeWrapped(&body, "", "Tip: /new fresh session · /model switch · /skills list", contentWidth, dimStyle)
 	content := strings.Join(body, "\n")
 
 	if skin.UseMinimalChrome(width) {
@@ -207,7 +219,19 @@ func welcomePanel(skin HermesSkin, ctx welcomeContext, width int) string {
 	return strings.Join([]string{banner, content}, "\n\n")
 }
 
+func welcomeContentWidth(width int) int {
+	if width < 20 {
+		return 20
+	}
+	return width
+}
+
 func welcomeSummary(ctx welcomeContext, toolCount int, toolsets []string, dimStyle, accentStyle lipgloss.Style) string {
+	lines := welcomeSummaryLines(ctx, toolCount, toolsets, 120, dimStyle, accentStyle)
+	return strings.Join(lines, "\n")
+}
+
+func welcomeSummaryLines(ctx welcomeContext, toolCount int, toolsets []string, width int, dimStyle, accentStyle lipgloss.Style) []string {
 	var parts []string
 	if model := strings.TrimSpace(ctx.Model); model != "" {
 		parts = append(parts, model)
@@ -216,15 +240,89 @@ func welcomeSummary(ctx welcomeContext, toolCount int, toolsets []string, dimSty
 		parts = append(parts, fmt.Sprintf("%d tools", toolCount))
 	}
 	if len(toolsets) > 0 {
-		parts = append(parts, "toolsets: "+strings.Join(toolsets, ", "))
+		parts = append(parts, "toolsets: "+summarizeWelcomeToolsets(toolsets))
 	}
 	if provider := strings.TrimSpace(ctx.Provider + " " + ctx.Runtime); provider != "" {
 		parts = append(parts, "provider: "+provider)
 	}
 	if len(parts) == 0 {
-		return ""
+		return nil
 	}
-	return accentStyle.Render("● ") + dimStyle.Render(strings.Join(parts, " · "))
+	var lines []string
+	appendWelcomeWrapped(&lines, accentStyle.Render("● "), strings.Join(parts, " · "), width, dimStyle)
+	return lines
+}
+
+func summarizeWelcomeToolsets(toolsets []string) string {
+	clean := make([]string, 0, len(toolsets))
+	for _, toolset := range toolsets {
+		toolset = strings.TrimSpace(toolset)
+		if toolset != "" {
+			clean = append(clean, toolset)
+		}
+	}
+	const limit = 6
+	if len(clean) <= limit {
+		return strings.Join(clean, ", ")
+	}
+	return fmt.Sprintf("%s (+%d more)", strings.Join(clean[:limit], ", "), len(clean)-limit)
+}
+
+func appendWelcomeWrapped(lines *[]string, prefix, text string, width int, style lipgloss.Style) {
+	available := width - lipgloss.Width(prefix)
+	if available < 8 {
+		available = width
+		prefix = ""
+	}
+	wrapped := wrapWelcomeWords(text, available)
+	if len(wrapped) == 0 {
+		*lines = append(*lines, prefix)
+		return
+	}
+	continuation := ""
+	if prefix != "" {
+		continuation = strings.Repeat(" ", lipgloss.Width(prefix))
+	}
+	for i, line := range wrapped {
+		p := prefix
+		if i > 0 {
+			p = continuation
+		}
+		*lines = append(*lines, p+style.Render(line))
+	}
+}
+
+func wrapWelcomeWords(text string, width int) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	if width <= 0 {
+		return []string{text}
+	}
+	words := strings.Fields(text)
+	lines := make([]string, 0, 1)
+	current := ""
+	for _, word := range words {
+		if lipgloss.Width(word) > width {
+			word = hermesStatusTrimToWidth(word, width)
+		}
+		if current == "" {
+			current = word
+			continue
+		}
+		candidate := current + " " + word
+		if lipgloss.Width(candidate) > width {
+			lines = append(lines, current)
+			current = word
+			continue
+		}
+		current = candidate
+	}
+	if current != "" {
+		lines = append(lines, current)
+	}
+	return lines
 }
 
 func welcomeBannerBox(skin HermesSkin, version string, width int) string {

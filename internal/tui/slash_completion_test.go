@@ -118,6 +118,26 @@ func TestHermesSlashCompletion_BrowserSubcommands(t *testing.T) {
 	}
 }
 
+func TestRenderSlashCompletionMenu_CommandPrefix(t *testing.T) {
+	got := renderSlashCompletionMenu("/n", 72)
+	if !strings.Contains(got, "/new") {
+		t.Fatalf("renderSlashCompletionMenu(/n) missing /new:\n%s", got)
+	}
+	if !strings.Contains(got, "Start a fresh session") {
+		t.Fatalf("renderSlashCompletionMenu(/n) missing description:\n%s", got)
+	}
+	if strings.Contains(got, "mouse: disabled") {
+		t.Fatalf("completion menu leaked unrelated status text:\n%s", got)
+	}
+}
+
+func TestRenderSlashCompletionMenu_Subcommands(t *testing.T) {
+	got := renderSlashCompletionMenu("/browser ", 72)
+	if !strings.Contains(got, "status") || !strings.Contains(got, "connect") {
+		t.Fatalf("renderSlashCompletionMenu(/browser ) missing static subcommands:\n%s", got)
+	}
+}
+
 // TestHermesSlashCompletion_AutoSuggest proves the inline ghost suffix matches
 // what Hermes' SlashCommandAutoSuggest returns: the unique remaining tail of a
 // command or subcommand name, or empty when ambiguous, unknown, or already

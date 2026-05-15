@@ -458,3 +458,134 @@ func TestKernel_SequentialTurnsCompleteCleanly(t *testing.T) {
 		}, 2*time.Second)
 	}
 }
+
+// TestKernel_SetSessionModelAppliesToNextTurnAndPreservesHistory proves the
+// Design-B in-session model-switch seam: SetSessionModel from Idle sets a
+// resident override applied to subsequent turns' provider requests, without
+// resetting conversation history.
+func TestKernel_SetSessionModelAppliesToNextTurnAndPreservesHistory(t *testing.T) {
+	k, mc := fixture(t)
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "one"},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	}, "sess-sm-1")
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "two"},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	}, "sess-sm-2")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	initial := <-k.Render()
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "first"}); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = drainUntilIdle(t, k.Render(), initial.Seq, 3*time.Second)
+
+	if err := k.SetSessionModel("", "claude-opus-test"); err != nil {
+		t.Fatalf("SetSessionModel from idle = %v, want nil", err)
+	}
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "second"}); err != nil {
+		t.Fatal(err)
+	}
+	// Wait for turn 2 to actually complete: PhaseIdle with two assistant
+	// replies in history. A plain seq floor would falsely match the
+	// "model switched" idle frame emitted by SetSessionModel.
+	final := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && countRole(f.History, "assistant") >= 2
+	}, 3*time.Second)
+
+	reqs := mc.Requests()
+	if len(reqs) < 2 {
+		t.Fatalf("want >=2 provider requests, got %d", len(reqs))
+	}
+	if reqs[0].Model != "hermes-agent" {
+		t.Fatalf("turn 1 model = %q, want resident default hermes-agent", reqs[0].Model)
+	}
+	if reqs[1].Model != "claude-opus-test" {
+		t.Fatalf("turn 2 model = %q, want session override claude-opus-test", reqs[1].Model)
+	}
+
+	if users := countRole(final.History, "user"); users < 2 {
+		t.Fatalf("history has %d user turns, want 2 preserved across the switch (not reset):\n%+v", users, final.History)
+	}
+}
+
+// countRole counts messages with the given role in a render frame's history.
+func countRole(history []hermes.Message, role string) int {
+	var n int
+	for _, m := range history {
+		if m.Role == role {
+			n++
+		}
+	}
+	return n
+}
+
+// TestKernel_SetSessionModelRejectedMidTurn proves the switch is rejected with
+// a typed error during an in-flight turn, mirroring ErrResetDuringTurn, with
+// no resident mutation.
+func TestKernel_SetSessionModelRejectedMidTurn(t *testing.T) {
+	k, mc := fixture(t)
+	burst := make([]hermes.Event, 0, 400)
+	for i := 0; i < 400; i++ {
+		burst = append(burst, hermes.Event{Kind: hermes.EventToken, Token: "x", TokensOut: i + 1})
+	}
+	burst = append(burst, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 400})
+	mc.Script(burst, "sess-sm-busy")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	initial := <-k.Render()
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	// Wait until the turn is in flight (non-idle), then attempt the switch.
+	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase != PhaseIdle && f.Seq > initial.Seq
+	}, 3*time.Second)
+
+	if err := k.SetSessionModel("", "mid-turn-model"); err != ErrSetModelDuringTurn {
+		t.Fatalf("SetSessionModel mid-turn err = %v, want ErrSetModelDuringTurn", err)
+	}
+}
+
+// TestKernel_PerEventModelWinsOverSessionOverride proves the precedence
+// per-event PlatformEvent.Model > resident session override > cfg.Model.
+func TestKernel_PerEventModelWinsOverSessionOverride(t *testing.T) {
+	k, mc := fixture(t)
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "ok"},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	}, "sess-sm-prec")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+
+	<-k.Render() // consume the initial idle frame
+	if err := k.SetSessionModel("", "session-model"); err != nil {
+		t.Fatalf("SetSessionModel = %v, want nil", err)
+	}
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "hi", Model: "per-event-model"}); err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the turn to complete (assistant reply present); a plain seq
+	// floor would falsely match the "model switched" idle frame.
+	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && countRole(f.History, "assistant") >= 1
+	}, 3*time.Second)
+
+	reqs := mc.Requests()
+	if len(reqs) == 0 {
+		t.Fatal("no provider requests recorded")
+	}
+	if got := reqs[len(reqs)-1].Model; got != "per-event-model" {
+		t.Fatalf("turn model = %q, want per-event override per-event-model to win over session override", got)
+	}
+}

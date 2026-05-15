@@ -40,6 +40,7 @@ func TestPlatformConnectedCheckersReturnTrueForSyntheticConfig(t *testing.T) {
 		{ID: "google_chat", Enabled: true, Extra: map[string]string{"project_id": "project", "subscription_name": "subscription"}},
 		{ID: "irc", Enabled: true, Extra: map[string]string{"server": "irc.example.net", "channel": "#gormes"}},
 		{ID: "line", Enabled: true, Extra: map[string]string{"channel_access_token": "line-token", "channel_secret": "line-secret"}},
+		{ID: "simplex", Enabled: true, Extra: map[string]string{"ws_url": "ws://127.0.0.1:5225"}},
 		{ID: "wecom", Enabled: true, Extra: map[string]string{"bot_id": "bot"}},
 		{ID: "wecom_callback", Enabled: true, Extra: map[string]string{"corp_id": "corp"}},
 		{ID: "bluebubbles", Enabled: true, Extra: map[string]string{"server_url": "http://bb:1234", "password": "pw"}},
@@ -107,6 +108,11 @@ func TestPlatformConnectedCheckersRequireBundledPluginFields(t *testing.T) {
 			id:      "line",
 			missing: PlatformConnectionConfig{ID: "line", Enabled: true, Extra: map[string]string{"channel_access_token": "line-token"}},
 			present: PlatformConnectionConfig{ID: "line", Enabled: true, Extra: map[string]string{"channel_access_token": "line-token", "channel_secret": "line-secret"}},
+		},
+		{
+			id:      "simplex",
+			missing: PlatformConnectionConfig{ID: "simplex", Enabled: true},
+			present: PlatformConnectionConfig{ID: "simplex", Enabled: true, Extra: map[string]string{"ws_url": "ws://127.0.0.1:5225"}},
 		},
 	}
 

@@ -770,7 +770,7 @@ func defaults() Config {
 		CodeExecution: CodeExecutionCfg{
 			Mode: "strict",
 		},
-		TUI:   TUICfg{Theme: "dark", MouseTracking: true},
+		TUI:   TUICfg{Theme: "dark", MouseTracking: false},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
 		Voice: VoiceCfg{RecordKey: "ctrl+b"},
 		Auxiliary: AuxiliaryCfg{

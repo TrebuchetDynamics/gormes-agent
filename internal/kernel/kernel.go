@@ -162,6 +162,14 @@ type Kernel struct {
 	lastError       string
 	retryStatus     RetryStatus
 	pendingSteers   []string
+	// sessionModel / sessionProvider are the resident in-session override set
+	// by PlatformEventSetModel. They survive across turns (unlike a per-event
+	// PlatformEvent.Model) without clearing history. Empty means "no override
+	// — fall back to cfg.Model". sessionProvider is recorded for the
+	// cross-provider client-swap follow-up; same-provider switching is the
+	// shipped core and reads sessionModel only.
+	sessionModel    string
+	sessionProvider string
 }
 
 func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log *slog.Logger) *Kernel {
@@ -267,6 +275,34 @@ func (k *Kernel) ResetSession() error {
 	}
 }
 
+// SetSessionModel installs a resident in-session model (and optional provider)
+// override applied to subsequent turns via selectTurnModel precedence
+// (per-event PlatformEvent.Model > resident session override > cfg.Model).
+// Unlike ResetSession it does NOT clear history — the conversation continues
+// against the new model. Valid only from PhaseIdle or PhaseFailed; returns
+// ErrSetModelDuringTurn if called during an in-flight turn, with no resident
+// mutation (the Zero-Leak Invariant: in-flight turns are never disturbed).
+//
+// Implementation mirrors ResetSession: enqueues a PlatformEventSetModel with a
+// synchronous ack channel; the Run loop performs the mutation on its own
+// goroutine, preserving the single-owner invariant. 500 ms ack timeout. The
+// provider value is recorded for the cross-provider client-swap follow-up;
+// same-provider model switching is the shipped core.
+func (k *Kernel) SetSessionModel(provider, model string) error {
+	ack := make(chan error, 1)
+	select {
+	case k.events <- PlatformEvent{Kind: PlatformEventSetModel, Provider: provider, Model: model, ack: ack}:
+	default:
+		return ErrEventMailboxFull
+	}
+	select {
+	case err := <-ack:
+		return err
+	case <-time.After(500 * time.Millisecond):
+		return errors.New("kernel: SetSessionModel ack timeout")
+	}
+}
+
 // Run is the kernel loop. MUST be called from exactly one goroutine. Exits
 // when ctx is cancelled or a PlatformEventQuit is received. Closes the
 // render channel on exit.
@@ -314,7 +350,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 					if strings.TrimSpace(e.CronApprovalMode) != "" {
 						turnCtx = tools.WithCronApprovalMode(turnCtx, e.CronApprovalMode)
 					}
-					k.runTurn(turnCtx, e.Text, e.ContentParts, e.SessionContext, e.CronJobID, selectTurnModel(k.cfg.Model, e.Model), e.ReasoningEffort)
+					k.runTurn(turnCtx, e.Text, e.ContentParts, e.SessionContext, e.CronJobID, selectTurnModel(k.residentModel(), e.Model), e.ReasoningEffort)
 				}()
 			case PlatformEventCancel:
 				// No active turn; ignore (cancel during a turn is handled
@@ -336,6 +372,27 @@ func (k *Kernel) Run(ctx context.Context) error {
 				k.lastError = ""
 				k.phase = PhaseIdle
 				k.emitFrame("session reset")
+				if e.ack != nil {
+					e.ack <- nil
+				}
+			case PlatformEventSetModel:
+				if k.phase != PhaseIdle && k.phase != PhaseFailed {
+					if e.ack != nil {
+						e.ack <- ErrSetModelDuringTurn
+					}
+					continue
+				}
+				k.sessionModel = strings.TrimSpace(e.Model)
+				k.sessionProvider = strings.TrimSpace(e.Provider)
+				// Keep telemetry/context-engine model in sync with the new
+				// resident override, mirroring New(). History is intentionally
+				// preserved (unlike ResetSession): the conversation continues
+				// against the switched model.
+				k.tm.SetModel(k.residentModel())
+				if k.cfg.ContextEngine != nil {
+					k.cfg.ContextEngine.UpdateModelContext(hermes.ContextModelContext{Model: k.residentModel()})
+				}
+				k.emitFrame("model switched")
 				if e.ack != nil {
 					e.ack <- nil
 				}
@@ -1038,6 +1095,12 @@ func (k *Kernel) handleRetryEvent(e PlatformEvent) bool {
 		if e.ack != nil {
 			e.ack <- ErrResetDuringTurn
 		}
+	case PlatformEventSetModel:
+		// Zero-Leak Invariant: never disturb an in-flight turn. Reject the
+		// switch without mutating the resident override.
+		if e.ack != nil {
+			e.ack <- ErrSetModelDuringTurn
+		}
 	case PlatformEventSteer:
 		k.queueSteerGuidance(e.Text)
 	}
@@ -1281,6 +1344,12 @@ streamLoop:
 				if e.ack != nil {
 					e.ack <- ErrResetDuringTurn
 				}
+			case PlatformEventSetModel:
+				// Zero-Leak Invariant: never disturb an active turn. Reject
+				// the switch without mutating the resident override.
+				if e.ack != nil {
+					e.ack <- ErrSetModelDuringTurn
+				}
 			case PlatformEventQuit:
 				*cancelled = true
 				cancelRun()
@@ -1414,9 +1483,23 @@ func (k *Kernel) emitFrame(status string) {
 	}
 }
 
+// residentModel is the kernel's between-turns model: the resident in-session
+// override set by PlatformEventSetModel when present, otherwise the configured
+// default. It is the "resident" argument to selectTurnModel, so a per-event
+// PlatformEvent.Model still wins over it. Run-goroutine-owned.
+func (k *Kernel) residentModel() string {
+	if m := strings.TrimSpace(k.sessionModel); m != "" {
+		return m
+	}
+	return k.cfg.Model
+}
+
 func (k *Kernel) displayModel() string {
 	if strings.TrimSpace(k.activeModel) != "" {
 		return k.activeModel
+	}
+	if m := strings.TrimSpace(k.sessionModel); m != "" {
+		return m
 	}
 	return k.cfg.Model
 }

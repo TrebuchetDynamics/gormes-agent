@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestBannerLogo_NonEmpty(t *testing.T) {
@@ -147,6 +149,57 @@ func TestWelcomePanel_VersionToolCountSeam(t *testing.T) {
 	ctxWin := welcomePanel(DefaultHermesSkin(), welcomeContext{Model: "m", Version: "9.9.9"}, 100)
 	if !strings.Contains(ctxWin, "9.9.9") || strings.Contains(ctxWin, "0.2.11") {
 		t.Fatalf("explicit ctx.Version must win over seam:\n%s", ctxWin)
+	}
+}
+
+func TestWelcomePanel_FullWidthDoesNotDuplicateBrandHeader(t *testing.T) {
+	got := welcomePanel(DefaultHermesSkin(), welcomeContext{
+		Model:   "gpt-5.5",
+		Version: "0.2.11",
+	}, 72)
+
+	if count := strings.Count(got, "⚕ Gormes"); count != 1 {
+		t.Fatalf("full-width welcome panel rendered duplicate product headers (%d):\n%s", count, got)
+	}
+	if strings.Contains(got, "\nversion 0.2.11") {
+		t.Fatalf("full-width welcome panel repeated the boxed version as context:\n%s", got)
+	}
+}
+
+func TestWelcomePanel_WrapsStartupSummaryToWidth(t *testing.T) {
+	SetWelcomeContext("0.2.11", 35,
+		"browser",
+		"clarify",
+		"code_execution",
+		"file",
+		"homeassistant",
+		"image_gen",
+		"kanban",
+		"memory",
+		"messaging",
+		"skills",
+		"terminal",
+	)
+	defer SetWelcomeContext("", 0)
+
+	const width = 72
+	got := welcomePanel(DefaultHermesSkin(), welcomeContext{
+		Model:    "gpt-5.5",
+		Provider: "openai-codex",
+		Runtime:  "codex_responses",
+		CWD:      "…-openclaw/workspace-mineru/gormes-agent",
+	}, width)
+
+	for _, line := range strings.Split(got, "\n") {
+		if w := lipgloss.Width(line); w > width {
+			t.Fatalf("welcome panel line width = %d, want <= %d:\n%q\n\nfull panel:\n%s", w, width, line, got)
+		}
+	}
+	if !strings.Contains(got, "35 tools") {
+		t.Fatalf("wrapped summary dropped tool count:\n%s", got)
+	}
+	if !strings.Contains(got, "/skills list") {
+		t.Fatalf("short startup tip dropped skills command:\n%s", got)
 	}
 }
 

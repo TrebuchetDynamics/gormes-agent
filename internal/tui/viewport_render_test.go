@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
@@ -94,6 +96,32 @@ func TestRenderConvViewportBinding_TinyTerminalCompactFallback(t *testing.T) {
 	}
 	if !strings.Contains(got, "tiny error") {
 		t.Fatalf("renderConv() compact tiny view dropped LastError in:\n%s", got)
+	}
+}
+
+func TestRenderConvViewportBinding_WrapsProviderAuthError(t *testing.T) {
+	const width = 72
+	frame := kernel.RenderFrame{
+		History: []hermes.Message{
+			{Role: "user", Content: "as"},
+		},
+		LastError: "Unauthorized: Your authentication token has been invalidated. Please reauthenticate with the provider before continuing.",
+	}
+
+	got := renderConv(frame, width, 8)
+
+	for _, want := range []string{
+		"Unauthorized: Your authentication token has been invalidated.",
+		"Please reauthenticate with the provider before continuing.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderConv() missing wrapped auth error text %q in:\n%s", want, got)
+		}
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if w := lipgloss.Width(line); w > width {
+			t.Fatalf("renderConv() error line width = %d, want <= %d:\n%q\n\nfull output:\n%s", w, width, line, got)
+		}
 	}
 }
 

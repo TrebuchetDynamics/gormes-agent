@@ -14,6 +14,11 @@ import (
 // Zero-Leak Invariant: in-flight turns are never truncated by reset.
 var ErrResetDuringTurn = errors.New("kernel: cannot reset session during active turn")
 
+// ErrSetModelDuringTurn is returned by Kernel.SetSessionModel when the kernel
+// is not in a switchable phase (PhaseIdle or PhaseFailed). Mirrors
+// ErrResetDuringTurn: in-flight turns are never disturbed by a model switch.
+var ErrSetModelDuringTurn = errors.New("kernel: cannot switch model during active turn")
+
 // Phase is the kernel state-machine phase. Transitions happen only on the
 // Run goroutine, serialised by the select loop.
 type Phase int
@@ -95,6 +100,14 @@ const (
 	// The kernel stores it only until the next completed tool-result batch,
 	// then appends it to the final tool result before the next provider call.
 	PlatformEventSteer
+	// PlatformEventSetModel sets a resident in-session model (and optional
+	// provider) override applied to subsequent turns via selectTurnModel,
+	// without clearing history. Valid only from PhaseIdle/PhaseFailed;
+	// rejected with ErrSetModelDuringTurn via the event's ack channel
+	// otherwise. The provider value is recorded for the cross-provider
+	// client-swap follow-up; same-provider model switching is the shipped
+	// core. Carries Provider + the existing Model field.
+	PlatformEventSetModel
 )
 
 type PlatformEvent struct {
@@ -115,10 +128,18 @@ type PlatformEvent struct {
 	// ToolSafety, when non-nil, is composed ahead of Config.ToolSafety for this
 	// submit event only. A denial by either policy blocks execution.
 	ToolSafety ToolSafetyPolicy
+	// Provider, when non-empty, is carried by PlatformEventSetModel to record
+	// the operator-requested provider alongside Model. Same-provider model
+	// switching is the shipped core; the provider value is stored on the
+	// resident session override for the cross-provider client-swap follow-up
+	// (resolving a new k.client via FallbackClientFactory). It is ignored by
+	// Submit events, which never change the provider.
+	Provider string
 	// Model, when non-empty after trimming whitespace, overrides Config.Model
 	// for this submit event only. The resident kernel configuration is not
 	// mutated, so following turns fall back to Config.Model unless they carry
-	// their own override.
+	// their own override. PlatformEventSetModel reuses this field to carry the
+	// new resident session model.
 	Model string
 	// ReasoningEffort, when non-empty after trimming whitespace, overrides
 	// Config.ReasoningEffort for this submit event only. The resident kernel

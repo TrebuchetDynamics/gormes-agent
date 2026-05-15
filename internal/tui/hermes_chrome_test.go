@@ -184,6 +184,7 @@ func TestHermesChrome_EmptyChatIntroUsesBubbleTeaView(t *testing.T) {
 	assertContainsInOrder(t, got,
 		"⚕ Gormes",
 		"Go-native Hermes-compatible agent",
+		"Welcome to Gormes",
 		"Type your message or /help for commands.",
 		"─ ready │ sonnet 4 20250514",
 		"❯ Type a message",
@@ -214,6 +215,9 @@ func TestHermesChrome_InputPromptIsUnboxedSingleLineByDefault(t *testing.T) {
 	}
 	if strings.Contains(got, "phase:") {
 		t.Fatalf("View rendered debug phase chrome in idle state; Hermes keeps idle composer chrome quiet:\n%s", got)
+	}
+	if strings.Contains(got, "mouse: disabled") {
+		t.Fatalf("View rendered persistent mouse-disabled noise in idle state:\n%s", got)
 	}
 	for _, line := range strings.Split(got, "\n") {
 		if isStandaloneInputRuleLine(line) {

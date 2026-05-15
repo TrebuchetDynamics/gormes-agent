@@ -68,7 +68,8 @@ func (m Model) View() string {
 
 	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
 
-	hint := renderHermesHint(m.frame, m.mouseStatus(), m.statusMessage)
+	hint := renderHermesHint(m.frame, m.statusMessage)
+	completions := renderSlashCompletionMenu(editor.Value(), m.width)
 
 	// Render the active modal panel if one is present.
 	panel := m.RenderActivePanel(m.width, m.height)
@@ -84,19 +85,17 @@ func (m Model) View() string {
 		TodoPanel:    todoPanel,
 		StatusBar:    statusBar,
 		Prompt:       prompt,
+		Completions:  completions,
 	})
 }
 
-func renderHermesHint(f kernel.RenderFrame, mouseStatus, statusMessage string) string {
+func renderHermesHint(f kernel.RenderFrame, statusMessage string) string {
 	var parts []string
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
 		parts = append(parts, strings.ToLower(f.Phase.String()))
 		if f.SessionID != "" {
 			parts = append(parts, "session "+shortSessionID(f.SessionID))
 		}
-	}
-	if mouseStatus == "mouse: disabled" {
-		parts = append(parts, mouseStatus)
 	}
 	if statusMessage != "" {
 		parts = append(parts, statusMessage)
@@ -231,7 +230,7 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool)
 		blocks = append(blocks, conversationDraftBlock(f.DraftText, wrapWidth, compact))
 	}
 	if f.LastError != "" {
-		blocks = append(blocks, conversationErrorBlock(f.LastError, compact))
+		blocks = append(blocks, conversationErrorBlock(f.LastError, wrapWidth, compact))
 	}
 	// R3 streaming feedback: when a turn is active but nothing concrete has
 	// surfaced yet (no tool trace, draft, or error), show the reused
@@ -378,11 +377,31 @@ func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
 	return transcriptRow("assistant", draft)
 }
 
-func conversationErrorBlock(lastError string, compact bool) string {
+func conversationErrorBlock(lastError string, wrapWidth int, compact bool) string {
 	if compact {
 		lastError = compactViewportText(lastError)
+		return errStyle.Render("err:") + " " + lastError
 	}
-	return errStyle.Render("err:") + " " + lastError
+	lastError = RenderMarkdownSoftWrapTrim(strings.Join(strings.Fields(lastError), " "), errorBodyWidth(wrapWidth))
+	lines := strings.Split(lastError, "\n")
+	prefix := errStyle.Render("err:") + " "
+	continuation := strings.Repeat(" ", lipgloss.Width("err:")+1)
+	for i, line := range lines {
+		if i == 0 {
+			lines[i] = prefix + line
+			continue
+		}
+		lines[i] = continuation + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func errorBodyWidth(wrapWidth int) int {
+	width := wrapWidth - lipgloss.Width("err:") - 1
+	if width < 8 {
+		return 8
+	}
+	return width
 }
 
 func compactViewportText(s string) string {
