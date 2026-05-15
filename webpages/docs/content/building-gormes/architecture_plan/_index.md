@@ -91,11 +91,11 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 99/107 subphases shipped · 7 in progress · 1 planned
+**Overall:** 99/108 subphases shipped · 8 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | ✅ | 5/5 subphases |
+| Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
@@ -107,7 +107,7 @@ classification and row-backed implementation queue.
 
 ---
 
-## Phase 1 — The Dashboard ✅
+## Phase 1 — The Dashboard 🔨
 
 *Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary*
 
@@ -151,6 +151,17 @@ classification and row-backed implementation queue.
 - [x] Admin TUI: Commands catalog over the root CLI tree
 - [x] Admin TUI: Safe command execution from the Commands tab
 - [x] Admin TUI: Searchable Commands palette
+
+### 5.X — Termux Runtime Compatibility 🔨
+
+- [ ] Gormes Termux Runtime Compatibility
+- [x] Termux runtime doctor check
+- [x] Termux install and release smoke guide
+- [ ] Termux storage and path safety audit
+- [ ] Termux gateway foreground tmux lifecycle
+- [ ] Termux notification bridge via termux-api
+- [ ] Termux real-device smoke evidence
+- [ ] Termux remote execution guidance
 
 ## Phase 2 — The Gateway 🔨
 
@@ -755,6 +766,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web_search/web_extract tool wrappers
 - [x] Go-native Hermes web backend matrix and config resolver
 - [x] Go-native Hermes web extract safety policy and summarizer
+- [x] Goscrapling local extraction for web_extract
 - [x] Go-native Hermes web_crawl tool adapter
 - [x] Go-native Hermes web managed gateway status and live smoke closure
 - [x] Brave Search + DDGS web search provider parity
