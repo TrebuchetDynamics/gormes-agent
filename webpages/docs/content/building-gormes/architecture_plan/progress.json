@@ -59469,9 +59469,9 @@
             },
             {
               "name": "Gormes welcome panel version/tool-count wiring",
-              "status": "planned",
+              "status": "complete",
               "contract": "Thread the operator-facing release version (cmd/gormes main.Version) and the agent tool count into the chat TUI so the session-aware welcome panel can show both. Add an optional WelcomeContext seam on the Model (set by cmd/gormes at startup, zero-value safe) that the welcome panel reads; when unset the panel keeps the R1 best-effort/omit behavior. This is the deliberately deferred cross-package half of the welcome panel — kept out of R1 because main.Version is unimportable from internal/tui and tool count is absent from kernel.RenderFrame.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tui",
               "provenance": {
@@ -59515,7 +59515,7 @@
               "done_signal": [
                 "go test ./internal/tui -run 'Welcome|Banner' -count=1 and go test ./cmd/gormes -run 'Chat' -count=1 green with the seeded version/tool-count assertions."
               ],
-              "note": "owned follow-up. Carries the cross-package data (version/tool count) deliberately excluded from the R1 'Gormes-owned session-aware welcome panel' write_scope. Upstream baseline: Hermes ui-tui welcome chrome. swarm_origin: builder-pass 2026-05-15/ccx-go-tui-refine — filed when R1 implementation proved tool count absent from kernel.RenderFrame and main.Version unimportable from internal/tui."
+              "note": "owned follow-up. Carries the cross-package data (version/tool count) deliberately excluded from the R1 'Gormes-owned session-aware welcome panel' write_scope. Upstream baseline: Hermes ui-tui welcome chrome. swarm_origin: builder-pass 2026-05-15/ccx-go-tui-refine — filed when R1 implementation proved tool count absent from kernel.RenderFrame and main.Version unimportable from internal/tui. COMPLETE 2026-05-15: banner.go adds welcomeContext.ToolCount/Toolsets plus a zero-value-safe package seam (welcomeSeed/SetWelcomeContext); welcomePanel overlays the seam (explicit ctx wins, else seam, else R1 omit), renders a boxed Gormes startup banner, and shows a Hermes-like model/tools/toolsets/provider summary; model.go Options gains WelcomeVersion/WelcomeToolCount/WelcomeToolsets wired through NewModelWithOptions -> SetWelcomeContext; cmd/gormes/main.go adds welcomeStartupSeed(registry)=(Version,len(registryDescriptors),derived toolsets) passed via tui.Options at model construction. User-visible polish in the same pass removed the idle persistent 'mouse: disabled' hint and bound the existing pure slash-completion helpers into the bottom Completions slot for slash-prefix/subcommand menus. Evidence: go test ./internal/tui -run 'Welcome|Banner' -count=1 ok; go test ./cmd/gormes -run 'Chat' -count=1 ok; go test ./internal/tui -run 'TestHermesSlashCompletion|TestRenderSlashCompletionMenu|TestTUICompletionRequest' -count=1 ok; full go test ./internal/tui -count=1 ok; go test ./cmd/gormes ./internal/config -count=1 ok; go run ./cmd/progress validate ok."
             }
           ]
         },

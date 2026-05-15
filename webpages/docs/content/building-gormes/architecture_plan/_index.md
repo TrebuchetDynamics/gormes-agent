@@ -1404,7 +1404,7 @@ classification and row-backed implementation queue.
 - [x] Gormes-owned semantic chat style system
 - [x] Gormes-owned streaming feedback uplift
 - [ ] Gormes streaming tool-trail status + spinner cadence wiring
-- [ ] Gormes welcome panel version/tool-count wiring
+- [x] Gormes welcome panel version/tool-count wiring
 
 ### 8.E — Toolkit Extraction 🔨
 
