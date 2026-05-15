@@ -47,6 +47,13 @@ func UpdateReadme(opts ReadmeOptions) error {
 				} `json:"models"`
 			} `json:"wasi_whisper"`
 		} `json:"stt"`
+		Runtime struct {
+			OfflineDoctor struct {
+				Status       string          `json:"status"`
+				LastMeasured string          `json:"last_measured"`
+				PeakRSSMB    json.RawMessage `json:"peak_rss_mb"`
+			} `json:"offline_doctor"`
+		} `json:"runtime"`
 	}
 	if err := json.Unmarshal(raw, &data); err != nil {
 		return err
@@ -90,6 +97,9 @@ func UpdateReadme(opts ReadmeOptions) error {
 	}
 	if summary := sttBenchmarkSummary(data.STT.WASIWhisper.LastMeasured, data.STT.WASIWhisper.Models); summary != "" {
 		content = updateSTTBenchmarkSummary(content, summary)
+	}
+	if summary := runtimeBenchmarkSummary(data.Runtime.OfflineDoctor.Status, data.Runtime.OfflineDoctor.LastMeasured, data.Runtime.OfflineDoctor.PeakRSSMB); summary != "" {
+		content = updateRuntimeBenchmarkSummary(content, summary)
 	}
 
 	return os.WriteFile(readmePath, []byte(content), 0o644)
@@ -180,6 +190,30 @@ func updateSTTBenchmarkSummary(content string, summary string) string {
 	stale := regexp.MustCompile(`WASI Whisper tiny\.en (?:has not been benchmarked yet|runs at [0-9.]+x realtime \(` + "`" + `benchmarks\.json` + "`" + `, [0-9-]+\))\.`)
 	if stale.MatchString(content) {
 		return stale.ReplaceAllString(content, summary)
+	}
+	statusLine := regexp.MustCompile(`(The current Linux build measures ~[0-9.]+ MB \(` + "`" + `benchmarks\.json` + "`" + `\)\.)`)
+	return statusLine.ReplaceAllString(content, "${1} "+summary)
+}
+
+func runtimeBenchmarkSummary(status, measured string, peakRaw json.RawMessage) string {
+	if status != "measured" || measured == "" {
+		return ""
+	}
+	peak, err := benchmarkFloat(peakRaw)
+	if err != nil || peak <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("Offline doctor peaks at ~%s MB RSS (`benchmarks.json`, %s).", formatBenchmarkFloat(peak), measured)
+}
+
+func updateRuntimeBenchmarkSummary(content string, summary string) string {
+	stale := regexp.MustCompile(`Offline doctor peaks at ~[0-9.]+ MB RSS \(` + "`" + `benchmarks\.json` + "`" + `, [0-9-]+\)\.`)
+	if stale.MatchString(content) {
+		return stale.ReplaceAllString(content, summary)
+	}
+	sttLine := regexp.MustCompile(`(WASI Whisper tiny\.en runs at [0-9.]+x realtime \(` + "`" + `benchmarks\.json` + "`" + `, [0-9-]+\)\.)`)
+	if sttLine.MatchString(content) {
+		return sttLine.ReplaceAllString(content, "${1} "+summary)
 	}
 	statusLine := regexp.MustCompile(`(The current Linux build measures ~[0-9.]+ MB \(` + "`" + `benchmarks\.json` + "`" + `\)\.)`)
 	return statusLine.ReplaceAllString(content, "${1} "+summary)

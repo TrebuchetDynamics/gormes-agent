@@ -198,6 +198,67 @@ func TestUpdateReadmeSyncsSTTBenchmarkSummary(t *testing.T) {
 	}
 }
 
+func TestUpdateReadmeSyncsRuntimeRSSBenchmarkSummary(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "benchmarks.json"), []byte(`{
+  "binary": {
+    "size_mb": "42.2",
+    "last_measured": "2026-05-15"
+  },
+  "stt": {
+    "wasi_whisper": {
+      "last_measured": "2026-05-10",
+      "models": [
+        {
+          "name": "ggml-tiny.en",
+          "realtime_factor": 3.78
+        }
+      ]
+    }
+  },
+  "runtime": {
+    "offline_doctor": {
+      "status": "measured",
+      "last_measured": "2026-05-15",
+      "peak_rss_mb": 18.7
+    }
+  }
+}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	readme := filepath.Join(root, "README.md")
+	original := strings.Join([]string{
+		"## Status",
+		"",
+		"The current Linux build measures ~28.0 MB (`benchmarks.json`). WASI Whisper tiny.en has not been benchmarked yet. Offline doctor peaks at ~99.9 MB RSS (`benchmarks.json`, 2026-05-01).",
+	}, "\n")
+	if err := os.WriteFile(readme, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := UpdateReadme(ReadmeOptions{Root: root}); err != nil {
+		t.Fatalf("UpdateReadme: %v", err)
+	}
+	raw, err := os.ReadFile(readme)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(raw)
+	wants := []string{
+		"The current Linux build measures ~42.2 MB (`benchmarks.json`).",
+		"WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).",
+		"Offline doctor peaks at ~18.7 MB RSS (`benchmarks.json`, 2026-05-15).",
+	}
+	for _, want := range wants {
+		if !strings.Contains(got, want) {
+			t.Fatalf("README missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "~99.9 MB RSS") || strings.Contains(got, "has not been benchmarked yet") || strings.Contains(got, "~28.0 MB") {
+		t.Fatalf("README retained stale runtime benchmark text:\n%s", got)
+	}
+}
+
 // TestREADMELeadsWithRuntime pins the runtime-first hero contract.
 // Earlier drafts led with "autonomous-porting methodology" — the
 // 2026-05-09 README rebalance walked that back: README opens with
