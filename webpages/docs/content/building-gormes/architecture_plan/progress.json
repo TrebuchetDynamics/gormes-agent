@@ -8308,10 +8308,10 @@
             },
             {
               "name": "Gateway per-platform circuit breaker + /platform pause/resume/list command",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Extend the completed platform reconnect/failed-queue seam (internal/gateway/platform_reconnect.go ReconnectFailedPlatforms / PlatformFailure) with Hermes' per-platform circuit breaker so the gateway keeps running when one platform keeps failing: after a configurable threshold of consecutive retryable failures (Hermes _PAUSE_AFTER_FAILURES=10) the platform is marked paused, kept in the failed set with a pause_reason and a far-future next_retry, surfaced as platform_state=\"paused\" in the runtime status read-model, and skipped by the reconnect watcher until manually resumed. Add a gateway-only `/platform <pause|resume|list> [name]` operator slash command (the Go port of gateway/run.py:_handle_platform_command, registered in internal/gateway/commands.go CommandRegistry as gateway_only with args_hint \"<pause|resume|list> [name]\" like the existing handler ports) where: `/platform pause <name>` pauses a queued platform (idempotent; rejects an unqueued platform), `/platform resume <name>` unpauses, resets the attempt counter and schedules an immediate retry (returns a clear not-paused/not-queued message otherwise), `/platform list` shows connected and paused platforms, bare `/platform` prints usage plus the list, and an unknown platform name is rejected with guidance. Auto-pause must log/return the Hermes-shaped 'fix the issue then run `/platform resume <name>`' guidance. This row does not reopen the completed reconnect-isolation row and does not change provider retry behavior.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -8367,6 +8367,9 @@
                 "internal/gateway/commands.go",
                 "internal/gateway/commands_test.go",
                 "internal/gateway/status.go",
+                "internal/gateway/event.go",
+                "internal/cli/command_registry.go",
+                "internal/tui/slash_commands_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -8388,7 +8391,7 @@
                 ],
                 "note": "swarm_origin: 2026-05-15/gormes-hermes-parity sweep (filename-refactor + missing features/flows). Source-backed missing flow: upstream PR #26600 added a per-platform circuit breaker + /platform operator command on top of the reconnect work Gormes already ported; previously only bundled in the now-closed 'Gateway, platform, webhook, and cron management CLI' umbrella, which is the management command-tree and does not cover this gateway-runtime resilience behavior."
               },
-              "note": "Planner pass 2026-05-15 (gormes-hermes-parity -> gormes-planner): dedicated builder-ready row split out of the inert management-CLI umbrella. Local ../hermes-agent submodule is pinned at aac6d97a1, 14 commits behind upstream main 518f39557 which introduced this behavior; the builder/TDD slice must classify against 518f39557. If the slice lands, stage the hermes-agent submodule bump alongside the row work per the parity-driven change-set rule. Recommended chain: gormes-tdd-slice."
+              "note": "Planner pass 2026-05-15 (gormes-hermes-parity -> gormes-planner): dedicated builder-ready row split out of the inert management-CLI umbrella. Local ../hermes-agent submodule is pinned at aac6d97a1, 14 commits behind upstream main 518f39557 which introduced this behavior; the builder/TDD slice must classify against 518f39557. If the slice lands, stage the hermes-agent submodule bump alongside the row work per the parity-driven change-set rule. Recommended chain: gormes-tdd-slice. Complete 2026-05-15 (gormes-builder, TDD): added Paused/PauseReason to PlatformFailure, PlatformStatePaused, PlatformPauseThresholdFromEnv (HERMES_/GORMES_GATEWAY_PAUSE_AFTER_FAILURES, default 10), circuit-breaker auto-pause in ReconnectFailedPlatforms (>= threshold consecutive retryable failures -> Paused + far-future next_retry + PlatformStatePaused status + Hermes-shaped resume guidance; watcher skips paused), PauseFailedPlatform/ResumePausedPlatform, and HandlePlatformCommand (Go port of _handle_platform_command: list/pause/resume/usage, idempotent pause, unqueued/unknown rejection). Registered the /platform gateway slash command (new EventPlatformControl kind, distinct from the read-only plural /platforms EventGateway status command) and a thin manager dispatch. write_scope was under-scoped: a new gateway command provably also requires internal/gateway/event.go (EventKind), internal/cli/command_registry.go (CLI policy mirror enforced by TestSlashCommandPolicyParityWithCLIRegistry), and internal/tui/slash_commands_test.go (the /platf prefix is now correctly ambiguous between /platform and /platforms — matching upstream which also has both). Deferred (not in scope): live wiring of a manager-held failed-platform queue — consistent with the completed reconnect-isolation row's own deferral; until that follow-up, live /platform truthfully reports no queued/paused platforms while the pure circuit-breaker/handler functions are fully unit-tested with injected queues. Verification: go test ./internal/gateway -run 'TestPlatform(CircuitBreaker|Pause|Resume|List)|TestPlatformCommand' -count=1; go test ./internal/gateway -count=1; go run ./cmd/progress validate; git diff --check (all pass)."
             },
             {
               "name": "Gateway /model interactive provider/model picker",
