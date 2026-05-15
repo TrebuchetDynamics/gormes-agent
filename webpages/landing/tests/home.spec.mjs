@@ -98,9 +98,10 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   const installCommands = page.locator('#install pre code');
   const installScriptCommand = installCommands.nth(0);
   const sourceBuildCommand = installCommands.nth(1);
-  await expect(installScriptCommand).toContainText('curl -fsSL https://gormes.ai/install.sh | sh');
+  await expect(installScriptCommand).toContainText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh');
   await expect(installScriptCommand).toContainText('gormes --version');
   await expect(installScriptCommand).toContainText('gormes doctor --offline');
+  await expect(installScriptCommand).not.toContainText(/https:\/\/gormes[.]ai\/install[.]sh/);
   await expect(installScriptCommand).not.toContainText('raw.githubusercontent.com');
   await expect(sourceBuildCommand).toContainText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git');
   await expect(sourceBuildCommand).toContainText('cd gormes-agent');
@@ -172,6 +173,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex')).toHaveCount(0);
   await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh')).toHaveCount(0);
   await expect(page.getByText('curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh')).toHaveCount(0);
+  await expect(page.getByText(/https:\/\/gormes[.]ai\/install[.]sh/)).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(0);
 

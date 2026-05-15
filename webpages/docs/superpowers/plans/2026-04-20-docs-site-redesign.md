@@ -771,7 +771,7 @@ Get Gormes running in 60 seconds.
 ## 1. Install
 
 ```bash
-curl -fsSL https://gormes.ai/install.sh | sh
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
 ```
 
 Installs `gormes` into `$HOME/go/bin` via `go install`. Requires Go 1.25+. For other install paths see [Install](../install/).
@@ -826,7 +826,7 @@ Gormes is a single static Go binary (~17 MB). Zero CGO, no Python runtime on the
 ## Recommended: curl pipe
 
 ```bash
-curl -fsSL https://gormes.ai/install.sh | sh
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
 ```
 
 Installs via `go install github.com/TrebuchetDynamics/gormes-agent/cmd/gormes@latest` into `$HOME/go/bin/gormes`.

@@ -19,7 +19,7 @@ Pick one. Full details for each path live in [Install](../install/).
 Linux, macOS, WSL2:
 
 ```bash
-curl -fsSLO https://gormes.ai/install.sh
+curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh
 less install.sh
 sh install.sh
 ```

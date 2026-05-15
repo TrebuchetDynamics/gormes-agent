@@ -44,7 +44,7 @@ No demo CTA section, no Inspect-the-Machine link list, no Boot Sequence panel.
 
 ### Install
 - **Step 1 label:** `1. INSTALL`
-- **Step 1 command:** `curl -fsSL https://gormes.ai/install.sh | sh`
+- **Step 1 command:** `curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh`
 - **Step 2 label:** `2. RUN`
 - **Step 2 command:** `gormes`
 - **Footnote:** `Requires Hermes backend at localhost:8642.` followed by link `Install Hermes →` pointing at `https://github.com/NousResearch/hermes-agent#quickstart`
@@ -110,7 +110,7 @@ No demo CTA section, no Inspect-the-Machine link list, no Boot Sequence panel.
 - `go test ./...` from `www.gormes.ai/` passes (existing tests rewritten against new copy).
 - Rendered `/` contains, verbatim:
   - `Hermes, In a Single Static Binary.`
-  - `curl -fsSL https://gormes.ai/install.sh | sh`
+  - `curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh`
   - `Why a Go layer matters.`
   - `What ships now, what doesn't.`
   - All four shipping ledger row labels.

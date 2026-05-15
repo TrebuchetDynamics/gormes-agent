@@ -35,7 +35,7 @@ CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes
 Or inspect and run `install.sh` on Linux/macOS/WSL2:
 
 ```bash
-curl -fsSLO https://gormes.ai/install.sh
+curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh
 less install.sh
 sh install.sh
 gormes doctor --offline

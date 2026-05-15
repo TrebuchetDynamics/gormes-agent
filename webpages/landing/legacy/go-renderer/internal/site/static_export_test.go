@@ -38,7 +38,7 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"Install first. Build from source when needed.",
 		"Use install.sh for the release-first managed install.",
 		"1. INSTALL.SH",
-		"curl -fsSL https://gormes.ai/install.sh | sh",
+		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
 		"gormes --version",
 		"gormes doctor --offline",
 		"2. BUILD FROM SOURCE",
@@ -226,12 +226,8 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		}
 	}
 
-	installBody, err := os.ReadFile(filepath.Join(root, "install.sh"))
-	if err != nil {
-		t.Fatalf("read install.sh: %v", err)
-	}
-	if !strings.Contains(string(installBody), "https://github.com/TrebuchetDynamics/gormes-agent.git") {
-		t.Fatalf("install.sh missing TrebuchetDynamics repo URL")
+	if _, err := os.Stat(filepath.Join(root, "install.sh")); !os.IsNotExist(err) {
+		t.Fatalf("static export should not publish install.sh: %v", err)
 	}
 
 	for _, asset := range []string{"install.ps1", "install.cmd"} {

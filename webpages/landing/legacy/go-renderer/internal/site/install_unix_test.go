@@ -1,7 +1,6 @@
 package site
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -59,18 +58,13 @@ func writeExecutable(t *testing.T, path string, body string) {
 	}
 }
 
-func TestInstallSH_SiteLoadsCanonicalScript(t *testing.T) {
-	canonical, err := os.ReadFile(canonicalInstallScript)
-	if err != nil {
-		t.Fatalf("read canonical install.sh: %v", err)
-	}
-
+func TestInstallSH_SiteDoesNotServeUnixInstaller(t *testing.T) {
 	site, err := loadSite()
 	if err != nil {
 		t.Fatalf("loadSite: %v", err)
 	}
-	if !bytes.Equal(site.InstallScript("install.sh"), canonical) {
-		t.Fatal("served install.sh differs from repository-root install.sh")
+	if got := site.InstallScript("install.sh"); got != nil {
+		t.Fatal("legacy site must not serve install.sh from gormes.ai")
 	}
 }
 
@@ -83,14 +77,14 @@ func TestInstallSH_CanonicalScriptLivesAtRepoRoot(t *testing.T) {
 	}
 }
 
-func TestInstallSH_DeployWorkflowWatchesRepoRootScript(t *testing.T) {
+func TestInstallSH_DeployWorkflowDoesNotWatchRepoRootScript(t *testing.T) {
 	workflow, err := os.ReadFile("../../../../../../.github/workflows/deploy-gormes-www.yml")
 	if err != nil {
 		t.Fatalf("read deploy workflow: %v", err)
 	}
 	body := string(workflow)
-	if !strings.Contains(body, "\n      - 'install.sh'\n") {
-		t.Fatalf("deploy workflow should watch repository-root install.sh:\n%s", body)
+	if strings.Contains(body, "\n      - 'install.sh'\n") {
+		t.Fatalf("deploy workflow should not watch repository-root install.sh after /install.sh removal:\n%s", body)
 	}
 	if strings.Contains(body, "scripts/install.sh") {
 		t.Fatalf("deploy workflow should not watch scripts/install.sh:\n%s", body)

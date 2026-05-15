@@ -4,7 +4,7 @@
 
 **Goal:** Replace Gormes' current `go install`-only installer with Hermes-style managed installers for Unix and Windows, including rerun-as-update behavior, stable global command publication, and truthful docs/site coverage.
 
-**Architecture:** Keep the install surface under `www.gormes.ai/internal/site/` and continue serving embedded installer assets from the landing-page module. The Unix path stays in `install.sh`, Windows gets `install.ps1` plus `install.cmd`, and behavior tests live alongside the site package as Go tests that execute the scripts under temporary fake toolchains. The installer owns a managed checkout under a Hermes-analogy install home and always builds from the repo's `gormes/` subdirectory.
+**Architecture:** Keep Windows installer aliases under the landing-page module while keeping the Unix installer at repo-root and publishing it through GitHub Releases. Windows gets `install.ps1` plus `install.cmd`, and behavior tests live alongside the site package as Go tests that execute the scripts under temporary fake toolchains. The installer owns a managed checkout under a Hermes-analogy install home and always builds from the repo's `gormes/` subdirectory.
 
 **Tech Stack:** Go 1.25+, POSIX `sh`, PowerShell, `git`, user-scoped PATH publication, Go `httptest`, Go `os/exec`, Playwright for landing-page smoke tests.
 
@@ -28,7 +28,7 @@ www.gormes.ai/internal/site/install_windows_test.go
 **Modified files:**
 
 ```text
-www.gormes.ai/internal/site/install.sh
+install.sh
 www.gormes.ai/internal/site/assets.go
 www.gormes.ai/internal/site/server.go
 www.gormes.ai/internal/site/assets_test.go
@@ -271,7 +271,7 @@ git commit -m "feat(www): serve all installer assets"
 ## Task 2: Refactor `install.sh` Into A Testable Unix Installer Skeleton
 
 **Files:**
-- Modify: `www.gormes.ai/internal/site/install.sh`
+- Modify: `install.sh`
 - Create: `www.gormes.ai/internal/site/install_unix_test.go`
 
 - [ ] **Step 2.1: Write the failing Unix installer tests**
@@ -441,7 +441,7 @@ Expected:
 - [ ] **Step 2.5: Commit**
 
 ```bash
-git add www.gormes.ai/internal/site/install.sh \
+git add install.sh \
         www.gormes.ai/internal/site/install_unix_test.go
 git commit -m "test(www): add unix installer test seams"
 ```
@@ -451,7 +451,7 @@ git commit -m "test(www): add unix installer test seams"
 ## Task 3: Implement Unix Managed Install, Update, Publish, And Verify
 
 **Files:**
-- Modify: `www.gormes.ai/internal/site/install.sh`
+- Modify: `install.sh`
 - Modify: `www.gormes.ai/internal/site/install_unix_test.go`
 
 - [ ] **Step 3.1: Write failing first-install and rerun-update tests**
@@ -806,7 +806,7 @@ Expected:
 - [ ] **Step 3.5: Commit**
 
 ```bash
-git add www.gormes.ai/internal/site/install.sh \
+git add install.sh \
         www.gormes.ai/internal/site/install_unix_test.go
 git commit -m "feat(www): implement unix managed installer"
 ```
@@ -1059,7 +1059,7 @@ Update `www.gormes.ai/internal/site/static_export_test.go`:
 
 ```go
 wants := []string{
-	"curl -fsSL https://gormes.ai/install.sh | sh",
+	"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
 	"irm https://gormes.ai/install.ps1 | iex",
 	"Rerun the installer to update",
 }
@@ -1068,7 +1068,7 @@ wants := []string{
 Update `www.gormes.ai/tests/home.spec.mjs`:
 
 ```js
-await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh')).toBeVisible();
+await expect(page.getByText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh')).toBeVisible();
 await expect(page.getByText('irm https://gormes.ai/install.ps1 | iex')).toBeVisible();
 await expect(page.getByText('Rerun the installer to update the managed Gormes checkout.')).toBeVisible();
 await expect(page.locator('button.copy-btn')).toHaveCount(3);
@@ -1097,7 +1097,7 @@ Update `www.gormes.ai/internal/site/content.go`:
 
 ```go
 InstallSteps: []InstallStep{
-	{Label: "1. UNIX / TERMUX", Command: "curl -fsSL https://gormes.ai/install.sh | sh"},
+	{Label: "1. UNIX / TERMUX", Command: "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh"},
 	{Label: "2. WINDOWS", Command: "irm https://gormes.ai/install.ps1 | iex"},
 	{Label: "3. RUN", Command: "gormes"},
 },
@@ -1113,7 +1113,7 @@ Update `README.md` install block to contain this shape:
 
 Unix / macOS / Linux / Termux:
 
-curl -fsSL https://gormes.ai/install.sh | sh
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
 gormes doctor --offline
 gormes
 
@@ -1130,7 +1130,7 @@ Update root `README.md` quick start to contain this shape:
 
 ```text
 # Unix / macOS / Linux / Termux
-curl -fsSL https://gormes.ai/install.sh | sh
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
 
 # Windows PowerShell
 irm https://gormes.ai/install.ps1 | iex
@@ -1138,7 +1138,7 @@ irm https://gormes.ai/install.ps1 | iex
 gormes
 ```
 
-Update `www.gormes.ai/README.md` to document that the site now serves `/install.sh`, `/install.ps1`, and `/install.cmd`.
+Update the landing README to document that the site serves only the Windows aliases `/install.ps1` and `/install.cmd`; Unix users install from the GitHub Releases `install.sh` asset.
 
 - [ ] **Step 5.4: Re-run the site and browser verification**
 

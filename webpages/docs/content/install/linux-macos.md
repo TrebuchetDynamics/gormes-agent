@@ -14,7 +14,7 @@ aliases:
 ## 60-second install
 
 ```bash
-curl -fsSL https://gormes.ai/install.sh | sh
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
 ```
 
 After the installer finishes:
@@ -33,17 +33,52 @@ By default the installer:
 - records install events to `$HOME/.gormes/install.log.jsonl`;
 - runs the post-install setup wizard when stdin is a terminal.
 
+## Termux on Android
+
+Termux is supported as a no-root Android arm64/aarch64 runtime for PC-like Gormes operator workflows. Use the same release-first installer command as Linux and macOS:
+
+```bash
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+```
+
+On Termux, repo-root `install.sh` detects `TERMUX_VERSION` or the standard Termux `$PREFIX` path and publishes the command to `$PREFIX/bin/gormes`. The release asset is `android-arm64`, not `linux-arm64`; source build is a fallback for unsupported architectures, unavailable release assets, non-main branches, or contributor workflows.
+
+Only source fallback or contributor builds need the build toolchain:
+
+```bash
+pkg update
+pkg install git golang clang tmux openssh curl jq sqlite
+```
+
+The rule for this project is explicit: install.sh stays in the repository root as the canonical Unix installer. Do not use a separate Unix installer mirror for Termux.
+
+After install:
+
+```bash
+gormes version
+gormes doctor --offline --json
+gormes config check
+```
+
+If provider credentials are configured, run a one-turn smoke:
+
+```bash
+gormes --oneshot "hello from Termux"
+```
+
+For long gateway sessions, run Gormes inside `tmux`. `termux-wake-lock` and Android battery-optimization settings can improve uptime, but Android can still stop background processes. Local CLI/TUI, provider calls, SQLite/Goncho, and foreground gateway work are in scope; Docker, GPU/local LLM inference, heavy browser automation, and large builds should run on a remote machine and be controlled from Termux over SSH.
+
 ## Inspect first
 
 If you would rather read the script before executing it:
 
 ```bash
-curl -fsSLO https://gormes.ai/install.sh
+curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh
 less install.sh
 sh install.sh
 ```
 
-The script served at `https://gormes.ai/install.sh` is the canonical public installer mirror for the current release line. The convenience one-liner and the inspect-first form produce the same install.
+The script attached to the latest GitHub Release is the canonical public installer for the current release line. The convenience one-liner and the inspect-first form produce the same install.
 
 ## Customize
 

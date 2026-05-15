@@ -2,8 +2,8 @@
 # install.sh - release-first Unix installer for Gormes, with source fallback.
 #
 # Usage:
-#   curl -fsSL https://gormes.ai/install.sh | bash
-#   curl -fsSLO https://gormes.ai/install.sh && sh install.sh
+#   curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | bash
+#   curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh && sh install.sh
 #   sh install.sh --branch main
 #   sh install.sh --uninstall
 #
@@ -1888,6 +1888,10 @@ print_service_instructions() {
     log "skipping system service install (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary — ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
     return 0
   fi
+  if is_termux; then
+    log "skipping system service install (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
+    return 0
+  fi
   if has systemctl && systemctl --user >/dev/null 2>&1; then
     install_systemd_user_service
   elif [ "$(platform_name)" = "Darwin" ] && has launchctl; then
@@ -2026,6 +2030,10 @@ print_install_plan_body() {
     log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
     log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
     log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
+  elif is_termux; then
+    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
+    log "  install_system_service: skipped (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
     log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
@@ -2094,6 +2102,10 @@ print_verbose_plan() {
     log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
     log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
     log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
+  elif is_termux; then
+    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
+    log "  install_system_service: skipped (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
     log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"

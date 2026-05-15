@@ -257,7 +257,7 @@ func TestREADMEPreservesOperatorSections(t *testing.T) {
 		"## Quick Install",
 		"## First Proof",
 		"## Status",
-		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh",
+		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
 		"irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex",
 		"gormes doctor --offline",
 		"gormes --offline",

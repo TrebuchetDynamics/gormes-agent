@@ -204,7 +204,7 @@ follow-up rows when one becomes urgent.
 - Root install on RHEL/Rocky/Alma (the FHS layout branch in `install.sh`).
 - `install.ps1` on native Windows (separate skill pass — out of scope
   for this Linux/macOS skill until a Windows test host is available).
-- `curl https://gormes.ai/install.sh | bash` non-interactive flow on a
+- `curl https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | bash` non-interactive flow on a
   fresh user account (vs. cloning the repo locally and running
   `sh ./install.sh`).
 - Upgrade-in-place flow when an existing `~/.gormes/` has a non-default

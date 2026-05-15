@@ -757,6 +757,79 @@ case_termux_detection_drives_plan() {
     "$SANDBOX/logs/dryrun-prefix-only.log"
 }
 
+case_termux_local_install_doctor_smoke() {
+  # Synthetic Termux e2e: build from the current checkout, publish into
+  # $PREFIX/bin, skip desktop service install even if a host systemctl is
+  # available, then run the installed binary's Termux-aware doctor check.
+  capture_prestate
+
+  local fake_prefix="$SANDBOX/com.termux/files/usr"
+  local fake_home="$SANDBOX/com.termux/files/home"
+  local fake_gocache="$SANDBOX/go-cache"
+  local fake_gomodcache="$SANDBOX/go-modcache"
+  local shim="$SANDBOX/shim"
+  mkdir -p "$fake_prefix/bin" "$fake_home" "$fake_gocache" "$fake_gomodcache" "$shim"
+
+  cat > "$shim/pkg" <<'SH'
+#!/bin/sh
+exit 0
+SH
+  chmod +x "$shim/pkg"
+
+  cat > "$shim/systemctl" <<'SH'
+#!/bin/sh
+exit 0
+SH
+  chmod +x "$shim/systemctl"
+
+  for cmd in termux-wake-lock termux-notification; do
+    cat > "$fake_prefix/bin/$cmd" <<'SH'
+#!/bin/sh
+exit 0
+SH
+    chmod +x "$fake_prefix/bin/$cmd"
+  done
+
+  (
+    cd "$REPO_ROOT"
+    TERMUX_VERSION="0.119.0" \
+    PREFIX="$fake_prefix" \
+    HOME="$fake_home" \
+    PATH="$shim:$fake_prefix/bin:$PATH" \
+    GOCACHE="$fake_gocache" \
+    GOMODCACHE="$fake_gomodcache" \
+    GOFLAGS="${GOFLAGS:+$GOFLAGS }-modcacherw" \
+    GORMES_INSTALL_HOME="$SANDBOX/home" \
+    GORMES_SKIP_SETUP=1 \
+    GORMES_RESTART_GATEWAY=never \
+    sh "$INSTALL_SH" --local --skip-setup --restart-gateway never
+  ) > "$SANDBOX/logs/install.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "install exit code"
+
+  assert_grep "install_method: source-build" "$SANDBOX/logs/install.log"
+  assert_grep "using local source checkout $REPO_ROOT" "$SANDBOX/logs/install.log"
+  assert_grep "skipping system service install .*Termux" "$SANDBOX/logs/install.log"
+  assert_executable "$fake_prefix/bin/gormes"
+  assert_not_exists "$fake_home/.config/systemd/user/gormes-gateway.service"
+
+  TERMUX_VERSION="0.119.0" \
+  PREFIX="$fake_prefix" \
+  HOME="$fake_home" \
+  PATH="$fake_prefix/bin:$PATH" \
+  GORMES_HOME="$SANDBOX/home" \
+    "$fake_prefix/bin/gormes" doctor --offline --json \
+    > "$SANDBOX/logs/doctor.json" 2>&1
+
+  assert_grep '"name": "Termux runtime"' "$SANDBOX/logs/doctor.json"
+  assert_grep "desktop-like command path ready" "$SANDBOX/logs/doctor.json"
+  assert_grep "termux-api commands available" "$SANDBOX/logs/doctor.json"
+  assert_grep "run long gateway sessions inside tmux" "$SANDBOX/logs/doctor.json"
+
+  capture_poststate
+  assert_no_production_state_changes
+}
+
 case_root_linux_install_uses_usr_local() {
   # Operator running install.sh as root on Linux lands in a different bin
   # dir (/usr/local/bin) and managed checkout (/usr/local/lib/gormes-agent)
@@ -916,7 +989,10 @@ run_case() {
   if [ "$rc" -eq 0 ]; then
     PASS=$((PASS+1))
     printf '  PASS %s (%ds)\n' "$name" "$((end-start))"
-    [ -z "${GORMES_INSTALL_E2E_KEEP:-}" ] && rm -rf "$sandbox"
+    if [ -z "${GORMES_INSTALL_E2E_KEEP:-}" ]; then
+      chmod -R u+w "$sandbox" 2>/dev/null || true
+      rm -rf "$sandbox"
+    fi
   else
     FAIL=$((FAIL+1))
     FAILED_CASES="$FAILED_CASES $name"
@@ -937,6 +1013,7 @@ CASES=(
   no_curl_or_wget_falls_back_to_git_source_build
   no_systemd_install_skips_service
   termux_detection_drives_plan
+  termux_local_install_doctor_smoke
   root_linux_install_uses_usr_local
   uninstall_dry_run_previews_no_deletion
   uninstall_lifecycle

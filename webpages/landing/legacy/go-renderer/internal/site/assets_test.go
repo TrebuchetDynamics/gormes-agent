@@ -70,7 +70,7 @@ func TestServer_UnknownRoutesReturn404(t *testing.T) {
 	}
 }
 
-func TestServer_ServesInstallScript(t *testing.T) {
+func TestServer_DoesNotServeUnixInstallScript(t *testing.T) {
 	handler, err := NewServer()
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
@@ -80,41 +80,8 @@ func TestServer_ServesInstallScript(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != 200 {
-		t.Fatalf("status = %d, want 200", rr.Code)
-	}
-	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "text/x-shellscript") {
-		t.Fatalf("content-type = %q, want text/x-shellscript", ct)
-	}
-
-	body := rr.Body.String()
-	for _, want := range []string{
-		"git@github.com:TrebuchetDynamics/gormes-agent.git",
-		"https://github.com/TrebuchetDynamics/gormes-agent.git",
-		"managed_checkout_dir()",
-		"update_checkout()",
-		"git pull --ff-only origin \"$BRANCH\"",
-		`CGO_ENABLED=0 go build -trimpath -ldflags "$build_ldflags" -o "$build_bin" ./cmd/gormes`,
-		"fetch_release_binary()",
-		"run_setup_wizard()",
-		"--skip-setup",
-		"GORMES_SKIP_SETUP",
-		"GORMES_INSTALL_HOME",
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("install.sh missing %q\n%s", want, body)
-		}
-	}
-	for _, reject := range []string{
-		"XelHaku/golang-hermes-agent",
-		"XelHaku/gormes-agent",
-		`go install "${MODULE}@${VERSION}"`,
-		"api.github.com/repos/${RELEASE_REPO}/releases/latest",
-		"github.com/${RELEASE_REPO}/releases/download",
-	} {
-		if strings.Contains(body, reject) {
-			t.Fatalf("install.sh contains stale installer path %q\n%s", reject, body)
-		}
+	if rr.Code != 404 {
+		t.Fatalf("status = %d, want 404", rr.Code)
 	}
 }
 
@@ -185,7 +152,7 @@ func TestServer_InstallerCacheControl(t *testing.T) {
 		t.Fatalf("NewServer: %v", err)
 	}
 
-	for _, name := range []string{"install.sh", "install.ps1", "install.cmd"} {
+	for _, name := range []string{"install.ps1", "install.cmd"} {
 		req := httptest.NewRequest("GET", "/"+name, nil)
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)

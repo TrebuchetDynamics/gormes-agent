@@ -201,6 +201,9 @@ func buildDoctorCmd() *cobra.Command {
 			}
 
 			reporter.Add(doctorTUIStatus())
+			if termuxRuntime := doctor.CheckTermuxRuntime(doctor.TermuxRuntimeOptions{}); termuxRuntime.Status != doctor.StatusSkip {
+				reporter.Add(termuxRuntime)
+			}
 
 			// Toolbox section — inspect the built-in registry. Runs in both modes.
 			reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
