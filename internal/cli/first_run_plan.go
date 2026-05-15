@@ -13,7 +13,7 @@ const (
 	SetupTargetWhatsApp SetupTargetID = "whatsapp"
 	SetupTargetDiscord  SetupTargetID = "discord"
 	SetupTargetSlack    SetupTargetID = "slack"
-	SetupTargetNavibox  SetupTargetID = "navibox"
+	SetupTargetNavivox  SetupTargetID = "navivox"
 )
 
 type FirstRunActionID string
@@ -192,7 +192,7 @@ func DefaultFirstRunChannels(overrides map[SetupTargetID]ChannelState) []Channel
 		defaultFirstRunChannel(SetupTargetWhatsApp),
 		defaultFirstRunChannel(SetupTargetDiscord),
 		defaultFirstRunChannel(SetupTargetSlack),
-		defaultFirstRunChannel(SetupTargetNavibox),
+		defaultFirstRunChannel(SetupTargetNavivox),
 	}
 
 	for i := range channels {
@@ -234,7 +234,7 @@ func buildFirstRunTargets(input FirstRunPlanInput, selected SetupTargetID) []Set
 		SetupTargetWhatsApp,
 		SetupTargetDiscord,
 		SetupTargetSlack,
-		SetupTargetNavibox,
+		SetupTargetNavivox,
 	} {
 		channel := channelByTarget[id]
 		targets = append(targets, SetupTargetOption{
@@ -361,8 +361,8 @@ func normalizeSetupTarget(id SetupTargetID) SetupTargetID {
 		return SetupTargetDiscord
 	case SetupTargetSlack:
 		return SetupTargetSlack
-	case SetupTargetNavibox:
-		return SetupTargetNavibox
+	case SetupTargetNavivox:
+		return SetupTargetNavivox
 	default:
 		return SetupTargetTerminal
 	}
@@ -370,7 +370,7 @@ func normalizeSetupTarget(id SetupTargetID) SetupTargetID {
 
 func isChannelTarget(id SetupTargetID) bool {
 	switch id {
-	case SetupTargetTelegram, SetupTargetWhatsApp, SetupTargetDiscord, SetupTargetSlack, SetupTargetNavibox:
+	case SetupTargetTelegram, SetupTargetWhatsApp, SetupTargetDiscord, SetupTargetSlack, SetupTargetNavivox:
 		return true
 	default:
 		return false
@@ -387,8 +387,8 @@ func setupTargetLabel(id SetupTargetID) string {
 		return "Discord"
 	case SetupTargetSlack:
 		return "Slack"
-	case SetupTargetNavibox:
-		return "Navibox"
+	case SetupTargetNavivox:
+		return "Navivox"
 	default:
 		return "Terminal"
 	}

@@ -1,4 +1,4 @@
-package navibox
+package navivox
 
 import (
 	"context"
@@ -21,10 +21,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-const PlatformName = "navibox"
-
 type Channel struct {
-	cfg config.NaviboxCfg
+	cfg config.NavivoxCfg
 	log *slog.Logger
 
 	now   func() time.Time
@@ -83,11 +81,11 @@ type turnRequest struct {
 	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
-func NewChannel(cfg config.NaviboxCfg, log *slog.Logger) (*Channel, error) {
+func NewChannel(cfg config.NavivoxCfg, log *slog.Logger) (*Channel, error) {
 	if log == nil {
 		log = slog.Default()
 	}
-	if err := config.ValidateNaviboxForRuntime(&cfg); err != nil {
+	if err := config.ValidateNavivoxForRuntime(&cfg); err != nil {
 		return nil, err
 	}
 	return &Channel{
@@ -109,7 +107,7 @@ func (c *Channel) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) er
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		c.log.Info("navibox gateway channel listening",
+		c.log.Info("navivox gateway channel listening",
 			"bind_host", c.cfg.BindHost,
 			"port", c.cfg.Port,
 			"exposure_mode", c.cfg.ExposureMode,
@@ -136,11 +134,11 @@ func (c *Channel) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) er
 func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", c.handleHealthz)
-	mux.HandleFunc("/v1/navibox/status", c.withAuth(c.handleStatus))
-	mux.HandleFunc("/v1/navibox/sessions", c.withAuth(c.handleSessions))
-	mux.HandleFunc("/v1/navibox/sessions/", c.withAuth(c.handleSessionByID))
-	mux.HandleFunc("/v1/navibox/turn", c.withAuth(c.handleTurn(inbox)))
-	mux.HandleFunc("/v1/navibox/stream", c.handleStream(inbox))
+	mux.HandleFunc("/v1/navivox/status", c.withAuth(c.handleStatus))
+	mux.HandleFunc("/v1/navivox/sessions", c.withAuth(c.handleSessions))
+	mux.HandleFunc("/v1/navivox/sessions/", c.withAuth(c.handleSessionByID))
+	mux.HandleFunc("/v1/navivox/turn", c.withAuth(c.handleTurn(inbox)))
+	mux.HandleFunc("/v1/navivox/stream", c.handleStream(inbox))
 	return c.cors(mux)
 }
 
@@ -196,10 +194,10 @@ func (c *Channel) edit(chatID, msgID, text string, finalize bool) error {
 
 func (c *Channel) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		writeNaviboxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
 		return
 	}
-	writeNaviboxJSON(w, http.StatusOK, map[string]any{
+	writeNavivoxJSON(w, http.StatusOK, map[string]any{
 		"status":   "ok",
 		"platform": PlatformName,
 	})
@@ -207,14 +205,14 @@ func (c *Channel) handleHealthz(w http.ResponseWriter, r *http.Request) {
 
 func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string) {
 	if r.Method != http.MethodGet {
-		writeNaviboxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
 		return
 	}
 	c.mu.Lock()
 	sessionCount := len(c.sessions)
 	clientCount := len(c.clients)
 	c.mu.Unlock()
-	writeNaviboxJSON(w, http.StatusOK, map[string]any{
+	writeNavivoxJSON(w, http.StatusOK, map[string]any{
 		"enabled":        c.cfg.Enabled,
 		"bind_host":      c.cfg.BindHost,
 		"port":           c.cfg.Port,
@@ -227,7 +225,7 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 
 func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request, _ string) {
 	if r.Method != http.MethodGet {
-		writeNaviboxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
 		return
 	}
 	c.mu.Lock()
@@ -236,18 +234,18 @@ func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request, _ strin
 		sessions = append(sessions, *state)
 	}
 	c.mu.Unlock()
-	writeNaviboxJSON(w, http.StatusOK, map[string]any{"sessions": sessions})
+	writeNavivoxJSON(w, http.StatusOK, map[string]any{"sessions": sessions})
 }
 
 func (c *Channel) handleSessionByID(w http.ResponseWriter, r *http.Request, _ string) {
 	if r.Method != http.MethodGet {
-		writeNaviboxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
 		return
 	}
-	id := strings.TrimPrefix(r.URL.Path, "/v1/navibox/sessions/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/navivox/sessions/")
 	id = strings.TrimSpace(id)
 	if id == "" {
-		writeNaviboxError(w, http.StatusNotFound, "", "not_found", "Session not found")
+		writeNavivoxError(w, http.StatusNotFound, "", "not_found", "Session not found")
 		return
 	}
 	c.mu.Lock()
@@ -258,21 +256,21 @@ func (c *Channel) handleSessionByID(w http.ResponseWriter, r *http.Request, _ st
 	}
 	c.mu.Unlock()
 	if !ok {
-		writeNaviboxError(w, http.StatusNotFound, "", "not_found", "Session not found")
+		writeNavivoxError(w, http.StatusNotFound, "", "not_found", "Session not found")
 		return
 	}
-	writeNaviboxJSON(w, http.StatusOK, map[string]any{"session": out})
+	writeNavivoxJSON(w, http.StatusOK, map[string]any{"session": out})
 }
 
 func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.ResponseWriter, *http.Request, string) {
 	return func(w http.ResponseWriter, r *http.Request, identity string) {
 		if r.Method != http.MethodPost {
-			writeNaviboxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+			writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
 			return
 		}
 		var req turnRequest
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
-			writeNaviboxError(w, http.StatusBadRequest, "", "bad_request", "Invalid JSON")
+			writeNavivoxError(w, http.StatusBadRequest, "", "bad_request", "Invalid JSON")
 			return
 		}
 		sessionID, err := c.enqueueTurn(r.Context(), inbox, ClientMessage{
@@ -283,10 +281,10 @@ func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.Respon
 			Metadata:  req.Metadata,
 		}, identity)
 		if err != nil {
-			writeNaviboxError(w, statusForNaviboxError(err), req.RequestID, codeForNaviboxError(err), safeNaviboxError(err))
+			writeNavivoxError(w, statusForNavivoxError(err), req.RequestID, codeForNavivoxError(err), safeNavivoxError(err))
 			return
 		}
-		writeNaviboxJSON(w, http.StatusAccepted, map[string]any{
+		writeNavivoxJSON(w, http.StatusAccepted, map[string]any{
 			"request_id": req.RequestID,
 			"session_id": sessionID,
 			"status":     "queued",
@@ -298,7 +296,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 	return func(w http.ResponseWriter, r *http.Request) {
 		identity, ok := c.authenticate(r)
 		if !ok {
-			writeNaviboxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
+			writeNavivoxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
 			return
 		}
 		upgrader := websocket.Upgrader{
@@ -338,8 +336,8 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 				_ = cl.write(ServerEvent{
 					Type:      "error",
 					RequestID: msg.RequestID,
-					Code:      codeForNaviboxError(err),
-					Message:   safeNaviboxError(err),
+					Code:      codeForNavivoxError(err),
+					Message:   safeNavivoxError(err),
 				})
 			}
 		}
@@ -350,7 +348,7 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 	msg.Type = strings.TrimSpace(msg.Type)
 	msg.RequestID = strings.TrimSpace(msg.RequestID)
 	if msg.RequestID == "" {
-		return naviboxError{code: "bad_request", message: "request_id is required"}
+		return navivoxError{code: "bad_request", message: "request_id is required"}
 	}
 	switch msg.Type {
 	case "ping":
@@ -365,13 +363,13 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 	case "cancel_turn":
 		sessionID := strings.TrimSpace(msg.SessionID)
 		if sessionID == "" {
-			return naviboxError{code: "bad_request", message: "session_id is required"}
+			return navivoxError{code: "bad_request", message: "session_id is required"}
 		}
 		ev := gateway.InboundEvent{
 			Platform:  PlatformName,
 			ChatID:    sessionID,
 			ChatType:  "private",
-			UserID:    "navibox",
+			UserID:    "navivox",
 			UserName:  cl.identity,
 			MsgID:     msg.RequestID,
 			MessageID: msg.RequestID,
@@ -384,27 +382,27 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 	case "subscribe_session":
 		sessionID := strings.TrimSpace(msg.SessionID)
 		if sessionID == "" {
-			return naviboxError{code: "bad_request", message: "session_id is required"}
+			return navivoxError{code: "bad_request", message: "session_id is required"}
 		}
 		cl.subscribe(sessionID, msg.RequestID)
 		return cl.write(ServerEvent{Type: "session_started", RequestID: msg.RequestID, SessionID: sessionID})
 	default:
-		return naviboxError{code: "bad_request", message: "unsupported message type"}
+		return navivoxError{code: "bad_request", message: "unsupported message type"}
 	}
 }
 
 func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundEvent, msg ClientMessage, identity string) (string, error) {
 	requestID := strings.TrimSpace(msg.RequestID)
 	if requestID == "" {
-		return "", naviboxError{code: "bad_request", message: "request_id is required"}
+		return "", navivoxError{code: "bad_request", message: "request_id is required"}
 	}
 	text := strings.TrimSpace(msg.Text)
 	if text == "" {
-		return "", naviboxError{code: "bad_request", message: "text is required"}
+		return "", navivoxError{code: "bad_request", message: "text is required"}
 	}
 	sessionID := strings.TrimSpace(msg.SessionID)
 	if sessionID == "" {
-		sessionID = "navibox-" + c.newID()
+		sessionID = "navivox-" + c.newID()
 	}
 	c.mu.Lock()
 	c.ensureSessionLocked(sessionID, requestID)
@@ -413,7 +411,7 @@ func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundE
 		Platform:  PlatformName,
 		ChatID:    sessionID,
 		ChatType:  "private",
-		UserID:    "navibox",
+		UserID:    "navivox",
 		UserName:  identity,
 		MsgID:     requestID,
 		MessageID: requestID,
@@ -423,7 +421,7 @@ func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundE
 	if err := enqueue(ctx, inbox, ev); err != nil {
 		return "", err
 	}
-	c.log.Info("navibox turn queued", "client_identity", identity, "request_id", requestID, "session_id", sessionID, "action", "start_turn", "status", "queued")
+	c.log.Info("navivox turn queued", "client_identity", identity, "request_id", requestID, "session_id", sessionID, "action", "start_turn", "status", "queued")
 	return sessionID, nil
 }
 
@@ -432,9 +430,9 @@ func enqueue(ctx context.Context, inbox chan<- gateway.InboundEvent, ev gateway.
 	case inbox <- ev:
 		return nil
 	case <-ctx.Done():
-		return naviboxError{code: "timeout", message: "request canceled"}
+		return navivoxError{code: "timeout", message: "request canceled"}
 	default:
-		return naviboxError{code: "runtime_error", message: "gateway inbox is full"}
+		return navivoxError{code: "runtime_error", message: "gateway inbox is full"}
 	}
 }
 
@@ -520,7 +518,7 @@ func (c *Channel) withAuth(next authenticatedHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		identity, ok := c.authenticate(r)
 		if !ok {
-			writeNaviboxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
+			writeNavivoxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
 			return
 		}
 		next(w, r, identity)
@@ -530,7 +528,7 @@ func (c *Channel) withAuth(next authenticatedHandler) http.HandlerFunc {
 func (c *Channel) authenticate(r *http.Request) (string, bool) {
 	mode := strings.ToLower(strings.TrimSpace(c.cfg.AuthMode))
 	switch mode {
-	case config.NaviboxAuthTailscaleIdentity:
+	case config.NavivoxAuthTailscaleIdentity:
 		identity := firstHeader(r, "Tailscale-User-Login", "X-Tailscale-User-Login", "Tailscale-Device-Name", "X-Tailscale-Device-Name")
 		if identity == "" {
 			return "", false
@@ -544,10 +542,10 @@ func (c *Channel) authenticate(r *http.Request) (string, bool) {
 			}
 		}
 		return "", false
-	case config.NaviboxAuthPairingToken, config.NaviboxAuthStaticToken:
+	case config.NavivoxAuthPairingToken, config.NavivoxAuthStaticToken:
 		token := bearerToken(r)
 		if token == "" {
-			token = strings.TrimSpace(r.Header.Get("X-Gormes-Navibox-Token"))
+			token = strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token"))
 		}
 		if token == "" || c.cfg.Token == "" {
 			return "", false
@@ -584,7 +582,7 @@ func (c *Channel) cors(next http.Handler) http.Handler {
 		if origin != "" && c.originAllowed(origin) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Gormes-Navibox-Token")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Gormes-Navivox-Token")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		}
 		if r.Method == http.MethodOptions {
@@ -608,23 +606,23 @@ func (c *Channel) originAllowed(origin string) bool {
 	return false
 }
 
-type naviboxError struct {
+type navivoxError struct {
 	code    string
 	message string
 }
 
-func (e naviboxError) Error() string { return e.message }
+func (e navivoxError) Error() string { return e.message }
 
-func codeForNaviboxError(err error) string {
-	var ne naviboxError
+func codeForNavivoxError(err error) string {
+	var ne navivoxError
 	if errors.As(err, &ne) && ne.code != "" {
 		return ne.code
 	}
 	return "runtime_error"
 }
 
-func statusForNaviboxError(err error) int {
-	switch codeForNaviboxError(err) {
+func statusForNavivoxError(err error) int {
+	switch codeForNavivoxError(err) {
 	case "bad_request":
 		return http.StatusBadRequest
 	case "unauthorized":
@@ -638,22 +636,22 @@ func statusForNaviboxError(err error) int {
 	}
 }
 
-func safeNaviboxError(err error) string {
-	var ne naviboxError
+func safeNavivoxError(err error) string {
+	var ne navivoxError
 	if errors.As(err, &ne) && ne.message != "" {
 		return ne.message
 	}
 	return "Runtime error"
 }
 
-func writeNaviboxJSON(w http.ResponseWriter, status int, body any) {
+func writeNavivoxJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-func writeNaviboxError(w http.ResponseWriter, status int, requestID, code, message string) {
-	writeNaviboxJSON(w, status, ServerEvent{
+func writeNavivoxError(w http.ResponseWriter, status int, requestID, code, message string) {
+	writeNavivoxJSON(w, status, ServerEvent{
 		Type:      "error",
 		RequestID: requestID,
 		Code:      code,

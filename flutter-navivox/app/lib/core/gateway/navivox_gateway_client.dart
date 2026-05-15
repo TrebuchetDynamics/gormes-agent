@@ -2,25 +2,25 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'navibox_gateway_protocol.dart';
+import 'navivox_gateway_protocol.dart';
 
-typedef NaviboxGatewayGet =
+typedef NavivoxGatewayGet =
     Future<String> Function(Uri uri, Map<String, String> headers);
 
-typedef NaviboxGatewayWebSocketConnector =
+typedef NavivoxGatewayWebSocketConnector =
     Future<WebSocket> Function(Uri uri, Map<String, String> headers);
 
-class NaviboxGatewayClient {
-  NaviboxGatewayClient({
+class NavivoxGatewayClient {
+  NavivoxGatewayClient({
     required this.config,
-    NaviboxGatewayGet? get,
-    NaviboxGatewayWebSocketConnector? connectWebSocket,
+    NavivoxGatewayGet? get,
+    NavivoxGatewayWebSocketConnector? connectWebSocket,
   }) : _get = get ?? _defaultGet,
        _connectWebSocket = connectWebSocket ?? _defaultConnectWebSocket;
 
-  final NaviboxGatewayConfig config;
-  final NaviboxGatewayGet _get;
-  final NaviboxGatewayWebSocketConnector _connectWebSocket;
+  final NavivoxGatewayConfig config;
+  final NavivoxGatewayGet _get;
+  final NavivoxGatewayWebSocketConnector _connectWebSocket;
 
   Future<Map<String, Object?>> health() => _getJson(config.healthUri);
   Future<Map<String, Object?>> status() => _getJson(config.statusUri);
@@ -34,17 +34,17 @@ class NaviboxGatewayClient {
     return Duration(milliseconds: 250 * (1 << bounded));
   }
 
-  Stream<NaviboxGatewayEvent> decodeEvents(Stream<dynamic> wireEvents) {
+  Stream<NavivoxGatewayEvent> decodeEvents(Stream<dynamic> wireEvents) {
     return wireEvents.map((event) {
       final decoded = event is String ? jsonDecode(event) : event;
       if (decoded is! Map) {
-        return const NaviboxGatewayEvent(
+        return const NavivoxGatewayEvent(
           type: 'error',
           code: 'bad_response',
           message: 'Invalid gateway event',
         );
       }
-      return NaviboxGatewayEvent.fromJson(Map<String, Object?>.from(decoded));
+      return NavivoxGatewayEvent.fromJson(Map<String, Object?>.from(decoded));
     });
   }
 
@@ -69,7 +69,7 @@ class NaviboxGatewayClient {
       final body = await utf8.decoder.bind(response).join();
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw HttpException(
-          'Navibox gateway returned HTTP ${response.statusCode}',
+          'Navivox gateway returned HTTP ${response.statusCode}',
           uri: uri,
         );
       }

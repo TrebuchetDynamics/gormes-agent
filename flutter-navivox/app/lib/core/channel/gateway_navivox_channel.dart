@@ -5,13 +5,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../gateway/navibox_gateway_client.dart';
-import '../gateway/navibox_gateway_protocol.dart';
+import '../gateway/navivox_gateway_client.dart';
+import '../gateway/navivox_gateway_protocol.dart';
 import '../protocol/navivox_event.dart';
 import 'navivox_channel.dart';
 
-class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
-  GatewayNaviboxChannel({Uuid? uuid, DateTime Function()? clock})
+class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
+  GatewayNavivoxChannel({Uuid? uuid, DateTime Function()? clock})
     : _uuid = uuid ?? const Uuid(),
       _clock = clock ?? DateTime.now;
 
@@ -21,7 +21,7 @@ class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
       StreamController<NavivoxApprovalRequest>.broadcast();
 
   WebSocket? _socket;
-  StreamSubscription<NaviboxGatewayEvent>? _events;
+  StreamSubscription<NavivoxGatewayEvent>? _events;
   NavivoxChannelState _state = const NavivoxChannelState();
   String? _activeSessionId;
   final Map<String, String> _assistantMessageIds = {};
@@ -32,9 +32,9 @@ class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
   @override
   Stream<NavivoxApprovalRequest> get approvalRequests => _approvals.stream;
 
-  Future<void> connect(NaviboxGatewayConfig config) async {
+  Future<void> connect(NavivoxGatewayConfig config) async {
     await disconnect();
-    final client = NaviboxGatewayClient(config: config);
+    final client = NavivoxGatewayClient(config: config);
     await client.status();
     final socket = await client.connectStream();
     _socket = socket;
@@ -47,7 +47,7 @@ class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
           onDone: () => _setServerStatus('Gateway disconnected'),
         );
     final server = NavivoxServer(
-      id: 'navibox-gateway',
+      id: 'navivox-gateway',
       name: 'Gormes Gateway',
       status: 'Gateway online - ${config.baseUri.host}:${config.baseUri.port}',
     );
@@ -89,7 +89,7 @@ class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
     );
     socket.add(
       jsonEncode(
-        NaviboxGatewayMessage.startTurn(
+        NavivoxGatewayMessage.startTurn(
           requestId: requestId,
           sessionId: _activeSessionId,
           text: trimmed,
@@ -151,7 +151,7 @@ class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
     super.dispose();
   }
 
-  void _onEvent(NaviboxGatewayEvent event) {
+  void _onEvent(NavivoxGatewayEvent event) {
     switch (event.type) {
       case 'pong':
         return;
@@ -174,7 +174,7 @@ class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
     }
   }
 
-  void _appendAssistantDelta(NaviboxGatewayEvent event) {
+  void _appendAssistantDelta(NavivoxGatewayEvent event) {
     final requestId = event.requestId ?? _uuid.v4();
     final messageId = _assistantMessageIds.putIfAbsent(
       requestId,
@@ -206,7 +206,7 @@ class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
     );
   }
 
-  void _upsertAssistantMessage(NaviboxGatewayEvent event) {
+  void _upsertAssistantMessage(NavivoxGatewayEvent event) {
     final requestId = event.requestId ?? _uuid.v4();
     final messageId = _assistantMessageIds.putIfAbsent(
       requestId,
@@ -227,7 +227,7 @@ class GatewayNaviboxChannel extends ChangeNotifier implements NavivoxChannel {
     }
   }
 
-  void _upsertToolCall(NaviboxGatewayEvent event, String status) {
+  void _upsertToolCall(NavivoxGatewayEvent event, String status) {
     final toolCallId = event.toolCallId ?? 'tool-${_uuid.v4()}';
     final index = _state.messages.indexWhere((m) => m.id == toolCallId);
     final prior = index >= 0 ? _state.messages[index].toolCall : null;

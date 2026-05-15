@@ -1,6 +1,6 @@
-# Navibox Tailnet Gateway Channel
+# Navivox Tailnet Gateway Channel
 
-Navibox connects to the native `gormes gateway` process over HTTP and
+Navivox connects to the native `gormes gateway` process over HTTP and
 WebSocket. The channel is owned by the Gormes gateway: there is no SSH tunnel,
 sidecar daemon, random extra server, or public unauthenticated API in the normal
 app path. SSH remains an operator/admin break-glass option only.
@@ -8,11 +8,11 @@ app path. SSH remains an operator/admin break-glass option only.
 ## Trust Boundary
 
 - The Gormes gateway owns routing, auth, logging, and runtime dispatch.
-- Navibox sends typed HTTP/WebSocket actions; it does not get raw shell access.
+- Navivox sends typed HTTP/WebSocket actions; it does not get raw shell access.
 - The channel is disabled by default and binds to loopback by default.
 - Tailnet exposure is preferred for phones and tablets.
-- Public exposure is discouraged and requires `navibox.public_confirmed=true`.
-- Tokens are secrets. They belong in `.env` as `GORMES_NAVIBOX_TOKEN`, not in
+- Public exposure is discouraged and requires `navivox.public_confirmed=true`.
+- Tokens are secrets. They belong in `.env` as `GORMES_NAVIVOX_TOKEN`, not in
   logs, screenshots, committed config, or support bundles.
 
 ## Setup
@@ -23,9 +23,9 @@ Run:
 gormes setup gateway
 ```
 
-Select `navibox`, then answer:
+Select `navivox`, then answer:
 
-- `Enable Navibox Gateway Channel?`
+- `Enable Navivox Gateway Channel?`
 - `Exposure mode`: `local`, `tailscale`, or `public`
 - `Bind host`
 - `Port`
@@ -35,14 +35,14 @@ Select `navibox`, then answer:
 Setup writes the channel config and generates a pairing token when token auth
 is selected. It prints the HTTP/WebSocket URLs but does not print the token.
 
-In the Flutter Navibox app setup screen, enter the gateway base URL, for
+In the Flutter Navivox app setup screen, enter the gateway base URL, for
 example `http://127.0.0.1:8765` or the Tailscale host URL, then enter the
 pairing token. After connection, chat messages use the WebSocket stream.
 
 ## Config Keys
 
 ```toml
-[navibox]
+[navivox]
 enabled = true
 bind_host = "127.0.0.1"
 port = 8765
@@ -56,7 +56,7 @@ public_confirmed = false
 Secret:
 
 ```sh
-GORMES_NAVIBOX_TOKEN=...
+GORMES_NAVIVOX_TOKEN=...
 ```
 
 ## Exposure Modes
@@ -74,11 +74,11 @@ GORMES_NAVIBOX_TOKEN=...
 ## Endpoints
 
 - `GET /healthz`
-- `GET /v1/navibox/status`
-- `GET /v1/navibox/sessions`
-- `GET /v1/navibox/sessions/{session_id}`
-- `POST /v1/navibox/turn`
-- `WS /v1/navibox/stream`
+- `GET /v1/navivox/status`
+- `GET /v1/navivox/sessions`
+- `GET /v1/navivox/sessions/{session_id}`
+- `POST /v1/navivox/turn`
+- `WS /v1/navivox/stream`
 
 HTTP and WebSocket requests use bearer auth unless `auth_mode` is
 `tailscale_identity`.
@@ -133,8 +133,8 @@ Local mode:
 ```sh
 gormes gateway
 curl http://127.0.0.1:8765/healthz
-curl -H "Authorization: Bearer $GORMES_NAVIBOX_TOKEN" \
-  http://127.0.0.1:8765/v1/navibox/status
+curl -H "Authorization: Bearer $GORMES_NAVIVOX_TOKEN" \
+  http://127.0.0.1:8765/v1/navivox/status
 ```
 
 WebSocket ping:
@@ -151,6 +151,6 @@ Expected response:
 
 ## Refusals
 
-The Navibox channel does not expose arbitrary command execution. App actions
+The Navivox channel does not expose arbitrary command execution. App actions
 must map to typed gateway actions and are still constrained by normal Gormes
 runtime safety controls.

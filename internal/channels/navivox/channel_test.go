@@ -1,4 +1,4 @@
-package navibox
+package navivox
 
 import (
 	"context"
@@ -29,7 +29,7 @@ func TestStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 		t.Fatalf("GET /healthz status = %d, want 200", healthResp.StatusCode)
 	}
 
-	statusResp, err := http.Get(server.URL + "/v1/navibox/status")
+	statusResp, err := http.Get(server.URL + "/v1/navivox/status")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent(t *testing.T) {
 	server := httptest.NewServer(ch.Handler(inbox))
 	defer server.Close()
 
-	unauthResp, err := http.Post(server.URL+"/v1/navibox/turn", "application/json", strings.NewReader(`{"request_id":"req-1","text":"hello"}`))
+	unauthResp, err := http.Post(server.URL+"/v1/navivox/turn", "application/json", strings.NewReader(`{"request_id":"req-1","text":"hello"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent(t *testing.T) {
 		t.Fatalf("unauthorized turn status = %d, want 401", unauthResp.StatusCode)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navibox/turn", strings.NewReader(`{"request_id":"req-1","session_id":"s-1","text":"hello from navibox"}`))
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/turn", strings.NewReader(`{"request_id":"req-1","session_id":"s-1","text":"hello from navivox"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,10 +71,10 @@ func TestHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent(t *testing.T) {
 
 	select {
 	case ev := <-inbox:
-		if ev.Platform != PlatformName || ev.Kind != gateway.EventSubmit || ev.ChatID != "s-1" || ev.UserID != "navibox" || ev.MsgID != "req-1" {
-			t.Fatalf("gateway event = %+v, want navibox submit for s-1/req-1", ev)
+		if ev.Platform != PlatformName || ev.Kind != gateway.EventSubmit || ev.ChatID != "s-1" || ev.UserID != "navivox" || ev.MsgID != "req-1" {
+			t.Fatalf("gateway event = %+v, want navivox submit for s-1/req-1", ev)
 		}
-		if ev.Text != "hello from navibox" {
+		if ev.Text != "hello from navivox" {
 			t.Fatalf("gateway event text = %q", ev.Text)
 		}
 	case <-time.After(time.Second):
@@ -187,12 +187,12 @@ func TestWebSocketStartTurnStreamsGatewayResponses(t *testing.T) {
 
 func newTestChannel(t *testing.T) *Channel {
 	t.Helper()
-	ch, err := NewChannel(config.NaviboxCfg{
+	ch, err := NewChannel(config.NavivoxCfg{
 		Enabled:      true,
-		BindHost:     config.NaviboxDefaultBindHost,
-		Port:         config.NaviboxDefaultPort,
-		ExposureMode: config.NaviboxExposureLocal,
-		AuthMode:     config.NaviboxAuthPairingToken,
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
 		Token:        "nvbx_test_token",
 	}, nil)
 	if err != nil {
@@ -204,7 +204,7 @@ func newTestChannel(t *testing.T) *Channel {
 
 func dialTestWebSocket(t *testing.T, httpURL string) *websocket.Conn {
 	t.Helper()
-	wsURL := "ws" + strings.TrimPrefix(httpURL, "http") + "/v1/navibox/stream"
+	wsURL := "ws" + strings.TrimPrefix(httpURL, "http") + "/v1/navivox/stream"
 	header := http.Header{}
 	header.Set("Authorization", "Bearer nvbx_test_token")
 	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)

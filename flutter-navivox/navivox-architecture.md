@@ -1,7 +1,7 @@
 # Navivox Architecture
 
 Status: planning draft
-Source: derived from navibox-prd.md
+Source: derived from navivox-prd.md
 
 ## 1. High-Level Architecture
 

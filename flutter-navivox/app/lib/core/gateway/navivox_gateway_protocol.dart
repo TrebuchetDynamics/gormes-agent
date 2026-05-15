@@ -1,19 +1,19 @@
-class NaviboxGatewayConfig {
-  const NaviboxGatewayConfig({required this.baseUri, this.token});
+class NavivoxGatewayConfig {
+  const NavivoxGatewayConfig({required this.baseUri, this.token});
 
-  factory NaviboxGatewayConfig.fromBaseUrl(String baseUrl, {String? token}) {
-    return NaviboxGatewayConfig(baseUri: Uri.parse(baseUrl), token: token);
+  factory NavivoxGatewayConfig.fromBaseUrl(String baseUrl, {String? token}) {
+    return NavivoxGatewayConfig(baseUri: Uri.parse(baseUrl), token: token);
   }
 
   final Uri baseUri;
   final String? token;
 
   Uri get healthUri => _withPath('/healthz');
-  Uri get statusUri => _withPath('/v1/navibox/status');
-  Uri get sessionsUri => _withPath('/v1/navibox/sessions');
+  Uri get statusUri => _withPath('/v1/navivox/status');
+  Uri get sessionsUri => _withPath('/v1/navivox/sessions');
   Uri sessionUri(String sessionId) =>
-      _withPath('/v1/navibox/sessions/$sessionId');
-  Uri get turnUri => _withPath('/v1/navibox/turn');
+      _withPath('/v1/navivox/sessions/$sessionId');
+  Uri get turnUri => _withPath('/v1/navivox/turn');
 
   Uri get streamUri {
     final scheme = switch (baseUri.scheme) {
@@ -22,7 +22,7 @@ class NaviboxGatewayConfig {
       'wss' || 'ws' => baseUri.scheme,
       _ => 'ws',
     };
-    return _withPath('/v1/navibox/stream').replace(scheme: scheme);
+    return _withPath('/v1/navivox/stream').replace(scheme: scheme);
   }
 
   Map<String, String> get headers {
@@ -38,23 +38,23 @@ class NaviboxGatewayConfig {
   }
 }
 
-class NaviboxGatewayMessage {
-  const NaviboxGatewayMessage._(this.body);
+class NavivoxGatewayMessage {
+  const NavivoxGatewayMessage._(this.body);
 
-  factory NaviboxGatewayMessage.ping({required String requestId}) {
-    return NaviboxGatewayMessage._({'type': 'ping', 'request_id': requestId});
+  factory NavivoxGatewayMessage.ping({required String requestId}) {
+    return NavivoxGatewayMessage._({'type': 'ping', 'request_id': requestId});
   }
 
-  factory NaviboxGatewayMessage.startTurn({
+  factory NavivoxGatewayMessage.startTurn({
     required String requestId,
     String? sessionId,
     required String text,
     Map<String, Object?> metadata = const {
-      'client': 'navibox',
+      'client': 'navivox',
       'platform': 'flutter',
     },
   }) {
-    return NaviboxGatewayMessage._({
+    return NavivoxGatewayMessage._({
       'type': 'start_turn',
       'request_id': requestId,
       if (sessionId != null && sessionId.trim().isNotEmpty)
@@ -64,22 +64,22 @@ class NaviboxGatewayMessage {
     });
   }
 
-  factory NaviboxGatewayMessage.cancelTurn({
+  factory NavivoxGatewayMessage.cancelTurn({
     required String requestId,
     required String sessionId,
   }) {
-    return NaviboxGatewayMessage._({
+    return NavivoxGatewayMessage._({
       'type': 'cancel_turn',
       'request_id': requestId,
       'session_id': sessionId,
     });
   }
 
-  factory NaviboxGatewayMessage.subscribeSession({
+  factory NavivoxGatewayMessage.subscribeSession({
     required String requestId,
     required String sessionId,
   }) {
-    return NaviboxGatewayMessage._({
+    return NavivoxGatewayMessage._({
       'type': 'subscribe_session',
       'request_id': requestId,
       'session_id': sessionId,
@@ -89,8 +89,8 @@ class NaviboxGatewayMessage {
   final Map<String, Object?> body;
 }
 
-class NaviboxGatewayEvent {
-  const NaviboxGatewayEvent({
+class NavivoxGatewayEvent {
+  const NavivoxGatewayEvent({
     required this.type,
     this.requestId,
     this.sessionId,
@@ -102,8 +102,8 @@ class NaviboxGatewayEvent {
     this.status,
   });
 
-  factory NaviboxGatewayEvent.fromJson(Map<String, Object?> json) {
-    return NaviboxGatewayEvent(
+  factory NavivoxGatewayEvent.fromJson(Map<String, Object?> json) {
+    return NavivoxGatewayEvent(
       type: json['type']?.toString() ?? '',
       requestId: json['request_id']?.toString(),
       sessionId: json['session_id']?.toString(),

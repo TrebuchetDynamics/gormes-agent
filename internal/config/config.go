@@ -51,7 +51,7 @@ type Config struct {
 	Teams         TeamsCfg          `toml:"teams" yaml:"teams"`
 	Yuanbao       YuanbaoCfg        `toml:"yuanbao" yaml:"yuanbao"`
 	Web           WebCfg            `toml:"web" yaml:"web"`
-	Navibox       NaviboxCfg        `toml:"navibox" yaml:"navibox"`
+	Navivox       NavivoxCfg        `toml:"navivox" yaml:"navivox"`
 	Browser       BrowserCfg        `toml:"browser" yaml:"browser"`
 	Security      SecurityCfg       `toml:"security" yaml:"security"`
 	Secrets       SecretsCfg        `toml:"secrets" yaml:"secrets"`
@@ -272,21 +272,21 @@ type WebCfg struct {
 }
 
 const (
-	NaviboxDefaultBindHost = "127.0.0.1"
-	NaviboxDefaultPort     = 8765
+	NavivoxDefaultBindHost = "127.0.0.1"
+	NavivoxDefaultPort     = 8765
 
-	NaviboxExposureLocal     = "local"
-	NaviboxExposureTailscale = "tailscale"
-	NaviboxExposurePublic    = "public"
+	NavivoxExposureLocal     = "local"
+	NavivoxExposureTailscale = "tailscale"
+	NavivoxExposurePublic    = "public"
 
-	NaviboxAuthPairingToken      = "pairing_token"
-	NaviboxAuthStaticToken       = "static_token"
-	NaviboxAuthTailscaleIdentity = "tailscale_identity"
+	NavivoxAuthPairingToken      = "pairing_token"
+	NavivoxAuthStaticToken       = "static_token"
+	NavivoxAuthTailscaleIdentity = "tailscale_identity"
 )
 
-// NaviboxCfg configures the native gateway-owned HTTP/WebSocket channel used
-// by the Flutter Navibox app. The disabled zero value is intentionally safe.
-type NaviboxCfg struct {
+// NavivoxCfg configures the native gateway-owned HTTP/WebSocket channel used
+// by the Flutter Navivox app. The disabled zero value is intentionally safe.
+type NavivoxCfg struct {
 	Enabled                  bool     `toml:"enabled" yaml:"enabled"`
 	BindHost                 string   `toml:"bind_host" yaml:"bind_host"`
 	Port                     int      `toml:"port" yaml:"port"`
@@ -803,12 +803,12 @@ func defaults() Config {
 			RequireMention:    true,
 			ReplyInThread:     true,
 		},
-		Navibox: NaviboxCfg{
+		Navivox: NavivoxCfg{
 			Enabled:      false,
-			BindHost:     NaviboxDefaultBindHost,
-			Port:         NaviboxDefaultPort,
-			ExposureMode: NaviboxExposureLocal,
-			AuthMode:     NaviboxAuthPairingToken,
+			BindHost:     NavivoxDefaultBindHost,
+			Port:         NavivoxDefaultPort,
+			ExposureMode: NavivoxExposureLocal,
+			AuthMode:     NavivoxAuthPairingToken,
 		},
 		Teams: TeamsCfg{
 			Enabled: false,
@@ -1247,44 +1247,44 @@ func loadEnv(cfg *Config) error {
 		}
 		cfg.Slack.ReplyInThread = parsed
 	}
-	if v := os.Getenv("GORMES_NAVIBOX_ENABLED"); v != "" {
-		parsed, err := parseEnvBool("GORMES_NAVIBOX_ENABLED", v)
+	if v := os.Getenv("GORMES_NAVIVOX_ENABLED"); v != "" {
+		parsed, err := parseEnvBool("GORMES_NAVIVOX_ENABLED", v)
 		if err != nil {
 			return err
 		}
-		cfg.Navibox.Enabled = parsed
+		cfg.Navivox.Enabled = parsed
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_BIND_HOST")); v != "" {
-		cfg.Navibox.BindHost = v
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_BIND_HOST")); v != "" {
+		cfg.Navivox.BindHost = v
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_PORT")); v != "" {
-		parsed, err := parseEnvInt("GORMES_NAVIBOX_PORT", v)
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_PORT")); v != "" {
+		parsed, err := parseEnvInt("GORMES_NAVIVOX_PORT", v)
 		if err != nil {
 			return err
 		}
-		cfg.Navibox.Port = parsed
+		cfg.Navivox.Port = parsed
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_EXPOSURE_MODE")); v != "" {
-		cfg.Navibox.ExposureMode = v
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_EXPOSURE_MODE")); v != "" {
+		cfg.Navivox.ExposureMode = v
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_AUTH_MODE")); v != "" {
-		cfg.Navibox.AuthMode = v
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_AUTH_MODE")); v != "" {
+		cfg.Navivox.AuthMode = v
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_TOKEN")); v != "" {
-		cfg.Navibox.Token = v
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_TOKEN")); v != "" {
+		cfg.Navivox.Token = v
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_ALLOW_ORIGINS")); v != "" {
-		cfg.Navibox.AllowOrigins = parseEnvCSV(v)
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_ALLOW_ORIGINS")); v != "" {
+		cfg.Navivox.AllowOrigins = parseEnvCSV(v)
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_ALLOWED_TAILNET_IDENTITIES")); v != "" {
-		cfg.Navibox.AllowedTailnetIdentities = parseEnvCSV(v)
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_ALLOWED_TAILNET_IDENTITIES")); v != "" {
+		cfg.Navivox.AllowedTailnetIdentities = parseEnvCSV(v)
 	}
-	if v := os.Getenv("GORMES_NAVIBOX_PUBLIC_CONFIRMED"); v != "" {
-		parsed, err := parseEnvBool("GORMES_NAVIBOX_PUBLIC_CONFIRMED", v)
+	if v := os.Getenv("GORMES_NAVIVOX_PUBLIC_CONFIRMED"); v != "" {
+		parsed, err := parseEnvBool("GORMES_NAVIVOX_PUBLIC_CONFIRMED", v)
 		if err != nil {
 			return err
 		}
-		cfg.Navibox.PublicConfirmed = parsed
+		cfg.Navivox.PublicConfirmed = parsed
 	}
 	if v := os.Getenv("GORMES_TEAMS_ENABLED"); v != "" {
 		parsed, err := parseEnvBool("GORMES_TEAMS_ENABLED", v)
@@ -1550,7 +1550,7 @@ func validateConfig(cfg *Config) error {
 	cfg.Gateway.ProxyURL = normalizeGatewayProxyURL(cfg.Gateway.ProxyURL)
 	cfg.Gateway.ProxyKey = strings.TrimSpace(cfg.Gateway.ProxyKey)
 	cfg.Gateway.Platforms = normalizeGatewayPlatformMap(cfg.Gateway.Platforms)
-	if err := normalizeNaviboxConfig(&cfg.Navibox); err != nil {
+	if err := normalizeNavivoxConfig(&cfg.Navivox); err != nil {
 		return err
 	}
 	cfg.Agent.ImageInputMode = normalizeAgentImageInputMode(cfg.Agent.ImageInputMode)
@@ -1622,64 +1622,64 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
-func normalizeNaviboxConfig(cfg *NaviboxCfg) error {
+func normalizeNavivoxConfig(cfg *NavivoxCfg) error {
 	cfg.BindHost = strings.TrimSpace(cfg.BindHost)
 	if cfg.BindHost == "" {
-		cfg.BindHost = NaviboxDefaultBindHost
+		cfg.BindHost = NavivoxDefaultBindHost
 	}
 	if cfg.Port == 0 {
-		cfg.Port = NaviboxDefaultPort
+		cfg.Port = NavivoxDefaultPort
 	}
 	cfg.ExposureMode = strings.ToLower(strings.TrimSpace(cfg.ExposureMode))
 	if cfg.ExposureMode == "" {
-		cfg.ExposureMode = NaviboxExposureLocal
+		cfg.ExposureMode = NavivoxExposureLocal
 	}
 	cfg.AuthMode = strings.ToLower(strings.TrimSpace(cfg.AuthMode))
 	if cfg.AuthMode == "" {
-		cfg.AuthMode = NaviboxAuthPairingToken
+		cfg.AuthMode = NavivoxAuthPairingToken
 	}
 	cfg.Token = strings.TrimSpace(cfg.Token)
 	cfg.AllowOrigins = compactStrings(cfg.AllowOrigins)
 	cfg.AllowedTailnetIdentities = compactStrings(cfg.AllowedTailnetIdentities)
 
 	if cfg.Port < 1 || cfg.Port > 65535 {
-		return fmt.Errorf("config: navibox.port must be between 1 and 65535, got %d", cfg.Port)
+		return fmt.Errorf("config: navivox.port must be between 1 and 65535, got %d", cfg.Port)
 	}
 	switch cfg.ExposureMode {
-	case NaviboxExposureLocal, NaviboxExposureTailscale, NaviboxExposurePublic:
+	case NavivoxExposureLocal, NavivoxExposureTailscale, NavivoxExposurePublic:
 	default:
-		return fmt.Errorf("config: navibox.exposure_mode %q is invalid; want local, tailscale, or public", cfg.ExposureMode)
+		return fmt.Errorf("config: navivox.exposure_mode %q is invalid; want local, tailscale, or public", cfg.ExposureMode)
 	}
 	switch cfg.AuthMode {
-	case NaviboxAuthPairingToken, NaviboxAuthStaticToken:
+	case NavivoxAuthPairingToken, NavivoxAuthStaticToken:
 		if cfg.Enabled && cfg.Token == "" {
-			return fmt.Errorf("config: navibox.token is required when navibox.enabled=true and auth_mode=%s", cfg.AuthMode)
+			return fmt.Errorf("config: navivox.token is required when navivox.enabled=true and auth_mode=%s", cfg.AuthMode)
 		}
-	case NaviboxAuthTailscaleIdentity:
+	case NavivoxAuthTailscaleIdentity:
 	default:
-		return fmt.Errorf("config: navibox.auth_mode %q is invalid; want pairing_token, static_token, or tailscale_identity", cfg.AuthMode)
+		return fmt.Errorf("config: navivox.auth_mode %q is invalid; want pairing_token, static_token, or tailscale_identity", cfg.AuthMode)
 	}
 	if !cfg.Enabled {
 		return nil
 	}
-	if naviboxWildcardHost(cfg.BindHost) && cfg.ExposureMode != NaviboxExposurePublic {
-		return fmt.Errorf("config: navibox.bind_host %q requires navibox.exposure_mode=public and explicit confirmation", cfg.BindHost)
+	if navivoxWildcardHost(cfg.BindHost) && cfg.ExposureMode != NavivoxExposurePublic {
+		return fmt.Errorf("config: navivox.bind_host %q requires navivox.exposure_mode=public and explicit confirmation", cfg.BindHost)
 	}
-	if cfg.ExposureMode == NaviboxExposureLocal && !naviboxLoopbackHost(cfg.BindHost) {
-		return fmt.Errorf("config: navibox.exposure_mode=local requires loopback bind_host, got %q", cfg.BindHost)
+	if cfg.ExposureMode == NavivoxExposureLocal && !navivoxLoopbackHost(cfg.BindHost) {
+		return fmt.Errorf("config: navivox.exposure_mode=local requires loopback bind_host, got %q", cfg.BindHost)
 	}
-	if cfg.ExposureMode == NaviboxExposurePublic && !cfg.PublicConfirmed {
-		return fmt.Errorf("config: navibox.exposure_mode=public requires navibox.public_confirmed=true")
+	if cfg.ExposureMode == NavivoxExposurePublic && !cfg.PublicConfirmed {
+		return fmt.Errorf("config: navivox.exposure_mode=public requires navivox.public_confirmed=true")
 	}
 	return nil
 }
 
-func ValidateNaviboxForRuntime(cfg *NaviboxCfg) error {
-	return normalizeNaviboxConfig(cfg)
+func ValidateNavivoxForRuntime(cfg *NavivoxCfg) error {
+	return normalizeNavivoxConfig(cfg)
 }
 
-func naviboxLoopbackHost(host string) bool {
-	host = naviboxHostOnly(host)
+func navivoxLoopbackHost(host string) bool {
+	host = navivoxHostOnly(host)
 	if strings.EqualFold(host, "localhost") {
 		return true
 	}
@@ -1687,12 +1687,12 @@ func naviboxLoopbackHost(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-func naviboxWildcardHost(host string) bool {
-	host = naviboxHostOnly(host)
+func navivoxWildcardHost(host string) bool {
+	host = navivoxHostOnly(host)
 	return host == "" || host == "0.0.0.0" || host == "::" || host == "[::]"
 }
 
-func naviboxHostOnly(raw string) string {
+func navivoxHostOnly(raw string) string {
 	host := strings.TrimSpace(raw)
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h

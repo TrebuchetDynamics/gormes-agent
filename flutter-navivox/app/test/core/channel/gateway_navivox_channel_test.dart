@@ -3,19 +3,19 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:navivox/core/channel/gateway_navibox_channel.dart';
-import 'package:navivox/core/gateway/navibox_gateway_protocol.dart';
+import 'package:navivox/core/channel/gateway_navivox_channel.dart';
+import 'package:navivox/core/gateway/navivox_gateway_protocol.dart';
 
 void main() {
   test('connects to gateway and streams a chat turn', () async {
     final server = await _FakeGatewayServer.start();
     addTearDown(server.close);
 
-    final channel = GatewayNaviboxChannel();
+    final channel = GatewayNavivoxChannel();
     addTearDown(channel.dispose);
 
     await channel.connect(
-      NaviboxGatewayConfig.fromBaseUrl(
+      NavivoxGatewayConfig.fromBaseUrl(
         server.baseUrl,
         token: _FakeGatewayServer.token,
       ),
@@ -79,11 +79,11 @@ class _FakeGatewayServer {
       await request.response.close();
       return;
     }
-    if (request.uri.path == '/v1/navibox/status') {
+    if (request.uri.path == '/v1/navivox/status') {
       _writeJson(request.response, {'enabled': true});
       return;
     }
-    if (request.uri.path == '/v1/navibox/stream') {
+    if (request.uri.path == '/v1/navivox/stream') {
       final socket = await WebSocketTransformer.upgrade(request);
       socket.listen((raw) {
         final decoded = Map<String, Object?>.from(jsonDecode(raw as String));

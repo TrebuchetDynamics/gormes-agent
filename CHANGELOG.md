@@ -16,7 +16,7 @@ Date alias: `v2026.5.14`.
 
 ### Added
 - Shared first-run readiness planner used by root launch, setup, onboard, and doctor surfaces.
-- Target-first `gormes setup --quick` flow for terminal, Telegram, WhatsApp, Discord, Slack, and Navibox.
+- Target-first `gormes setup --quick` flow for terminal, Telegram, WhatsApp, Discord, Slack, and Navivox.
 - Minimal Telegram, Discord, and Slack channel setup prompts with secret-safe config writes.
 - Planner-backed `gormes onboard` and `gormes doctor --target` text/JSON readiness reports.
 - Fresh-install e2e coverage for root no-TTY guidance, quick setup non-interactive mode, onboard JSON, and doctor target JSON.
@@ -42,25 +42,25 @@ Date alias: `v2026.5.14`.
 
 Date alias: `v2026.5.14`.
 
-> **Native Navibox gateway channel over private HTTP/WebSocket transport.**
+> **Native Navivox gateway channel over private HTTP/WebSocket transport.**
 
 ### Added
-- Native `navibox` gateway channel owned by `gormes gateway`, with HTTP status
+- Native `navivox` gateway channel owned by `gormes gateway`, with HTTP status
   routes, WebSocket streaming, typed JSON messages, bearer-token auth, safe
   metadata logging, and no raw shell endpoint.
-- Setup support for enabling the Navibox channel, choosing local/Tailscale/public
+- Setup support for enabling the Navivox channel, choosing local/Tailscale/public
   exposure, bind host, port, auth mode, pairing token generation, and explicit
   firewall intent without silently changing firewall rules.
-- Flutter Navibox gateway client, active fake/gateway channel switcher, setup
+- Flutter Navivox gateway client, active fake/gateway channel switcher, setup
   screen connection fields, and chat streaming over the native gateway.
-- Navibox gateway runbook covering trust boundaries, setup, Tailscale mode,
+- Navivox gateway runbook covering trust boundaries, setup, Tailscale mode,
   firewall examples and rollback, endpoints, and smoke tests.
 
 ### Security
-- Navibox is disabled by default and binds to loopback by default.
-- Public exposure requires both `navibox.exposure_mode = "public"` and
-  `navibox.public_confirmed = true`.
-- `navibox.token` is routed to `GORMES_NAVIBOX_TOKEN` instead of committed TOML.
+- Navivox is disabled by default and binds to loopback by default.
+- Public exposure requires both `navivox.exposure_mode = "public"` and
+  `navivox.public_confirmed = true`.
+- `navivox.token` is routed to `GORMES_NAVIVOX_TOKEN` instead of committed TOML.
 
 ## [0.2.9] - 2026-05-13
 

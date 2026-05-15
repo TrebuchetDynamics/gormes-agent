@@ -44,7 +44,7 @@ func TestBuildFirstRunPlan_FreshInstallRouterOptions(t *testing.T) {
 		SetupTargetWhatsApp,
 		SetupTargetDiscord,
 		SetupTargetSlack,
-		SetupTargetNavibox,
+		SetupTargetNavivox,
 	}
 	for i, want := range wantTargets {
 		if plan.Targets[i].ID != want {

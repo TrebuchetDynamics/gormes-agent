@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:navivox/core/gateway/navibox_gateway_client.dart';
-import 'package:navivox/core/gateway/navibox_gateway_protocol.dart';
+import 'package:navivox/core/gateway/navivox_gateway_client.dart';
+import 'package:navivox/core/gateway/navivox_gateway_protocol.dart';
 
 void main() {
   test('constructs HTTP and WebSocket URLs from one base URL', () {
-    final config = NaviboxGatewayConfig.fromBaseUrl(
+    final config = NavivoxGatewayConfig.fromBaseUrl(
       'https://gromit.tailnet.test:8765',
       token: 'nvbx_test_token',
     );
@@ -18,21 +18,21 @@ void main() {
     );
     expect(
       config.statusUri.toString(),
-      'https://gromit.tailnet.test:8765/v1/navibox/status',
+      'https://gromit.tailnet.test:8765/v1/navivox/status',
     );
     expect(
       config.turnUri.toString(),
-      'https://gromit.tailnet.test:8765/v1/navibox/turn',
+      'https://gromit.tailnet.test:8765/v1/navivox/turn',
     );
     expect(
       config.streamUri.toString(),
-      'wss://gromit.tailnet.test:8765/v1/navibox/stream',
+      'wss://gromit.tailnet.test:8765/v1/navivox/stream',
     );
     expect(config.headers, {'Authorization': 'Bearer nvbx_test_token'});
   });
 
   test('builds typed gateway messages', () {
-    final start = NaviboxGatewayMessage.startTurn(
+    final start = NavivoxGatewayMessage.startTurn(
       requestId: 'req-1',
       sessionId: 's-1',
       text: 'hello',
@@ -42,12 +42,12 @@ void main() {
     expect(start.body['session_id'], 's-1');
     expect(start.body['text'], 'hello');
 
-    final ping = NaviboxGatewayMessage.ping(requestId: 'req-ping');
+    final ping = NavivoxGatewayMessage.ping(requestId: 'req-ping');
     expect(jsonEncode(ping.body), '{"type":"ping","request_id":"req-ping"}');
   });
 
   test('parses typed gateway events', () {
-    final event = NaviboxGatewayEvent.fromJson({
+    final event = NavivoxGatewayEvent.fromJson({
       'type': 'tool_call_finished',
       'request_id': 'req-2',
       'session_id': 's-2',
@@ -67,8 +67,8 @@ void main() {
 
   test('client sends auth headers to health and decodes status JSON', () async {
     final seen = <Uri, Map<String, String>>{};
-    final client = NaviboxGatewayClient(
-      config: NaviboxGatewayConfig.fromBaseUrl(
+    final client = NavivoxGatewayClient(
+      config: NavivoxGatewayConfig.fromBaseUrl(
         'http://127.0.0.1:8765',
         token: 'nvbx_test_token',
       ),
@@ -83,7 +83,7 @@ void main() {
     expect(status['enabled'], isTrue);
     expect(
       seen.keys.single.toString(),
-      'http://127.0.0.1:8765/v1/navibox/status',
+      'http://127.0.0.1:8765/v1/navivox/status',
     );
     expect(seen.values.single['Authorization'], 'Bearer nvbx_test_token');
   });
@@ -91,8 +91,8 @@ void main() {
   test(
     'client decodes WebSocket event stream and exposes bounded backoff',
     () async {
-      final client = NaviboxGatewayClient(
-        config: NaviboxGatewayConfig.fromBaseUrl('http://127.0.0.1:8765'),
+      final client = NavivoxGatewayClient(
+        config: NavivoxGatewayConfig.fromBaseUrl('http://127.0.0.1:8765'),
       );
       final stream = Stream<dynamic>.fromIterable([
         '{"type":"pong","request_id":"req-ping"}',

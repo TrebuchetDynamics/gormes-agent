@@ -33,7 +33,7 @@ func newDoctorCommand() *cobra.Command {
 	cmd := buildDoctorCmd()
 	cmd.Flags().Bool("offline", false, "skip the provider health check and validate local runtime checks")
 	cmd.Flags().Bool("json", false, "emit a machine-readable {checks: [...]} JSON document (suitable for fleet-health monitoring)")
-	cmd.Flags().String("target", "", "report first-run readiness for a setup target (terminal, telegram, whatsapp, discord, slack, navibox)")
+	cmd.Flags().String("target", "", "report first-run readiness for a setup target (terminal, telegram, whatsapp, discord, slack, navivox)")
 	return cmd
 }
 
@@ -260,7 +260,7 @@ func buildDoctorCmd() *cobra.Command {
 }
 
 func doctorUnsupportedTargetSummary(value string) string {
-	return fmt.Sprintf("unsupported target %q (supported: terminal, telegram, whatsapp, discord, slack, navibox)", strings.TrimSpace(value))
+	return fmt.Sprintf("unsupported target %q (supported: terminal, telegram, whatsapp, discord, slack, navivox)", strings.TrimSpace(value))
 }
 
 func doctorSetupTargetFromString(value string) (cli.SetupTargetID, bool) {
@@ -275,8 +275,8 @@ func doctorSetupTargetFromString(value string) (cli.SetupTargetID, bool) {
 		return cli.SetupTargetDiscord, true
 	case string(cli.SetupTargetSlack):
 		return cli.SetupTargetSlack, true
-	case string(cli.SetupTargetNavibox):
-		return cli.SetupTargetNavibox, true
+	case string(cli.SetupTargetNavivox):
+		return cli.SetupTargetNavivox, true
 	default:
 		return "", false
 	}

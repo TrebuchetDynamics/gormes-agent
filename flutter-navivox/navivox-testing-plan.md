@@ -1,7 +1,7 @@
 # Navivox Testing Plan
 
 Status: planning draft
-Source: derived from navibox-prd.md §18
+Source: derived from navivox-prd.md §18
 
 ## 1. Testing Pyramid
 

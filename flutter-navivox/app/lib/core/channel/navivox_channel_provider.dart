@@ -2,20 +2,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'fake_navivox_channel.dart';
-import 'gateway_navibox_channel.dart';
+import 'gateway_navivox_channel.dart';
 import 'navivox_channel.dart';
 
 enum NavivoxChannelMode { fake, gateway }
 
-final gatewayNaviboxChannelProvider = Provider<GatewayNaviboxChannel>((ref) {
-  final channel = GatewayNaviboxChannel();
+final gatewayNavivoxChannelProvider = Provider<GatewayNavivoxChannel>((ref) {
+  final channel = GatewayNavivoxChannel();
   ref.onDispose(channel.dispose);
   return channel;
 });
 
 final activeNavivoxChannelProvider = Provider<NavivoxChannelSwitcher>((ref) {
   final fake = ref.watch(fakeNavivoxChannelProvider);
-  final gateway = ref.watch(gatewayNaviboxChannelProvider);
+  final gateway = ref.watch(gatewayNavivoxChannelProvider);
   final switcher = NavivoxChannelSwitcher(fake: fake, gateway: gateway);
   ref.onDispose(switcher.dispose);
   return switcher;
@@ -24,7 +24,7 @@ final activeNavivoxChannelProvider = Provider<NavivoxChannelSwitcher>((ref) {
 class NavivoxChannelSwitcher extends ChangeNotifier implements NavivoxChannel {
   NavivoxChannelSwitcher({
     required FakeNavivoxChannel fake,
-    required GatewayNaviboxChannel gateway,
+    required GatewayNavivoxChannel gateway,
   }) : _fake = fake,
        _gateway = gateway {
     _fake.addListener(notifyListeners);
@@ -32,7 +32,7 @@ class NavivoxChannelSwitcher extends ChangeNotifier implements NavivoxChannel {
   }
 
   final FakeNavivoxChannel _fake;
-  final GatewayNaviboxChannel _gateway;
+  final GatewayNavivoxChannel _gateway;
   NavivoxChannelMode _mode = NavivoxChannelMode.fake;
 
   NavivoxChannelMode get mode => _mode;

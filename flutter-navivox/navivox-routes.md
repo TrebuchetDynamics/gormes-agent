@@ -1,7 +1,7 @@
 # Navivox Route Design
 
 Status: planning draft
-Source: derived from navibox-prd.md
+Source: derived from navivox-prd.md
 
 ## 1. Route Architecture
 

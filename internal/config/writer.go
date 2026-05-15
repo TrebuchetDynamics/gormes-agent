@@ -37,7 +37,7 @@ var allowedTOMLSections = map[string]struct{}{
 	"slack":      {},
 	"yuanbao":    {},
 	"web":        {},
-	"navibox":    {},
+	"navivox":    {},
 	"browser":    {},
 	"security":   {},
 	"secrets":    {},
@@ -61,7 +61,7 @@ var secretAliases = map[string]string{
 	"slack.bot_token":    "GORMES_SLACK_BOT_TOKEN",
 	"slack.app_token":    "GORMES_SLACK_APP_TOKEN",
 	"gateway.proxy_key":  "GATEWAY_PROXY_KEY",
-	"navibox.token":      "GORMES_NAVIBOX_TOKEN",
+	"navivox.token":      "GORMES_NAVIVOX_TOKEN",
 }
 
 // IsSecretKey reports whether the user-supplied dotted key targets the
@@ -602,7 +602,7 @@ func coerceTOMLValue(section string, fields []string, value string) (any, error)
 	switch key {
 	case "telegram.allowed_user_ids":
 		return coerceTOMLInt64List(value)
-	case "navibox.allow_origins", "navibox.allowed_tailnet_identities":
+	case "navivox.allow_origins", "navivox.allowed_tailnet_identities":
 		return parseEnvCSV(value), nil
 	default:
 		if (section == "discord" || section == "slack") && len(fields) > 0 && fields[len(fields)-1] == "allowed_channel_id" {
