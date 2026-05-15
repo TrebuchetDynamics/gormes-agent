@@ -135,6 +135,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "model", Description: "Switch model for this session", Aliases: []string{"provider"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "paste", Description: "Attach clipboard image", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "personality", Description: "Set a predefined personality", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "platform", Description: "Pause, resume, or list a failing gateway platform", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"list", "pause", "resume"}},
 	{Name: "platforms", Description: "Show gateway/messaging platform status", Aliases: []string{"gateway"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "plugins", Description: "List installed plugins", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "profile", Description: "Show active profile name and home directory", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},

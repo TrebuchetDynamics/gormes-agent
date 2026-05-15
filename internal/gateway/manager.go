@@ -1013,6 +1013,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventGateway:
 		m.handlePlatformsCommand(ctx, ch, ev)
 		return nil
+	case EventPlatformControl:
+		m.handlePlatformControlCommand(ctx, ch, ev)
+		return nil
 	case EventReasoning:
 		m.handleReasoningCommand(ctx, ch, ev)
 		return nil
@@ -1171,6 +1174,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventGateway:
 		m.handlePlatformsCommand(ctx, ch, ev)
+		return true
+	case EventPlatformControl:
+		m.handlePlatformControlCommand(ctx, ch, ev)
 		return true
 	case EventReasoning:
 		m.handleReasoningCommand(ctx, ch, ev)
@@ -1353,6 +1359,26 @@ func (m *Manager) handleProfileCommand(ctx context.Context, ch Channel, ev Inbou
 func (m *Manager) handlePlatformsCommand(ctx context.Context, ch Channel, ev InboundEvent) {
 	platforms := m.formatConnectedPlatforms()
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("📡 **Connected Platforms:** %s\nUse `/status` for full session details.", platforms))
+}
+
+// handlePlatformControlCommand is the gateway slash-handler port of Hermes
+// gateway/run.py:_handle_platform_command (PR #26600): `/platform
+// <list|pause|resume> [name]`. The shared platform reconnect/circuit-breaker
+// queue is a tested lifecycle seam not yet wired into the live manager (see
+// the "Gateway platform reconnect isolation" row's deferred integration), so
+// the live failed-platform set is currently empty and pause/resume on a
+// non-queued platform truthfully reports it is not in the retry queue.
+func (m *Manager) handlePlatformControlCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	m.mu.Lock()
+	connected := make(map[string]Channel, len(m.channels))
+	for name, channel := range m.channels {
+		connected[name] = channel
+	}
+	m.mu.Unlock()
+	// No live failed-platform set is wired into the manager yet; the deferred
+	// lifecycle-integration row will pass the real queue here.
+	reply := HandlePlatformCommand(ev.Text, connected, nil)
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, reply)
 }
 
 func (m *Manager) formatConnectedPlatforms() string {

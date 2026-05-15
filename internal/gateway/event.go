@@ -72,6 +72,10 @@ const (
 	// EventSpawn handles channel-native dynamic agent spawn UX such as
 	// Telegram forum topics and Discord threads.
 	EventSpawn
+	// EventPlatformControl handles `/platform <list|pause|resume> [name]`,
+	// the operator slash handler for the per-platform circuit breaker
+	// (distinct from EventGateway's read-only /platforms status display).
+	EventPlatformControl
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -129,6 +133,8 @@ func (k EventKind) String() string {
 		return "kanban"
 	case EventSpawn:
 		return "spawn"
+	case EventPlatformControl:
+		return "platform_control"
 	default:
 		return "unknown"
 	}
