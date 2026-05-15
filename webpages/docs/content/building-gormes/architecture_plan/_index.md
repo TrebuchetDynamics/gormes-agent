@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 99/108 subphases shipped · 8 in progress · 1 planned
+**Overall:** 98/108 subphases shipped · 9 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -718,7 +718,7 @@ classification and row-backed implementation queue.
 - [x] P95 latency-aware failover
 - [x] Capability-based model tier routing
 
-## Phase 5 — The Final Purge ✅
+## Phase 5 — The Final Purge 🔨
 
 *Python tool scripts ported to Go or WASM*
 
@@ -1138,7 +1138,7 @@ classification and row-backed implementation queue.
 - [x] Install isolation: skip system service install when sandbox bin dir is set
 - [x] Install: prefer pre-built release binary over source build by default
 
-### 5.Q — API Server + TUI Gateway Streaming ✅
+### 5.Q — API Server + TUI Gateway Streaming 🔨
 
 - [x] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
 - [x] TUI gateway tool-progress mode normalizer
@@ -1191,6 +1191,8 @@ classification and row-backed implementation queue.
 - [x] API server cron admin mutating endpoints
 - [x] API server legacy jobs routes + default toolset
 - [x] Provider client lazy-init for TUI cold-start budget
+- [ ] Native TUI /model slash command binding over the existing model picker
+- [ ] Native TUI slash handler-port coverage
 
 ### 5.R — Code Execution Mode Policy ✅
 

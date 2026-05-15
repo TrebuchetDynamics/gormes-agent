@@ -47,7 +47,28 @@ selection.
 - Source refs: User design: 2026-05-13 coding-agent delegation plan, internal/codingagents/codingagents.go, internal/codingagents/workspace.go, internal/codingagents/git_snapshot.go
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 2. Termux storage and path safety audit
+## 2. Native TUI /model slash command binding over the existing model picker
+
+- Phase: 5 / 5.Q
+- Owner: `tui`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: The native Bubble Tea TUI treats `/model` (and the `/m` prefix) as a local operator command, not prompt text: dispatching it opens the already-implemented ModelPicker overlay (internal/tui/model_picker.go RenderModelPicker/UpdateModelPicker), populated from the existing model catalog, clears the editor, and never calls Submitter. Confirming a selection (modelPickerConfirmedMsg/ModelPickerResult) applies a model switch to the active kernel session through the existing model-override seam; cancel returns to the transcript unchanged. This removes the current `/m -> /model is recognized but unavailable in the native TUI` fallback (slash_dispatch.go slashKnownUnhandledStatus) by registering a real handler in NewDefaultSlashRegistry. The picker render/key engine already exists and MUST be reused, not reimplemented.
+- Trust class: -
+- Ready when: The model picker engine is complete (5.O 'Gormes model interactive provider/model picker' and 4.D model catalog cache are complete)., The native TUI slash registry consumes recognized commands before kernel submit (5.Q 'Native TUI slash-command dispatch table' complete).
+- Not ready when: The slice reimplements RenderModelPicker/UpdateModelPicker instead of reusing internal/tui/model_picker.go., The slice starts a gateway, dashboard, provider, or live channel adapter., Unknown or failing `/model` invocations leak raw slash text to the model., The slice replaces the existing kernel model-override seam instead of binding to it.
+- Degraded mode: If the model catalog is unavailable, `/model` is consumed with `model: ...` status evidence instead of forwarding the slash text to the model or silently dropping it; the picker is not opened with an empty/invalid catalog.
+- Fixture: `internal/tui/slash_model_test.go; cmd/gormes/tui_model_slash_test.go`
+- Write scope: `internal/tui/model.go`, `internal/tui/slash_dispatch.go`, `internal/tui/slash_model.go`, `internal/tui/slash_model_test.go`, `cmd/gormes/main.go`, `cmd/gormes/tui_model_slash_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tui -run 'TestModelSlash\|TestHermesSlashDispatchBehavior\|ModelPicker' -count=1`, `go test ./cmd/gormes -run TestTUIModelSlash -count=1`, `go run ./cmd/progress validate`
+- Done signal: Native TUI `/model` dispatch is fixture-proven over the reused ModelPicker engine, consumes slash text instead of leaking it, applies the model switch through the existing seam, and the 'recognized but unavailable' fallback no longer fires for /model.
+- Acceptance: TUI fixtures prove `/model` and the `/m` prefix are handled by the default slash registry, clear the editor, and never call Submitter., Fixtures prove dispatch opens the reused ModelPicker overlay populated from the model catalog and that key events route to UpdateModelPicker while it is active., Fixtures prove confirming a selection applies the model switch to the active session via the existing override seam and that cancel leaves the model unchanged., Failure fixtures prove catalog/seam errors surface as `model: ...` status evidence without raw slash leakage, and that `/model` no longer produces the 'recognized but unavailable in the native TUI' message.
+- Source refs: internal/tui/model_picker.go (ModelPickerState/ProviderEntry/ModelEntry/ModelPickerResult/modelPickerConfirmedMsg/RenderModelPicker/UpdateModelPicker — reuse engine, do not reimplement), internal/tui/slash_dispatch.go (NewDefaultSlashRegistry; slashFallbackResult/slashKnownUnhandledStatus produce today's 'recognized but unavailable'), internal/tui/panels_wiring.go:RenderActivePanel (overlay render slot), internal/tui/model.go (Model state + key routing for the active overlay), cmd/gormes/model.go (model catalog + model-switch seam used by the gateway/Cobra picker), ./hermes-agent/ui-tui/src/app/slash/registry.ts (slash dispatch parity reference, as cited by the completed /kanban row), progress 5.O 'Gormes model interactive provider/model picker' (engine, complete); 5.Q 'Native TUI Hermes tool progress + modal panel renderers' (overlay precedent, complete)
+- Unblocks: Native TUI slash handler-port coverage
+- Why now: Unblocks Native TUI slash handler-port coverage.
+
+## 3. Termux storage and path safety audit
 
 - Phase: 1 / 5.X
 - Owner: `orchestrator`
@@ -67,7 +88,7 @@ selection.
 - Source refs: internal/config/config.go, internal/store/, internal/goncho/, cmd/gormes/goncho.go, cmd/gormes/doctor.go, install.sh
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Termux gateway foreground tmux lifecycle
+## 4. Termux gateway foreground tmux lifecycle
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -87,7 +108,7 @@ selection.
 - Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Termux notification bridge via termux-api
+## 5. Termux notification bridge via termux-api
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -107,7 +128,7 @@ selection.
 - Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Termux real-device smoke evidence
+## 6. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -128,7 +149,7 @@ selection.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Termux remote execution guidance
+## 7. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -148,7 +169,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Agentic-porting-kit public repo scaffold
+## 8. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
