@@ -8307,6 +8307,90 @@
               "note": "Complete 2026-05-07: gateway lifecycle fixtures now prove Hermes-style platform startup isolation and retry state over fake connectors. The completed slice is a Go lifecycle/read-model seam; production channel startup can consume the helper in a later wiring row if broader manager integration is required."
             },
             {
+              "name": "Gateway per-platform circuit breaker + /platform pause/resume/list command",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Extend the completed platform reconnect/failed-queue seam (internal/gateway/platform_reconnect.go ReconnectFailedPlatforms / PlatformFailure) with Hermes' per-platform circuit breaker so the gateway keeps running when one platform keeps failing: after a configurable threshold of consecutive retryable failures (Hermes _PAUSE_AFTER_FAILURES=10) the platform is marked paused, kept in the failed set with a pause_reason and a far-future next_retry, surfaced as platform_state=\"paused\" in the runtime status read-model, and skipped by the reconnect watcher until manually resumed. Add a gateway-only `/platform <pause|resume|list> [name]` operator slash command (the Go port of gateway/run.py:_handle_platform_command, registered in internal/gateway/commands.go CommandRegistry as gateway_only with args_hint \"<pause|resume|list> [name]\" like the existing handler ports) where: `/platform pause <name>` pauses a queued platform (idempotent; rejects an unqueued platform), `/platform resume <name>` unpauses, resets the attempt counter and schedules an immediate retry (returns a clear not-paused/not-queued message otherwise), `/platform list` shows connected and paused platforms, bare `/platform` prints usage plus the list, and an unknown platform name is rejected with guidance. Auto-pause must log/return the Hermes-shaped 'fix the issue then run `/platform resume <name>`' guidance. This row does not reopen the completed reconnect-isolation row and does not change provider retry behavior.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the circuit breaker or /platform handler is unavailable, the gateway continues healthy platforms and reports platform_circuit_breaker_unavailable / gateway_platform_command_unavailable evidence rather than crashing the gateway or silently dropping the failing platform; the existing reconnect watcher behavior is preserved unchanged.",
+              "fixture": "internal/gateway/platform_reconnect_test.go (extend) or internal/gateway/platform_circuit_breaker_test.go (new)",
+              "source_refs": [
+                "../hermes-agent/gateway/run.py@518f39557:_pause_failed_platform",
+                "../hermes-agent/gateway/run.py@518f39557:_resume_paused_platform",
+                "../hermes-agent/gateway/run.py@518f39557:_PAUSE_AFTER_FAILURES (=10 consecutive-failure circuit-breaker threshold)",
+                "../hermes-agent/gateway/run.py@518f39557:_handle_platform_command (/platform pause|resume|list, bare usage)",
+                "../hermes-agent/hermes_cli/commands.py@518f39557:CommandDef(\"platform\", gateway_only=True, args_hint=\"<pause|resume|list> [name]\")",
+                "../hermes-agent/hermes_cli/main.py@518f39557",
+                "../hermes-agent/tests/gateway/test_platform_reconnect.py@518f39557:test_reconnect_pauses_after_circuit_breaker_threshold",
+                "../hermes-agent/tests/gateway/test_platform_reconnect.py@518f39557:test_reconnect_skips_paused_platforms",
+                "../hermes-agent/tests/gateway/test_platform_reconnect.py@518f39557:test_pause_marks_platform_paused / test_pause_is_idempotent / test_pause_no_op_when_platform_not_queued",
+                "../hermes-agent/tests/gateway/test_platform_reconnect.py@518f39557:test_resume_clears_paused_and_resets_attempts / test_resume_returns_false_when_not_paused / test_resume_returns_false_when_not_queued",
+                "../hermes-agent/tests/gateway/test_platform_reconnect.py@518f39557:test_list_shows_connected_and_paused / test_pause_command_pauses_queued_platform / test_pause_rejects_unqueued_platform / test_resume_command_resumes_paused_platform / test_unknown_platform_name / test_bare_platform_shows_usage_with_list",
+                "internal/gateway/platform_reconnect.go:ReconnectFailedPlatforms (existing failed-platform queue + PlatformFailure seam to extend)",
+                "internal/gateway/manager.go:handleModelCommand (precedent for gateway slash-handler port of a gateway/run.py _handle_*_command)",
+                "internal/gateway/commands.go:CommandRegistry (gateway-only command registration + args_hint precedent)",
+                "internal/gateway/status.go (runtime status read-model for platform_state=paused evidence)"
+              ],
+              "ready_when": [
+                "The 'Gateway platform reconnect isolation + channel health limits' row is complete on main (it is), so the failed-platform queue, PlatformFailure attempts/next_retry state, and status read-model already exist to extend rather than invent.",
+                "Tests can use fake connectors, a fake clock, and a temp runtime status store; no live Telegram/Discord/Slack/WhatsApp clients are required.",
+                "Local ../hermes-agent submodule is advanced to (or the row cites) upstream 518f39557; this behavior is newer than the pinned aac6d97a1."
+              ],
+              "not_ready_when": [
+                "The slice reopens or rewrites the completed reconnect-isolation row, changes provider/model retry policy, starts real SDKs or network clients in tests, or invents a new status file instead of extending the existing platform status read-model.",
+                "The /platform command is implemented as a hermes_cli-style management subcommand instead of the gateway in-chat operator slash-handler port of _handle_platform_command.",
+                "Auto-pause threshold is hardcoded with no Hermes-compatible default (10) or the pause does not actually stop the reconnect watcher from retrying the paused platform."
+              ],
+              "blocked_by": [
+                "Gateway platform reconnect isolation + channel health limits"
+              ],
+              "acceptance": [
+                "After the configured number of consecutive retryable failures (default 10) a platform is marked paused, stays in the failed set with a pause_reason and far-future next_retry, and the reconnect watcher skips it until resumed.",
+                "`/platform pause <name>` pauses a queued platform and is idempotent; pausing an unqueued/unknown platform returns a clear rejection and does not panic.",
+                "`/platform resume <name>` unpauses, resets the attempt counter, schedules an immediate retry, and returns a distinct message when the platform was not paused or not queued.",
+                "`/platform list` shows connected and paused platforms; bare `/platform` prints usage followed by the list; an unknown platform name is rejected with guidance.",
+                "Auto-pause emits Hermes-shaped guidance telling the operator to fix the issue then run `/platform resume <name>`, and paused state is visible in the runtime status read-model as platform_state=paused.",
+                "Healthy platforms keep running while one platform is paused (gateway does not crash when a platform stays down)."
+              ],
+              "write_scope": [
+                "internal/gateway/platform_reconnect.go",
+                "internal/gateway/platform_reconnect_test.go",
+                "internal/gateway/platform_circuit_breaker_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/commands.go",
+                "internal/gateway/commands_test.go",
+                "internal/gateway/status.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestPlatform(CircuitBreaker|Pause|Resume|List)|TestPlatformCommand' -count=1",
+                "go test ./internal/gateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway fixtures prove threshold auto-pause, reconnect-watcher skip of paused platforms, idempotent pause, resume reset+immediate retry, list/usage/unknown-name handling, and platform_state=paused status evidence over fake connectors only, with source evidence citing Hermes 518f39557."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:518f39557 gateway/run.py (_pause_failed_platform/_resume_paused_platform/_PAUSE_AFTER_FAILURES/_handle_platform_command)",
+                  "hermes:518f39557 hermes_cli/commands.py (CommandDef platform gateway_only)",
+                  "hermes:518f39557 hermes_cli/main.py",
+                  "hermes:518f39557 tests/gateway/test_platform_reconnect.py"
+                ],
+                "note": "swarm_origin: 2026-05-15/gormes-hermes-parity sweep (filename-refactor + missing features/flows). Source-backed missing flow: upstream PR #26600 added a per-platform circuit breaker + /platform operator command on top of the reconnect work Gormes already ported; previously only bundled in the now-closed 'Gateway, platform, webhook, and cron management CLI' umbrella, which is the management command-tree and does not cover this gateway-runtime resilience behavior."
+              },
+              "note": "Planner pass 2026-05-15 (gormes-hermes-parity -> gormes-planner): dedicated builder-ready row split out of the inert management-CLI umbrella. Local ../hermes-agent submodule is pinned at aac6d97a1, 14 commits behind upstream main 518f39557 which introduced this behavior; the builder/TDD slice must classify against 518f39557. If the slice lands, stage the hermes-agent submodule bump alongside the row work per the parity-driven change-set rule. Recommended chain: gormes-tdd-slice."
+            },
+            {
               "name": "Gateway /model interactive provider/model picker",
               "status": "complete",
               "priority": "P1",

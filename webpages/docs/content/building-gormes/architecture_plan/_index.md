@@ -91,12 +91,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/109 subphases shipped · 9 in progress · 2 planned
+**Overall:** 97/109 subphases shipped · 10 in progress · 2 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 20/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
@@ -209,7 +209,7 @@ classification and row-backed implementation queue.
 - [x] WhatsApp outbound pairing gate + raw peer mapping
 - [x] WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing ✅
+### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
 - [x] Gateway manual reset session-boundary hooks
@@ -290,6 +290,7 @@ classification and row-backed implementation queue.
 - [x] Telegram streaming edit Markdown safety
 - [x] Telegram guest mention allowlist bypass
 - [x] Gateway platform reconnect isolation + channel health limits
+- [ ] Gateway per-platform circuit breaker + /platform pause/resume/list command
 - [x] Gateway /model interactive provider/model picker
 
 ### 2.B.10 — WeChat Adapter ✅

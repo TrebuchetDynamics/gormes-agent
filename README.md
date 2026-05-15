@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Run Hermes-compatible agents from one Go binary.</strong><br>
-  Gormes carries the 30 most-used Hermes skills into a Go-native runtime that runs on Termux, Windows-without-Python, and locked-down corp Linux — no pip, no venv, no Docker daemon.
+  <strong>Hermes-class agents from one Go binary.</strong><br>
+  Gormes is a Go-native runtime for Hermes-compatible agents: providers, tools, skills, local SQLite memory, sessions, and gateways in one static binary. It carries the 30 most-used Hermes skills to Termux, Windows-without-Python, and locked-down corp Linux — no pip, no venv, no Docker daemon.
 </p>
 
 <p align="center">
@@ -21,7 +21,18 @@
   <img src="webpages/docs/assets/gormes-tui-demo.gif" alt="Gormes install, setup, provider setup, first task, web tools, Termux, and gateway demo" width="960">
 </p>
 
-Install once, run `gormes setup`, configure a provider, and open chat from a normal terminal.
+Gormes is not a micro-agent. It keeps the broad Hermes agent architecture and makes it portable, inspectable, and cheap to operate from a normal terminal.
+
+## At A Glance
+
+| Signal | Current evidence |
+|---|---|
+| Runtime shape | One Go binary for CLI, TUI, provider turns, tools, skills, memory, sessions, dashboard, and gateways |
+| Install proof | `gormes doctor --offline` and `gormes --offline` run before any provider token is needed |
+| Measured footprint | Linux build ~45.3 MB; offline doctor peak RSS ~25.1 MB (`benchmarks.json`, 2026-05-15) |
+| Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
+| Stable channels | Telegram, Discord, and Slack through one gateway process |
+| Project posture | Scout release: useful today, with full Hermes parity, voice/TTS, signing, and package-manager lanes still hardening |
 
 ## Quick Install
 
@@ -42,9 +53,12 @@ irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/script
 After installation:
 
 ```bash
+gormes doctor --offline
 gormes setup
 gormes chat
 ```
+
+That is the shortest path: prove the runtime locally, configure provider/model, then open a provider-backed terminal chat.
 
 ## First Setup
 
@@ -57,6 +71,15 @@ gormes --offline             # native TUI, no network
 ```
 
 If `gormes chat` opens, the TUI and gateway have a model to use.
+
+## Built For
+
+- Developers who want a real agent runtime without Python environment drift.
+- Operators who need offline diagnostics before adding provider credentials.
+- Small servers, Termux/Android, WSL2, and locked-down Linux hosts where Docker or venv repair is friction.
+- Long-running personal or team agents that need local sessions, memory, tools, and chat gateways.
+
+Not yet for teams that require signed enterprise releases, full Hermes parity, voice/TTS parity, or broad channel parity on day one.
 
 ## What Works Today
 
@@ -84,7 +107,18 @@ Full Hermes-parity status by phase lives in the [roadmap](https://docs.gormes.ai
 | **Smoke test** | Needs a live model first | `gormes doctor --offline` and `gormes --offline` |
 | **State** | Redis, vector DBs, sidecars | SQLite under `~/.gormes` |
 | **Channels** | Separate bot glue per platform | One gateway process with channel bindings |
+| **Footprint claims** | Often anecdotal | Binary size and RSS recorded in `benchmarks.json` |
 | **Release trust** | Ad-hoc local environments | Tagged release assets with SHA-256 + SBOMs |
+
+## How It Works
+
+Gormes follows the Hermes agent shape, but moves the operational surface into Go:
+
+1. `cmd/gormes` owns the CLI, setup, TUI entry point, dashboard, and gateway commands.
+2. `internal/kernel` runs the turn loop shared by the TUI, one-shot chat, and channel gateway.
+3. `internal/provider` and `internal/hermes` adapt OpenAI-compatible, Anthropic, DeepSeek, Groq, Ollama, Codex, OpenCode, and custom endpoints.
+4. `internal/tools` and `internal/skills` expose the tool and skill registry without a Python sidecar.
+5. `internal/goncho`, `internal/memory`, and `internal/session` keep local memory and session state inspectable in SQLite.
 
 ## Daily Use
 
@@ -184,7 +218,7 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 20/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
