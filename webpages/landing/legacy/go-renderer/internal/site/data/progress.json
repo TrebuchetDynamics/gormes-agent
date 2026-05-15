@@ -52335,8 +52335,8 @@
                 "progress 5.O 'Gormes model interactive provider/model picker' (config-only, complete); prerequisite row 'Kernel in-session model-switch seam for the native TUI'"
               ],
               "ready_when": [
-                "The 'Kernel in-session model-switch seam for the native TUI' prerequisite row is complete (a real apply seam exists).",
-                "A model-catalog -> internal/tui data seam exists so the picker can be populated without internal/tui importing the cmd/gormes catalog.",
+                "The 'Kernel in-session model-switch seam for the native TUI' prerequisite row is complete (PlatformEventSetModel apply seam exists) — the sole remaining blocker.",
+                "Catalog seam: SATISFIED — the picker is populated from existing internal/hermes.ListPickerProviders() (internal/tui already imports internal/hermes); no cmd/gormes catalog import needed.",
                 "The native TUI slash registry consumes recognized commands before kernel submit (5.Q 'Native TUI slash-command dispatch table' complete, satisfied)."
               ],
               "not_ready_when": [
@@ -52382,23 +52382,26 @@
               "name": "Kernel in-session model-switch seam for the native TUI",
               "priority": "P1",
               "status": "planned",
-              "contract": "Introduce the in-session model-switch mechanism the local Bubble Tea kernel currently lacks, so a confirmed selection (e.g. from the /model picker) changes the model used by subsequent provider calls WITHOUT resetting history. Today PlatformEventKind is {Submit,Cancel,Quit,ResetSession,Steer} and kernel.go:171 tm.SetModel(cfg.Model) runs once at construction; the only live override (internal/gateway/model_picker.go SessionModelOverride) is gateway-server-only. The seam shape (a new PlatformEventKind such as PlatformEventSetModel carrying provider+model, vs a kernel reconfigure call, vs reusing telemetry/SetModel) is an interface-design decision and MUST go through gormes-interface-designer before implementation. Also covers the model-catalog -> internal/tui data seam so a picker can be populated without internal/tui importing the cmd/gormes catalog.",
+              "contract": "Add a Design-B kernel in-session model-switch: a new PlatformEventKind `PlatformEventSetModel` whose PlatformEvent carries the existing `Model string` plus a new `Provider string`, processed exactly like PlatformEventResetSession — a synchronous `ack chan error`, valid only from PhaseIdle/PhaseFailed (reject mid-turn with a typed error analogous to ErrResetDuringTurn), and the resident mutation performed on the Run loop's own goroutine to preserve the single-owner invariant. The handler sets a resident session override (k.sessionModel/k.sessionProvider); selectTurnModel (kernel.go:1431) precedence becomes per-event PlatformEvent.Model > resident session override > k.cfg.Model; when the chosen provider differs from the resident client's, a new k.client is resolved through the EXISTING FallbackClientFactory(ctx, hermes.ModelRoute) machinery (kernel.go:37) rather than a bespoke client builder. Session history is NOT cleared (unlike ResetSession). Catalog seam (2) needs NO new code: the downstream /model picker is populated from the existing internal/hermes.ListPickerProviders() (internal/tui already imports internal/hermes), so this row is kernel-only. Interface design is COMPLETE (gormes-interface-designer 2026-05-15: Design B chosen; Design A 'TUI per-submit sticky' rejected — fixed construction-time client cannot cross-provider; Design C 'out-of-band SetSessionModel method' rejected — data race vs the single-owner event loop).",
               "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tui",
               "source_refs": [
-                "internal/kernel/frame.go (PlatformEventKind / PlatformEvent — extension point)",
-                "internal/kernel/kernel.go:171 (tm.SetModel(cfg.Model) — construction-only today)",
-                "internal/gateway/model_picker.go (SessionModelOverride — gateway-only prior art, NOT reusable as-is for the local kernel)",
-                "progress 5.O 'Gormes model interactive provider/model picker' (config-persist only); 5.O 'Model and profile selector seam (Cobra + gateway)'"
+                "internal/kernel/frame.go (PlatformEventKind + PlatformEvent.Model/.Provider — add PlatformEventSetModel; PlatformEvent.Model already exists as a per-submit override)",
+                "internal/kernel/kernel.go:1431 selectTurnModel(residentModel, override) (precedence merge point)",
+                "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing cross-provider client-build machinery to reuse)",
+                "internal/kernel/kernel.go PlatformEventResetSession + ErrResetDuringTurn + ack pattern (the proven resident-mutation template to mirror, history-clear excluded)",
+                "internal/hermes/picker_providers.go ListPickerProviders() (catalog seam 2 — already importable by internal/tui, no new code)",
+                "internal/gateway/model_picker.go SessionModelOverride (gateway-only prior art — NOT reused for the local kernel path)"
               ],
               "ready_when": [
-                "An interface-design pass (gormes-interface-designer) has chosen the seam shape (PlatformEvent vs kernel reconfigure) and the catalog->TUI data seam shape."
+                "Interface design is complete (this row records Design B; gormes-interface-designer pass 2026-05-15/tui-slash-model)."
               ],
               "not_ready_when": [
-                "Implementation starts before the seam shape is interface-designed.",
-                "The local kernel path is bound to the gateway-only SessionModelOverride instead of a real kernel mechanism.",
-                "A model switch silently resets session history (must preserve history like a normal continuation)."
+                "The implementation deviates from the PlatformEventResetSession ack/single-owner-goroutine template (introducing a data race).",
+                "The local kernel path is bound to the gateway-only SessionModelOverride instead of the new PlatformEventSetModel.",
+                "A model switch clears session history (must preserve it like a normal continuation; only ResetSession clears history).",
+                "A bespoke provider-client builder is added instead of routing through the existing FallbackClientFactory/hermes.ModelRoute."
               ],
               "blocked_by": [],
               "unblocks": [
@@ -52408,24 +52411,23 @@
                 "internal/kernel/frame.go",
                 "internal/kernel/kernel.go",
                 "internal/kernel/kernel_test.go",
-                "internal/tui/model.go",
-                "cmd/gormes/main.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/kernel -run 'Model|SetModel|SwitchModel' -count=1",
-                "go test ./internal/tui -run 'ModelPicker|ModelSwitch' -count=1",
+                "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel' -count=1",
+                "go test ./internal/kernel -count=1",
                 "go run ./cmd/progress validate"
               ],
               "acceptance": [
-                "The kernel exposes a fixture-proven in-session model switch that changes the model on the next provider call and preserves history.",
-                "A model-catalog -> internal/tui seam lets a picker be populated without internal/tui importing cmd/gormes.",
-                "The gateway-only SessionModelOverride is not repurposed for the local kernel path."
+                "A PlatformEventSetModel{Provider,Model} with a synchronous ack changes the model on the NEXT turn's provider call; the resident k.cfg.Model is not mutated and per-event PlatformEvent.Model still wins over the session override.",
+                "Session history is preserved across the switch (a fixture asserts prior turns survive and the next turn continues, not resets).",
+                "Sent mid-turn (not PhaseIdle/PhaseFailed) the event is rejected via the ack channel with a typed error analogous to ErrResetDuringTurn, no partial mutation.",
+                "A cross-provider switch resolves the new client through the existing FallbackClientFactory/hermes.ModelRoute (fixture proves the factory is invoked, no bespoke builder); the gateway SessionModelOverride is untouched."
               ],
               "done_signal": [
-                "An in-session model-switch seam (interface-designed shape) is fixture-proven in internal/kernel, history is preserved across a switch, and the /model row's blocker is cleared."
+                "PlatformEventSetModel is fixture-proven in internal/kernel: applies on the next turn, preserves history, rejects mid-turn via ack, and swaps provider client via the existing factory; the /model binding row's blocker is cleared."
               ],
-              "note": "Filed by the corrected builder-pass 2026-05-15/tui-slash-model after discovering the local kernel has no in-session model-switch (the /model 'quick win' assumed a seam that does not exist). Prerequisite for the /model native-TUI binding. Needs gormes-interface-designer for the kernel seam + catalog->TUI data seam shape before any builder pass. swarm_origin: builder-pass 2026-05-15/tui-slash-model."
+              "note": "Filed corrected builder-pass 2026-05-15/tui-slash-model; interface chosen by gormes-interface-designer 2026-05-15/tui-slash-model. Design B (PlatformEventSetModel mirroring the ResetSession event+ack template, reusing selectTurnModel + FallbackClientFactory) chosen as a deep module: one-event caller surface hiding race-free resident mutation + cross-provider client swap where k.client/factory already live. Rejected: Design A (TUI per-submit sticky via existing PlatformEvent.Model) — fixed construction-time client silently fails cross-provider, breaking the picker's primary affordance; Design C (out-of-band kernel.SetSessionModel method) — data race against the single-owner event loop. Catalog seam (2) collapsed to existing internal/hermes.ListPickerProviders (no new code), so this row is kernel-only and now builder-ready. swarm_origin: builder-pass 2026-05-15/tui-slash-model; interface-design 2026-05-15/tui-slash-model."
             },
             {
               "name": "Native TUI slash handler-port coverage",
