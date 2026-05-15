@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/107 subphases shipped · 8 in progress · 1 planned
+**Overall:** 99/107 subphases shipped · 7 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -707,7 +707,7 @@ classification and row-backed implementation queue.
 - [x] P95 latency-aware failover
 - [x] Capability-based model tier routing
 
-## Phase 5 — The Final Purge 🔨
+## Phase 5 — The Final Purge ✅
 
 *Python tool scripts ported to Go or WASM*
 
@@ -1009,7 +1009,7 @@ classification and row-backed implementation queue.
 - [x] Navivox host setup apply with transient sudo
 - [x] Gateway auto-resume on restart
 
-### 5.O — Hermes CLI Parity 🔨
+### 5.O — Hermes CLI Parity ✅
 
 - [x] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
@@ -1057,7 +1057,7 @@ classification and row-backed implementation queue.
 - [x] Hermes setup entry-mode and reset semantics
 - [x] Gormes setup tools checklist command binding
 - [x] Gormes setup gateway platform checklist command binding
-- [ ] Bubble Tea Messaging Platforms setup: Telegram-first Hermes fidelity
+- [x] Bubble Tea Messaging Platforms setup: Telegram-first Hermes fidelity
 - [x] Gormes setup terminal TTS and agent-settings section bindings
 - [x] Gormes uninstall dry-run command contract
 - [x] Gormes mcp login interface seam + noninteractive default

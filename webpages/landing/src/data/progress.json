@@ -43977,10 +43977,10 @@
             },
             {
               "name": "Bubble Tea Messaging Platforms setup: Telegram-first Hermes fidelity",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "`gormes setup gateway` becomes the Bubble Tea-only Messaging Platforms setup surface for TTY users and the source of channel setup truth for first-run setup. The first executable slice ships Telegram end to end: token capture and validation, allowlist/pairing/open access policy, structured home_channel config, redacted review-before-write, `--plan`, non-TTY guidance, GORMES_* plus Hermes-compatible env aliases, explicit Hermes migration mapping, channel-scoped offline doctor evidence, and one consolidated gateway lifecycle recommendation after selected flows complete. Runtime paths stay Gormes-owned and normal runtime never reads Hermes config or dotenv files.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -43989,7 +43989,7 @@
                 "system"
               ],
               "degraded_mode": "Non-TTY setup returns setup_gateway_requires_tty or renders `--plan` without raw key handling; token-only Telegram config is partial until an access policy is chosen; missing home channel is warning evidence, not unconfigured; legacy env/config aliases remain read-compatible but setup writes Gormes-owned names and redacts all secrets.",
-              "fixture": "cmd/gormes/setup_gateway_bubbletea_test.go; internal/gateway/channel_setup_test.go; internal/config/telegram_config_test.go; internal/migrate/hermes/telegram_mapping_test.go",
+              "fixture": "cmd/gormes/setup_gateway_bubbletea_test.go; cmd/gormes/setup_gateway_test.go; internal/gateway/channel_setup_test.go; internal/config/config_test.go; internal/config/writer_test.go; internal/migrate/hermes/manifest_test.go; internal/migrate/hermes/writer_test.go",
               "source_refs": [
                 "webpages/docs/content/building-gormes/architecture_plan/messaging-platform-setup-fidelity.md",
                 "hermes-agent@9ed751b96:hermes_cli/setup.py:setup_gateway",
@@ -44068,7 +44068,7 @@
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes-agent@9ed751b96 setup.py + gateway.py + gateway/config.py + messaging docs",
-                "note": "Operator decision 2026-05-14: prefer Hermes analogy and fidelity wherever possible, with Gormes-owned improvements only for Bubble Tea TUI quality, tmux/non-TTY safety, review-before-write, Gormes-owned runtime paths, and explicit migration boundaries."
+                "note": "Validated 2026-05-14 with row-local tests plus cmd/gormes, internal/config, internal/gateway, and internal/migrate/hermes package tests. Operator decision 2026-05-14: prefer Hermes analogy and fidelity wherever possible, with Gormes-owned improvements only for Bubble Tea TUI quality, tmux/non-TTY safety, review-before-write, Gormes-owned runtime paths, and explicit migration boundaries."
               }
             },
             {
