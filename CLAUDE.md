@@ -68,8 +68,14 @@ interfaces, and progress rows.
 
 ## Core rule
 
-Gormes is complete only when it is Hermes in Go, with Goncho as the
-Honcho-compatible Go port inside Gormes. Keep all implementation intent in
+Gormes is complete only when its runtime, protocol, and
+tool/provider/gateway/session behavior are Hermes in Go, with Goncho as the
+Honcho-compatible Go port inside Gormes. The interactive `gormes chat` TUI
+presentation (welcome screen, chrome, styling, streaming affordances) is a
+Gormes-owned surface that may diverge from Hermes `ui-tui` by design;
+presentation parity is not a completion gate. This owned divergence is tracked
+in `progress.json` (Phase 8.D, "Gormes-owned chat TUI" rows) per the
+methodology-first strategy. Keep all implementation intent in
 `docs/content/building-gormes/architecture_plan/progress.json`; do not create
 parallel queues.
 

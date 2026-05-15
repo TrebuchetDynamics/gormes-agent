@@ -34,7 +34,7 @@ current Hermes top-level argparse command, nested parser command, nested alias,
 gateway message handler, slash command/alias, dynamic plugin command class, and
 Gormes-owned divergence that this audit found. This does **not** mean Gormes
 implements every handler. Unsupported commands remain visible as `Row-backed`,
-`Excluded/deprecated`, or `Gormes-owned` so builders can ship them deliberately.
+`Excluded/hidden`, or `Gormes-owned` so builders can ship them deliberately.
 
 The drift gate is now explicit in `cmd/gormes/hermes_cli_parity_test.go`:
 `TestHermesCLIParityManifestNestedParserInventoryMatchesHermes` locks the
@@ -84,7 +84,7 @@ tool-call parser families so unsupported behavior remains visible.
 | Surface | Current upstream source | Current planner answer | Progress action |
 |---|---|---|---|
 | Provider IDs and aliases | `../hermes-agent/hermes_cli/providers.py:HERMES_OVERLAYS,ALIASES`, `../hermes-agent/agent/models_dev.py:PROVIDER_TO_MODELS_DEV`, `../hermes-agent/hermes_cli/main.py:--provider choices` | Implemented as a source-backed Go manifest in `internal/hermes/provider_registry_manifest.go`, with drift tests covering overlays, aliases, models.dev mappings, provider prefixes, auth registry names, and `_PROVIDER_MODELS`. Unsupported or not-yet-bound providers remain visible as `row_backed` instead of disappearing from `gormes model`, auth planning, status, or fallback work. | Phase `4.A` validated row: `Hermes provider registry and alias manifest`. |
-| Provider auth commands | `../hermes-agent/hermes_cli/main.py:auth_subparsers`, `../hermes-agent/hermes_cli/auth_commands.py` | Current non-deprecated provider login is `auth add <provider> --type oauth`; top-level `login`, `auth login`, and `auth refresh` are not implementation targets. OpenAI Codex is the first native vertical; Anthropic, Nous, Google Gemini CLI, Qwen OAuth, and Spotify remain fixture-ready follow-up adapters. | Phase `5.O` fixture-ready row: `Hermes auth OAuth provider adapters`; existing auth command rows remain the command contract. |
+| Provider auth commands | `../hermes-agent/hermes_cli/main.py:auth_subparsers`, `../hermes-agent/hermes_cli/auth_commands.py` | Current provider auth path is `auth add <provider> --type oauth`; top-level `login`, `auth login`, and `auth refresh` are not public implementation targets. OpenAI Codex is the first native vertical; Anthropic, Nous, Google Gemini CLI, Qwen OAuth, and Spotify remain fixture-ready follow-up adapters. | Phase `5.O` fixture-ready row: `Hermes auth OAuth provider adapters`; existing auth command rows remain the command contract. |
 | Gateway platform IDs | `../hermes-agent/gateway/config.py:Platform`, `../hermes-agent/gateway/platforms/*.py` | Implemented as a source-backed Go manifest in `internal/gateway/platform_manifest.go`, with drift tests covering every current Platform enum value and connector file. Unsupported or paused channels remain visible as `row_backed` or `partial`, while `local`, `api_server`, `webhook`, and `wecom_callback` are classified as local/runtime/webhook surfaces instead of being dropped. | Phase `2.B.12` validated row: `Hermes gateway platform registry manifest`. |
 | Raw tool-call parsers | `../hermes-agent/environments/tool_call_parsers/*.py` | Validated manifest tracks the current 11 parser files: `deepseek_v3_1`, `deepseek_v3`, `glm45`, `glm47`, `hermes`, `kimi_k2`, `llama`, `longcat`, `mistral`, `qwen3_coder`, and `qwen`. Parser execution and provider-specific malformed-output behavior stay row-backed per family. | Phase `5.B` validated row: `Raw tool-call parser fixture matrix`. |
 
@@ -109,9 +109,8 @@ Current implemented or stubbed subcommand highlights:
 - `gormes migrate`: `hermes`, `openclaw`.
 - `gormes telegram`: native Telegram bot adapter entry point.
 - `gormes usage`: provider account usage read model flags.
-- `gormes login`: intentionally not registered; the unknown-command path emits
-  `unknown_command_login_suggested_auth_add` and points operators at
-  `gormes auth add <provider> --type oauth`.
+- `gormes login`: removed top-level command. Public help, docs, and admin
+  catalogs point operators at `gormes auth add <provider> --type oauth`.
 
 Known absent root commands from current Gormes help include `whatsapp`, `slack`,
 `status`, `cron`, `webhook`, `hooks`,
@@ -131,7 +130,7 @@ message handlers and dynamic plugin commands.
 | `fallback` | `list`/`ls`, `add`, `remove`/`rm`, `clear` | Implemented in `cmd/gormes fallback`. | Fixtures cover redacted list rendering, picker-delegated add, destructive gating, aliases, duplicate evidence, and picker-unavailable evidence. |
 | `gateway` | `run`, `start`, `stop`, `restart`, `status`, `install`, `uninstall`, `setup`, `migrate-legacy` | Captured; gateway message handlers stay separate as `gateway-handler` entries. | Management handlers remain in `Gateway, platform, webhook, and cron management CLI`. |
 | `slack` | `manifest` | Captured. | Platform handler work stays row-backed. |
-| `auth` | `add`, `list`, `remove`, `reset`, `status`, `logout`, `spotify` | Captured; stale `auth login` and `auth refresh` are excluded. | Keep non-deprecated provider login through `auth add <provider> --type oauth`. |
+| `auth` | `add`, `list`, `remove`, `reset`, `status`, `logout`, `spotify` | Captured; stale `auth login` and `auth refresh` are excluded. | Keep provider auth through `auth add <provider> --type oauth`. |
 | `cron` | `list`, `create`/`add`, `edit`, `pause`, `resume`, `run`, `remove`/`rm`/`delete`, `status`, `tick` | Captured. | Handler work remains under `Gateway, platform, webhook, and cron management CLI`. |
 | `webhook` | `subscribe`/`add`, `list`/`ls`, `remove`/`rm`, `test` | Captured; stale `serve` is not active. | Platform/webhook behavior remains row-backed. |
 | `hooks` | `list`/`ls`, `test`, `revoke`/`remove`/`rm`, `doctor` | Captured; stale `run` is not active. | Hook behavior remains row-backed. |
@@ -156,19 +155,19 @@ Status values:
 - `Partial`: visible but missing important Hermes behavior.
 - `Row-backed`: missing or incomplete, with a named `progress.json` row.
 - `Gormes-owned`: intentional Go/Goncho extension, not upstream Hermes.
-- `Excluded/deprecated`: should not perform legacy behavior; keep compatibility
-  or a safe redirect only.
+- `Excluded/hidden`: should not appear in public help; keep hidden
+  compatibility or a safe redirect only.
 
 | Hermes command | Gormes state | Backlog owner / proof | Notes |
 |---|---|---|---|
-| `chat` / root interactive | Partial | `cmd/gormes root TUI/oneshot`; Phase `5.O` root flags rows | Native TUI/oneshot exists; full Hermes chat UX is still broader than root help parity. |
+| `chat` / root interactive | Partial | `cmd/gormes root TUI/scripted chat`; Phase `5.O` root flags rows | Native TUI/scripted chat exists; full Hermes chat UX is still broader than root help parity. |
 | `model` | Implemented | `cmd/gormes model`; Phase `5.O`: `Gormes model interactive provider/model picker` | Selection-only provider/model picker is visible; provider auth remains in `gormes auth add` by Gormes strict-isolation decision. |
 | `fallback` | Implemented | `cmd/gormes fallback`; Phase `5.O`: `Hermes fallback provider chain CLI commands` | Current Hermes subcommands are `list`/`ls`, `add`, `remove`/`rm`, and `clear`; Gormes stores the chain in `fallback_providers` and delegates add to the shared model picker. |
 | `gateway` | Partial | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` plus `Gateway management CLI read-model closeout` | `status` exists; mutating service commands are explicit unavailable stubs. |
 | `setup` | Partial | `cmd/gormes setup`; Phase `5.O`: `Gormes setup minimal sectioned wizard slice` | Minimal section UX is visible; model delegates to the shared picker or noninteractive defaults, while non-model sections return typed unsupported evidence. |
 | `whatsapp` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Platform management surface not yet visible as a root command. |
 | `slack` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Current Hermes nested command is `slack manifest`. |
-| `login` | Implemented | Phase `5.O`: `Gormes top-level login provider shortcut` | Registered as a redacted compatibility shortcut; `gormes login --provider openai-codex` delegates to the existing Codex OAuth credential-pool flow. |
+| `login` | Excluded/removed | Phase `5.O`: removed top-level login guidance | Use `gormes auth add <provider> --type oauth`. |
 | `logout` | Row-backed | Phase `5.O`: `Gormes top-level logout provider shortcut`; auth rows | `gormes auth logout` exists; top-level shortcut remains separate parity work. |
 | `auth` | Partial | Phase `5.O`: auth command rows; `hermes-auth-cli-parity.md` | API-key and pool operations exist; Codex device-code OAuth is in progress/native, while Anthropic, Nous, Google Gemini CLI, Qwen, and Spotify remain row-backed. |
 | `status` | Partial | Phase `5.O`: `Diagnostics, backup, logs, and status CLI`; gateway status rows | Current equivalent is `gormes gateway status`, not full Hermes root status. |
@@ -214,7 +213,7 @@ The Gormes parity target is:
 ```sh
 gormes auth add openai-codex
 gormes auth list openai-codex
-gormes -z 'Reply with exactly: ok' --provider openai-codex --model gpt-5.5
+gormes --provider openai-codex --model gpt-5.5 chat -q 'Reply with exactly: ok'
 ```
 
 Do not document manual JSON editing or ad-hoc token copying as the normal path.
@@ -233,7 +232,7 @@ Codex CLI token import may exist only as an explicitly labeled emergency bridge.
 | `model` | Interactive provider/model picker; upstream invokes provider login as needed. | Implemented as selection-only `gormes model`; use `gormes auth add <provider>` for auth. | Phase `5.O`: `Gormes model interactive provider/model picker`. |
 | `setup model` | Wizard path into provider/model setup. | Implemented as `gormes setup model`, delegating to the shared picker or env/config defaults with `--non-interactive`. | Phase `5.O`: `Gormes setup minimal sectioned wizard slice`. |
 | `mcp login <name>` | OAuth re-auth for OAuth MCP servers only. | Planned. | Phase `5.O`: `Gormes mcp login OAuth re-auth bridge`. |
-| top-level `login` | Hermes keeps the legacy parser surface operators still type. | Implemented as `gormes login --provider <provider>` with an explicit `nous|openai-codex` allow-list; `openai-codex` delegates to the existing Gormes-owned OAuth add flow, while bare login and unsupported providers return redacted guidance. | Phase `5.O`: `Gormes top-level login provider shortcut`. |
+| top-level `login` | Hermes keeps legacy parser history, but current Gormes does not expose it. | Removed top-level command; public docs/help/catalog point to `gormes auth add <provider> --type oauth`. | Phase `5.O`: removed top-level login guidance. |
 
 ## Runtime parity notes from live Telegram dogfood
 

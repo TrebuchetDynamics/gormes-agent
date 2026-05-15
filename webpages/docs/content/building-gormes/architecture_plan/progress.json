@@ -985,7 +985,7 @@
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Without the shell, every admin screen would have to ship its own keybindings/navigation/quit handling; 1.E.3-1.E.5 cannot land cleanly. Operators stuck on `gormes setup`/`gormes onboard`/per-subcommand flows cannot see config drift or jump to chat in one place.",
+              "degraded_mode": "Without the shell, every admin screen would have to ship its own keybindings/navigation/quit handling; 1.E.3-1.E.5 cannot land cleanly. Operators stuck on `gormes setup`, doctor readiness output, and per-subcommand flows cannot see config drift or jump to chat in one place.",
               "fixture": "internal/tui/admin/shell_test.go teatest scripts + cmd/gormes/admin_test.go entry point test",
               "source_refs": [
                 "internal/tui/wizard (1.E.1 step chassis — admin screens compose Step values for forms)",
@@ -1110,7 +1110,7 @@
                 "origin_type": "gormes",
                 "note": "Gormes-owned. Anchors the user's explicit ask: open chat easily. A first-pass chat surface inside the admin TUI; the full-featured chat TUI in `gormes` (internal/tui/model.go) remains the separate dedicated experience."
               },
-              "contract": "internal/tui/admin/screen_chat.go ships a Chat screen registered as a tab in the admin shell, plus a global keybinding (`c` from any other screen) that switches focus to it. The screen renders: a scroll buffer of messages from the active session, a single-line input (or expanding textarea via bubbles/textarea), and a status line showing the current agent. Sending a message routes through the existing one-shot provider call path used by `gormes --oneshot`; responses stream into the scroll buffer. The active agent defaults to the static config default; an operator can press `a` to swap to a runtime-spawned agent from the 2.H.1 registry. Chat history is in-memory for the admin TUI session (not yet persisted to Goncho session — that follow-up row will land when admin TUI scope justifies it). The admin Chat tab is intentionally small: full session history, tool calls, slash commands, and the rich chrome stay in the dedicated `gormes` TUI.",
+              "contract": "internal/tui/admin/screen_chat.go ships a Chat screen registered as a tab in the admin shell, plus a global keybinding (`c` from any other screen) that switches focus to it. The screen renders: a scroll buffer of messages from the active session, a single-line input (or expanding textarea via bubbles/textarea), and a status line showing the current agent. Sending a message routes through the existing one-shot provider call path used by `gormes chat -q`; responses stream into the scroll buffer. The active agent defaults to the static config default; an operator can press `a` to swap to a runtime-spawned agent from the 2.H.1 registry. Chat history is in-memory for the admin TUI session (not yet persisted to Goncho session — that follow-up row will land when admin TUI scope justifies it). The admin Chat tab is intentionally small: full session history, tool calls, slash commands, and the rich chrome stay in the dedicated `gormes` TUI.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -1453,7 +1453,7 @@
                 "Doctor emits Termux-specific runtime readiness only when Termux is detected.",
                 "Storage/path tests prove Gormes writes only under configured Gormes homes, XDG locations, $HOME, or $PREFIX/bin for installer publication.",
                 "Gateway docs/tests explain foreground/tmux operation and Android wake-lock/battery constraints without claiming systemd-like reliability.",
-                "A real-device smoke record proves install, version, doctor --offline --json, config check, Goncho/SQLite init, and provider-backed --oneshot when credentials exist."
+                "A real-device smoke record proves install, version, doctor --offline --json, config check, Goncho/SQLite init, and provider-backed chat -q when credentials exist."
               ],
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json",
@@ -1592,7 +1592,7 @@
               "acceptance": [
                 "Install docs show curl-to-repo-root-install.sh release-binary install as the primary Termux path.",
                 "Docs list pkg prerequisites only for source fallback/contributor builds, not for release-binary use.",
-                "Docs include gormes version, gormes doctor --offline --json, gormes config check, and optional gormes --oneshot smoke commands.",
+                "Docs include gormes version, gormes doctor --offline --json, gormes config check, and optional gormes chat -q smoke commands.",
                 "Existing installer tests still prove Termux arm64 chooses android-arm64 and publishes into $PREFIX/bin.",
                 "Docs explicitly say install.sh stays in the repository root and is the canonical Unix installer."
               ],
@@ -1809,7 +1809,7 @@
               "name": "Termux real-device smoke evidence",
               "priority": "P1",
               "status": "planned",
-              "contract": "Capture a dated real-device no-root Android Termux smoke record for the current release: install via repo-root install.sh release asset, run gormes version, gormes doctor --offline --json, gormes config check, initialize SQLite/Goncho state, and run a provider-backed gormes --oneshot \"hello from Termux\" when a test credential is available. The evidence must record Android/Termux versions, device arch, install method, and any caveats without leaking credentials.",
+              "contract": "Capture a dated real-device no-root Android Termux smoke record for the current release: install via repo-root install.sh release asset, run gormes version, gormes doctor --offline --json, gormes config check, initialize SQLite/Goncho state, and run a provider-backed gormes chat -q \"hello from Termux\" when a test credential is available. The evidence must record Android/Termux versions, device arch, install method, and any caveats without leaking credentials.",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "docs",
@@ -1841,7 +1841,7 @@
                 "Evidence records exact date, device arch, Android version, Termux version, and Gormes version/commit.",
                 "Evidence shows install.sh release-binary path into $PREFIX/bin/gormes.",
                 "Evidence includes gormes version, gormes doctor --offline --json, gormes config check, and SQLite/Goncho initialization outputs or redacted summaries.",
-                "Provider-backed gormes --oneshot succeeds or is explicitly skipped for missing test credential.",
+                "Provider-backed gormes chat -q succeeds or is explicitly skipped for missing test credential.",
                 "The public compatibility claim remains bounded to the proven support matrix."
               ],
               "write_scope": [
@@ -1885,7 +1885,7 @@
               ],
               "not_ready_when": [
                 "The docs claim local Termux can run Docker, heavy browser automation, GPU/local LLM, or large test suites like a workstation.",
-                "The guidance introduces a new top-level gormes run command instead of existing gormes --oneshot/chat/gateway surfaces.",
+                "The guidance introduces a new top-level gormes run command instead of existing gormes chat -q/gateway surfaces.",
                 "The guidance requires root, privileged Android features, or a specific private server."
               ],
               "acceptance": [
@@ -14691,7 +14691,7 @@
                 "Provider account usage read model + renderer",
                 "Hermes fallback provider chain CLI commands",
                 "Model metadata types",
-                "Top-level oneshot flag and model/provider resolver"
+                "Scripted chat query model/provider resolver"
               ],
               "acceptance": [
                 "TestHermesProviderRegistryManifestCoversUpstream proves every key in HERMES_OVERLAYS, every provider in PROVIDER_TO_MODELS_DEV, every chat --provider choice, and every known provider-prefix alias is classified.",
@@ -22281,9 +22281,9 @@
                 "Gateway management CLI read-model closeout"
               ],
               "acceptance": [
-                "TestGormesOperatorSetupChannelProviderDocs shells out to the local Go CLI help and proves every command documented in the setup/provider/channel quick path exists in help output: `gormes setup`, `gormes setup provider`, `gormes setup model`, `gormes model`, `gormes --oneshot`, `gormes gateway`, `gormes gateway status`, `gormes gateway stop`, `gormes telegram`, and `gormes whatsapp`.",
+                "TestGormesOperatorSetupChannelProviderDocs shells out to the local Go CLI help and proves every command documented in the setup/provider/channel quick path exists in help output: `gormes setup`, `gormes setup provider`, `gormes setup model`, `gormes model`, `gormes chat -q`, `gormes gateway`, `gormes gateway status`, `gormes gateway stop`, `gormes telegram`, and `gormes whatsapp`.",
                 "The docs home and Getting Started path link to First Run, Configuration, Provider Setup, Gateway Operations, Telegram Bot, CLI Commands, Config, Environment, and Providers without broken internal links.",
-                "First Run and Provider Setup describe the credential path consistently: provider/model selection through `gormes setup provider`, `gormes setup model`, `gormes model`, `gormes config set`, or `gormes auth`, secrets in `.env`, and verification through `gormes --oneshot` plus `gormes doctor`.",
+                "First Run and Provider Setup describe the credential path consistently: provider/model selection through `gormes setup provider`, `gormes setup model`, `gormes model`, `gormes config set`, or `gormes auth`, secrets in `.env`, and verification through `gormes chat -q` plus `gormes doctor`.",
                 "Gateway Operations, Telegram Bot, and CLI reference distinguish runtime-ready channels from row-backed/fixture-backed channels, and any WhatsApp claim points at the actual `gormes whatsapp` setup surface plus live readiness caveat.",
                 "Provider docs link to the active upstream Hermes providers/model-catalog docs under `upstream-hermes/` for parity context and keep Gormes-native provider status taxonomy separate from upstream provider availability.",
                 "The test fails with page name and missing token/link when setup, channel, or provider webpage copy drifts from the local CLI help or active upstream context."
@@ -41353,7 +41353,7 @@
                 "Every slash command and alias in hermes_cli/commands.py is cross-linked to internal/cli.CommandRegistry status or a named row-backed residual.",
                 "Dynamic plugin CLI and slash-command surfaces discovered through active memory plugins and PluginContext.register_command entries are classified as implemented, row-backed, owned, excluded, or not-yet-applicable.",
                 "Plugin manager and plugin command surfaces from hermes_cli/plugins.py and hermes_cli/plugins_cmd.py are classified as manifest-only, implemented, row-backed, owned, or excluded before any plugin runtime execution is claimed.",
-                "Gormes-owned surfaces such as goncho, --offline, --remote, and XDG/TOML config paths are classified as owned with rationale, not counted as Hermes gaps; Hermes-owned `-z/--oneshot` is classified as implemented parity, not owned divergence.",
+                "Gormes-owned surfaces such as goncho, --offline, --remote, and XDG/TOML config paths are classified as owned with rationale, not counted as Hermes gaps; Hermes-owned `-z/--oneshot` is classified as removed guidance to `gormes chat -q`, not an owned divergence.",
                 "Typo-like requested paths such as `gormes migrate ooenclaw` are classified explicitly: they must return a deterministic suggestion for `gormes migrate openclaw` and must not become silent import aliases without a dedicated compatibility row.",
                 "Destructive or secret-bearing command paths carry explicit evidence flags for confirmation, dry-run, redaction, or credential routing."
               ],
@@ -42890,7 +42890,7 @@
                 "Gormes auth add openai-codex strict isolation contract",
                 "Gormes auth add bedrock open-question planning note",
                 "Gormes top-level logout provider shortcut",
-                "Gormes top-level login provider shortcut",
+                "Gormes removed top-level login guidance",
                 "Gormes model interactive provider/model picker",
                 "Gormes setup minimal sectioned wizard slice",
                 "Gormes setup top-level chooser menu",
@@ -43845,7 +43845,7 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "Gormes top-level login provider shortcut"
+                "Gormes removed top-level login guidance"
               ],
               "acceptance": [
                 "TestLogoutTopLevelAcceptsAllowedProviders proves `--provider nous`, `--provider openai-codex`, and `--provider spotify` each invoke the shared logout helper and clear only the named provider's auth state.",
@@ -43946,26 +43946,26 @@
               ]
             },
             {
-              "name": "Gormes top-level login provider shortcut",
+              "name": "Gormes removed top-level login guidance",
               "status": "complete",
               "priority": "P2",
-              "contract": "`gormes login --provider openai-codex` is registered as a top-level Cobra command and delegates to the same Gormes-owned Codex OAuth credential-pool flow as `gormes auth add openai-codex --type oauth`. The command accepts Hermes' legacy provider-login flags (`--provider`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`) and passes the relevant values through to the OAuth adapter. Bare `gormes login` requires an explicit provider and performs no auth side effects. Unsupported provider values return redacted allow-list guidance without echoing the supplied value.",
+              "contract": "`gormes login` is not registered as a top-level Cobra command. Operators who type the removed command receive deterministic, secret-safe guidance to `gormes auth add <provider> --type oauth` without executing provider auth, opening a browser, reading provider argument values, or mutating credential state.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "`auth_login_provider_required` and `auth_login_provider_unsupported` typed evidence are emitted without opening browsers, contacting providers, mutating auth.json, or leaking provider argument values. Existing `gormes auth add` remains the canonical provider-auth command and top-level login is only a compatibility shortcut for Hermes provider OAuth.",
-              "fixture": "cmd/gormes/login_command_test.go",
+              "degraded_mode": "Removed-command guidance is intentionally narrow: it names the canonical `gormes auth add <provider> --type oauth` path and never echoes provider, portal, inference, client-id, scope, or token-looking argument values. Existing `gormes auth add` remains the only provider-auth command.",
+              "fixture": "cmd/gormes/root_help_test.go::TestRemovedTopLevelEntrypointsReturnReplacementGuidance; internal/cli/typo_suggestions_test.go::TestTypoSuggestionGuidesRemovedLoginCommand",
               "source_refs": [
                 "../hermes-agent/hermes_cli/main.py:9657-9700:login_parser",
                 "../hermes-agent/hermes_cli/auth.py:4488-4560:_login_openai_codex",
                 "../hermes-agent/hermes_cli/auth_commands.py:auth_add_command openai-codex OAuth branch",
                 "cmd/gormes/main.go:newRootCommandWithRuntime",
-                "cmd/gormes/login.go",
-                "cmd/gormes/login_command_test.go",
-                "cmd/gormes/auth_command_test.go:TestGormesLoginTopLevelCommandIsRegistered",
+                "internal/cli/typo_suggestions.go",
+                "cmd/gormes/root_help_test.go:TestRemovedTopLevelEntrypointsReturnReplacementGuidance",
+                "internal/cli/typo_suggestions_test.go:TestTypoSuggestionGuidesRemovedLoginCommand",
                 "cmd/gormes/hermes_cli_parity.go:55",
                 "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
               ],
@@ -43975,25 +43975,23 @@
                 "Tests can capture stdout/stderr from a Cobra invocation with fake OAuth seams; no live OAuth or provider network is required."
               ],
               "not_ready_when": [
-                "The slice duplicates Codex token persistence instead of delegating to the existing auth add OAuth path.",
-                "The slice accepts unsupported provider values or echoes secret-shaped provider argument values.",
-                "The slice runs device-code login or mutates auth.json when `--provider` is missing.",
+                "The slice registers a top-level `login` command or hidden compatibility command.",
+                "The removed-command guidance echoes provider, portal, inference, client-id, scope, or token-looking argument values.",
+                "The slice runs device-code login, opens a browser, or mutates auth.json for `gormes login`.",
                 "The slice changes `gormes auth add` positional semantics."
               ],
               "acceptance": [
-                "TestGormesLoginCodexProviderDelegatesToOAuthAdd proves `gormes login --provider openai-codex --no-browser` invokes the existing Codex OAuth add flow, saves one redacted credential-pool entry, and updates `hermes.provider=openai-codex` without leaking access or refresh tokens.",
-                "TestGormesLoginIsRegisteredAsCobraCommand and TestGormesLoginTopLevelCommandIsRegistered prove `login` is a real top-level Cobra command.",
-                "TestGormesLoginRequiresExplicitProviderWithoutSideEffects proves bare `gormes login` returns `auth_login_provider_required` guidance and does not invoke device-code login or write credentials.",
-                "TestGormesLoginRejectsUnsupportedProviderWithoutLeakingValue proves unsupported provider values return `auth_login_provider_unsupported allowed=nous|openai-codex` without echoing the supplied value.",
-                "TestHermesCLIParityManifestProviderAuthCommandsMatchHermes proves the parity manifest now classifies top-level login as implemented and redacts secrets."
+                "TestRemovedTopLevelEntrypointsReturnReplacementGuidance proves `gormes login --provider plain-secret-provider` exits nonzero with unknown-command guidance to `gormes auth add <provider> --type oauth` and does not leak the supplied provider value.",
+                "TestTypoSuggestionGuidesRemovedLoginCommand proves the pre-Cobra guidance path is deterministic for bare `login`.",
+                "TestTypoSuggestionDoesNotInspectLoginProviderArgValues proves removed-command guidance ignores provider, portal, and other argument values.",
+                "TestHermesCLIParityManifestProviderAuthCommandsMatchHermes proves the parity manifest classifies top-level login as excluded and points to auth add."
               ],
-              "note": "Updated 2026-05-12: operator parity request promoted top-level login from removed-command guidance to a real provider-auth compatibility shortcut. `cmd/gormes/login.go` registers `gormes login --provider <provider>`, requires an explicit provider, allow-lists `nous|openai-codex`, redacts unsupported provider values, and delegates to `runAuthAddCommand` with OAuth options so Codex token storage/config updates stay in the existing Gormes-owned credential-pool path. The old pre-Cobra `TypoSuggestion(login)` hook now returns no suggestion so the registered command can run.",
+              "note": "Updated 2026-05-15: removed the top-level login compatibility shortcut from the root Cobra tree. `cmd/gormes/login.go` and its direct execution fixtures were deleted; `internal/cli.TypoSuggestion(login)` now returns secret-safe guidance to `gormes auth add <provider> --type oauth`, and root/help/admin/catalog surfaces no longer resolve login.",
               "write_scope": [
-                "cmd/gormes/login.go",
-                "cmd/gormes/login_command_test.go",
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_command_test.go",
                 "cmd/gormes/main.go",
+                "cmd/gormes/root_help_test.go",
                 "internal/cli/typo_suggestions.go",
                 "internal/cli/typo_suggestions_test.go",
                 "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
@@ -44001,18 +43999,18 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestGormesLogin|TestHermesCLIParityManifestProviderAuthCommandsMatchHermes|TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions' -count=1",
+                "go test ./cmd/gormes -run 'TestRemovedTopLevelEntrypointsReturnReplacementGuidance|TestHermesCLIParityManifestProviderAuthCommandsMatchHermes|TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions' -count=1",
                 "go test ./internal/cli -run '^TestTypoSuggestion' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Login fixtures prove `gormes login --provider openai-codex` works through the existing Codex OAuth add path, top-level login is registered, bare login has no side effects, unsupported-provider guidance is redacted, and the parity manifest marks login implemented."
+                "Removed-command fixtures prove `gormes login` is not a resolvable root command, secret values in login arguments are ignored, replacement guidance names `gormes auth add <provider> --type oauth`, and the parity manifest marks login excluded."
               ],
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:hermes_cli/main.py:9657-9700 login_parser + hermes_cli/auth.py:4488-4560 _login_openai_codex + hermes_cli/auth_commands.py openai-codex OAuth add",
-                "note": "Hermes exposes the parser shape operators still type and has a source-backed OpenAI Codex login helper. Gormes keeps the token lifecycle native by delegating the top-level shortcut to the existing `auth add openai-codex --type oauth` implementation instead of introducing a second token store."
+                "note": "Hermes history explains the spelling operators may type, but current Gormes keeps the token lifecycle on the native `auth add <provider> --type oauth` surface and treats top-level login as removed guidance, not as a compatibility execution path."
               }
             },
             {
@@ -45904,10 +45902,10 @@
               "note": "Deprecated 2026-04-26: the prior validator+resolver+store umbrella was repeatedly quarantined because workers could not land four concept layers atomically. Replaced by three sibling rows. Keep this row in inventory so historical references resolve."
             },
             {
-              "name": "Top-level oneshot flag and model/provider resolver",
+              "name": "Scripted chat query model/provider resolver",
               "priority": "P2",
               "status": "complete",
-              "contract": "Gormes accepts a top-level `-z/--oneshot` prompt plus `--model`, `--provider`, GORMES_INFERENCE_MODEL, and GORMES_INFERENCE_PROVIDER overrides with Hermes-compatible ambiguity errors before any agent execution starts",
+              "contract": "Gormes accepts `gormes chat -q <prompt>` plus root `--model`, `--provider`, GORMES_INFERENCE_MODEL, and GORMES_INFERENCE_PROVIDER overrides with Hermes-compatible ambiguity errors before any agent execution starts. Removed root `-z/--oneshot` invocations return guidance to `gormes chat -q` instead of executing.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -45935,12 +45933,13 @@
                 "Oneshot final-output writer boundary"
               ],
               "acceptance": [
-                "`gormes -z 'hi' --model fixture-model` parses without invoking runTUI or api_server health checks.",
-                "`gormes -z 'hi' --provider openrouter` exits 2 unless --model or GORMES_INFERENCE_MODEL is present.",
-                "Environment model/provider overrides are read only for oneshot and do not mutate persisted config.",
+                "`gormes --model fixture-model chat -q 'hi'` parses without invoking runTUI or api_server health checks.",
+                "`gormes --provider openrouter chat -q 'hi'` exits 2 unless --model or GORMES_INFERENCE_MODEL is present.",
+                "`gormes -z 'hi'` and `gormes --oneshot 'hi'` are rejected with guidance to `gormes chat -q 'hi'`.",
+                "Environment model/provider overrides are read only for scripted chat and do not mutate persisted config.",
                 "The resolver records whether the model came from flag, env, or config and whether provider auto-detection is required for the execution slice."
               ],
-              "note": "Hermes 7c8c031f/a9fa73a6 added `hermes -z` plus top-level --model/--provider and env fallback behavior. Gormes needs the parser/resolver contract first so execution workers do not mix flag semantics with stdout-only turn running.",
+              "note": "Updated 2026-05-15: Gormes removed the root `-z/--oneshot` aliases from the public command surface and keeps scripted noninteractive turns on `gormes chat -q`. The same model/provider/env/config resolver remains shared with the one-turn execution path.",
               "write_scope": [
                 "cmd/gormes/main.go",
                 "cmd/gormes/oneshot_flags_test.go",
@@ -45953,7 +45952,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Oneshot flag fixtures prove top-level parsing, provider-without-model exit 2, env fallback, and no TUI/gateway startup during resolution."
+                "Scripted chat fixtures prove query parsing, provider-without-model exit 2, env fallback, removed `-z/--oneshot` guidance, and no TUI/gateway startup during resolution."
               ],
               "health": {
                 "attempt_count": 1,
@@ -45988,7 +45987,7 @@
                 "internal/hermes/client.go"
               ],
               "ready_when": [
-                "Top-level oneshot flag and model/provider resolver is validated on main.",
+                "Scripted chat query model/provider resolver is validated on main.",
                 "A fake hermes.Client can stream one assistant final response through the existing kernel without live provider credentials."
               ],
               "not_ready_when": [
@@ -45998,12 +45997,12 @@
                 "Oneshot noninteractive safety and clarify policy"
               ],
               "acceptance": [
-                "A fake-client `gormes -z 'hi' --model fixture-model` command prints exactly the final assistant content plus one trailing newline to stdout.",
+                "A fake-client `gormes --model fixture-model chat -q 'hi'` command prints exactly the final assistant content plus one trailing newline to stdout.",
                 "Status frames, tool-progress frames, banners, session IDs, and logs are absent from stdout and either suppressed or routed to stderr under explicit fixtures.",
                 "Provider/client setup failures return nonzero exit status with operator-readable stderr and empty stdout.",
                 "The command starts no TUI, gateway transport, api_server bridge, or live provider request in the focused fixture."
               ],
-              "note": "Complete: TDD landed cmd/gormes/oneshot_output_test.go and the native one-shot runner boundary. Fixtures inject a fake hermes.Client, prove one kernel ChatRequest for `gormes -z 'hi' --model fixture-model`, exact stdout final content plus one newline, setup failures on stderr with exit 1, and no TUI/gateway/api_server startup or stdout leakage of render/status/session/tool/log text. Safety/clarify behavior follows in the dependent row.",
+              "note": "Updated 2026-05-15: fixtures now drive the native one-turn runner through `gormes chat -q` rather than the removed root `-z/--oneshot` aliases. They inject a fake hermes.Client, prove one kernel ChatRequest for `gormes --model fixture-model chat -q 'hi'`, exact stdout final content plus one newline, setup failures on stderr with exit 1, and no TUI/gateway/api_server startup or stdout leakage of render/status/session/tool/log text. Safety/clarify behavior follows in the dependent row.",
               "write_scope": [
                 "cmd/gormes/main.go",
                 "cmd/gormes/oneshot_output_test.go",
@@ -47478,14 +47477,14 @@
               "name": "Interactive Onboarding",
               "status": "complete",
               "priority": "P1",
-              "contract": "Promote gormes onboard from setup alias into a truthful first-run status command and deterministic first-run wizard plan: model/provider selection -> auth setup -> gateway channel configuration -> browser/CDP checks -> skill discovery -> dashboard launch. Keep full interactive action execution split into `Gormes onboard interactive action runner` so this row closes only the implemented status and noninteractive plan scope.",
+              "contract": "Keep the first-run readiness status and deterministic wizard plan as an internal onboarding helper: model/provider selection -> auth setup -> gateway channel configuration -> browser/CDP checks -> skill discovery -> dashboard launch. Public CLI entrypoints are `gormes setup` for guided setup and `gormes doctor --offline --target <target> --json` for machine-readable readiness; top-level `gormes onboard` is not registered.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Current partial onboarding reports first-run status, runtime skills root, bundled/local skill counts, and partial learning-loop state with next-step commands. The future full wizard must report missing provider credentials, gateway config gaps, or browser unavailability per step and allow skip with explicit warning.",
+              "degraded_mode": "The internal onboarding helper reports first-run status, runtime skills root, bundled/local skill counts, and partial learning-loop state with next-step commands. Public setup/doctor surfaces report missing provider credentials, gateway config gaps, or browser unavailability per step and keep skip warnings explicit.",
               "fixture": "cmd/gormes/skills_onboard_test.go::TestOnboardExplainsRuntimeSkillsAndLearningState,TestOnboardShowsConfiguredProviderDetails,TestOnboardWizardNonInteractiveShowsOrderedPlanAndSkipWarnings,TestOnboardWizardPrefillsConfiguredProviderAndAuth; internal/cli/onboard_test.go::TestOnboardPlanWalksFirstRunWizardStepsWithSkipWarnings,TestOnboardPlanPrefillsConfiguredRuntime; future full wizard prompts remain row-backed",
               "source_refs": [
                 "../hermes-agent/hermes_cli/main.py:8369-8403:setup_parser",
@@ -47508,14 +47507,14 @@
               ],
               "unblocks": [],
               "acceptance": [
-                "gormes onboard is a real top-level command, not a setup alias.",
+                "Top-level `gormes onboard` is not registered; removed-command guidance points operators to `gormes setup` or `gormes doctor --offline --target terminal --json`.",
                 "Current output separates runtime skills from docs/development-skills and points users to gormes skills list.",
                 "Current output states that skill capture is manual/prompted and full automatic distill/promote/maintain is partial.",
                 "Configured provider output shows provider id, endpoint, and model instead of collapsing the setup state into one URL.",
-                "`gormes onboard --wizard --non-interactive` walks model -> provider -> auth -> gateway -> browser -> skills -> dashboard without prompts, probes, launches, or live credentials.",
+                "The internal onboarding wizard seam walks model -> provider -> auth -> gateway -> browser -> skills -> dashboard without prompts, probes, launches, or live credentials.",
                 "Each wizard-plan step carries an explicit skip warning.",
                 "Already-configured wizard-plan steps are detected and pre-filled.",
-                "The remaining interactive action runner is tracked by `Gormes onboard interactive action runner` and must stay testable without live credentials, gateway starts, browser launches, or dashboard launches."
+                "The remaining interactive action runner is tracked by `Internal onboarding interactive action runner` and must stay testable without live credentials, gateway starts, browser launches, or dashboard launches."
               ],
               "write_scope": [
                 "cmd/gormes/main.go",
@@ -47534,20 +47533,20 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "gormes onboard ships as a real first-run status command plus deterministic `--wizard --non-interactive` plan, with full interactive action execution tracked by `Gormes onboard interactive action runner`."
+                "The internal onboarding helper ships first-run status plus deterministic wizard-plan fixtures, while public first-run setup/readiness flows use `gormes setup` and `gormes doctor --offline --target <target> --json`."
               ],
               "evidence": {
                 "implementation": "cmd/gormes/onboard.go, cmd/gormes/skills.go, cmd/gormes/main.go, cmd/gormes/setup.go, internal/skills/list.go, internal/cli/onboard.go",
                 "tests": "go test ./cmd/gormes -run 'TestRootSkills|TestOnboard|TestSetup|TestHermesCLIParityManifest' -count=1; go test ./internal/cli -run TestOnboard -count=1",
-                "note": "Complete 2026-05-03 for the bounded scope: active Hermes has `hermes setup` plus first-touch onboarding hints, not a top-level `onboard` command, so `gormes onboard` is a Gormes-owned status/diagnostic wrapper over Hermes-compatible setup/auth/gateway/browser/skills/dashboard guidance. It is a real top-level first-run status command and supports `gormes onboard --wizard --non-interactive` as a deterministic first-run plan. The plan walks model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard, prints skip warnings for every step, detects and pre-fills configured provider/model/auth/gateway/browser state, and is testable without live credentials or external launches. Full interactive action execution is split into the row-backed `Gormes onboard interactive action runner` follow-up."
+                "note": "Updated 2026-05-15: active Hermes has `hermes setup` plus first-touch onboarding hints, not a top-level `onboard` command, so Gormes removed the public top-level `gormes onboard` entrypoint. The internal onboarding helper still provides first-run status JSON and deterministic wizard-plan fixtures over Hermes-compatible setup/auth/gateway/browser/skills/dashboard guidance. The plan walks model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard, prints skip warnings for every step, detects and pre-fills configured provider/model/auth/gateway/browser state, and is testable without live credentials or external launches. Public setup/readiness surfaces are `gormes setup` and `gormes doctor --offline --target <target> --json`."
               },
               "wired": true
             },
             {
-              "name": "Gormes onboard interactive action runner",
+              "name": "Internal onboarding interactive action runner",
               "status": "complete",
               "priority": "P1",
-              "contract": "`gormes onboard --wizard` in an interactive TTY turns the existing deterministic first-run plan into an action runner. It renders the same model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard steps, shows each step's configured/missing status and skip warning before any action, and lets the operator run, skip, or review each step. Selected actions delegate through fakeable command seams to existing setup/model/auth/gateway/browser/skills/dashboard surfaces; tests must never start live providers, gateways, browsers, dashboards, TTS downloads, or vendor probes.",
+              "contract": "The internal onboarding wizard seam turns the existing deterministic first-run plan into an action runner for tests and setup integration. It renders the same model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard steps, shows each step's configured/missing status and skip warning before any action, and lets the operator run, skip, or review each step through injected seams. Public CLI must not register top-level `gormes onboard`; selected actions delegate through fakeable command seams to existing setup/model/auth/gateway/browser/skills/dashboard surfaces.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -47569,7 +47568,7 @@
                 "cmd/gormes/dashboard.go"
               ],
               "ready_when": [
-                "Interactive Onboarding has the deterministic `gormes onboard --wizard --non-interactive` plan builder and configured-state prefill fixtures.",
+                "Interactive Onboarding has the deterministic onboarding wizard-plan builder and configured-state prefill fixtures.",
                 "Gormes setup top-level chooser menu and full-wizard shell rows are complete so model/provider/setup steps have existing command targets.",
                 "Tests can inject action seams, prompt answers, configured-state input, and output buffers without relying on a real TTY, provider credential, gateway process, browser, or dashboard server."
               ],
@@ -47577,14 +47576,14 @@
                 "The slice starts live external services, opens a browser, contacts a provider, probes Browser/CDP, launches the dashboard server, or starts a messaging gateway in tests.",
                 "The slice duplicates provider/model/auth setup logic instead of delegating to existing command seams.",
                 "The slice removes or changes the noninteractive wizard plan output already used for CI diagnostics.",
-                "The slice treats `gormes onboard` as strict Hermes command parity; upstream has `hermes setup`, while this command is a Gormes-owned diagnostic/action wrapper."
+                "The slice registers top-level `gormes onboard`; upstream has `hermes setup`, and Gormes public first-run paths are setup/doctor."
               ],
               "blocked_by": [],
               "unblocks": [
                 "Interactive Onboarding"
               ],
               "acceptance": [
-                "TestOnboardWizardInteractivePromptsForStepActions proves interactive `gormes onboard --wizard` renders all seven plan steps in order and asks run/skip/review for each step through an injected prompt seam.",
+                "TestOnboardWizardInteractivePromptsForStepActions proves the internal onboarding wizard seam renders all seven plan steps in order and asks run/skip/review for each step through an injected prompt seam.",
                 "TestOnboardWizardSkipWarningsBeforeSkip proves skipping a missing step prints that step's skip warning before continuing.",
                 "TestOnboardWizardConfiguredStepsArePrefilled proves configured provider/model/auth/gateway/browser state changes the step status/detail and defaults the action to review or skip instead of blindly reconfiguring.",
                 "TestOnboardWizardDelegatesSelectedActions proves selected model/provider/auth/gateway/browser/skills/dashboard steps call injected action handlers with the step id and recommended command.",
@@ -47608,7 +47607,7 @@
               "done_signal": [
                 "Onboard wizard fixtures prove interactive action prompting, skip-warning rendering, configured-state defaults, delegated/row-backed step handlers, and noninteractive no-prompt behavior without live external services."
               ],
-              "note": "Complete 2026-05-03: `gormes onboard --wizard` now uses fakeable command seams to run an interactive TTY action runner over the existing deterministic first-run plan. It renders the seven model/provider/auth/gateway/browser/CDP/skills/dashboard steps, shows each status/detail/skip warning before action, applies status-aware defaults, supports run/skip/review, delegates selected run actions through an injected seam, defaults unavailable actions to onboard_action_row_backed evidence, and preserves non-TTY/--non-interactive plan-only output. No live providers, gateway starts, browser probes, dashboard launches, TTS downloads, or vendor calls are started by the row fixtures.",
+              "note": "Updated 2026-05-15: the internal onboarding wizard seam uses fakeable command seams to run an interactive action runner over the existing deterministic first-run plan, but top-level `gormes onboard` is no longer registered. It renders the seven model/provider/auth/gateway/browser/CDP/skills/dashboard steps, shows each status/detail/skip warning before action, applies status-aware defaults, supports run/skip/review, delegates selected run actions through an injected seam, defaults unavailable actions to onboard_action_row_backed evidence, and preserves non-TTY/--non-interactive plan-only output. No live providers, gateway starts, browser probes, dashboard launches, TTS downloads, or vendor calls are started by the row fixtures.",
               "evidence": {
                 "implementation": [
                   "cmd/gormes/onboard.go:newOnboardCommandWithSeams exposes IsTTY, PromptAction, and RunAction seams for hermetic wizard tests.",
@@ -47633,14 +47632,14 @@
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:hermes_cli/setup.py run_setup_wizard + agent/onboarding.py contextual first-touch hints",
-                "note": "Hermes owns the setup wizard and contextual hints; Gormes owns `onboard` as a first-run diagnostic/action wrapper that delegates to Hermes-compatible setup surfaces."
+                "note": "Hermes owns the setup wizard and contextual hints; Gormes keeps onboarding as an internal first-run diagnostic/action helper while public operators use setup/doctor surfaces."
               }
             },
             {
               "name": "CLI setup/onboard/help text fidelity matrix",
               "priority": "P0",
               "status": "complete",
-              "contract": "Add a deterministic operator-visible text matrix for `gormes setup`, setup entry modes, setup sections, `gormes onboard`, provider/model setup guidance, root help, unknown-command suggestions, and non-TTY fallbacks. The matrix must keep Hermes-compatible setup behavior where upstream owns the flow, preserve Gormes-owned first-run onboarding wording where it intentionally differs, and prevent regressions such as parent setup arguments leaking into delegated model/provider commands, arrow-key escape bytes being treated as selections, Hermes paths appearing in Gormes summaries, or interactive-only navigation copy appearing in line-input fallback mode.",
+              "contract": "Add a deterministic operator-visible text matrix for `gormes setup`, setup entry modes, setup sections, internal onboarding helper output, removed `gormes onboard` guidance, provider/model setup guidance, root help, unknown-command suggestions, and non-TTY fallbacks. The matrix must keep Hermes-compatible setup behavior where upstream owns the flow, preserve Gormes-owned first-run readiness wording where it intentionally differs, and prevent regressions such as parent setup arguments leaking into delegated model/provider commands, arrow-key escape bytes being treated as selections, Hermes paths appearing in Gormes summaries, or interactive-only navigation copy appearing in line-input fallback mode.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -47648,7 +47647,7 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "When a setup/onboard action is not wired yet, output must include a row-backed command name and actionable next step instead of panic text, raw Cobra errors, or silent no-ops.",
+              "degraded_mode": "When a setup/onboarding-helper action is not wired yet, output must include a row-backed command name and actionable next step instead of panic text, raw Cobra errors, or silent no-ops.",
               "fixture": "cmd/gormes/setup_text_fidelity_test.go::TestSetupTextFidelity_* + cmd/gormes/onboard_wizard_test.go",
               "source_refs": [
                 "./hermes-agent/hermes_cli/main.py@b816fd4e2:setup_parser",
@@ -47678,10 +47677,10 @@
                 "TestSetupTextFidelity_EntryModes proves returning-user bare setup/reconfigure, quick setup, fresh-install first run, reset, no-TTY, and non-interactive guidance use the current Hermes-owned wording or an explicitly documented Gormes-branded equivalent.",
                 "TestSetupTextFidelity_QuickSetupDelegatesMissingProviderModel proves quick setup routes to provider/model seams without constructing `model setup` or leaking parent arguments.",
                 "TestSetupTextFidelity_BrandedSummaryAndPaths proves the completion summary says Gormes, points to Gormes config/env paths, and never prints stale Hermes install/config edit commands.",
-                "TestSetupTextFidelity_OnboardPlanAndWizard proves `gormes onboard`/`--wizard` output keeps the seven-step first-run plan, skip warnings, configured-state details, and row-backed action evidence stable.",
+                "TestSetupTextFidelity_OnboardPlanAndWizard proves internal onboarding helper output keeps the seven-step first-run plan, skip warnings, configured-state details, and row-backed action evidence stable.",
                 "TestSetupTextFidelity_UnknownCommandGuidance proves typo suggestions and unsupported setup sections produce actionable stderr/stdout without raw Cobra-only `unknown command` text."
               ],
-              "note": "Added by the 2026-05-04 behavioral parity audit after setup/onboard were functionally fixed but spread across many tests. 2026-05-06 all-topic parity sweep promoted this to P0 after checking CLI/TUI, provider/auth, gateway/channel, tools, sessions/Goncho, install/runtime, browser, docs/public, and release/operator rows: no planned P0 remained, setup/onboard text is the first-run path that stitches those surfaces together, and all blockers are now complete. Complete: TDD added cmd/gormes/setup_text_fidelity_test.go and tightened unsupported setup-section output in cmd/gormes/setup.go so unknown setup sections emit deterministic row-backed guidance with recommended_command=\"gormes setup\" and no raw Cobra unknown-command text. The same fixture file locks first-run quick/full line-input fallback, escape-sequence stripping, root help setup/provider/gateway path copy, and stale Hermes setup/path absence. Evidence: go test ./cmd/gormes -run '^TestSetupTextFidelity' -count=1 PASS; go test ./cmd/gormes -run 'TestSetupTextFidelity|TestSetup|TestOnboardWizard|TestRootHelp|TestHermesCLIParityManifest' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS; go run ./cmd/progress validate PASS.",
+              "note": "Added by the 2026-05-04 behavioral parity audit after setup/onboarding-helper behavior was functionally fixed but spread across many tests. Updated 2026-05-15: top-level `gormes onboard` is removed, so the public text matrix locks setup/doctor replacements and unknown-command guidance while internal onboarding helper fixtures keep the first-run plan stable. Complete: TDD added cmd/gormes/setup_text_fidelity_test.go and tightened unsupported setup-section output in cmd/gormes/setup.go so unknown setup sections emit deterministic row-backed guidance with recommended_command=\"gormes setup\" and no raw Cobra unknown-command text. The same fixture file locks first-run quick/full line-input fallback, escape-sequence stripping, root help setup/provider/gateway path copy, and stale Hermes setup/path absence. Evidence: go test ./cmd/gormes -run '^TestSetupTextFidelity' -count=1 PASS; go test ./cmd/gormes -run 'TestSetupTextFidelity|TestSetup|TestOnboardWizard|TestRootHelp|TestHermesCLIParityManifest' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS; go run ./cmd/progress validate PASS.",
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/onboard.go",
@@ -47697,7 +47696,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Text fixtures prove setup/onboard/help/unknown-command visible output is stable, Gormes-branded, Hermes-compatible where applicable, and resilient to non-TTY/line-input fallback edge cases."
+                "Text fixtures prove setup, internal onboarding helper, help, and unknown-command visible output is stable, Gormes-branded, Hermes-compatible where applicable, and resilient to non-TTY/line-input fallback edge cases."
               ],
               "provenance": {
                 "origin_type": "upstream_reconciliation",
@@ -47708,14 +47707,14 @@
                 "Hermes setup entry-mode and reset semantics",
                 "Gormes setup top-level chooser menu",
                 "Gormes setup full-wizard shell and branded summary",
-                "Gormes onboard interactive action runner"
+                "Internal onboarding interactive action runner"
               ]
             },
             {
               "name": "Hermes CLI alias and suggestion fidelity matrix",
               "priority": "P2",
               "status": "complete",
-              "contract": "Add deterministic fixtures for Hermes-visible command alias, prefix expansion, quick-command alias, and unknown/ambiguous-command guidance across the native CLI, gateway slash dispatcher, and native TUI slash handler. The matrix must prove aliases canonicalize before dispatch and hooks, exact commands win over longer prefix matches, unique prefixes preserve arguments, ambiguous prefixes produce bounded suggestions, quick-command aliases preserve user arguments without recursion loops, and unknown commands show actionable help instead of falling through to the model or silently executing. Gormes-owned typo redirects such as `gormes migrate ooenclaw` remain explicit suggestions, not silent Hermes aliases; `gormes login --provider openai-codex` is now a registered provider-auth compatibility command rather than an alias.",
+              "contract": "Add deterministic fixtures for Hermes-visible command alias, prefix expansion, quick-command alias, and unknown/ambiguous-command guidance across the native CLI, gateway slash dispatcher, and native TUI slash handler. The matrix must prove aliases canonicalize before dispatch and hooks, exact commands win over longer prefix matches, unique prefixes preserve arguments, ambiguous prefixes produce bounded suggestions, quick-command aliases preserve user arguments without recursion loops, and unknown commands show actionable help instead of falling through to the model or silently executing. Gormes-owned typo redirects such as `gormes migrate ooenclaw` remain explicit suggestions, not silent Hermes aliases; `gormes login` is removed-command guidance to `gormes auth add <provider> --type oauth` rather than an alias or command.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -47733,7 +47732,7 @@
                 "../hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:typed alias, catalog alias, exact-vs-prefix, ambiguous-prefix, and skill-dispatch fixtures",
                 "cmd/gormes/hermes_cli_parity.go",
                 "cmd/gormes/hermes_cli_parity_test.go",
-                "cmd/gormes/login_command_test.go",
+                "cmd/gormes/root_help_test.go",
                 "cmd/gormes/migrate_openclaw_test.go",
                 "internal/cli/command_registry.go",
                 "internal/cli/command_registry_policy_test.go",
@@ -49414,7 +49413,7 @@
                 "internal/hermes/model_registry.go"
               ],
               "ready_when": [
-                "Top-level oneshot model/provider resolution is validated, but runTUI currently ignores --model/--provider flags and uses cfg.Hermes.Model directly.",
+                "Scripted chat model/provider resolution is validated, but runTUI currently ignores --model/--provider flags and uses cfg.Hermes.Model directly.",
                 "Gormes has a static embedded model registry that can resolve short aliases without OpenRouter or provider network calls."
               ],
               "not_ready_when": [
@@ -52262,7 +52261,7 @@
               "provenance": {
                 "origin_type": "upstream"
               },
-              "contract": "Provider HTTP client construction (OpenAI, Anthropic, Bedrock helpers, Firecrawl-equivalent web client) is lazy: clients are only instantiated when a code path actually selects that provider, not at package init or config load. A checked-in benchmark exercises the gormes binary cold-start path (process exec → first interactive frame, in `gormes -z`) and asserts a documented budget; the budget rationale cites Hermes v0.12.0 PR #17046 (lazy OpenAI/Anthropic/Firecrawl) within the broader ~57% cold-start cut.",
+              "contract": "Provider HTTP client construction (OpenAI, Anthropic, Bedrock helpers, Firecrawl-equivalent web client) is lazy: clients are only instantiated when a code path actually selects that provider, not at package init or config load. A checked-in benchmark exercises the gormes binary cold-start path (process exec → first scripted-chat frame, in `gormes chat -q`) and asserts a documented budget; the budget rationale cites Hermes v0.12.0 PR #17046 (lazy OpenAI/Anthropic/Firecrawl) within the broader ~57% cold-start cut.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
@@ -52281,7 +52280,7 @@
               ],
               "ready_when": [
                 "Provider registry exposes per-provider constructor seams reachable from a benchmark without launching the full TUI.",
-                "A `gormes -z <prompt>` non-interactive entry point exists and can be exec'd from a Go benchmark with a fake provider."
+                "A `gormes chat -q <prompt>` non-interactive entry point exists and can be exec'd from a Go benchmark with a fake provider."
               ],
               "not_ready_when": [
                 "The slice rewrites unrelated TUI rendering, gateway dispatch, or provider transport.",
@@ -59209,6 +59208,200 @@
                   "GREEN: timeout 5m env CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -trimpath -o /tmp/gormes-android-arm64 ./cmd/gormes passed."
                 ]
               }
+            },
+            {
+              "name": "Gormes-owned chat TUI divergence ratification",
+              "status": "complete",
+              "contract": "Scope the Hermes-in-Go core rule to runtime/protocol parity and explicitly declare the interactive `gormes chat` presentation a Gormes-owned surface. Replace the Hermes-pinned presentation assertions in hermes_behavioral_fidelity_test.go (EmptyTranscriptIntro exact-string mandate, ❯/┊/─── glyph locks, and the you:/⚕ Gormes/role-label forbiddances) with Gormes-owned golden assertions, preserving the genuinely behavioral guarantees (no duplicate final assistant, tool output not absorbed into prose, transcript ordering).",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tui",
+              "provenance": {
+                "origin_type": "gormes",
+                "upstream_ref": "hermes:ui-tui@./hermes-agent/ui-tui",
+                "owned_since": "2026-05-15T00:00:00Z",
+                "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
+              },
+              "source_refs": [
+                "./hermes-agent/ui-tui",
+                "internal/tui/hermes_behavioral_fidelity_test.go",
+                "CLAUDE.md",
+                "AGENTS.md",
+                "docs/content/building-gormes/strategy/success-plan.md"
+              ],
+              "ready_when": [
+                "User has ratified the owned-divergence decision (done: methodology-first pivot, this planner pass)."
+              ],
+              "not_ready_when": [
+                "Removing behavioral guarantees (duplicate-final, tool-output-absorption, transcript order) instead of only the Hermes presentation locks."
+              ],
+              "unblocks": [
+                "Gormes-owned session-aware welcome panel",
+                "Gormes-owned semantic chat style system",
+                "Gormes-owned streaming feedback uplift"
+              ],
+              "write_scope": [
+                "CLAUDE.md",
+                "AGENTS.md",
+                "internal/tui/hermes_behavioral_fidelity_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'Fidelity' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "acceptance": [
+                "CLAUDE.md and AGENTS.md core rule scopes 'Hermes in Go' to runtime/protocol and names chat presentation as owned.",
+                "Hermes presentation assertions are replaced by Gormes goldens, not deleted, and behavioral guarantees still fail when violated."
+              ],
+              "done_signal": [
+                "go test ./internal/tui -run Fidelity -count=1 green against Gormes-owned goldens; CLAUDE.md/AGENTS.md amended."
+              ],
+              "note": "owned divergence. Upstream baseline: Hermes ui-tui (./hermes-agent/ui-tui). Rationale: methodology-first strategy pivot makes the chat TUI a Gormes-owned reputation differentiator, not a Hermes-parity surface. Proof: rewritten hermes_behavioral_fidelity_test.go goldens. ccx-go (github.com/anton-abyzov/ccx-go, MIT) is a patterns-only donor — no code copy. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift. COMPLETE 2026-05-15: CLAUDE.md core rule amended (AGENTS.md carries no core-rule text — n/a). hermes_behavioral_fidelity_test.go reframed to the Gormes-owned chrome contract: Hermes presentation pins removed (exact intro strings, ❯/┊/─── glyphs, ⚕ Gormes/you: forbiddances); behavioral guarantees preserved with teeth (final-not-duplicated count check, tool-output-not-absorbed, transcript ordering, no legacy/debug chrome). Evidence: go test ./internal/tui -run Fidelity -count=1 ok; go test ./internal/tui -count=1 ok; go run ./cmd/progress validate ok. Follow-up outside R0 write_scope: contract-readiness.md still references the old Hermes-fidelity framing."
+            },
+            {
+              "name": "Gormes-owned session-aware welcome panel",
+              "status": "planned",
+              "contract": "Replace the static banner.go empty-transcript intro with a bordered, session-aware welcome panel that keeps the Gormes gradient logo/caduceus identity but adds live context (version, model, provider/auth, cwd, tool count) and a 'getting started' slash-tips block, rendered on the first frame before any turn.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tui",
+              "provenance": {
+                "origin_type": "gormes",
+                "upstream_ref": "hermes:ui-tui@./hermes-agent/ui-tui",
+                "owned_since": "2026-05-15T00:00:00Z",
+                "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
+              },
+              "source_refs": [
+                "/tmp/ccx-go/internal/tui/inline.go",
+                "./hermes-agent/ui-tui",
+                "internal/tui/banner.go",
+                "internal/tui/view.go"
+              ],
+              "ready_when": [
+                "Gormes-owned chat TUI divergence ratification is complete (EmptyTranscriptIntro no longer mandates the exact Hermes string)."
+              ],
+              "not_ready_when": [
+                "EmptyTranscriptIntro still pins the exact Hermes intro string."
+              ],
+              "blocked_by": [
+                "Gormes-owned chat TUI divergence ratification"
+              ],
+              "write_scope": [
+                "internal/tui/banner.go",
+                "internal/tui/view.go",
+                "internal/tui/banner_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'Banner|EmptyTranscript|Welcome' -count=1"
+              ],
+              "acceptance": [
+                "First frame shows a bordered panel containing real session context (version, model, provider/auth, cwd, tool count) plus slash tips.",
+                "Gormes gradient logo and caduceus identity are preserved.",
+                "A teatest/golden snapshot pins the panel layout."
+              ],
+              "done_signal": [
+                "go test ./internal/tui -run 'Banner|EmptyTranscript|Welcome' -count=1 green with the new bordered session-aware panel golden."
+              ],
+              "note": "owned. Upstream baseline: Hermes ui-tui welcome chrome. Divergence rationale: premium first-impression differentiator (user pain: welcome/first-impression). Pattern donor: /tmp/ccx-go/internal/tui/inline.go:RenderWelcomeInline (MIT, patterns-only, no code copy). Proof: banner_test.go golden. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift."
+            },
+            {
+              "name": "Gormes-owned semantic chat style system",
+              "status": "planned",
+              "contract": "Introduce a Gormes-owned internal/tui/styles.go exposing a small flat set of named semantic role styles (user, assistant, tool name, tool output, error, prompt, separator, status) over a Gormes palette, and route view.go/markdown.go role rendering through it so user/assistant/tool/error messages are visually differentiated and scannable, replacing scattered ad-hoc lipgloss.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tui",
+              "provenance": {
+                "origin_type": "gormes",
+                "upstream_ref": "hermes:ui-tui@./hermes-agent/ui-tui",
+                "owned_since": "2026-05-15T00:00:00Z",
+                "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
+              },
+              "source_refs": [
+                "/tmp/ccx-go/internal/tui/styles.go",
+                "./hermes-agent/ui-tui",
+                "internal/tui/view.go",
+                "internal/tui/markdown.go",
+                "internal/tui/hermes_skin.go"
+              ],
+              "ready_when": [
+                "Gormes-owned chat TUI divergence ratification is complete (role labels/styling no longer forbidden by fidelity goldens)."
+              ],
+              "not_ready_when": [
+                "NoLegacyPromptToolkitChrome still forbids role-differentiated rendering."
+              ],
+              "blocked_by": [
+                "Gormes-owned chat TUI divergence ratification"
+              ],
+              "write_scope": [
+                "internal/tui/styles.go",
+                "internal/tui/view.go",
+                "internal/tui/markdown.go",
+                "internal/tui/styles_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'Style|View|Markdown' -count=1"
+              ],
+              "acceptance": [
+                "view.go/markdown.go role rendering references named styles from styles.go, not scattered inline lipgloss.NewStyle calls.",
+                "A golden snapshot proves user/assistant/tool/error visual differentiation.",
+                "Gormes palette is centralized in one place."
+              ],
+              "done_signal": [
+                "go test ./internal/tui -run 'Style|View|Markdown' -count=1 green with the role-differentiated golden."
+              ],
+              "note": "owned. Upstream baseline: Hermes ui-tui skin. Divergence rationale: scannable visual hierarchy differentiator (user pain: visual hierarchy/polish). Pattern donor: /tmp/ccx-go/internal/tui/styles.go (MIT, patterns-only, no code copy). Proof: styles_test.go golden. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift."
+            },
+            {
+              "name": "Gormes-owned streaming feedback uplift",
+              "status": "planned",
+              "contract": "On the existing frame/coalescer streaming model (do not replace the coalescer), add distinct perceived-feedback affordances: a visible thinking indicator, explicit tool start and tool done/error markers in the transcript, and smoother assistant chunk cadence, so the user is never left wondering about system state during a turn.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tui",
+              "provenance": {
+                "origin_type": "gormes",
+                "upstream_ref": "hermes:ui-tui@./hermes-agent/ui-tui",
+                "owned_since": "2026-05-15T00:00:00Z",
+                "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
+              },
+              "source_refs": [
+                "/tmp/ccx-go/internal/tui/app.go",
+                "/tmp/ccx-go/internal/tui/inline.go",
+                "internal/tui/update.go",
+                "internal/tui/thinking.go",
+                "internal/tui/spinner.go"
+              ],
+              "ready_when": [
+                "Gormes-owned chat TUI divergence ratification is complete (transcript chrome may change)."
+              ],
+              "not_ready_when": [
+                "Change replaces the gateway coalescer/frame model instead of layering feedback on it.",
+                "FinalAssistantNotDuplicated behavioral guarantee regresses."
+              ],
+              "blocked_by": [
+                "Gormes-owned chat TUI divergence ratification"
+              ],
+              "write_scope": [
+                "internal/tui/update.go",
+                "internal/tui/thinking.go",
+                "internal/tui/spinner.go",
+                "internal/tui/update_test.go",
+                "internal/tui/thinking_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1"
+              ],
+              "acceptance": [
+                "Thinking state, tool start, and tool done/error are visibly distinct in the transcript during a turn.",
+                "The final assistant message is still rendered exactly once (behavioral guarantee preserved).",
+                "Chunk cadence is smoothed without replacing the coalescer."
+              ],
+              "done_signal": [
+                "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1 green; no duplicate-final regression."
+              ],
+              "note": "owned. Upstream baseline: Hermes ui-tui streaming chrome. Divergence rationale: responsive streaming feel differentiator (user pain: streaming feel). Pattern donor: /tmp/ccx-go/internal/tui/app.go StreamThinkingMsg/ToolExecMsg/ToolDoneMsg + inline.go RenderStreamChunk (MIT, patterns-only, no code copy). Proof: update_test.go/thinking_test.go + preserved FinalAssistantNotDuplicated. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift."
             }
           ]
         },

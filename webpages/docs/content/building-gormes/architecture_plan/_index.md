@@ -1061,7 +1061,7 @@ classification and row-backed implementation queue.
 - [x] Model and profile selector seam (Cobra + gateway)
 - [x] Gormes top-level logout provider shortcut
 - [x] Top-level logout configured-provider fallback
-- [x] Gormes top-level login provider shortcut
+- [x] Gormes removed top-level login guidance
 - [x] Gormes model interactive provider/model picker
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
@@ -1089,7 +1089,7 @@ classification and row-backed implementation queue.
 - [x] CLI profile root resolver
 - [x] CLI active-profile store
 - [x] CLI profile path and active-profile store (deprecated umbrella)
-- [x] Top-level oneshot flag and model/provider resolver
+- [x] Scripted chat query model/provider resolver
 - [x] Oneshot final-output writer boundary
 - [x] Oneshot noninteractive safety and clarify policy
 - [x] Platform toolset config persistence + MCP sentinel
@@ -1115,7 +1115,7 @@ classification and row-backed implementation queue.
 - [x] CLI log snapshot reader using shared redactor
 - [x] Hermes config.yaml model/provider runtime bridge
 - [x] Interactive Onboarding
-- [x] Gormes onboard interactive action runner
+- [x] Internal onboarding interactive action runner
 - [x] CLI setup/onboard/help text fidelity matrix
 - [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
@@ -1399,6 +1399,10 @@ classification and row-backed implementation queue.
 - [x] Release notes SBOM attestation wording
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
+- [x] Gormes-owned chat TUI divergence ratification
+- [ ] Gormes-owned session-aware welcome panel
+- [ ] Gormes-owned semantic chat style system
+- [ ] Gormes-owned streaming feedback uplift
 
 ### 8.E — Toolkit Extraction 🔨
 
