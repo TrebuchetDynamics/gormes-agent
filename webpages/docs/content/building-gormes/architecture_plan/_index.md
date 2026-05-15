@@ -1456,7 +1456,7 @@ classification and row-backed implementation queue.
 
 ### 9.F — External Issue Radar Regression Guards 🔨
 
-- [ ] PicoClaw-derived channel media and identity regression matrix
+- [x] PicoClaw-derived channel media and identity regression matrix
 - [ ] PicoClaw-derived session ledger read-model regression matrix
 - [ ] PicoClaw-derived provider stream and auth regression matrix
 - [x] PicoClaw-derived tool path safety regression pack

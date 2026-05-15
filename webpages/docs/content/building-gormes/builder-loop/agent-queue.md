@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. PicoClaw-derived channel media and identity regression matrix
-
-- Phase: 9 / 9.F
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Add a fake-adapter regression matrix, sourced from current PicoClaw channel reports, that proves Gormes preserves sender identity, allowlist decisions, durable rich-media envelopes, voice transcript text, PDF/document attachment metadata, Feishu-style tool-progress notifications, and same-agent final delivery semantics through the channel-neutral gateway path.
-- Trust class: operator, gateway, system
-- Ready when: Cross-platform image/document MEDIA delivery routing, Telegram voice/audio STT ingress, Gateway fresh-final send/delete fallback, and SessionContext prompt injection remain complete., The worker can use fake gateway channels and synthetic attachments only; no Telegram, Matrix, Feishu, Slack, Discord, PDF parser, or live provider credential is required.
-- Not ready when: The slice adds a new live channel adapter, changes provider media content-part serialization, or rewrites existing channel authorization semantics instead of freezing the shared gateway invariants., The fixture stores prompt text, file contents, bot tokens, chat IDs beyond synthetic test IDs, or raw local filesystem paths in evidence.
-- Degraded mode: Unsupported channel/media combinations return redacted typed evidence, unknown senders fail closed, and final answers are sent through the existing fresh-final or coalescer fallback without editing placeholder/tool-feedback messages into user-visible finals.
-- Fixture: `internal/gateway/picoclaw_channel_regression_test.go`
-- Write scope: `internal/gateway/picoclaw_channel_regression_test.go`, `internal/gateway/`, `internal/channels/threadtext/`, `internal/channels/telegram/`, `internal/channels/feishu/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/gateway -run '^TestPicoClawChannelRegression_' -count=1`, `go test ./internal/gateway ./internal/channels/threadtext -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: The PicoClaw-derived channel regression fixture proves sender identity, allowlist, durable media envelope, voice transcript, tool-progress notification, and final-delivery invariants without live channels.
-- Acceptance: TestPicoClawChannelRegression_SenderIdentityAndAllowlist proves Matrix/thread-text-style events inject sender identity into session context and deny disallowed senders before provider submission., TestPicoClawChannelRegression_RichMediaEnvelopePersists proves image, PDF/document, and voice-transcript attachments keep durable metadata and transcript text through the gateway event and final response path., TestPicoClawChannelRegression_FinalDeliveryDoesNotEditToolPlaceholder proves steering-heavy finals are emitted as final messages or fresh-final fallbacks, not as edits to tool-feedback placeholders., TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete proves multi-tool progress events produce complete notification-center evidence for channels that cannot edit every intermediate message.
-- Source refs: https://github.com/sipeed/picoclaw/issues/2855, https://github.com/sipeed/picoclaw/issues/2843, https://github.com/sipeed/picoclaw/issues/2839, https://github.com/sipeed/picoclaw/issues/2817, https://github.com/sipeed/picoclaw/issues/2816, https://github.com/sipeed/picoclaw/issues/2815, https://github.com/sipeed/picoclaw/issues/2798, https://github.com/sipeed/picoclaw/issues/2785, https://github.com/sipeed/picoclaw/issues/2702, internal/gateway/channel.go, internal/gateway/coalesce.go, internal/gateway/session_context.go, internal/gateway/media_delivery.go, internal/channels/threadtext/contract.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. PicoClaw-derived session ledger read-model regression matrix
+## 1. PicoClaw-derived session ledger read-model regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `memory`
@@ -67,7 +47,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2820, https://github.com/sipeed/picoclaw/issues/2796, https://github.com/sipeed/picoclaw/issues/2795, https://github.com/sipeed/picoclaw/issues/2787, internal/session/directory.go, internal/session/lineage.go, internal/transcript/markdown.go, internal/store/recording.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. PicoClaw-derived provider stream and auth regression matrix
+## 2. PicoClaw-derived provider stream and auth regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `provider`
@@ -87,7 +67,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2769, https://github.com/sipeed/picoclaw/issues/2745, https://github.com/sipeed/picoclaw/issues/2674, https://github.com/sipeed/picoclaw/issues/2404, https://github.com/sipeed/picoclaw/issues/629, https://github.com/sipeed/picoclaw/issues/28, internal/hermes/stream.go, internal/hermes/http_client.go, internal/hermes/codex_responses_stream.go, internal/hermes/reasoning_tag_sanitizer.go, internal/hermes/lmstudio_adapter.go, internal/hermes/errors.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. MCP Streamable HTTP session lifecycle compatibility
+## 3. MCP Streamable HTTP session lifecycle compatibility
 
 - Phase: 9 / 9.F
 - Owner: `tools`
@@ -107,7 +87,7 @@ selection.
 - Source refs: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#backwards-compatibility, https://github.com/sipeed/picoclaw/issues/2782, https://github.com/sipeed/picoclaw/issues/2546, internal/tools/mcp_http.go, internal/tools/mcp_client.go, internal/tools/mcp_oauth_store.go, internal/tools/managed_tool_gateway.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Dynamic agent identity inheritance regression matrix
+## 4. Dynamic agent identity inheritance regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `orchestrator`
@@ -127,7 +107,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/1934, https://github.com/sipeed/picoclaw/issues/2148, https://github.com/sipeed/picoclaw/issues/2775, https://github.com/sipeed/picoclaw/issues/294, https://github.com/sipeed/picoclaw/issues/284, internal/subagent/, internal/goncho/dynamic_agents.go, internal/agent/middleware.go, internal/skills/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Native TUI /model slash command binding over the existing model picker
+## 5. Native TUI /model slash command binding over the existing model picker
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -148,7 +128,7 @@ selection.
 - Unblocks: Native TUI slash handler-port coverage
 - Why now: Unblocks Native TUI slash handler-port coverage.
 
-## 7. Termux storage and path safety audit
+## 6. Termux storage and path safety audit
 
 - Phase: 1 / 5.X
 - Owner: `orchestrator`
@@ -168,7 +148,7 @@ selection.
 - Source refs: internal/config/config.go, internal/store/, internal/goncho/, cmd/gormes/goncho.go, cmd/gormes/doctor.go, install.sh
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Termux gateway foreground tmux lifecycle
+## 7. Termux gateway foreground tmux lifecycle
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -188,7 +168,7 @@ selection.
 - Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Termux notification bridge via termux-api
+## 8. Termux notification bridge via termux-api
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -208,7 +188,7 @@ selection.
 - Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Termux real-device smoke evidence
+## 9. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -227,6 +207,26 @@ selection.
 - Done signal: A dated redacted real-device Termux smoke record is checked in and linked from the install docs/progress row.
 - Acceptance: Evidence records exact date, device arch, Android version, Termux version, and Gormes version/commit., Evidence shows install.sh release-binary path into $PREFIX/bin/gormes., Evidence includes gormes version, gormes doctor --offline --json, gormes config check, and SQLite/Goncho initialization outputs or redacted summaries., Provider-backed gormes chat -q succeeds or is explicitly skipped for missing test credential., The public compatibility claim remains bounded to the proven support matrix.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Termux remote execution guidance
+
+- Phase: 1 / 5.X
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Document and, where useful, add setup/status guidance for using Termux Gormes as the mobile operator/controller while SSHing to stronger machines for heavy builds, Docker, local browser automation, and GPU/local model inference. The guidance must preserve PC-like local Gormes CLI behavior while making remote execution the credible path for workstation/server workloads.
+- Trust class: operator, system
+- Ready when: Termux runtime doctor check is complete., Termux install docs exist., Current shell/terminal/SSH tool behavior is documented from existing Gormes command surfaces.
+- Not ready when: The docs claim local Termux can run Docker, heavy browser automation, GPU/local LLM, or large test suites like a workstation., The guidance introduces a new top-level gormes run command instead of existing gormes chat -q/gateway surfaces., The guidance requires root, privileged Android features, or a specific private server.
+- Degraded mode: If no remote host is configured, Termux remains a local CLI/TUI/gateway runtime and doctor/docs explain which heavy workloads are out of local scope.
+- Fixture: `webpages/docs/content/install/ Termux remote-execution docs`
+- Write scope: `webpages/docs/content/install/`, `README.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./webpages/docs -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Termux docs make the mobile-control-plane plus remote-executor architecture concrete without expanding local Termux support beyond proven capability.
+- Acceptance: Docs include the architecture: phone equals Gormes controller/light executor, remote host equals heavy build/browser/Docker/GPU executor., Docs give concrete SSH/tmux command examples without adding a new top-level gormes run command., Doctor or install docs point Termux users at remote execution for local browser/Docker/GPU-heavy workloads., The support matrix remains explicit about what is local, optional, and remote/degraded.
+- Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

@@ -60801,9 +60801,9 @@
         {
           "name": "PicoClaw-derived channel media and identity regression matrix",
           "priority": "P1",
-          "status": "planned",
+          "status": "complete",
           "contract": "Add a fake-adapter regression matrix, sourced from current PicoClaw channel reports, that proves Gormes preserves sender identity, allowlist decisions, durable rich-media envelopes, voice transcript text, PDF/document attachment metadata, Feishu-style tool-progress notifications, and same-agent final delivery semantics through the channel-neutral gateway path.",
-          "contract_status": "fixture_ready",
+          "contract_status": "validated",
           "slice_size": "medium",
           "execution_owner": "gateway",
           "trust_class": [
@@ -60860,6 +60860,27 @@
           "done_signal": [
             "The PicoClaw-derived channel regression fixture proves sender identity, allowlist, durable media envelope, voice transcript, tool-progress notification, and final-delivery invariants without live channels."
           ],
+          "completed_at": "2026-05-15T16:52:33-06:00",
+          "evidence": {
+            "implementation": [
+              "internal/gateway/picoclaw_channel_regression_test.go adds fake-adapter regression coverage for sender identity and allowlist, durable image/PDF/voice-transcript attachment projection, fresh-final delivery, and Feishu-style tool progress notifications.",
+              "internal/channels/threadtext/contract.go preserves source MessageID alongside MsgID for Matrix/Mattermost-style normalized events.",
+              "internal/gateway/session_context.go falls back to source MsgID for Discord and thread-text platforms when MessageID is not populated."
+            ],
+            "tests": [
+              "internal/gateway/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_SenderIdentityAndAllowlist",
+              "internal/gateway/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_RichMediaEnvelopePersists",
+              "internal/gateway/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_FinalDeliveryDoesNotEditToolPlaceholder",
+              "internal/gateway/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete",
+              "internal/channels/threadtext/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_NormalizeInboundPreservesSourceMessageID"
+            ],
+            "verification": [
+              "RED: go test ./internal/gateway -run '^TestPicoClawChannelRegression_' -count=1 failed because Matrix session context omitted Message ID when the event only supplied MsgID.",
+              "RED: go test ./internal/channels/threadtext -run '^TestPicoClawChannelRegression_NormalizeInboundPreservesSourceMessageID$' -count=1 failed because NormalizeInbound left MessageID empty.",
+              "GREEN: go test ./internal/gateway -run '^TestPicoClawChannelRegression_' -count=1 passed.",
+              "GREEN: go test ./internal/gateway ./internal/channels/threadtext -count=1 passed."
+            ]
+          },
           "provenance": {
             "origin_type": "gormes",
             "owned_since": "2026-05-15",
