@@ -1425,7 +1425,7 @@ classification and row-backed implementation queue.
 - [x] Built-with-Gormes page scaffold
 - [x] Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening ✅
+## Phase 9 — Design & Security Hardening 🔨
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
