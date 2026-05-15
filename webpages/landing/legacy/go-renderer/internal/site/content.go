@@ -3,6 +3,8 @@ package site
 import (
 	"encoding/json"
 	"html/template"
+	"strconv"
+	"strings"
 )
 
 func binarySizeMB() string {
@@ -18,6 +20,41 @@ func binarySizeMB() string {
 		return "17"
 	}
 	return data.Binary.SizeMB
+}
+
+func runtimeRSSMB() string {
+	if len(benchmarksJSON) == 0 {
+		return ""
+	}
+	var data struct {
+		Runtime struct {
+			OfflineDoctor struct {
+				Status    string  `json:"status"`
+				PeakRSSMB float64 `json:"peak_rss_mb"`
+			} `json:"offline_doctor"`
+		} `json:"runtime"`
+	}
+	if err := json.Unmarshal(benchmarksJSON, &data); err != nil {
+		return ""
+	}
+	if data.Runtime.OfflineDoctor.Status != "measured" || data.Runtime.OfflineDoctor.PeakRSSMB <= 0 {
+		return ""
+	}
+	return formatLandingFloat(data.Runtime.OfflineDoctor.PeakRSSMB)
+}
+
+func runtimeRSSProof() string {
+	if rss := runtimeRSSMB(); rss != "" {
+		return "doctor RSS ~" + rss + " MB"
+	}
+	return "doctor RSS measured"
+}
+
+func formatLandingFloat(value float64) string {
+	text := strconv.FormatFloat(value, 'f', 1, 64)
+	text = strings.TrimRight(text, "0")
+	text = strings.TrimRight(text, ".")
+	return text
 }
 
 type NavLink struct {
@@ -192,7 +229,7 @@ func DefaultPage() LandingPage {
 		FeatureCards: []FeatureCard{
 			{Title: "Single Static Binary", Body: "CGO_ENABLED=0 release builds produce a ~" + binarySizeMB() + " MB artifact for the runtime surface."},
 			{Title: "Offline Proof", Body: "./bin/gormes --offline starts the native TUI without credentials, network calls, Python, Node, Docker, or Hermes."},
-			{Title: "Built-In Doctor", Body: "./bin/gormes doctor --offline checks local readiness before provider calls or token spend."},
+			{Title: "Built-In Doctor", Body: "./bin/gormes doctor --offline checks local readiness before provider calls or token spend; the benchmark mirror records peak RSS for that path."},
 			{Title: "Provider Turns", Body: "One-shots and the TUI use configured provider-compatible endpoints from the same binary."},
 			{Title: "Local Goncho Memory", Body: "Sessions, durable context, diagnostics, and queue state stay in local SQLite."},
 			{Title: "Visible Limits", Body: "Full Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening remain in progress."},
@@ -211,6 +248,7 @@ func DefaultPage() LandingPage {
 		RoadmapPhases:         buildRoadmapPhases(loadEmbeddedProgress()),
 		ProofStrip: []string{
 			"~" + binarySizeMB() + " MB static binary",
+			runtimeRSSProof(),
 			"Source build recommended",
 			"MIT License",
 			"Scout release",

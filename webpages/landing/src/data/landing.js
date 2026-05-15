@@ -3,6 +3,8 @@ import release from './release.json';
 
 const binarySizeMB = benchmarks?.binary?.size_mb || '';
 const binaryMeasuredAt = benchmarks?.binary?.last_measured || '';
+const runtimePeakRSSMB = benchmarks?.runtime?.offline_doctor?.peak_rss_mb || '';
+const runtimeMeasuredAt = benchmarks?.runtime?.offline_doctor?.last_measured || '';
 const goFiles = benchmarks?.code?.go_files || '';
 const goLines = benchmarks?.code?.go_lines || '';
 const testCount = benchmarks?.code?.test_count || '';
@@ -16,6 +18,9 @@ const releaseLabel = releaseDateAlias
 const binaryMeasureLabel = binarySizeMB
   ? `Current measured Linux build: ~${binarySizeMB} MB${binaryMeasuredAt ? ` (${binaryMeasuredAt})` : ''}`
   : 'Current Linux build measured during release prep';
+const runtimeRSSLabel = runtimePeakRSSMB
+  ? `Offline doctor peak RSS: ~${runtimePeakRSSMB} MB${runtimeMeasuredAt ? ` (${runtimeMeasuredAt})` : ''}`
+  : 'Offline doctor peak RSS measured during release prep';
 const codeBaseLabel = goFiles && goLines && testCount
   ? `${goFiles} Go files · ${Math.round(goLines / 1000)}k lines · ${testCount} tests`
   : '';
@@ -23,7 +28,7 @@ const codeBaseLabel = goFiles && goLines && testCount
 export const page = {
   title: 'Gormes — Run AI agents from a single binary',
   description:
-    "One Go binary runs 30 Hermes skills on Termux, Windows, and locked-down Linux. No Python, no Docker, no dependency drift. Local SQLite memory, Telegram/Discord/Slack gateways, and an offline TUI — all in ~40 MB.",
+    `One Go binary runs 30 Hermes skills on Termux, Windows, and locked-down Linux. No Python, no Docker, no dependency drift. Local SQLite memory, Telegram/Discord/Slack gateways, and an offline TUI — current Linux build ~${binarySizeMB || '40'} MB.`,
   nav: [
     { label: 'Docs', href: 'https://docs.gormes.ai/' },
     { label: 'Install', href: '#install' },
@@ -68,6 +73,11 @@ export const page = {
       label: 'Binary',
       value: binarySizeMB ? `~${binarySizeMB} MB` : 'measured at release',
       detail: 'Linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 today.',
+    },
+    {
+      label: 'Runtime RSS',
+      value: runtimePeakRSSMB ? `~${runtimePeakRSSMB} MB` : 'measured at release',
+      detail: runtimeRSSLabel,
     },
   ],
   methodologyPillars: [

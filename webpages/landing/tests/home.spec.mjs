@@ -19,6 +19,8 @@ function escapeRegExp(value) {
 test('homepage renders the redesigned landing', async ({ page }) => {
   expect(landingBenchmarks.binary.size_mb).toBe(rootBenchmarks.binary.size_mb);
   expect(landingBenchmarks.binary.last_measured).toBe(rootBenchmarks.binary.last_measured);
+  expect(landingBenchmarks.runtime.offline_doctor.peak_rss_mb).toBe(rootBenchmarks.runtime.offline_doctor.peak_rss_mb);
+  expect(landingBenchmarks.runtime.offline_doctor.last_measured).toBe(rootBenchmarks.runtime.offline_doctor.last_measured);
   expect(logoSvg).toContain('fill="#73cedd"');
   expect(logoSvg).toContain('shape-rendering="crispEdges"');
   expect(logoSvg).toContain('Straight block-grid GORMES-AGENT logo');
@@ -135,6 +137,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Loop output, measured today')).toBeVisible();
   await expect(page.locator('.methodology-metric').getByText('Validated rows shipped', { exact: true })).toBeVisible();
   await expect(page.locator('.methodology-metric').getByText('770+', { exact: true })).toBeVisible();
+  await expect(page.locator('.methodology-metric').getByText('Runtime RSS', { exact: true })).toBeVisible();
+  await expect(page.locator('.methodology-metric').getByText(`~${landingBenchmarks.runtime.offline_doctor.peak_rss_mb} MB`, { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Validation-gated commits' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Hermes is the parity oracle' })).toBeVisible();
   // Only 2 pillars now
