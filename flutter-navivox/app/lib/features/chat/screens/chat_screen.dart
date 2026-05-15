@@ -36,7 +36,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final channel = ref.watch(activeNavivoxChannelProvider);
+    final channel = ref.watch(navivoxChannelProvider);
     if (!identical(_subscribed, channel)) {
       _subscribed?.removeListener(_onChannelChanged);
       channel.addListener(_onChannelChanged);

@@ -21,7 +21,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Recently imported'), findsNothing);
-    expect(find.text('Use fake local server'), findsOneWidget);
+    expect(find.text('Connect to Gormes gateway'), findsOneWidget);
   });
 
   testWidgets('setup screen lists imported servers when present',

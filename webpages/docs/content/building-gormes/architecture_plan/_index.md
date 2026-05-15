@@ -1425,7 +1425,7 @@ classification and row-backed implementation queue.
 ### 9.E — Navivox HTTP-only Hardening 🔨
 
 - [x] Remove SSH Navivox stdio path
-- [ ] Remove Flutter Navivox fake-server mode and wire protocol
+- [x] Remove Flutter Navivox fake-server mode and wire protocol
 - [ ] Remove Flutter SSH keys feature
 - [x] Navivox VPN host enumeration helper
 - [x] Navivox HTTP gateway mandatory-VPN bind

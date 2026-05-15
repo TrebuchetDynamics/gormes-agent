@@ -8,7 +8,7 @@ class ServersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final servers = ref.watch(activeNavivoxChannelProvider).state.servers;
+    final servers = ref.watch(navivoxChannelProvider).state.servers;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Servers')),

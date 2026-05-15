@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:navivox/core/channel/fake_navivox_channel.dart';
+import 'package:navivox/core/channel/navivox_channel_provider.dart';
+import '../../support/test_navivox_channel.dart';
 import 'package:navivox/core/channel/navivox_channel.dart';
 import 'package:navivox/features/chat/widgets/approval_banner.dart';
 
 void main() {
   testWidgets('high-risk approvals show a warning icon + "High risk" label',
       (tester) async {
-    final channel = FakeNavivoxChannel();
+    final channel = TestNavivoxChannel();
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: ApprovalBanner(channel: channel)),
@@ -32,7 +33,7 @@ void main() {
 
   testWidgets('medium-risk approvals show a "Medium risk" label',
       (tester) async {
-    final channel = FakeNavivoxChannel();
+    final channel = TestNavivoxChannel();
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: ApprovalBanner(channel: channel)),
@@ -55,7 +56,7 @@ void main() {
 
   testWidgets('approvals without a risk field omit the risk badge entirely',
       (tester) async {
-    final channel = FakeNavivoxChannel();
+    final channel = TestNavivoxChannel();
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: ApprovalBanner(channel: channel)),

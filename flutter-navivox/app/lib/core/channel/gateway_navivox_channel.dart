@@ -64,9 +64,6 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   }
 
   @override
-  void enterFakeServerMode() {}
-
-  @override
   void sendText(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;

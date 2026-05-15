@@ -59294,7 +59294,7 @@
             },
             {
               "name": "Remove Flutter Navivox fake-server mode and wire protocol",
-              "status": "planned",
+              "status": "complete",
               "execution_owner": "gateway",
               "slice_size": "small",
               "provenance": {
@@ -59303,7 +59303,7 @@
                 "note": "Discovered while shipping `Remove SSH Navivox stdio path`: FakeNavivoxChannel still uses the SSH wire frame types, blocking deletion of lib/core/protocol/."
               },
               "contract": "Delete the Flutter SSH wire-protocol artifacts that survived the first cut: `lib/core/protocol/navivox_frame.dart`, `lib/core/protocol/frame_reader.dart`, `lib/core/transport/byte_transport.dart`, `lib/core/transport/in_memory_transport.dart`, `lib/core/channel/fake_navivox_channel.dart`. Rework `lib/core/channel/navivox_channel_provider.dart` so `activeNavivoxChannelProvider` returns the gateway channel directly (no fake/gateway switcher), and delete `NavivoxChannelMode`/`NavivoxChannelSwitcher`. Update `enterFakeServerMode` callers in the router to use a real local gateway against a test fixture instead.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "ready_when": [
                 "`Remove SSH Navivox stdio path` shipped.",
                 "Test inventory shows the only callers of `enterFakeServerMode` are the router and a couple of widget tests — easy to migrate to a real GatewayNavivoxChannel against a fixture server.",
@@ -59345,7 +59345,8 @@
               ],
               "done_signal": [
                 "`cd flutter-navivox/app && flutter test` passes; `git grep FakeNavivoxChannel flutter-navivox/app/lib` returns empty."
-              ]
+              ],
+              "note": "Shipped 2026-05-14. Deleted: lib/core/channel/fake_navivox_channel.dart, lib/core/protocol/{navivox_frame,frame_reader}.dart, lib/core/transport/{byte_transport,in_memory_transport}.dart, plus 5 dead-code tests (test/core/protocol/{frame_codec,frame_reader}_test.dart, test/features/voice/voice_capture_test.dart, test/features/chat/{chat_send_message,chat_screen_voice_wiring}_test.dart). Renamed activeNavivoxChannelProvider → navivoxChannelProvider (now a Provider<NavivoxChannel> that returns the gateway channel directly; gatewayNavivoxChannelProvider remains as a typed handle for the setup flow .connect call). Dropped enterFakeServerMode from NavivoxChannel interface and GatewayNavivoxChannel; removed the in-product \"Use fake local server\" button + .useGateway() call from setup_screen.dart. Created test/support/test_navivox_channel.dart with seedAgents/seedServers/emitConfigSchema/emitConfigValues/emitApprovalRequest helpers; migrated 5 widget tests (agents, chat_active_agent, approval_banner x2, config_screen) to it. Router test suite kept the no-server starting state; the chat-mode integration test was marked deferred (needs a fixture HTTP gateway). 65/65 flutter tests passing."
             },
             {
               "name": "Remove Flutter SSH keys feature",

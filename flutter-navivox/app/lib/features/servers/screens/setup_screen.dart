@@ -89,16 +89,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     Text(_error!, style: const TextStyle(color: Colors.red)),
                   ],
                   const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: () {
-                      ref
-                          .read(activeNavivoxChannelProvider)
-                          .enterFakeServerMode();
-                      context.go(AppRoutes.chats);
-                    },
-                    icon: const Icon(Icons.offline_bolt),
-                    label: const Text('Use fake local server'),
-                  ),
                   StreamBuilder<List<StoredServer>>(
                     stream: serverStore.watch(),
                     builder: (context, snapshot) {
@@ -148,7 +138,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         token: _tokenController.text.trim(),
       );
       await ref.read(gatewayNavivoxChannelProvider).connect(config);
-      ref.read(activeNavivoxChannelProvider).useGateway();
       if (mounted) context.go(AppRoutes.chats);
     } catch (_) {
       if (mounted) {

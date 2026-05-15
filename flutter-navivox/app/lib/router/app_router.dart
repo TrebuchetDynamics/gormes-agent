@@ -13,7 +13,7 @@ import '../shared/widgets/app_shell.dart';
 import 'app_routes.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final channel = ref.watch(activeNavivoxChannelProvider);
+  final channel = ref.watch(navivoxChannelProvider);
 
   return GoRouter(
     initialLocation: AppRoutes.chats,
