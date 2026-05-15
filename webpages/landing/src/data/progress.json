@@ -60890,9 +60890,9 @@
         {
           "name": "PicoClaw-derived session ledger read-model regression matrix",
           "priority": "P1",
-          "status": "planned",
+          "status": "complete",
           "contract": "Add a session-ledger read-model regression matrix that proves Gormes stores and renders multiple user messages in a turn, per-message timestamps, sender attribution, durable attachment references, and non-destructive reset metadata without collapsing history to session.updated or deleting older channel history.",
-          "contract_status": "fixture_ready",
+          "contract_status": "validated",
           "slice_size": "small",
           "execution_owner": "memory",
           "trust_class": [
@@ -60942,6 +60942,25 @@
           "done_signal": [
             "Session ledger fixtures prove multi-message visibility, per-message timestamps, non-destructive reset boundaries, and durable attachment reopen behavior."
           ],
+          "completed_at": "2026-05-15T17:02:50-06:00",
+          "evidence": {
+            "implementation": [
+              "internal/session/ledger.go adds ReadSessionLedger as an API-style read model over the turns table plus optional session metadata boundaries.",
+              "internal/transcript/markdown.go renders legacy zero/unknown message timestamps as explicit unknown timestamp evidence instead of 1970 timestamps.",
+              "internal/session/picoclaw_ledger_regression_test.go freezes multi-user-message visibility, sender attribution, per-message timestamps, reset boundaries, and durable/redacted attachment refs."
+            ],
+            "tests": [
+              "internal/session/picoclaw_ledger_regression_test.go:TestPicoClawSessionLedger_MultipleUserMessagesRemainVisible",
+              "internal/session/picoclaw_ledger_regression_test.go:TestPicoClawSessionLedger_PerMessageTimestampsDoNotUseSessionUpdated",
+              "internal/session/picoclaw_ledger_regression_test.go:TestPicoClawSessionLedger_ResetBoundaryIsNonDestructive",
+              "internal/session/picoclaw_ledger_regression_test.go:TestPicoClawSessionLedger_DurableAttachmentRefsSurviveReopen"
+            ],
+            "verification": [
+              "RED: go test ./internal/session ./internal/transcript ./internal/store -run '^TestPicoClawSessionLedger_' -count=1 failed because ReadSessionLedger and SessionLedger did not exist.",
+              "GREEN: go test ./internal/session ./internal/transcript ./internal/store -run '^TestPicoClawSessionLedger_' -count=1 passed.",
+              "GREEN: go test ./internal/session ./internal/transcript ./internal/store -count=1 passed."
+            ]
+          },
           "provenance": {
             "origin_type": "gormes",
             "owned_since": "2026-05-15",

@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. PicoClaw-derived session ledger read-model regression matrix
-
-- Phase: 9 / 9.F
-- Owner: `memory`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Add a session-ledger read-model regression matrix that proves Gormes stores and renders multiple user messages in a turn, per-message timestamps, sender attribution, durable attachment references, and non-destructive reset metadata without collapsing history to session.updated or deleting older channel history.
-- Trust class: operator, gateway, system
-- Ready when: Transcript export, session lineage, session reset notification parity, and manual reset boundary hooks remain complete., Tests can use temp bbolt/SQLite stores and synthetic gateway session IDs only.
-- Not ready when: The slice changes recall ranking, Goncho memory extraction, provider turn execution, or channel delivery behavior instead of freezing ledger rendering and metadata invariants., The implementation performs destructive cleanup of historical session rows as part of reset handling.
-- Degraded mode: Legacy session records without per-message timestamps render explicit unknown timestamp evidence and keep original order; reset operations mark boundaries without deleting prior transcript rows.
-- Fixture: `internal/session/picoclaw_ledger_regression_test.go`
-- Write scope: `internal/session/picoclaw_ledger_regression_test.go`, `internal/session/`, `internal/transcript/`, `internal/store/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/session ./internal/transcript ./internal/store -run '^TestPicoClawSessionLedger_' -count=1`, `go test ./internal/session ./internal/transcript ./internal/store -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Session ledger fixtures prove multi-message visibility, per-message timestamps, non-destructive reset boundaries, and durable attachment reopen behavior.
-- Acceptance: TestPicoClawSessionLedger_MultipleUserMessagesRemainVisible proves two user messages in one conversational turn both render in transcript export and API-style read models., TestPicoClawSessionLedger_PerMessageTimestampsDoNotUseSessionUpdated proves message timestamps are independent from session.updated while legacy records degrade visibly., TestPicoClawSessionLedger_ResetBoundaryIsNonDestructive proves fresh-session reset metadata creates a boundary and preserves prior messages for history/search., TestPicoClawSessionLedger_DurableAttachmentRefsSurviveReopen proves reopened history keeps durable attachment references and redacts non-durable temp refs with evidence.
-- Source refs: https://github.com/sipeed/picoclaw/issues/2820, https://github.com/sipeed/picoclaw/issues/2796, https://github.com/sipeed/picoclaw/issues/2795, https://github.com/sipeed/picoclaw/issues/2787, internal/session/directory.go, internal/session/lineage.go, internal/transcript/markdown.go, internal/store/recording.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. PicoClaw-derived provider stream and auth regression matrix
+## 1. PicoClaw-derived provider stream and auth regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `provider`
@@ -67,7 +47,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2769, https://github.com/sipeed/picoclaw/issues/2745, https://github.com/sipeed/picoclaw/issues/2674, https://github.com/sipeed/picoclaw/issues/2404, https://github.com/sipeed/picoclaw/issues/629, https://github.com/sipeed/picoclaw/issues/28, internal/hermes/stream.go, internal/hermes/http_client.go, internal/hermes/codex_responses_stream.go, internal/hermes/reasoning_tag_sanitizer.go, internal/hermes/lmstudio_adapter.go, internal/hermes/errors.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. MCP Streamable HTTP session lifecycle compatibility
+## 2. MCP Streamable HTTP session lifecycle compatibility
 
 - Phase: 9 / 9.F
 - Owner: `tools`
@@ -87,7 +67,7 @@ selection.
 - Source refs: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#backwards-compatibility, https://github.com/sipeed/picoclaw/issues/2782, https://github.com/sipeed/picoclaw/issues/2546, internal/tools/mcp_http.go, internal/tools/mcp_client.go, internal/tools/mcp_oauth_store.go, internal/tools/managed_tool_gateway.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Dynamic agent identity inheritance regression matrix
+## 3. Dynamic agent identity inheritance regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `orchestrator`
@@ -107,7 +87,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/1934, https://github.com/sipeed/picoclaw/issues/2148, https://github.com/sipeed/picoclaw/issues/2775, https://github.com/sipeed/picoclaw/issues/294, https://github.com/sipeed/picoclaw/issues/284, internal/subagent/, internal/goncho/dynamic_agents.go, internal/agent/middleware.go, internal/skills/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Native TUI /model slash command binding over the existing model picker
+## 4. Native TUI /model slash command binding over the existing model picker
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -128,7 +108,7 @@ selection.
 - Unblocks: Native TUI slash handler-port coverage
 - Why now: Unblocks Native TUI slash handler-port coverage.
 
-## 6. Termux storage and path safety audit
+## 5. Termux storage and path safety audit
 
 - Phase: 1 / 5.X
 - Owner: `orchestrator`
@@ -148,7 +128,7 @@ selection.
 - Source refs: internal/config/config.go, internal/store/, internal/goncho/, cmd/gormes/goncho.go, cmd/gormes/doctor.go, install.sh
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Termux gateway foreground tmux lifecycle
+## 6. Termux gateway foreground tmux lifecycle
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -168,7 +148,7 @@ selection.
 - Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Termux notification bridge via termux-api
+## 7. Termux notification bridge via termux-api
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -188,7 +168,7 @@ selection.
 - Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Termux real-device smoke evidence
+## 8. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -209,7 +189,7 @@ selection.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Termux remote execution guidance
+## 9. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -227,6 +207,26 @@ selection.
 - Done signal: Termux docs make the mobile-control-plane plus remote-executor architecture concrete without expanding local Termux support beyond proven capability.
 - Acceptance: Docs include the architecture: phone equals Gormes controller/light executor, remote host equals heavy build/browser/Docker/GPU executor., Docs give concrete SSH/tmux command examples without adding a new top-level gormes run command., Doctor or install docs point Termux users at remote execution for local browser/Docker/GPU-heavy workloads., The support matrix remains explicit about what is local, optional, and remote/degraded.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Agentic-porting-kit public repo scaffold
+
+- Phase: 8 / 8.E
+- Owner: `skills`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Create the public TrebuchetDynamics/agentic-porting-kit repository from the extraction spec with README, LICENSE, progress schema, validation script, six renamed porting skills, and a tiny Python-greeter-to-Go example. The copied skills must load in a fresh Codex or Claude Code session without depending on the Gormes checkout.
+- Trust class: operator
+- Ready when: Agentic-porting-kit extraction spec is complete., GitHub authentication can create or push to TrebuchetDynamics/agentic-porting-kit, or the operator has created the empty repo., The public repo name is confirmed as agentic-porting-kit or an equivalent name before the first push.
+- Not ready when: No authenticated path exists to create or update the public TrebuchetDynamics repo., The builder plans to edit Gormes' repo-local skills in place instead of copied kit skills., The standalone example still requires cloning Gormes or running cmd/progress.
+- Degraded mode: Without the public scaffold, the methodology remains inspectable only inside Gormes and cannot be cited or reused by other teams.
+- Fixture: `TrebuchetDynamics/agentic-porting-kit:examples/python-greeter-to-go/progress.json`
+- Write scope: `(separate repo) README.md`, `(separate repo) LICENSE`, `(separate repo) schemas/progress.schema.json`, `(separate repo) scripts/validate-example.sh`, `(separate repo) skills/`, `(separate repo) examples/python-greeter-to-go/`, `README.md`, `docs/content/building-gormes/strategy/success-plan.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `cd ${AGENTIC_PORTING_KIT_REPO:-../agentic-porting-kit} && ./scripts/validate-example.sh`, `go run ./cmd/progress validate`, `go test ./webpages/docs -count=1`
+- Done signal: Public repo URL, standalone validation output, and Gormes backlink updates are recorded in the completed row note.
+- Acceptance: Public repo exists with README.md, LICENSE, schemas/progress.schema.json, scripts/validate-example.sh, skills/, and examples/python-greeter-to-go/., README.md explains the kit independent of Gormes/Hermes and includes Codex plus Claude Code loading instructions., Each copied skill uses the porting-* name from the extraction spec and replaces hard-coded Gormes paths with target-repo variables., scripts/validate-example.sh validates the example progress file and runs the example tests without cloning Gormes., Gormes README.md and success-plan.md record the public repo URL after the repo is reachable.
+- Source refs: docs/content/building-gormes/strategy/agentic-porting-kit.md, docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
