@@ -2,8 +2,8 @@
 # install.sh - release-first Unix installer for Gormes, with source fallback.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
 #   curl -fsSL https://gormes.ai/install.sh | bash
+#   curl -fsSLO https://gormes.ai/install.sh && sh install.sh
 #   sh install.sh --branch main
 #   sh install.sh --uninstall
 #
@@ -21,7 +21,7 @@
 #   GORMES_INSTALL_VERBOSE set to 1/true/yes/on for verbose installer diagnostics
 #
 # Native Windows shells are not supported here. Use:
-#   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
+#   Invoke-WebRequest https://gormes.ai/install.ps1 -OutFile install.ps1
 #   Get-Content .\install.ps1
 #   powershell -ExecutionPolicy Bypass -File .\install.ps1
 

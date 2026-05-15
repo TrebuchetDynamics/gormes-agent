@@ -86,21 +86,21 @@ export const page = {
   },
   installHeadline: 'Two install paths. One gormes command.',
   installIntro:
-    'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install. Both paths keep the first proof offline.',
+    'Build from source when you want maximum inspection. Use install.sh when you want the release-first managed install. Both paths keep the first proof offline.',
   installSteps: [
     {
       label: 'METHOD 1 · BUILD FROM SOURCE',
       command:
-        'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build\nexport PATH="$PWD/bin:$PATH"\ngormes doctor --offline\ngormes --offline',
+        'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmkdir -p bin\nCGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes\n./bin/gormes doctor --offline\n./bin/gormes --offline',
     },
     {
       label: 'METHOD 2 · INSTALL.SH',
       command:
-        'curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh\nless install.sh\nsh install.sh\ngormes doctor --offline',
+        'curl -fsSLO https://gormes.ai/install.sh\nless install.sh\nsh install.sh\ngormes doctor --offline',
     },
   ],
   installFootnote:
-    'Both paths end at the same gormes command. install.sh also runs gormes setup when a terminal is available.',
+    'Use ./bin/gormes from the source checkout, or run install.sh when you want a published gormes command on PATH.',
   installFootnoteLink: {
     label: 'Read the install docs ->',
     href: 'https://docs.gormes.ai/using-gormes/install/',
@@ -138,7 +138,7 @@ export const page = {
   trustItems: [
     'Offline doctor runs before any token spend.',
     'Secrets stay local under ~/.gormes.',
-    'Source-backed install.sh you can inspect before running.',
+    'Release-first install.sh you can inspect before running.',
     'Every commit passes go test, progress validate, and git diff --check.',
     'Tagged releases with SHA-256 checksums.',
   ],
@@ -231,7 +231,7 @@ export const page = {
       title: 'Shipped in scout',
       items: [
         'Offline TUI and doctor',
-        'Source-backed install.sh and setup handoff',
+        'Release-first install.sh and setup handoff',
         'Onboard/setup flows',
         'Provider one-shots',
         'Local SQLite memory and sessions',
@@ -275,7 +275,7 @@ export const page = {
   ],
   finalCtaHeadline: 'Prove the runtime locally before you ever spend a token.',
   finalCtaBody:
-    'Build from source or inspect install.sh, run the offline doctor, then add credentials only after the machine has proven itself.',
+    'Build from source or inspect the release-first install.sh, run the offline doctor, then add credentials only after the machine has proven itself.',
   finalPrimaryCta: { label: 'Install now', href: '#install' },
   finalSecondaryCta: {
     label: 'Star on GitHub',
