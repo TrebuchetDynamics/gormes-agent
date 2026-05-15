@@ -29,6 +29,7 @@ func TestSetupToolsChecklistShowsCLIConfigurableToolsets(t *testing.T) {
 		"file", "File Operations",
 		"code_execution", "Code Execution",
 		"vision", "Vision / Image Analysis",
+		"video", "Video Analysis",
 		"image_gen", "Image Generation",
 		"moa", "Mixture of Agents",
 		"tts", "Text-to-Speech",
@@ -61,17 +62,19 @@ func TestSetupToolsChecklistPreselectsDefaultsMinusDefaultOff(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"[x] Web Search & Scraping",
-		"[x] Browser Automation",
-		"[x] Terminal & Processes",
-		"[x] File Operations",
-		"[x] Text-to-Speech",
-		"[ ] Mixture of Agents",
-		"[ ] RL Training",
-		"[ ] Home Assistant",
-		"[ ] Spotify",
-		"[ ] Discord (read/participate)",
-		"[ ] Discord Server Admin",
+		"[x] 🔍 Web Search & Scraping",
+		"[x] 🌐 Browser Automation",
+		"[x] 💻 Terminal & Processes",
+		"[x] 📁 File Operations",
+		"[ ] 🎬 Video Analysis",
+		"[x] 🎨 Image Generation",
+		"[x] 🔊 Text-to-Speech",
+		"[ ] 🧠 Mixture of Agents",
+		"[ ] 🧪 RL Training",
+		"[ ] 🏠 Home Assistant",
+		"[ ] 🎵 Spotify",
+		"[ ] 💬 Discord (read/participate)",
+		"[ ] 🛡️  Discord Server Admin",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)

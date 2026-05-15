@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -21,6 +22,7 @@ import (
 )
 
 const setupProviderTTYE2EHelperEnv = "GORMES_SETUP_PROVIDER_TTY_E2E_HELPER"
+const setupToolsTTYE2EHelperEnv = "GORMES_SETUP_TOOLS_TTY_E2E_HELPER"
 
 func TestSetupProviderTTYE2EConsumesArrowKeys(t *testing.T) {
 	if os.Getenv(setupProviderTTYE2EHelperEnv) == "1" {
@@ -72,6 +74,67 @@ func TestSetupProviderTTYE2EConsumesArrowKeys(t *testing.T) {
 		}
 	case <-ctx.Done():
 		t.Fatalf("setup provider tty helper timed out\ntranscript:\n%s", transcript.String())
+	}
+}
+
+func TestSetupToolsTTYE2EConsumesChecklistKeys(t *testing.T) {
+	if os.Getenv(setupToolsTTYE2EHelperEnv) == "1" {
+		runSetupToolsTTYE2EHelper()
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	home := t.TempDir()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestSetupToolsTTYE2EConsumesChecklistKeys", "--")
+	cmd.Env = append(os.Environ(),
+		setupToolsTTYE2EHelperEnv+"=1",
+		"GORMES_HOME="+home,
+		"HASS_TOKEN=",
+		"TERM=xterm-256color",
+	)
+
+	tty, err := startLinuxPTY(cmd, 40, 120)
+	if err != nil {
+		t.Fatalf("start setup tools tty helper: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = tty.Close()
+		if cmd.Process != nil && cmd.ProcessState == nil {
+			_ = cmd.Process.Kill()
+		}
+	})
+
+	events := readPTY(tty)
+	var transcript bytes.Buffer
+	waitForSetupTTYOutput(t, tty, events, &transcript, "SPACE toggle", "Toolsets (comma-separated")
+
+	if _, err := tty.Write([]byte(" \r")); err != nil {
+		t.Fatalf("toggle and confirm setup tools checklist: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("setup tools tty helper exited with %v\ntranscript:\n%s", err, transcript.String())
+		}
+	case <-ctx.Done():
+		t.Fatalf("setup tools tty helper timed out\ntranscript:\n%s", transcript.String())
+	}
+
+	configBody, err := os.ReadFile(filepath.Join(home, "config.toml"))
+	if err != nil {
+		t.Fatalf("read setup tools config: %v\ntranscript:\n%s", err, transcript.String())
+	}
+	bodyText := string(configBody)
+	if strings.Contains(bodyText, `"web"`) || strings.Contains(bodyText, `'web'`) {
+		t.Fatalf("space toggle did not remove the first toolset from persisted config:\n%s\ntranscript:\n%s", string(configBody), transcript.String())
+	}
+	if !strings.Contains(bodyText, `"browser"`) && !strings.Contains(bodyText, `'browser'`) {
+		t.Fatalf("setup tools checklist did not persist the confirmed selection:\n%s\ntranscript:\n%s", string(configBody), transcript.String())
 	}
 }
 
@@ -140,6 +203,18 @@ func runSetupProviderTTYE2EHelper() {
 	os.Exit(0)
 }
 
+func runSetupToolsTTYE2EHelper() {
+	cmd := &cobra.Command{Use: "setup-tools-tty-e2e-helper"}
+	cmd.SetIn(os.Stdin)
+	cmd.SetOut(os.Stdout)
+	cmd.SetErr(os.Stderr)
+	if err := runSetupToolsSection(cmd, false); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
 type ptyReadEvent struct {
 	data []byte
 	err  error
@@ -166,6 +241,10 @@ func readPTY(tty *os.File) <-chan ptyReadEvent {
 }
 
 func waitForSetupProviderTTYOutput(t *testing.T, tty *os.File, events <-chan ptyReadEvent, transcript *bytes.Buffer, want string) {
+	waitForSetupTTYOutput(t, tty, events, transcript, want, "Choice [1-40]")
+}
+
+func waitForSetupTTYOutput(t *testing.T, tty *os.File, events <-chan ptyReadEvent, transcript *bytes.Buffer, want string, forbidden ...string) {
 	t.Helper()
 	timer := time.NewTimer(5 * time.Second)
 	defer timer.Stop()
@@ -188,8 +267,10 @@ func waitForSetupProviderTTYOutput(t *testing.T, tty *os.File, events <-chan pty
 		if strings.Contains(output, want) {
 			return
 		}
-		if strings.Contains(output, "Choice [1-40]") {
-			t.Fatalf("setup provider TTY e2e reached the old line-input prompt before %q:\n%s", want, output)
+		for _, needle := range forbidden {
+			if strings.Contains(output, needle) {
+				t.Fatalf("setup TTY e2e reached fallback prompt %q before %q:\n%s", needle, want, output)
+			}
 		}
 
 		select {

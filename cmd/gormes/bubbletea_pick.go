@@ -37,6 +37,24 @@ func runBubbleTeaPick(ctx context.Context, stdin *os.File, out io.Writer, prompt
 	return result.Choice("selection"), nil
 }
 
+func runBubbleTeaChecklist(ctx context.Context, stdin *os.File, out io.Writer, prompt string, choices []tuiPickChoice, selectedIDs []string) ([]string, error) {
+	wizardChoices := make([]setupwizard.Choice, len(choices))
+	for i, choice := range choices {
+		wizardChoices[i] = setupwizard.Choice{ID: choice.ID, Label: choice.Label}
+	}
+	result, err := setupwizard.New(
+		setupwizard.WithInput(stdin),
+		setupwizard.WithOutput(out),
+	).Run(ctx, setupwizard.Checklist("selection", prompt, wizardChoices, setupwizard.WithDefaultChoices(selectedIDs...)))
+	if errors.Is(err, setupwizard.ErrAbort) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return result.Choices("selection"), nil
+}
+
 func bubbleTeaPickShouldFallback(err error) bool {
 	return errors.Is(err, setupwizard.ErrRequiresTTY)
 }

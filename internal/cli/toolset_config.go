@@ -54,6 +54,7 @@ var defaultRuntimeToolsets = []string{
 	"cronjob",
 	"delegation",
 	"file",
+	"image_gen",
 	"memory",
 	"messaging",
 	"session_search",

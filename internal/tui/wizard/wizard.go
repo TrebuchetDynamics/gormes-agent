@@ -133,10 +133,11 @@ type model struct {
 	width  int
 	height int
 
-	text       textinput.Model
-	area       textarea.Model
-	pickCursor int
-	confirmYes bool
+	text              textinput.Model
+	area              textarea.Model
+	pickCursor        int
+	checklistSelected map[string]struct{}
+	confirmYes        bool
 }
 
 func newModel(steps []Step) model {
@@ -204,6 +205,8 @@ func (m model) View() string {
 		b.WriteString(m.area.View())
 	case KindPick:
 		b.WriteString(m.renderPick(step))
+	case KindChecklist:
+		b.WriteString(m.renderChecklist(step))
 	case KindConfirm:
 		b.WriteString(m.renderConfirm())
 	default:
@@ -214,6 +217,8 @@ func (m model) View() string {
 	switch step.Kind {
 	case KindPick:
 		b.WriteString("Up/Down or j/k navigate  1-9 select  Enter submit  Esc/q abort")
+	case KindChecklist:
+		b.WriteString("Up/Down or j/k navigate  SPACE toggle  ENTER confirm  ESC cancel")
 	case KindMultiLine:
 		b.WriteString("Enter submit  Ctrl+J newline  Esc abort")
 	default:
@@ -244,6 +249,8 @@ func (m model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case KindPick:
 		return m.updatePick(msg, step)
+	case KindChecklist:
+		return m.updateChecklist(msg, step)
 	case KindConfirm:
 		return m.updateConfirm(msg, step)
 	default:
@@ -299,6 +306,43 @@ func (m model) updatePick(msg tea.KeyMsg, step Step) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) updateChecklist(msg tea.KeyMsg, step Step) (tea.Model, tea.Cmd) {
+	if len(step.Choices) == 0 {
+		m.err = fmt.Errorf("wizard checklist step %q has no choices", step.ID)
+		m.done = true
+		return m, tea.Quit
+	}
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
+		switch r := msg.Runes[0]; {
+		case r == 'q' || r == 'Q':
+			m.err = ErrAbort
+			m.done = true
+			return m, tea.Quit
+		case r >= '1' && r <= '9':
+			idx := int(r - '1')
+			if idx < len(step.Choices) {
+				m.toggleChecklistChoice(step.Choices[idx].ID)
+			}
+			return m, nil
+		}
+	}
+	switch msg.String() {
+	case "up", "k":
+		if m.pickCursor > 0 {
+			m.pickCursor--
+		}
+	case "down", "j":
+		if m.pickCursor < len(step.Choices)-1 {
+			m.pickCursor++
+		}
+	case " ":
+		m.toggleChecklistChoice(step.Choices[m.pickCursor].ID)
+	case "enter":
+		return m.finishStep(Answer{Kind: step.Kind, ChoiceIDs: m.orderedChecklistSelection(step)})
+	}
+	return m, nil
+}
+
 func (m model) updateConfirm(msg tea.KeyMsg, step Step) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "left", "h", "n", "N":
@@ -343,6 +387,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 		return nil
 	}
 	m.pickCursor = 0
+	m.checklistSelected = nil
 	m.confirmYes = false
 
 	switch step.Kind {
@@ -383,6 +428,15 @@ func (m *model) prepareActiveStep() tea.Cmd {
 					break
 				}
 			}
+		}
+	case KindChecklist:
+		m.checklistSelected = make(map[string]struct{})
+		seed := step.defaultChoiceIDs
+		if step.hasValue {
+			seed = step.value.ChoiceIDs
+		}
+		for _, id := range seed {
+			m.checklistSelected[id] = struct{}{}
 		}
 	case KindConfirm:
 		if step.hasValue {
@@ -434,6 +488,50 @@ func (m model) renderPick(step Step) string {
 		fmt.Fprintf(&b, "%s%d. %s\n", prefix, i+1, label)
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func (m model) renderChecklist(step Step) string {
+	if len(step.Choices) == 0 {
+		return "(no choices)"
+	}
+	var b strings.Builder
+	for i, choice := range step.Choices {
+		prefix := "  "
+		if i == m.pickCursor {
+			prefix = "> "
+		}
+		marker := "[ ]"
+		if _, ok := m.checklistSelected[choice.ID]; ok {
+			marker = "[✓]"
+		}
+		label := choice.Label
+		if label == "" {
+			label = choice.ID
+		}
+		fmt.Fprintf(&b, "%s%s %s\n", prefix, marker, label)
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func (m *model) toggleChecklistChoice(id string) {
+	if m.checklistSelected == nil {
+		m.checklistSelected = make(map[string]struct{})
+	}
+	if _, ok := m.checklistSelected[id]; ok {
+		delete(m.checklistSelected, id)
+		return
+	}
+	m.checklistSelected[id] = struct{}{}
+}
+
+func (m model) orderedChecklistSelection(step Step) []string {
+	out := make([]string, 0, len(m.checklistSelected))
+	for _, choice := range step.Choices {
+		if _, ok := m.checklistSelected[choice.ID]; ok {
+			out = append(out, choice.ID)
+		}
+	}
+	return out
 }
 
 func (m model) renderConfirm() string {

@@ -8,6 +8,7 @@ const (
 	KindMultiLine Kind = "multiline"
 	KindPassword  Kind = "password"
 	KindPick      Kind = "pick"
+	KindChecklist Kind = "checklist"
 	KindConfirm   Kind = "confirm"
 )
 
@@ -26,9 +27,10 @@ type Step struct {
 	Kind        Kind
 	Choices     []Choice
 
-	value           Answer
-	hasValue        bool
-	defaultChoiceID string
+	value            Answer
+	hasValue         bool
+	defaultChoiceID  string
+	defaultChoiceIDs []string
 }
 
 // Answer is the typed result for one step.
@@ -36,6 +38,7 @@ type Answer struct {
 	Kind      Kind
 	Text      string
 	ChoiceID  string
+	ChoiceIDs []string
 	Confirmed bool
 }
 
@@ -63,6 +66,12 @@ func (r Result) String(id string) string {
 func (r Result) Choice(id string) string {
 	answer, _ := r.Answer(id)
 	return answer.ChoiceID
+}
+
+// Choices returns the selected Choice.ID values for a checklist step.
+func (r Result) Choices(id string) []string {
+	answer, _ := r.Answer(id)
+	return append([]string(nil), answer.ChoiceIDs...)
 }
 
 // Bool returns the confirmation value for id.
@@ -110,11 +119,27 @@ func WithChoiceValue(choiceID string) StepOption {
 	}
 }
 
+// WithChoiceValues marks a checklist step as already supplied by the caller.
+func WithChoiceValues(choiceIDs ...string) StepOption {
+	return func(step *Step) {
+		step.value = Answer{Kind: step.Kind, ChoiceIDs: append([]string(nil), choiceIDs...)}
+		step.hasValue = true
+	}
+}
+
 // WithDefaultChoice sets the initial cursor for a picker without pre-filling
 // the step. Unlike WithChoiceValue, it still launches the Bubble Tea UI.
 func WithDefaultChoice(choiceID string) StepOption {
 	return func(step *Step) {
 		step.defaultChoiceID = choiceID
+	}
+}
+
+// WithDefaultChoices sets the initially checked values for a checklist without
+// pre-filling the step. Unlike WithChoiceValues, it still launches the UI.
+func WithDefaultChoices(choiceIDs ...string) StepOption {
+	return func(step *Step) {
+		step.defaultChoiceIDs = append([]string(nil), choiceIDs...)
 	}
 }
 
@@ -144,6 +169,11 @@ func Password(id, prompt string, opts ...StepOption) Step {
 // Pick creates a single-select choice step.
 func Pick(id, prompt string, choices []Choice, opts ...StepOption) Step {
 	return newStep(KindPick, id, prompt, choices, opts...)
+}
+
+// Checklist creates a multi-select choice step.
+func Checklist(id, prompt string, choices []Choice, opts ...StepOption) Step {
+	return newStep(KindChecklist, id, prompt, choices, opts...)
 }
 
 // Confirm creates a yes/no confirmation step.

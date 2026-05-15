@@ -36,6 +36,7 @@ var configurableBuiltinToolsetOrder = []string{
 	"file",
 	"code_execution",
 	"vision",
+	"video",
 	"image_gen",
 	"moa",
 	"tts",
@@ -55,28 +56,57 @@ var configurableBuiltinToolsetOrder = []string{
 }
 
 var builtinToolsetLabels = map[string]string{
-	"browser":        "Browser Automation",
-	"clarify":        "Clarifying Questions",
-	"code_execution": "Code Execution",
-	"cronjob":        "Cron Jobs",
-	"delegation":     "Task Delegation",
-	"discord":        "Discord (read/participate)",
-	"discord_admin":  "Discord Server Admin",
-	"file":           "File Operations",
-	"homeassistant":  "Home Assistant",
-	"image_gen":      "Image Generation",
-	"memory":         "Memory",
-	"messaging":      "Cross-Platform Messaging",
-	"moa":            "Mixture of Agents",
-	"rl":             "RL Training",
-	"session_search": "Session Search",
-	"skills":         "Skills",
-	"spotify":        "Spotify",
-	"terminal":       "Terminal & Processes",
-	"todo":           "Task Planning",
-	"tts":            "Text-to-Speech",
-	"vision":         "Vision / Image Analysis",
-	"web":            "Web Search & Scraping",
+	"browser":        "🌐 Browser Automation",
+	"clarify":        "❓ Clarifying Questions",
+	"code_execution": "⚡ Code Execution",
+	"computer_use":   "🖱️  Computer Use (macOS)",
+	"cronjob":        "⏰ Cron Jobs",
+	"delegation":     "👥 Task Delegation",
+	"discord":        "💬 Discord (read/participate)",
+	"discord_admin":  "🛡️  Discord Server Admin",
+	"file":           "📁 File Operations",
+	"homeassistant":  "🏠 Home Assistant",
+	"image_gen":      "🎨 Image Generation",
+	"memory":         "💾 Memory",
+	"messaging":      "📨 Cross-Platform Messaging",
+	"moa":            "🧠 Mixture of Agents",
+	"rl":             "🧪 RL Training",
+	"session_search": "🔎 Session Search",
+	"skills":         "📚 Skills",
+	"spotify":        "🎵 Spotify",
+	"terminal":       "💻 Terminal & Processes",
+	"todo":           "📋 Task Planning",
+	"tts":            "🔊 Text-to-Speech",
+	"video":          "🎬 Video Analysis",
+	"vision":         "👁️  Vision / Image Analysis",
+	"web":            "🔍 Web Search & Scraping",
+}
+
+var builtinToolsetDescriptions = map[string]string{
+	"browser":        "navigate, click, type, scroll",
+	"clarify":        "clarify",
+	"code_execution": "execute_code",
+	"computer_use":   "background desktop control via cua-driver",
+	"cronjob":        "create/list/update/pause/resume/run, with optional attached skills",
+	"delegation":     "delegate_task",
+	"discord":        "fetch messages, search members, create thread",
+	"discord_admin":  "list channels/roles, pin, assign roles",
+	"file":           "read, write, patch, search",
+	"homeassistant":  "smart home device control",
+	"image_gen":      "image_generate",
+	"memory":         "persistent memory across sessions",
+	"messaging":      "send_message",
+	"moa":            "mixture_of_agents",
+	"rl":             "rl training",
+	"session_search": "search past conversations",
+	"skills":         "list, view, manage",
+	"spotify":        "playback, search, playlists, library",
+	"terminal":       "terminal, process",
+	"todo":           "todo",
+	"tts":            "text_to_speech",
+	"video":          "video_analyze (requires video-capable model)",
+	"vision":         "vision_analyze",
+	"web":            "web_search, web_extract",
 }
 
 // EffectiveToolsetPickerOptions merges built-in picker rows with inert plugin
@@ -98,14 +128,14 @@ func EffectiveToolsetPickerOptionsFromManifest(manifest tools.UpstreamToolParity
 
 	for _, key := range configurableBuiltinToolsetOrder {
 		row, ok := manifest.Toolset(key)
-		if !ok {
+		if !ok && builtinToolsetLabels[key] == "" {
 			continue
 		}
 		option := EffectiveToolsetOption{
-			Key:         row.Name,
-			Label:       builtinToolsetLabel(row.Name),
-			Description: row.Description,
-			Source:      row.Source,
+			Key:         firstNonEmpty(row.Name, key),
+			Label:       builtinToolsetLabel(key),
+			Description: builtinToolsetDescription(key, row.Description),
+			Source:      firstNonEmpty(row.Source, "hermes_cli.tools_config"),
 		}
 		report.Options = append(report.Options, option)
 		seen[option.Key] = option
@@ -141,6 +171,13 @@ func builtinToolsetLabel(key string) string {
 		return label
 	}
 	return key
+}
+
+func builtinToolsetDescription(key, fallback string) string {
+	if description := builtinToolsetDescriptions[key]; description != "" {
+		return description
+	}
+	return fallback
 }
 
 func pluginToolsetOptions(inventory plugins.Inventory) []EffectiveToolsetOption {

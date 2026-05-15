@@ -96,11 +96,11 @@ def _handle_ambient_play(args):
 	if !ok {
 		t.Fatal("missing built-in spotify toolset fixture row")
 	}
-	if spotify.Label != "Spotify" {
-		t.Fatalf("spotify label = %q, want built-in label Spotify", spotify.Label)
+	if spotify.Label != "🎵 Spotify" {
+		t.Fatalf("spotify label = %q, want built-in label 🎵 Spotify", spotify.Label)
 	}
-	if spotify.Description != builtinSpotify.Description {
-		t.Fatalf("spotify description = %q, want built-in description %q", spotify.Description, builtinSpotify.Description)
+	if spotify.Description != "playback, search, playlists, library" {
+		t.Fatalf("spotify description = %q, want Hermes picker description", spotify.Description)
 	}
 	if spotify.Source != builtinSpotify.Source {
 		t.Fatalf("spotify source = %q, want built-in source %q", spotify.Source, builtinSpotify.Source)

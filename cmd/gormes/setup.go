@@ -2159,6 +2159,22 @@ func runSetupToolsSection(cmd *cobra.Command, nonInteractive bool) error {
 	}
 	selected := stringSet(status.RuntimeToolsets)
 
+	if !nonInteractive {
+		if stdin, ok := cmd.InOrStdin().(*os.File); ok && setupInputIsTerminal(stdin) {
+			chosen, err := promptSetupToolsChecklist(cmd, stdin, options, status.RuntimeToolsets)
+			if err == nil {
+				if chosen == nil {
+					fmt.Fprintln(out, "No tool setup changes selected.")
+					return nil
+				}
+				return saveSetupToolsSelection(cmd, doc, &toolCfg, chosen)
+			}
+			if !bubbleTeaPickShouldFallback(err) {
+				return err
+			}
+		}
+	}
+
 	fmt.Fprintln(out, "Tools for CLI")
 	fmt.Fprintln(out)
 	for i, option := range options {
@@ -2181,6 +2197,34 @@ func runSetupToolsSection(cmd *cobra.Command, nonInteractive bool) error {
 	if err != nil {
 		return err
 	}
+	return saveSetupToolsSelection(cmd, doc, &toolCfg, chosen)
+}
+
+func promptSetupToolsChecklist(cmd *cobra.Command, stdin *os.File, options []setupToolOption, selected []string) ([]string, error) {
+	return runBubbleTeaChecklist(
+		cmd.Context(),
+		stdin,
+		cmd.OutOrStdout(),
+		"Tools for 🖥️  CLI",
+		setupToolChecklistChoices(options),
+		selected,
+	)
+}
+
+func setupToolChecklistChoices(options []setupToolOption) []tuiPickChoice {
+	choices := make([]tuiPickChoice, len(options))
+	for i, option := range options {
+		label := option.label
+		if option.description != "" {
+			label = fmt.Sprintf("%s  (%s)", label, option.description)
+		}
+		choices[i] = tuiPickChoice{ID: option.key, Label: label}
+	}
+	return choices
+}
+
+func saveSetupToolsSelection(cmd *cobra.Command, doc map[string]any, toolCfg *cli.PlatformToolsetConfig, chosen []string) error {
+	out := cmd.OutOrStdout()
 	report, err := toolCfg.SavePlatformSelection("cli", chosen)
 	if err != nil {
 		return err
