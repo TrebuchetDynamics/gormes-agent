@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 97/107 subphases shipped · 9 in progress · 1 planned
+**Overall:** 98/107 subphases shipped · 8 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -103,7 +103,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 4/5 subphases |
+| Phase 9 — Design & Security Hardening | ✅ | 5/5 subphases |
 
 ---
 
@@ -1402,7 +1402,7 @@ classification and row-backed implementation queue.
 - [x] Built-with-Gormes page scaffold
 - [x] Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening 🔨
+## Phase 9 — Design & Security Hardening ✅
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
@@ -1422,11 +1422,11 @@ classification and row-backed implementation queue.
 
 - [x] Transcribe audio tool registration + local whisper provider
 
-### 9.E — Navivox HTTP-only Hardening 🔨
+### 9.E — Navivox HTTP-only Hardening ✅
 
 - [x] Remove SSH Navivox stdio path
 - [x] Remove Flutter Navivox fake-server mode and wire protocol
-- [ ] Remove Flutter SSH keys feature
+- [x] Remove Flutter SSH keys feature
 - [x] Navivox VPN host enumeration helper
 - [x] Navivox HTTP gateway mandatory-VPN bind
 - [x] Navivox HTTP gateway connect-info command

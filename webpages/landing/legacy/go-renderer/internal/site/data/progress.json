@@ -59350,7 +59350,7 @@
             },
             {
               "name": "Remove Flutter SSH keys feature",
-              "status": "planned",
+              "status": "complete",
               "execution_owner": "gateway",
               "slice_size": "small",
               "provenance": {
@@ -59359,7 +59359,7 @@
                 "note": "Keys feature managed OpenSSH identities for the deleted SSH transport; with HTTP/WS as the only Navivox path the feature is dead code. Side-effect: drops the `drift` + `sqlite3` deps, which were the other blocker for Flutter web builds."
               },
               "contract": "Delete the Flutter SSH keys feature in its entirety: `lib/features/keys/` (data, services, screens), the `lib/features/keys/services/openssh_key_validator.dart` already on the SSH deletion shortlist, and the entire `test/features/keys/` directory. Remove the Keys route from the router and any sidebar/menu entries. Drop `drift`, `drift_dev`, and `sqlite3` from `pubspec.yaml` (sole consumers are KeyDatabase/DriftKeyStore). Drop generated `key_database.g.dart`. After this slice, Flutter Navivox has no `dart:io`-only or native-FFI-only dependencies and can be web-targeted (the original blocker the operator flagged on 2026-05-14).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "ready_when": [
                 "`Remove Flutter Navivox fake-server mode and wire protocol` shipped.",
                 "`flutter test` is green on development."
@@ -59399,7 +59399,8 @@
               ],
               "done_signal": [
                 "`cd flutter-navivox/app && flutter test && flutter build web --release` both succeed; `ls flutter-navivox/app/build/web/index.html` exists."
-              ]
+              ],
+              "note": "Shipped 2026-05-14. Deleted entire lib/features/keys/ tree (data, services, screens, providers, generated key_database.g.dart) and test/features/keys/ (7 tests), plus test/features/servers/setup_screen_imports_test.dart. Removed keys/keyImport/keyGenerate route constants, the Keys GoRoute, and the Keys destination from app_shell. setup_screen.dart no longer imports key_store/serverStoreProvider and the \"Recently imported\" servers section is gone. Dropped drift, drift_dev, and sqlite3 from pubspec.yaml. Flutter `flutter pub get` removed 20+ transitive deps; `flutter test` 33/33 passing. Added Flutter web platform scaffold via `flutter create --platforms=web .` and confirmed `flutter build web --release` builds successfully (build/web/index.html present) — the dart:io / FFI blocker the operator flagged at the start of 2026-05-14 is cleared."
             },
             {
               "name": "Navivox VPN host enumeration helper",

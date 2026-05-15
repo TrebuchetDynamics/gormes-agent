@@ -5,8 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/channel/navivox_channel_provider.dart';
 import '../../../core/gateway/navivox_gateway_protocol.dart';
 import '../../../router/app_routes.dart';
-import '../../keys/providers/key_store_providers.dart';
-import '../../keys/services/key_store.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
@@ -32,8 +30,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final serverStore = ref.watch(serverStoreProvider);
-
     return Scaffold(
       appBar: AppBar(title: const Text('Navivox')),
       body: Center(
@@ -88,36 +84,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     const SizedBox(height: 8),
                     Text(_error!, style: const TextStyle(color: Colors.red)),
                   ],
-                  const SizedBox(height: 24),
-                  StreamBuilder<List<StoredServer>>(
-                    stream: serverStore.watch(),
-                    builder: (context, snapshot) {
-                      final servers = snapshot.data ?? const <StoredServer>[];
-                      if (servers.isEmpty) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Recently imported',
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                            const SizedBox(height: 8),
-                            for (final s in servers)
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.dns),
-                                title: Text(s.label),
-                                subtitle: Text(
-                                  '${s.username}@${s.hostname}:${s.port}',
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
                 ],
               ),
             ),
