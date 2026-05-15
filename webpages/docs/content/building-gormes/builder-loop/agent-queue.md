@@ -27,47 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. PicoClaw-derived provider stream and auth regression matrix
-
-- Phase: 9 / 9.F
-- Owner: `provider`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Add a provider regression matrix from PicoClaw reports that replays fake OpenRouter reasoning-model chunks, Codex Responses output_item.done events, 401/auth failures, local LM Studio/OpenAI-compatible model routing, and retryable LLM-call failures through Gormes provider seams with no live credentials.
-- Trust class: operator, system
-- Ready when: Cross-provider reasoning-tag sanitization, Codex stream repair, LM Studio provider adapter, provider retry diagnostics, and OpenRouter compatible-provider routing remain complete., The worker can replay synthetic SSE/JSON events through existing test seams; no OpenRouter, Codex, OpenAI, LM Studio, or Ollama endpoint is contacted.
-- Not ready when: The slice changes token-vault storage, starts a local model server, or rewrites provider registry semantics instead of adding focused replay fixtures and any narrowly required adapter fixes., The test fixture requires real API keys, browser login, OAuth device code flow, or network access.
-- Degraded mode: Provider failures surface classified, action-oriented diagnostics with provider/model/auth source evidence while raw stream frames remain available for audit and never leak reasoning text into assistant-visible content.
-- Fixture: `internal/hermes/picoclaw_provider_regression_test.go`
-- Write scope: `internal/hermes/picoclaw_provider_regression_test.go`, `internal/hermes/`, `internal/provider/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run '^TestPicoClawProviderRegression_' -count=1`, `go test ./internal/hermes ./internal/provider -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Provider replay fixtures prove reasoning isolation, Codex output_item.done content, auth diagnostics, local model routing, and retry classification without live credentials.
-- Acceptance: TestPicoClawProviderRegression_OpenRouterReasoningHidden proves reasoning-tag and reasoning_content variants do not appear in assistant-visible content or stored final text., TestPicoClawProviderRegression_CodexOutputItemDoneYieldsAssistantText proves ChatGPT/Codex output_item.done stream items produce visible assistant text instead of empty final responses., TestPicoClawProviderRegression_Auth401NamesCredentialSource proves 401/invalid-key failures report provider, credential source, and next action without printing the key., TestPicoClawProviderRegression_LMStudioLocalModelRouting proves local OpenAI-compatible model IDs route deterministically through the LM Studio/OpenAI-compatible adapter without model-list false negatives., TestPicoClawProviderRegression_RetryableLLMFailureUsesClassifiedRetry proves retryable stream/open errors use the existing retry classifier and stop on fatal auth errors.
-- Source refs: https://github.com/sipeed/picoclaw/issues/2769, https://github.com/sipeed/picoclaw/issues/2745, https://github.com/sipeed/picoclaw/issues/2674, https://github.com/sipeed/picoclaw/issues/2404, https://github.com/sipeed/picoclaw/issues/629, https://github.com/sipeed/picoclaw/issues/28, internal/hermes/stream.go, internal/hermes/http_client.go, internal/hermes/codex_responses_stream.go, internal/hermes/reasoning_tag_sanitizer.go, internal/hermes/lmstudio_adapter.go, internal/hermes/errors.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. MCP Streamable HTTP session lifecycle compatibility
-
-- Phase: 9 / 9.F
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Extend the MCP HTTP client compatibility fixture to the current Streamable HTTP contract: initialize captures `Mcp-Session-Id`, all subsequent POST/GET/DELETE requests replay that header, SSE responses are accepted from the single MCP endpoint, 404 with a session header triggers a new initialization path, and legacy HTTP+SSE `/sse` endpoint events with `sessionId` are classified as backwards-compatibility input rather than silently dropping the session.
-- Trust class: operator, system
-- Ready when: MCP HTTP transport, OAuth refresh recovery, circuit breaker reconnect, and managed tool gateway bridge remain complete., The worker can use httptest servers returning JSON and text/event-stream responses; no real MCP server or OAuth provider is required.
-- Not ready when: The slice implements unrelated MCP sampling/tool schemas, starts a live MCP server, or changes stdio behavior., The test relies on a network server outside httptest or assumes the removed 2024-11-05 HTTP+SSE transport is the default transport.
-- Degraded mode: Servers that require a session ID but omit or reject it produce mcp_session_required or mcp_session_expired evidence; unsupported legacy SSE endpoint shapes remain visible compatibility failures instead of empty-session POSTs.
-- Fixture: `internal/tools/mcp_streamable_http_session_test.go`
-- Write scope: `internal/tools/mcp_streamable_http_session_test.go`, `internal/tools/mcp_http.go`, `internal/tools/mcp_client.go`, `internal/tools/managed_tool_gateway.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run 'TestMCPStreamableHTTP_\|TestMCPLegacySSEEndpoint_' -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: MCP HTTP fixtures prove session ID lifecycle, JSON/SSE single-endpoint behavior, expired-session recovery evidence, legacy SSE sessionId compatibility handling, and DELETE tolerance.
-- Acceptance: TestMCPStreamableHTTP_CapturesAndReplaysSessionID proves Initialize stores `Mcp-Session-Id` and ListTools/CallTool send it on subsequent requests., TestMCPStreamableHTTP_SingleEndpointAcceptsJSONOrSSE proves the client posts to one endpoint with Accept including application/json and text/event-stream, and parses a JSON-RPC response carried by SSE., TestMCPStreamableHTTP_ExpiredSessionReinitializes proves HTTP 404 with an existing session ID clears the session and returns typed evidence for reinitialize., TestMCPLegacySSEEndpoint_SessionIDCompatibilityEvidence proves `/sse` endpoint events containing `/message?sessionId=...` are either upgraded into compatibility state or fail with explicit legacy_sse_unsupported evidence, never an empty sessionId POST., TestMCPStreamableHTTP_DeleteSessionHeader proves Close or explicit termination sends DELETE with the stored session header when supported and tolerates 405.
-- Source refs: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#backwards-compatibility, https://github.com/sipeed/picoclaw/issues/2782, https://github.com/sipeed/picoclaw/issues/2546, internal/tools/mcp_http.go, internal/tools/mcp_client.go, internal/tools/mcp_oauth_store.go, internal/tools/managed_tool_gateway.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Dynamic agent identity inheritance regression matrix
+## 1. Dynamic agent identity inheritance regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `orchestrator`
@@ -87,7 +47,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/1934, https://github.com/sipeed/picoclaw/issues/2148, https://github.com/sipeed/picoclaw/issues/2775, https://github.com/sipeed/picoclaw/issues/294, https://github.com/sipeed/picoclaw/issues/284, internal/subagent/, internal/goncho/dynamic_agents.go, internal/agent/middleware.go, internal/skills/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Native TUI /model slash command binding over the existing model picker
+## 2. Native TUI /model slash command binding over the existing model picker
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -108,7 +68,7 @@ selection.
 - Unblocks: Native TUI slash handler-port coverage
 - Why now: Unblocks Native TUI slash handler-port coverage.
 
-## 5. Termux storage and path safety audit
+## 3. Termux storage and path safety audit
 
 - Phase: 1 / 5.X
 - Owner: `orchestrator`
@@ -128,7 +88,7 @@ selection.
 - Source refs: internal/config/config.go, internal/store/, internal/goncho/, cmd/gormes/goncho.go, cmd/gormes/doctor.go, install.sh
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Termux gateway foreground tmux lifecycle
+## 4. Termux gateway foreground tmux lifecycle
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -148,7 +108,7 @@ selection.
 - Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Termux notification bridge via termux-api
+## 5. Termux notification bridge via termux-api
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -168,7 +128,7 @@ selection.
 - Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Termux real-device smoke evidence
+## 6. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -189,7 +149,7 @@ selection.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Termux remote execution guidance
+## 7. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -209,7 +169,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Agentic-porting-kit public repo scaffold
+## 8. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

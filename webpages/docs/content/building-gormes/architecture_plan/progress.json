@@ -60970,9 +60970,9 @@
         {
           "name": "PicoClaw-derived provider stream and auth regression matrix",
           "priority": "P1",
-          "status": "planned",
+          "status": "complete",
           "contract": "Add a provider regression matrix from PicoClaw reports that replays fake OpenRouter reasoning-model chunks, Codex Responses output_item.done events, 401/auth failures, local LM Studio/OpenAI-compatible model routing, and retryable LLM-call failures through Gormes provider seams with no live credentials.",
-          "contract_status": "fixture_ready",
+          "contract_status": "validated",
           "slice_size": "medium",
           "execution_owner": "provider",
           "trust_class": [
@@ -61025,6 +61025,27 @@
           "done_signal": [
             "Provider replay fixtures prove reasoning isolation, Codex output_item.done content, auth diagnostics, local model routing, and retry classification without live credentials."
           ],
+          "completed_at": "2026-05-15T17:15:13-06:00",
+          "evidence": {
+            "implementation": [
+              "internal/hermes/picoclaw_provider_regression_test.go adds hermetic provider replay coverage for OpenRouter reasoning isolation, Codex response.output_item.done output, 401 auth diagnostics, LM Studio local chat routing, and retry classifier behavior.",
+              "internal/hermes/stream.go now routes OpenAI-compatible delta.reasoning_content into EventReasoning and strips leaked reasoning XML blocks from assistant-visible token chunks while preserving raw frames on events.",
+              "internal/hermes/provider_failure_diagnostic.go adds a redacted provider/model/credential-source diagnostic envelope with classified kind/class/status and next-action evidence for auth/operator surfaces."
+            ],
+            "tests": [
+              "internal/hermes/picoclaw_provider_regression_test.go:TestPicoClawProviderRegression_OpenRouterReasoningHidden",
+              "internal/hermes/picoclaw_provider_regression_test.go:TestPicoClawProviderRegression_CodexOutputItemDoneYieldsAssistantText",
+              "internal/hermes/picoclaw_provider_regression_test.go:TestPicoClawProviderRegression_Auth401NamesCredentialSource",
+              "internal/hermes/picoclaw_provider_regression_test.go:TestPicoClawProviderRegression_LMStudioLocalModelRouting",
+              "internal/hermes/picoclaw_provider_regression_test.go:TestPicoClawProviderRegression_RetryableLLMFailureUsesClassifiedRetry"
+            ],
+            "verification": [
+              "RED: go test ./internal/hermes -run '^TestPicoClawProviderRegression_' -count=1 failed because BuildProviderFailureDiagnostic did not exist.",
+              "RED: go test ./internal/hermes -run '^TestPicoClawProviderRegression_' -count=1 failed because OpenAI-compatible stream tokens leaked <think>/<reasoning> content into assistant-visible output.",
+              "GREEN: go test ./internal/hermes -run '^TestPicoClawProviderRegression_' -count=1 passed.",
+              "GREEN: go test ./internal/hermes ./internal/provider -count=1 passed."
+            ]
+          },
           "provenance": {
             "origin_type": "gormes",
             "owned_since": "2026-05-15",
@@ -61106,9 +61127,9 @@
         {
           "name": "MCP Streamable HTTP session lifecycle compatibility",
           "priority": "P1",
-          "status": "planned",
+          "status": "complete",
           "contract": "Extend the MCP HTTP client compatibility fixture to the current Streamable HTTP contract: initialize captures `Mcp-Session-Id`, all subsequent POST/GET/DELETE requests replay that header, SSE responses are accepted from the single MCP endpoint, 404 with a session header triggers a new initialization path, and legacy HTTP+SSE `/sse` endpoint events with `sessionId` are classified as backwards-compatibility input rather than silently dropping the session.",
-          "contract_status": "fixture_ready",
+          "contract_status": "validated",
           "slice_size": "small",
           "execution_owner": "tools",
           "trust_class": [
@@ -61159,6 +61180,26 @@
           "done_signal": [
             "MCP HTTP fixtures prove session ID lifecycle, JSON/SSE single-endpoint behavior, expired-session recovery evidence, legacy SSE sessionId compatibility handling, and DELETE tolerance."
           ],
+          "completed_at": "2026-05-15T17:29:59-06:00",
+          "evidence": {
+            "implementation": [
+              "internal/tools/mcp_streamable_http_session_test.go adds hermetic httptest coverage for Streamable HTTP session capture/replay, SSE JSON-RPC responses, expired-session reinitialize evidence, legacy SSE sessionId compatibility evidence, missing-session evidence, and DELETE session termination.",
+              "internal/tools/mcp_http.go now stores Mcp-Session-Id from Initialize, replays it on subsequent POST/DELETE requests, parses JSON-RPC responses carried by text/event-stream POST responses, clears expired sessions on 404, and returns stable mcp_session_required/mcp_session_expired/legacy_sse_unsupported evidence."
+            ],
+            "tests": [
+              "internal/tools/mcp_streamable_http_session_test.go:TestMCPStreamableHTTP_CapturesAndReplaysSessionID",
+              "internal/tools/mcp_streamable_http_session_test.go:TestMCPStreamableHTTP_SingleEndpointAcceptsJSONOrSSE",
+              "internal/tools/mcp_streamable_http_session_test.go:TestMCPStreamableHTTP_ExpiredSessionReinitializes",
+              "internal/tools/mcp_streamable_http_session_test.go:TestMCPStreamableHTTP_SessionRequiredEvidence",
+              "internal/tools/mcp_streamable_http_session_test.go:TestMCPLegacySSEEndpoint_SessionIDCompatibilityEvidence",
+              "internal/tools/mcp_streamable_http_session_test.go:TestMCPStreamableHTTP_DeleteSessionHeader"
+            ],
+            "verification": [
+              "RED: go test ./internal/tools -run 'TestMCPStreamableHTTP_|TestMCPLegacySSEEndpoint_' -count=1 failed because HTTPClient had no SessionID method and MCP HTTP typed evidence/errors did not exist.",
+              "GREEN: go test ./internal/tools -run 'TestMCPStreamableHTTP_|TestMCPLegacySSEEndpoint_' -count=1 passed.",
+              "GREEN: go test ./internal/tools -count=1 passed."
+            ]
+          },
           "provenance": {
             "origin_type": "hybrid",
             "owned_since": "2026-05-15",

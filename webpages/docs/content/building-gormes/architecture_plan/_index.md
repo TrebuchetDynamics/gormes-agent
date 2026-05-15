@@ -1458,9 +1458,9 @@ classification and row-backed implementation queue.
 
 - [x] PicoClaw-derived channel media and identity regression matrix
 - [x] PicoClaw-derived session ledger read-model regression matrix
-- [ ] PicoClaw-derived provider stream and auth regression matrix
+- [x] PicoClaw-derived provider stream and auth regression matrix
 - [x] PicoClaw-derived tool path safety regression pack
-- [ ] MCP Streamable HTTP session lifecycle compatibility
+- [x] MCP Streamable HTTP session lifecycle compatibility
 - [ ] Dynamic agent identity inheritance regression matrix
 
 <!-- PROGRESS:END -->
