@@ -61210,9 +61210,9 @@
         {
           "name": "Dynamic agent identity inheritance regression matrix",
           "priority": "P2",
-          "status": "planned",
+          "status": "complete",
           "contract": "Add a dynamic-agent identity regression matrix that proves spawned or delegated agents keep explicit parent linkage while receiving their own SOUL/persona, tool policy, AGENTS.md scope, and memory/search scope, so child agents do not silently inherit the root agent role as their own identity.",
-          "contract_status": "fixture_ready",
+          "contract_status": "validated",
           "slice_size": "small",
           "execution_owner": "orchestrator",
           "trust_class": [
@@ -61264,6 +61264,25 @@
           "done_signal": [
             "Dynamic-agent identity fixtures prove child persona, AGENTS scope, explicit tool-policy inheritance, and child-aware memory scope without launching live child CLIs."
           ],
+          "completed_at": "2026-05-15T17:38:28-06:00",
+          "evidence": {
+            "implementation": [
+              "internal/subagent/picoclaw_identity_regression_test.go adds hermetic fixtures that resolve dynamic agents from the Goncho registry, assert child persona/project/tool/memory scope, and prove unresolved child identities refuse launch without mutating the parent turn.",
+              "internal/subagent/dynamic_identity.go adds a pure launch-plan resolver that keeps parent identity as lineage metadata, uses child persona as the active identity, selects child AGENTS/workspace scope, requires explicit parent tool-policy inheritance, emits child-aware memory/search namespaces, and returns child_identity_unresolved evidence for ambiguous launches."
+            ],
+            "tests": [
+              "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_ChildPersonaOverridesRootRole",
+              "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_AGENTSScopesDoNotBleedAcrossChild",
+              "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_ToolPolicyInheritedOnlyWhenExplicit",
+              "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_MemoryScopeIsChildAware",
+              "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_UnresolvedChildRefusesLaunch"
+            ],
+            "verification": [
+              "RED: go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1 failed because ResolveDynamicAgentIdentity and identity evidence types did not exist.",
+              "GREEN: go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1 passed.",
+              "GREEN: go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -count=1 passed."
+            ]
+          },
           "provenance": {
             "origin_type": "gormes",
             "owned_since": "2026-05-15",

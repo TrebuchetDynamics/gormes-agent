@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/109 subphases shipped · 10 in progress · 1 planned
+**Overall:** 99/109 subphases shipped · 9 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -103,7 +103,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 5/6 subphases |
+| Phase 9 — Design & Security Hardening | ✅ | 6/6 subphases |
 
 ---
 
@@ -1425,7 +1425,7 @@ classification and row-backed implementation queue.
 - [x] Built-with-Gormes page scaffold
 - [x] Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening 🔨
+## Phase 9 — Design & Security Hardening ✅
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
@@ -1454,14 +1454,14 @@ classification and row-backed implementation queue.
 - [x] Navivox HTTP gateway mandatory-VPN bind
 - [x] Navivox HTTP gateway connect-info command
 
-### 9.F — External Issue Radar Regression Guards 🔨
+### 9.F — External Issue Radar Regression Guards ✅
 
 - [x] PicoClaw-derived channel media and identity regression matrix
 - [x] PicoClaw-derived session ledger read-model regression matrix
 - [x] PicoClaw-derived provider stream and auth regression matrix
 - [x] PicoClaw-derived tool path safety regression pack
 - [x] MCP Streamable HTTP session lifecycle compatibility
-- [ ] Dynamic agent identity inheritance regression matrix
+- [x] Dynamic agent identity inheritance regression matrix
 
 <!-- PROGRESS:END -->
 

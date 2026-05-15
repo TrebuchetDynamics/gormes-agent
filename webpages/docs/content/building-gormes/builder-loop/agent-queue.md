@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Dynamic agent identity inheritance regression matrix
-
-- Phase: 9 / 9.F
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Add a dynamic-agent identity regression matrix that proves spawned or delegated agents keep explicit parent linkage while receiving their own SOUL/persona, tool policy, AGENTS.md scope, and memory/search scope, so child agents do not silently inherit the root agent role as their own identity.
-- Trust class: operator, child-agent, system
-- Ready when: Goncho-backed dynamic agent registry, deterministic subagent runtime, durable job ledger, and tool allowlist policy remain complete., Tests can use fake child runners, temp Goncho state, and synthetic AGENTS.md/SOUL.md fixtures; no real Codex, Claude, opencode, or provider child process is required.
-- Not ready when: The slice changes live coding-agent execution, starts child CLIs, or introduces agent-to-agent messaging semantics beyond identity and scope fixtures., The implementation treats child agents as fully independent users or erases parent lineage in the durable job ledger.
-- Degraded mode: If a child identity cannot be resolved, delegation refuses with child_identity_unresolved evidence and leaves the parent turn untouched rather than running as an ambiguous root persona.
-- Fixture: `internal/subagent/picoclaw_identity_regression_test.go`
-- Write scope: `internal/subagent/picoclaw_identity_regression_test.go`, `internal/subagent/`, `internal/goncho/`, `internal/agent/`, `internal/skills/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1`, `go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Dynamic-agent identity fixtures prove child persona, AGENTS scope, explicit tool-policy inheritance, and child-aware memory scope without launching live child CLIs.
-- Acceptance: TestDynamicAgentIdentity_ChildPersonaOverridesRootRole proves child SOUL/persona is rendered as the active identity while parent identity remains lineage metadata., TestDynamicAgentIdentity_AGENTSScopesDoNotBleedAcrossChild proves child AGENTS.md/project context is selected by child workspace scope and does not overwrite the parent turn., TestDynamicAgentIdentity_ToolPolicyInheritedOnlyWhenExplicit proves allow/deny/glob tool policy inheritance is explicit and visible in child launch evidence., TestDynamicAgentIdentity_MemoryScopeIsChildAware proves child memory/search scope names both child agent ID and parent lineage without merging unrelated root-agent facts.
-- Source refs: https://github.com/sipeed/picoclaw/issues/1934, https://github.com/sipeed/picoclaw/issues/2148, https://github.com/sipeed/picoclaw/issues/2775, https://github.com/sipeed/picoclaw/issues/294, https://github.com/sipeed/picoclaw/issues/284, internal/subagent/, internal/goncho/dynamic_agents.go, internal/agent/middleware.go, internal/skills/
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Native TUI /model slash command binding over the existing model picker
+## 1. Native TUI /model slash command binding over the existing model picker
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -68,7 +48,7 @@ selection.
 - Unblocks: Native TUI slash handler-port coverage
 - Why now: Unblocks Native TUI slash handler-port coverage.
 
-## 3. Termux storage and path safety audit
+## 2. Termux storage and path safety audit
 
 - Phase: 1 / 5.X
 - Owner: `orchestrator`
@@ -88,7 +68,7 @@ selection.
 - Source refs: internal/config/config.go, internal/store/, internal/goncho/, cmd/gormes/goncho.go, cmd/gormes/doctor.go, install.sh
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Termux gateway foreground tmux lifecycle
+## 3. Termux gateway foreground tmux lifecycle
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -108,7 +88,7 @@ selection.
 - Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Termux notification bridge via termux-api
+## 4. Termux notification bridge via termux-api
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -128,7 +108,7 @@ selection.
 - Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Termux real-device smoke evidence
+## 5. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -149,7 +129,7 @@ selection.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Termux remote execution guidance
+## 6. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -169,7 +149,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Agentic-porting-kit public repo scaffold
+## 7. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
