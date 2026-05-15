@@ -1417,8 +1417,9 @@ classification and row-backed implementation queue.
 
 - [x] Transcribe audio tool registration + local whisper provider
 
-### 9.E — Navivox VPN-mandatory Pairing ⏳
+### 9.E — Navivox HTTP-only Hardening ⏳
 
+- [ ] Remove SSH Navivox stdio path
 - [ ] Navivox VPN host enumeration helper
 - [ ] Navivox HTTP gateway mandatory-VPN bind
 - [ ] Navivox HTTP gateway connect-info command

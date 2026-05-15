@@ -59124,8 +59124,85 @@
           ]
         },
         "9.E": {
-          "name": "Navivox VPN-mandatory Pairing",
+          "name": "Navivox HTTP-only Hardening",
           "items": [
+            {
+              "name": "Remove SSH Navivox stdio path",
+              "status": "planned",
+              "execution_owner": "gateway",
+              "slice_size": "medium",
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-14",
+                "note": "Operator decided 2026-05-14 that the SSH stdio path is too complicated for the product; HTTP/WS gateway becomes the only Navivox transport."
+              },
+              "contract": "Delete the SSH stdio Navivox transport — `gormes navivox serve|pair|setup-host` CLI surface, the wire-protocol Go package (codec/frames/server/status), the Flutter dartssh2 transport and ssh_navivox_channel client, and the `dartssh2` dependency. Preserve the HTTP/WS path (`internal/channels/navivox/channel.go` and `flutter-navivox/app/lib/core/gateway/*`). Move `PlatformName = \"navivox\"` from `protocol.go` into the surviving channel package so deleting protocol.go does not break the gateway import.",
+              "contract_status": "draft",
+              "ready_when": [
+                "Inventory confirms `internal/channels/navivox/channel.go` and `cmd/gormes/gateway.go` only depend on `PlatformName` from the SSH protocol package; no live consumers of NewServer/NewCodec/Frame/Header/StatusProvider remain outside the deletion set.",
+                "Flutter HTTP gateway client (`lib/core/gateway/navivox_gateway_*`) and `gateway_navivox_channel.dart` already build and tests pass with no dependency on dartssh2."
+              ],
+              "not_ready_when": [
+                "The slice tries to also redesign the HTTP channel surface in the same commit.",
+                "The slice keeps dartssh2 in pubspec.yaml \"for later\".",
+                "The slice removes `internal/channels/navivox/channel.go` or any HTTP-side code."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Navivox VPN host enumeration helper",
+                "Navivox HTTP gateway mandatory-VPN bind",
+                "Navivox HTTP gateway connect-info command"
+              ],
+              "write_scope": [
+                "internal/channels/navivox/protocol.go",
+                "internal/channels/navivox/protocol_test.go",
+                "internal/channels/navivox/server.go",
+                "internal/channels/navivox/server_test.go",
+                "internal/channels/navivox/status.go",
+                "internal/channels/navivox/channel.go",
+                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_test.go",
+                "cmd/gormes/navivox_host_setup.go",
+                "cmd/gormes/navivox_host_setup_test.go",
+                "flutter-navivox/app/lib/core/protocol/",
+                "flutter-navivox/app/lib/core/transport/dartssh2_byte_transport.dart",
+                "flutter-navivox/app/lib/core/transport/byte_transport.dart",
+                "flutter-navivox/app/lib/core/transport/in_memory_transport.dart",
+                "flutter-navivox/app/lib/core/channel/ssh_navivox_channel.dart",
+                "flutter-navivox/app/lib/core/channel/fake_navivox_channel.dart",
+                "flutter-navivox/app/lib/features/keys/services/openssh_key_validator.dart",
+                "flutter-navivox/app/test/core/channel/ssh_navivox_channel*.dart",
+                "flutter-navivox/app/test/core/transport/dartssh2_byte_transport_test.dart",
+                "flutter-navivox/app/test/features/keys/openssh_key_validator_test.dart",
+                "flutter-navivox/app/pubspec.yaml",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "CHANGELOG.md"
+              ],
+              "source_refs": [
+                "internal/channels/navivox/protocol.go:PlatformName",
+                "internal/channels/navivox/server.go:Server",
+                "cmd/gormes/navivox.go:navivoxServe",
+                "cmd/gormes/navivox.go:navivoxPair",
+                "cmd/gormes/navivox_host_setup_test.go",
+                "flutter-navivox/app/lib/core/channel/ssh_navivox_channel.dart",
+                "flutter-navivox/app/lib/core/transport/dartssh2_byte_transport.dart"
+              ],
+              "fixture": "internal/channels/navivox/channel_test.go",
+              "test_commands": [
+                "go test ./... -count=1",
+                "sh -c 'cd flutter-navivox/app && flutter test'"
+              ],
+              "acceptance": [
+                "`grep -rE \"dartssh2|navivox.NewServer|navivox.NewCodec|navivox.Frame\" cmd/ internal/ flutter-navivox/app/lib flutter-navivox/app/test` returns no matches.",
+                "`gormes navivox --help` no longer lists `serve`, `pair`, or `setup-host` subcommands (or `gormes navivox` itself is removed if no replacement subcommands exist yet).",
+                "`grep -n 'dartssh2' flutter-navivox/app/pubspec.yaml` returns nothing; `flutter pub get` succeeds.",
+                "Both `go test ./... -count=1` and `flutter test` are green.",
+                "`PlatformName` constant survives the deletion and is reachable from `cmd/gormes/gateway.go` via `internal/channels/navivox`."
+              ],
+              "done_signal": [
+                "`go test ./... -count=1` and `cd flutter-navivox/app && flutter test` both pass; `git grep dartssh2` and `git grep 'navivox.NewServer'` return empty."
+              ]
+            },
             {
               "name": "Navivox VPN host enumeration helper",
               "status": "planned",
@@ -59135,44 +59212,41 @@
                 "origin_type": "gormes",
                 "owned_since": "2026-05-14"
               },
-              "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. Both `cmd/gormes/navivox` (SSH pair) and the navivox HTTP gateway channel consume it instead of detecting Tailscale ad-hoc.",
+              "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. The navivox HTTP gateway channel (mandatory-VPN bind, connect-info command) consumes it. The package is built fresh — no SSH-pair code remains by this point.",
               "contract_status": "draft",
               "ready_when": [
-                "Existing tailscale-only host detection in cmd/gormes/navivox.go (navivoxPairHostResolver, withNavivoxPairHostResolverTestSeams) is identified as the migration source.",
-                "internal/channels/navivox already builds and `go test ./... -count=1` is green on development."
+                "`Remove SSH Navivox stdio path` shipped; cmd/gormes no longer holds tailscale-only host detection.",
+                "`go test ./... -count=1` is green on development."
               ],
               "not_ready_when": [
                 "The slice also rebinds the running gateway or edits install.sh.",
                 "The slice adds VPN providers beyond Tailscale and WireGuard without test fixtures."
               ],
-              "blocked_by": [],
+              "blocked_by": [
+                "Remove SSH Navivox stdio path"
+              ],
               "unblocks": [
                 "Navivox HTTP gateway mandatory-VPN bind",
                 "Navivox HTTP gateway connect-info command"
               ],
               "write_scope": [
                 "internal/network/vpnhost/",
-                "cmd/gormes/navivox.go",
-                "cmd/gormes/navivox_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "source_refs": [
-                "cmd/gormes/navivox.go:navivoxPairHostResolver",
-                "cmd/gormes/navivox.go:withNavivoxPairHostResolverTestSeams",
-                "cmd/gormes/navivox_test.go:TestNavivoxPairHostAutoDetectFallsBackToLAN"
+                "internal/channels/navivox/channel.go:NewChannel"
               ],
               "fixture": "internal/network/vpnhost/vpnhost_test.go",
               "test_commands": [
-                "go test ./internal/network/vpnhost -count=1",
-                "go test ./cmd/gormes -run NavivoxPairHost -count=1"
+                "go test ./internal/network/vpnhost -count=1"
               ],
               "acceptance": [
                 "internal/network/vpnhost.List(ctx) returns at least one entry on a host with Tailscale or WireGuard up, with kind ∈ {tailscale, wireguard, tun-other}.",
-                "cmd/gormes/navivox.go consumes vpnhost.List for pair host resolution (Tailscale entry first), and existing TestNavivoxPairHost* tests still pass via seamed fakes.",
-                "internal/network/vpnhost has zero imports from internal/channels or cmd/ so both can import it."
+                "internal/network/vpnhost has zero imports from internal/channels or cmd/ so both can import it.",
+                "Tests use seamed fakes for `tailscale` CLI and `ip` CLI — no live commands at test time."
               ],
               "done_signal": [
-                "`go test ./internal/network/vpnhost ./cmd/gormes -count=1` passes; cmd/gormes/navivox.go no longer shells out to `tailscale` directly."
+                "`go test ./internal/network/vpnhost -count=1` passes; `grep -rn 'exec.Command.*\"tailscale\"' cmd/ internal/` only matches inside internal/network/vpnhost."
               ]
             },
             {
@@ -59237,13 +59311,15 @@
               "slice_size": "small",
               "provenance": {
                 "origin_type": "gormes",
-                "owned_since": "2026-05-14"
+                "owned_since": "2026-05-14",
+                "note": "Replaces the deleted `gormes navivox pair` SSH command with an HTTP-only equivalent."
               },
-              "contract": "A new `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` wire shape mirroring `gormes navivox pair --json`: `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`.",
+              "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`.",
               "contract_status": "draft",
               "ready_when": [
                 "internal/network/vpnhost shipped.",
-                "Navivox HTTP gateway mandatory-VPN bind shipped."
+                "Navivox HTTP gateway mandatory-VPN bind shipped.",
+                "Remove SSH Navivox stdio path shipped (so `gormes navivox` has no leftover subcommands to collide with)."
               ],
               "not_ready_when": [
                 "The slice also implements an HTTP /v1/navivox/connect-info server endpoint (split row).",
@@ -59251,18 +59327,18 @@
               ],
               "blocked_by": [
                 "Navivox VPN host enumeration helper",
-                "Navivox HTTP gateway mandatory-VPN bind"
+                "Navivox HTTP gateway mandatory-VPN bind",
+                "Remove SSH Navivox stdio path"
               ],
               "unblocks": [],
               "write_scope": [
-                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_connect_info.go",
                 "cmd/gormes/navivox_connect_info_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "source_refs": [
-                "cmd/gormes/navivox.go:navivoxPairOptions",
-                "cmd/gormes/navivox.go:buildNavivoxPairingURI",
-                "cmd/gormes/navivox.go:renderNavivoxPairing"
+                "internal/channels/navivox/channel.go:NewChannel",
+                "internal/config/config.go:NavivoxCfg"
               ],
               "fixture": "cmd/gormes/navivox_connect_info_test.go",
               "test_commands": [
