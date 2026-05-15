@@ -81,6 +81,170 @@ func TestUpdateCommandUsesInjectedLifecycle(t *testing.T) {
 	}
 }
 
+func TestUpdateCommandWiresBinaryPublisher(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	checkout := "/repo/gormes"
+	publisherFactoryCalled := false
+	publisherCalled := false
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return checkout, nil },
+		BinaryPublisherFor: func(checkoutDir string) cli.UpdateBinaryPublisher {
+			publisherFactoryCalled = true
+			if checkoutDir != checkout {
+				t.Fatalf("BinaryPublisherFor checkoutDir = %q, want %q", checkoutDir, checkout)
+			}
+			return func(_ context.Context, req cli.UpdateBinaryPublishRequest) cli.UpdateReport {
+				publisherCalled = true
+				if req.CheckoutDir != checkout || req.Branch != "development" {
+					t.Fatalf("publish request = %+v, want checkout+branch", req)
+				}
+				return cli.UpdateReport{Evidence: []cli.UpdateEvidence{{Kind: cli.UpdateEvidencePublishCompleted, Detail: "published"}}}
+			}
+		},
+		RunLifecycle: func(ctx context.Context, opts cli.UpdateLifecycleOptions) cli.UpdateReport {
+			if opts.BinaryPublisher == nil {
+				t.Fatal("BinaryPublisher was not wired into lifecycle options")
+			}
+			return opts.BinaryPublisher(ctx, cli.UpdateBinaryPublishRequest{
+				CheckoutDir: opts.CheckoutDir,
+				Branch:      opts.Branch,
+			})
+		},
+	})
+
+	stdout, stderr, err := executeRootCommandForTest(command, "--branch", "development")
+	if err != nil {
+		t.Fatalf("update command: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+	if !publisherFactoryCalled || !publisherCalled {
+		t.Fatalf("publisherFactoryCalled=%v publisherCalled=%v", publisherFactoryCalled, publisherCalled)
+	}
+	if !strings.Contains(stdout, "update_publish_completed") {
+		t.Fatalf("stdout missing publish evidence:\n%s", stdout)
+	}
+}
+
+func TestUpdateCommandWiresGatewayRestartRunner(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	restartFactoryCalled := false
+	restartCalled := false
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		GatewayRestartFor: func() cli.UpdateGatewayRestartRunner {
+			restartFactoryCalled = true
+			return func(_ context.Context, req cli.UpdateGatewayRestartRequest) cli.UpdateReport {
+				restartCalled = true
+				if req.Policy != "always" {
+					t.Fatalf("restart policy = %q, want always", req.Policy)
+				}
+				return cli.UpdateReport{Evidence: []cli.UpdateEvidence{{Kind: cli.UpdateEvidenceGatewayRestarted, Detail: "restarted"}}}
+			}
+		},
+		RunLifecycle: func(ctx context.Context, opts cli.UpdateLifecycleOptions) cli.UpdateReport {
+			if opts.GatewayRestart == nil {
+				t.Fatal("GatewayRestart was not wired into lifecycle options")
+			}
+			return opts.GatewayRestart(ctx, cli.UpdateGatewayRestartRequest{Policy: opts.RestartGateway})
+		},
+	})
+
+	stdout, stderr, err := executeRootCommandForTest(command, "--restart-gateway", "always")
+	if err != nil {
+		t.Fatalf("update command: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+	if !restartFactoryCalled || !restartCalled {
+		t.Fatalf("restartFactoryCalled=%v restartCalled=%v", restartFactoryCalled, restartCalled)
+	}
+	if !strings.Contains(stdout, "update_gateway_restarted") {
+		t.Fatalf("stdout missing restart evidence:\n%s", stdout)
+	}
+}
+
+func TestUpdateCommandWritesUpdateLogAndLedgerForRealUpdate(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	installHome := t.TempDir()
+	t.Setenv("GORMES_INSTALL_HOME", installHome)
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(context.Context, cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return cli.UpdateReport{
+				Branch:         "development",
+				PreviousBranch: "development",
+				Evidence: []cli.UpdateEvidence{
+					{Kind: cli.UpdateEvidencePublishCompleted, Detail: "published"},
+				},
+			}
+		},
+	})
+
+	stdout, stderr, err := executeRootCommandForTest(command, "--branch", "development", "--restart-gateway", "never")
+	if err != nil {
+		t.Fatalf("update: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+	for _, want := range []string{"update_hangup_log_mirrored", "update_ledger_appended"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	logBody, err := os.ReadFile(filepath.Join(installHome, "update.log"))
+	if err != nil {
+		t.Fatalf("read update.log: %v", err)
+	}
+	if !strings.Contains(string(logBody), "update_publish_completed") || !strings.Contains(string(logBody), "update_ledger_appended") {
+		t.Fatalf("update.log missing mirrored update report:\n%s", logBody)
+	}
+	ledgerBody, err := os.ReadFile(filepath.Join(installHome, "install.log.jsonl"))
+	if err != nil {
+		t.Fatalf("read install.log.jsonl: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(ledgerBody)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("ledger line count = %d, want 1:\n%s", len(lines), ledgerBody)
+	}
+	var event struct {
+		Event          string `json:"event"`
+		Branch         string `json:"branch"`
+		PreviousBranch string `json:"previous_branch"`
+		RestartGateway string `json:"restart_gateway"`
+		Failed         bool   `json:"failed"`
+		Evidence       []struct {
+			Kind string `json:"kind"`
+		} `json:"evidence"`
+	}
+	if err := json.Unmarshal([]byte(lines[0]), &event); err != nil {
+		t.Fatalf("ledger line is not valid JSON: %v\n%s", err, lines[0])
+	}
+	if event.Event != "update" || event.Branch != "development" || event.PreviousBranch != "development" || event.RestartGateway != "never" || event.Failed {
+		t.Fatalf("ledger event = %+v, want update/development/never/success", event)
+	}
+	if len(event.Evidence) == 0 || event.Evidence[0].Kind != "update_publish_completed" {
+		t.Fatalf("ledger evidence = %+v, want update_publish_completed first", event.Evidence)
+	}
+}
+
+func TestDefaultUpdateBinaryPublishOptionsRespectSandboxBinDir(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	home := t.TempDir()
+	binDir := filepath.Join(t.TempDir(), "bin")
+	t.Setenv("GORMES_INSTALL_HOME", home)
+	t.Setenv("GORMES_BIN_DIR", binDir)
+	t.Setenv("GORMES_PREFIX", "")
+
+	opts, err := defaultUpdateBinaryPublishOptions("/repo/gormes")
+	if err != nil {
+		t.Fatalf("defaultUpdateBinaryPublishOptions: %v", err)
+	}
+	if opts.ManagedBinPath != filepath.Join(home, "bin", "gormes") {
+		t.Fatalf("ManagedBinPath = %q, want managed home bin", opts.ManagedBinPath)
+	}
+	if opts.PublishedBinPath != filepath.Join(binDir, "gormes") {
+		t.Fatalf("PublishedBinPath = %q, want GORMES_BIN_DIR target", opts.PublishedBinPath)
+	}
+	if opts.RefreshActivePath {
+		t.Fatalf("RefreshActivePath = true, want false inside GORMES_BIN_DIR sandbox")
+	}
+}
+
 func TestUpdateCommand_PrintsCuratorRecentRunSummaryOnce(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	root := filepath.Join(os.Getenv("GORMES_HOME"), "skills")
@@ -286,11 +450,23 @@ func TestUpdateCommand_JSONEmitsReport(t *testing.T) {
 	if got.Failed {
 		t.Fatalf("got.Failed = true, want false on success")
 	}
-	if len(got.Evidence) != 2 {
-		t.Fatalf("got %d evidence entries, want 2", len(got.Evidence))
+	if len(got.Evidence) != 4 {
+		t.Fatalf("got %d evidence entries, want lifecycle evidence plus log/ledger evidence", len(got.Evidence))
 	}
 	if got.Evidence[0].Kind != "update_autostash_created" {
 		t.Fatalf("got.Evidence[0].Kind = %q, want `update_autostash_created`", got.Evidence[0].Kind)
+	}
+	for _, want := range []string{"update_hangup_log_mirrored", "update_ledger_appended"} {
+		found := false
+		for _, evidence := range got.Evidence {
+			if evidence.Kind == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("JSON evidence missing %q: %+v", want, got.Evidence)
+		}
 	}
 	// JSON mode must not interleave the human-readable banner.
 	if strings.Contains(stdout, "⚕ Updating Gormes Agent") {

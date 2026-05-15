@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +14,18 @@ type UpdateEvidenceKind string
 
 const (
 	UpdateEvidenceCheck                     UpdateEvidenceKind = "update_check"
+	UpdateEvidenceCheckAvailable            UpdateEvidenceKind = "update_check_available"
+	UpdateEvidenceCheckCurrent              UpdateEvidenceKind = "update_check_current"
+	UpdateEvidenceBuildCompleted            UpdateEvidenceKind = "update_build_completed"
+	UpdateEvidenceBuildFailed               UpdateEvidenceKind = "update_build_failed"
+	UpdateEvidencePublishCompleted          UpdateEvidenceKind = "update_publish_completed"
+	UpdateEvidencePublishFailed             UpdateEvidenceKind = "update_publish_failed"
+	UpdateEvidenceVerifyFailed              UpdateEvidenceKind = "update_verify_failed"
+	UpdateEvidencePublishRollbackCompleted  UpdateEvidenceKind = "update_publish_rollback_completed"
+	UpdateEvidencePublishRollbackFailed     UpdateEvidenceKind = "update_publish_rollback_failed"
+	UpdateEvidenceActivePathRefreshed       UpdateEvidenceKind = "update_active_path_refreshed"
+	UpdateEvidenceActivePathSkipped         UpdateEvidenceKind = "update_active_path_skipped"
+	UpdateEvidenceActivePathFailed          UpdateEvidenceKind = "update_active_path_failed"
 	UpdateEvidenceNotManagedCheckout        UpdateEvidenceKind = "update_not_managed_checkout"
 	UpdateEvidenceAutostashCreated          UpdateEvidenceKind = "update_autostash_created"
 	UpdateEvidenceAutostashRestored         UpdateEvidenceKind = "update_autostash_restored"
@@ -27,10 +40,13 @@ const (
 	UpdateEvidenceGatewayRestarted          UpdateEvidenceKind = "update_gateway_restarted"
 	UpdateEvidenceGatewayRestartUnavailable UpdateEvidenceKind = "update_gateway_restart_unavailable"
 	UpdateEvidenceGatewayRestartTimeout     UpdateEvidenceKind = "update_gateway_restart_timeout"
+	UpdateEvidenceGatewayRestartNeeded      UpdateEvidenceKind = "update_gateway_restart_needed"
 	UpdateEvidenceHangupIgnored             UpdateEvidenceKind = "update_hangup_ignored"
 	UpdateEvidenceHangupUnavailable         UpdateEvidenceKind = "update_hangup_unavailable"
 	UpdateEvidenceHangupLogMirrored         UpdateEvidenceKind = "update_hangup_log_mirrored"
 	UpdateEvidenceHangupLogUnavailable      UpdateEvidenceKind = "update_hangup_log_unavailable"
+	UpdateEvidenceLedgerAppended            UpdateEvidenceKind = "update_ledger_appended"
+	UpdateEvidenceLedgerUnavailable         UpdateEvidenceKind = "update_ledger_unavailable"
 	UpdateEvidenceStaleDashboardDetected    UpdateEvidenceKind = "update_stale_dashboard_detected"
 	UpdateEvidenceStaleDashboardKilled      UpdateEvidenceKind = "update_stale_dashboard_killed"
 	UpdateEvidenceStaleDashboardKillFailed  UpdateEvidenceKind = "update_stale_dashboard_kill_failed"
@@ -191,6 +207,7 @@ type UpdateLifecycleOptions struct {
 	KillStaleDashboard     bool
 	Git                    UpdateGitRunner
 	GatewayRestartPoll     *ServiceRestartPollReport
+	GatewayRestart         UpdateGatewayRestartRunner
 	StaleDashboardPIDs     []int
 	KillStaleDashboardFunc func(int) error
 	// Backup mirrors the --backup CLI flag: opt-in to a single-run
@@ -209,6 +226,12 @@ type UpdateLifecycleOptions struct {
 	// detail) or update_pre_backup_failed. A nil seam falls back to the
 	// policy-only behavior shipped in 56efc4042.
 	BackupWriter BackupWriter
+	// BinaryPublisher is the optional native build/publish seam. When set,
+	// it runs after git update/autostash restore and before skill sync, web
+	// build, config migration checks, and gateway restart. A failed publish
+	// fails the update so operators do not see "update complete" while the
+	// command on PATH still points at the old binary.
+	BinaryPublisher UpdateBinaryPublisher
 	// SkillSync is the optional bundled-skill profile-sync seam. When set,
 	// it runs after a successful pull and emits update_skill_sync_completed
 	// or update_skill_sync_failed evidence. A nil seam disables sync
@@ -231,6 +254,19 @@ type UpdateLifecycleOptions struct {
 	// update_config_migrate_failed but never fail the update.
 	ConfigMigrate ConfigMigrateRunner
 }
+
+type UpdateBinaryPublishRequest struct {
+	CheckoutDir string
+	Branch      string
+}
+
+type UpdateBinaryPublisher func(context.Context, UpdateBinaryPublishRequest) UpdateReport
+
+type UpdateGatewayRestartRequest struct {
+	Policy string
+}
+
+type UpdateGatewayRestartRunner func(context.Context, UpdateGatewayRestartRequest) UpdateReport
 
 type UpdateGitRunner interface {
 	RunGit(ctx context.Context, cwd string, args ...string) UpdateGitResult
@@ -510,6 +546,79 @@ func formatBackupDuration(ms int64) string {
 	return fmt.Sprintf("%.2fs", float64(ms)/1000.0)
 }
 
+func runUpdateRemoteCheck(ctx context.Context, report *UpdateReport, options UpdateLifecycleOptions, checkoutDir, branch string) {
+	report.add(UpdateEvidenceCheck, fmt.Sprintf("checking remote update state for %s", branch))
+	if options.Git == nil {
+		report.Failed = true
+		report.add(UpdateEvidenceNotManagedCheckout, "no git runner available")
+		return
+	}
+	if inside := options.Git.RunGit(ctx, checkoutDir, "rev-parse", "--is-inside-work-tree"); inside.Err != nil || strings.TrimSpace(inside.Stdout) != "true" {
+		report.Failed = true
+		report.add(UpdateEvidenceNotManagedCheckout, "checkout is not a managed git worktree")
+		return
+	}
+	head := options.Git.RunGit(ctx, checkoutDir, "rev-parse", "--abbrev-ref", "HEAD")
+	report.PreviousBranch = strings.TrimSpace(head.Stdout)
+	if report.PreviousBranch == "" {
+		report.PreviousBranch = "HEAD"
+	}
+	if result := options.Git.RunGit(ctx, checkoutDir, "fetch", "origin", branch); result.Err != nil {
+		report.Failed = true
+		report.add(classifyUpdateGitFailure(result), gitFailureDetail(result))
+		return
+	}
+
+	currentResult := options.Git.RunGit(ctx, checkoutDir, "rev-parse", "HEAD")
+	if currentResult.Err != nil {
+		report.Failed = true
+		report.add(classifyUpdateGitFailure(currentResult), gitFailureDetail(currentResult))
+		return
+	}
+	current := strings.TrimSpace(currentResult.Stdout)
+
+	remoteRef := "origin/" + branch
+	remoteResult := options.Git.RunGit(ctx, checkoutDir, "rev-parse", remoteRef)
+	if remoteResult.Err != nil {
+		report.Failed = true
+		report.add(classifyUpdateGitFailure(remoteResult), gitFailureDetail(remoteResult))
+		return
+	}
+	remote := strings.TrimSpace(remoteResult.Stdout)
+
+	countResult := options.Git.RunGit(ctx, checkoutDir, "rev-list", "--count", "HEAD.."+remoteRef)
+	if countResult.Err != nil {
+		report.Failed = true
+		report.add(classifyUpdateGitFailure(countResult), gitFailureDetail(countResult))
+		return
+	}
+	behind, err := strconv.Atoi(strings.TrimSpace(countResult.Stdout))
+	if err != nil {
+		report.Failed = true
+		report.add(UpdateEvidenceGitError, fmt.Sprintf("parse remote commit count: %v", err))
+		return
+	}
+	if behind > 0 {
+		report.add(UpdateEvidenceCheckAvailable, fmt.Sprintf("%d commit%s behind %s (%s..%s)", behind, pluralCommitSuffix(behind), remoteRef, shortCommit(current), shortCommit(remote)))
+		return
+	}
+	report.add(UpdateEvidenceCheckCurrent, fmt.Sprintf("already current at %s", shortCommit(current)))
+}
+
+func pluralCommitSuffix(count int) string {
+	if count == 1 {
+		return ""
+	}
+	return "s"
+}
+
+func shortCommit(sha string) string {
+	if len(sha) <= 12 {
+		return sha
+	}
+	return sha[:12]
+}
+
 func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) (report UpdateReport) {
 	// Append a rollback hint when the lifecycle ends with Failed=true
 	// AND a usable pre-update zip exists on disk. Centralized in a
@@ -528,7 +637,7 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) (re
 	report = UpdateReport{Branch: branch}
 
 	if options.CheckOnly {
-		report.add(UpdateEvidenceCheck, fmt.Sprintf("checked update readiness for %s", branch))
+		runUpdateRemoteCheck(ctx, &report, options, checkoutDir, branch)
 		return report
 	}
 	// Resolve pre-update backup policy BEFORE any git mutation. A backup
@@ -632,6 +741,16 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) (re
 		report.add(UpdateEvidenceAutostashRestored, stashRef)
 	}
 
+	if options.BinaryPublisher != nil {
+		report.append(options.BinaryPublisher(ctx, UpdateBinaryPublishRequest{
+			CheckoutDir: checkoutDir,
+			Branch:      branch,
+		}))
+		if report.Failed {
+			return report
+		}
+	}
+
 	// Skill sync runs AFTER pull but BEFORE gateway restart so the gateway
 	// can pick up newly-bundled skills on its restart cycle. Best-effort:
 	// errors emit update_skill_sync_failed but never set report.Failed
@@ -651,8 +770,12 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) (re
 	// and nil seams.
 	emitConfigMigrate(ctx, &report, options)
 
-	if options.GatewayRestartPoll != nil && strings.TrimSpace(options.RestartGateway) != "never" {
-		report.append(EvaluateUpdateGatewayRestart(*options.GatewayRestartPoll))
+	if options.GatewayRestart != nil {
+		report.append(options.GatewayRestart(ctx, UpdateGatewayRestartRequest{
+			Policy: options.RestartGateway,
+		}))
+	} else if options.GatewayRestartPoll != nil {
+		report.append(EvaluateUpdateGatewayRestartPolicy(options.RestartGateway, options.GatewayRestartPoll))
 	}
 	report.append(HandleStaleDashboardProcesses(UpdateDashboardOptions{
 		PIDs:     options.StaleDashboardPIDs,
@@ -774,21 +897,49 @@ func (m *UpdateOutputMirror) Flush() error {
 }
 
 func EvaluateUpdateGatewayRestart(poll ServiceRestartPollReport) UpdateReport {
+	return EvaluateUpdateGatewayRestartPolicy("always", &poll)
+}
+
+func EvaluateUpdateGatewayRestartPolicy(policy string, poll *ServiceRestartPollReport) UpdateReport {
 	report := UpdateReport{}
+	policy = strings.TrimSpace(policy)
+	if policy == "" {
+		policy = "auto"
+	}
+	if policy == "never" {
+		report.add(UpdateEvidenceGatewayRestartNeeded, "gateway restart skipped by policy=never; restart manually to load the updated binary")
+		return report
+	}
+	if poll == nil {
+		report.add(UpdateEvidenceGatewayRestartUnavailable, "gateway restart validation was not available")
+		if policy == "always" {
+			report.Failed = true
+		}
+		return report
+	}
 	switch poll.Outcome {
 	case ServiceRestartPollRestarted:
 		report.add(UpdateEvidenceGatewayRestarted, "gateway service reported active after restart")
 	case ServiceRestartPollTimeout:
-		report.Failed = true
 		report.add(UpdateEvidenceGatewayRestartTimeout, "gateway restart timed out before active status")
 	case ServiceRestartPollCrashedAfterRestart, ServiceRestartPollManagerUnavailable:
-		report.Failed = true
 		report.add(UpdateEvidenceGatewayRestartUnavailable, "gateway restart could not be validated")
 	default:
-		report.Failed = true
 		report.add(UpdateEvidenceGatewayRestartUnavailable, "gateway restart outcome unavailable")
 	}
+	if policy == "always" && !updateGatewayRestartSucceeded(report) {
+		report.Failed = true
+	}
 	return report
+}
+
+func updateGatewayRestartSucceeded(report UpdateReport) bool {
+	for _, evidence := range report.Evidence {
+		if evidence.Kind == UpdateEvidenceGatewayRestarted {
+			return true
+		}
+	}
+	return false
 }
 
 type UpdateDashboardOptions struct {

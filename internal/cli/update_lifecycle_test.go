@@ -220,6 +220,27 @@ func TestUpdateCommandGatewayRestartUsesValidatedServiceSeam(t *testing.T) {
 	}
 }
 
+func TestUpdateCommandGatewayRestartPolicyControlsFailureSemantics(t *testing.T) {
+	timeout := ServiceRestartPollReport{Outcome: ServiceRestartPollTimeout, Service: "gormes-gateway"}
+	auto := EvaluateUpdateGatewayRestartPolicy("auto", &timeout)
+	if auto.Failed {
+		t.Fatalf("auto restart timeout should warn, not fail: %+v", auto)
+	}
+	assertUpdateEvidence(t, auto, UpdateEvidenceGatewayRestartTimeout)
+
+	always := EvaluateUpdateGatewayRestartPolicy("always", &timeout)
+	if !always.Failed {
+		t.Fatalf("always restart timeout should fail: %+v", always)
+	}
+	assertUpdateEvidence(t, always, UpdateEvidenceGatewayRestartTimeout)
+
+	never := EvaluateUpdateGatewayRestartPolicy("never", &timeout)
+	if never.Failed {
+		t.Fatalf("never restart should not fail: %+v", never)
+	}
+	assertUpdateEvidence(t, never, UpdateEvidenceGatewayRestartNeeded)
+}
+
 func TestUpdateCommandStaleDashboardWarning(t *testing.T) {
 	report := HandleStaleDashboardProcesses(UpdateDashboardOptions{
 		PIDs: []int{12345, 12346},
@@ -247,6 +268,240 @@ func TestUpdateCommandStaleDashboardWarning(t *testing.T) {
 	if !killed.Failed {
 		t.Fatalf("Kill failure Failed=false; report=%+v", killed)
 	}
+}
+
+func TestUpdateCommandCheckFetchesRemoteAndReportsCommitDelta(t *testing.T) {
+	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
+		"rev-parse --is-inside-work-tree":           {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":               {Stdout: "development\n"},
+		"fetch origin development":                  {},
+		"rev-parse HEAD":                            {Stdout: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"},
+		"rev-parse origin/development":              {Stdout: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n"},
+		"rev-list --count HEAD..origin/development": {Stdout: "3\n"},
+	})
+	skillSyncCalled := false
+	webBuildCalled := false
+	configCheckCalled := false
+
+	report := RunUpdateLifecycle(context.Background(), UpdateLifecycleOptions{
+		CheckoutDir: "/repo/gormes",
+		Branch:      "development",
+		CheckOnly:   true,
+		Git:         runner,
+		SkillSync: func(context.Context) (SkillSyncResult, error) {
+			skillSyncCalled = true
+			return SkillSyncResult{}, nil
+		},
+		WebBuild: func(context.Context) (WebBuildResult, error) {
+			webBuildCalled = true
+			return WebBuildResult{}, nil
+		},
+		ConfigCheck: func(context.Context) (ConfigVersionResult, error) {
+			configCheckCalled = true
+			return ConfigVersionResult{}, nil
+		},
+	})
+
+	if report.Failed {
+		t.Fatalf("check lifecycle failed: %+v", report)
+	}
+	if report.PreviousBranch != "development" {
+		t.Fatalf("PreviousBranch = %q, want development", report.PreviousBranch)
+	}
+	detail := findFirstEvidenceDetail(report, UpdateEvidenceCheckAvailable, "3 commit")
+	if detail == "" {
+		t.Fatalf("check report missing available-update evidence: %+v", report.Evidence)
+	}
+	for _, want := range []string{"origin/development", "aaaaaaaaaaaa", "bbbbbbbbbbbb"} {
+		if !strings.Contains(detail, want) {
+			t.Fatalf("available detail missing %q: %q", want, detail)
+		}
+	}
+	if skillSyncCalled || webBuildCalled || configCheckCalled {
+		t.Fatalf("check mode must not run post-update seams: skill=%v web=%v config=%v", skillSyncCalled, webBuildCalled, configCheckCalled)
+	}
+	assertUpdateGitCommands(t, runner,
+		"rev-parse --is-inside-work-tree",
+		"rev-parse --abbrev-ref HEAD",
+		"fetch origin development",
+		"rev-parse HEAD",
+		"rev-parse origin/development",
+		"rev-list --count HEAD..origin/development",
+	)
+}
+
+func TestUpdateCommandPublishesBinaryBeforePostUpdateSteps(t *testing.T) {
+	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
+		"rev-parse --is-inside-work-tree":   {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":       {Stdout: "development\n"},
+		"status --porcelain":                {},
+		"fetch origin development":          {},
+		"pull --ff-only origin development": {},
+	})
+	var order []string
+
+	report := RunUpdateLifecycle(context.Background(), UpdateLifecycleOptions{
+		CheckoutDir: "/repo/gormes",
+		Branch:      "development",
+		Git:         runner,
+		BinaryPublisher: func(_ context.Context, req UpdateBinaryPublishRequest) UpdateReport {
+			order = append(order, "publish")
+			if req.CheckoutDir != "/repo/gormes" || req.Branch != "development" {
+				t.Fatalf("publish request = %+v, want checkout+branch", req)
+			}
+			return UpdateReport{Evidence: []UpdateEvidence{{Kind: UpdateEvidenceBuildCompleted, Detail: "built test binary"}}}
+		},
+		SkillSync: func(context.Context) (SkillSyncResult, error) {
+			order = append(order, "skill")
+			return SkillSyncResult{Profiles: []SkillSyncProfileResult{{Profile: "default"}}}, nil
+		},
+		WebBuild: func(context.Context) (WebBuildResult, error) {
+			order = append(order, "web")
+			return WebBuildResult{Detail: "web built"}, nil
+		},
+		ConfigCheck: func(context.Context) (ConfigVersionResult, error) {
+			order = append(order, "config")
+			return ConfigVersionResult{Current: 1, Latest: 1}, nil
+		},
+	})
+
+	if report.Failed {
+		t.Fatalf("RunUpdateLifecycle failed: %+v", report)
+	}
+	assertUpdateEvidence(t, report, UpdateEvidenceBuildCompleted)
+	if !reflect.DeepEqual(order, []string{"publish", "skill", "web", "config"}) {
+		t.Fatalf("order = %#v, want publish before post-update steps", order)
+	}
+}
+
+func TestUpdateCommandPublishFailureStopsBeforePostUpdateSteps(t *testing.T) {
+	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
+		"rev-parse --is-inside-work-tree":   {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":       {Stdout: "development\n"},
+		"status --porcelain":                {},
+		"fetch origin development":          {},
+		"pull --ff-only origin development": {},
+	})
+	postUpdateCalled := false
+
+	report := RunUpdateLifecycle(context.Background(), UpdateLifecycleOptions{
+		CheckoutDir: "/repo/gormes",
+		Branch:      "development",
+		Git:         runner,
+		BinaryPublisher: func(context.Context, UpdateBinaryPublishRequest) UpdateReport {
+			return UpdateReport{
+				Failed:   true,
+				Evidence: []UpdateEvidence{{Kind: UpdateEvidencePublishFailed, Detail: "disk full"}},
+			}
+		},
+		SkillSync: func(context.Context) (SkillSyncResult, error) {
+			postUpdateCalled = true
+			return SkillSyncResult{}, nil
+		},
+		WebBuild: func(context.Context) (WebBuildResult, error) {
+			postUpdateCalled = true
+			return WebBuildResult{}, nil
+		},
+		ConfigCheck: func(context.Context) (ConfigVersionResult, error) {
+			postUpdateCalled = true
+			return ConfigVersionResult{}, nil
+		},
+	})
+
+	if !report.Failed {
+		t.Fatalf("publish failure should fail lifecycle: %+v", report)
+	}
+	assertUpdateEvidence(t, report, UpdateEvidencePublishFailed)
+	if postUpdateCalled {
+		t.Fatalf("post-update steps must not run after failed binary publish")
+	}
+}
+
+func TestUpdateCommandGatewayRestartRunnerRunsAfterPublisher(t *testing.T) {
+	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
+		"rev-parse --is-inside-work-tree":   {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":       {Stdout: "development\n"},
+		"status --porcelain":                {},
+		"fetch origin development":          {},
+		"pull --ff-only origin development": {},
+	})
+	var order []string
+
+	report := RunUpdateLifecycle(context.Background(), UpdateLifecycleOptions{
+		CheckoutDir:    "/repo/gormes",
+		Branch:         "development",
+		RestartGateway: "always",
+		Git:            runner,
+		BinaryPublisher: func(context.Context, UpdateBinaryPublishRequest) UpdateReport {
+			order = append(order, "publish")
+			return UpdateReport{Evidence: []UpdateEvidence{{Kind: UpdateEvidencePublishCompleted, Detail: "published"}}}
+		},
+		GatewayRestart: func(_ context.Context, req UpdateGatewayRestartRequest) UpdateReport {
+			order = append(order, "restart")
+			if req.Policy != "always" {
+				t.Fatalf("restart policy = %q, want always", req.Policy)
+			}
+			return UpdateReport{Evidence: []UpdateEvidence{{Kind: UpdateEvidenceGatewayRestarted, Detail: "restarted"}}}
+		},
+	})
+
+	if report.Failed {
+		t.Fatalf("RunUpdateLifecycle failed: %+v", report)
+	}
+	if !reflect.DeepEqual(order, []string{"publish", "restart"}) {
+		t.Fatalf("order = %#v, want publish then restart", order)
+	}
+	assertUpdateEvidence(t, report, UpdateEvidenceGatewayRestarted)
+}
+
+func TestUpdateCommandCheckReportsAlreadyCurrent(t *testing.T) {
+	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
+		"rev-parse --is-inside-work-tree":    {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":        {Stdout: "main\n"},
+		"fetch origin main":                  {},
+		"rev-parse HEAD":                     {Stdout: "cccccccccccccccccccccccccccccccccccccccc\n"},
+		"rev-parse origin/main":              {Stdout: "cccccccccccccccccccccccccccccccccccccccc\n"},
+		"rev-list --count HEAD..origin/main": {Stdout: "0\n"},
+	})
+
+	report := RunUpdateLifecycle(context.Background(), UpdateLifecycleOptions{
+		CheckoutDir: "/repo/gormes",
+		Branch:      "main",
+		CheckOnly:   true,
+		Git:         runner,
+	})
+
+	if report.Failed {
+		t.Fatalf("check lifecycle failed: %+v", report)
+	}
+	if detail := findFirstEvidenceDetail(report, UpdateEvidenceCheckCurrent, "already current"); detail == "" {
+		t.Fatalf("check report missing current evidence: %+v", report.Evidence)
+	}
+}
+
+func TestUpdateCommandCheckFetchFailureFailsWithoutMutation(t *testing.T) {
+	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
+		"rev-parse --is-inside-work-tree": {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":     {Stdout: "main\n"},
+		"fetch origin main":               {Stderr: "Could not resolve host: github.com", Err: errors.New("network")},
+	})
+
+	report := RunUpdateLifecycle(context.Background(), UpdateLifecycleOptions{
+		CheckoutDir: "/repo/gormes",
+		Branch:      "main",
+		CheckOnly:   true,
+		Git:         runner,
+	})
+
+	if !report.Failed {
+		t.Fatalf("failed fetch should fail check report: %+v", report)
+	}
+	assertUpdateEvidence(t, report, UpdateEvidenceNetworkError)
+	assertUpdateGitCommands(t, runner,
+		"rev-parse --is-inside-work-tree",
+		"rev-parse --abbrev-ref HEAD",
+		"fetch origin main",
+	)
 }
 
 func TestUpdateCommandNotManagedCheckout(t *testing.T) {
