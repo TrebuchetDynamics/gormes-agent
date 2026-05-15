@@ -529,13 +529,19 @@ func countRole(history []hermes.Message, role string) int {
 // a typed error during an in-flight turn, mirroring ErrResetDuringTurn, with
 // no resident mutation.
 func TestKernel_SetSessionModelRejectedMidTurn(t *testing.T) {
-	k, mc := fixture(t)
-	burst := make([]hermes.Event, 0, 400)
-	for i := 0; i < 400; i++ {
-		burst = append(burst, hermes.Event{Kind: hermes.EventToken, Token: "x", TokensOut: i + 1})
-	}
-	burst = append(burst, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 400})
-	mc.Script(burst, "sess-sm-busy")
+	release := make(chan struct{})
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+	k := New(Config{
+		Model:     "hermes-agent",
+		Endpoint:  "http://mock",
+		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
+	}, &blockingResetClient{stream: &blockingResetStream{release: release, sessionID: "sess-sm-busy"}}, store.NewNoop(), telemetry.New(), nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -545,14 +551,20 @@ func TestKernel_SetSessionModelRejectedMidTurn(t *testing.T) {
 	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "go"}); err != nil {
 		t.Fatal(err)
 	}
-	// Wait until the turn is in flight (non-idle), then attempt the switch.
+	// Wait until the turn is deterministically blocked in streaming, then
+	// attempt the switch. A fast token burst is not sufficient here: on CI the
+	// turn can complete between observing a frame and calling SetSessionModel.
 	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
-		return f.Phase != PhaseIdle && f.Seq > initial.Seq
+		return f.Phase == PhaseStreaming && f.Seq > initial.Seq
 	}, 3*time.Second)
 
 	if err := k.SetSessionModel("", "mid-turn-model"); err != ErrSetModelDuringTurn {
 		t.Fatalf("SetSessionModel mid-turn err = %v, want ErrSetModelDuringTurn", err)
 	}
+	close(release)
+	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && countRole(f.History, "assistant") >= 1
+	}, 3*time.Second)
 }
 
 // TestKernel_PerEventModelWinsOverSessionOverride proves the precedence
