@@ -8,6 +8,25 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.12] - 2026-05-15
+
+Date alias: `v2026.5.15`.
+
+> **Gateway platform resilience, native model-switch UX, and refreshed provider/parity evidence.**
+
+### Added
+- Gateway per-platform circuit breaker: a platform that fails the configurable threshold of consecutive retryable connects (`HERMES_/GORMES_GATEWAY_PAUSE_AFTER_FAILURES`, default 10) is paused with a reason and skipped by the reconnect watcher so one failing platform no longer keeps the gateway from running healthy channels.
+- `/platform <list|pause|resume> [name]` operator slash command to surface and manually control failed/paused gateway platforms.
+- Kernel in-session model-switch seam plus native TUI `/model` slash binding over the existing model picker.
+- Bubble Tea provider picker in `gormes setup` (line-input fallback for piped/non-terminal stdin).
+- Offline-doctor peak-RSS runtime benchmark recorded in `benchmarks.json` and surfaced on the landing page.
+- PicoClaw-derived channel media/identity regression matrix and a session ledger read model.
+
+### Changed
+- Provider catalog consolidated into a dedicated `internal/modelcatalog` package.
+- Setup and model provider taxonomy aligned across the CLI and picker surfaces.
+- Progress, benchmark, and upstream Hermes parity evidence refreshed (xAI Grok OAuth, SimpleX Chat, subscription-proxy mirrors; `hermes-agent` reference advanced).
+
 ### Removed
 - SSH stdio Navivox transport: `gormes navivox serve|pair|setup-host` CLI subcommands, the wire-protocol Go package (`internal/channels/navivox/{protocol,server,status}.go`), the Flutter `Dartssh2ByteTransport` + `SshNavivoxChannel` clients, and the `dartssh2` Dart dependency. The HTTP/WS gateway channel (`internal/channels/navivox/channel.go` and `flutter-navivox/app/lib/core/gateway/*`) is now the only supported Navivox transport. Operators using `[navivox]` config must run with `auth_mode = "static_token"` or `"pairing_token"` and connect over HTTP/WS.
 
