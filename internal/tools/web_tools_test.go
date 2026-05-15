@@ -86,7 +86,7 @@ func TestResolveWebBackendPrefersFirecrawlConfig(t *testing.T) {
 		t.Fatalf("status = %+v, want automatic DuckDuckGo direct route", status)
 	}
 	if strings.Join(status.ToolNames, ",") != strings.Join([]string{WebToolSearch, WebToolExtract}, ",") {
-		t.Fatalf("ToolNames = %v, want DuckDuckGo search plus Instant Answer extract", status.ToolNames)
+		t.Fatalf("ToolNames = %v, want DuckDuckGo search plus goscrapling extract", status.ToolNames)
 	}
 }
 
@@ -880,6 +880,9 @@ func TestWebSearchToolFallsBackToDuckDuckGoLite(t *testing.T) {
 
 func TestWebExtractToolUsesDuckDuckGoInstantAnswer(t *testing.T) {
 	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusNotFound,
+		body:   "not found",
+	}, {
 		status: http.StatusOK,
 		body:   `{"Heading":"Planet IX","AbstractText":"Planet IX is a Web3 strategy game.","AbstractSource":"DuckDuckGo","AbstractURL":"https://planetix.com/"}`,
 	}}}
@@ -896,10 +899,13 @@ func TestWebExtractToolUsesDuckDuckGoInstantAnswer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if len(client.requests) != 1 {
-		t.Fatalf("requests = %d, want one DuckDuckGo Instant Answer call", len(client.requests))
+	if len(client.requests) != 2 {
+		t.Fatalf("requests = %d, want local fetch then DuckDuckGo Instant Answer fallback", len(client.requests))
 	}
-	req := client.requests[0]
+	if req := client.requests[0]; req.Method != http.MethodGet || req.URL.String() != "https://planetix.com/" {
+		t.Fatalf("first request = %s %s, want local static GET", req.Method, req.URL.String())
+	}
+	req := client.requests[1]
 	if req.Method != http.MethodGet || req.URL.Host != "api.duckduckgo.com" || req.URL.Query().Get("format") != "json" {
 		t.Fatalf("request = %s %s?%s, want DuckDuckGo Instant Answer API", req.Method, req.URL.Host+req.URL.Path, req.URL.RawQuery)
 	}
@@ -909,6 +915,64 @@ func TestWebExtractToolUsesDuckDuckGoInstantAnswer(t *testing.T) {
 	}
 	if len(payload.Results) != 1 || payload.Results[0].Title != "Planet IX" || payload.Results[0].Content != "Planet IX is a Web3 strategy game." || payload.Results[0].URL != "https://planetix.com/" {
 		t.Fatalf("output = %+v, want Instant Answer extraction", payload)
+	}
+}
+
+func TestWebExtractToolUsesGoscraplingForDuckDuckGoRootURL(t *testing.T) {
+	const siteURL = "https://example.test/"
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		header: map[string]string{"Content-Type": "text/html; charset=utf-8"},
+		body: `<html>
+<head><title>Example Home</title></head>
+<body>
+<header>Header should not be extracted</header>
+<main>
+  <h1>Example Home</h1>
+  <p>Root URLs should fetch like a normal browser-backed dev environment.</p>
+</main>
+</body>
+</html>`,
+	}}}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["`+siteURL+`"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one goscrapling static fetch and no Instant Answer call", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodGet || req.URL.String() != siteURL {
+		t.Fatalf("request = %s %s, want direct GET %s", req.Method, req.URL.String(), siteURL)
+	}
+
+	var payload webExtractResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results len = %d, want one root-page result", len(payload.Results))
+	}
+	got := payload.Results[0]
+	for _, want := range []string{"# Example Home", "Root URLs should fetch like a normal browser-backed dev environment."} {
+		if !strings.Contains(got.Content, want) {
+			t.Fatalf("content missing %q:\n%s", want, got.Content)
+		}
+	}
+	if strings.Contains(got.Content, "Header should not be extracted") || strings.Contains(got.Content, "DuckDuckGo Instant Answer") {
+		t.Fatalf("content used header or Instant Answer fallback:\n%s", got.Content)
+	}
+	if got.URL != siteURL || got.Title != "Example Home" {
+		t.Fatalf("result metadata = %+v, want root URL/title from goscrapling static fetch", got)
 	}
 }
 
@@ -1020,6 +1084,72 @@ func TestWebExtractToolFetchesDuckDuckGoDirectHTMLDocument(t *testing.T) {
 	}
 	if got.URL != docsURL || got.Title != "Presence - OpenClaw" {
 		t.Fatalf("result metadata = %+v, want URL/title from direct HTML", got)
+	}
+}
+
+func TestWebExtractToolUsesGoscraplingCSSSelectorForStaticPages(t *testing.T) {
+	const catalogURL = "https://example.test/catalog"
+	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
+		status: http.StatusOK,
+		header: map[string]string{"Content-Type": "text/html; charset=utf-8"},
+		body: `<html>
+<head><title>Catalog</title></head>
+<body>
+  <nav>Navigation should stay out</nav>
+  <article class="product">
+    <h2>Alpha Tool</h2>
+    <p>Useful static extraction target.</p>
+  </article>
+  <article class="ad">
+    <p>Ad copy should not be returned.</p>
+  </article>
+</body>
+</html>`,
+	}}}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Client: client,
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendDuckDuckGo,
+			BaseURL:   webDefaultDuckDuckGoBaseURL,
+			Available: true,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["`+catalogURL+`"],"css_selector":"article.product"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(client.requests) != 1 {
+		t.Fatalf("requests = %d, want one local static fetch", len(client.requests))
+	}
+	req := client.requests[0]
+	if req.Method != http.MethodGet || req.URL.String() != catalogURL {
+		t.Fatalf("request = %s %s, want direct GET %s", req.Method, req.URL.String(), catalogURL)
+	}
+
+	var payload webExtractResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results len = %d, want one selected result", len(payload.Results))
+	}
+	got := payload.Results[0]
+	for _, want := range []string{"Alpha Tool", "Useful static extraction target."} {
+		if !strings.Contains(got.Content, want) {
+			t.Fatalf("selected content missing %q:\n%s", want, got.Content)
+		}
+	}
+	for _, forbidden := range []string{"Ad copy should not be returned", "Navigation should stay out"} {
+		if strings.Contains(got.Content, forbidden) {
+			t.Fatalf("selected content leaked %q:\n%s", forbidden, got.Content)
+		}
+	}
+	if got.URL != catalogURL || got.Title != "Catalog" {
+		t.Fatalf("result metadata = %+v, want URL/title from static page", got)
+	}
+	if !strings.Contains(string(tool.Schema()), `"css_selector"`) {
+		t.Fatalf("web_extract schema missing css_selector: %s", tool.Schema())
 	}
 }
 

@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/goscrapling"
 )
 
 const (
@@ -357,7 +359,7 @@ func duckDuckGoBackendResolution(read func(string) string) WebBackendResolution 
 		Available: true,
 		Evidence:  WebEvidenceOK,
 		Source:    "free",
-		Note:      "free web_search via DuckDuckGo HTML/Lite parsing; web_extract fetches document paths directly and otherwise uses Instant Answer; no crawl or full-page scrape support",
+		Note:      "free web_search via DuckDuckGo HTML/Lite parsing; web_extract fetches URLs locally with goscrapling and falls back to Instant Answer; no crawl support",
 	}
 }
 
@@ -494,7 +496,7 @@ func NewWebExtractTool(cfg WebToolsConfig) Tool {
 	return &webTool{
 		name:   WebToolExtract,
 		desc:   "Extract content from web page URLs. Returns page content in markdown format. Also works with PDF URLs; pass the PDF link directly and it converts to markdown text.",
-		schema: json.RawMessage(`{"type":"object","properties":{"urls":{"type":"array","items":{"type":"string"},"maxItems":5,"description":"List of URLs to extract content from (max 5 URLs per call)"}},"required":["urls"]}`),
+		schema: json.RawMessage(`{"type":"object","properties":{"urls":{"type":"array","items":{"type":"string"},"maxItems":5,"description":"List of URLs to extract content from (max 5 URLs per call)"},"css_selector":{"type":"string","description":"Optional CSS selector for local/static extraction with goscrapling. When set, Gormes fetches each public URL locally and returns only matching element text."}},"required":["urls"]}`),
 		cfg:    normalizeWebToolsConfig(cfg),
 	}
 }
@@ -702,8 +704,9 @@ func (t *webTool) executeDuckDuckGoSearch(ctx context.Context, query string, lim
 
 func (t *webTool) executeExtract(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
 	var in struct {
-		URLs   []string `json:"urls"`
-		Format string   `json:"format"`
+		URLs        []string `json:"urls"`
+		Format      string   `json:"format"`
+		CSSSelector string   `json:"css_selector"`
 	}
 	if err := json.Unmarshal(args, &in); err != nil {
 		return nil, fmt.Errorf("%s: invalid args: %w", t.name, err)
@@ -719,6 +722,9 @@ func (t *webTool) executeExtract(ctx context.Context, args json.RawMessage) (jso
 			Success: false,
 			Error:   "Blocked: URL contains what appears to be an API key or token. Secrets must not be sent in URLs.",
 		})
+	}
+	if strings.TrimSpace(in.CSSSelector) != "" {
+		return t.executeGoscraplingExtract(ctx, in.URLs, in.CSSSelector)
 	}
 	if !t.cfg.Resolution.Available {
 		return json.Marshal(webExtractResponse{Results: []webExtractResult{{
@@ -935,6 +941,155 @@ func (t *webTool) executeProviderExtract(ctx context.Context, urls []string, for
 		results = append(results, t.processWebExtractResult(ctx, t.applyWebExtractPostPolicy(result)))
 	}
 	return marshalWebExtractResponse(webExtractResponse{Results: results})
+}
+
+func (t *webTool) executeGoscraplingExtract(ctx context.Context, urls []string, selector string) (json.RawMessage, error) {
+	selector = strings.TrimSpace(selector)
+	results := make([]webExtractResult, 0, len(urls))
+	for _, rawURL := range urls {
+		trimmed := strings.TrimSpace(rawURL)
+		if errResult, blocked := t.blockedWebExtractRequestResult(trimmed); blocked {
+			results = append(results, errResult)
+			continue
+		}
+		result, err := t.goscraplingExtractURL(ctx, trimmed, selector)
+		if err != nil {
+			results = append(results, webExtractResult{
+				URL:      trimmed,
+				Error:    "Error extracting web page with goscrapling: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
+				Evidence: WebEvidenceRequestFailed,
+			})
+			continue
+		}
+		results = append(results, t.processWebExtractResult(ctx, t.applyWebExtractPostPolicy(result)))
+	}
+	return marshalWebExtractResponse(webExtractResponse{Results: results})
+}
+
+func (t *webTool) goscraplingExtractURL(ctx context.Context, rawURL, selector string) (webExtractResult, error) {
+	selector = strings.TrimSpace(selector)
+	reqCtx, cancel := context.WithTimeout(ctx, t.cfg.timeout())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return webExtractResult{}, err
+	}
+	req.Header.Set("Accept", "text/markdown,text/plain,text/html,application/xhtml+xml,text/*;q=0.9,application/json;q=0.8,application/xml;q=0.8,*/*;q=0.1")
+	req.Header.Set("User-Agent", webDefaultUserAgent)
+
+	resp, err := t.directTextDocumentHTTPClient().Do(req)
+	if err != nil {
+		return webExtractResult{}, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxWebResponseBytes))
+	if err != nil {
+		return webExtractResult{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return webExtractResult{}, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	finalURL := rawURL
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL.String()
+	}
+	if result, blocked := t.blockedWebExtractRequestResult(finalURL); blocked {
+		return result, nil
+	}
+
+	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	if selector == "" && mediaType != "text/html" && mediaType != "application/xhtml+xml" {
+		if !webDirectTextContentAllowed(mediaType, rawURL, data) {
+			return webExtractResult{}, fmt.Errorf("unsupported direct content type %q", firstNonEmpty(mediaType, http.DetectContentType(data)))
+		}
+		content := strings.TrimPrefix(string(data), "\ufeff")
+		return webExtractResult{
+			URL:     finalURL,
+			Title:   webDirectTextDocumentTitle(finalURL, content),
+			Content: content,
+		}, nil
+	}
+
+	response, err := goscrapling.NewResponse(bytes.NewReader(data), goscrapling.ResponseOptions{
+		URL:        finalURL,
+		StatusCode: resp.StatusCode,
+		Reason:     http.StatusText(resp.StatusCode),
+		Headers:    resp.Header,
+		Request: goscrapling.RequestMetadata{
+			Method:  http.MethodGet,
+			URL:     rawURL,
+			Headers: req.Header,
+		},
+	})
+	if err != nil {
+		return webExtractResult{}, err
+	}
+
+	title := webExtractHTMLTitle(string(data))
+	if selector == "" {
+		contentHTML := goscraplingPreferredHTML(response)
+		_, content := webExtractHTMLToMarkdown([]byte(contentHTML), finalURL)
+		if strings.TrimSpace(content) == "" {
+			return webExtractResult{}, fmt.Errorf("empty static HTML content")
+		}
+		return webExtractResult{
+			URL:     finalURL,
+			Title:   webDirectHTMLTitle(finalURL, title, content),
+			Content: content,
+		}, nil
+	}
+
+	selection := response.CSS(selector)
+	if selection.Len() == 0 {
+		return webExtractResult{
+			URL:      finalURL,
+			Title:    webDirectHTMLTitle(finalURL, title, ""),
+			Error:    string(WebEvidenceInvalidArguments) + ": css_selector matched no elements",
+			Evidence: WebEvidenceInvalidArguments,
+		}, nil
+	}
+
+	content := webCleanMarkdownLines(selection.Text())
+	if content == "" {
+		if htmlContent, err := selection.HTML(); err == nil {
+			content = webCleanMarkdownLines(htmlContent)
+		}
+	}
+	if content == "" {
+		return webExtractResult{
+			URL:      finalURL,
+			Title:    webDirectHTMLTitle(finalURL, title, ""),
+			Error:    string(WebEvidenceInvalidArguments) + ": css_selector matched only empty content",
+			Evidence: WebEvidenceInvalidArguments,
+		}, nil
+	}
+
+	return webExtractResult{
+		URL:     finalURL,
+		Title:   webDirectHTMLTitle(finalURL, title, content),
+		Content: content,
+	}, nil
+}
+
+func goscraplingPreferredHTML(response *goscrapling.Response) string {
+	if response == nil {
+		return ""
+	}
+	for _, selector := range []string{"main", "article", "body"} {
+		selection := response.CSS(selector)
+		if selection.Len() == 0 {
+			continue
+		}
+		body, err := selection.HTML()
+		if err == nil && strings.TrimSpace(body) != "" {
+			return body
+		}
+	}
+	return response.Text()
 }
 
 func (t *webTool) executeExtractBackend(ctx context.Context, urls []string) (map[string]any, error) {
@@ -1434,14 +1589,15 @@ func webSearchCandidates(raw map[string]any) []any {
 }
 
 // duckDuckGoExtract provides basic extraction when no API backends are
-// configured. Text-like documents are fetched directly; general web pages fall
-// back to the DDG Instant Answer API.
+// configured. Public URLs are fetched locally with goscrapling first; the DDG
+// Instant Answer API is only a fallback when static extraction cannot produce
+// content.
 func (t *webTool) duckDuckGoExtract(ctx context.Context, urls []string) (map[string]any, error) {
 	results := make([]map[string]any, 0, len(urls))
 	pendingInstantAnswer := make([]string, 0, len(urls))
 	for _, rawURL := range urls {
-		result, ok := t.directDocumentExtract(ctx, rawURL)
-		if ok {
+		result, err := t.goscraplingExtractURL(ctx, rawURL, "")
+		if err == nil {
 			results = append(results, webExtractResultProviderRow(result))
 			continue
 		}
@@ -1484,66 +1640,6 @@ func (t *webTool) duckDuckGoExtract(ctx context.Context, urls []string) (map[str
 	return map[string]any{"results": results}, nil
 }
 
-func (t *webTool) directDocumentExtract(ctx context.Context, rawURL string) (webExtractResult, bool) {
-	if !webLikelyDirectDocumentURL(rawURL) {
-		return webExtractResult{}, false
-	}
-	reqCtx, cancel := context.WithTimeout(ctx, t.cfg.timeout())
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return webExtractResult{}, false
-	}
-	req.Header.Set("Accept", "text/markdown,text/plain,text/html,application/xhtml+xml,text/*;q=0.9,application/json;q=0.8,application/xml;q=0.8,*/*;q=0.1")
-	req.Header.Set("User-Agent", webDefaultUserAgent)
-
-	resp, err := t.directTextDocumentHTTPClient().Do(req)
-	if err != nil {
-		return webExtractResult{}, false
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxWebResponseBytes))
-	if err != nil {
-		return webExtractResult{}, false
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return webExtractResult{}, false
-	}
-
-	finalURL := rawURL
-	if resp.Request != nil && resp.Request.URL != nil {
-		finalURL = resp.Request.URL.String()
-	}
-	if result, blocked := t.blockedWebExtractRequestResult(finalURL); blocked {
-		return result, true
-	}
-
-	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
-	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
-	if mediaType == "text/html" || mediaType == "application/xhtml+xml" {
-		title, content := webExtractHTMLToMarkdown(data, finalURL)
-		if strings.TrimSpace(content) == "" {
-			return webExtractResult{}, false
-		}
-		return webExtractResult{
-			URL:     finalURL,
-			Title:   webDirectHTMLTitle(finalURL, title, content),
-			Content: content,
-		}, true
-	}
-	if !webDirectTextContentAllowed(mediaType, rawURL, data) {
-		return webExtractResult{}, false
-	}
-	content := strings.TrimPrefix(string(data), "\ufeff")
-	return webExtractResult{
-		URL:     finalURL,
-		Title:   webDirectTextDocumentTitle(finalURL, content),
-		Content: content,
-	}, true
-}
-
 func (t *webTool) directTextDocumentHTTPClient() WebHTTPClient {
 	if t.cfg.Client != nil {
 		return t.cfg.Client
@@ -1560,18 +1656,6 @@ func (t *webTool) directTextDocumentHTTPClient() WebHTTPClient {
 			return nil
 		},
 	}
-}
-
-func webLikelyDirectDocumentURL(rawURL string) bool {
-	if webLikelyDirectTextDocumentURL(rawURL) {
-		return true
-	}
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		return false
-	}
-	pathValue := strings.TrimSpace(parsed.EscapedPath())
-	return pathValue != "" && pathValue != "/"
 }
 
 func webLikelyDirectTextDocumentURL(rawURL string) bool {
@@ -2248,7 +2332,7 @@ func webBackendSearchOnly(backend WebBackend) bool {
 }
 
 func webProviderUnavailableMessage() string {
-	return "Web tools are not configured. Set FIRECRAWL_API_KEY, FIRECRAWL_API_URL, PARALLEL_API_KEY, TAVILY_API_KEY, EXA_API_KEY, BRAVE_API_KEY, SEARXNG_BASE_URL, PERPLEXITY_API_KEY, or CHROME_REMOTE_DEBUGGING_URL for local web_extract. DuckDuckGo search fallback is automatic when no API keys are configured."
+	return "Web tools are not configured. Set FIRECRAWL_API_KEY, FIRECRAWL_API_URL, PARALLEL_API_KEY, TAVILY_API_KEY, EXA_API_KEY, BRAVE_API_KEY, SEARXNG_BASE_URL, PERPLEXITY_API_KEY, or CHROME_REMOTE_DEBUGGING_URL for browser-backed web_extract. DuckDuckGo search and goscrapling static extraction fallback are automatic when no API keys are configured."
 }
 
 func webExtractFormats(format string) []string {
