@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +49,34 @@ func TestWizardChassis_PickerStepReturnsSelection(t *testing.T) {
 	}
 	if got := final.result.Choice("provider"); got != "openai" {
 		t.Fatalf("provider choice = %q, want %q", got, "openai")
+	}
+}
+
+func TestWizardChassis_PickerStepSupportsTmuxFriendlyKeys(t *testing.T) {
+	m := newModel([]Step{
+		Pick("mode", "Setup mode", []Choice{
+			{ID: "quick", Label: "Quick setup"},
+			{ID: "full", Label: "Full setup"},
+			{ID: "exit", Label: "Exit"},
+		}, WithDefaultChoice("full")),
+	})
+
+	view := m.View()
+	for _, want := range []string{"1. Quick setup", "> 2. Full setup", "Up/Down", "j/k", "1-9 select", "Esc/q abort"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("picker view missing %q:\n%s", want, view)
+		}
+	}
+
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 24))
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'3'}})
+
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(model)
+	if final.err != nil {
+		t.Fatalf("wizard error = %v", final.err)
+	}
+	if got := final.result.Choice("mode"); got != "exit" {
+		t.Fatalf("mode choice = %q, want direct numeric selection to choose exit", got)
 	}
 }
 

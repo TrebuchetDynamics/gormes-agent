@@ -239,7 +239,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVar(&reset, "reset", false, "DESTRUCTIVE: overwrite config.toml back to defaults, then re-run the setup wizard")
 	cmd.Flags().BoolVar(&reconfigure, "reconfigure", false, "re-run the setup wizard against the current config (non-destructive; existing values are kept where the operator skips a step)")
 	cmd.Flags().BoolVar(&quick, "quick", false, "configure missing setup items only")
-	cmd.Flags().StringVar(&targetFlag, "target", "", "setup target for --quick: terminal, telegram, whatsapp, discord, slack, or navibox")
+	cmd.Flags().StringVar(&targetFlag, "target", "", "setup target for --quick: terminal, telegram, whatsapp, discord, slack, or navivox")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON for `--reset`: `{build, action: 'reset', config_path, breadcrumb_path}`")
 	return cmd
 }
@@ -531,18 +531,8 @@ func printSetupTopLevelMenu(cmd *cobra.Command, options []setupMenuOption, defau
 }
 
 func promptSetupAction(cmd *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
-	// Only use interactive arrow-key menu when stdin is a real terminal.
-	// Tests and CI use pipes which cannot support raw-mode input.
 	if stdin, ok := cmd.InOrStdin().(*os.File); ok && term.IsTerminal(int(stdin.Fd())) {
-		menu := cli.NewInteractiveMenu(cmd.OutOrStdout(), stdin, "Select option:")
-		menu.WithHeader("What would you like to do?")
-		cliOpts := make([]cli.MenuOption, len(options))
-		for i, o := range options {
-			cliOpts[i] = cli.MenuOption{ID: string(o.Action), Label: o.Label, Enabled: true}
-		}
-		menu.WithOptions(cliOpts).WithDefaultIndex(defaultOption)
-
-		selected, err := menu.Run()
+		selected, err := runBubbleTeaPick(cmd.Context(), stdin, cmd.OutOrStdout(), "What would you like to do?", setupActionPickerChoices(options), string(options[defaultOption].Action))
 		if err == nil {
 			if selected == "" {
 				return setupActionExit, nil
@@ -552,14 +542,24 @@ func promptSetupAction(cmd *cobra.Command, options []setupMenuOption, defaultOpt
 					return o.Action, nil
 				}
 			}
+		} else if !bubbleTeaPickShouldFallback(err) {
+			return "", err
 		}
 	}
 	// Fallback to line-buffered input (for tests, CI, piped stdin).
 	return promptSetupActionText(cmd, options, defaultOption)
 }
 
-// promptSetupActionText is the fallback line-input version used when
-// terminal raw mode is unavailable (piped stdin, CI, etc.).
+func setupActionPickerChoices(options []setupMenuOption) []tuiPickChoice {
+	choices := make([]tuiPickChoice, len(options))
+	for i, option := range options {
+		choices[i] = tuiPickChoice{ID: string(option.Action), Label: option.Label}
+	}
+	return choices
+}
+
+// promptSetupActionText is the fallback line-input version used for piped
+// stdin, CI, and other non-interactive command runners.
 func promptSetupActionText(cmd *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
 	printSetupTopLevelMenu(cmd, options, defaultOption)
 	defaultText := strconv.Itoa(defaultOption + 1)
@@ -1169,8 +1169,8 @@ func runSetupGatewaySection(cmd *cobra.Command, seams setupCommandSeams, nonInte
 		return nil
 	}
 	for _, platform := range selected {
-		if platform == "navibox" {
-			if err := runSetupNaviboxGateway(cmd, cfg); err != nil {
+		if platform == "navivox" {
+			if err := runSetupNavivoxGateway(cmd, cfg); err != nil {
 				return err
 			}
 			continue
@@ -1201,7 +1201,7 @@ func setupGatewayPlatformOptions(cfg config.Config) []setupGatewayPlatformOption
 	}
 
 	out := make([]setupGatewayPlatformOption, 0, 5)
-	for _, key := range []string{"telegram", "discord", "slack", "whatsapp", "navibox"} {
+	for _, key := range []string{"telegram", "discord", "slack", "whatsapp", "navivox"} {
 		label := setupGatewayPlatformFallbackLabel(key)
 		if entry, ok := manifestByID[key]; ok && strings.TrimSpace(entry.DisplayName) != "" {
 			label = entry.DisplayName
@@ -1227,8 +1227,8 @@ func setupGatewayPlatformFallbackLabel(key string) string {
 		return "Slack"
 	case "whatsapp":
 		return "WhatsApp"
-	case "navibox":
-		return "Navibox"
+	case "navivox":
+		return "Navivox"
 	default:
 		return key
 	}

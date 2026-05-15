@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -115,22 +116,21 @@ func defaultModelProviderEntries() ([]cli.ProviderMenuEntry, error) {
 	return entries, nil
 }
 
-func promptProviderChoice(in *os.File, out *os.File, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
-	// Use arrow-key interactive menu when stdin is a real terminal.
-	if term.IsTerminal(int(in.Fd())) {
-		menu := cli.NewInteractiveMenu(out, in, "Select provider (q to cancel):")
-		menu.WithHeader("Choose a provider")
-		opts := make([]cli.MenuOption, len(entries))
+func promptProviderChoice(in *os.File, out io.Writer, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
+	if in != nil && term.IsTerminal(int(in.Fd())) {
+		choices := make([]tuiPickChoice, len(entries))
 		for i, e := range entries {
-			opts[i] = cli.MenuOption{ID: fmt.Sprintf("%d", i), Label: e.Label, Enabled: true}
+			choices[i] = tuiPickChoice{ID: fmt.Sprintf("%d", i), Label: e.Label}
 		}
-		menu.WithOptions(opts).WithDefaultIndex(defaultIndex)
-		selected, err := menu.Run()
-		if err != nil {
+		selected, err := runBubbleTeaPick(context.Background(), in, out, "Choose a provider", choices, fmt.Sprintf("%d", defaultIndex))
+		if err != nil && !bubbleTeaPickShouldFallback(err) {
 			return -1, err
 		}
-		if selected == "" {
+		if err == nil && selected == "" {
 			return -1, cli.ErrModelPickerCancelled
+		}
+		if err != nil {
+			return promptProviderChoiceText(in, out, entries, defaultIndex)
 		}
 		idx, _ := strconv.Atoi(selected)
 		if idx >= 0 && idx < len(entries) {
@@ -138,8 +138,10 @@ func promptProviderChoice(in *os.File, out *os.File, entries []cli.ProviderMenuE
 		}
 		return -1, fmt.Errorf("invalid provider choice")
 	}
+	return promptProviderChoiceText(in, out, entries, defaultIndex)
+}
 
-	// Fallback: line-buffered input for CI, tests, piped stdin.
+func promptProviderChoiceText(in *os.File, out io.Writer, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
 	cli.ClearScreen(out)
 	cli.PrintHeader(out, "Choose a provider")
 	for i, entry := range entries {

@@ -26,8 +26,9 @@ type Step struct {
 	Kind        Kind
 	Choices     []Choice
 
-	value    Answer
-	hasValue bool
+	value           Answer
+	hasValue        bool
+	defaultChoiceID string
 }
 
 // Answer is the typed result for one step.
@@ -106,6 +107,14 @@ func WithChoiceValue(choiceID string) StepOption {
 	return func(step *Step) {
 		step.value = Answer{Kind: step.Kind, ChoiceID: choiceID}
 		step.hasValue = true
+	}
+}
+
+// WithDefaultChoice sets the initial cursor for a picker without pre-filling
+// the step. Unlike WithChoiceValue, it still launches the Bubble Tea UI.
+func WithDefaultChoice(choiceID string) StepOption {
+	return func(step *Step) {
+		step.defaultChoiceID = choiceID
 	}
 }
 

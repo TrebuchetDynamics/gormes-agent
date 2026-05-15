@@ -24,6 +24,7 @@ const (
 )
 
 type FileTemplate struct {
+	ID      string
 	Path    string
 	Content string
 	Mode    fs.FileMode

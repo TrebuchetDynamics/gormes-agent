@@ -211,9 +211,13 @@ func (m model) View() string {
 	}
 
 	b.WriteString("\n\n")
-	b.WriteString("Enter submit  Esc abort")
-	if step.Kind == KindMultiLine {
-		b.WriteString("  Ctrl+J newline")
+	switch step.Kind {
+	case KindPick:
+		b.WriteString("Up/Down or j/k navigate  1-9 select  Enter submit  Esc/q abort")
+	case KindMultiLine:
+		b.WriteString("Enter submit  Ctrl+J newline  Esc abort")
+	default:
+		b.WriteString("Enter submit  Esc abort")
 	}
 	return b.String()
 }
@@ -266,6 +270,19 @@ func (m model) updatePick(msg tea.KeyMsg, step Step) (tea.Model, tea.Cmd) {
 		m.err = fmt.Errorf("wizard pick step %q has no choices", step.ID)
 		m.done = true
 		return m, tea.Quit
+	}
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
+		switch r := msg.Runes[0]; {
+		case r == 'q' || r == 'Q':
+			m.err = ErrAbort
+			m.done = true
+			return m, tea.Quit
+		case r >= '1' && r <= '9':
+			idx := int(r - '1')
+			if idx < len(step.Choices) {
+				return m.finishStep(Answer{Kind: step.Kind, ChoiceID: step.Choices[idx].ID})
+			}
+		}
 	}
 	switch msg.String() {
 	case "up", "k":
@@ -359,6 +376,13 @@ func (m *model) prepareActiveStep() tea.Cmd {
 					break
 				}
 			}
+		} else if step.defaultChoiceID != "" {
+			for i, choice := range step.Choices {
+				if choice.ID == step.defaultChoiceID {
+					m.pickCursor = i
+					break
+				}
+			}
 		}
 	case KindConfirm:
 		if step.hasValue {
@@ -407,7 +431,7 @@ func (m model) renderPick(step Step) string {
 		if label == "" {
 			label = choice.ID
 		}
-		fmt.Fprintf(&b, "%s%s\n", prefix, label)
+		fmt.Fprintf(&b, "%s%d. %s\n", prefix, i+1, label)
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
