@@ -1,12 +1,12 @@
 ---
 title: "Run a local model with Ollama"
-description: "Send a one-shot turn through a locally hosted Ollama server."
+description: "Send a single chat query through a locally hosted Ollama server."
 difficulty: "S"
 ---
 
 # Run a local model with Ollama
 
-> **Outcome:** A one-shot turn completes against a model running on local Ollama — no cloud provider required.
+> **Outcome:** A single chat query completes against a model running on local Ollama — no cloud provider required.
 >
 > **Prerequisites:** `gormes` installed. An [Ollama](https://ollama.com) server reachable at `http://localhost:11434/v1`. At least one model pulled (e.g. `ollama pull llama3.1`).
 
@@ -18,30 +18,33 @@ difficulty: "S"
    ```
    You should see a JSON document listing local models.
 
-2. **Run a one-shot through Ollama**
+2. **Run a scripted chat query through Ollama**
+
+   The provider, endpoint, and model are invocation overrides set through
+   environment variables (`gormes chat` itself only takes `-q/--query`):
    ```bash
-   gormes --oneshot "test local model" \
-     --provider ollama \
-     --endpoint http://localhost:11434/v1 \
-     --model llama3.1
+   GORMES_INFERENCE_PROVIDER=ollama \
+   GORMES_ENDPOINT=http://localhost:11434/v1 \
+   GORMES_INFERENCE_MODEL=llama3.1 \
+     gormes chat -q "test local model"
    ```
    Replace `llama3.1` with the exact tag returned by step 1.
 
 ## Verify
 
 ```bash
-gormes --oneshot "say hi" --provider ollama --endpoint http://localhost:11434/v1 --model llama3.1
+GORMES_INFERENCE_PROVIDER=ollama GORMES_ENDPOINT=http://localhost:11434/v1 GORMES_INFERENCE_MODEL=llama3.1 gormes chat -q "say hi"
 ```
 
 Expected: a model-generated reply on stdout. The process exits with status 0.
 
 ## Troubleshooting
 
-- **`Not Found: model 'xxx' not found`** → The model tag does not exist locally. Pull it: `ollama pull <tag>`, then pass the exact tag to `--model`.
-- **Connection refused / timeout** → Ollama is not running on `localhost:11434`. Start it (`ollama serve`) or correct the `--endpoint` URL.
-- **Want it as the default?** → Persist with `gormes setup provider` and pick `custom`/`ollama`, or set `inference.provider`, `inference.endpoint`, and `inference.model` via `gormes config set`.
+- **`Not Found: model 'xxx' not found`** → The model tag does not exist locally. Pull it: `ollama pull <tag>`, then set `GORMES_INFERENCE_MODEL` to the exact tag.
+- **Connection refused / timeout** → Ollama is not running on `localhost:11434`. Start it (`ollama serve`) or correct the `GORMES_ENDPOINT` URL.
+- **Want it as the default?** → Persist with `gormes setup provider`, or set `hermes.provider`, `hermes.endpoint`, and `hermes.model` via `gormes config set`.
 
 ## See also
 
-- [Connect a provider and run a one-shot](../first-turn/)
+- [Connect a provider and open chat](../first-turn/)
 - [Add a fallback provider chain](../fallback/) — keep Ollama as a free fallback.

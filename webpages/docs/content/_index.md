@@ -53,9 +53,9 @@ gormes doctor --offline
 After any path, add only what you need:
 
 ```bash
-gormes onboard
+gormes setup --quick
 gormes setup provider
-gormes --oneshot "hello"
+gormes chat
 gormes config show
 gormes gateway status
 ```
@@ -68,7 +68,7 @@ Who is it for? Operators, developers, and agent builders who want a local runtim
 
 What makes it different?
 
-- **Go-native runtime:** native TUI, doctor, onboard/setup, provider turns, tools, memory, dashboard, logs, audits, and configured gateways from one binary.
+- **Go-native runtime:** native TUI, doctor, setup, provider turns, tools, memory, dashboard, logs, audits, and configured gateways from one binary.
 - **Offline proof path:** `gormes --offline` and `gormes doctor --offline` work before credentials, network calls, or token spend.
 - **Three install paths:** source build for maximum inspection, release-first `install.sh` (Linux/macOS/WSL2), or release-first `install.ps1` (native Windows) for a managed install that publishes the `gormes` command.
 - **Local SQLite memory ("Goncho"):** sessions and durable context stay local.
@@ -77,8 +77,8 @@ What makes it different?
 ## What you can do today
 
 - Run a local agent UI with zero runtime dependencies on the offline path: `gormes --offline`.
-- Send one-shot prompts to a provider-compatible endpoint: `gormes --oneshot "..."`.
-- Validate your environment before spending tokens: `gormes doctor --offline`, `gormes onboard`.
+- Open provider-backed terminal chat: `gormes chat`.
+- Validate your environment before spending tokens: `gormes doctor --offline`, `gormes setup --quick`.
 - Configure providers, models, agents, workspaces, and bindings from the CLI: `gormes setup [section]`.
 - Inspect and edit the native config: `gormes config show`, `gormes config get`, `gormes config set`, `gormes config check`.
 - Operate configured Telegram, Discord, or Slack agents from one binary: `gormes gateway`, `gormes gateway status`, `gormes gateway reload`.

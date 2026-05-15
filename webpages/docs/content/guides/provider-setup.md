@@ -33,7 +33,7 @@ That path is usually `~/.gormes/.env`.
 Then test one provider-backed call:
 
 ```bash
-gormes --oneshot "hello from Gormes"
+gormes chat -q "hello from Gormes"
 gormes doctor
 ```
 

@@ -30,6 +30,5 @@ gormes setup [section] [flags]
 ## See also
 
 - [CLI reference](../)
-- [`gormes onboard`](../onboard/)
 - [`gormes model`](../model/)
 - [Provider setup](../../configure/providers/)

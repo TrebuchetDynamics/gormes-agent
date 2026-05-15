@@ -38,9 +38,9 @@ difficulty: "S"
    ```
    Every command run while this profile is active reads and writes the profile's home only.
 
-5. **Run a one-shot under a specific profile without switching**
+5. **Open chat under a specific profile without switching**
    ```bash
-   gormes --profile client-acme --oneshot "hello"
+   gormes --profile client-acme chat
    ```
 
 ## Verify
@@ -63,5 +63,5 @@ root: .../.gormes/profiles/client-acme
 
 ## See also
 
-- [Connect a provider and run a one-shot](../first-turn/)
+- [Connect a provider and open chat](../first-turn/)
 - [Migrate from Hermes or OpenClaw](../migrate-hermes/) — migrate into an isolated profile.

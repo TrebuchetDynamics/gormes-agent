@@ -46,10 +46,10 @@ difficulty: "M"
 
 ```bash
 gormes config show
-gormes onboard
+gormes setup --quick --non-interactive
 ```
 
-Expected: the provider/model/endpoint from the source agent appear in `config show`; `onboard` lists configured agents and bindings from the migration.
+Expected: the provider/model/endpoint from the source agent appear in `config show`; setup reports no missing required terminal setup.
 
 ## Troubleshooting
 

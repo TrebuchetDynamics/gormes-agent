@@ -71,5 +71,5 @@ gormes config path          # prints config.toml location
 gormes config env-path      # prints .env location
 gormes config show          # resolved config, secrets redacted
 gormes doctor --offline     # validates readiness without provider calls
-gormes onboard              # prints the configured state and next steps
+gormes setup --quick        # fills missing setup items only
 ```

@@ -89,7 +89,7 @@ Gather evidence before editing:
 ```sh
 git status --short --branch
 go run ./cmd/gormes gateway status || true
-go run ./cmd/gormes -z 'health probe' --model <model> --provider <provider> || true
+go run ./cmd/gormes --model <model> --provider <provider> chat -q 'health probe' || true
 ```
 
 Classify the failure:

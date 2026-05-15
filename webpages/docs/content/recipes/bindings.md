@@ -14,9 +14,9 @@ difficulty: "M"
 
 1. **List configured agents and bindings**
    ```bash
-   gormes onboard
+   gormes config show
    ```
-   The `Agents` and `Bindings` sections show what is configured now. Unbound channels route to the default agent.
+   The `agents` and `bindings` sections show what is configured now. Unbound channels route to the default agent.
 
 2. **Edit `config.toml`**
    ```bash
@@ -62,10 +62,10 @@ difficulty: "M"
 
 ```bash
 gormes gateway status
-gormes onboard
+gormes config show
 ```
 
-Expected: `onboard` shows the new agent ids; `gateway status` shows each channel mapped to the bound agent. Send a message to each channel — the reply should reflect the bound agent's workspace and model.
+Expected: `config show` shows the new agent ids; `gateway status` shows each channel mapped to the bound agent. Send a message to each channel — the reply should reflect the bound agent's workspace and model.
 
 ## Troubleshooting
 

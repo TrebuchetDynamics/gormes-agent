@@ -63,7 +63,7 @@ gormes config check
 If provider credentials are configured, run a one-turn smoke:
 
 ```bash
-gormes --oneshot "hello from Termux"
+gormes chat -q "hello from Termux"
 ```
 
 For long gateway sessions, run Gormes inside `tmux`. `termux-wake-lock` and Android battery-optimization settings can improve uptime, but Android can still stop background processes. Local CLI/TUI, provider calls, SQLite/Goncho, and foreground gateway work are in scope; Docker, GPU/local LLM inference, heavy browser automation, and large builds should run on a remote machine and be controlled from Termux over SSH.

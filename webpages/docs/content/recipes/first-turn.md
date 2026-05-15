@@ -1,12 +1,12 @@
 ---
-title: "Connect a provider and run a one-shot"
-description: "Add provider credentials and run one provider-backed turn from the shell."
+title: "Connect a provider and open chat"
+description: "Add provider credentials and start provider-backed chat from the shell."
 difficulty: "S"
 ---
 
-# Connect a provider and run a one-shot
+# Connect a provider and open chat
 
-> **Outcome:** One provider-backed model turn completes from the shell, proving credentials and routing work.
+> **Outcome:** Provider-backed chat opens from the shell, proving credentials and routing work.
 >
 > **Prerequisites:** `gormes` installed; an API key for one of: OpenAI, Anthropic, DeepSeek, Groq, OpenRouter, OpenAI Codex.
 
@@ -24,24 +24,24 @@ difficulty: "S"
    ```
    You should see a row with `auth_type=api_key` and `status=ok`.
 
-3. **Run a one-shot turn**
+3. **Start chat**
    ```bash
-   gormes --oneshot "hello"
+   gormes chat
    ```
-   The default provider/model resolves from your config. Override per-invocation with `--provider`, `--model`, and `--endpoint`.
+   The default provider/model resolves from your config.
 
 ## Verify
 
 ```bash
-gormes --oneshot "say hi in three words"
+gormes chat -q "say hi in three words"
 ```
 
-Expected output: a short model reply on stdout, then the process exits with status 0.
+Expected output: a short model reply on stdout, then the query exits with status 0.
 
 ## Troubleshooting
 
-- **`Not Found: model 'xxx' not found`** → The configured model is not available on this provider. Run `gormes setup model` or pass `--model <id>`.
-- **`missing required <provider> argument`** → Re-run `gormes auth add <provider>` with the provider name.
+- **`Not Found: model 'xxx' not found`** → The configured model is not available on this provider. Run `gormes setup model`, or set the model with `gormes config set hermes.model <id>`.
+- **`accepts 1 arg(s), received 0`** → `gormes auth add` needs the provider name. Re-run `gormes auth add <provider> --api-key ...`.
 - **Auth `status=invalid` or `status=missing`** → See [provider setup](../../guides/provider-setup/).
 
 ## See also

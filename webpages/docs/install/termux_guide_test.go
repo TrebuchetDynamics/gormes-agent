@@ -20,7 +20,7 @@ func TestLinuxMacInstallGuideDocumentsTermuxReleaseFirstPath(t *testing.T) {
 		"gormes version",
 		"gormes doctor --offline --json",
 		"gormes config check",
-		"gormes --oneshot \"hello from Termux\"",
+		"gormes chat -q \"hello from Termux\"",
 		"source build is a fallback",
 		"Only source fallback or contributor builds need the build toolchain",
 		"pkg install git golang clang tmux openssh curl jq sqlite",

@@ -87,7 +87,6 @@ func TestAstroBuild(t *testing.T) {
 		"cli/migrate/index.html",
 		"cli/model/index.html",
 		"cli/navivox/index.html",
-		"cli/onboard/index.html",
 		"cli/plugins/index.html",
 		"cli/profile/index.html",
 		"cli/restore/index.html",

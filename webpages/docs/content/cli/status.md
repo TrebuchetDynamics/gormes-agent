@@ -25,4 +25,4 @@ gormes status [flags]
 
 - [CLI reference](../)
 - [`gormes doctor`](../doctor/)
-- [`gormes onboard`](../onboard/)
+- [`gormes setup`](../setup/)

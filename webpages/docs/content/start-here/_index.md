@@ -52,13 +52,13 @@ gormes doctor --offline
 
 For source builds, keep using `./bin/gormes` from the checkout, or add `export PATH="$PWD/bin:$PATH"` temporarily while testing that build.
 
-## Your first turn
+## Your first chat
 
-Add a provider credential, then send a prompt.
+Add a provider credential, then open chat.
 
 ```bash
 gormes auth add openai --api-key sk-...
-gormes --oneshot "hello from Gormes"
+gormes chat
 ```
 
 Or open the interactive TUI:
@@ -69,7 +69,7 @@ gormes
 
 `gormes auth add` also accepts `--type oauth` for providers that support OAuth (Codex, Anthropic), plus `--label`, `--inference-url`, and credential type overrides. See `gormes auth add --help` for the full flag set.
 
-`--oneshot` (alias `-z`) sends a single prompt and exits without starting the TUI. Provider, model, endpoint, and API key can each be overridden for a single invocation via `--provider`, `--model`, `--endpoint`, and `--api-key`.
+For scripts, `gormes chat -q "hello from Gormes"` sends one query and exits without starting the TUI.
 
 ## Now what?
 

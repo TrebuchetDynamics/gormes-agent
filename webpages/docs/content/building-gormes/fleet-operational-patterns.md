@@ -193,13 +193,13 @@ OpenClaw 2026.3.28 provides a rich operational surface that gormes-agent should 
 
 | OpenClaw Command | What It Does | gormes-agent Status | Priority |
 |---|---|---|---|
-| `openclaw agent` | Run one agent turn via Gateway | `gormes --oneshot` | Shipped |
+| `openclaw agent` | Run one agent turn via Gateway | `gormes chat -q` | Shipped |
 | `openclaw agents *` | Manage isolated agents (workspaces, auth, routing) | Not present (single-binary model) | P2 |
 | `openclaw approvals *` | Manage exec approvals (allowlist, get, set) | `gormes approvals` partial | P1 |
 | `openclaw backup *` | Create and verify local backup archives | Gap (`must-have` listed) | P1 |
 | `openclaw channels *` | Manage chat channels (add, list, login, logout, logs, remove) | `gormes gateway` partial | P2 |
 | `openclaw config *` | Config helpers (get/set/unset/file/schema/validate) | `gormes config` partial | P2 |
-| `openclaw configure` | Interactive configuration wizard | `gormes onboard` partial | P2 |
+| `openclaw configure` | Interactive configuration wizard | `gormes setup`; readiness via `gormes doctor --offline --target terminal --json` | P2 |
 | `openclaw cron *` | Cron job management (add, edit, enable, disable, list, rm, run, runs) | `gormes cron` partial (missing: edit, runs history) | P2 |
 | `openclaw dashboard` | Open Control UI with token | `gormes dashboard` shipped | Shipped |
 | `openclaw devices *` | Device pairing + token management | Gap | P3 |
@@ -297,7 +297,7 @@ OpenClaw provides `openclaw onboard` — an interactive workflow covering gatewa
 
 **gormes-agent gap:** gormes-agent has `gormes setup` (a lightweight wizard alias) but lacks the depth of OpenClaw's onboarding: model/provider selection, auth setup, gateway channel configuration, browser/CDP checks, skill discovery, and dashboard launch in one flow.
 
-**Recommendation:** Promote `gormes onboard` from its current alias into a full interactive flow as listed in the implementation roadmap's Product Hardening Borrow List. Match OpenClaw's depth: model/provider → auth → gateway → browser → skills → dashboard.
+**Recommendation:** Keep public first-run work on `gormes setup` and machine-readable readiness on `gormes doctor --offline --target terminal --json`. Match OpenClaw's depth through those surfaces: model/provider → auth → gateway → browser → skills → dashboard.
 
 ### 3.8 Memory Plugin Architecture
 
@@ -379,7 +379,7 @@ Riju operates in two lanes: Lane A (physics falsification) and Lane B (research 
 |----------|---------|-------------|-------------|
 | **P1** | Sandbox policy explain | `gormes sandbox explain` — visible effective trust class, allowlist, scope | Phase 5 — Final Purge |
 | **P1** | ACP bridge | Session-based agent communication protocol | Phase 5.N |
-| **P1** | Interactive onboarding | `gormes onboard` — full model/provider/auth/gateway/browser/skills/dashboard flow | Phase 5 — Final Purge |
+| **P1** | First-run setup/readiness | `gormes setup` plus `gormes doctor --offline --target terminal --json` — full model/provider/auth/gateway/browser/skills/dashboard flow | Phase 5 — Final Purge |
 | **P2** | Memory backend plugin architecture | Swap SQLite/Postgres/LanceDB behind Goncho interface | Phase 5 — Black Box enhancements |
 | **P2** | Integrated backup with archive verification | `gormes backup` and `gormes restore` | Phase 5 — Final Purge |
 | **P2** | Agent hooks registry | `gormes hooks` — list/enable/disable/check/inspect at runtime | Phase 5.N |

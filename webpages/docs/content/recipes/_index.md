@@ -13,7 +13,7 @@ Each recipe is a single task with a verifiable outcome. Pick one.
 ## Get something running
 
 - [Smoke-test offline with doctor](doctor-offline/) — S
-- [Connect a provider and run a one-shot](first-turn/) — S
+- [Connect a provider and open chat](first-turn/) — S
 - [Run a local model with Ollama](local-ollama/) — S
 - [Run a Telegram bot](telegram-bot/) — M
 

@@ -1,6 +1,6 @@
 ---
 title: "Why Gormes"
-description: "The Go-native philosophy behind Gormes: operational moat, wire doctor, chaos resilience, and surgical binaries."
+description: "The Go-native philosophy behind Gormes: operational moat, wire doctor, chaos resilience, and a single surgical binary."
 weight: 1
 ---
 
@@ -10,7 +10,7 @@ Gormes exists because the bottleneck has moved. Model quality keeps improving; o
 
 ## Operational Moat
 
-The current `cmd/gormes` build fits in a 7.9 MB static binary built with Go 1.22+. That matters because deployment friction is architecture, not cosmetics. A single binary with Zero-dependencies inside the process boundary is easier to copy to a VPS, easier to audit, and easier to recover in the middle of a bad day than a wrapper that drags a Python or Node runtime into every host.
+The current `cmd/gormes` build is a single static binary (the Linux release build measures ~40 MB; size varies by OS and build profile) built with Go 1.26+. That matters because deployment friction is architecture, not cosmetics. A single binary with Zero-dependencies inside the process boundary is easier to copy to a VPS, easier to audit, and easier to recover in the middle of a bad day than a wrapper that drags a Python or Node runtime into every host.
 
 ## Wire Doctor
 
@@ -22,7 +22,7 @@ Real systems drop streams. Gormes treats that as a first-class architectural pro
 
 ## Surgical Architecture
 
-Gormes is deliberately split into focused binaries. `gormes` stays small and terminal-first. `gormes-telegram` exists as a separate artifact because platform adapters should not bloat the TUI binary or couple unrelated dependency graphs. This is a surgical-strike architecture: clear ownership, smaller binaries, cleaner crash boundaries, and less hidden weight.
+Gormes ships as one focused `gormes` binary. The terminal TUI and the platform adapters (Telegram, Discord, Slack) are subcommands of that single binary (`gormes`, `gormes telegram`, `gormes gateway`), not separate artifacts that drag in unrelated dependency graphs at runtime. This is a surgical-strike architecture: clear ownership, one binary to copy and audit, cleaner crash boundaries, and less hidden weight.
 
 ## Further Reading
 

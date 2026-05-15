@@ -21,7 +21,7 @@ gormes gateway status
 |---|---|---|
 | `gormes` not found after `install.sh` | The current shell has not picked up the installer's published bin directory. Non-root Unix installs use `$HOME/.local/bin` by default. | Open a new shell, or add `export PATH="$HOME/.local/bin:$PATH"` to your shell rc. |
 | Command behavior looks stale or matches an older release | Multiple `gormes` binaries on `PATH`. | `which -a gormes` and run the intended path directly, or remove the older copy. |
-| `gormes --oneshot "..."` fails with "provider auth missing" | No API key for the configured provider. | `gormes auth add <provider> --api-key ...` or run `gormes setup provider`. |
+| `gormes chat -q "..."` fails with "provider auth missing" | No API key for the configured provider. | `gormes auth add <provider> --api-key ...` or run `gormes setup provider`. |
 | `gormes doctor` reports provider not reachable | Endpoint, network, or credential mismatch. | `gormes config show` and verify `[hermes].endpoint`, then re-run `gormes doctor`. |
 | Config edits do not take effect | Config file is not where you think it is. | `gormes config path` and edit the file it reports; `GORMES_HOME` overrides the default `~/.gormes`. |
 | Secrets do not load | `.env` is missing or in the wrong place. | `gormes config env-path` and put provider tokens at the reported path. |

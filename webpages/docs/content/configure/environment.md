@@ -41,8 +41,8 @@ inference identity Gormes uses when starting a turn.
 | `GORMES_NO_CLEAR_SCREEN` | unset | When truthy, suppress wizard screen clears for sandboxed terminals. |
 | `GORMES_TUI_MOUSE_TRACKING` | `true` (from `[tui]`) | Enable or disable TUI mouse capture. |
 | `GORMES_VOICE_RECORD_KEY` | `ctrl+b` | Voice-record hot-key. |
-| `GORMES_INFERENCE_PROVIDER` | unset | Provider override for TUI/one-shot startup. Must be set together with `GORMES_INFERENCE_MODEL`; setting only one is a hard error. |
-| `GORMES_INFERENCE_MODEL` | unset | Model override for TUI/one-shot startup. Must be set together with `GORMES_INFERENCE_PROVIDER`. |
+| `GORMES_INFERENCE_PROVIDER` | unset | Provider override for TUI/scripted chat startup. Must be set together with `GORMES_INFERENCE_MODEL`; setting only one is a hard error. |
+| `GORMES_INFERENCE_MODEL` | unset | Model override for TUI/scripted chat startup. Must be set together with `GORMES_INFERENCE_PROVIDER`. |
 | `GORMES_ENDPOINT` | from `[hermes].endpoint` (default `""`) | Provider base URL override. |
 | `GORMES_MODEL` | from `[hermes].model` (default `"hermes-agent"`) | Persistent default model override. |
 | `GORMES_API_KEY` | from `[hermes].api_key` (default `""`) | Provider API key. Stored in `.env`. |

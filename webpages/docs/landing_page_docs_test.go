@@ -169,7 +169,7 @@ func TestGormesOperatorSetupChannelProviderDocs(t *testing.T) {
 	assertContainsAll(t, "gormes --help", rootHelp, []string{
 		"gormes setup provider",
 		"gormes setup model",
-		"gormes --oneshot \"hello\"",
+		"gormes chat",
 		"gormes gateway",
 		"gormes gateway status",
 		"gormes telegram",
@@ -209,7 +209,7 @@ func TestGormesOperatorSetupChannelProviderDocs(t *testing.T) {
 	providerSetup := readDoc(t, "content/configure/providers.md")
 	assertContainsAll(t, "content/start-here/_index.md", startHere, []string{
 		"gormes auth",
-		"gormes --oneshot",
+		"gormes chat",
 		"gormes doctor",
 	})
 	assertContainsAll(t, "content/configure/providers.md", providerSetup, []string{
@@ -219,7 +219,7 @@ func TestGormesOperatorSetupChannelProviderDocs(t *testing.T) {
 		"gormes config set",
 		"gormes auth",
 		".env",
-		"gormes --oneshot",
+		"gormes chat -q",
 		"gormes doctor",
 	})
 

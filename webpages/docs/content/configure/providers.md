@@ -78,12 +78,12 @@ Verify before relying on the configuration:
 ```bash
 gormes config show
 gormes doctor --offline
-gormes --oneshot "smoke test"
+gormes chat -q "smoke test"
 ```
 
 ## `--provider` and `--model` coupling
 
-The TUI and `gormes --oneshot` resolve provider and model independently. The
+The TUI and `gormes chat -q` resolve provider and model independently. The
 binary enforces this rule: if you override the provider via flag or env, you
 must also override the model. The reverse is allowed (overriding the model
 alone keeps the configured provider and may trigger provider auto-detection).
@@ -91,14 +91,14 @@ alone keeps the configured provider and may trigger provider auto-detection).
 Setting `GORMES_INFERENCE_PROVIDER` without `GORMES_INFERENCE_MODEL` returns:
 
 ```
-gormes -z: GORMES_INFERENCE_PROVIDER requires --model or GORMES_INFERENCE_MODEL.
+gormes chat -q: GORMES_INFERENCE_PROVIDER requires --model or GORMES_INFERENCE_MODEL.
 Set both inference env vars, pass both flags, or neither to use your configured defaults
 ```
 
 Passing `--provider` without `--model` returns:
 
 ```
-gormes -z: --provider requires --model (or GORMES_INFERENCE_MODEL).
+gormes chat -q: --provider requires --model (or GORMES_INFERENCE_MODEL).
 Pass both explicitly, or neither to use your configured defaults.
 ```
 

@@ -13,7 +13,7 @@ row with exact nested refs.
 
 Map every Hermes feature group to Go code, docs, fixtures, and progress rows:
 
-- CLI lifecycle: install, configure, auth/status, run, chat, resume, inspect, doctor, and a source-backed manifest for every top-level command, nested subcommand, root/global flag, slash command, dynamic plugin command, alias, and gateway handler before claiming command parity. Hermes-owned `-z/--oneshot` is parity/covered, not a Gormes-owned divergence.
+- CLI lifecycle: install, configure, auth/status, run, chat, resume, inspect, doctor, and a source-backed manifest for every top-level command, nested subcommand, root/global flag, slash command, dynamic plugin command, alias, and gateway handler before claiming command parity. Hermes-owned `-z/--oneshot` is removed-command guidance in Gormes; `gormes chat -q` is canonical.
 - Session model: session IDs, transcript persistence, replay/resume, title generation, metadata, search.
 - Provider routing: model selection, streaming, structured outputs, retries, degraded modes, provider-specific errors, token accounting.
 - Provider transports: shared `ProviderTransport` interface and normalized response/event/tool-call/error contracts across Anthropic, Bedrock, Codex Responses, Chat Completions, Gemini native and Cloud Code, OpenRouter, Moonshot/Kimi sanitizer, and auxiliary clients.
