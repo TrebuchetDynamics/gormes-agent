@@ -1,11 +1,11 @@
 ---
 title: "gormes navivox"
-description: "Run the Navivox SSH stdio channel"
+description: "Navivox HTTP channel utilities"
 ---
 
 # gormes navivox
 
-Run the Navivox SSH stdio channel.
+Navivox HTTP channel utilities.
 
 ## Synopsis
 
@@ -18,9 +18,7 @@ gormes navivox [command]
 
 | Command | Purpose |
 |---|---|
-| `gormes navivox pair` | Print a Navivox pairing QR code for this host |
-| `gormes navivox serve` | Serve the Navivox protocol over stdin/stdout |
-| `gormes navivox setup-host` | Show how to prepare this host for Navivox SSH pairing |
+| `gormes navivox connect-info` | Print Navivox connect URLs for active VPN/local interfaces |
 
 ## Flags
 

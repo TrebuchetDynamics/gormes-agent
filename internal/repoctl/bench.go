@@ -1,24 +1,40 @@
 package repoctl
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	stdruntime "runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
 type BenchmarkOptions struct {
-	Root      string
-	Binary    string
-	Now       func() time.Time
-	GitCommit func(string) (string, error)
+	Root             string
+	Binary           string
+	Now              func() time.Time
+	GitCommit        func(string) (string, error)
+	RuntimeBenchmark func(RuntimeBenchmarkOptions) (RuntimeBenchmarkResult, error)
+}
+
+type RuntimeBenchmarkOptions struct {
+	Root    string
+	Binary  string
+	Timeout time.Duration
+}
+
+type RuntimeBenchmarkResult struct {
+	PeakRSSKB int64
+	Elapsed   time.Duration
 }
 
 var supportedBenchmarkPlatforms = []string{
@@ -38,7 +54,10 @@ const (
 	benchmarkPreWASISizeBytes     int64 = 29311138
 	benchmarkPostHTTPSTTCommit          = "d42a77042"
 	benchmarkPostHTTPSTTSizeBytes       = 44261163
+	benchmarkRuntimeTimeout             = 20 * time.Second
 )
+
+var benchmarkRuntimeArgs = []string{"doctor", "--offline", "--json"}
 
 var benchmarkMirrorPaths = []string{
 	filepath.Join("docs", "data", "benchmarks.json"),
@@ -110,6 +129,7 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 	code := countCodeMetrics(opts.Root)
 	bench["code"] = code
 	updateSTTBenchmarkBinaryMetadata(bench, info.Size())
+	updateRuntimeBenchmarkMetadata(bench, opts, date, commit)
 
 	properties, _ := bench["properties"].(map[string]any)
 	if properties == nil {
@@ -156,6 +176,141 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 		}
 	}
 	return nil
+}
+
+func updateRuntimeBenchmarkMetadata(bench map[string]any, opts BenchmarkOptions, date, commit string) {
+	runtimeBench, _ := bench["runtime"].(map[string]any)
+	if runtimeBench == nil {
+		runtimeBench = map[string]any{}
+	}
+
+	command := benchmarkCommandLabel(opts.Root, opts.Binary, benchmarkRuntimeArgs)
+	entry := map[string]any{
+		"command":       command,
+		"last_measured": date,
+		"commit":        commit,
+		"goos":          stdruntime.GOOS,
+		"goarch":        stdruntime.GOARCH,
+		"isolated_home": true,
+	}
+
+	run := opts.RuntimeBenchmark
+	if run == nil {
+		run = runRuntimeBenchmark
+	}
+	result, err := run(RuntimeBenchmarkOptions{
+		Root:    opts.Root,
+		Binary:  opts.Binary,
+		Timeout: benchmarkRuntimeTimeout,
+	})
+	if err != nil {
+		entry["status"] = "skipped"
+		entry["error"] = trimBenchmarkError(err)
+		runtimeBench["offline_doctor"] = entry
+		bench["runtime"] = runtimeBench
+		return
+	}
+
+	entry["status"] = "measured"
+	entry["peak_rss_kb"] = result.PeakRSSKB
+	entry["peak_rss_mb"] = benchmarkRSSMegabytes(result.PeakRSSKB)
+	entry["elapsed_ms"] = result.Elapsed.Milliseconds()
+	runtimeBench["offline_doctor"] = entry
+	bench["runtime"] = runtimeBench
+}
+
+func runRuntimeBenchmark(opts RuntimeBenchmarkOptions) (RuntimeBenchmarkResult, error) {
+	if stdruntime.GOOS == "windows" {
+		return RuntimeBenchmarkResult{}, fmt.Errorf("peak RSS benchmark unsupported on windows")
+	}
+	if opts.Binary == "" {
+		return RuntimeBenchmarkResult{}, fmt.Errorf("binary path is required")
+	}
+	if opts.Timeout <= 0 {
+		opts.Timeout = benchmarkRuntimeTimeout
+	}
+
+	home, err := os.MkdirTemp("", "gormes-benchmark-home-*")
+	if err != nil {
+		return RuntimeBenchmarkResult{}, err
+	}
+	defer os.RemoveAll(home)
+
+	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, opts.Binary, benchmarkRuntimeArgs...)
+	cmd.Dir = opts.Root
+	cmd.Env = append(os.Environ(),
+		"GORMES_HOME="+home,
+		"NO_COLOR=1",
+		"TERM=dumb",
+	)
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+
+	start := time.Now()
+	err = cmd.Run()
+	elapsed := time.Since(start)
+	if ctx.Err() == context.DeadlineExceeded {
+		return RuntimeBenchmarkResult{}, fmt.Errorf("runtime benchmark timed out after %s", opts.Timeout)
+	}
+	if err != nil {
+		return RuntimeBenchmarkResult{}, fmt.Errorf("runtime benchmark command failed: %w", err)
+	}
+	if cmd.ProcessState == nil {
+		return RuntimeBenchmarkResult{}, fmt.Errorf("runtime benchmark process state unavailable")
+	}
+	usage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
+	if !ok || usage == nil {
+		return RuntimeBenchmarkResult{}, fmt.Errorf("runtime benchmark rusage unavailable")
+	}
+	peakRSSKB := maxRSSKilobytes(usage.Maxrss)
+	if peakRSSKB <= 0 {
+		return RuntimeBenchmarkResult{}, fmt.Errorf("runtime benchmark peak RSS unavailable")
+	}
+	return RuntimeBenchmarkResult{
+		PeakRSSKB: peakRSSKB,
+		Elapsed:   elapsed,
+	}, nil
+}
+
+func maxRSSKilobytes(maxRSS int64) int64 {
+	switch stdruntime.GOOS {
+	case "darwin", "ios":
+		return maxRSS / 1024
+	default:
+		return maxRSS
+	}
+}
+
+func benchmarkRSSMegabytes(kilobytes int64) float64 {
+	return math.Round(float64(kilobytes)/102.4) / 10
+}
+
+func benchmarkCommandLabel(root, binary string, args []string) string {
+	label := binary
+	if root != "" {
+		if rel, err := filepath.Rel(root, binary); err == nil && rel != "." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != ".." {
+			label = rel
+		}
+	}
+	if label == "" {
+		label = filepath.Base(binary)
+	}
+	parts := append([]string{filepath.ToSlash(label)}, args...)
+	return strings.Join(parts, " ")
+}
+
+func trimBenchmarkError(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(err.Error())
+	if len(msg) > 200 {
+		msg = msg[:200]
+	}
+	return msg
 }
 
 func updateSTTBenchmarkBinaryMetadata(bench map[string]any, currentSizeBytes int64) {

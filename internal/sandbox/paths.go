@@ -38,7 +38,7 @@ func NewVirtualPathResolver(virtualRoot, hostRoot string) *VirtualPathResolver {
 func (r *VirtualPathResolver) Resolve(virtualPath string) (string, error) {
 	cleaned := cleanPath(virtualPath)
 
-	if !strings.HasPrefix(cleaned, r.virtualRoot) {
+	if !slashPathWithinRoot(r.virtualRoot, cleaned) {
 		return "", fmt.Errorf("sandbox: path %q is outside virtual root %q", virtualPath, r.virtualRoot)
 	}
 
@@ -58,7 +58,7 @@ func (r *VirtualPathResolver) Resolve(virtualPath string) (string, error) {
 func (r *VirtualPathResolver) HostToVirtual(hostPath string) (string, error) {
 	cleaned := cleanPath(hostPath)
 
-	if !strings.HasPrefix(cleaned, r.hostRoot) {
+	if !slashPathWithinRoot(r.hostRoot, cleaned) {
 		return "", fmt.Errorf("sandbox: host path %q is outside host root %q", hostPath, r.hostRoot)
 	}
 
@@ -78,17 +78,23 @@ func (r *VirtualPathResolver) MaskOutput(input string) string {
 	if input == "" {
 		return ""
 	}
-	// Match the hostRoot optionally followed by path components.
-	pattern := regexp.QuoteMeta(r.hostRoot) + `(?:/\S*)?`
+	// Match the hostRoot only as an exact token or with a slash-delimited child path.
+	pattern := regexp.QuoteMeta(r.hostRoot) + `(?:/\S*|$|[\s\),.;:!?])`
 	re := regexp.MustCompile(pattern)
 
 	return re.ReplaceAllStringFunc(input, func(match string) string {
-		virtual, err := r.HostToVirtual(match)
+		candidate := match
+		suffix := ""
+		if len(match) > len(r.hostRoot) && match[len(r.hostRoot)] != '/' {
+			candidate = match[:len(match)-1]
+			suffix = match[len(match)-1:]
+		}
+		virtual, err := r.HostToVirtual(candidate)
 		if err != nil {
 			// Leave unrecognized paths unchanged (e.g. prefix-matching false positives).
 			return match
 		}
-		return virtual
+		return virtual + suffix
 	})
 }
 
@@ -96,7 +102,7 @@ func (r *VirtualPathResolver) MaskOutput(input string) string {
 func (r *VirtualPathResolver) PathFamily(virtualPath string) (PathFamily, error) {
 	cleaned := cleanPath(virtualPath)
 
-	if !strings.HasPrefix(cleaned, r.virtualRoot) {
+	if !slashPathWithinRoot(r.virtualRoot, cleaned) {
 		return PathFamilyReadOnly, fmt.Errorf("sandbox: path %q is outside virtual root", virtualPath)
 	}
 
@@ -119,6 +125,15 @@ func cleanPath(p string) string {
 	p = strings.ReplaceAll(p, "\\", "/")
 	p = filepath.ToSlash(p)
 	return path.Clean(p)
+}
+
+func slashPathWithinRoot(root, candidate string) bool {
+	root = cleanPath(root)
+	candidate = cleanPath(candidate)
+	if root == "/" {
+		return strings.HasPrefix(candidate, "/")
+	}
+	return candidate == root || strings.HasPrefix(candidate, strings.TrimSuffix(root, "/")+"/")
 }
 
 func containsTraversal(rel string) bool {

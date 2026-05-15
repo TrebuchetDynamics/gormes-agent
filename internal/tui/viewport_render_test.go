@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
@@ -97,6 +99,32 @@ func TestRenderConvViewportBinding_TinyTerminalCompactFallback(t *testing.T) {
 	}
 }
 
+func TestRenderConvViewportBinding_WrapsProviderAuthError(t *testing.T) {
+	const width = 72
+	frame := kernel.RenderFrame{
+		History: []hermes.Message{
+			{Role: "user", Content: "as"},
+		},
+		LastError: "Unauthorized: Your authentication token has been invalidated. Please reauthenticate with the provider before continuing.",
+	}
+
+	got := renderConv(frame, width, 8)
+
+	for _, want := range []string{
+		"Unauthorized: Your authentication token has been invalidated.",
+		"Please reauthenticate with the provider before continuing.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderConv() missing wrapped auth error text %q in:\n%s", want, got)
+		}
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if w := lipgloss.Width(line); w > width {
+			t.Fatalf("renderConv() error line width = %d, want <= %d:\n%q\n\nfull output:\n%s", w, width, line, got)
+		}
+	}
+}
+
 func TestRenderConvViewportBinding_RenderedLineBudget(t *testing.T) {
 	history := make([]hermes.Message, 0, 120)
 	for i := 0; i < 120; i++ {
@@ -131,7 +159,10 @@ func TestRenderConvViewportBinding_RenderedLineBudget(t *testing.T) {
 
 func TestRenderConvViewportBinding_EmptyFramePlaceholder(t *testing.T) {
 	got := renderConv(kernel.RenderFrame{}, 80, 8)
-	if !strings.Contains(got, "start typing below to begin") {
-		t.Fatalf("renderConv() empty frame missing placeholder in:\n%s", got)
+	if !strings.Contains(got, "Type your message or /help for commands.") {
+		t.Fatalf("renderConv() empty frame missing intro copy in:\n%s", got)
+	}
+	if strings.Contains(got, "start typing below to begin") {
+		t.Fatalf("renderConv() empty frame leaked legacy placeholder in:\n%s", got)
 	}
 }

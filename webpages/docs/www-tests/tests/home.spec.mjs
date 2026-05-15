@@ -12,6 +12,7 @@ test('docs home renders through Starlight with operator-first content', async ({
   await expect(page.getByText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git')).toBeVisible();
   await expect(page.getByText('gormes doctor --offline').first()).toBeVisible();
   await expect(page.getByText('gormes --offline').first()).toBeVisible();
+  await expect(page.locator('main')).not.toContainText(/https:\/\/gormes[.]ai\/install[.]sh/);
   await expect(page.locator('main')).not.toContainText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh');
   await expect(page.locator('main')).not.toContainText('brew install trebuchet/gormes');
 

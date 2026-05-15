@@ -1,7 +1,7 @@
 # install.ps1 - release-first Windows installer for Gormes, with source fallback.
 #
 # Usage:
-#   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
+#   Invoke-WebRequest https://gormes.ai/install.ps1 -OutFile install.ps1
 #   Get-Content .\install.ps1
 #   powershell -ExecutionPolicy Bypass -File .\install.ps1
 #

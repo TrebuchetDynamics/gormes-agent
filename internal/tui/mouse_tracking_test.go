@@ -144,7 +144,7 @@ func TestInitDisablesMouseTrackingWhenConfiguredOff(t *testing.T) {
 	}
 }
 
-func TestViewReportsMouseTrackingDisabled(t *testing.T) {
+func TestViewKeepsMouseTrackingOffQuietWhenIdle(t *testing.T) {
 	m := NewModelWithOptions(
 		make(chan kernel.RenderFrame),
 		func(string) {},
@@ -155,8 +155,8 @@ func TestViewReportsMouseTrackingDisabled(t *testing.T) {
 	m.height = 40
 	m.frame = kernel.RenderFrame{Phase: kernel.PhaseIdle, Model: "hermes-agent"}
 
-	if out := m.View(); !strings.Contains(out, "mouse: disabled") {
-		t.Fatalf("View() missing disabled mouse status:\n%s", out)
+	if out := m.View(); strings.Contains(out, "mouse: disabled") {
+		t.Fatalf("idle View() leaked persistent disabled mouse noise:\n%s", out)
 	}
 }
 

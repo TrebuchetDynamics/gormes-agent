@@ -535,19 +535,6 @@ func TestGormesAuthBareReadoutListsCredentialPools(t *testing.T) {
 	}
 }
 
-func TestGormesLoginTopLevelCommandIsRegistered(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
-
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	found, _, err := cmd.Find([]string{"login", "--provider", "openai-codex"})
-	if err != nil {
-		t.Fatalf("Find login: %v", err)
-	}
-	if found == nil || found.Name() != "login" {
-		t.Fatalf("found command = %#v, want top-level login command", found)
-	}
-}
-
 func TestGormesAuthBareReadout(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{

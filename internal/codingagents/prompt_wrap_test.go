@@ -15,6 +15,7 @@ func TestWrapPrompt_IncludesCoreFields(t *testing.T) {
 	}
 	out := WrapPrompt(req)
 	for _, want := range []string{
+		"You are being run by gormes as a coding worker.",
 		"Workspace: /tmp/some/project",
 		"Mode: edit",
 		"Edits allowed: true",
@@ -24,6 +25,9 @@ func TestWrapPrompt_IncludesCoreFields(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Fatalf("WrapPrompt missing %q in:\n%s", want, out)
 		}
+	}
+	if strings.Contains(out, "Gormes Agent") {
+		t.Fatalf("WrapPrompt must not emit deprecated Gormes Agent wording:\n%s", out)
 	}
 	if strings.Contains(out, "Gormes-repo rules:") {
 		t.Fatalf("non-gormes workspace should not include repo rules:\n%s", out)

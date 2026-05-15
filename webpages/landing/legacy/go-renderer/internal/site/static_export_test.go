@@ -35,17 +35,20 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		`<a href="https://docs.gormes.ai/">Docs</a>`,
 		`<a href="#roadmap">Roadmap</a>`,
 		`<a href="https://github.com/TrebuchetDynamics/gormes-agent">GitHub</a>`,
-		"Build it. Prove it offline.",
-		"Start with the inspectable source path.",
-		"1. BUILD FROM SOURCE",
+		"Install first. Build from source when needed.",
+		"Use install.sh for the release-first managed install.",
+		"1. INSTALL.SH",
+		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
+		"gormes --version",
+		"gormes doctor --offline",
+		"2. BUILD FROM SOURCE",
 		"git clone https://github.com/TrebuchetDynamics/gormes-agent.git",
 		"cd gormes-agent",
-		"make build",
-		"2. OFFLINE TUI",
-		"./bin/gormes --offline",
-		"3. LOCAL DOCTOR",
+		"mkdir -p bin",
+		"CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes",
 		"./bin/gormes doctor --offline",
-		"Provider setup, gateway setup, and convenience installers come after the offline proof.",
+		"./bin/gormes --offline",
+		"Use install.sh for the published gormes command on PATH, or ./bin/gormes from a source checkout when you are developing Gormes itself.",
 		"Read the install docs -&gt;",
 		"What works today",
 		"Run a local agent UI with zero runtime dependencies on the offline path",
@@ -112,6 +115,7 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"Install in one command. Verify everything works.",
 		"One command to install",
 		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh",
+		"make build",
 		"Run AI Agents as One Go Binary.",
 		"Phase 3 — SQLite + FTS5 transcript memory.",
 		// Old single-row ledger copy must not survive the grouped rewrite
@@ -222,12 +226,8 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		}
 	}
 
-	installBody, err := os.ReadFile(filepath.Join(root, "install.sh"))
-	if err != nil {
-		t.Fatalf("read install.sh: %v", err)
-	}
-	if !strings.Contains(string(installBody), "https://github.com/TrebuchetDynamics/gormes-agent.git") {
-		t.Fatalf("install.sh missing TrebuchetDynamics repo URL")
+	if _, err := os.Stat(filepath.Join(root, "install.sh")); !os.IsNotExist(err) {
+		t.Fatalf("static export should not publish install.sh: %v", err)
 	}
 
 	for _, asset := range []string{"install.ps1", "install.cmd"} {

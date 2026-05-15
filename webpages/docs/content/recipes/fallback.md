@@ -49,7 +49,7 @@ gormes fallback list
 Expected: each fallback entry appears with provider and model. Then trigger a primary failure (revoke the primary key, point its endpoint at an unreachable host, or use an unavailable model id) and run:
 
 ```bash
-gormes --oneshot "test fallback"
+gormes chat -q "test fallback"
 ```
 
 The turn should still return a reply — served by the next entry in the chain.
@@ -61,5 +61,5 @@ The turn should still return a reply — served by the next entry in the chain.
 
 ## See also
 
-- [Connect a provider and run a one-shot](../first-turn/)
+- [Connect a provider and open chat](../first-turn/)
 - [Provider setup](../../guides/provider-setup/)

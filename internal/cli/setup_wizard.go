@@ -107,5 +107,5 @@ func (w *SetupWizard) showSummary() {
 	fmt.Fprintln(w.out, "✅ Setup complete!")
 	fmt.Fprintln(w.out, "   Run 'gormes' to start the TUI.")
 	fmt.Fprintln(w.out, "   Run 'gormes doctor --offline' to verify.")
-	fmt.Fprintln(w.out, "   Run 'gormes --oneshot \"hello\"' to test.")
+	fmt.Fprintln(w.out, "   Run 'gormes chat -q \"hello\"' to test.")
 }

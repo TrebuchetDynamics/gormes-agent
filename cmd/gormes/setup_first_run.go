@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -48,17 +47,13 @@ func promptSetupTarget(cmd *cobra.Command, targets []cli.SetupTargetOption, defa
 	if defaultOption < 0 || defaultOption >= len(targets) {
 		defaultOption = 0
 	}
-	if stdin, ok := cmd.InOrStdin().(*os.File); ok && term.IsTerminal(int(stdin.Fd())) {
-		menu := cli.NewInteractiveMenu(cmd.OutOrStdout(), stdin, "Select target:")
-		menu.WithHeader("Where should quick setup take you first?")
-		cliOpts := make([]cli.MenuOption, len(targets))
-		for i, target := range targets {
-			cliOpts[i] = cli.MenuOption{ID: string(target.ID), Label: target.Label, Enabled: true}
-		}
-		menu.WithOptions(cliOpts).WithDefaultIndex(defaultOption)
-		selected, err := menu.Run()
+	if stdin, ok := cmd.InOrStdin().(*os.File); ok {
+		selected, err := runBubbleTeaPick(cmd.Context(), stdin, cmd.OutOrStdout(), "Where should quick setup take you first?", setupTargetPickerChoices(targets), string(targets[defaultOption].ID))
 		if err == nil && selected != "" {
 			return cli.SetupTargetID(selected), nil
+		}
+		if err != nil && !bubbleTeaPickShouldFallback(err) {
+			return "", err
 		}
 	}
 
@@ -95,6 +90,14 @@ func promptSetupTarget(cmd *cobra.Command, targets []cli.SetupTargetOption, defa
 		}
 	}
 	return "", newExitCodeError(2, fmt.Errorf("setup_target_invalid_selection: %s", answer))
+}
+
+func setupTargetPickerChoices(targets []cli.SetupTargetOption) []tuiPickChoice {
+	choices := make([]tuiPickChoice, len(targets))
+	for i, target := range targets {
+		choices[i] = tuiPickChoice{ID: string(target.ID), Label: target.Label}
+	}
+	return choices
 }
 
 func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool, requestedTarget cli.SetupTargetID) error {
@@ -245,8 +248,8 @@ func parseSetupQuickTarget(target string) (cli.SetupTargetID, bool) {
 		return cli.SetupTargetDiscord, true
 	case cli.SetupTargetSlack:
 		return cli.SetupTargetSlack, true
-	case cli.SetupTargetNavibox:
-		return cli.SetupTargetNavibox, true
+	case cli.SetupTargetNavivox:
+		return cli.SetupTargetNavivox, true
 	default:
 		return "", false
 	}
@@ -254,7 +257,7 @@ func parseSetupQuickTarget(target string) (cli.SetupTargetID, bool) {
 
 func isSetupQuickChannelTarget(target cli.SetupTargetID) bool {
 	switch normalizeSetupQuickTarget(target) {
-	case cli.SetupTargetTelegram, cli.SetupTargetWhatsApp, cli.SetupTargetDiscord, cli.SetupTargetSlack, cli.SetupTargetNavibox:
+	case cli.SetupTargetTelegram, cli.SetupTargetWhatsApp, cli.SetupTargetDiscord, cli.SetupTargetSlack, cli.SetupTargetNavivox:
 		return true
 	default:
 		return false

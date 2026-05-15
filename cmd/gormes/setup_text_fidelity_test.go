@@ -49,10 +49,10 @@ func TestSetupTextFidelity_RootHelpSetupProviderGatewayPath(t *testing.T) {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"gormes onboard",
+		"gormes setup",
 		"gormes setup provider",
 		"gormes setup model",
-		"gormes --oneshot \"hello\"",
+		"gormes chat",
 		"gormes gateway status",
 		"gormes whatsapp",
 		"gormes telegram",
@@ -67,6 +67,7 @@ func TestSetupTextFidelity_RootHelpSetupProviderGatewayPath(t *testing.T) {
 		"hermes config edit",
 		".hermes",
 		"config.yaml",
+		"gormes onboard",
 	} {
 		if strings.Contains(stdout, forbidden) {
 			t.Fatalf("root help contains stale Hermes setup/path text %q:\n%s", forbidden, stdout)

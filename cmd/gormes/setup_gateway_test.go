@@ -14,6 +14,7 @@ import (
 func TestSetupGatewayChecklistShowsCorePlatforms(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 
 	fake := &setupCommandFakeSeams{isTTY: false}
 	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "gateway", "--non-interactive")
@@ -23,18 +24,13 @@ func TestSetupGatewayChecklistShowsCorePlatforms(t *testing.T) {
 
 	for _, want := range []string{
 		"Messaging Platforms",
-		"Which platforms would you like to set up?",
-		"Telegram",
-		"telegram",
-		"Discord",
-		"discord",
-		"Slack",
-		"slack",
-		"WhatsApp",
-		"whatsapp",
-		"Navibox",
-		"navibox",
-		"not configured",
+		"Plan only: no files will be written and no live APIs will be called.",
+		"Telegram (telegram): unconfigured",
+		"Discord (discord): unconfigured",
+		"Slack (slack): unconfigured",
+		"WhatsApp (whatsapp): unconfigured",
+		"Navivox (navivox): unconfigured",
+		"Planned writes:",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -48,7 +44,9 @@ func TestSetupGatewayChecklistShowsCorePlatforms(t *testing.T) {
 func TestSetupGatewayPreselectsConfiguredPlatforms(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -84,15 +82,12 @@ allowed_channel_id = "C42"
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"[x] Telegram",
-		"telegram",
-		"configured (allowed_chat_id=4242)",
-		"[x] Discord",
-		"discord",
-		"configured (allowed_channel_id=D42)",
-		"[x] Slack",
-		"slack",
-		"configured (allowed_channel_id=C42)",
+		"Telegram (telegram): configured",
+		"telegram.home_channel.chat_id=4242",
+		"Discord (discord): configured",
+		"discord.allowed_channel_id=D42",
+		"Slack (slack): configured",
+		"slack.allowed_channel_id=C42",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -129,7 +124,9 @@ func TestSetupGatewayNoSelectionDoesNotMutateConfig(t *testing.T) {
 func TestSetupGatewayTelegramWritesTokenAndAllowedChatWithoutLeakingSecret(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -149,7 +146,7 @@ func TestSetupGatewayTelegramWritesTokenAndAllowedChatWithoutLeakingSecret(t *te
 	if err != nil {
 		t.Fatalf("read env file: %v", err)
 	}
-	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_TOKEN="+token) {
+	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_BOT_TOKEN="+token) {
 		t.Fatalf(".env missing Telegram token env name:\n%s", envBody)
 	}
 	if data, err := os.ReadFile(config.ConfigPath()); err == nil && strings.Contains(string(data), token) {
@@ -173,7 +170,9 @@ func TestSetupGatewayTelegramWritesTokenAndAllowedChatWithoutLeakingSecret(t *te
 func TestSetupGatewayTelegramBlankFreshTokenFailsWithoutWritingChannelConfig(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -422,18 +421,18 @@ func TestSetupGatewaySlackPartialTokensDoNotEnableOrReportConfigured(t *testing.
 	}
 }
 
-func TestSetupGatewayNaviboxCanRemainDisabled(t *testing.T) {
+func TestSetupGatewayNavivoxCanRemainDisabled(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "navibox\nn\n", "gateway")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "navivox\nn\n", "gateway")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"Enable Navibox Gateway Channel?",
-		"Navibox gateway channel disabled.",
+		"Enable Navivox Gateway Channel?",
+		"Navivox gateway channel disabled.",
 		"No firewall rules were changed.",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -444,24 +443,24 @@ func TestSetupGatewayNaviboxCanRemainDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Navibox.Enabled {
-		t.Fatalf("Navibox enabled = true, want disabled")
+	if cfg.Navivox.Enabled {
+		t.Fatalf("Navivox enabled = true, want disabled")
 	}
 }
 
-func TestSetupGatewayNaviboxLocalModeWritesSafeConfig(t *testing.T) {
+func TestSetupGatewayNavivoxLocalModeWritesSafeConfig(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "navibox\ny\n\n\n\n\n\n", "gateway")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "navivox\ny\n\n\n\n\n\n", "gateway")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"Navibox gateway channel configured.",
+		"Navivox gateway channel configured.",
 		"HTTP base URL: http://127.0.0.1:8765",
-		"WebSocket URL: ws://127.0.0.1:8765/v1/navibox/stream",
+		"WebSocket URL: ws://127.0.0.1:8765/v1/navivox/stream",
 		"Pairing token: generated and stored",
 		"Firewall: no rules were changed.",
 	} {
@@ -473,17 +472,17 @@ func TestSetupGatewayNaviboxLocalModeWritesSafeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Navibox.Enabled {
-		t.Fatal("Navibox enabled = false, want true")
+	if !cfg.Navivox.Enabled {
+		t.Fatal("Navivox enabled = false, want true")
 	}
-	if cfg.Navibox.BindHost != "127.0.0.1" || cfg.Navibox.Port != 8765 || cfg.Navibox.ExposureMode != "local" {
-		t.Fatalf("Navibox config = %+v, want local 127.0.0.1:8765", cfg.Navibox)
+	if cfg.Navivox.BindHost != "127.0.0.1" || cfg.Navivox.Port != 8765 || cfg.Navivox.ExposureMode != "local" {
+		t.Fatalf("Navivox config = %+v, want local 127.0.0.1:8765", cfg.Navivox)
 	}
-	if cfg.Navibox.Token == "" {
-		t.Fatal("Navibox token was not generated into the environment")
+	if cfg.Navivox.Token == "" {
+		t.Fatal("Navivox token was not generated into the environment")
 	}
-	if strings.Contains(stdout, cfg.Navibox.Token) {
-		t.Fatal("setup output leaked generated Navibox token")
+	if strings.Contains(stdout, cfg.Navivox.Token) {
+		t.Fatal("setup output leaked generated Navivox token")
 	}
 }
 
@@ -540,7 +539,9 @@ func TestSetupGatewaySelectedPlatformDelegatesOrReportsRowBacked(t *testing.T) {
 func TestSetupGatewayDoesNotStartGateway(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -746,7 +747,9 @@ func TestSetupQuickNonInteractiveTelegramTargetPrintsCommandWithoutPrompting(t *
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	t.Setenv("GORMES_API_KEY", "sk-telegram-noninteractive-test")
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -799,7 +802,9 @@ func TestSetupQuickTelegramTargetSkipsConfiguredChannelSetup(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	t.Setenv("GORMES_API_KEY", "sk-telegram-ready-test")
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")

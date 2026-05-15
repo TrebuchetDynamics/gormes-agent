@@ -28,12 +28,12 @@ func TestCommandAlias_SlashRegistryAliasAndPrefix(t *testing.T) {
 		},
 		{
 			name:      "unique prefix canonicalizes and preserves args",
-			input:     "/platf --json",
+			input:     "/prof --json",
 			wantKind:  CommandAliasPrefix,
-			wantRaw:   "platf",
+			wantRaw:   "prof",
 			wantArgs:  "--json",
-			wantCanon: "platforms",
-			wantLine:  "/platforms --json",
+			wantCanon: "profile",
+			wantLine:  "/profile --json",
 		},
 		{
 			name:      "exact command wins over longer prefix matches",
@@ -51,6 +51,14 @@ func TestCommandAlias_SlashRegistryAliasAndPrefix(t *testing.T) {
 			wantRaw:   "stat",
 			wantArgs:  "now",
 			wantMatch: []string{"/status", "/statusbar"},
+		},
+		{
+			name:      "platform prefix is ambiguous with plural status command",
+			input:     "/platf --json",
+			wantKind:  CommandAliasAmbiguous,
+			wantRaw:   "platf",
+			wantArgs:  "--json",
+			wantMatch: []string{"/platform", "/platforms"},
 		},
 		{
 			name:     "unknown slash stays unknown",

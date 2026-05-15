@@ -7,9 +7,6 @@ abstract final class AppRoutes {
   static const agents = '/agents';
   static const agentEditor = '/agents/:id/edit';
   static const agentCreate = '/agents/create';
-  static const keys = '/keys';
-  static const keyImport = '/keys/import';
-  static const keyGenerate = '/keys/generate';
   static const config = '/config';
   static const configSection = '/config/:section';
   static const secretEditor = '/config/secrets/:key';

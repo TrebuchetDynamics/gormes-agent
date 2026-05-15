@@ -220,9 +220,7 @@ jobs:
           # tarballs so the canonical release URL pattern works:
           #   curl -fsSL https://github.com/.../releases/download/${TAG}/install.sh
           # Without this, users following the natural release URL hit
-          # 404 and have to know about https://gormes.ai/install.sh —
-          # which is the same file but undocumented from the GitHub
-          # release page.
+          # 404 instead of staying on GitHub's release trust surface.
           cp install.sh dist/install.sh
           cp scripts/install.ps1 dist/install.ps1
 

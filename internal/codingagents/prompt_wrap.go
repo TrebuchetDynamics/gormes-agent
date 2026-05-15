@@ -19,7 +19,7 @@ func WrapPrompt(req CodingAgentRequest) string {
 		mode = ModeExplain
 	}
 	var b strings.Builder
-	b.WriteString("You are being run by Gormes Agent as a coding worker.\n")
+	b.WriteString("You are being run by gormes as a coding worker.\n")
 	fmt.Fprintf(&b, "Workspace: %s\n", req.Workspace)
 	fmt.Fprintf(&b, "Mode: %s\n", mode)
 	fmt.Fprintf(&b, "Edits allowed: %t\n", req.AllowEdits)

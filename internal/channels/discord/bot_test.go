@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -33,12 +34,14 @@ func TestBot_ToInboundEvent_Submit(t *testing.T) {
 	go func() { _ = b.Run(ctx, inbox) }()
 	ms.waitOpen(t)
 
-	ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
+	if !ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
 		ID:        "m99",
 		ChannelID: "42",
 		Content:   "hello from discord",
 		Author:    &discordgo.User{ID: "u1", Bot: false},
-	}})
+	}}) {
+		t.Fatal("discord mock did not have a MessageCreate handler")
+	}
 
 	select {
 	case ev := <-inbox:
@@ -272,11 +275,11 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 	// transition takes <10ms, but under parallel `go test ./...` load
 	// the scheduler can delay goroutine wake-ups by hundreds of ms (one
 	// observed flake hit the previous 4s ceiling exactly). The second
-	// wait now spans the manager's CoalesceMs (10) + scheduler-stalled
-	// goroutine wake plus the discord send round-trip, so 8s covers the
-	// extreme case without slowing the happy path (polls return as soon
-	// as the condition holds).
-	waitForDiscord(t, 4*time.Second, func() bool {
+	// wait spans the manager's CoalesceMs (10) + scheduler-stalled
+	// goroutine wake plus the discord send round-trip. CI can run this
+	// package beside install/WASI/browser-heavy packages, so keep the
+	// ceiling wide while preserving the fast poll path.
+	waitForDiscord(t, 10*time.Second, func() bool {
 		return len(k.submitsSnapshot()) == 1
 	})
 
@@ -286,7 +289,7 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 		History: []hermes.Message{{Role: "assistant", Content: "done"}},
 	}
 
-	waitForDiscord(t, 8*time.Second, func() bool {
+	waitForDiscord(t, 30*time.Second, func() bool {
 		sent := ms.complexSnapshot()
 		if len(sent) == 0 || sent[0].Data == nil {
 			return false
@@ -303,10 +306,12 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 			}
 		}
 		return false
+	}, func() string {
+		return fmt.Sprintf("submits=%+v sent=%+v edits=%+v", k.submitsSnapshot(), ms.complexSnapshot(), ms.editsSnapshot())
 	})
 }
 
-func waitForDiscord(t *testing.T, timeout time.Duration, cond func() bool) {
+func waitForDiscord(t *testing.T, timeout time.Duration, cond func() bool, details ...func() string) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -314,6 +319,9 @@ func waitForDiscord(t *testing.T, timeout time.Duration, cond func() bool) {
 			return
 		}
 		time.Sleep(2 * time.Millisecond)
+	}
+	if len(details) > 0 && details[0] != nil {
+		t.Fatalf("condition not met within %s: %s", timeout, details[0]())
 	}
 	t.Fatalf("condition not met within %s", timeout)
 }

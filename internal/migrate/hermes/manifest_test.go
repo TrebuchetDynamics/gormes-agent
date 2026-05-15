@@ -248,12 +248,10 @@ func TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted(t *testing.T) {
 		t.Fatalf("BuildManifest: %v", err)
 	}
 	wantTargets := map[string]string{
-		"TELEGRAM_TOKEN":         "GORMES_TELEGRAM_TOKEN",
-		"TELEGRAM_BOT_TOKEN":     "GORMES_TELEGRAM_TOKEN",
-		"TELEGRAM_HOME_CHANNEL":  "GORMES_TELEGRAM_CHAT_ID",
-		"TELEGRAM_ALLOWED_USERS": "GORMES_TELEGRAM_ALLOWED_USERS",
-		"DISCORD_TOKEN":          "GORMES_DISCORD_TOKEN",
-		"OPENROUTER_API_KEY":     "OPENROUTER_API_KEY",
+		"TELEGRAM_TOKEN":     "GORMES_TELEGRAM_BOT_TOKEN",
+		"TELEGRAM_BOT_TOKEN": "GORMES_TELEGRAM_BOT_TOKEN",
+		"DISCORD_TOKEN":      "GORMES_DISCORD_TOKEN",
+		"OPENROUTER_API_KEY": "OPENROUTER_API_KEY",
 	}
 	for srcKey, gormesEnv := range wantTargets {
 		entry := findEnvEntry(m, srcKey)
@@ -281,6 +279,44 @@ func TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted(t *testing.T) {
 	}
 }
 
+func TestHermesTelegramEnvMappingTargetsStructuredConfig(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src")
+	writeFile(t, filepath.Join(src, ".env"), `
+TELEGRAM_HOME_CHANNEL=-1001234567890
+TELEGRAM_HOME_CHANNEL_NAME=alerts
+TELEGRAM_HOME_CHANNEL_THREAD_ID=42
+TELEGRAM_ALLOWED_USERS=6586915095,12345
+`)
+	t.Setenv("HERMES_HOME", "")
+
+	m, err := BuildManifest(Options{Source: src})
+	if err != nil {
+		t.Fatalf("BuildManifest: %v", err)
+	}
+	wantPaths := map[string]string{
+		"TELEGRAM_HOME_CHANNEL":           "telegram.home_channel.chat_id",
+		"TELEGRAM_HOME_CHANNEL_NAME":      "telegram.home_channel.name",
+		"TELEGRAM_HOME_CHANNEL_THREAD_ID": "telegram.home_channel.thread_id",
+		"TELEGRAM_ALLOWED_USERS":          "telegram.allowed_user_ids",
+	}
+	for srcKey, gormesPath := range wantPaths {
+		entry := findEnvEntry(m, srcKey)
+		if entry == nil {
+			t.Fatalf("missing env entry for %s", srcKey)
+		}
+		if entry.Disposition != "importable" {
+			t.Fatalf("%s disposition = %q, want importable", srcKey, entry.Disposition)
+		}
+		if entry.GormesPath != gormesPath {
+			t.Fatalf("%s gormes_path = %q, want %q", srcKey, entry.GormesPath, gormesPath)
+		}
+		if entry.GormesEnv != "" {
+			t.Fatalf("%s gormes_env = %q, want TOML-only mapping", srcKey, entry.GormesEnv)
+		}
+	}
+}
+
 func TestHermesMigrationManifest_DotenvConflictAgainstExistingTarget(t *testing.T) {
 	root := t.TempDir()
 	src := filepath.Join(root, "src")
@@ -290,7 +326,7 @@ func TestHermesMigrationManifest_DotenvConflictAgainstExistingTarget(t *testing.
 	m, err := BuildManifest(Options{
 		Source: src,
 		ExistingGormesEnv: map[string]string{
-			"GORMES_TELEGRAM_TOKEN": "already-set-something",
+			"GORMES_TELEGRAM_BOT_TOKEN": "already-set-something",
 		},
 	})
 	if err != nil {
@@ -300,7 +336,7 @@ func TestHermesMigrationManifest_DotenvConflictAgainstExistingTarget(t *testing.
 	if entry == nil || entry.Disposition != "conflict" {
 		t.Fatalf("TELEGRAM_TOKEN should be conflict, got %+v", entry)
 	}
-	if entry.GormesEnv != "GORMES_TELEGRAM_TOKEN" {
+	if entry.GormesEnv != "GORMES_TELEGRAM_BOT_TOKEN" {
 		t.Fatalf("conflict entry missing GormesEnv mapping, got %+v", entry)
 	}
 	if !entry.ConflictWithExisting {

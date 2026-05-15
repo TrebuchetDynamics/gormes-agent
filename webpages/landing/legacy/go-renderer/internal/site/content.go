@@ -3,6 +3,8 @@ package site
 import (
 	"encoding/json"
 	"html/template"
+	"strconv"
+	"strings"
 )
 
 func binarySizeMB() string {
@@ -18,6 +20,41 @@ func binarySizeMB() string {
 		return "17"
 	}
 	return data.Binary.SizeMB
+}
+
+func runtimeRSSMB() string {
+	if len(benchmarksJSON) == 0 {
+		return ""
+	}
+	var data struct {
+		Runtime struct {
+			OfflineDoctor struct {
+				Status    string  `json:"status"`
+				PeakRSSMB float64 `json:"peak_rss_mb"`
+			} `json:"offline_doctor"`
+		} `json:"runtime"`
+	}
+	if err := json.Unmarshal(benchmarksJSON, &data); err != nil {
+		return ""
+	}
+	if data.Runtime.OfflineDoctor.Status != "measured" || data.Runtime.OfflineDoctor.PeakRSSMB <= 0 {
+		return ""
+	}
+	return formatLandingFloat(data.Runtime.OfflineDoctor.PeakRSSMB)
+}
+
+func runtimeRSSProof() string {
+	if rss := runtimeRSSMB(); rss != "" {
+		return "doctor RSS ~" + rss + " MB"
+	}
+	return "doctor RSS measured"
+}
+
+func formatLandingFloat(value float64) string {
+	text := strconv.FormatFloat(value, 'f', 1, 64)
+	text = strings.TrimRight(text, "0")
+	text = strings.TrimRight(text, ".")
+	return text
 }
 
 type NavLink struct {
@@ -166,16 +203,15 @@ func DefaultPage() LandingPage {
 		},
 		HeroFilterStamp: "Scout release. Useful today, still early.",
 		HeroFilterLine:  "Offline TUI, doctor diagnostics, provider one-shots, Goncho memory, dashboard, and configured Telegram/Discord/Slack paths are covered. Full parity is still hardening.",
-		PrimaryCTA:      Link{Label: "Build from source", Href: "#install"},
+		PrimaryCTA:      Link{Label: "Install", Href: "#install"},
 		SecondaryCTA:    Link{Label: "View on GitHub", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
-		InstallHeadline: "Build it. Prove it offline.",
-		InstallIntro:    "Start with the inspectable source path. The first proof does not need credentials, a model call, Python, Docker, or Hermes. No runtime Node or npm is required.",
+		InstallHeadline: "Install first. Build from source when needed.",
+		InstallIntro:    "Use install.sh for the release-first managed install. Build from source when you need local inspection, custom flags, or unsupported platform fallback. The first proof does not need credentials, a model call, Python, Docker, or Hermes.",
 		InstallSteps: []InstallStep{
-			{Label: "1. BUILD FROM SOURCE", Command: "git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build"},
-			{Label: "2. OFFLINE TUI", Command: "./bin/gormes --offline"},
-			{Label: "3. LOCAL DOCTOR", Command: "./bin/gormes doctor --offline"},
+			{Label: "1. INSTALL.SH", Command: "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh\ngormes --version\ngormes doctor --offline"},
+			{Label: "2. BUILD FROM SOURCE", Command: "git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmkdir -p bin\nCGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes\n./bin/gormes doctor --offline\n./bin/gormes --offline"},
 		},
-		InstallFootnote:     "Provider setup, gateway setup, and convenience installers come after the offline proof.",
+		InstallFootnote:     "Use install.sh for the published gormes command on PATH, or ./bin/gormes from a source checkout when you are developing Gormes itself.",
 		InstallFootnoteLink: "Read the install docs ->",
 		InstallFootnoteHref: "https://docs.gormes.ai/using-gormes/install/",
 		DocsLinkLabel:       "docs.gormes.ai →",
@@ -193,7 +229,7 @@ func DefaultPage() LandingPage {
 		FeatureCards: []FeatureCard{
 			{Title: "Single Static Binary", Body: "CGO_ENABLED=0 release builds produce a ~" + binarySizeMB() + " MB artifact for the runtime surface."},
 			{Title: "Offline Proof", Body: "./bin/gormes --offline starts the native TUI without credentials, network calls, Python, Node, Docker, or Hermes."},
-			{Title: "Built-In Doctor", Body: "./bin/gormes doctor --offline checks local readiness before provider calls or token spend."},
+			{Title: "Built-In Doctor", Body: "./bin/gormes doctor --offline checks local readiness before provider calls or token spend; the benchmark mirror records peak RSS for that path."},
 			{Title: "Provider Turns", Body: "One-shots and the TUI use configured provider-compatible endpoints from the same binary."},
 			{Title: "Local Goncho Memory", Body: "Sessions, durable context, diagnostics, and queue state stay in local SQLite."},
 			{Title: "Visible Limits", Body: "Full Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening remain in progress."},
@@ -212,6 +248,7 @@ func DefaultPage() LandingPage {
 		RoadmapPhases:         buildRoadmapPhases(loadEmbeddedProgress()),
 		ProofStrip: []string{
 			"~" + binarySizeMB() + " MB static binary",
+			runtimeRSSProof(),
 			"Source build recommended",
 			"MIT License",
 			"Scout release",

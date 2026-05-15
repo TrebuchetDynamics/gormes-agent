@@ -8,7 +8,7 @@ difficulty: "M"
 
 > **Outcome:** Gormes long-polls Telegram for DMs from an allowlisted chat, runs the same kernel + tool loop as the TUI, and persists turns to the local SQLite memory store.
 >
-> **Prerequisites:** A working `gormes --oneshot` (see [first turn](../first-turn/)). A bot token from [@BotFather](https://t.me/botfather). The numeric chat ID you want the bot to answer.
+> **Prerequisites:** A working `gormes chat -q` (see [first turn](../first-turn/)). A bot token from [@BotFather](https://t.me/botfather). The numeric chat ID you want the bot to answer.
 
 ## Steps
 

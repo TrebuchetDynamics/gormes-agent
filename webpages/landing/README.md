@@ -8,7 +8,7 @@ Route-B resilience, and the progress-driven Phase-2 shipping boundary. It
 should not regress into a Phase-1-only story or hardcode stale proof claims.
 
 Astro owns the public homepage at `/`, static assets at `/static/*`, and
-installer aliases at `/install.sh`, `/install.ps1`, and `/install.cmd`.
+Windows installer aliases at `/install.ps1` and `/install.cmd`.
 Tailwind is wired through the Tailwind v4 Vite plugin in `astro.config.mjs`.
 The former Go-rendered site is deprecated and preserved under
 `legacy/go-renderer/` for reference only.
@@ -25,7 +25,7 @@ The former Go-rendered site is deprecated and preserved under
 - `src/styles/global.css` - Tailwind import, theme fonts, and base focus/copy
   states.
 - `public/static/*` - favicon, social card, and landing visual assets.
-- `public/install.*` - generated installer aliases served as static files.
+- `public/install.ps1` and `public/install.cmd` - generated Windows installer aliases served as static files.
 - `scripts/sync-assets.mjs` - copies canonical installers, progress, benchmark,
   and static assets before dev/build.
 - `tests/home.spec.mjs` - Playwright smoke test for the homepage.
@@ -33,11 +33,12 @@ The former Go-rendered site is deprecated and preserved under
 
 ## Installer Surface
 
-The site serves three installer assets, one per supported user shell:
+The site serves Windows installer assets only. Unix users install from the
+GitHub Releases `install.sh` asset so the bootstrap URL stays inside GitHub's
+release trust surface.
 
 | Path | Source | Audience |
 |------|--------|----------|
-| `/install.sh` | `../../install.sh` | Linux, macOS, Termux, WSL |
 | `/install.ps1` | `../../scripts/install.ps1` | Windows PowerShell 5.1+ / pwsh 7+ |
 | `/install.cmd` | `../../scripts/install.cmd` | CMD wrapper that launches the PowerShell installer |
 
@@ -48,9 +49,9 @@ update flow. Use `--skip-setup` or `GORMES_SKIP_SETUP=1` to defer that wizard.
 Termux publishes to `$PREFIX/bin`. Root Linux publishes to `/usr/local/bin`;
 non-root installs publish to a user-scoped bin directory unless overridden.
 
-The landing page should keep the inspect-first installer and source build paths
-visible until signed binaries, Homebrew, and Scoop/Winget manifests land.
-The `/install.*` URLs remain convenience aliases, not the primary trust story.
+The landing page should keep the GitHub Releases installer and source build
+paths visible until package-manager manifests land. `/install.ps1` and
+`/install.cmd` remain Windows convenience aliases, not the primary trust story.
 
 ## Local Development
 

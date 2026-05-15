@@ -330,8 +330,8 @@ func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
 //	https://github.com/.../releases/download/v0.2.0/install.sh
 //
 // hit 404. install.sh and install.ps1 were not GitHub release assets;
-// users had to know the canonical landing-served path
-// (https://gormes.ai/install.sh) to bootstrap from a tagged release.
+// users had to know a non-GitHub landing-served path to bootstrap from a
+// tagged release.
 //
 // Contract: every tagged release MUST carry install.sh and
 // install.ps1 alongside the platform tarballs. The publish step
@@ -354,8 +354,8 @@ func TestReleaseWorkflowPublishesInstallScripts(t *testing.T) {
 	}
 
 	// Surface in release notes so the GitHub release page itself
-	// documents the canonical curl URL — operators don't need to
-	// already know about gormes.ai/install.sh to bootstrap.
+	// documents the canonical curl URL and operators stay on GitHub's
+	// release trust surface.
 	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
 	wantInNotes := []string{
 		"install.sh",

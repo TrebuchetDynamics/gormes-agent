@@ -3,6 +3,8 @@ import release from './release.json';
 
 const binarySizeMB = benchmarks?.binary?.size_mb || '';
 const binaryMeasuredAt = benchmarks?.binary?.last_measured || '';
+const runtimePeakRSSMB = benchmarks?.runtime?.offline_doctor?.peak_rss_mb || '';
+const runtimeMeasuredAt = benchmarks?.runtime?.offline_doctor?.last_measured || '';
 const goFiles = benchmarks?.code?.go_files || '';
 const goLines = benchmarks?.code?.go_lines || '';
 const testCount = benchmarks?.code?.test_count || '';
@@ -16,6 +18,9 @@ const releaseLabel = releaseDateAlias
 const binaryMeasureLabel = binarySizeMB
   ? `Current measured Linux build: ~${binarySizeMB} MB${binaryMeasuredAt ? ` (${binaryMeasuredAt})` : ''}`
   : 'Current Linux build measured during release prep';
+const runtimeRSSLabel = runtimePeakRSSMB
+  ? `Offline doctor peak RSS: ~${runtimePeakRSSMB} MB${runtimeMeasuredAt ? ` (${runtimeMeasuredAt})` : ''}`
+  : 'Offline doctor peak RSS measured during release prep';
 const codeBaseLabel = goFiles && goLines && testCount
   ? `${goFiles} Go files · ${Math.round(goLines / 1000)}k lines · ${testCount} tests`
   : '';
@@ -23,7 +28,7 @@ const codeBaseLabel = goFiles && goLines && testCount
 export const page = {
   title: 'Gormes — Run AI agents from a single binary',
   description:
-    "One Go binary runs 30 Hermes skills on Termux, Windows, and locked-down Linux. No Python, no Docker, no dependency drift. Local SQLite memory, Telegram/Discord/Slack gateways, and an offline TUI — all in ~40 MB.",
+    `One Go binary runs 30 Hermes skills on Termux, Windows, and locked-down Linux. No Python, no Docker, no dependency drift. Local SQLite memory, Telegram/Discord/Slack gateways, and an offline TUI — current Linux build ~${binarySizeMB || '40'} MB.`,
   nav: [
     { label: 'Docs', href: 'https://docs.gormes.ai/' },
     { label: 'Install', href: '#install' },
@@ -69,6 +74,11 @@ export const page = {
       value: binarySizeMB ? `~${binarySizeMB} MB` : 'measured at release',
       detail: 'Linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 today.',
     },
+    {
+      label: 'Runtime RSS',
+      value: runtimePeakRSSMB ? `~${runtimePeakRSSMB} MB` : 'measured at release',
+      detail: runtimeRSSLabel,
+    },
   ],
   methodologyPillars: [
     {
@@ -84,28 +94,28 @@ export const page = {
     label: 'Read how the loop works ->',
     href: 'https://docs.gormes.ai/building-gormes/architecture_plan/',
   },
-  installHeadline: 'Two install paths. One gormes command.',
+  installHeadline: 'Install first. Build from source when needed.',
   installIntro:
-    'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install. Both paths keep the first proof offline.',
+    'Use install.sh for the release-first managed install. Build from source when you need local inspection, custom flags, or unsupported platform fallback. Both paths keep the first proof offline.',
   installSteps: [
     {
-      label: 'METHOD 1 · BUILD FROM SOURCE',
+      label: 'METHOD 1 · INSTALL.SH',
       command:
-        'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build\nexport PATH="$PWD/bin:$PATH"\ngormes doctor --offline\ngormes --offline',
+        'curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh\ngormes --version\ngormes doctor --offline',
     },
     {
-      label: 'METHOD 2 · INSTALL.SH',
+      label: 'METHOD 2 · BUILD FROM SOURCE',
       command:
-        'curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh\nless install.sh\nsh install.sh\ngormes doctor --offline',
+        'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmkdir -p bin\nCGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes\n./bin/gormes doctor --offline\n./bin/gormes --offline',
     },
   ],
   installFootnote:
-    'Both paths end at the same gormes command. install.sh also runs gormes setup when a terminal is available.',
+    'Use install.sh for the published gormes command on PATH, or ./bin/gormes from a source checkout when you are developing Gormes itself.',
   installFootnoteLink: {
     label: 'Read the install docs ->',
     href: 'https://docs.gormes.ai/using-gormes/install/',
   },
-  afterProofHeadline: 'After offline proof',
+  afterProofHeadline: 'After setup',
   afterProofItems: [
     {
       label: 'Add a provider',
@@ -113,9 +123,9 @@ export const page = {
       body: 'Configure endpoint credentials only after the local doctor and offline TUI prove the machine.',
     },
     {
-      label: 'Smoke-test a turn',
-      command: 'gormes --oneshot "hello"',
-      body: 'Run a single provider turn before starting longer local sessions or gateways.',
+      label: 'Start chat',
+      command: 'gormes chat',
+      body: 'Open a provider-backed terminal chat before starting longer local sessions or gateways.',
     },
     {
       label: 'Check gateway state',
@@ -138,7 +148,7 @@ export const page = {
   trustItems: [
     'Offline doctor runs before any token spend.',
     'Secrets stay local under ~/.gormes.',
-    'Source-backed install.sh you can inspect before running.',
+    'Release-first install.sh you can inspect before running.',
     'Every commit passes go test, progress validate, and git diff --check.',
     'Tagged releases with SHA-256 checksums.',
   ],
@@ -231,9 +241,9 @@ export const page = {
       title: 'Shipped in scout',
       items: [
         'Offline TUI and doctor',
-        'Source-backed install.sh and setup handoff',
+        'Release-first install.sh and setup handoff',
         'Onboard/setup flows',
-        'Provider one-shots',
+        'Provider-backed chat',
         'Local SQLite memory and sessions',
         'Dashboard inspection',
         'Logs, security audit, and secrets audit',
@@ -275,7 +285,7 @@ export const page = {
   ],
   finalCtaHeadline: 'Prove the runtime locally before you ever spend a token.',
   finalCtaBody:
-    'Build from source or inspect install.sh, run the offline doctor, then add credentials only after the machine has proven itself.',
+    'Run the release-first installer or build from source, run the offline doctor, then add credentials only after the machine has proven itself.',
   finalPrimaryCta: { label: 'Install now', href: '#install' },
   finalSecondaryCta: {
     label: 'Star on GitHub',

@@ -36,6 +36,7 @@ var platformConnectedCheckers = map[string]platformConnectedChecker{
 	"google_chat":     extraAll("project_id", "subscription_name"),
 	"irc":             extraAll("server", "channel"),
 	"line":            extraAll("channel_access_token", "channel_secret"),
+	"simplex":         extraAny("ws_url"),
 	"wecom":           extraAny("bot_id"),
 	"wecom_callback":  extraAny("corp_id"),
 	"bluebubbles":     extraAll("server_url", "password"),

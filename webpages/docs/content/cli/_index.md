@@ -10,7 +10,7 @@ aliases:
 # CLI reference
 
 These pages are generated from `gormes --help`. If a flag is documented here,
-the running binary supports it. Pages are audited against the v0.2.9 binary.
+the running binary supports it. Pages are audited against the v0.2.11 binary.
 
 Runtime-ready commands are promoted for configured local use in the current
 Gormes binary. Row-backed commands are part of the Hermes parity inventory or
@@ -33,7 +33,7 @@ gormes <command> --help
 | [`gormes agent`](agent/) | Manage Gormes agent context templates |
 | [`gormes auth`](auth/) | Manage Hermes-compatible provider credentials |
 | [`gormes channels`](channels/) | Inspect channel capability metadata |
-| [`gormes chat`](chat/) | Open chat or send a one-shot query |
+| [`gormes chat`](chat/) | Open chat or send a single query |
 | [`gormes checkpoints`](checkpoints/) | Inspect and manage Gormes file-operation rollback state |
 | [`gormes claw`](claw/) | Hermes-compatible OpenClaw migration tools |
 | [`gormes completion`](completion/) | Generate shell completion script |
@@ -52,8 +52,7 @@ gormes <command> --help
 | [`gormes memory`](memory/) | Inspect persisted memory and extractor state |
 | [`gormes migrate`](migrate/) | Migrate state from upstream agents into Gormes (dry-run only in this slice) |
 | [`gormes model`](model/) | Interactively select the active model/provider |
-| [`gormes navivox`](navivox/) | Run the Navivox SSH stdio channel |
-| [`gormes onboard`](onboard/) | First-run status — see what's configured and what to do next |
+| [`gormes navivox`](navivox/) | Navivox HTTP channel utilities |
 | [`gormes plugins`](plugins/) | Manage Hermes-compatible plugins |
 | [`gormes profile`](profile/) | Inspect and switch the active Gormes profile |
 | [`gormes restore`](restore/) | Discover and restore from a pre-update backup zip |
@@ -88,12 +87,11 @@ These flags work on the bare `gormes` invocation:
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--api-key` | (none) | provider API key override for `--oneshot` or TUI startup; invocation-only and never persisted |
+| `--api-key` | (none) | provider API key override for chat or TUI startup; invocation-only and never persisted |
 | `-c`, `--continue` | `last` | resolve a session id or unique prefix and resume it |
-| `--endpoint` | (none) | provider endpoint override for `--oneshot` or TUI startup; also settable via `GORMES_ENDPOINT` |
-| `-m`, `--model` | (none) | model override for `--oneshot` or TUI startup; also settable via `GORMES_INFERENCE_MODEL` |
-| `-z`, `--oneshot` | (none) | one-shot mode: send a single prompt and resolve model/provider selection without starting the TUI |
-| `--provider` | (none) | provider override for `--oneshot` or TUI startup; also settable via `GORMES_INFERENCE_PROVIDER` |
+| `--endpoint` | (none) | provider endpoint override for chat or TUI startup; invocation-only and also settable via `GORMES_ENDPOINT` |
+| `-m`, `--model` | (none) | model override for chat or TUI startup; also settable via `GORMES_INFERENCE_MODEL` |
+| `--provider` | (none) | provider override for chat or TUI startup; also settable via `GORMES_INFERENCE_PROVIDER` |
 | `--remote` | (none) | connect the TUI to a remote Gormes gateway over SSE (consumes `/events`; bypasses local kernel and provider setup) |
 | `--resume` | (none) | override persisted `session_id` for the TUI's default key |
 | `-V`, `--version` | | version for gormes |

@@ -69,7 +69,7 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Zero-CGO. No Python runtime on the host. One file you scp anywhere",
 		// Install
 		"1. INSTALL",
-		"curl -fsSL https://gormes.ai/install.sh | sh",
+		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
 		"2. RUN",
 		"Requires Hermes backend at localhost:8642.",
 		"Install Hermes →",
@@ -176,7 +176,7 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 	text := string(indexBody)
 	wants := []string{
 		"Hermes, In a Single Static Binary.",
-		"curl -fsSL https://gormes.ai/install.sh | sh",
+		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
 		"Why a Go layer matters.",
 		"What ships now, what doesn&#39;t.",
 		"Phase 4 — Native prompt building + agent orchestration.",
@@ -353,7 +353,7 @@ func DefaultPage() LandingPage {
 		PrimaryCTA:   Link{Label: "Install", Href: "#install"},
 		SecondaryCTA: Link{Label: "View Source", Href: "https://github.com/TrebuchetDynamics/gormes-agent"},
 		InstallSteps: []InstallStep{
-			{Label: "1. INSTALL", Command: "curl -fsSL https://gormes.ai/install.sh | sh"},
+			{Label: "1. INSTALL", Command: "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh"},
 			{Label: "2. RUN", Command: "gormes"},
 		},
 		InstallFootnote:     "Requires Hermes backend at localhost:8642.",
@@ -812,7 +812,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Hermes, In a Single Static Binary.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Why a Go layer matters.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: "What ships now, what doesn't." })).toBeVisible();
-  await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh')).toBeVisible();
+  await expect(page.getByText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh')).toBeVisible();
   await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toBeVisible();
   await expect(page.getByText('Run Hermes Through a Go Operator Console.')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(1);
@@ -824,7 +824,7 @@ test('mobile keeps the install command readable', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'Hermes, In a Single Static Binary.' })).toBeVisible();
-  await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | sh')).toBeVisible();
+  await expect(page.getByText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh')).toBeVisible();
 
   const hasOverflow = await page.evaluate(() =>
     document.documentElement.scrollWidth > window.innerWidth
@@ -898,7 +898,7 @@ Expected output (exactly these files, no others):
 
 ```bash
 grep -F "Hermes, In a Single Static Binary." /tmp/gormes-dist/index.html && \
-grep -F "curl -fsSL https://gormes.ai/install.sh | sh" /tmp/gormes-dist/index.html && \
+grep -F "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh" /tmp/gormes-dist/index.html && \
 grep -F "Why a Go layer matters." /tmp/gormes-dist/index.html && \
 grep -F "Phase 4 — Native prompt building" /tmp/gormes-dist/index.html && \
 echo "all acceptance strings present"

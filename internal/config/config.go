@@ -51,7 +51,7 @@ type Config struct {
 	Teams         TeamsCfg          `toml:"teams" yaml:"teams"`
 	Yuanbao       YuanbaoCfg        `toml:"yuanbao" yaml:"yuanbao"`
 	Web           WebCfg            `toml:"web" yaml:"web"`
-	Navibox       NaviboxCfg        `toml:"navibox" yaml:"navibox"`
+	Navivox       NavivoxCfg        `toml:"navivox" yaml:"navivox"`
 	Browser       BrowserCfg        `toml:"browser" yaml:"browser"`
 	Security      SecurityCfg       `toml:"security" yaml:"security"`
 	Secrets       SecretsCfg        `toml:"secrets" yaml:"secrets"`
@@ -83,12 +83,20 @@ type TelegramAccountCfg struct {
 	AllowedUserIDs []int64 `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
 }
 
+type TelegramHomeChannelCfg struct {
+	Platform string `toml:"platform" yaml:"platform"`
+	ChatID   string `toml:"chat_id" yaml:"chat_id"`
+	Name     string `toml:"name" yaml:"name"`
+	ThreadID string `toml:"thread_id" yaml:"thread_id"`
+}
+
 type TelegramCfg struct {
 	BotToken               string                        `toml:"bot_token" yaml:"bot_token"`
 	BotTokenRef            *SecretRef                    `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
 	Accounts               map[string]TelegramAccountCfg `toml:"accounts" yaml:"accounts"`
 	AccountID              string                        `toml:"-" yaml:"-"`
 	AllowedChatID          int64                         `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	HomeChannel            TelegramHomeChannelCfg        `toml:"home_channel" yaml:"home_channel"`
 	AllowedChats           any                           `toml:"allowed_chats" yaml:"allowed_chats"`
 	AllowedUserIDs         []int64                       `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
 	RequireMention         bool                          `toml:"require_mention" yaml:"require_mention"`
@@ -133,7 +141,11 @@ type TelegramCfg struct {
 }
 
 func (c TelegramCfg) AllowedChatIDs() []string {
-	return flexibleStringList(c.AllowedChats)
+	values := flexibleStringList(c.AllowedChats)
+	if strings.TrimSpace(c.HomeChannel.ChatID) != "" {
+		values = append([]string{strings.TrimSpace(c.HomeChannel.ChatID)}, values...)
+	}
+	return compactStrings(values)
 }
 
 // DiscordCfg drives the Discord channel adapter.
@@ -272,21 +284,23 @@ type WebCfg struct {
 }
 
 const (
-	NaviboxDefaultBindHost = "127.0.0.1"
-	NaviboxDefaultPort     = 8765
+	NavivoxDefaultBindHost = "127.0.0.1"
+	NavivoxDefaultPort     = 8765
 
-	NaviboxExposureLocal     = "local"
-	NaviboxExposureTailscale = "tailscale"
-	NaviboxExposurePublic    = "public"
+	NavivoxExposureLocal     = "local"
+	NavivoxExposureTailscale = "tailscale"
+	NavivoxExposureWireGuard = "wireguard"
+	NavivoxExposureVPN       = "vpn"
+	NavivoxExposurePublic    = "public"
 
-	NaviboxAuthPairingToken      = "pairing_token"
-	NaviboxAuthStaticToken       = "static_token"
-	NaviboxAuthTailscaleIdentity = "tailscale_identity"
+	NavivoxAuthPairingToken      = "pairing_token"
+	NavivoxAuthStaticToken       = "static_token"
+	NavivoxAuthTailscaleIdentity = "tailscale_identity"
 )
 
-// NaviboxCfg configures the native gateway-owned HTTP/WebSocket channel used
-// by the Flutter Navibox app. The disabled zero value is intentionally safe.
-type NaviboxCfg struct {
+// NavivoxCfg configures the native gateway-owned HTTP/WebSocket channel used
+// by the Flutter Navivox app. The disabled zero value is intentionally safe.
+type NavivoxCfg struct {
 	Enabled                  bool     `toml:"enabled" yaml:"enabled"`
 	BindHost                 string   `toml:"bind_host" yaml:"bind_host"`
 	Port                     int      `toml:"port" yaml:"port"`
@@ -565,12 +579,12 @@ type InferenceResolution struct {
 type OneshotInferenceResolution = InferenceResolution
 type TUIInferenceResolution = InferenceResolution
 
-// ResolveOneshotInference applies the Hermes-compatible one-shot precedence:
+// ResolveOneshotInference applies the scripted-chat inference precedence:
 // flag > GORMES_INFERENCE_* env > config defaults. A provider override without
 // a flag/env model is rejected so a stale configured model is not silently
 // paired with a different provider.
 func ResolveOneshotInference(req OneshotInferenceRequest) (OneshotInferenceResolution, error) {
-	req.CommandLabel = "gormes -z"
+	req.CommandLabel = "gormes chat -q"
 	return ResolveInference(req)
 }
 
@@ -756,7 +770,7 @@ func defaults() Config {
 		CodeExecution: CodeExecutionCfg{
 			Mode: "strict",
 		},
-		TUI:   TUICfg{Theme: "dark", MouseTracking: true},
+		TUI:   TUICfg{Theme: "dark", MouseTracking: false},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
 		Voice: VoiceCfg{RecordKey: "ctrl+b"},
 		Auxiliary: AuxiliaryCfg{
@@ -803,12 +817,12 @@ func defaults() Config {
 			RequireMention:    true,
 			ReplyInThread:     true,
 		},
-		Navibox: NaviboxCfg{
+		Navivox: NavivoxCfg{
 			Enabled:      false,
-			BindHost:     NaviboxDefaultBindHost,
-			Port:         NaviboxDefaultPort,
-			ExposureMode: NaviboxExposureLocal,
-			AuthMode:     NaviboxAuthPairingToken,
+			BindHost:     NavivoxDefaultBindHost,
+			Port:         NavivoxDefaultPort,
+			ExposureMode: NavivoxExposureLocal,
+			AuthMode:     NavivoxAuthPairingToken,
 		},
 		Teams: TeamsCfg{
 			Enabled: false,
@@ -1133,21 +1147,47 @@ func loadEnv(cfg *Config) error {
 	if v := strings.TrimSpace(os.Getenv("GORMES_VOICE_RECORD_KEY")); v != "" {
 		cfg.Voice.RecordKey = v
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_TOKEN"), os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_TOKEN")); v != "" {
+	if v := firstNonEmpty(
+		os.Getenv("GORMES_TELEGRAM_BOT_TOKEN"),
+		os.Getenv("GORMES_TELEGRAM_TOKEN"),
+		os.Getenv("HERMES_TELEGRAM_BOT_TOKEN"),
+		os.Getenv("HERMES_TELEGRAM_TOKEN"),
+		os.Getenv("TELEGRAM_BOT_TOKEN"),
+		os.Getenv("TELEGRAM_TOKEN"),
+	); v != "" {
 		cfg.Telegram.BotToken = v
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_CHAT_ID"), os.Getenv("TELEGRAM_HOME_CHANNEL"), os.Getenv("TELEGRAM_CHAT_ID")); v != "" {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			cfg.Telegram.AllowedChatID = id
-		}
+	if v := firstNonEmpty(
+		os.Getenv("GORMES_TELEGRAM_HOME_CHANNEL"),
+		os.Getenv("GORMES_TELEGRAM_CHAT_ID"),
+		os.Getenv("HERMES_TELEGRAM_HOME_CHANNEL"),
+		os.Getenv("HERMES_TELEGRAM_CHAT_ID"),
+		os.Getenv("TELEGRAM_HOME_CHANNEL"),
+		os.Getenv("TELEGRAM_CHAT_ID"),
+	); v != "" {
+		applyTelegramHomeChannel(cfg, v)
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("TELEGRAM_ALLOWED_USERS")); v != "" {
+	if v := firstNonEmpty(
+		os.Getenv("GORMES_TELEGRAM_HOME_CHANNEL_NAME"),
+		os.Getenv("HERMES_TELEGRAM_HOME_CHANNEL_NAME"),
+		os.Getenv("TELEGRAM_HOME_CHANNEL_NAME"),
+	); v != "" {
+		cfg.Telegram.HomeChannel.Name = v
+	}
+	if v := firstNonEmpty(
+		os.Getenv("GORMES_TELEGRAM_HOME_CHANNEL_THREAD_ID"),
+		os.Getenv("HERMES_TELEGRAM_HOME_CHANNEL_THREAD_ID"),
+		os.Getenv("TELEGRAM_HOME_CHANNEL_THREAD_ID"),
+	); v != "" {
+		cfg.Telegram.HomeChannel.ThreadID = v
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("HERMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("TELEGRAM_ALLOWED_USERS")); v != "" {
 		cfg.Telegram.AllowedUserIDs = parseEnvInt64CSV(v)
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_CHATS"), os.Getenv("TELEGRAM_ALLOWED_CHATS")); v != "" {
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_CHATS"), os.Getenv("HERMES_TELEGRAM_ALLOWED_CHATS"), os.Getenv("TELEGRAM_ALLOWED_CHATS")); v != "" {
 		cfg.Telegram.AllowedChats = parseEnvCSV(v)
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_GUEST_MODE"), os.Getenv("TELEGRAM_GUEST_MODE")); v != "" {
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_GUEST_MODE"), os.Getenv("HERMES_TELEGRAM_GUEST_MODE"), os.Getenv("TELEGRAM_GUEST_MODE")); v != "" {
 		parsed, err := parseEnvBool("TELEGRAM_GUEST_MODE", v)
 		if err != nil {
 			return err
@@ -1247,44 +1287,44 @@ func loadEnv(cfg *Config) error {
 		}
 		cfg.Slack.ReplyInThread = parsed
 	}
-	if v := os.Getenv("GORMES_NAVIBOX_ENABLED"); v != "" {
-		parsed, err := parseEnvBool("GORMES_NAVIBOX_ENABLED", v)
+	if v := os.Getenv("GORMES_NAVIVOX_ENABLED"); v != "" {
+		parsed, err := parseEnvBool("GORMES_NAVIVOX_ENABLED", v)
 		if err != nil {
 			return err
 		}
-		cfg.Navibox.Enabled = parsed
+		cfg.Navivox.Enabled = parsed
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_BIND_HOST")); v != "" {
-		cfg.Navibox.BindHost = v
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_BIND_HOST")); v != "" {
+		cfg.Navivox.BindHost = v
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_PORT")); v != "" {
-		parsed, err := parseEnvInt("GORMES_NAVIBOX_PORT", v)
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_PORT")); v != "" {
+		parsed, err := parseEnvInt("GORMES_NAVIVOX_PORT", v)
 		if err != nil {
 			return err
 		}
-		cfg.Navibox.Port = parsed
+		cfg.Navivox.Port = parsed
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_EXPOSURE_MODE")); v != "" {
-		cfg.Navibox.ExposureMode = v
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_EXPOSURE_MODE")); v != "" {
+		cfg.Navivox.ExposureMode = v
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_AUTH_MODE")); v != "" {
-		cfg.Navibox.AuthMode = v
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_AUTH_MODE")); v != "" {
+		cfg.Navivox.AuthMode = v
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_TOKEN")); v != "" {
-		cfg.Navibox.Token = v
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_TOKEN")); v != "" {
+		cfg.Navivox.Token = v
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_ALLOW_ORIGINS")); v != "" {
-		cfg.Navibox.AllowOrigins = parseEnvCSV(v)
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_ALLOW_ORIGINS")); v != "" {
+		cfg.Navivox.AllowOrigins = parseEnvCSV(v)
 	}
-	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_ALLOWED_TAILNET_IDENTITIES")); v != "" {
-		cfg.Navibox.AllowedTailnetIdentities = parseEnvCSV(v)
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIVOX_ALLOWED_TAILNET_IDENTITIES")); v != "" {
+		cfg.Navivox.AllowedTailnetIdentities = parseEnvCSV(v)
 	}
-	if v := os.Getenv("GORMES_NAVIBOX_PUBLIC_CONFIRMED"); v != "" {
-		parsed, err := parseEnvBool("GORMES_NAVIBOX_PUBLIC_CONFIRMED", v)
+	if v := os.Getenv("GORMES_NAVIVOX_PUBLIC_CONFIRMED"); v != "" {
+		parsed, err := parseEnvBool("GORMES_NAVIVOX_PUBLIC_CONFIRMED", v)
 		if err != nil {
 			return err
 		}
-		cfg.Navibox.PublicConfirmed = parsed
+		cfg.Navivox.PublicConfirmed = parsed
 	}
 	if v := os.Getenv("GORMES_TEAMS_ENABLED"); v != "" {
 		parsed, err := parseEnvBool("GORMES_TEAMS_ENABLED", v)
@@ -1550,7 +1590,7 @@ func validateConfig(cfg *Config) error {
 	cfg.Gateway.ProxyURL = normalizeGatewayProxyURL(cfg.Gateway.ProxyURL)
 	cfg.Gateway.ProxyKey = strings.TrimSpace(cfg.Gateway.ProxyKey)
 	cfg.Gateway.Platforms = normalizeGatewayPlatformMap(cfg.Gateway.Platforms)
-	if err := normalizeNaviboxConfig(&cfg.Navibox); err != nil {
+	if err := normalizeNavivoxConfig(&cfg.Navivox); err != nil {
 		return err
 	}
 	cfg.Agent.ImageInputMode = normalizeAgentImageInputMode(cfg.Agent.ImageInputMode)
@@ -1566,6 +1606,7 @@ func validateConfig(cfg *Config) error {
 	if cfg.Voice.RecordKey == "" {
 		cfg.Voice.RecordKey = "ctrl+b"
 	}
+	normalizeTelegramConfig(&cfg.Telegram)
 	cfg.Telegram.Notifications = normalizeTelegramNotifications(cfg.Telegram.Notifications)
 	if strings.TrimSpace(cfg.Runtime.TerminalBackend) == "" {
 		cfg.Runtime.TerminalBackend = cfg.Terminal.Backend
@@ -1622,64 +1663,156 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
-func normalizeNaviboxConfig(cfg *NaviboxCfg) error {
+func applyTelegramHomeChannel(cfg *Config, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return
+	}
+	cfg.Telegram.HomeChannel.ChatID = value
+	if id, err := strconv.ParseInt(value, 10, 64); err == nil {
+		cfg.Telegram.AllowedChatID = id
+	}
+}
+
+func normalizeTelegramConfig(cfg *TelegramCfg) {
+	cfg.BotToken = strings.TrimSpace(cfg.BotToken)
+	cfg.HomeChannel.Platform = strings.TrimSpace(cfg.HomeChannel.Platform)
+	if cfg.HomeChannel.Platform == "" && strings.TrimSpace(cfg.HomeChannel.ChatID) != "" {
+		cfg.HomeChannel.Platform = "telegram"
+	}
+	cfg.HomeChannel.ChatID = strings.TrimSpace(cfg.HomeChannel.ChatID)
+	cfg.HomeChannel.Name = strings.TrimSpace(cfg.HomeChannel.Name)
+	cfg.HomeChannel.ThreadID = strings.TrimSpace(cfg.HomeChannel.ThreadID)
+	if cfg.HomeChannel.ChatID == "" && cfg.AllowedChatID != 0 {
+		cfg.HomeChannel.ChatID = strconv.FormatInt(cfg.AllowedChatID, 10)
+		if cfg.HomeChannel.Platform == "" {
+			cfg.HomeChannel.Platform = "telegram"
+		}
+	}
+	if cfg.AllowedChatID == 0 && cfg.HomeChannel.ChatID != "" {
+		if id, err := strconv.ParseInt(cfg.HomeChannel.ChatID, 10, 64); err == nil {
+			cfg.AllowedChatID = id
+		}
+	}
+	cfg.AllowedUserIDs = compactInt64s(cfg.AllowedUserIDs)
+}
+
+func compactInt64s(values []int64) []int64 {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]int64, 0, len(values))
+	for _, value := range values {
+		if value != 0 {
+			out = append(out, value)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func normalizeNavivoxConfig(cfg *NavivoxCfg) error {
 	cfg.BindHost = strings.TrimSpace(cfg.BindHost)
 	if cfg.BindHost == "" {
-		cfg.BindHost = NaviboxDefaultBindHost
+		cfg.BindHost = NavivoxDefaultBindHost
 	}
 	if cfg.Port == 0 {
-		cfg.Port = NaviboxDefaultPort
+		cfg.Port = NavivoxDefaultPort
 	}
 	cfg.ExposureMode = strings.ToLower(strings.TrimSpace(cfg.ExposureMode))
 	if cfg.ExposureMode == "" {
-		cfg.ExposureMode = NaviboxExposureLocal
+		cfg.ExposureMode = NavivoxExposureLocal
 	}
 	cfg.AuthMode = strings.ToLower(strings.TrimSpace(cfg.AuthMode))
 	if cfg.AuthMode == "" {
-		cfg.AuthMode = NaviboxAuthPairingToken
+		cfg.AuthMode = NavivoxAuthPairingToken
 	}
 	cfg.Token = strings.TrimSpace(cfg.Token)
 	cfg.AllowOrigins = compactStrings(cfg.AllowOrigins)
 	cfg.AllowedTailnetIdentities = compactStrings(cfg.AllowedTailnetIdentities)
 
 	if cfg.Port < 1 || cfg.Port > 65535 {
-		return fmt.Errorf("config: navibox.port must be between 1 and 65535, got %d", cfg.Port)
+		return fmt.Errorf("config: navivox.port must be between 1 and 65535, got %d", cfg.Port)
 	}
 	switch cfg.ExposureMode {
-	case NaviboxExposureLocal, NaviboxExposureTailscale, NaviboxExposurePublic:
+	case NavivoxExposureLocal,
+		NavivoxExposureTailscale,
+		NavivoxExposureWireGuard,
+		NavivoxExposureVPN,
+		NavivoxExposurePublic:
 	default:
-		return fmt.Errorf("config: navibox.exposure_mode %q is invalid; want local, tailscale, or public", cfg.ExposureMode)
+		return fmt.Errorf("config: navivox.exposure_mode %q is invalid; want local, tailscale, wireguard, vpn, or public", cfg.ExposureMode)
 	}
 	switch cfg.AuthMode {
-	case NaviboxAuthPairingToken, NaviboxAuthStaticToken:
+	case NavivoxAuthPairingToken, NavivoxAuthStaticToken:
 		if cfg.Enabled && cfg.Token == "" {
-			return fmt.Errorf("config: navibox.token is required when navibox.enabled=true and auth_mode=%s", cfg.AuthMode)
+			return fmt.Errorf("config: navivox.token is required when navivox.enabled=true and auth_mode=%s", cfg.AuthMode)
 		}
-	case NaviboxAuthTailscaleIdentity:
+	case NavivoxAuthTailscaleIdentity:
 	default:
-		return fmt.Errorf("config: navibox.auth_mode %q is invalid; want pairing_token, static_token, or tailscale_identity", cfg.AuthMode)
+		return fmt.Errorf("config: navivox.auth_mode %q is invalid; want pairing_token, static_token, or tailscale_identity", cfg.AuthMode)
 	}
 	if !cfg.Enabled {
 		return nil
 	}
-	if naviboxWildcardHost(cfg.BindHost) && cfg.ExposureMode != NaviboxExposurePublic {
-		return fmt.Errorf("config: navibox.bind_host %q requires navibox.exposure_mode=public and explicit confirmation", cfg.BindHost)
+	if navivoxWildcardHost(cfg.BindHost) && cfg.ExposureMode != NavivoxExposurePublic {
+		return fmt.Errorf("config: navivox.bind_host %q requires navivox.exposure_mode=public and explicit confirmation", cfg.BindHost)
 	}
-	if cfg.ExposureMode == NaviboxExposureLocal && !naviboxLoopbackHost(cfg.BindHost) {
-		return fmt.Errorf("config: navibox.exposure_mode=local requires loopback bind_host, got %q", cfg.BindHost)
+	if cfg.ExposureMode == NavivoxExposureLocal && !navivoxLoopbackHost(cfg.BindHost) {
+		return fmt.Errorf("config: navivox.exposure_mode=local requires loopback bind_host, got %q", cfg.BindHost)
 	}
-	if cfg.ExposureMode == NaviboxExposurePublic && !cfg.PublicConfirmed {
-		return fmt.Errorf("config: navibox.exposure_mode=public requires navibox.public_confirmed=true")
+	if cfg.ExposureMode == NavivoxExposurePublic && !cfg.PublicConfirmed {
+		return fmt.Errorf("config: navivox.exposure_mode=public requires navivox.public_confirmed=true")
 	}
 	return nil
 }
 
-func ValidateNaviboxForRuntime(cfg *NaviboxCfg) error {
-	return normalizeNaviboxConfig(cfg)
+func ValidateNavivoxForRuntime(cfg *NavivoxCfg) error {
+	return normalizeNavivoxConfig(cfg)
 }
 
-func naviboxLoopbackHost(host string) bool {
-	host = naviboxHostOnly(host)
+// NavivoxExposureRequiresVPN reports whether the given exposure_mode value
+// requires bind_host to match an active VPN interface IP.
+func NavivoxExposureRequiresVPN(mode string) bool {
+	switch mode {
+	case NavivoxExposureTailscale, NavivoxExposureWireGuard, NavivoxExposureVPN:
+		return true
+	default:
+		return false
+	}
+}
+
+// ValidateNavivoxBindAgainstVPN returns nil when navivox.bind_host either is
+// not required to be a VPN interface IP (exposure_mode local/public, or
+// channel disabled) or matches one of the live VPN IPs supplied by the
+// caller. The list is supplied as plain strings so config has no dependency
+// on the network/vpnhost package.
+func ValidateNavivoxBindAgainstVPN(cfg *NavivoxCfg, vpnIPs []string) error {
+	if cfg == nil || !cfg.Enabled {
+		return nil
+	}
+	if !NavivoxExposureRequiresVPN(cfg.ExposureMode) {
+		return nil
+	}
+	host := navivoxHostOnly(cfg.BindHost)
+	if host == "" {
+		return fmt.Errorf("config: navivox.bind_host is empty; exposure_mode=%s requires a VPN interface IP", cfg.ExposureMode)
+	}
+	for _, ip := range vpnIPs {
+		if strings.EqualFold(strings.TrimSpace(ip), host) {
+			return nil
+		}
+	}
+	if len(vpnIPs) == 0 {
+		return fmt.Errorf("config: navivox.exposure_mode=%s but no active VPN interface was detected; bind_host %q cannot be validated", cfg.ExposureMode, cfg.BindHost)
+	}
+	return fmt.Errorf("config: navivox.bind_host %q does not match any active VPN interface IP (%v); exposure_mode=%s requires a VPN bind", cfg.BindHost, vpnIPs, cfg.ExposureMode)
+}
+
+func navivoxLoopbackHost(host string) bool {
+	host = navivoxHostOnly(host)
 	if strings.EqualFold(host, "localhost") {
 		return true
 	}
@@ -1687,12 +1820,12 @@ func naviboxLoopbackHost(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-func naviboxWildcardHost(host string) bool {
-	host = naviboxHostOnly(host)
+func navivoxWildcardHost(host string) bool {
+	host = navivoxHostOnly(host)
 	return host == "" || host == "0.0.0.0" || host == "::" || host == "[::]"
 }
 
-func naviboxHostOnly(raw string) string {
+func navivoxHostOnly(raw string) string {
 	host := strings.TrimSpace(raw)
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h

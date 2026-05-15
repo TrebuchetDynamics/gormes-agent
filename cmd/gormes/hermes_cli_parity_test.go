@@ -18,7 +18,7 @@ func TestHermesCLIParityManifest(t *testing.T) {
 	}
 
 	wantTopLevel := []string{
-		"chat", "model", "fallback", "gateway", "setup", "whatsapp", "slack", "login", "logout", "auth", "status", "cron", "webhook", "hooks", "doctor", "dump", "debug", "backup", "import", "config", "pairing", "skills", "plugins", "memory", "tools", "mcp", "sessions", "insights", "claw", "curator", "version", "update", "uninstall", "acp", "profile", "completion", "dashboard", "logs",
+		"chat", "model", "fallback", "gateway", "setup", "whatsapp", "slack", "logout", "auth", "status", "cron", "webhook", "hooks", "doctor", "dump", "debug", "backup", "import", "config", "pairing", "skills", "plugins", "memory", "tools", "mcp", "sessions", "insights", "claw", "curator", "version", "update", "uninstall", "acp", "profile", "completion", "dashboard", "logs",
 	}
 	for _, path := range wantTopLevel {
 		entry := requireHermesCLIEntry(t, []string{path})
@@ -317,8 +317,8 @@ func TestHermesCLIParityManifestClassifiesDynamicPluginsAndGormesDivergences(t *
 		}
 	}
 	oneshoot := requireHermesCLIEntry(t, []string{"-z"})
-	if oneshoot.Status != hermesCLIImplemented || oneshoot.Target == "" {
-		t.Fatalf("-z/--oneshot entry = %+v, want implemented Hermes parity", oneshoot)
+	if oneshoot.Status != hermesCLIExcluded || !strings.Contains(oneshoot.Residual, "chat -q") {
+		t.Fatalf("-z/--oneshot entry = %+v, want removed-flag guidance", oneshoot)
 	}
 	typo := requireHermesCLIEntry(t, []string{"migrate", "ooenclaw"})
 	if !strings.Contains(typo.Residual, "migrate openclaw") || typo.Status != hermesCLIRowBacked {
@@ -339,8 +339,8 @@ func TestHermesCLIParityManifestClawCleanupImplemented(t *testing.T) {
 
 func TestHermesCLIParityManifestProviderAuthCommandsMatchHermes(t *testing.T) {
 	login := requireHermesCLIEntry(t, []string{"login"})
-	if login.Status != hermesCLIImplemented || login.Target != "cmd/gormes login" || !login.RedactsSecrets {
-		t.Fatalf("top-level login = %+v, want implemented redacted login compatibility entry", login)
+	if login.Status != hermesCLIExcluded || login.Target != "" || !strings.Contains(login.Residual, "auth add") {
+		t.Fatalf("top-level login = %+v, want excluded entry pointing to auth add", login)
 	}
 
 	logout := requireHermesCLIEntry(t, []string{"logout"})
@@ -388,7 +388,7 @@ func TestHermesCLIParityManifestProviderAuthCommandsMatchHermes(t *testing.T) {
 	}
 	for _, removed := range [][]string{{"auth", "login"}, {"auth", "refresh"}} {
 		if entry, ok := findHermesCLIEntry(removed); ok {
-			t.Fatalf("deprecated/nonexistent auth command %v should not be manifest-active: %+v", removed, entry)
+			t.Fatalf("removed auth command %v should not be manifest-active: %+v", removed, entry)
 		}
 	}
 

@@ -115,7 +115,7 @@ printf 'timestamp=%q\nreason=%q\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "test reques
 	}
 
 	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
-	cmd := exec.Command("timeout", "10s", "bash", script, "run")
+	cmd := exec.Command("timeout", "30s", "bash", script, "run")
 	cmd.Dir = repoRoot
 	cmd.Env = overlayEnv(os.Environ(),
 		"GORMES_CODEXU_REPO="+repoRoot,

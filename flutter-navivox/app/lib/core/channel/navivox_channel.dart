@@ -93,7 +93,6 @@ class NavivoxChannelState {
 abstract interface class NavivoxChannel implements Listenable {
   NavivoxChannelState get state;
   Stream<NavivoxApprovalRequest> get approvalRequests;
-  void enterFakeServerMode();
   void sendText(String text);
   void sendVoice({
     required Uint8List audio,

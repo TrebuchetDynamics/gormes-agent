@@ -17,7 +17,7 @@ WSL2 is still a useful option when you want Linux shell semantics. Native Window
 Open PowerShell or Windows Terminal:
 
 ```powershell
-irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex
+irm https://gormes.ai/install.ps1 | iex
 ```
 
 No admin rights are required. By default, Gormes installs under `%LOCALAPPDATA%\gormes` and publishes `gormes.exe` under `%LOCALAPPDATA%\gormes\bin`. Open a new terminal after install so the updated user PATH is visible.
@@ -34,20 +34,20 @@ gormes doctor --offline
 For the safer inspect-first path:
 
 ```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
+Invoke-WebRequest https://gormes.ai/install.ps1 -OutFile install.ps1
 Get-Content .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 gormes doctor --offline
 ```
 
-The script served from `https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1` is the same source as `scripts/install.ps1` in the repository.
+The script served from `https://gormes.ai/install.ps1` is the canonical public installer mirror for the current release line.
 
 ## Customize
 
 `install.ps1` exposes operator controls as both PowerShell parameters and environment variables. Pass parameters with the scriptblock form when you are still using the one-liner:
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1))) -DryRun -Branch main
+& ([scriptblock]::Create((irm https://gormes.ai/install.ps1))) -DryRun -Branch main
 ```
 
 | Parameter | Purpose |

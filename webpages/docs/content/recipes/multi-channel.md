@@ -8,7 +8,7 @@ difficulty: "L"
 
 > **Outcome:** One `gormes gateway` process drives Telegram, Discord, Slack, and any other configured channel through the same kernel + tool loop, with persistent runtime state visible via `gateway status`.
 >
-> **Prerequisites:** Working `gormes --oneshot` (see [first turn](../first-turn/)). At least one channel adapter configured with secrets and an allowlist. Runtime-ready channels today are Telegram, Discord, and Slack; WhatsApp/Teams/Yuanbao are row-backed or fixture-backed until promoted.
+> **Prerequisites:** Working `gormes chat -q` (see [first turn](../first-turn/)). At least one channel adapter configured with secrets and an allowlist. Runtime-ready channels today are Telegram, Discord, and Slack; WhatsApp/Teams/Yuanbao are row-backed or fixture-backed until promoted.
 
 ## Steps
 

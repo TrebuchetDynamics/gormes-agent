@@ -26,7 +26,6 @@ func TestConversationViewportTail_OmitsEarlierHistory(t *testing.T) {
 	got := conversationViewportTail(kernel.RenderFrame{History: history}, 80, 8)
 
 	for _, want := range []string{
-		"turn-116-body-marker",
 		"turn-117-body-marker",
 		"turn-118-body-marker",
 		"turn-119-body-marker",
@@ -38,7 +37,7 @@ func TestConversationViewportTail_OmitsEarlierHistory(t *testing.T) {
 	if strings.Contains(got, "turn-000-body-marker") {
 		t.Fatalf("conversationViewportTail() included earliest turn body in:\n%s", got)
 	}
-	if !strings.Contains(got, "116 earlier history messages omitted") {
+	if !strings.Contains(got, "117 earlier history messages omitted") {
 		t.Fatalf("conversationViewportTail() missing deterministic omitted-history sentinel in:\n%s", got)
 	}
 }

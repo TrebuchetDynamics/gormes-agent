@@ -46,7 +46,7 @@ Each line starts with a status tag:
 A typical offline run looks like:
 
 ```
-[WARN] build identity: dirty build: version=0.2.8 commit=91b6a6950 — uncommitted source at build time
+[WARN] build identity: dirty build: version=0.2.11 commit=432ea30b5 — uncommitted source at build time
 [PASS] SecretRef runtime: resolved=0 inactive=0 unavailable=0
 [SKIP] provider health: skipped (--offline)
 [PASS] Native TUI: available: Go-native Bubble Tea TUI compiled into gormes
@@ -54,7 +54,7 @@ A typical offline run looks like:
 [PASS] Web tools: backend=duckduckgo route=direct source=free evidence=web_ok
 [WARN] Browser runtime: cdp_not_configured
 [WARN] ACP bridge: server=ready client=ready remote=unsupported evidence=acp_bridge_unavailable
-[WARN] GitHub auth: No GITHUB_TOKEN and gh auth status failed evidence=github_cli_status_failed
+[SKIP] GitHub auth: skipped (--offline; set GITHUB_TOKEN/GH_TOKEN for local token readiness)
 [PASS] Goncho config: enabled=true workspace=gormes observer_peer=gormes
 [WARN] Gateway Slack: disabled
 [WARN] Custom endpoint: configured provider=openai endpoint=... missing=api_key
@@ -66,7 +66,7 @@ A few specifics worth knowing:
 
 - **build identity** is `WARN` whenever the binary was built from a dirty tree or without ldflags-injected commit metadata. A clean release artifact reports `PASS`.
 - **Browser runtime** flags `WARN cdp_not_configured` until you point `BROWSER_CDP_URL` (or `CHROME_REMOTE_DEBUGGING_URL`) at a Chrome instance launched with `--remote-debugging-port=9222`.
-- **GitHub auth** flags `WARN` until either `GITHUB_TOKEN`/`GH_TOKEN` is set or `gh auth status` succeeds.
+- **GitHub auth** is `SKIP` under `--offline`. In an online run it flags `WARN` until either `GITHUB_TOKEN`/`GH_TOKEN` is set or `gh auth status` succeeds.
 - **Custom endpoint** flags `WARN` until the configured provider has an API key in `.env`.
 - **gateway/<channel>** flags `SKIP disabled` for any channel that is not configured.
 

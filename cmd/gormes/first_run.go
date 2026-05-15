@@ -93,11 +93,11 @@ func firstRunChannelStates(cfg config.Config) []cli.ChannelState {
 			HandoffCommand: "gormes gateway",
 		},
 		{
-			Target:         cli.SetupTargetNavibox,
-			Label:          "Navibox",
-			Configured:     cfg.Navibox.Enabled,
-			Detail:         configuredNaviboxGatewayStatusDetail(cfg.Navibox),
-			SetupCommand:   "gormes setup --quick --target navibox",
+			Target:         cli.SetupTargetNavivox,
+			Label:          "Navivox",
+			Configured:     cfg.Navivox.Enabled,
+			Detail:         configuredNavivoxGatewayStatusDetail(cfg.Navivox),
+			SetupCommand:   "gormes setup --quick --target navivox",
 			HandoffCommand: "gormes gateway",
 		},
 	}

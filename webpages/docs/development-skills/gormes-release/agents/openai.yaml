@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Release"
-  short_description: "Release Gormes through green development, PR, tag, and artifacts."
-  default_prompt: "Use $gormes-release to classify release intent, prepare version/changelog changes on development, include all safe dirty work through $gormes-git, push development, open or update the PR to main, wait for green CI, merge, tag only the verified main commit, verify GitHub release artifacts, sync development, and stop on unsafe recovery conditions."
+  short_description: "Release Gormes through PR, tag, and artifacts."
+  default_prompt: "Use $gormes-release to run the development-to-main release lane: prepare version changes, validate, push development, merge the PR, tag, verify artifacts, and sync development."

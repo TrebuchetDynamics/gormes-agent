@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Builder"
   short_description: "Build Gormes from progress.json rows."
-  default_prompt: "Use the Gormes builder skill to select a progress.json row and implement it with tests, resolving ./hermes-agent as the Python upstream behavior reference when parity source refs matter."
+  default_prompt: "Use $gormes-builder to select a builder-ready progress.json row, implement the Gormes slice with tests, and preserve Hermes parity evidence from ./hermes-agent."

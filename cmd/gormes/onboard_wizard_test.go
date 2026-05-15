@@ -14,12 +14,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TestOnboardCommand_JSONEmitsStructuredFirstRunStatus proves
-// `gormes onboard --json` returns a parseable
-// `{build, home, config_path, skills_root, skills_local, skills_bundled,
-// provider_configured, provider, endpoint, model, auth_configured,
-// agents: [...], bindings: [...]}` document so fleet automation
-// querying first-run readiness across machines can ingest the status
+// TestOnboardCommand_JSONEmitsStructuredFirstRunStatus proves the internal
+// onboarding readiness helper returns a parseable `{build, home, config_path,
+// skills_root, skills_local, skills_bundled, provider_configured, provider,
+// endpoint, model, auth_configured, agents: [...], bindings: [...]}` document
 // without scraping the multi-line "Home: / Config: / Provider:" prose.
 // Build provenance leads — same convention as the rest of the `--json`
 // arc. Secrets stay out: API keys live in the env file, not in this
@@ -38,18 +36,14 @@ model = "claude-sonnet-4-5"
 api_key = "sk-ant-fixture-token"
 `))
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"onboard", "--json"})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("onboard --json: %v\nstderr=%s", err, stderr.String())
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--json")
+	if err != nil {
+		t.Fatalf("onboard --json: %v\nstderr=%s", err, stderr)
 	}
 
 	// Raw API key MUST never leak into stdout.
-	if strings.Contains(stdout.String(), "sk-ant-fixture-token") {
-		t.Fatalf("onboard --json LEAKED the api key:\nstdout=%s", stdout.String())
+	if strings.Contains(stdout, "sk-ant-fixture-token") {
+		t.Fatalf("onboard --json LEAKED the api key:\nstdout=%s", stdout)
 	}
 
 	var got struct {
@@ -67,8 +61,8 @@ api_key = "sk-ant-fixture-token"
 		Model              string `json:"model"`
 		AuthConfigured     bool   `json:"auth_configured"`
 	}
-	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
-		t.Fatalf("onboard --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("onboard --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
 	}
 	if got.Build.Version != Version {
 		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)

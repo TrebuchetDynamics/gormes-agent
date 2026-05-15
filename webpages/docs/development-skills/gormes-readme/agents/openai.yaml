@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes README"
   short_description: "Audit README with a 100/100 repo lens."
-  default_prompt: "Use $gormes-readme to audit README.md against current Gormes repository evidence and the 100/100 repo-quality rubric."
+  default_prompt: "Use $gormes-readme to audit and improve README.md from current Gormes repository evidence, keeping install, status, positioning, and trust claims accurate."

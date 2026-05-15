@@ -6,7 +6,7 @@ weight: 5
 
 # Install Gormes
 
-Gormes ships as a single static Go binary. The Linux release build measures ~40 MB (recorded in `benchmarks.json`); size varies by OS and build profile. There is no Python runtime, no Node runtime, and no Docker daemon to install. Both bootstrap installers are user-scoped — no root or admin paths.
+Gormes ships as a single static Go binary. The Linux release build measures ~40 MB (recorded in `benchmarks.json`); size varies by OS and build profile. There is no Python runtime, no Node runtime, and no Docker daemon to install. Neither bootstrap installer requires root or admin rights; a non-root install stays fully user-scoped, while a root Linux install uses FHS paths like `/usr/local/bin/gormes`.
 
 The Unix and Windows installers are release-first: they fetch the latest signed release archive for the host platform, then fall back to a managed source build only when a release asset is unavailable, when verification fails, when you ask for it, or when the target branch is not `main`.
 
@@ -14,7 +14,7 @@ The Unix and Windows installers are release-first: they fetch the latest signed 
 
 - [Linux and macOS](./linux-macos/) — `install.sh` one-liner, inspect-first variant, customization flags, and `gormes doctor --offline` verification.
 - [Windows native](./windows/) — `install.ps1` one-liner, inspect-first variant, PowerShell parameters, and verification.
-- [From source](./from-source/) — `git clone` plus `make build`, `go install ...@latest`, and when to prefer source over the installer (advanced, air-gapped, custom build flags).
+- [From source](./from-source/) — `git clone` plus `CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes`, and when to prefer source over the installer (advanced, air-gapped, custom build flags).
 
 ## Platform support
 

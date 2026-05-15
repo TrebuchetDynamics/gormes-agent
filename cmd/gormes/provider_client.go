@@ -13,7 +13,7 @@ import (
 // providerPool caches constructed provider clients so the oneshot cold-start
 // path only constructs the selected provider. Gateway and doctor paths also
 // benefit from reuse, but the pool's primary design goal is avoiding eager
-// construction of unselected providers during `gormes -z`.
+// construction of unselected providers during scripted chat.
 var providerPool = provider.NewClientPool()
 
 // getOrCreateProviderClient returns a hermes.Client for the given provider,

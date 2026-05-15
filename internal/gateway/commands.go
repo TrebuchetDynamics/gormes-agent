@@ -95,6 +95,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "model", Description: "Show current model and provider", Kind: EventModel, Aliases: []string{"provider"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "paste", Description: "Attach clipboard image", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "personality", Description: "Set a predefined personality", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "platform", Description: "Pause, resume, or list a failing gateway platform", Kind: EventPlatformControl, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "platforms", Description: "Show gateway/messaging platform status", Kind: EventGateway, Aliases: []string{"gateway"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "plugins", Description: "List installed plugins", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "profile", Description: "Show active profile name and home directory", Kind: EventProfile, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
@@ -229,7 +230,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn || cmd.Kind == EventPlatformControl {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""

@@ -239,7 +239,7 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
 
           <div class="methodology-metrics mt-8">
             <p class="font-mono text-xs font-bold uppercase text-[#f0c84b]">{page.methodologyMetricLabel}</p>
-            <div class="mt-4 grid gap-4 sm:grid-cols-3">
+            <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {page.methodologyMetrics.map((metric) => (
                 <article class={`${cardShell} methodology-metric`}>
                   <p class="metric-value font-mono text-3xl font-black text-[#73cedd]">{metric.value}</p>

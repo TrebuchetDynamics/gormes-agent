@@ -19,6 +19,8 @@ function escapeRegExp(value) {
 test('homepage renders the redesigned landing', async ({ page }) => {
   expect(landingBenchmarks.binary.size_mb).toBe(rootBenchmarks.binary.size_mb);
   expect(landingBenchmarks.binary.last_measured).toBe(rootBenchmarks.binary.last_measured);
+  expect(landingBenchmarks.runtime.offline_doctor.peak_rss_mb).toBe(rootBenchmarks.runtime.offline_doctor.peak_rss_mb);
+  expect(landingBenchmarks.runtime.offline_doctor.last_measured).toBe(rootBenchmarks.runtime.offline_doctor.last_measured);
   expect(logoSvg).toContain('fill="#73cedd"');
   expect(logoSvg).toContain('shape-rendering="crispEdges"');
   expect(logoSvg).toContain('Straight block-grid GORMES-AGENT logo');
@@ -93,29 +95,30 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('WhatsApp, WeChat, Signal, Matrix, and Mattermost.', { exact: true })).toBeVisible();
 
   // Install section
-  await expect(page.getByRole('heading', { name: 'Two install paths. One gormes command.' })).toBeVisible();
-  await expect(page.getByText('Build from source when you want maximum inspection.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Install first. Build from source when needed.' })).toBeVisible();
+  await expect(page.getByText('Use install.sh for the release-first managed install.')).toBeVisible();
   const installCommands = page.locator('#install pre code');
-  const sourceBuildCommand = installCommands.nth(0);
-  const installScriptCommand = installCommands.nth(1);
+  const installScriptCommand = installCommands.nth(0);
+  const sourceBuildCommand = installCommands.nth(1);
+  await expect(installScriptCommand).toContainText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh');
+  await expect(installScriptCommand).toContainText('gormes --version');
+  await expect(installScriptCommand).toContainText('gormes doctor --offline');
+  await expect(installScriptCommand).not.toContainText(/https:\/\/gormes[.]ai\/install[.]sh/);
+  await expect(installScriptCommand).not.toContainText('raw.githubusercontent.com');
   await expect(sourceBuildCommand).toContainText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git');
   await expect(sourceBuildCommand).toContainText('cd gormes-agent');
-  await expect(sourceBuildCommand).toContainText('make build');
-  await expect(sourceBuildCommand).toContainText('export PATH="$PWD/bin:$PATH"');
-  await expect(sourceBuildCommand).toContainText('gormes doctor --offline');
-  await expect(sourceBuildCommand).toContainText('gormes --offline');
-  await expect(installScriptCommand).toContainText('curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh');
-  await expect(installScriptCommand).toContainText('less install.sh');
-  await expect(installScriptCommand).toContainText('sh install.sh');
-  await expect(installScriptCommand).toContainText('gormes doctor --offline');
-  await expect(page.getByRole('heading', { name: 'After offline proof' })).toBeVisible();
+  await expect(sourceBuildCommand).toContainText('mkdir -p bin');
+  await expect(sourceBuildCommand).toContainText('CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes');
+  await expect(sourceBuildCommand).toContainText('./bin/gormes doctor --offline');
+  await expect(sourceBuildCommand).toContainText('./bin/gormes --offline');
+  await expect(sourceBuildCommand).not.toContainText('make build');
+  await expect(page.getByRole('heading', { name: 'After setup' })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes setup provider', { exact: true })).toBeVisible();
-  await expect(page.locator('#install').getByText('gormes --oneshot "hello"', { exact: true })).toBeVisible();
+  await expect(page.locator('#install').getByText('gormes chat', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes gateway status', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('./bin/gormes goncho doctor --json', { exact: true })).toHaveCount(0);
-  await expect(page.locator('#install').getByText('./bin/gormes')).toHaveCount(0);
   await expect(page.locator('#install').getByText('GORMES_ENDPOINT=')).toHaveCount(0);
-  await expect(page.getByText('Both paths end at the same gormes command. install.sh also runs gormes setup when a terminal is available.')).toBeVisible();
+  await expect(page.getByText('Use install.sh for the published gormes command on PATH, or ./bin/gormes from a source checkout when you are developing Gormes itself.')).toBeVisible();
 
   // Trust section
   await expect(page.getByRole('heading', { name: 'Who this is for' })).toBeVisible();
@@ -124,7 +127,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Trust posture' })).toBeVisible();
   await expect(page.getByText('Offline doctor runs before any token spend.')).toBeVisible();
   await expect(page.getByText('Secrets stay local under ~/.gormes.')).toBeVisible();
-  await expect(page.getByText('Source-backed install.sh you can inspect before running.')).toBeVisible();
+  await expect(page.getByText('Release-first install.sh you can inspect before running.')).toBeVisible();
   await expect(page.getByText('Every commit passes go test, progress validate, and git diff --check.')).toBeVisible();
   await expect(page.getByText('Tagged releases with SHA-256 checksums.')).toBeVisible();
 
@@ -134,6 +137,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Loop output, measured today')).toBeVisible();
   await expect(page.locator('.methodology-metric').getByText('Validated rows shipped', { exact: true })).toBeVisible();
   await expect(page.locator('.methodology-metric').getByText('770+', { exact: true })).toBeVisible();
+  await expect(page.locator('.methodology-metric').getByText('Runtime RSS', { exact: true })).toBeVisible();
+  await expect(page.locator('.methodology-metric').getByText(`~${landingBenchmarks.runtime.offline_doctor.peak_rss_mb} MB`, { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Validation-gated commits' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Hermes is the parity oracle' })).toBeVisible();
   // Only 2 pillars now
@@ -145,7 +150,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Shipped in scout' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Hardening now' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Later', exact: true })).toBeVisible();
-  await expect(page.getByText('Source-backed install.sh and setup handoff')).toBeVisible();
+  await expect(page.getByText('Release-first install.sh and setup handoff')).toBeVisible();
   await expect(page.getByText('Onboard/setup flows', { exact: true })).toBeVisible();
   await expect(page.getByText('Local SQLite memory and sessions')).toBeVisible();
   await expect(page.getByText('Logs, security audit, and secrets audit')).toBeVisible();
@@ -157,7 +162,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   // Explore + Final CTA
   await expect(page.getByRole('heading', { name: 'Explore' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Prove the runtime locally before you ever spend a token.' })).toBeVisible();
-  await expect(page.getByText('Build from source or inspect install.sh, run the offline doctor, then add credentials only after the machine has proven itself.')).toBeVisible();
+  await expect(page.getByText('Run the release-first installer or build from source, run the offline doctor, then add credentials only after the machine has proven itself.')).toBeVisible();
 
   // Footer release label
   await expect(page.locator('.footer-left').getByText(releaseLabelPattern)).toBeVisible();
@@ -171,6 +176,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Why Hermes breaks in production')).toHaveCount(0);
   await expect(page.getByText('irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex')).toHaveCount(0);
   await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh')).toHaveCount(0);
+  await expect(page.getByText('curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh')).toHaveCount(0);
+  await expect(page.getByText(/https:\/\/gormes[.]ai\/install[.]sh/)).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(0);
 

@@ -5,7 +5,7 @@ rem Usage:
 rem   install.cmd
 rem
 rem Equivalent to:
-rem   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
+rem   Invoke-WebRequest https://gormes.ai/install.ps1 -OutFile install.ps1
 rem   Get-Content .\install.ps1
 rem   powershell -ExecutionPolicy Bypass -File .\install.ps1
 rem

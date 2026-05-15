@@ -21,7 +21,7 @@ func TestResolveGitCommitFrom_FavorsInjectedValue(t *testing.T) {
 // TestResolveGitCommitFrom_FallsBackToVCSRevision: when ldflags weren't
 // injected (developers running plain `go build`), Go 1.18+ embeds the
 // commit sha in BuildInfo.Settings under vcs.revision. Surface that so
-// `gormes doctor` and `onboard --json` show the real commit instead of
+// `gormes doctor` and readiness JSON helpers show the real commit instead of
 // the "unknown" sentinel.
 func TestResolveGitCommitFrom_FallsBackToVCSRevision(t *testing.T) {
 	cases := []struct {

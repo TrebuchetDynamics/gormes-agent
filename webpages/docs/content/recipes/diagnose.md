@@ -1,6 +1,6 @@
 ---
 title: "Diagnose a broken install"
-description: "Use doctor, onboard, and gateway status to localize the failure."
+description: "Use doctor, setup, and gateway status to localize the failure."
 difficulty: "S"
 ---
 
@@ -26,9 +26,9 @@ difficulty: "S"
 
 3. **Check first-run configuration state**
    ```bash
-   gormes onboard
+   gormes doctor --offline --target terminal --json
    ```
-   `onboard` reports `Home`, `Config`, `Provider`, `Auth`, configured `Agents`, and `Bindings`. The `Next steps` block lists the commands needed to repair missing pieces.
+   The `target` block reports readiness, missing setup pieces, and `next_command`. Run `gormes setup --quick --target terminal` when the target is not ready.
 
 4. **Inspect the gateway runtime (if you use channels)**
    ```bash
@@ -43,7 +43,7 @@ difficulty: "S"
 gormes doctor --json
 ```
 
-Expected: a `{checks: [...]}` JSON document. Every check has a `status` of `pass`, `skip`, or `fail`. Failing entries include the error reason in the same record — copy that into your issue report.
+Expected: a `{build, failed, checks: [...]}` JSON document. Every check has a `name`, a `status` of `PASS`, `WARN`, `SKIP`, or `FAIL`, and a `summary`. The `summary` of a failing check carries the error reason — copy that into your issue report.
 
 ## Troubleshooting
 

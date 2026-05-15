@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -116,11 +117,13 @@ func changedFiles(ctx context.Context, workspace string, before, after *GitSnaps
 			return nil, fmt.Errorf("diff --name-only working tree: %w", err)
 		}
 		add(names)
+		addPorcelainPaths(after.Files, seen)
 	}
 	out := make([]string, 0, len(seen))
 	for f := range seen {
 		out = append(out, f)
 	}
+	sort.Strings(out)
 	return out, nil
 }
 
@@ -180,4 +183,29 @@ func splitNonEmptyLines(text string) []string {
 		out = append(out, trimmed)
 	}
 	return out
+}
+
+func addPorcelainPaths(lines []string, seen map[string]struct{}) {
+	for _, line := range lines {
+		path := porcelainPath(line)
+		if path == "" {
+			continue
+		}
+		seen[path] = struct{}{}
+	}
+}
+
+func porcelainPath(line string) string {
+	if len(line) < 4 {
+		return ""
+	}
+	path := strings.TrimSpace(line[3:])
+	if path == "" {
+		return ""
+	}
+	if strings.Contains(path, " -> ") {
+		parts := strings.Split(path, " -> ")
+		path = strings.TrimSpace(parts[len(parts)-1])
+	}
+	return strings.Trim(path, `"`)
 }

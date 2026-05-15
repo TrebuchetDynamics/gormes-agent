@@ -60,15 +60,16 @@ func NormalizeInbound(platform string, msg InboundMessage) (gateway.InboundEvent
 
 	kind, body := gateway.ParseInboundText(text)
 	return gateway.InboundEvent{
-		Platform: platform,
-		ChatID:   chatID,
-		ChatName: trim(msg.ChatName),
-		UserID:   userID,
-		UserName: trim(msg.UserName),
-		ThreadID: CanonicalThreadID(msg),
-		MsgID:    trim(msg.MessageID),
-		Kind:     kind,
-		Text:     body,
+		Platform:  platform,
+		ChatID:    chatID,
+		ChatName:  trim(msg.ChatName),
+		UserID:    userID,
+		UserName:  trim(msg.UserName),
+		ThreadID:  CanonicalThreadID(msg),
+		MsgID:     trim(msg.MessageID),
+		MessageID: trim(msg.MessageID),
+		Kind:      kind,
+		Text:      body,
 	}, true
 }
 

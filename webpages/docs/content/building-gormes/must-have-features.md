@@ -367,7 +367,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 
 | Command | Source | Status |
 |---------|--------|--------|
-| `gormes` (TUI, oneshot, gateway modes) | hermes-agent | Shipped |
+| `gormes` (TUI, scripted chat, gateway modes) | hermes-agent | Shipped |
 | `gormes doctor` | hermes-agent | Shipped |
 | `gormes gateway status/start/stop` | hermes-agent | Shipped |
 | `gormes session export` | hermes-agent | Shipped |
@@ -377,7 +377,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 | `gormes model` (interactive picker) | hermes-agent | Shipped |
 | `gormes setup` (wizard) | hermes-agent | Shipped |
 | `gormes profile` | hermes-agent | Shipped |
-| `gormes agent-template-reset` | hermes-agent | Shipped |
+| `gormes agent reset` | hermes-agent | Shipped |
 | `gormes mcp login` | hermes-agent | Shipped |
 | **`gormes backup` / `gormes restore`** | hermes-agent | Gap |
 | **`gormes logs`** | hermes-agent | Gap |

@@ -15,7 +15,7 @@ Gormes runs AI agents from one Go-native runtime.
 
 No Python runtime. No virtualenv repair. No backend service just to open the UI.
 
-Choose source build, `install.sh` (Linux/macOS/WSL2), or `install.ps1` (native Windows), prove the machine offline, then add provider and gateway credentials.
+Choose source build, release-first `install.sh` (Linux/macOS/WSL2), or release-first `install.ps1` (native Windows), prove the machine offline, then add provider and gateway credentials.
 
 ## Get started
 
@@ -26,16 +26,16 @@ Build from source:
 ```bash
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
-make build
-export PATH="$PWD/bin:$PATH"
-gormes doctor --offline
-gormes --offline
+mkdir -p bin
+CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes
+./bin/gormes doctor --offline
+./bin/gormes --offline
 ```
 
 Or inspect and run `install.sh` on Linux/macOS/WSL2:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
+curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh
 less install.sh
 sh install.sh
 gormes doctor --offline
@@ -44,7 +44,7 @@ gormes doctor --offline
 Or inspect and run `install.ps1` on native Windows:
 
 ```powershell
-irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
+irm https://gormes.ai/install.ps1 -OutFile install.ps1
 Get-Content .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 gormes doctor --offline
@@ -53,9 +53,9 @@ gormes doctor --offline
 After any path, add only what you need:
 
 ```bash
-gormes onboard
+gormes setup --quick
 gormes setup provider
-gormes --oneshot "hello"
+gormes chat
 gormes config show
 gormes gateway status
 ```
@@ -68,17 +68,17 @@ Who is it for? Operators, developers, and agent builders who want a local runtim
 
 What makes it different?
 
-- **Go-native runtime:** native TUI, doctor, onboard/setup, provider turns, tools, memory, dashboard, logs, audits, and configured gateways from one binary.
+- **Go-native runtime:** native TUI, doctor, setup, provider turns, tools, memory, dashboard, logs, audits, and configured gateways from one binary.
 - **Offline proof path:** `gormes --offline` and `gormes doctor --offline` work before credentials, network calls, or token spend.
-- **Three install paths:** source build for maximum inspection, source-backed `install.sh` (Linux/macOS/WSL2), or `install.ps1` (native Windows) for a managed checkout that publishes the `gormes` command.
+- **Three install paths:** source build for maximum inspection, release-first `install.sh` (Linux/macOS/WSL2), or release-first `install.ps1` (native Windows) for a managed install that publishes the `gormes` command.
 - **Local SQLite memory ("Goncho"):** sessions and durable context stay local.
 - **Roadmap honesty:** Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening stay visible as active work instead of shipped promises.
 
 ## What you can do today
 
 - Run a local agent UI with zero runtime dependencies on the offline path: `gormes --offline`.
-- Send one-shot prompts to a provider-compatible endpoint: `gormes --oneshot "..."`.
-- Validate your environment before spending tokens: `gormes doctor --offline`, `gormes onboard`.
+- Open provider-backed terminal chat: `gormes chat`.
+- Validate your environment before spending tokens: `gormes doctor --offline`, `gormes setup --quick`.
 - Configure providers, models, agents, workspaces, and bindings from the CLI: `gormes setup [section]`.
 - Inspect and edit the native config: `gormes config show`, `gormes config get`, `gormes config set`, `gormes config check`.
 - Operate configured Telegram, Discord, or Slack agents from one binary: `gormes gateway`, `gormes gateway status`, `gormes gateway reload`.
@@ -99,10 +99,10 @@ The docs use support labels so roadmap work does not look like shipped runtime b
 
 ## Trust posture
 
-- Source build and inspectable `install.sh` are the two promoted scout-release paths.
+- Source build and release-first inspectable installers are the promoted scout-release paths.
 - Offline doctor runs before provider credentials or token spend.
 - Secrets stay local under the Gormes home.
-- `install.sh` clones or updates a managed source checkout, builds `gormes`, verifies the command, and can hand off to setup.
+- `install.sh` fetches the latest release binary, verifies its SHA-256, publishes `gormes`, and falls back to a managed source build when needed.
 - Tagged artifacts carry checksums; release signing and package-manager hardening are still in progress.
 - Progress data is generated from the canonical `progress.json` source instead of hand-edited marketing copy.
 

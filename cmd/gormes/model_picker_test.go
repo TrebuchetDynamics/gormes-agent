@@ -113,6 +113,38 @@ func TestModelPickerOllamaCloudNormalizesSuffixedSelection(t *testing.T) {
 	}
 }
 
+func TestDefaultModelProviderEntriesUseHermesProviderCatalog(t *testing.T) {
+	entries, err := defaultModelProviderEntries()
+	if err != nil {
+		t.Fatalf("defaultModelProviderEntries() error = %v", err)
+	}
+	if len(entries) != 37 {
+		t.Fatalf("provider entries = %d, want 37", len(entries))
+	}
+	for _, want := range []struct {
+		index int
+		id    string
+		label string
+	}{
+		{0, "nous", "Nous Portal (Nous Research subscription)"},
+		{5, "openai-codex", "OpenAI Codex"},
+		{36, "custom", "custom (direct API)"},
+	} {
+		got := entries[want.index]
+		if got.ID != want.id || got.Label != want.label {
+			t.Fatalf("entry[%d] = %#v, want id=%q label=%q", want.index, got, want.id, want.label)
+		}
+	}
+	for _, entry := range entries {
+		if strings.Contains(entry.Label, "(oauth_external)") || strings.Contains(entry.Label, "(api_key)") {
+			t.Fatalf("provider entry leaked raw auth taxonomy: %#v", entry)
+		}
+		if entry.ID == cli.ProviderCatalogAuxConfig || entry.ID == cli.ProviderCatalogLeaveUnchanged || entry.ID == "custom-endpoint" {
+			t.Fatalf("provider entry contains setup-only action: %#v", entry)
+		}
+	}
+}
+
 func TestModelCommandDefaultPersistWritesConfig(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	selection := cli.Selection{Provider: "openai-codex", Model: "gpt-5.5"}

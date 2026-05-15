@@ -8,6 +8,7 @@ import (
 
 var defaultFiles = []FileTemplate{
 	{
+		ID:   "soul",
 		Path: "SOUL.md",
 		Content: hermes.DefaultSoulMD + `
 
@@ -27,6 +28,7 @@ var defaultFiles = []FileTemplate{
 		Mode: 0o644,
 	},
 	{
+		ID:   "agents",
 		Path: "AGENTS.md",
 		Content: `# AGENTS.md
 
@@ -49,6 +51,7 @@ This file is the workspace contract for agents run by ` + "`gormes`" + `. Edit i
 		Mode: 0o644,
 	},
 	{
+		ID:   "identity",
 		Path: "IDENTITY.md",
 		Content: `# Identity
 
@@ -77,6 +80,7 @@ Use this file for stable identity and workspace facts that should shape every tu
 		Mode: 0o644,
 	},
 	{
+		ID:   "tools",
 		Path: "TOOLS.md",
 		Content: `# Tools
 
@@ -104,6 +108,7 @@ Use this file to record workspace-specific tool choices, test commands, and oper
 		Mode: 0o644,
 	},
 	{
+		ID:   "memory-user",
 		Path: filepath.Join("memory", "USER.md"),
 		Content: `# User
 
@@ -125,6 +130,7 @@ Durable user profile facts go here. Keep entries concrete, current, and useful a
 		Mode: 0o644,
 	},
 	{
+		ID:   "memory-memory",
 		Path: filepath.Join("memory", "MEMORY.md"),
 		Content: `# Memory
 

@@ -13,13 +13,15 @@ func TestGormesSelfHelpGuidanceMentionsGormesDocs(t *testing.T) {
 
 	for _, want := range []string{
 		"Gormes",
-		"Gormes Agent",
 		"https://docs.gormes.ai/",
 		"self-help-unavailable",
 	} {
 		if !strings.Contains(guidance, want) {
 			t.Fatalf("guidance missing %q:\n%s", want, guidance)
 		}
+	}
+	if strings.Contains(guidance, "Gormes Agent") {
+		t.Fatalf("guidance must not emit deprecated Gormes Agent wording:\n%s", guidance)
 	}
 }
 
@@ -41,7 +43,7 @@ func TestGormesSelfHelpGuidanceGateMatchesSetupQuestions(t *testing.T) {
 		wantOK bool
 	}{
 		{name: "configure", prompt: "How do I configure Gormes for Telegram?", wantOK: true},
-		{name: "setup", prompt: "Can you help me set up Gormes Agent?", wantOK: true},
+		{name: "legacy agent alias setup", prompt: "Can you help me set up Gormes Agent?", wantOK: true},
 		{name: "troubleshoot", prompt: "Troubleshoot Gormes doctor failing before launch.", wantOK: true},
 		{name: "use", prompt: "How do I use Gormes in TUI mode?", wantOK: true},
 		{name: "unrelated", prompt: "Write a Go unit test for JSON parsing.", wantOK: false},

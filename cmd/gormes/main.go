@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -48,6 +50,10 @@ func main() {
 
 func executeRootCommand(root *cobra.Command, args ...string) error {
 	args = coalesceSessionNameArgs(args)
+	if suggestion, ok := removedRootFlagSuggestion(args); ok {
+		fmt.Fprintf(root.ErrOrStderr(), "%s\n", suggestion)
+		return newExitCodeError(2, fmt.Errorf("%s", suggestion))
+	}
 	if suggestion, ok := cli.TypoSuggestion(args); ok {
 		fmt.Fprintf(root.ErrOrStderr(), "unknown command %q for %q\n%s\n", args[0], root.CommandPath(), suggestion)
 		return newExitCodeError(1, fmt.Errorf("unknown command %q for %q; %s", args[0], root.CommandPath(), suggestion))
@@ -98,6 +104,33 @@ func executeRootCommand(root *cobra.Command, args ...string) error {
 	return err
 }
 
+func removedRootFlagSuggestion(args []string) (string, bool) {
+	for i, arg := range args {
+		switch {
+		case arg == "--oneshot":
+			if i+1 < len(args) {
+				return fmt.Sprintf("unknown flag: --oneshot; use `gormes chat -q %q`", args[i+1]), true
+			}
+			return "unknown flag: --oneshot; use `gormes chat -q \"your prompt\"`", true
+		case strings.HasPrefix(arg, "--oneshot="):
+			prompt := strings.TrimPrefix(arg, "--oneshot=")
+			if prompt == "" {
+				return "unknown flag: --oneshot; use `gormes chat -q \"your prompt\"`", true
+			}
+			return fmt.Sprintf("unknown flag: --oneshot; use `gormes chat -q %q`", prompt), true
+		case arg == "-z":
+			if i+1 < len(args) {
+				return fmt.Sprintf("unknown shorthand flag: -z; use `gormes chat -q %q`", args[i+1]), true
+			}
+			return "unknown shorthand flag: -z; use `gormes chat -q \"your prompt\"`", true
+		case strings.HasPrefix(arg, "-z") && len(arg) > 2:
+			prompt := strings.TrimPrefix(arg, "-z")
+			return fmt.Sprintf("unknown shorthand flag: -z; use `gormes chat -q %q`", prompt), true
+		}
+	}
+	return "", false
+}
+
 // isCobraUnknownCommandError matches cobra's Find()/findSuggestions
 // `unknown command "X" for "Y"[; did you mean "Z"?]` error message
 // pattern. Cobra returns this as a plain `errors.New(...)` value with
@@ -144,7 +177,7 @@ type tuiInvocation struct {
 	Config    config.Config
 	// ForcedSkills is a one-turn root CLI skill allowlist. The full TUI does
 	// not currently inject it, but carrying the value keeps invocation parsing
-	// symmetric with chat/oneshot startup.
+	// symmetric with scripted chat startup.
 	ForcedSkills []string
 	// RemoteURL, when non-empty, switches startup to remote-TUI mode:
 	// gormes connects to the gateway's SSE event stream instead of
@@ -202,77 +235,104 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 		// subcommand.
 		Version: Version,
 		Short:   "Go-native Hermes-compatible agent runtime",
-		Long: `Gormes runs AI agents as a single static Go binary: no Python, no Docker, no Hermes process.
+		Long: `Gormes is the Go-native Hermes-compatible agent runtime: one static binary for
+terminal chat, scripted queries, local memory, skills, tools, and messaging
+gateways. It does not require Python, Docker, or a separate Hermes process.
 
-Getting started:
-  gormes onboard                    show configured state and next steps
-  gormes setup provider             configure endpoint, model, and API key
-  gormes setup model                pick the default provider/model
-  gormes --oneshot "hello"          test one provider-backed turn
+Fast paths:
+  Fresh install:       gormes setup -> gormes chat
+  Targeted setup:      gormes setup --quick --target terminal
+  Scripted chat:       gormes chat -q "summarize this repo"
+  Interactive TUI:     gormes --profile work
+  Messaging gateway:   gormes gateway status -> gormes gateway -> gormes logs
 
-Daily use:
-  gormes                            open the TUI
-  gormes --offline                  smoke test without provider calls
-  gormes doctor --offline           check local readiness
-  gormes dashboard                  start http://127.0.0.1:43827/dashboard
-  gormes kanban list                inspect durable multi-agent work
+Operator workflows:
+  First run and setup
+    gormes setup                      run guided setup
+    gormes setup --quick              configure missing setup items only
+    gormes setup provider             configure endpoint, model, and API key
+    gormes setup model                pick the default provider/model
+    gormes doctor --offline           check local readiness without network calls
 
-Configuration:
-  gormes config edit                open config.toml in your editor
-  gormes config set <key> <value>   set a supported config value
-  gormes config show                show config with secrets redacted
-  gormes secrets audit --plan file  audit SecretRef runtime plans
-  gormes security audit --deep      inspect gateway, channel, tool, and state security
-  gormes auth add <provider>        add provider credentials
-  gormes logout <provider>          clear stored provider auth
+  Provider/auth/debug
+    gormes config show                show config with secrets redacted
+    gormes config check --json        machine-check config and dotenv readiness
+    gormes config edit                open config.toml in your editor
+    gormes auth add <provider>        add provider credentials
+    gormes logout <provider>          clear stored provider auth
+    gormes usage                      show provider account usage
+    gormes debug share                collect and share a debug bundle
 
-Gateway:
-  gormes acp client                connect a debug ACP client to Gormes
-  gormes system event "note"        enqueue a system event and heartbeat wake
-  gormes gateway                    start the configured gateway
-  gormes gateway status             check gateway runtime state
-  gormes gateway reload             reload swappable live gateway config
-  gormes gateway stop               stop a running gateway
-  gormes whatsapp                   set up WhatsApp Baileys pairing
-  gormes telegram                   start Telegram-only mode
-  gormes logs                       show recent gateway logs
+  Session and memory
+    gormes                            open the TUI
+    gormes --offline                  smoke test the TUI without provider calls
+    gormes chat -q "hello"            send one chat query and exit
+    gormes session list               list past sessions
+    gormes session export <id>        export a session transcript
+    gormes memory status              inspect memory store
+    gormes goncho doctor --json       inspect Goncho memory storage
 
-Agents and profiles:
-  gormes agent reset                seed default agent context templates
-  gormes setup agent                print multi-agent setup guidance
-  gormes setup workspace            print workspace setup guidance
-  gormes setup bindings             print channel-to-agent binding guidance
-  gormes profile list               list known profiles
-  gormes profile use <name>         switch active profile
+  Agents, profiles, and workspace
+    gormes agent reset                seed default agent context templates
+    gormes setup agent                print multi-agent setup guidance
+    gormes setup workspace            print workspace setup guidance
+    gormes setup bindings             print channel-to-agent binding guidance
+    gormes profile list               list known profiles
+    gormes profile use <name>         switch active profile
+    gormes kanban list                inspect durable multi-agent work
 
-Memory and sessions:
-  gormes memory status              inspect memory store
-  gormes session list               list past sessions
-  gormes session export <id>        export a session transcript
-  gormes goncho doctor --json       inspect Goncho memory storage
+  Automation and integrations
+    gormes dashboard                  start http://127.0.0.1:43827/dashboard
+    gormes gateway                    start the configured gateway
+    gormes gateway status             check gateway runtime state
+    gormes gateway reload             reload swappable live gateway config
+    gormes gateway stop               stop a running gateway
+    gormes whatsapp                   set up WhatsApp Baileys pairing
+    gormes telegram                   start Telegram-only mode
+    gormes acp client                 connect a debug ACP client to Gormes
+    gormes system event "note"        enqueue a system event and heartbeat wake
+    gormes mcp login <server>         refresh OAuth for one MCP server
 
-Tools and skills:
-  gormes skills list                list installed skills
-  gormes skills install <url>       install a direct SKILL.md URL
-  gormes curator status             inspect background skill maintenance
-  gormes plugins list               list installed plugins
-  gormes mcp login <server>         refresh OAuth for one MCP server
+  Tools, skills, and maintenance
+    gormes skills list                list installed skills
+    gormes skills install <url>       install a direct SKILL.md URL
+    gormes curator status             inspect background skill maintenance
+    gormes plugins list               list installed plugins
+    gormes secrets audit --plan file  audit SecretRef runtime plans
+    gormes security audit --deep      inspect gateway, channel, tool, and state security
+    gormes status                     show runtime and progress blockers
+    gormes migrate hermes             import state from Hermes (dry-run)
+    gormes update                     update a managed source checkout
+    gormes version                    print version
+    gormes uninstall                  remove Gormes artifacts
 
-Maintenance:
-  gormes status                     show runtime and progress blockers
-  gormes usage                      show provider account usage
-  gormes migrate hermes             import state from Hermes (dry-run)
-  gormes update                     update a managed source checkout
-  gormes version                    print version
-  gormes uninstall                  remove Gormes artifacts
+Examples:
+  gormes --offline --profile test
+  gormes chat -q "write a release note"
+  gormes chat
+  gormes gateway status --json
+  gormes config check --json
+  gormes session export <id> --format json
+
+Config and state:
+  home:     $GORMES_HOME (default ~/.gormes)
+  config:   ~/.gormes/config.toml
+  secrets:  ~/.gormes/.env
+  profiles: gormes profile list
 
 Environment:
   GORMES_HOME                       runtime home (default ~/.gormes)
   GORMES_API_KEY                    provider API key
   GORMES_ENDPOINT                   provider endpoint URL
+  GORMES_INFERENCE_MODEL            default model override
+  GORMES_INFERENCE_PROVIDER         default provider override
   GORMES_SKILLS_ROOT                custom skills directory
 
-Docs: https://docs.gormes.ai`,
+Need more detail:
+  gormes help <command>
+  gormes <command> --help
+  gormes completion <shell>
+  docs: https://docs.gormes.ai`,
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return applyProfileStartupFlag(cmd)
@@ -288,11 +348,10 @@ Docs: https://docs.gormes.ai`,
 	root.Flags().BoolP("version", "V", false, "version for gormes")
 	root.PersistentFlags().StringP("profile", "p", "", "profile name for this invocation")
 	root.PersistentFlags().StringArray("skills", nil, "runtime skill allowlist for this invocation; repeat or comma-separate")
-	root.Flags().StringP("oneshot", "z", "", "one-shot mode: send a single prompt and resolve model/provider selection without starting the TUI")
-	root.Flags().StringP("model", "m", "", "model override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_MODEL")
-	root.Flags().String("provider", "", "provider override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_PROVIDER")
-	root.Flags().String("endpoint", "", "provider endpoint override for --oneshot or TUI startup; invocation-only and also settable via GORMES_ENDPOINT")
-	root.Flags().String("api-key", "", "provider API key override for --oneshot or TUI startup; invocation-only and never persisted")
+	root.PersistentFlags().StringP("model", "m", "", "model override for chat or TUI startup; also settable via GORMES_INFERENCE_MODEL")
+	root.PersistentFlags().String("provider", "", "provider override for chat or TUI startup; also settable via GORMES_INFERENCE_PROVIDER")
+	root.PersistentFlags().String("endpoint", "", "provider endpoint override for chat or TUI startup; invocation-only and also settable via GORMES_ENDPOINT")
+	root.PersistentFlags().String("api-key", "", "provider API key override for chat or TUI startup; invocation-only and never persisted")
 	root.PersistentFlags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	if flag := root.PersistentFlags().Lookup("offline"); flag != nil && root.Flags().Lookup("offline") == nil {
 		root.Flags().AddFlag(flag)
@@ -309,9 +368,9 @@ Docs: https://docs.gormes.ai`,
 		newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime),
 		newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(),
 		newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(),
-		newLoginCommand(), newLogoutCommand(), newConfigCommand(), newFallbackCommand(), newSecretsCommand(),
+		newLogoutCommand(), newConfigCommand(), newFallbackCommand(), newSecretsCommand(),
 		newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(),
-		newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(),
+		newModelCommand(), newSetupCommand(), newSkillsCommand(),
 		newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(),
 		newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand(),
 		newCompletionCommand(), newCronCommand(), newWebhookCommand(), newHooksCommand(),
@@ -319,7 +378,91 @@ Docs: https://docs.gormes.ai`,
 		newPairingCommand(), newToolsCommand(), newInsightsCommand(), newAdminCommand(),
 	)
 	installParentUnknownSubcommandGuards(root)
+	installVisibleHelpCommand(root)
+	installRootHelpRenderer(root)
 	return root
+}
+
+func installVisibleHelpCommand(root *cobra.Command) {
+	root.SetHelpCommand(&cobra.Command{
+		Use:   "help [command]",
+		Short: "Help about any command",
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target, ok := resolveVisibleHelpPath(root, args)
+			if !ok {
+				topic := strings.TrimSpace(strings.Join(args, " "))
+				if topic == "" {
+					topic = root.Name()
+				}
+				return newExitCodeError(2, fmt.Errorf("unknown help topic %q", topic))
+			}
+			target.SetOut(cmd.OutOrStdout())
+			target.SetErr(cmd.ErrOrStderr())
+			return target.Help()
+		},
+	})
+}
+
+func resolveVisibleHelpPath(root *cobra.Command, args []string) (*cobra.Command, bool) {
+	if root == nil {
+		return nil, false
+	}
+	current := root
+	for _, arg := range args {
+		part := strings.TrimSpace(arg)
+		if part == "" {
+			continue
+		}
+		var next *cobra.Command
+		for _, child := range current.Commands() {
+			if child.Hidden || child.Name() == "help" {
+				continue
+			}
+			if child.Name() == part || visibleHelpCommandHasAlias(child, part) {
+				next = child
+				break
+			}
+		}
+		if next == nil {
+			return nil, false
+		}
+		current = next
+	}
+	return current, true
+}
+
+func visibleHelpCommandHasAlias(cmd *cobra.Command, alias string) bool {
+	for _, candidate := range cmd.Aliases {
+		if candidate == alias {
+			return true
+		}
+	}
+	return false
+}
+
+func installRootHelpRenderer(root *cobra.Command) {
+	root.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
+		usage := strings.TrimRightFunc(firstHelpText(cmd.Long, cmd.Short), func(r rune) bool {
+			return r == ' ' || r == '\t' || r == '\r' || r == '\n'
+		})
+		if usage != "" {
+			fmt.Fprintln(cmd.OutOrStdout(), usage)
+			fmt.Fprintln(cmd.OutOrStdout())
+		}
+		if cmd.Runnable() || cmd.HasSubCommands() {
+			fmt.Fprint(cmd.OutOrStdout(), cmd.UsageString())
+		}
+	})
+}
+
+func firstHelpText(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func installParentUnknownSubcommandGuards(cmd *cobra.Command) {
@@ -440,7 +583,7 @@ func newChatCommand(runtime rootRuntime) *cobra.Command {
 	var query string
 	cmd := &cobra.Command{
 		Use:   "chat [prompt...]",
-		Short: "Open chat or send a one-shot query",
+		Short: "Open chat or send a single query",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			restoreKanbanDB := pinCurrentKanbanBoardDBForChat()
@@ -463,7 +606,7 @@ func newChatCommand(runtime rootRuntime) *cobra.Command {
 			return runtime.runOneshot(cmd, invocation)
 		},
 	}
-	cmd.Flags().StringVarP(&query, "query", "q", "", "send one one-shot chat query and exit")
+	cmd.Flags().StringVarP(&query, "query", "q", "", "send one chat query and exit")
 	return cmd
 }
 
@@ -500,13 +643,6 @@ func pinCurrentKanbanBoardDBForChat() func() {
 func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) error {
 	restoreKanbanDB := pinCurrentKanbanBoardDBForChat()
 	defer restoreKanbanDB()
-	if cmd.Flags().Changed("oneshot") {
-		invocation, err := resolveOneshotInvocation(cmd)
-		if err != nil {
-			return err
-		}
-		return runtime.runOneshot(cmd, invocation)
-	}
 	invocation, err := resolveTUIInvocation(cmd)
 	if err != nil {
 		return err
@@ -515,11 +651,6 @@ func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) erro
 		return err
 	}
 	return runtime.runResolvedTUI(cmd, invocation)
-}
-
-func resolveOneshotInvocation(cmd *cobra.Command) (oneshotInvocation, error) {
-	prompt, _ := cmd.Flags().GetString("oneshot")
-	return resolveOneshotInvocationForPrompt(cmd, prompt)
 }
 
 func resolveOneshotInvocationForPrompt(cmd *cobra.Command, prompt string) (oneshotInvocation, error) {
@@ -602,8 +733,20 @@ func commandStringFlag(cmd *cobra.Command, name string) string {
 		value, _ := flags.GetString(name)
 		return value
 	}
+	if flags := cmd.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
+		value, _ := flags.GetString(name)
+		return value
+	}
+	if flags := cmd.InheritedFlags(); flags != nil && flags.Lookup(name) != nil {
+		value, _ := flags.GetString(name)
+		return value
+	}
 	if root := cmd.Root(); root != nil && root != cmd {
 		if flags := root.Flags(); flags != nil && flags.Lookup(name) != nil {
+			value, _ := flags.GetString(name)
+			return value
+		}
+		if flags := root.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
 			value, _ := flags.GetString(name)
 			return value
 		}
@@ -643,8 +786,20 @@ func commandStringArrayFlag(cmd *cobra.Command, name string) []string {
 		values, _ := flags.GetStringArray(name)
 		return values
 	}
+	if flags := cmd.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
+		values, _ := flags.GetStringArray(name)
+		return values
+	}
+	if flags := cmd.InheritedFlags(); flags != nil && flags.Lookup(name) != nil {
+		values, _ := flags.GetStringArray(name)
+		return values
+	}
 	if root := cmd.Root(); root != nil && root != cmd {
 		if flags := root.Flags(); flags != nil && flags.Lookup(name) != nil {
+			values, _ := flags.GetStringArray(name)
+			return values
+		}
+		if flags := root.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
 			values, _ := flags.GetStringArray(name)
 			return values
 		}
@@ -743,17 +898,17 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 
 	client, err := newClient(rootCtx, cfg, invocation)
 	if err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: provider setup failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
+		return newExitCodeError(1, fmt.Errorf("gormes chat -q: provider setup failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
 	}
 	if client == nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: provider setup failed: %w", errors.New("nil hermes client")))
+		return newExitCodeError(1, fmt.Errorf("gormes chat -q: provider setup failed: %w", errors.New("nil hermes client")))
 	}
 
 	toolSafety, err := kernel.NewOneshotToolSafetyPolicy(kernel.OneshotToolSafetyOptions{
 		TrustClass: kernel.TrustClassOperator,
 	})
 	if err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: safety policy setup failed: %w", err))
+		return newExitCodeError(1, fmt.Errorf("gormes chat -q: safety policy setup failed: %w", err))
 	}
 	kernelCfg := kernel.Config{
 		Model:             model,
@@ -786,24 +941,24 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 
 	initial, err := readOneshotFrame(rootCtx, k.Render())
 	if err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: kernel startup failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
+		return newExitCodeError(1, fmt.Errorf("gormes chat -q: kernel startup failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
 	}
 	if err := k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: invocation.Prompt}); err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: submit failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
+		return newExitCodeError(1, fmt.Errorf("gormes chat -q: submit failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
 	}
 	final, err := waitForOneshotFinalFrame(rootCtx, k.Render(), initial.Seq)
 	if err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: kernel turn failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
+		return newExitCodeError(1, fmt.Errorf("gormes chat -q: kernel turn failed: %s", redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)))
 	}
 	if final.LastError != "" {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: %s", redactRuntimeSecretText(final.LastError, cfg.Hermes.APIKey)))
+		return newExitCodeError(1, fmt.Errorf("gormes chat -q: %s", redactRuntimeSecretText(final.LastError, cfg.Hermes.APIKey)))
 	}
 	content, ok := finalAssistantContent(final.History)
 	if !ok {
-		return newExitCodeError(1, errors.New("gormes -z: no final assistant content"))
+		return newExitCodeError(1, errors.New("gormes chat -q: no final assistant content"))
 	}
 	if _, err := fmt.Fprintln(cmd.OutOrStdout(), content); err != nil {
-		return newExitCodeError(1, fmt.Errorf("gormes -z: write stdout: %w", err))
+		return newExitCodeError(1, fmt.Errorf("gormes chat -q: write stdout: %w", err))
 	}
 	return nil
 }
@@ -905,6 +1060,74 @@ func defaultTUIProgramFactory(model tea.Model, options ...tea.ProgramOption) tui
 	return tea.NewProgram(model, options...)
 }
 
+// welcomeStartupSeed returns the operator-facing release version and the
+// agent tool count used to seed the session-aware welcome panel. internal/tui
+// cannot import main.Version and the tool count is absent from
+// kernel.RenderFrame, so cmd/gormes computes both here at startup.
+func welcomeStartupSeed(reg *tools.Registry) (string, int, []string) {
+	descs := registryDescriptors(reg)
+	return Version, len(descs), welcomeToolsets(descs)
+}
+
+func welcomeToolsets(descs []hermes.ToolDescriptor) []string {
+	seen := map[string]struct{}{}
+	for _, desc := range descs {
+		for _, toolset := range toolsetsForToolName(desc.Name) {
+			seen[toolset] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for toolset := range seen {
+		out = append(out, toolset)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func toolsetsForToolName(name string) []string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	switch {
+	case name == "":
+		return nil
+	case strings.Contains(name, "browser"), strings.HasPrefix(name, "web_"):
+		return []string{"browser"}
+	case strings.Contains(name, "clarify"):
+		return []string{"clarify"}
+	case strings.Contains(name, "execute_code"):
+		return []string{"code_execution"}
+	case strings.Contains(name, "cron"):
+		return []string{"cronjob"}
+	case strings.Contains(name, "delegate"):
+		return []string{"delegation"}
+	case strings.Contains(name, "file"), strings.Contains(name, "patch"):
+		return []string{"file"}
+	case strings.Contains(name, "homeassistant"):
+		return []string{"homeassistant"}
+	case strings.Contains(name, "image"):
+		return []string{"image_gen"}
+	case strings.Contains(name, "kanban"):
+		return []string{"kanban"}
+	case strings.Contains(name, "memory"):
+		return []string{"memory"}
+	case strings.Contains(name, "message"):
+		return []string{"messaging"}
+	case strings.Contains(name, "session_search"):
+		return []string{"session_search"}
+	case strings.Contains(name, "skill"):
+		return []string{"skills"}
+	case strings.Contains(name, "terminal"):
+		return []string{"terminal"}
+	case strings.Contains(name, "todo"):
+		return []string{"todo"}
+	case strings.Contains(name, "speech"), strings.Contains(name, "tts"), strings.Contains(name, "transcribe"):
+		return []string{"tts"}
+	case strings.Contains(name, "vision"), strings.Contains(name, "video"):
+		return []string{"vision"}
+	default:
+		return nil
+	}
+}
+
 func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runtime rootRuntime) error {
 	runNativeTUIStartupPreflight(context.Background(), tuiStartupPreflightOptions{})
 	if runtime.tuiProgramFactory == nil {
@@ -937,7 +1160,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	}
 
 	// Phase 2.C — open the session map; honor --resume.
-	smap, boltMap, err := openTUISessionMap(cmd)
+	smap, boltMap, startupNotice, err := openTUISessionMap(cmd)
 	if err != nil {
 		return fmt.Errorf("session map: %w", err)
 	}
@@ -1023,6 +1246,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
 	}
 
+	welcomeVersion, welcomeToolCount, welcomeToolsets := welcomeStartupSeed(registry)
 	model := tui.NewModelWithOptions(hookedFrames, submit, cancelTurn, tui.Options{
 		MouseTracking:  cfg.TUI.MouseTracking,
 		VoiceRecordKey: cfg.Voice.RecordKey,
@@ -1030,7 +1254,11 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		KanbanSlash: func(input string) (string, error) {
 			return runTUIKanbanSlashCommand(rootCtx, input)
 		},
-		OfflineSmoke: offline,
+		OfflineSmoke:     offline,
+		StartupNotice:    startupNotice,
+		WelcomeVersion:   welcomeVersion,
+		WelcomeToolCount: welcomeToolCount,
+		WelcomeToolsets:  welcomeToolsets,
 	})
 	// Hermes' current Ink TUI runs in an alternate screen by default. The
 	// Bubble Tea port mirrors that for the full-screen dashboard so repeated
@@ -1115,33 +1343,31 @@ func friendlyProviderSetupDetail(detail string) string {
 	}
 }
 
-func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, error) {
+func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, string, error) {
 	path := config.SessionDBPath()
 	smap, err := session.OpenBolt(path)
 	if err == nil {
-		return smap, smap, nil
+		return smap, smap, "", nil
 	}
 	if errors.Is(err, session.ErrDBLocked) {
-		fmt.Fprintf(cmd.ErrOrStderr(),
-			"session persistence unavailable: %v\nrunning TUI with in-memory session state; run `gormes gateway stop` to release the persisted session DB, or `gormes gateway status` to inspect the owner. persisted_path=%s\n",
-			err, path)
-		return session.NewMemMap(), nil, nil
+		notice := "session state: in-memory (sessions.db locked; gateway status/stop)"
+		return session.NewMemMap(), nil, notice, nil
 	}
 	if errors.Is(err, session.ErrDBCorrupt) {
 		backup, healErr := quarantineCorruptStateFile(path, nil)
 		if healErr != nil {
-			return nil, nil, fmt.Errorf("%w; self-heal failed: %v", err, healErr)
+			return nil, nil, "", fmt.Errorf("%w; self-heal failed: %v", err, healErr)
 		}
 		smap, retryErr := session.OpenBolt(path)
 		if retryErr != nil {
-			return nil, nil, fmt.Errorf("%w; self-heal backup=%s retry failed: %v", err, backup, retryErr)
+			return nil, nil, "", fmt.Errorf("%w; self-heal backup=%s retry failed: %v", err, backup, retryErr)
 		}
 		fmt.Fprintf(cmd.ErrOrStderr(),
 			"session persistence self-healed: corrupt sessions.db quarantined at %s; recreated persisted session DB at %s\n",
 			backup, path)
-		return smap, smap, nil
+		return smap, smap, "", nil
 	}
-	return nil, nil, err
+	return nil, nil, "", err
 }
 
 func redactRuntimeSecretText(text string, secrets ...string) string {

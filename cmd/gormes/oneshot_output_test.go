@@ -42,7 +42,7 @@ func TestOneshotFinalOutput_PrintsOnlyFinalAssistantContent(t *testing.T) {
 		},
 	})
 
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "hi", "--model", "fixture-model")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "fixture-model", "chat", "-q", "hi")
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
@@ -102,7 +102,7 @@ func TestOneshotFinalOutput_SetupFailureUsesStderrAndNonzeroExit(t *testing.T) {
 		},
 	})
 
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "hi", "--model", "fixture-model")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "fixture-model", "chat", "-q", "hi")
 	if err == nil {
 		t.Fatalf("Execute() error = nil, want setup failure\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
@@ -113,7 +113,7 @@ func TestOneshotFinalOutput_SetupFailureUsesStderrAndNonzeroExit(t *testing.T) {
 		t.Fatalf("stdout = %q, want empty on setup failure", stdout)
 	}
 	for _, want := range []string{
-		"gormes -z: provider setup failed",
+		"gormes chat -q: provider setup failed",
 		"fixture provider unavailable",
 	} {
 		if !strings.Contains(stderr, want) {

@@ -147,6 +147,75 @@ func HermesSlashSubcommandCompletions(input string) []SlashCompletion {
 	return out
 }
 
+func renderSlashCompletionMenu(input string, width int) string {
+	req, ok := CompletionRequestForInput(input)
+	if !ok || req.Method != TUICompletionSlash {
+		return ""
+	}
+	completions := HermesSlashSubcommandCompletions(input)
+	if len(completions) == 0 {
+		completions = HermesSlashCommandCompletions(input)
+	}
+	if len(completions) == 0 {
+		return ""
+	}
+	limit := len(completions)
+	if limit > 6 {
+		limit = 6
+	}
+	nameW := 0
+	for _, c := range completions[:limit] {
+		display := slashCompletionDisplay(c)
+		if w := len([]rune(display)); w > nameW {
+			nameW = w
+		}
+	}
+	if nameW > 24 {
+		nameW = 24
+	}
+	if nameW < 8 {
+		nameW = 8
+	}
+	descW := width - nameW - 6
+	if descW < 18 {
+		descW = 18
+	}
+	lines := make([]string, 0, limit)
+	for _, c := range completions[:limit] {
+		display := padRightRunes(truncateEllipsis(slashCompletionDisplay(c), nameW), nameW)
+		desc := strings.TrimSpace(c.Description)
+		if !c.Available {
+			if desc != "" {
+				desc = "⚡ " + desc
+			} else {
+				desc = "⚡ recognized, unavailable"
+			}
+		}
+		lines = append(lines, " "+display+"  "+truncateEllipsis(desc, descW))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func slashCompletionDisplay(c SlashCompletion) string {
+	if display := strings.TrimSpace(c.Display); display != "" {
+		return display
+	}
+	if strings.HasPrefix(c.Name, "/") {
+		return c.Name
+	}
+	return c.Name
+}
+
+func padRightRunes(value string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	for len([]rune(value)) < width {
+		value += " "
+	}
+	return value
+}
+
 // HermesSlashAutoSuggest returns the inline ghost-text suffix Hermes'
 // SlashCommandAutoSuggest would render for the given editor buffer text. The
 // returned string is empty whenever no unique unambiguous completion exists:

@@ -38,6 +38,10 @@ strategy, proof gates, and `progress.json` anchors.
 defines the shared vocabulary for pairing upstream Hermes symbols with their
 Go-native Gormes adapters before rows are renamed or split.
 
+**Messaging setup contract:** [Messaging Platform Setup Fidelity](./messaging-platform-setup-fidelity/)
+records the Hermes-fidelity rules for `gormes setup gateway`, channel config,
+Telegram-first setup, env compatibility, and migration boundaries.
+
 **CLI parity matrix:** [Hermes Command Surface Parity Matrix](./hermes-command-surface-parity/)
 records the operator-visible Hermes command tree, current Gormes state, and the
 `progress.json` rows that own remaining command/auth gaps.
@@ -87,23 +91,23 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/106 subphases shipped · 7 in progress · 1 planned
+**Overall:** 98/109 subphases shipped · 10 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | ✅ | 5/5 subphases |
+| Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | ✅ | 4/4 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 5/6 subphases |
 
 ---
 
-## Phase 1 — The Dashboard ✅
+## Phase 1 — The Dashboard 🔨
 
 *Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary*
 
@@ -148,6 +152,17 @@ classification and row-backed implementation queue.
 - [x] Admin TUI: Safe command execution from the Commands tab
 - [x] Admin TUI: Searchable Commands palette
 
+### 5.X — Termux Runtime Compatibility 🔨
+
+- [ ] Gormes Termux Runtime Compatibility
+- [x] Termux runtime doctor check
+- [x] Termux install and release smoke guide
+- [ ] Termux storage and path safety audit
+- [ ] Termux gateway foreground tmux lifecycle
+- [ ] Termux notification bridge via termux-api
+- [ ] Termux real-device smoke evidence
+- [ ] Termux remote execution guidance
+
 ## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
@@ -159,7 +174,7 @@ classification and row-backed implementation queue.
 - [x] Kernel tool loop
 - [x] Doctor verification
 - [ ] Coding-agent delegation tooling (codex/claude-code/opencode)
-- [ ] Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
+- [x] Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
 
 ### 2.B.1 — Telegram Scout ✅
 
@@ -275,6 +290,7 @@ classification and row-backed implementation queue.
 - [x] Telegram streaming edit Markdown safety
 - [x] Telegram guest mention allowlist bypass
 - [x] Gateway platform reconnect isolation + channel health limits
+- [x] Gateway per-platform circuit breaker + /platform pause/resume/list command
 - [x] Gateway /model interactive provider/model picker
 
 ### 2.B.10 — WeChat Adapter ✅
@@ -703,7 +719,7 @@ classification and row-backed implementation queue.
 - [x] P95 latency-aware failover
 - [x] Capability-based model tier routing
 
-## Phase 5 — The Final Purge ✅
+## Phase 5 — The Final Purge 🔨
 
 *Python tool scripts ported to Go or WASM*
 
@@ -751,6 +767,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web_search/web_extract tool wrappers
 - [x] Go-native Hermes web backend matrix and config resolver
 - [x] Go-native Hermes web extract safety policy and summarizer
+- [x] Goscrapling local extraction for web_extract
 - [x] Go-native Hermes web_crawl tool adapter
 - [x] Go-native Hermes web managed gateway status and live smoke closure
 - [x] Brave Search + DDGS web search provider parity
@@ -1045,7 +1062,7 @@ classification and row-backed implementation queue.
 - [x] Model and profile selector seam (Cobra + gateway)
 - [x] Gormes top-level logout provider shortcut
 - [x] Top-level logout configured-provider fallback
-- [x] Gormes top-level login provider shortcut
+- [x] Gormes removed top-level login guidance
 - [x] Gormes model interactive provider/model picker
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
@@ -1053,6 +1070,7 @@ classification and row-backed implementation queue.
 - [x] Hermes setup entry-mode and reset semantics
 - [x] Gormes setup tools checklist command binding
 - [x] Gormes setup gateway platform checklist command binding
+- [x] Bubble Tea Messaging Platforms setup: Telegram-first Hermes fidelity
 - [x] Gormes setup terminal TTS and agent-settings section bindings
 - [x] Gormes uninstall dry-run command contract
 - [x] Gormes mcp login interface seam + noninteractive default
@@ -1072,7 +1090,7 @@ classification and row-backed implementation queue.
 - [x] CLI profile root resolver
 - [x] CLI active-profile store
 - [x] CLI profile path and active-profile store (deprecated umbrella)
-- [x] Top-level oneshot flag and model/provider resolver
+- [x] Scripted chat query model/provider resolver
 - [x] Oneshot final-output writer boundary
 - [x] Oneshot noninteractive safety and clarify policy
 - [x] Platform toolset config persistence + MCP sentinel
@@ -1098,7 +1116,7 @@ classification and row-backed implementation queue.
 - [x] CLI log snapshot reader using shared redactor
 - [x] Hermes config.yaml model/provider runtime bridge
 - [x] Interactive Onboarding
-- [x] Gormes onboard interactive action runner
+- [x] Internal onboarding interactive action runner
 - [x] CLI setup/onboard/help text fidelity matrix
 - [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
@@ -1121,7 +1139,7 @@ classification and row-backed implementation queue.
 - [x] Install isolation: skip system service install when sandbox bin dir is set
 - [x] Install: prefer pre-built release binary over source build by default
 
-### 5.Q — API Server + TUI Gateway Streaming ✅
+### 5.Q — API Server + TUI Gateway Streaming 🔨
 
 - [x] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
 - [x] TUI gateway tool-progress mode normalizer
@@ -1174,6 +1192,10 @@ classification and row-backed implementation queue.
 - [x] API server cron admin mutating endpoints
 - [x] API server legacy jobs routes + default toolset
 - [x] Provider client lazy-init for TUI cold-start budget
+- [ ] Native TUI /model slash command binding over the existing model picker
+- [x] Kernel in-session model-switch seam for the native TUI
+- [ ] Kernel cross-provider client swap for in-session model switch
+- [ ] Native TUI slash handler-port coverage
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1382,6 +1404,12 @@ classification and row-backed implementation queue.
 - [x] Release notes SBOM attestation wording
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
+- [x] Gormes-owned chat TUI divergence ratification
+- [x] Gormes-owned session-aware welcome panel
+- [x] Gormes-owned semantic chat style system
+- [x] Gormes-owned streaming feedback uplift
+- [ ] Gormes streaming tool-trail status + spinner cadence wiring
+- [x] Gormes welcome panel version/tool-count wiring
 
 ### 8.E — Toolkit Extraction 🔨
 
@@ -1397,7 +1425,7 @@ classification and row-backed implementation queue.
 - [x] Built-with-Gormes page scaffold
 - [x] Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening ✅
+## Phase 9 — Design & Security Hardening 🔨
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
@@ -1416,6 +1444,24 @@ classification and row-backed implementation queue.
 ### 9.D — Speech-to-Text Tool Wiring ✅
 
 - [x] Transcribe audio tool registration + local whisper provider
+
+### 9.E — Navivox HTTP-only Hardening ✅
+
+- [x] Remove SSH Navivox stdio path
+- [x] Remove Flutter Navivox fake-server mode and wire protocol
+- [x] Remove Flutter SSH keys feature
+- [x] Navivox VPN host enumeration helper
+- [x] Navivox HTTP gateway mandatory-VPN bind
+- [x] Navivox HTTP gateway connect-info command
+
+### 9.F — External Issue Radar Regression Guards 🔨
+
+- [x] PicoClaw-derived channel media and identity regression matrix
+- [x] PicoClaw-derived session ledger read-model regression matrix
+- [x] PicoClaw-derived provider stream and auth regression matrix
+- [x] PicoClaw-derived tool path safety regression pack
+- [x] MCP Streamable HTTP session lifecycle compatibility
+- [ ] Dynamic agent identity inheritance regression matrix
 
 <!-- PROGRESS:END -->
 

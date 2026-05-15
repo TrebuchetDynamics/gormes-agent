@@ -11,8 +11,14 @@ import (
 type TemplatePairStatus string
 
 const (
-	TemplatePairCovered         TemplatePairStatus = "covered"
-	TemplatePairOwnedDivergence TemplatePairStatus = "owned_divergence"
+	TemplatePairByteEquivalent TemplatePairStatus = "byte_equivalent"
+	TemplatePairTransformed    TemplatePairStatus = "transformed"
+	TemplatePairGormesOwned    TemplatePairStatus = "gormes_owned"
+	TemplatePairNotApplicable  TemplatePairStatus = "not_applicable"
+	TemplatePairBlocked        TemplatePairStatus = "blocked"
+
+	TemplatePairCovered         = TemplatePairByteEquivalent
+	TemplatePairOwnedDivergence = TemplatePairGormesOwned
 )
 
 // TemplatePair records the source-backed parity classification for one
@@ -20,11 +26,15 @@ const (
 // source; owned divergences document Gormes templates that Hermes consumes or
 // inspires but does not seed as matching files.
 type TemplatePair struct {
-	Path          string
-	Status        TemplatePairStatus
-	HermesSources []string
-	GormesSources []string
-	Contract      string
+	TemplateID      string
+	Path            string
+	Status          TemplatePairStatus
+	HermesSources   []string
+	GormesSources   []string
+	TransformReason string
+	TestGate        []string
+	OwnerRow        string
+	Contract        string
 }
 
 type TemplatePairValidationOptions struct {
@@ -35,8 +45,9 @@ type TemplatePairValidationOptions struct {
 func TemplatePairManifest() []TemplatePair {
 	return []TemplatePair{
 		{
-			Path:   "SOUL.md",
-			Status: TemplatePairCovered,
+			TemplateID: "soul",
+			Path:       "SOUL.md",
+			Status:     TemplatePairTransformed,
 			HermesSources: []string{
 				"hermes_cli/default_soul.py",
 				"hermes_cli/config.py",
@@ -45,11 +56,18 @@ func TemplatePairManifest() []TemplatePair {
 				"internal/hermes/default_soul.go",
 				"internal/agenttemplate/default_templates.go",
 			},
+			TransformReason: "Gormes replaces the upstream Hermes/Nous identity with the Gorm persona and gormes runtime, then appends Gormes-owned operating and boundary guidance.",
+			TestGate: []string{
+				"go test ./internal/hermes -run TestDefaultSoulMD -count=1",
+				"go test ./internal/agenttemplate -count=1",
+			},
+			OwnerRow: "Gormes agent template reset command",
 			Contract: "Gormes seeds SOUL.md from the Hermes DEFAULT_SOUL_MD contract with only the declared Gormes product-identity substitution, then appends Gormes-owned operating and boundary guidance.",
 		},
 		{
-			Path:   "AGENTS.md",
-			Status: TemplatePairOwnedDivergence,
+			TemplateID: "agents",
+			Path:       "AGENTS.md",
+			Status:     TemplatePairGormesOwned,
 			HermesSources: []string{
 				"agent/prompt_builder.py",
 			},
@@ -57,11 +75,18 @@ func TemplatePairManifest() []TemplatePair {
 				"internal/hermes/context_files.go",
 				"internal/agenttemplate/default_templates.go",
 			},
+			TransformReason: "Hermes consumes AGENTS.md as project context but does not seed this file; Gormes owns a starter workspace contract for clean installs.",
+			TestGate: []string{
+				"go test ./internal/agenttemplate -count=1",
+				"go test ./cmd/gormes -run TestAgentResetCommand -count=1",
+			},
+			OwnerRow: "Gormes agent template reset command",
 			Contract: "Hermes consumes AGENTS.md as project context but does not seed a default AGENTS.md; Gormes owns a starter workspace contract so clean installs have editable project instructions.",
 		},
 		{
-			Path:   "IDENTITY.md",
-			Status: TemplatePairOwnedDivergence,
+			TemplateID: "identity",
+			Path:       "IDENTITY.md",
+			Status:     TemplatePairGormesOwned,
 			HermesSources: []string{
 				"agent/prompt_builder.py",
 			},
@@ -69,11 +94,18 @@ func TemplatePairManifest() []TemplatePair {
 				"internal/hermes/context_files.go",
 				"internal/agenttemplate/default_templates.go",
 			},
+			TransformReason: "Hermes has no matching seeded IDENTITY.md; Gormes owns this editable identity file for stable agent and workspace facts.",
+			TestGate: []string{
+				"go test ./internal/agenttemplate -count=1",
+				"go test ./cmd/gormes -run TestAgentResetCommand -count=1",
+			},
+			OwnerRow: "Gormes agent template reset command",
 			Contract: "Hermes has no matching seeded IDENTITY.md; Gormes owns this additive operational context file for stable agent and workspace identity facts.",
 		},
 		{
-			Path:   "TOOLS.md",
-			Status: TemplatePairOwnedDivergence,
+			TemplateID: "tools",
+			Path:       "TOOLS.md",
+			Status:     TemplatePairGormesOwned,
 			HermesSources: []string{
 				"agent/prompt_builder.py",
 			},
@@ -81,11 +113,18 @@ func TemplatePairManifest() []TemplatePair {
 				"internal/hermes/context_files.go",
 				"internal/agenttemplate/default_templates.go",
 			},
+			TransformReason: "Hermes exposes tool guidance through prompt assembly rather than a seeded TOOLS.md file; Gormes owns this editable tool and verification rules file.",
+			TestGate: []string{
+				"go test ./internal/agenttemplate -count=1",
+				"go test ./cmd/gormes -run TestAgentResetCommand -count=1",
+			},
+			OwnerRow: "Gormes agent template reset command",
 			Contract: "Hermes exposes tool guidance through prompt assembly rather than a seeded TOOLS.md file; Gormes owns this additive operational context file for workspace tool and verification rules.",
 		},
 		{
-			Path:   "memory/USER.md",
-			Status: TemplatePairOwnedDivergence,
+			TemplateID: "memory-user",
+			Path:       "memory/USER.md",
+			Status:     TemplatePairGormesOwned,
 			HermesSources: []string{
 				"agent/prompt_builder.py",
 			},
@@ -93,11 +132,18 @@ func TemplatePairManifest() []TemplatePair {
 				"internal/hermes/durable_user_context.go",
 				"internal/agenttemplate/default_templates.go",
 			},
+			TransformReason: "Hermes supports durable user context in prompt assembly but does not seed this exact memory/USER.md template; Gormes owns the editable durable-user starter file.",
+			TestGate: []string{
+				"go test ./internal/agenttemplate -count=1",
+				"go test ./cmd/gormes -run TestAgentResetCommand -count=1",
+			},
+			OwnerRow: "Gormes agent template reset command",
 			Contract: "Hermes supports durable user context in prompt assembly but does not seed this exact memory/USER.md template; Gormes owns the editable durable-user starter file.",
 		},
 		{
-			Path:   "memory/MEMORY.md",
-			Status: TemplatePairOwnedDivergence,
+			TemplateID: "memory-memory",
+			Path:       "memory/MEMORY.md",
+			Status:     TemplatePairGormesOwned,
 			HermesSources: []string{
 				"agent/prompt_builder.py",
 			},
@@ -105,6 +151,12 @@ func TemplatePairManifest() []TemplatePair {
 				"internal/hermes/durable_user_context.go",
 				"internal/agenttemplate/default_templates.go",
 			},
+			TransformReason: "Hermes supports durable memory context in prompt assembly but does not seed this exact memory/MEMORY.md template; Gormes owns the editable durable-memory starter file.",
+			TestGate: []string{
+				"go test ./internal/agenttemplate -count=1",
+				"go test ./cmd/gormes -run TestAgentResetCommand -count=1",
+			},
+			OwnerRow: "Gormes agent template reset command",
 			Contract: "Hermes supports durable memory context in prompt assembly but does not seed this exact memory/MEMORY.md template; Gormes owns the editable durable-memory starter file.",
 		},
 	}
@@ -136,13 +188,30 @@ func ValidateTemplatePairs(pairs []TemplatePair, opts TemplatePairValidationOpti
 		if pair.Path != cleanPath {
 			errs = append(errs, fmt.Errorf("%s template path must be slash-cleaned as %q", prefix, cleanPath))
 		}
+		if strings.TrimSpace(pair.TemplateID) == "" {
+			errs = append(errs, fmt.Errorf("%s template ID is required", prefix))
+		}
 		if seen[pair.Path] {
 			errs = append(errs, fmt.Errorf("%s duplicate template path", prefix))
 		}
 		seen[pair.Path] = true
 
-		if pair.Status != TemplatePairCovered && pair.Status != TemplatePairOwnedDivergence {
+		if !validTemplatePairStatus(pair.Status) {
 			errs = append(errs, fmt.Errorf("%s unsupported status %q", prefix, pair.Status))
+		}
+		if pair.Status != TemplatePairByteEquivalent && strings.TrimSpace(pair.TransformReason) == "" {
+			errs = append(errs, fmt.Errorf("%s transform reason is required for status %q", prefix, pair.Status))
+		}
+		if strings.TrimSpace(pair.OwnerRow) == "" {
+			errs = append(errs, fmt.Errorf("%s owner row is required", prefix))
+		}
+		if len(pair.TestGate) == 0 {
+			errs = append(errs, fmt.Errorf("%s test gate is required", prefix))
+		}
+		for _, gate := range pair.TestGate {
+			if strings.TrimSpace(gate) == "" {
+				errs = append(errs, fmt.Errorf("%s test gate entries must be non-empty", prefix))
+			}
 		}
 		if strings.TrimSpace(pair.Contract) == "" {
 			errs = append(errs, fmt.Errorf("%s contract is required", prefix))
@@ -173,6 +242,15 @@ func ValidateTemplatePairs(pairs []TemplatePair, opts TemplatePairValidationOpti
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func validTemplatePairStatus(status TemplatePairStatus) bool {
+	switch status {
+	case TemplatePairByteEquivalent, TemplatePairTransformed, TemplatePairGormesOwned, TemplatePairNotApplicable, TemplatePairBlocked:
+		return true
+	default:
+		return false
+	}
 }
 
 func validateTemplatePairSourceFile(root, rel string) error {

@@ -67,8 +67,11 @@ func sessionSourceFromInbound(ev InboundEvent) SessionSource {
 		chatType = "thread"
 	}
 	messageID := strings.TrimSpace(ev.MessageID)
-	if messageID == "" && platform == "discord" {
-		messageID = strings.TrimSpace(ev.MsgID)
+	if messageID == "" {
+		switch platform {
+		case "discord", "matrix", "mattermost":
+			messageID = strings.TrimSpace(ev.MsgID)
+		}
 	}
 	return SessionSource{
 		Platform:     platform,

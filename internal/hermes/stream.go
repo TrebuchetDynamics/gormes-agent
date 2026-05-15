@@ -27,6 +27,10 @@ type chatStream struct {
 	tools        []ToolDescriptor
 	startedAt    time.Time
 	diag         StreamDiagnostics
+	// reasoningTagOpen tracks provider content chunks inside a leaked
+	// reasoning XML block so hidden text split across SSE frames is not emitted
+	// as assistant-visible tokens.
+	reasoningTagOpen bool
 }
 
 type pendingToolCall struct {
@@ -80,9 +84,10 @@ func (s *chatStream) StreamDiagnostics() StreamDiagnostics {
 }
 
 type orChunkDelta struct {
-	Content   string            `json:"content"`
-	Reasoning string            `json:"reasoning"`
-	ToolCalls []orChunkToolCall `json:"tool_calls,omitempty"`
+	Content          string            `json:"content"`
+	Reasoning        string            `json:"reasoning"`
+	ReasoningContent string            `json:"reasoning_content"`
+	ToolCalls        []orChunkToolCall `json:"tool_calls,omitempty"`
 }
 
 type orChunkToolCall struct {
@@ -172,11 +177,19 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 		}
 
 		var events []Event
-		if c.Delta.Reasoning != "" {
-			events = append(events, Event{Kind: EventReasoning, Reasoning: c.Delta.Reasoning, Raw: raw})
+		for _, reasoning := range []string{c.Delta.Reasoning, c.Delta.ReasoningContent} {
+			if reasoning != "" {
+				events = append(events, Event{Kind: EventReasoning, Reasoning: reasoning, Raw: raw})
+			}
 		}
 		if c.Delta.Content != "" {
-			events = append(events, Event{Kind: EventToken, Token: c.Delta.Content, Raw: raw})
+			content := c.Delta.Content
+			if s.reasoningTagOpen || ContainsReasoningTagMarker(content) {
+				content, s.reasoningTagOpen = SanitizeReasoningStreamChunk(content, s.reasoningTagOpen)
+			}
+			if content != "" {
+				events = append(events, Event{Kind: EventToken, Token: content, Raw: raw})
+			}
 		}
 		if c.FinishReason != "" {
 			ev := Event{Kind: EventDone, FinishReason: c.FinishReason, Raw: raw}

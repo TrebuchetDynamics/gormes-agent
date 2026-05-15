@@ -51,7 +51,7 @@ From the [Fleet Operational Patterns](../fleet-operational-patterns/) analysis o
 | Session rollover automation | `gormes session rollover` at configurable threshold (default 1500KB) with handoff summary. | P1 | 5.N |
 | Sandbox policy explain | `gormes sandbox explain` showing effective trust class, allowlist, and scope. | P1 | 5.B |
 | ACP bridge | Session-based agent communication protocol for interoperability. | P1 | 5.H |
-| Interactive onboarding | `gormes onboard` full first-run flow: model → provider → auth → gateway → browser → skills → dashboard. | P1 | 5.O |
+| First-run setup/readiness | `gormes setup` plus `gormes doctor --offline --target terminal --json`: model → provider → auth → gateway → browser → skills → dashboard. | P1 | 5.O |
 | Agent hooks registry | `gormes hooks` with list/enable/disable/check/info at runtime. | P2 | 5.I |
 | Plugin marketplace + doctor | ClawHub-compatible marketplace, plugin load reporting, WASM sandbox for third-party. | P2 | 5.I |
 | Logs command | `gormes logs` with follow mode (`-f`) and level filtering. | P2 | 5.O |
@@ -65,7 +65,7 @@ These are Gormes-owned follow-up slices from the current PicoClaw comparison. Th
 | Slice | Target |
 |-------|--------|
 | Pre-compiled binaries | Tag-driven GitHub Release workflow emits static Linux/macOS/Windows amd64+arm64 archives with SHA-256 checksums; signing and package-manager manifests remain follow-up release-hardening work. |
-| Onboarding wizard | Promote `gormes onboard` from the current `setup` alias into a full interactive first-run flow covering model/provider, auth, gateway, browser/CDP, skills, and dashboard launch. |
+| Setup/readiness wizard | Keep public first-run work on `gormes setup` and machine-readable readiness on `gormes doctor --offline --target terminal --json`, covering model/provider, auth, gateway, browser/CDP, skills, and dashboard launch. |
 | Hardware matrix | Maintain `using-gormes/hardware` as the tested-device matrix for x86_64, ARM64, Raspberry Pi-class boards, low-memory Linux hosts, and Android/Termux-style environments, with binary size and steady-state RSS recorded per release. |
 | Lite build profiles | Keep the default parity build feature-complete, and keep `-tags gormes_lite` / `-tags slim` green as documented constrained-target builds that can exclude audio, dashboard extras, and optional channel adapters. |
 | Browser launcher | Keep `gormes dashboard` as the local launcher path and extend it with first-run CDP checks, Chrome install guidance, and an explicit headless/no-open mode for servers. |

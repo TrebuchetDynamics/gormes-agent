@@ -82,6 +82,7 @@ type EnvEntry struct {
 	HermesKey            string `json:"hermes_key"`
 	Disposition          string `json:"disposition"`
 	GormesEnv            string `json:"gormes_env,omitempty"`
+	GormesPath           string `json:"gormes_path,omitempty"`
 	RedactedValue        string `json:"redacted_value"`
 	Reason               string `json:"reason,omitempty"`
 	ConflictWithExisting bool   `json:"conflict_with_existing,omitempty"`
@@ -129,17 +130,24 @@ var archivedConfigKeys = map[string]string{
 // matching common provider-API-key shapes (suffix _API_KEY/_TOKEN) are
 // preserved verbatim under the same name when not in this explicit
 // map.
-var supportedEnvKeys = map[string]string{
-	"TELEGRAM_TOKEN":         "GORMES_TELEGRAM_TOKEN",
-	"TELEGRAM_BOT_TOKEN":     "GORMES_TELEGRAM_TOKEN",
-	"TELEGRAM_CHAT_ID":       "GORMES_TELEGRAM_CHAT_ID",
-	"TELEGRAM_HOME_CHANNEL":  "GORMES_TELEGRAM_CHAT_ID",
-	"TELEGRAM_ALLOWED_USERS": "GORMES_TELEGRAM_ALLOWED_USERS",
-	"DISCORD_TOKEN":          "GORMES_DISCORD_TOKEN",
-	"DISCORD_CHANNEL_ID":     "GORMES_DISCORD_CHANNEL_ID",
-	"SLACK_BOT_TOKEN":        "GORMES_SLACK_BOT_TOKEN",
-	"SLACK_APP_TOKEN":        "GORMES_SLACK_APP_TOKEN",
-	"SLACK_CHANNEL_ID":       "GORMES_SLACK_CHANNEL_ID",
+type envTarget struct {
+	Env  string
+	Path string
+}
+
+var supportedEnvKeys = map[string]envTarget{
+	"TELEGRAM_TOKEN":                  {Env: "GORMES_TELEGRAM_BOT_TOKEN"},
+	"TELEGRAM_BOT_TOKEN":              {Env: "GORMES_TELEGRAM_BOT_TOKEN"},
+	"TELEGRAM_CHAT_ID":                {Path: "telegram.home_channel.chat_id"},
+	"TELEGRAM_HOME_CHANNEL":           {Path: "telegram.home_channel.chat_id"},
+	"TELEGRAM_HOME_CHANNEL_NAME":      {Path: "telegram.home_channel.name"},
+	"TELEGRAM_HOME_CHANNEL_THREAD_ID": {Path: "telegram.home_channel.thread_id"},
+	"TELEGRAM_ALLOWED_USERS":          {Path: "telegram.allowed_user_ids"},
+	"DISCORD_TOKEN":                   {Env: "GORMES_DISCORD_TOKEN"},
+	"DISCORD_CHANNEL_ID":              {Env: "GORMES_DISCORD_CHANNEL_ID"},
+	"SLACK_BOT_TOKEN":                 {Env: "GORMES_SLACK_BOT_TOKEN"},
+	"SLACK_APP_TOKEN":                 {Env: "GORMES_SLACK_APP_TOKEN"},
+	"SLACK_CHANNEL_ID":                {Env: "GORMES_SLACK_CHANNEL_ID"},
 }
 
 // BuildManifest builds the deterministic dry-run manifest from a
@@ -299,7 +307,7 @@ func loadDotenv(m *Manifest, root string, existing map[string]string) {
 func classifyEnvKey(key string, existing map[string]string) EnvEntry {
 	target, mapped := supportedEnvKeys[key]
 	if !mapped && (strings.HasSuffix(key, "_API_KEY") || strings.HasSuffix(key, "_TOKEN")) {
-		target = key
+		target = envTarget{Env: key}
 		mapped = true
 	}
 	if !mapped {
@@ -310,20 +318,23 @@ func classifyEnvKey(key string, existing map[string]string) EnvEntry {
 			Reason:        "no Gormes dotenv target for this Hermes env key in this slice",
 		}
 	}
-	if v, ok := existing[target]; ok && v != "" {
-		return EnvEntry{
-			HermesKey:            key,
-			Disposition:          "conflict",
-			GormesEnv:            target,
-			RedactedValue:        RedactedValue,
-			Reason:               fmt.Sprintf("existing %s is set; --overwrite required by writer slice", target),
-			ConflictWithExisting: true,
+	if target.Env != "" {
+		if v, ok := existing[target.Env]; ok && v != "" {
+			return EnvEntry{
+				HermesKey:            key,
+				Disposition:          "conflict",
+				GormesEnv:            target.Env,
+				RedactedValue:        RedactedValue,
+				Reason:               fmt.Sprintf("existing %s is set; --overwrite required by writer slice", target.Env),
+				ConflictWithExisting: true,
+			}
 		}
 	}
 	return EnvEntry{
 		HermesKey:     key,
 		Disposition:   "importable",
-		GormesEnv:     target,
+		GormesEnv:     target.Env,
+		GormesPath:    target.Path,
 		RedactedValue: RedactedValue,
 	}
 }

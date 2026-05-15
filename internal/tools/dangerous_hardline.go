@@ -26,6 +26,8 @@ const cmdPos = `(?:^|[;&|\n` + "`" + `]|\$\()` +
 	`(?:(?:exec|nohup|setsid|time)\s+)*` +
 	`\s*`
 
+const findRootWalkCommand = cmdPos + `find\b(?:\s+(?:--|-[^\s]+|[^\s;|&]+))*\s+/{1,2}(?:\s|$)`
+
 // HardlinePatterns is the unconditional hardline blocklist, ported from
 // Hermes HARDLINE_PATTERNS (tools/approval.py@eb28145f). Each entry pairs
 // a regex with a short human-readable description suitable for an audit
@@ -70,6 +72,10 @@ var HardlinePatterns = []HardlinePattern{
 	{
 		Regex:       `\bkill\s+(-[^\s]+\s+)*-1\b`,
 		Description: "kill all processes",
+	},
+	{
+		Regex:       findRootWalkCommand,
+		Description: "root filesystem enumeration",
 	},
 	{
 		Regex:       cmdPos + `(shutdown|reboot|halt|poweroff)\b`,

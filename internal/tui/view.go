@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -12,11 +13,16 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
 )
 
+// Transcript chrome renders through the Gormes-owned semantic style system
+// (styles.go), resolved from the active HermesSkin so every built-in skin
+// re-themes the chat surface. No role/chrome color is hardcoded here.
 var (
-	muted     = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
-	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("69")).Bold(true)
-	botStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
-	errStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	chatChrome     = defaultChatStyles()
+	muted          = chatChrome.Assistant // generic dim: hints, sentinels, assistant body
+	userStyle      = chatChrome.User
+	errStyle       = chatChrome.Error
+	separatorStyle = chatChrome.Separator
+	toolOutStyle   = chatChrome.ToolOutput
 )
 
 // View renders the bottom-pinned Hermes-compatible chrome. Layout matches
@@ -62,7 +68,8 @@ func (m Model) View() string {
 
 	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
 
-	hint := renderHermesHint(m.frame, m.mouseStatus(), m.statusMessage)
+	hint := renderHermesHint(m.frame, m.statusMessage)
+	completions := renderSlashCompletionMenu(editor.Value(), m.width)
 
 	// Render the active modal panel if one is present.
 	panel := m.RenderActivePanel(m.width, m.height)
@@ -78,19 +85,17 @@ func (m Model) View() string {
 		TodoPanel:    todoPanel,
 		StatusBar:    statusBar,
 		Prompt:       prompt,
+		Completions:  completions,
 	})
 }
 
-func renderHermesHint(f kernel.RenderFrame, mouseStatus, statusMessage string) string {
+func renderHermesHint(f kernel.RenderFrame, statusMessage string) string {
 	var parts []string
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
 		parts = append(parts, strings.ToLower(f.Phase.String()))
 		if f.SessionID != "" {
 			parts = append(parts, "session "+shortSessionID(f.SessionID))
 		}
-	}
-	if mouseStatus == "mouse: disabled" {
-		parts = append(parts, mouseStatus)
 	}
 	if statusMessage != "" {
 		parts = append(parts, statusMessage)
@@ -187,8 +192,7 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 
 	var visible []string
 	for i := len(f.History) - 1; i >= 0; i-- {
-		msg := f.History[i]
-		block := conversationMessageBlock(msg, wrapWidth, compact)
+		block := conversationMessageBlockAt(f.History, i, wrapWidth, compact)
 		omitted := i
 		candidate := append([]string{block}, visible...)
 		if omitted > 0 {
@@ -209,14 +213,15 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 	lines = append(lines, visible...)
 	lines = append(lines, forced...)
 	if len(lines) == 0 {
-		return muted.Render("(start typing below to begin)")
+		return conversationEmptyIntro(f, width, compact)
 	}
 	return strings.Join(lines, "\n\n")
 }
 
 func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool) []string {
 	var blocks []string
-	if !frameHasFinalAssistant(f) {
+	hasFinal := frameHasFinalAssistant(f)
+	if !hasFinal {
 		if progress := conversationToolProgressBlock(f, compact); progress != "" {
 			blocks = append(blocks, progress)
 		}
@@ -225,9 +230,40 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool)
 		blocks = append(blocks, conversationDraftBlock(f.DraftText, wrapWidth, compact))
 	}
 	if f.LastError != "" {
-		blocks = append(blocks, conversationErrorBlock(f.LastError, compact))
+		blocks = append(blocks, conversationErrorBlock(f.LastError, wrapWidth, compact))
+	}
+	// R3 streaming feedback: when a turn is active but nothing concrete has
+	// surfaced yet (no tool trace, draft, or error), show the reused
+	// thinking indicator so the user is never left wondering. Suppressed the
+	// moment any real signal exists so it never disturbs transcript order.
+	if len(blocks) == 0 && !hasFinal && turnIsActive(f.Phase) {
+		if think := conversationThinkingBlock(compact); think != "" {
+			blocks = append(blocks, think)
+		}
 	}
 	return blocks
+}
+
+func turnIsActive(p kernel.Phase) bool {
+	switch p {
+	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseFinalizing, kernel.PhaseReconnecting:
+		return true
+	default:
+		return false
+	}
+}
+
+// conversationThinkingBlock reuses thinking.go's RenderThinking (it is not
+// reimplemented here) to render the live "reasoning" indicator.
+func conversationThinkingBlock(compact bool) string {
+	t := RenderThinking(ThinkingState{Visible: true})
+	if t == "" {
+		return ""
+	}
+	if compact {
+		return compactViewportText(t)
+	}
+	return muted.Render(t)
 }
 
 func frameHasFinalAssistant(f kernel.RenderFrame) bool {
@@ -266,7 +302,7 @@ func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {
 	if compact {
 		return compactViewportText(progress)
 	}
-	return muted.Render(progress)
+	return toolOutStyle.Render(progress)
 }
 
 func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) string {
@@ -279,25 +315,57 @@ func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) s
 	} else {
 		content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	}
-	return roleTag(msg.Role) + " " + content
+	return transcriptRow(msg.Role, content)
+}
+
+func conversationMessageBlockAt(history []hermes.Message, idx, wrapWidth int, compact bool) string {
+	block := conversationMessageBlock(history[idx], wrapWidth, compact)
+	if !compact && conversationNeedsTurnSeparator(history, idx) {
+		return separatorStyle.Render("───") + "\n\n" + block
+	}
+	return block
+}
+
+func conversationNeedsTurnSeparator(history []hermes.Message, idx int) bool {
+	if idx < 0 || idx >= len(history) || history[idx].Role != "user" {
+		return false
+	}
+	for i := 0; i < idx; i++ {
+		if history[i].Role == "user" {
+			return true
+		}
+	}
+	return false
 }
 
 func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool) string {
 	name := strings.TrimSpace(msg.Name)
-	label := "tool result"
-	if name != "" {
-		label += ": " + name
+	if name == "" {
+		name = "tool"
 	}
 	content := strings.TrimSpace(msg.Content)
 	if compact {
-		return muted.Render(label) + " " + compactViewportText(content)
+		return toolOutStyle.Render("⚡ " + name + " " + compactViewportText(content))
 	}
 	content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	lines := strings.Split(content, "\n")
-	for i, line := range lines {
-		lines[i] = "│ " + line
+	// R3: collapse long tool output to a head plus a summary (ccx-go
+	// RenderToolOutputInline pattern) so a verbose tool result never floods
+	// the transcript. Short output (fidelity small-content) stays intact.
+	const collapseOver, collapseHead = 5, 3
+	if len(lines) > collapseOver {
+		hidden := len(lines) - collapseHead
+		kept := append([]string{}, lines[:collapseHead]...)
+		kept = append(kept, fmt.Sprintf("[+%d more lines]", hidden))
+		lines = kept
 	}
-	return muted.Render("╭─ " + label + "\n" + strings.Join(lines, "\n") + "\n╰─")
+	out := []string{"   ╭─ ⚡ " + name}
+	for i, line := range lines {
+		lines[i] = "   │ " + line
+	}
+	out = append(out, lines...)
+	out = append(out, "   ╰─")
+	return toolOutStyle.Render(strings.Join(out, "\n"))
 }
 
 func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
@@ -306,14 +374,34 @@ func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
 	} else {
 		draft = RenderMarkdownSoftWrapTrim(draft, wrapWidth)
 	}
-	return botStyle.Render(HermesChromeAssistantLabel()) + " " + draft
+	return transcriptRow("assistant", draft)
 }
 
-func conversationErrorBlock(lastError string, compact bool) string {
+func conversationErrorBlock(lastError string, wrapWidth int, compact bool) string {
 	if compact {
 		lastError = compactViewportText(lastError)
+		return errStyle.Render("err:") + " " + lastError
 	}
-	return errStyle.Render("err:") + " " + lastError
+	lastError = RenderMarkdownSoftWrapTrim(strings.Join(strings.Fields(lastError), " "), errorBodyWidth(wrapWidth))
+	lines := strings.Split(lastError, "\n")
+	prefix := errStyle.Render("err:") + " "
+	continuation := strings.Repeat(" ", lipgloss.Width("err:")+1)
+	for i, line := range lines {
+		if i == 0 {
+			lines[i] = prefix + line
+			continue
+		}
+		lines[i] = continuation + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func errorBodyWidth(wrapWidth int) int {
+	width := wrapWidth - lipgloss.Width("err:") - 1
+	if width < 8 {
+		return 8
+	}
+	return width
 }
 
 func compactViewportText(s string) string {
@@ -331,16 +419,91 @@ func renderedLineCount(s string) int {
 	return strings.Count(s, "\n") + 1
 }
 
-func roleTag(role string) string {
+func conversationEmptyIntro(f kernel.RenderFrame, width int, compact bool) string {
+	if compact {
+		return muted.Render("⚕ Gormes · /help for commands")
+	}
+	ctx := welcomeContext{
+		Model:     f.Model,
+		Provider:  f.ProviderStatus.Provider,
+		Runtime:   f.ProviderStatus.Runtime,
+		CWD:       hermesWorkingDirLabel(),
+		SessionID: f.SessionID,
+		Version:   buildInfoVersion(),
+	}
+	return welcomePanel(DefaultHermesSkin(), ctx, width)
+}
+
+// buildInfoVersion returns the operator-facing module version when the binary
+// carries one, or "" for source/dev builds. internal/tui cannot import the
+// cmd/gormes main.Version symbol; the seeded value is wired later by the
+// "Gormes welcome panel version/tool-count wiring" follow-up row.
+func buildInfoVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	v := strings.TrimSpace(info.Main.Version)
+	if v == "" || v == "(devel)" || v == "unknown" {
+		return ""
+	}
+	return v
+}
+
+func transcriptRow(role, content string) string {
+	glyph := transcriptGlyph(role)
+	style := transcriptGlyphStyle(role)
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 {
+		return style.Render(glyph)
+	}
+
+	prefix := style.Render(glyph) + " "
+	continuation := strings.Repeat(" ", lipgloss.Width(glyph)+1)
+	for i, line := range lines {
+		if i == 0 {
+			lines[i] = prefix + line
+			continue
+		}
+		lines[i] = continuation + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func transcriptGlyph(role string) string {
+	skin := DefaultHermesSkin()
 	switch role {
 	case "user":
-		return userStyle.Render("you:")
+		prompt := strings.TrimSpace(skin.PromptSymbol)
+		if prompt == "" {
+			return "❯"
+		}
+		return prompt
 	case "assistant":
-		return botStyle.Render(HermesChromeAssistantLabel())
+		toolPrefix := strings.TrimSpace(skin.ToolPrefix)
+		if toolPrefix == "" {
+			return "┊"
+		}
+		return toolPrefix
 	case "system":
-		return muted.Render("sys:")
+		return "·"
 	}
-	return muted.Render(role + ":")
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return "·"
+	}
+	return role
+}
+
+func transcriptGlyphStyle(role string) lipgloss.Style {
+	switch role {
+	case "user":
+		return userStyle
+	case "assistant":
+		return muted
+	default:
+		return muted
+	}
 }
 
 func truncateEllipsis(s string, n int) string {

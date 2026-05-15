@@ -262,13 +262,13 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - Third-party plugins run in WASM or subprocess sandbox
 - **Done signal:** Plugin marketplace + doctor shipped with third-party sandboxing.
 
-#### Row 9: Interactive Onboarding
+#### Row 9: First-Run Setup/Readiness
 
 - **Phase:** 5.O (CLI Parity)
 - **Priority:** P1
 - **Slice size:** medium
 - **Execution owner:** tools
-- **Contract:** Promote `gormes onboard` from setup alias to full interactive flow: model/provider selection → auth setup → gateway channel configuration → browser/CDP checks → skill discovery → dashboard launch. Match OpenClaw's onboarding depth.
+- **Contract:** Keep first-run setup on `gormes setup` and machine-readable readiness on `gormes doctor --offline --target terminal --json`: model/provider selection → auth setup → gateway channel configuration → browser/CDP checks → skill discovery → dashboard launch. Match OpenClaw's onboarding depth without adding a deprecated top-level command.
 - **Trust class:** operator
 - **Degraded mode:** Missing provider credentials, gateway config gaps, or browser unavailability reports per-step status and allows skip with explicit warning.
 - **Fixture:** `internal/cli/onboard_test.go`
@@ -284,11 +284,11 @@ Each fleet pattern is assigned to the Gormes phase and subphase where it natural
   - `docs/content/building-gormes/progress.json`
 - **Test commands:** `go test ./internal/cli -run TestOnboard -count=1`
 - **Acceptance:**
-  - `gormes onboard` walks through model → provider → auth → gateway → browser → skills → dashboard
+  - `gormes setup` and doctor readiness cover model → provider → auth → gateway → browser → skills → dashboard
   - Each step can be skipped with explicit warning
   - Already-configured steps are detected and pre-filled
   - End-to-end testable without live credentials (mock provider, fake channel)
-- **Done signal:** `gormes onboard` ships as full interactive first-run flow.
+- **Done signal:** Public setup/readiness surfaces ship the full first-run flow without registering `gormes onboard`.
 
 #### Row 10: Logs Command
 

@@ -123,7 +123,8 @@ When planning Hermes command or config parity:
   `gormes migrate hermes` and `gormes migrate openclaw` import external state.
 - Classify Gormes-owned additions such as `goncho`, `--offline`, `--remote`,
   and XDG/TOML config as `owned` with source-backed rationale. Hermes-owned
-  `-z/--oneshot` is parity/covered, not a Gormes-owned divergence.
+  `-z/--oneshot` is removed-command guidance in Gormes; `gormes chat -q` is
+  the canonical scripted-chat surface.
 - Do not accept broad globs (`hermes_cli/**`, `gateway/**`, `_handle_*`) as
   sole evidence. Pair them with exact commands, symbols, fixtures, or tests.
 - Preserve the public command spelling `openclaw`; typo-like requests such as

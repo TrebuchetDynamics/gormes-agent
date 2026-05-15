@@ -208,7 +208,7 @@ const (
 	SetupTargetWhatsApp SetupTargetID = "whatsapp"
 	SetupTargetDiscord  SetupTargetID = "discord"
 	SetupTargetSlack    SetupTargetID = "slack"
-	SetupTargetNavibox  SetupTargetID = "navibox"
+	SetupTargetNavivox  SetupTargetID = "navivox"
 )
 
 type FirstRunActionID string
@@ -389,7 +389,7 @@ func DefaultFirstRunChannels(overrides map[SetupTargetID]ChannelState) []Channel
 		{Target: SetupTargetWhatsApp, Label: "WhatsApp", SetupCommand: "gormes whatsapp", HandoffCommand: "gormes gateway"},
 		{Target: SetupTargetDiscord, Label: "Discord", SetupCommand: "gormes setup --quick --target discord", HandoffCommand: "gormes gateway"},
 		{Target: SetupTargetSlack, Label: "Slack", SetupCommand: "gormes setup --quick --target slack", HandoffCommand: "gormes gateway"},
-		{Target: SetupTargetNavibox, Label: "Navibox", SetupCommand: "gormes setup --quick --target navibox", HandoffCommand: "gormes gateway"},
+		{Target: SetupTargetNavivox, Label: "Navivox", SetupCommand: "gormes setup --quick --target navivox", HandoffCommand: "gormes gateway"},
 	}
 	for i, row := range base {
 		if override, ok := overrides[row.Target]; ok {
@@ -490,8 +490,8 @@ func normalizeSetupTarget(target SetupTargetID) SetupTargetID {
 		return SetupTargetDiscord
 	case SetupTargetSlack:
 		return SetupTargetSlack
-	case SetupTargetNavibox:
-		return SetupTargetNavibox
+	case SetupTargetNavivox:
+		return SetupTargetNavivox
 	default:
 		return ""
 	}
@@ -509,8 +509,8 @@ func setupTargetLabel(target SetupTargetID) string {
 		return "Discord"
 	case SetupTargetSlack:
 		return "Slack"
-	case SetupTargetNavibox:
-		return "Navibox"
+	case SetupTargetNavivox:
+		return "Navivox"
 	default:
 		return string(target)
 	}
@@ -810,12 +810,12 @@ func firstRunChannelStates(cfg config.Config) []cli.ChannelState {
 		SetupCommand:   "gormes setup --quick --target slack",
 		HandoffCommand: "gormes gateway",
 	}
-	overrides[cli.SetupTargetNavibox] = cli.ChannelState{
-		Target:         cli.SetupTargetNavibox,
-		Label:          "Navibox",
-		Configured:     cfg.Navibox.Enabled,
-		Detail:         configuredNaviboxGatewayStatusDetail(cfg.Navibox),
-		SetupCommand:   "gormes setup --quick --target navibox",
+	overrides[cli.SetupTargetNavivox] = cli.ChannelState{
+		Target:         cli.SetupTargetNavivox,
+		Label:          "Navivox",
+		Configured:     cfg.Navivox.Enabled,
+		Detail:         configuredNavivoxGatewayStatusDetail(cfg.Navivox),
+		SetupCommand:   "gormes setup --quick --target navivox",
 		HandoffCommand: "gormes gateway",
 	}
 	return cli.DefaultFirstRunChannels(overrides)
@@ -1079,7 +1079,7 @@ Add `targetFlag` beside existing setup flags:
 Register it:
 
 ```go
-	cmd.Flags().StringVar(&targetFlag, "target", "", "setup target for --quick: terminal, telegram, whatsapp, discord, slack, or navibox")
+	cmd.Flags().StringVar(&targetFlag, "target", "", "setup target for --quick: terminal, telegram, whatsapp, discord, slack, or navivox")
 ```
 
 Change quick calls:
@@ -1246,7 +1246,7 @@ func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cl
 			return nil
 		}
 		return runSetupWhatsAppTarget(cmd)
-	case cli.SetupTargetTelegram, cli.SetupTargetDiscord, cli.SetupTargetSlack, cli.SetupTargetNavibox:
+	case cli.SetupTargetTelegram, cli.SetupTargetDiscord, cli.SetupTargetSlack, cli.SetupTargetNavivox:
 		return seams.RunGatewayPlatform(cmd, string(target))
 	default:
 		return newExitCodeError(2, fmt.Errorf("setup_target_unsupported: %s", target))
@@ -1595,7 +1595,7 @@ Modify `cmd/gormes/setup.go` defaults:
 Modify `setupGatewayPlatformOptions` platform list:
 
 ```go
-	for _, key := range []string{"telegram", "whatsapp", "discord", "slack", "navibox"} {
+	for _, key := range []string{"telegram", "whatsapp", "discord", "slack", "navivox"} {
 ```
 
 Modify `setupGatewayPlatformFallbackLabel`:
@@ -1814,7 +1814,7 @@ In `printOnboardStatus`, after runtime skills output and before provider details
 Modify `cmd/gormes/doctor.go` flags:
 
 ```go
-	cmd.Flags().String("target", "terminal", "target readiness to check: terminal, telegram, whatsapp, discord, slack, or navibox")
+	cmd.Flags().String("target", "terminal", "target readiness to check: terminal, telegram, whatsapp, discord, slack, or navivox")
 ```
 
 Modify `doctorReportJSON`:

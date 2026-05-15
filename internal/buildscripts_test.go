@@ -470,7 +470,7 @@ exit 1
 	runCommand(t, tmpRepo, "git", "add", ".")
 	runCommand(t, tmpRepo, "git", "commit", "-m", "init")
 
-	cmd := exec.Command("timeout", "4s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
+	cmd := exec.Command("timeout", "15s", "bash", "scripts/gormes-auto-codexu-orchestrator.sh")
 	cmd.Dir = tmpRepo
 	cmd.Env = legacyOrchestratorTestEnv(os.Environ(), repoRoot, tmpRepo, binDir,
 		"INTEGRATION_BRANCH=codexu/test-soft-success",

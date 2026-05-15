@@ -142,14 +142,12 @@ func TestHermesConfigWriter_AppliesImportableConfig(t *testing.T) {
 	if envErr != nil {
 		t.Fatalf("read dest .env: %v", envErr)
 	}
-	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_TOKEN=tg-secret-do-not-leak") {
-		t.Fatalf("dest .env missing GORMES_TELEGRAM_TOKEN value: %s", envBody)
+	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_BOT_TOKEN=tg-secret-do-not-leak") {
+		t.Fatalf("dest .env missing GORMES_TELEGRAM_BOT_TOKEN value: %s", envBody)
 	}
-	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_CHAT_ID=6586915095") {
-		t.Fatalf("dest .env missing GORMES_TELEGRAM_CHAT_ID value: %s", envBody)
-	}
-	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_ALLOWED_USERS=6586915095,12345") {
-		t.Fatalf("dest .env missing GORMES_TELEGRAM_ALLOWED_USERS value: %s", envBody)
+	if strings.Contains(string(envBody), "GORMES_TELEGRAM_CHAT_ID=") ||
+		strings.Contains(string(envBody), "GORMES_TELEGRAM_ALLOWED_USERS=") {
+		t.Fatalf("dest .env kept structured Telegram config values as env vars: %s", envBody)
 	}
 	if !strings.Contains(string(envBody), "ANTHROPIC_API_KEY="+fakeAPIKey) {
 		t.Fatalf("dest .env missing ANTHROPIC_API_KEY value: %s", envBody)
@@ -165,8 +163,82 @@ func TestHermesConfigWriter_AppliesImportableConfig(t *testing.T) {
 	if got, ok := out.ConfigWritten["model"]; !ok || got != "migrated" {
 		t.Fatalf("ConfigWritten[model] = %q ok=%v, want migrated/true", got, ok)
 	}
-	if got, ok := out.EnvWritten["GORMES_TELEGRAM_TOKEN"]; !ok || got != "migrated" {
-		t.Fatalf("EnvWritten[GORMES_TELEGRAM_TOKEN] = %q ok=%v, want migrated/true", got, ok)
+	if got, ok := out.EnvWritten["GORMES_TELEGRAM_BOT_TOKEN"]; !ok || got != "migrated" {
+		t.Fatalf("EnvWritten[GORMES_TELEGRAM_BOT_TOKEN] = %q ok=%v, want migrated/true", got, ok)
+	}
+	if got, ok := out.ConfigWritten["telegram.home_channel.chat_id"]; !ok || got != "migrated" {
+		t.Fatalf("ConfigWritten[telegram.home_channel.chat_id] = %q ok=%v, want migrated/true", got, ok)
+	}
+}
+
+func TestHermesConfigWriter_TelegramEnvAliasesWriteStructuredConfig(t *testing.T) {
+	root := t.TempDir()
+	srcDir := filepath.Join(root, "hermes-src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatalf("mkdir src: %v", err)
+	}
+	envBody := []byte(`TELEGRAM_BOT_TOKEN=123456:telegram-secret
+TELEGRAM_HOME_CHANNEL=-1001234567890
+TELEGRAM_HOME_CHANNEL_NAME=alerts
+TELEGRAM_HOME_CHANNEL_THREAD_ID=42
+TELEGRAM_ALLOWED_USERS=6586915095,12345
+`)
+	if err := os.WriteFile(filepath.Join(srcDir, ".env"), envBody, 0o600); err != nil {
+		t.Fatalf("write .env: %v", err)
+	}
+	t.Setenv("HERMES_HOME", "")
+	manifest, err := BuildManifest(Options{Source: srcDir})
+	if err != nil {
+		t.Fatalf("BuildManifest: %v", err)
+	}
+	cfgDir, envFile := writerDestPaths(t, root)
+
+	out, err := ApplyManifest(WriteRequest{
+		Manifest:          *manifest,
+		DestConfigDir:     cfgDir,
+		DestEnvFile:       envFile,
+		SourceConfigBytes: map[string][]byte{".env": envBody},
+		Yes:               true,
+	})
+	if err != nil {
+		t.Fatalf("ApplyManifest: %v", err)
+	}
+	envOut, err := os.ReadFile(envFile)
+	if err != nil {
+		t.Fatalf("read .env: %v", err)
+	}
+	if !strings.Contains(string(envOut), "GORMES_TELEGRAM_BOT_TOKEN=123456:telegram-secret") {
+		t.Fatalf(".env missing preferred Telegram token env:\n%s", envOut)
+	}
+	for _, forbidden := range []string{"GORMES_TELEGRAM_HOME_CHANNEL", "GORMES_TELEGRAM_ALLOWED_USERS"} {
+		if strings.Contains(string(envOut), forbidden) {
+			t.Fatalf(".env contains TOML-bound %s:\n%s", forbidden, envOut)
+		}
+	}
+
+	cfgBody, err := os.ReadFile(filepath.Join(cfgDir, "config.toml"))
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	got := string(cfgBody)
+	for _, want := range []string{
+		"[telegram]",
+		"allowed_user_ids = [6586915095, 12345]",
+		"[telegram.home_channel]",
+		"chat_id = '-1001234567890'",
+		"name = 'alerts'",
+		"thread_id = '42'",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("config.toml missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "telegram-secret") {
+		t.Fatalf("config.toml leaked Telegram token:\n%s", got)
+	}
+	if out.ConfigWritten["telegram.home_channel.chat_id"] != DispositionMigrated ||
+		out.ConfigWritten["telegram.allowed_user_ids"] != DispositionMigrated {
+		t.Fatalf("ConfigWritten missing Telegram structured migrations: %+v", out.ConfigWritten)
 	}
 }
 
@@ -288,7 +360,7 @@ func TestHermesConfigWriter_BackupBeforeOverwrite(t *testing.T) {
 
 func TestHermesConfigWriter_ExistingEnvConflictWithoutOverwrite(t *testing.T) {
 	existing := map[string]string{
-		"GORMES_TELEGRAM_TOKEN": "preset-tg-value",
+		"GORMES_TELEGRAM_BOT_TOKEN": "preset-tg-value",
 	}
 	manifest, src, root := buildWriterFixtureManifest(t, existing)
 	cfgDir, envFile := writerDestPaths(t, root)
@@ -305,9 +377,9 @@ func TestHermesConfigWriter_ExistingEnvConflictWithoutOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ApplyManifest: %v", err)
 	}
-	got := out.EnvWritten["GORMES_TELEGRAM_TOKEN"]
+	got := out.EnvWritten["GORMES_TELEGRAM_BOT_TOKEN"]
 	if got != "conflict_skipped" {
-		t.Fatalf("GORMES_TELEGRAM_TOKEN disposition = %q, want conflict_skipped; outcome=%+v", got, out)
+		t.Fatalf("GORMES_TELEGRAM_BOT_TOKEN disposition = %q, want conflict_skipped; outcome=%+v", got, out)
 	}
 	if out.Counts.ConflictSkipped < 1 {
 		t.Fatalf("Counts.ConflictSkipped = %d, want >=1; outcome=%+v", out.Counts.ConflictSkipped, out)
@@ -330,8 +402,8 @@ func TestHermesConfigWriter_ExistingEnvConflictWithoutOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ApplyManifest with overwrite: %v", err)
 	}
-	if got := out2.EnvWritten["GORMES_TELEGRAM_TOKEN"]; got != "migrated" {
-		t.Fatalf("with --overwrite: GORMES_TELEGRAM_TOKEN disposition = %q, want migrated; outcome=%+v", got, out2)
+	if got := out2.EnvWritten["GORMES_TELEGRAM_BOT_TOKEN"]; got != "migrated" {
+		t.Fatalf("with --overwrite: GORMES_TELEGRAM_BOT_TOKEN disposition = %q, want migrated; outcome=%+v", got, out2)
 	}
 }
 

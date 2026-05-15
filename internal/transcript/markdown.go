@@ -43,7 +43,7 @@ func ExportMarkdown(ctx context.Context, db *sql.DB, sessionID string) (string, 
 	}
 
 	var b strings.Builder
-	created := turns[0].Timestamp.UTC().Format("2006-01-02 15:04:05 MST")
+	created := formatTurnTimestamp(turns[0].Timestamp)
 
 	fmt.Fprintf(&b, "# Session: %s\n\n", sessionID)
 	fmt.Fprintf(&b, "**Session ID:** `%s`  \n", sessionID)
@@ -53,7 +53,7 @@ func ExportMarkdown(ctx context.Context, db *sql.DB, sessionID string) (string, 
 
 	for i, turn := range turns {
 		b.WriteString("\n---\n\n")
-		fmt.Fprintf(&b, "## Turn %d - %s\n\n", i+1, turn.Timestamp.UTC().Format("2006-01-02 15:04:05 MST"))
+		fmt.Fprintf(&b, "## Turn %d - %s\n\n", i+1, formatTurnTimestamp(turn.Timestamp))
 		switch turn.Role {
 		case "user":
 			fmt.Fprintf(&b, "**User:** %s\n", turn.Content)
@@ -104,6 +104,13 @@ func loadTurns(ctx context.Context, db *sql.DB, sessionID string) ([]turn, error
 		return nil, fmt.Errorf("transcript: iterate session %q: %w", sessionID, err)
 	}
 	return out, nil
+}
+
+func formatTurnTimestamp(ts time.Time) string {
+	if ts.Unix() <= 0 {
+		return "unknown timestamp"
+	}
+	return ts.UTC().Format("2006-01-02 15:04:05 MST")
 }
 
 func parseMeta(raw string) (turnMeta, error) {

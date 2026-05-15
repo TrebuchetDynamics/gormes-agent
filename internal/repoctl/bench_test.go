@@ -2,6 +2,7 @@ package repoctl
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -66,6 +67,123 @@ func TestRecordBenchmarkUpdatesBinaryMetrics(t *testing.T) {
 	}
 	if len(got.History) != 1 || got.History[0].SizeMB != 2.0 {
 		t.Fatalf("history = %+v", got.History)
+	}
+}
+
+func TestRecordBenchmarkRecordsRuntimePeakRSS(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin", "gormes")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := RecordBenchmark(BenchmarkOptions{
+		Root:      root,
+		Binary:    bin,
+		Now:       func() time.Time { return time.Date(2026, 5, 15, 12, 0, 0, 0, time.UTC) },
+		GitCommit: func(string) (string, error) { return "rss123", nil },
+		RuntimeBenchmark: func(opts RuntimeBenchmarkOptions) (RuntimeBenchmarkResult, error) {
+			if opts.Root != root {
+				t.Fatalf("runtime benchmark root = %q, want %q", opts.Root, root)
+			}
+			if opts.Binary != bin {
+				t.Fatalf("runtime benchmark binary = %q, want %q", opts.Binary, bin)
+			}
+			if opts.Timeout <= 0 {
+				t.Fatalf("runtime benchmark timeout = %s", opts.Timeout)
+			}
+			return RuntimeBenchmarkResult{
+				PeakRSSKB: 25 * 1024,
+				Elapsed:   123 * time.Millisecond,
+			}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("RecordBenchmark: %v", err)
+	}
+
+	var got struct {
+		Runtime struct {
+			OfflineDoctor struct {
+				Status       string  `json:"status"`
+				Command      string  `json:"command"`
+				PeakRSSKB    int64   `json:"peak_rss_kb"`
+				PeakRSSMB    float64 `json:"peak_rss_mb"`
+				ElapsedMS    int64   `json:"elapsed_ms"`
+				LastMeasured string  `json:"last_measured"`
+				Commit       string  `json:"commit"`
+				GoOS         string  `json:"goos"`
+				GoArch       string  `json:"goarch"`
+				IsolatedHome bool    `json:"isolated_home"`
+			} `json:"offline_doctor"`
+		} `json:"runtime"`
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "benchmarks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("benchmarks.json is invalid JSON: %v\n%s", err, raw)
+	}
+
+	offline := got.Runtime.OfflineDoctor
+	if offline.Status != "measured" {
+		t.Fatalf("runtime status = %q", offline.Status)
+	}
+	if offline.Command != "bin/gormes doctor --offline --json" {
+		t.Fatalf("runtime command = %q", offline.Command)
+	}
+	if offline.PeakRSSKB != 25*1024 || offline.PeakRSSMB != 25.0 || offline.ElapsedMS != 123 {
+		t.Fatalf("runtime measurements = %+v", offline)
+	}
+	if offline.LastMeasured != "2026-05-15" || offline.Commit != "rss123" || offline.GoOS == "" || offline.GoArch == "" || !offline.IsolatedHome {
+		t.Fatalf("runtime metadata = %+v", offline)
+	}
+}
+
+func TestRecordBenchmarkSkipsRuntimePeakRSSOnBenchmarkError(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin", "gormes")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := RecordBenchmark(BenchmarkOptions{
+		Root:      root,
+		Binary:    bin,
+		Now:       func() time.Time { return time.Date(2026, 5, 15, 12, 0, 0, 0, time.UTC) },
+		GitCommit: func(string) (string, error) { return "rss123", nil },
+		RuntimeBenchmark: func(RuntimeBenchmarkOptions) (RuntimeBenchmarkResult, error) {
+			return RuntimeBenchmarkResult{}, errors.New("fixture unavailable")
+		},
+	})
+	if err != nil {
+		t.Fatalf("RecordBenchmark: %v", err)
+	}
+
+	var got struct {
+		Runtime struct {
+			OfflineDoctor struct {
+				Status string `json:"status"`
+				Error  string `json:"error"`
+			} `json:"offline_doctor"`
+		} `json:"runtime"`
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "benchmarks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("benchmarks.json is invalid JSON: %v\n%s", err, raw)
+	}
+	if got.Runtime.OfflineDoctor.Status != "skipped" || !strings.Contains(got.Runtime.OfflineDoctor.Error, "fixture unavailable") {
+		t.Fatalf("runtime skip metadata = %+v", got.Runtime.OfflineDoctor)
 	}
 }
 

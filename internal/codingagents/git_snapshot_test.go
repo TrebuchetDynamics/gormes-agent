@@ -137,3 +137,32 @@ func TestDiffBetween_ProducesDiffAndFileList(t *testing.T) {
 		t.Fatalf("files = %v, want feature.go", files)
 	}
 }
+
+func TestDiffBetween_IncludesUntrackedWorkingTreeFiles(t *testing.T) {
+	t.Parallel()
+	dir := initRepo(t)
+	before, err := TakeSnapshot(context.Background(), dir)
+	if err != nil {
+		t.Fatalf("before snapshot: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "scratch.txt"), []byte("draft"), 0o644); err != nil {
+		t.Fatalf("write scratch: %v", err)
+	}
+	after, err := TakeSnapshot(context.Background(), dir)
+	if err != nil {
+		t.Fatalf("after snapshot: %v", err)
+	}
+	_, files, err := DiffBetween(context.Background(), dir, before, after)
+	if err != nil {
+		t.Fatalf("DiffBetween: %v", err)
+	}
+	found := false
+	for _, f := range files {
+		if f == "scratch.txt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("files = %v, want untracked scratch.txt", files)
+	}
+}

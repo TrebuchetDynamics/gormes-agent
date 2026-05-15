@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:navivox/core/channel/fake_navivox_channel.dart';
+import 'package:navivox/core/channel/navivox_channel_provider.dart';
+import '../../support/test_navivox_channel.dart';
 import 'package:navivox/core/channel/navivox_channel.dart';
 import 'package:navivox/features/chat/widgets/approval_banner.dart';
 
 void main() {
   testWidgets('shows the prompt and resolves Allow into respondToApproval(true)',
       (tester) async {
-    final channel = FakeNavivoxChannel();
+    final channel = TestNavivoxChannel();
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: ApprovalBanner(channel: channel)),
@@ -39,7 +40,7 @@ void main() {
   });
 
   testWidgets('Deny calls respondToApproval(false)', (tester) async {
-    final channel = FakeNavivoxChannel();
+    final channel = TestNavivoxChannel();
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: ApprovalBanner(channel: channel)),

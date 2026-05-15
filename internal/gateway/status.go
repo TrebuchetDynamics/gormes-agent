@@ -35,6 +35,10 @@ const (
 	PlatformStateRunning  PlatformState = "running"
 	PlatformStateStopped  PlatformState = "stopped"
 	PlatformStateFailed   PlatformState = "failed"
+	// PlatformStatePaused marks a platform the per-platform circuit breaker
+	// (or a manual /platform pause) has parked: it stays in the failed/retry
+	// set but the reconnect watcher no longer hammers it until resumed.
+	PlatformStatePaused PlatformState = "paused"
 )
 
 // RuntimeStatus is the shared gateway status read model.

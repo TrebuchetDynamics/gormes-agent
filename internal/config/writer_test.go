@@ -46,6 +46,38 @@ func TestConfigWriter_IsSecretKeyClassification(t *testing.T) {
 	}
 }
 
+func TestConfigWriter_TelegramSecretAndHomeChannel(t *testing.T) {
+	if got := SecretEnvName("telegram.bot_token"); got != "GORMES_TELEGRAM_BOT_TOKEN" {
+		t.Fatalf("SecretEnvName(telegram.bot_token) = %q, want GORMES_TELEGRAM_BOT_TOKEN", got)
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := WriteTOMLValue(path, "telegram.home_channel.chat_id", "123456789012345678"); err != nil {
+		t.Fatalf("WriteTOMLValue home_channel.chat_id: %v", err)
+	}
+	if err := WriteTOMLValue(path, "telegram.home_channel.thread_id", "42"); err != nil {
+		t.Fatalf("WriteTOMLValue home_channel.thread_id: %v", err)
+	}
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	got := string(body)
+	if !strings.Contains(got, "[telegram.home_channel]") {
+		t.Fatalf("config.toml missing [telegram.home_channel]:\n%s", got)
+	}
+	if !strings.Contains(got, `chat_id = "123456789012345678"`) &&
+		!strings.Contains(got, `chat_id = '123456789012345678'`) {
+		t.Fatalf("config.toml missing string chat_id:\n%s", got)
+	}
+	if !strings.Contains(got, `thread_id = "42"`) &&
+		!strings.Contains(got, `thread_id = '42'`) {
+		t.Fatalf("config.toml missing string thread_id:\n%s", got)
+	}
+}
+
 func TestConfigWriter_WriteTOMLValueSetsTopLevelHermesField(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")

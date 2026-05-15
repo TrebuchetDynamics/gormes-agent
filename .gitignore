@@ -43,6 +43,7 @@ openclaw/
 scripts/.swarm/
 .claude/worktrees/
 .claude/scheduled_tasks.lock
+**/.claude/scheduled_tasks.lock
 
 # ── Root-level agent identity/memory scratch ─────────
 # Runtime expects these under $GORMES_HOME (not the repo root).

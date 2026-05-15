@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
@@ -42,6 +44,14 @@ type updateCommandSeams struct {
 	// IsExcludedFromBackup paths skipped) to
 	// `<home>/backups/pre-update-<UTC>.zip`.
 	BackupWriterFor func() cli.BackupWriter
+	// BinaryPublisherFor builds the native build/publish closure for the
+	// managed checkout. Override in tests so command plumbing can be
+	// exercised without running `go build` or touching PATH binaries.
+	BinaryPublisherFor func(checkoutDir string) cli.UpdateBinaryPublisher
+	// GatewayRestartFor builds the validated restart closure used after a
+	// successful binary publish. Override in tests to avoid touching live
+	// runtime/service state.
+	GatewayRestartFor func() cli.UpdateGatewayRestartRunner
 }
 
 func newUpdateCommand() *cobra.Command {
@@ -79,6 +89,12 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	}
 	if seams.BackupWriterFor == nil {
 		seams.BackupWriterFor = defaultBackupWriterFor
+	}
+	if seams.BinaryPublisherFor == nil {
+		seams.BinaryPublisherFor = defaultBinaryPublisherFor
+	}
+	if seams.GatewayRestartFor == nil {
+		seams.GatewayRestartFor = defaultUpdateGatewayRestartFor
 	}
 
 	cmd := &cobra.Command{
@@ -132,6 +148,8 @@ so the recovery path is visible inline.
 				ConfigCheck:         seams.ConfigCheckFn,
 				ConfigMigrate:       seams.ConfigMigrateFn,
 				BackupWriter:        seams.BackupWriterFor(),
+				BinaryPublisher:     seams.BinaryPublisherFor(checkoutDir),
+				GatewayRestart:      seams.GatewayRestartFor(),
 				Git:                 cli.RealUpdateGitRunner{},
 			})
 			if report.Branch == "" {
@@ -139,6 +157,11 @@ so the recovery path is visible inline.
 			}
 			if checkOnly && !updateReportHasEvidence(report, cli.UpdateEvidenceCheck) {
 				report.Evidence = append([]cli.UpdateEvidence{{Kind: cli.UpdateEvidenceCheck, Detail: "no checkout mutations requested"}}, report.Evidence...)
+			}
+			if !checkOnly {
+				closeLog := attachUpdateLogMirror(cmd, &report)
+				defer closeLog()
+				appendUpdateLedgerEvidence(&report, restartGateway)
 			}
 			if asJSON {
 				if err := printUpdateReportJSON(cmd, report); err != nil {
@@ -170,6 +193,101 @@ so the recovery path is visible inline.
 	cmd.Flags().BoolVar(&skipWeb, "skip-web", false, "skip the web UI rebuild step after pulling source")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a machine-readable JSON report instead of the human-readable progress UX (suitable for CI/cron consumers)")
 	return cmd
+}
+
+func attachUpdateLogMirror(cmd *cobra.Command, report *cli.UpdateReport) func() {
+	path, err := resolveUpdateLogPath()
+	if err != nil {
+		report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceHangupLogUnavailable, Detail: err.Error()})
+		return func() {}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceHangupLogUnavailable, Detail: err.Error()})
+		return func() {}
+	}
+	logFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceHangupLogUnavailable, Detail: err.Error()})
+		return func() {}
+	}
+	report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceHangupLogMirrored, Detail: path})
+	cmd.SetOut(cli.NewUpdateOutputMirror(cmd.OutOrStdout(), logFile))
+	return func() { _ = logFile.Close() }
+}
+
+func appendUpdateLedgerEvidence(report *cli.UpdateReport, restartGateway string) {
+	path, err := appendUpdateLedger(*report, restartGateway)
+	if err != nil {
+		report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceLedgerUnavailable, Detail: err.Error()})
+		return
+	}
+	report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceLedgerAppended, Detail: path})
+}
+
+type updateLedgerEvent struct {
+	Event          string               `json:"event"`
+	Timestamp      string               `json:"timestamp"`
+	Build          buildProvenanceJSON  `json:"build"`
+	Branch         string               `json:"branch"`
+	PreviousBranch string               `json:"previous_branch,omitempty"`
+	Failed         bool                 `json:"failed"`
+	RestartGateway string               `json:"restart_gateway,omitempty"`
+	Evidence       []updateEvidenceJSON `json:"evidence,omitempty"`
+}
+
+func appendUpdateLedger(report cli.UpdateReport, restartGateway string) (string, error) {
+	path, err := resolveUpdateLedgerPath()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	event := updateLedgerEvent{
+		Event:          "update",
+		Timestamp:      time.Now().UTC().Format(time.RFC3339),
+		Build:          newBuildProvenance(),
+		Branch:         report.Branch,
+		PreviousBranch: report.PreviousBranch,
+		Failed:         report.Failed,
+		RestartGateway: restartGateway,
+		Evidence:       make([]updateEvidenceJSON, 0, len(report.Evidence)),
+	}
+	for _, evidence := range report.Evidence {
+		event.Evidence = append(event.Evidence, updateEvidenceJSON{Kind: string(evidence.Kind), Detail: evidence.Detail})
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return "", err
+	}
+	if _, err := file.Write(append(body, '\n')); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if err := file.Close(); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func resolveUpdateLogPath() (string, error) {
+	home, err := resolveManagedInstallHome()
+	if err != nil {
+		return "", fmt.Errorf("resolve update log: %w", err)
+	}
+	return filepath.Join(home, "update.log"), nil
+}
+
+func resolveUpdateLedgerPath() (string, error) {
+	home, err := resolveManagedInstallHome()
+	if err != nil {
+		return "", fmt.Errorf("resolve update ledger: %w", err)
+	}
+	return filepath.Join(home, "install.log.jsonl"), nil
 }
 
 // updateReportJSON shapes UpdateReport for machine-readable output.
@@ -314,15 +432,207 @@ func resolveManagedCheckoutDir() (string, error) {
 	if dir := strings.TrimSpace(os.Getenv("GORMES_INSTALL_DIR")); dir != "" {
 		return dir, nil
 	}
-	home := strings.TrimSpace(os.Getenv("GORMES_INSTALL_HOME"))
-	if home == "" {
-		userHome, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("resolve managed checkout: %w", err)
-		}
-		home = filepath.Join(userHome, ".gormes")
+	home, err := resolveManagedInstallHome()
+	if err != nil {
+		return "", fmt.Errorf("resolve managed checkout: %w", err)
 	}
 	return filepath.Join(home, "gormes-agent"), nil
+}
+
+func defaultBinaryPublisherFor(checkoutDir string) cli.UpdateBinaryPublisher {
+	return func(ctx context.Context, req cli.UpdateBinaryPublishRequest) cli.UpdateReport {
+		opts, err := defaultUpdateBinaryPublishOptions(checkoutDir)
+		if strings.TrimSpace(req.CheckoutDir) != "" {
+			opts.CheckoutDir = req.CheckoutDir
+		}
+		if err != nil {
+			return cli.UpdateReport{
+				Failed: true,
+				Evidence: []cli.UpdateEvidence{
+					{Kind: cli.UpdateEvidencePublishFailed, Detail: err.Error()},
+				},
+			}
+		}
+		return cli.RunUpdateBinaryPublish(ctx, opts)
+	}
+}
+
+func defaultUpdateGatewayRestartFor() cli.UpdateGatewayRestartRunner {
+	return func(ctx context.Context, req cli.UpdateGatewayRestartRequest) cli.UpdateReport {
+		return runUpdateGatewayRestartForPolicy(ctx, req.Policy)
+	}
+}
+
+func runUpdateGatewayRestartForPolicy(ctx context.Context, policy string) cli.UpdateReport {
+	policy = strings.TrimSpace(policy)
+	if policy == "" {
+		policy = "auto"
+	}
+	switch policy {
+	case "never":
+		return updateGatewayRestartNever(ctx)
+	case "auto":
+		return updateGatewayRestartAuto(ctx)
+	case "always":
+		return updateGatewayRestartRecorded(ctx, true)
+	default:
+		return cli.UpdateReport{
+			Failed: true,
+			Evidence: []cli.UpdateEvidence{
+				{Kind: cli.UpdateEvidenceGatewayRestartUnavailable, Detail: fmt.Sprintf("invalid restart policy %q", policy)},
+			},
+		}
+	}
+}
+
+func updateGatewayRestartNever(ctx context.Context) cli.UpdateReport {
+	snapshot, err := readUpdateGatewayRuntimeSnapshot(ctx)
+	if err != nil || !snapshot.Validation.Live {
+		return cli.UpdateReport{}
+	}
+	return cli.UpdateReport{Evidence: []cli.UpdateEvidence{{
+		Kind:   cli.UpdateEvidenceGatewayRestartNeeded,
+		Detail: "live gateway was not restarted because --restart-gateway=never",
+	}}}
+}
+
+func updateGatewayRestartAuto(ctx context.Context) cli.UpdateReport {
+	snapshot, err := readUpdateGatewayRuntimeSnapshot(ctx)
+	if err != nil {
+		return cli.UpdateReport{Evidence: []cli.UpdateEvidence{{
+			Kind:   cli.UpdateEvidenceGatewayRestartUnavailable,
+			Detail: fmt.Sprintf("gateway runtime validation unavailable: %v", err),
+		}}}
+	}
+	if !snapshot.Validation.Live {
+		return cli.UpdateReport{}
+	}
+	if snapshot.Status.ActiveAgents > 0 {
+		return cli.UpdateReport{Evidence: []cli.UpdateEvidence{{
+			Kind:   cli.UpdateEvidenceGatewayRestartUnavailable,
+			Detail: fmt.Sprintf("live gateway has active_agents=%d; restart skipped by policy=auto", snapshot.Status.ActiveAgents),
+		}}}
+	}
+	return updateGatewayRestartRecorded(ctx, false)
+}
+
+func updateGatewayRestartRecorded(ctx context.Context, failOnError bool) cli.UpdateReport {
+	report, err := restartRecordedGatewayRuntime(ctx, defaultGatewayStopTimeout)
+	if err == nil {
+		detail := "gateway restarted"
+		if report.OldPID > 0 && report.NewPID > 0 {
+			detail = fmt.Sprintf("gateway restarted pid=%d -> %d", report.OldPID, report.NewPID)
+		} else if report.NewPID > 0 {
+			detail = fmt.Sprintf("gateway started pid=%d", report.NewPID)
+		}
+		return cli.UpdateReport{Evidence: []cli.UpdateEvidence{{Kind: cli.UpdateEvidenceGatewayRestarted, Detail: detail}}}
+	}
+	kind := cli.UpdateEvidenceGatewayRestartUnavailable
+	if strings.Contains(err.Error(), "timed out") {
+		kind = cli.UpdateEvidenceGatewayRestartTimeout
+	}
+	return cli.UpdateReport{
+		Failed: failOnError,
+		Evidence: []cli.UpdateEvidence{{
+			Kind:   kind,
+			Detail: err.Error(),
+		}},
+	}
+}
+
+func readUpdateGatewayRuntimeSnapshot(ctx context.Context) (gateway.RuntimeStatusSnapshot, error) {
+	store := newGatewayRestartRuntimeStore(config.GatewayRuntimeStatusPath())
+	return store.ReadValidatedRuntimeStatusSnapshot(ctx)
+}
+
+func defaultUpdateBinaryPublishOptions(checkoutDir string) (cli.UpdateBinaryPublishOptions, error) {
+	managedBin, err := resolveManagedBinaryPath()
+	if err != nil {
+		return cli.UpdateBinaryPublishOptions{}, err
+	}
+	publishedBin, err := resolvePublishedBinaryPath()
+	if err != nil {
+		return cli.UpdateBinaryPublishOptions{}, err
+	}
+	return cli.UpdateBinaryPublishOptions{
+		CheckoutDir:       checkoutDir,
+		ManagedBinPath:    managedBin,
+		PublishedBinPath:  publishedBin,
+		ActivePathPath:    resolveActiveGormesCommandPath(),
+		RefreshActivePath: !updateSandboxBinDirSet(),
+		Runner:            cli.RealUpdateCommandRunner{},
+		Git:               cli.RealUpdateGitRunner{},
+	}, nil
+}
+
+func resolveManagedInstallHome() (string, error) {
+	if home := strings.TrimSpace(os.Getenv("GORMES_INSTALL_HOME")); home != "" {
+		return home, nil
+	}
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(userHome, ".gormes"), nil
+}
+
+func resolveManagedBinaryPath() (string, error) {
+	home, err := resolveManagedInstallHome()
+	if err != nil {
+		return "", fmt.Errorf("resolve managed binary: %w", err)
+	}
+	return filepath.Join(home, "bin", gormesExecutableName()), nil
+}
+
+func resolvePublishedBinaryPath() (string, error) {
+	if dir := strings.TrimSpace(os.Getenv("GORMES_BIN_DIR")); dir != "" {
+		return filepath.Join(dir, gormesExecutableName()), nil
+	}
+	if prefix := strings.TrimSpace(os.Getenv("GORMES_PREFIX")); prefix != "" {
+		return filepath.Join(prefix, "bin", gormesExecutableName()), nil
+	}
+	if runtime.GOOS == "android" {
+		if prefix := strings.TrimSpace(os.Getenv("PREFIX")); prefix != "" {
+			return filepath.Join(prefix, "bin", gormesExecutableName()), nil
+		}
+	}
+	if runtime.GOOS == "linux" && os.Geteuid() == 0 {
+		return filepath.Join("/usr", "local", "bin", gormesExecutableName()), nil
+	}
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve published binary: %w", err)
+	}
+	return filepath.Join(userHome, ".local", "bin", gormesExecutableName()), nil
+}
+
+func resolveActiveGormesCommandPath() string {
+	active, err := exec.LookPath("gormes")
+	if err != nil {
+		return ""
+	}
+	if strings.TrimSpace(active) == "" {
+		return ""
+	}
+	if filepath.IsAbs(active) {
+		return active
+	}
+	abs, err := filepath.Abs(active)
+	if err != nil {
+		return active
+	}
+	return abs
+}
+
+func updateSandboxBinDirSet() bool {
+	return strings.TrimSpace(os.Getenv("GORMES_BIN_DIR")) != "" || strings.TrimSpace(os.Getenv("GORMES_PREFIX")) != ""
+}
+
+func gormesExecutableName() string {
+	if runtime.GOOS == "windows" {
+		return "gormes.exe"
+	}
+	return "gormes"
 }
 
 // defaultSkillSyncFor builds the production SkillSyncRunner: scan

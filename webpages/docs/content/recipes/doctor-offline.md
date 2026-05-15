@@ -49,5 +49,5 @@ If every non-`[SKIP]` line reads `[PASS]`, the local runtime is healthy.
 
 ## See also
 
-- [Connect a provider and run a one-shot](../first-turn/)
+- [Connect a provider and open chat](../first-turn/)
 - [Diagnose a broken install](../diagnose/)

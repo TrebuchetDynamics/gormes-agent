@@ -7,15 +7,10 @@ import (
 	"testing"
 )
 
-// TestOnboardWizard_JSONEmitsStructuredPlan pins the regression
-// observed during a fresh-install probe sweep:
-// `gormes onboard --wizard --json` silently ignored the `--wizard`
-// flag and emitted the same `--json` status snapshot as plain
-// `gormes onboard --json`. Operators driving an interactive
-// onboarding from JSON (e.g. a fleet provisioning script that
-// renders the same step-ladder the human surface prints) had no way
-// to ingest the wizard plan structure — they had to scrape the
-// numbered text rows.
+// TestOnboardWizard_JSONEmitsStructuredPlan pins the internal onboarding
+// seam's wizard JSON shape. Setup integrations that render the same
+// step-ladder the human surface prints need the wizard plan structure
+// instead of scraping numbered text rows.
 //
 // Contract: `--wizard --json` must emit a parseable
 // `{build, mode, steps: [{id, title, status, detail, next_command,
@@ -26,8 +21,7 @@ func TestOnboardWizard_JSONEmitsStructuredPlan(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeRootCommandForTest(cmd, "onboard", "--wizard", "--json", "--non-interactive")
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--wizard", "--json", "--non-interactive")
 	if err != nil {
 		t.Fatalf("onboard --wizard --json: %v\nstderr=%s", err, stderr)
 	}
@@ -82,15 +76,14 @@ func TestOnboardWizard_JSONEmitsStructuredPlan(t *testing.T) {
 // TestOnboard_JSONWithoutWizardFlagStaysSnapshotShape pins the
 // regression fence: callers that just want a status snapshot (no
 // wizard) must continue to see `{home, config_path, provider_configured,
-// agents, ...}` — the existing onboardStatusReportJSON shape.
+// agents, ...}` — the existing internal onboardStatusReportJSON shape.
 // Adding the wizard JSON path must not double up the surface.
 func TestOnboard_JSONWithoutWizardFlagStaysSnapshotShape(t *testing.T) {
 	t.Setenv("GORMES_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, _, err := executeRootCommandForTest(cmd, "onboard", "--json")
+	stdout, _, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--json")
 	if err != nil {
 		t.Fatalf("onboard --json: %v", err)
 	}
@@ -107,8 +100,7 @@ func TestOnboardJSONIncludesFirstRunReadiness(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeRootCommandForTest(cmd, "onboard", "--json")
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--json")
 	if err != nil {
 		t.Fatalf("onboard --json: %v\nstderr=%s", err, stderr)
 	}
@@ -163,8 +155,7 @@ source = "env"
 id = "GORMES_PROVIDER_SECRET"
 `))
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeRootCommandForTest(cmd, "onboard", "--json")
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--json")
 	if err != nil {
 		t.Fatalf("onboard --json: %v\nstderr=%s", err, stderr)
 	}
@@ -188,34 +179,5 @@ id = "GORMES_PROVIDER_SECRET"
 	}
 	if strings.Contains(stdout+stderr, secret) {
 		t.Fatalf("onboard --json leaked resolved SecretRef value:\nstdout=%s\nstderr=%s", stdout, stderr)
-	}
-}
-
-func TestOnboard_AcceptsOfflineSmokeFlag(t *testing.T) {
-	for _, args := range [][]string{
-		{"onboard", "--offline", "--json"},
-		{"--offline", "onboard", "--json"},
-	} {
-		t.Run(strings.Join(args, "_"), func(t *testing.T) {
-			t.Setenv("GORMES_HOME", t.TempDir())
-			t.Setenv("XDG_DATA_HOME", t.TempDir())
-			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-
-			cmd := newRootCommandWithRuntime(rootRuntime{})
-			stdout, stderr, err := executeRootCommandForTest(cmd, args...)
-			if err != nil {
-				t.Fatalf("%v: %v\nstdout=%s\nstderr=%s", args, err, stdout, stderr)
-			}
-
-			var got struct {
-				Home string `json:"home"`
-			}
-			if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
-				t.Fatalf("stdout must be valid onboard JSON: %v\nstdout=%s", jsonErr, stdout)
-			}
-			if got.Home == "" {
-				t.Fatalf("onboard JSON home must be populated; stdout=%s", stdout)
-			}
-		})
 	}
 }

@@ -231,11 +231,17 @@ func applyEnvEntries(out *WriteOutcome, req WriteRequest) error {
 	if err != nil {
 		return err
 	}
+	if err := applyEnvConfigEntries(out, req, envValues); err != nil {
+		return err
+	}
 
 	// When env work is needed and the destination dotenv exists, back it
 	// up exactly once before the first writeEnvLine mutates the file.
 	hasImportable := false
 	for _, e := range req.Manifest.Env {
+		if e.GormesPath != "" {
+			continue
+		}
 		if e.Disposition == "importable" || (e.Disposition == "conflict" && req.Overwrite) {
 			hasImportable = true
 			break
@@ -250,6 +256,9 @@ func applyEnvEntries(out *WriteOutcome, req WriteRequest) error {
 	}
 
 	for _, entry := range req.Manifest.Env {
+		if entry.GormesPath != "" {
+			continue
+		}
 		target := entry.GormesEnv
 		switch entry.Disposition {
 		case "importable":
@@ -309,6 +318,99 @@ func applyEnvEntries(out *WriteOutcome, req WriteRequest) error {
 			}
 			out.EnvWritten[key] = DispositionSkipped
 		}
+	}
+	return nil
+}
+
+func applyEnvConfigEntries(out *WriteOutcome, req WriteRequest, envValues map[string]string) error {
+	hasConfigTarget := false
+	for _, e := range req.Manifest.Env {
+		if e.GormesPath != "" && (e.Disposition == "importable" || (e.Disposition == "conflict" && req.Overwrite)) {
+			hasConfigTarget = true
+			break
+		}
+	}
+	if !hasConfigTarget {
+		for _, e := range req.Manifest.Env {
+			if e.GormesPath == "" {
+				continue
+			}
+			out.ConfigWritten[e.GormesPath] = DispositionSkipped
+		}
+		return nil
+	}
+
+	cfgPath := filepath.Join(req.DestConfigDir, "config.toml")
+	doc, err := loadDestTOML(cfgPath)
+	if err != nil {
+		return err
+	}
+	if backup, ok, err := maybeBackup(cfgPath); err != nil {
+		return err
+	} else if ok {
+		out.Backups = append(out.Backups, backup)
+	}
+
+	mutated := false
+	for _, entry := range req.Manifest.Env {
+		if entry.GormesPath == "" {
+			continue
+		}
+		target := entry.GormesPath
+		switch entry.Disposition {
+		case "importable":
+			value, present := envValues[entry.HermesKey]
+			if !present {
+				out.ConfigWritten[target] = DispositionSkipped
+				continue
+			}
+			coerced, err := coerceEnvConfigValue(target, value)
+			if err != nil {
+				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", target, err)))
+				out.ConfigWritten[target] = DispositionError
+				continue
+			}
+			if err := setTOMLDottedPath(doc, target, coerced); err != nil {
+				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", target, err)))
+				out.ConfigWritten[target] = DispositionError
+				continue
+			}
+			out.ConfigWritten[target] = DispositionMigrated
+			mutated = true
+		case "conflict":
+			if !req.Overwrite {
+				out.ConfigWritten[target] = DispositionConflictSkipped
+				continue
+			}
+			value, present := envValues[entry.HermesKey]
+			if !present {
+				out.ConfigWritten[target] = DispositionSkipped
+				continue
+			}
+			coerced, err := coerceEnvConfigValue(target, value)
+			if err != nil {
+				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", target, err)))
+				out.ConfigWritten[target] = DispositionError
+				continue
+			}
+			if err := setTOMLDottedPath(doc, target, coerced); err != nil {
+				out.Errors = append(out.Errors, sanitizeError(fmt.Errorf("config %s: %w", target, err)))
+				out.ConfigWritten[target] = DispositionError
+				continue
+			}
+			out.ConfigWritten[target] = DispositionMigrated
+			mutated = true
+		case "archived":
+			out.ConfigWritten[target] = DispositionArchived
+		default:
+			out.ConfigWritten[target] = DispositionSkipped
+		}
+	}
+	if !mutated {
+		return nil
+	}
+	if err := writeDestTOML(cfgPath, doc); err != nil {
+		return fmt.Errorf("write %s: %w", cfgPath, err)
 	}
 	return nil
 }
@@ -481,6 +583,22 @@ func setTOMLLeaf(doc map[string]any, section, field string, value any) error {
 	return nil
 }
 
+func setTOMLDottedPath(doc map[string]any, path string, value any) error {
+	parts := strings.Split(path, ".")
+	if len(parts) < 2 {
+		return fmt.Errorf("expected dotted config path, got %q", path)
+	}
+	table := asTable(doc[parts[0]])
+	doc[parts[0]] = table
+	for _, part := range parts[1 : len(parts)-1] {
+		next := asTable(table[part])
+		table[part] = next
+		table = next
+	}
+	table[parts[len(parts)-1]] = value
+	return nil
+}
+
 func asTable(v any) map[string]any {
 	if t, ok := v.(map[string]any); ok {
 		return t
@@ -497,6 +615,34 @@ func mergeTables(base, overlay map[string]any) map[string]any {
 		out[k] = coerceTOMLValue(v)
 	}
 	return out
+}
+
+func coerceEnvConfigValue(path string, value string) (any, error) {
+	switch path {
+	case "telegram.allowed_user_ids":
+		return parseInt64CSV(value)
+	case "telegram.home_channel.chat_id", "telegram.home_channel.name", "telegram.home_channel.thread_id":
+		return strings.TrimSpace(value), nil
+	default:
+		return coerceScalar(value), nil
+	}
+}
+
+func parseInt64CSV(value string) ([]int64, error) {
+	parts := strings.Split(value, ",")
+	out := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		parsed, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("expected comma-separated integer IDs, got %q", value)
+		}
+		out = append(out, parsed)
+	}
+	return out, nil
 }
 
 func boolValue(value any) (bool, bool) {

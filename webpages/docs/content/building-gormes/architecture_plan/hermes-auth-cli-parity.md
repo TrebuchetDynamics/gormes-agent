@@ -73,17 +73,7 @@ Redirect targets:
 - `hermes model` - provider + model picker (and the OAuth flow for that provider).
 - `hermes setup` - full or sectioned wizard.
 
-**Gormes parity rule.** Gormes registers top-level `gormes login` as an
-operator-compatibility shortcut for the provider-auth path users still type from
-Hermes muscle memory. `gormes login --provider openai-codex` must delegate to
-the same Gormes-owned credential-pool flow as
-`gormes auth add openai-codex --type oauth`, preserving Codex token isolation,
-redaction, config updates, and Codex CLI import fallback in one implementation.
-Bare `gormes login` must return `auth_login_provider_required` without side
-effects, and unsupported providers must return redacted allow-list guidance
-without echoing the supplied provider value. The canonical documented recipe
-remains `gormes auth add openai-codex --type oauth`; top-level `login` exists
-for Hermes command compatibility.
+**Gormes parity rule.** Public Gormes auth docs, help, and catalogs use `gormes auth add <provider> --type oauth`. The top-level `gormes login` parser is removed; typing it returns secret-safe guidance to the canonical auth command without executing provider auth.
 
 ## 3. Per-provider `auth add` behavior matrix
 
@@ -236,10 +226,4 @@ the generic `auth_status_command` / `auth_logout_command` with
    (`mcp_config.py:613-614`). Confirm whether the Gormes equivalent narrows
    the surface the same way.
 
-9. **Top-level `hermes login` parser still registered.** The deprecated
-   subparser still consumes flags so `hermes login --provider openai-codex`
-   exits cleanly with the deprecation message instead of `argparse` complaining
-   about unknown args. Gormes parity needs to decide: keep the parser shim
-   (cleanest deprecation), or drop the command entirely and let
-   `gormes login` produce a "command not found" hint that points to
-   `gormes auth`.
+9. **Top-level `hermes login` parser still registered.** Gormes keeps a hidden compatibility shim only; public help and docs point operators at `gormes auth add <provider> --type oauth`.

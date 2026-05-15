@@ -46,13 +46,13 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("config: %w", err)
 	}
 	if cfg.Telegram.BotToken == "" {
-		return fmt.Errorf("no Telegram bot token — set GORMES_TELEGRAM_TOKEN, TELEGRAM_BOT_TOKEN, or [telegram].bot_token in config.toml")
+		return fmt.Errorf("no Telegram bot token — set GORMES_TELEGRAM_BOT_TOKEN, GORMES_TELEGRAM_TOKEN, TELEGRAM_BOT_TOKEN, or [telegram].bot_token in config.toml")
 	}
 	if cfg.Telegram.AllowedChatID == 0 && len(cfg.Telegram.AllowedUserIDs) == 0 && !cfg.Telegram.FirstRunDiscovery {
 		return fmt.Errorf("no chat/user allowlist and discovery disabled — set [telegram].allowed_chat_id, TELEGRAM_ALLOWED_USERS, or [telegram].first_run_discovery = true")
 	}
-	if os.Getenv("GORMES_TELEGRAM_TOKEN") == "" && os.Getenv("TELEGRAM_BOT_TOKEN") == "" && os.Getenv("TELEGRAM_TOKEN") == "" {
-		slog.Warn("bot_token read from config.toml; prefer GORMES_TELEGRAM_TOKEN or TELEGRAM_BOT_TOKEN env var for secrets")
+	if os.Getenv("GORMES_TELEGRAM_BOT_TOKEN") == "" && os.Getenv("GORMES_TELEGRAM_TOKEN") == "" && os.Getenv("TELEGRAM_BOT_TOKEN") == "" && os.Getenv("TELEGRAM_TOKEN") == "" {
+		slog.Warn("bot_token read from config.toml; prefer GORMES_TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN env var for secrets")
 	}
 	if _, err := ensureGatewayAgentTemplates(cfg, slog.Default()); err != nil {
 		return err

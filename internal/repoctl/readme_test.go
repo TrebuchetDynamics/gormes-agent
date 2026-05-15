@@ -1,6 +1,7 @@
 package repoctl
 
 import (
+	"image/gif"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -197,6 +198,67 @@ func TestUpdateReadmeSyncsSTTBenchmarkSummary(t *testing.T) {
 	}
 }
 
+func TestUpdateReadmeSyncsRuntimeRSSBenchmarkSummary(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "benchmarks.json"), []byte(`{
+  "binary": {
+    "size_mb": "42.2",
+    "last_measured": "2026-05-15"
+  },
+  "stt": {
+    "wasi_whisper": {
+      "last_measured": "2026-05-10",
+      "models": [
+        {
+          "name": "ggml-tiny.en",
+          "realtime_factor": 3.78
+        }
+      ]
+    }
+  },
+  "runtime": {
+    "offline_doctor": {
+      "status": "measured",
+      "last_measured": "2026-05-15",
+      "peak_rss_mb": 18.7
+    }
+  }
+}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	readme := filepath.Join(root, "README.md")
+	original := strings.Join([]string{
+		"## Status",
+		"",
+		"The current Linux build measures ~28.0 MB (`benchmarks.json`). WASI Whisper tiny.en has not been benchmarked yet. Offline doctor peaks at ~99.9 MB RSS (`benchmarks.json`, 2026-05-01).",
+	}, "\n")
+	if err := os.WriteFile(readme, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := UpdateReadme(ReadmeOptions{Root: root}); err != nil {
+		t.Fatalf("UpdateReadme: %v", err)
+	}
+	raw, err := os.ReadFile(readme)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(raw)
+	wants := []string{
+		"The current Linux build measures ~42.2 MB (`benchmarks.json`).",
+		"WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).",
+		"Offline doctor peaks at ~18.7 MB RSS (`benchmarks.json`, 2026-05-15).",
+	}
+	for _, want := range wants {
+		if !strings.Contains(got, want) {
+			t.Fatalf("README missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "~99.9 MB RSS") || strings.Contains(got, "has not been benchmarked yet") || strings.Contains(got, "~28.0 MB") {
+		t.Fatalf("README retained stale runtime benchmark text:\n%s", got)
+	}
+}
+
 // TestREADMELeadsWithRuntime pins the runtime-first hero contract.
 // Earlier drafts led with "autonomous-porting methodology" — the
 // 2026-05-09 README rebalance walked that back: README opens with
@@ -247,18 +309,21 @@ func TestREADMEMentionsDifferentiator(t *testing.T) {
 
 // TestREADMEPreservesOperatorSections asserts the runtime-first
 // sections operators rely on. Section names tracked here: Quick
-// Install (entry point), First Proof (the rebalanced "First Run" —
-// renamed to lean into doctor/--offline as the proof), Status (the
-// release/CI summary). The two install-script invocations and the
-// two offline-proof commands round out the contract.
+// Install (entry point), First Setup (guided setup, provider shortcut,
+// and first model-backed chat), Status (the release/CI summary). The two
+// install-script invocations and the two offline-proof commands round
+// out the contract.
 func TestREADMEPreservesOperatorSections(t *testing.T) {
 	raw := readRepoFile(t, "README.md")
 	wants := []string{
 		"## Quick Install",
-		"## First Proof",
+		"## First Setup",
 		"## Status",
-		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh",
+		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
 		"irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex",
+		"gormes setup",
+		"gormes setup provider",
+		"gormes chat",
 		"gormes doctor --offline",
 		"gormes --offline",
 	}
@@ -266,6 +331,38 @@ func TestREADMEPreservesOperatorSections(t *testing.T) {
 		if !strings.Contains(raw, want) {
 			t.Fatalf("README must preserve operator section or command %q", want)
 		}
+	}
+}
+
+func TestREADMEHeroDemoGIFExists(t *testing.T) {
+	raw := readRepoFile(t, "README.md")
+	const assetPath = "webpages/docs/assets/gormes-tui-demo.gif"
+	wants := []string{
+		`<img src="` + assetPath + `"`,
+		"install, setup, provider setup, first task",
+		`width="960"`,
+	}
+	for _, want := range wants {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("README hero demo GIF embed missing %q", want)
+		}
+	}
+
+	f, err := os.Open(filepath.Join(repoRoot(t), assetPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	decoded, err := gif.DecodeAll(f)
+	if err != nil {
+		t.Fatalf("decode README hero GIF: %v", err)
+	}
+	if len(decoded.Image) < 6 {
+		t.Fatalf("README hero GIF should tell a multi-step product story; got %d frame(s)", len(decoded.Image))
+	}
+	bounds := decoded.Image[0].Bounds()
+	if bounds.Dx() < 1000 || bounds.Dy() < 600 {
+		t.Fatalf("README hero GIF should be high-resolution; got %dx%d", bounds.Dx(), bounds.Dy())
 	}
 }
 
@@ -279,16 +376,20 @@ func TestREADMELinksStrategyDoc(t *testing.T) {
 
 func readRepoFile(t *testing.T, rel string) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
-	raw, err := os.ReadFile(filepath.Join(root, rel))
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return string(raw)
+}
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 }
 
 func firstReadmeBodyParagraph(raw string) string {

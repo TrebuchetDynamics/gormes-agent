@@ -1,8 +1,17 @@
 package cli
 
 // TypoSuggestion is the pre-Cobra extension point for deterministic,
-// secret-safe guidance on removed command spellings. It currently has no
-// entries because top-level login is a registered compatibility command.
+// secret-safe guidance on removed command spellings.
 func TypoSuggestion(args []string) (string, bool) {
-	return "", false
+	if len(args) == 0 {
+		return "", false
+	}
+	switch args[0] {
+	case "login":
+		return "Use `gormes auth add <provider> --type oauth` for provider OAuth.", true
+	case "onboard":
+		return "Use `gormes setup` for first-run setup, or `gormes doctor --offline --target terminal --json` for machine-readable readiness.", true
+	default:
+		return "", false
+	}
 }

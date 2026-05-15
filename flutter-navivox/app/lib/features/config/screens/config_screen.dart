@@ -36,14 +36,14 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
       value = raw.toLowerCase() == 'true';
     }
     ref
-        .read(activeNavivoxChannelProvider)
+        .read(navivoxChannelProvider)
         .sendConfigSet(field: field, value: value);
     setState(() => _editingField = null);
   }
 
   @override
   Widget build(BuildContext context) {
-    final channel = ref.watch(activeNavivoxChannelProvider);
+    final channel = ref.watch(navivoxChannelProvider);
     if (!identical(_subscribed, channel)) {
       _subscribed?.removeListener(_onChannelChanged);
       channel.addListener(_onChannelChanged);

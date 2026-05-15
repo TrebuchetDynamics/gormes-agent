@@ -44,7 +44,7 @@ Go goes places Python won't.
 
 ### 2.4 The integration wins (power user)
 
-10. **Scriptability.** `gormes ask "..."` from a shell alias, Raycast, editor macro, keyboard shortcut, cron one-liner, git hook. Python pays import cost every invocation, so users give up wiring the agent *into* their tools. Go makes it a thing you call from other things. The agent becomes part of the keyboard, not an app you open.
+10. **Scriptability.** `gormes chat -q "..."` from a shell alias, Raycast, editor macro, keyboard shortcut, cron one-liner, git hook. Python pays import cost every invocation, so users give up wiring the agent *into* their tools. Go makes it a thing you call from other things. The agent becomes part of the keyboard, not an app you open.
 
 11. **State is one directory they can back up.** Config + SQLite + bbolt under `$XDG_STATE_HOME/gormes/`. A user rsyncs that directory to a new laptop and their agent has their memory, their tools, their skills. Python agents smear state across `site-packages`, import-time globals, `~/.cache/huggingface`, `/tmp`, and CWD — "move to a new machine" is a research project.
 

@@ -6,7 +6,7 @@
 
 ## Context
 
-Gormes currently exposes a minimal Unix installer at `www.gormes.ai/internal/site/install.sh`. That script only verifies `go`, checks for Go 1.25+, picks a bin directory, and runs `go install github.com/TrebuchetDynamics/gormes-agent/cmd/gormes@latest`.
+Gormes previously exposed a minimal Unix installer from the old site package. That script only verified `go`, checked for Go 1.25+, picked a bin directory, and ran `go install github.com/TrebuchetDynamics/gormes-agent/cmd/gormes@latest`.
 
 That is not the installer shape the user wants. The target user experience is the Hermes installer model:
 
@@ -57,17 +57,17 @@ The accepted installer contract is:
 The public installer surfaces become:
 
 ```text
-https://gormes.ai/install.sh
+https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh
 https://gormes.ai/install.ps1
 https://gormes.ai/install.cmd
 ```
 
-Source files live under `www.gormes.ai/internal/site/` and are embedded into the site binary, analogous to the current embedded `install.sh`.
+Windows source files live under `www.gormes.ai/internal/site/` and are embedded into the site binary. The Unix installer stays at repo-root and is published from GitHub Releases.
 
 Expected file additions/changes:
 
 ```text
-www.gormes.ai/internal/site/install.sh
+install.sh
 www.gormes.ai/internal/site/install.ps1
 www.gormes.ai/internal/site/install.cmd
 www.gormes.ai/internal/site/assets.go
@@ -353,7 +353,7 @@ If verification fails, the install/update is considered failed even if the build
 
 Public install docs should be updated to match the new contract:
 
-1. Unix/macOS/Linux/Termux command remains `curl -fsSL https://gormes.ai/install.sh | sh`
+1. Unix/macOS/Linux/Termux command remains `curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh`
 2. Windows gets first-class PowerShell guidance and `install.cmd` fallback guidance
 3. docs should describe rerun-as-update behavior explicitly
 4. docs should explain that the installer is source-backed for now

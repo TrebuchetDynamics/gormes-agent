@@ -84,7 +84,7 @@ Gormes v1.0 will **not** chase:
   (Mem0, Supermemory, Holographic) and platform adapters (IRC, Viber)
   is deferred beyond the core 30-skill runtime.
 
-- **Voice/TTS beyond basic** — `gormes --oneshot` supports provider-backed
+- **Voice/TTS beyond basic** — `gormes chat -q` supports provider-backed
   turns. Full voice-mode state, TTS synthesis, and streaming transcription
   are post-v1.
 

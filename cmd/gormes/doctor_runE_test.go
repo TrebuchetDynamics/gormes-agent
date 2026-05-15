@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -68,6 +70,82 @@ func TestDoctorCommand_JSONIncludesBuildProvenance(t *testing.T) {
 	}
 	if got.Build.GitCommit == "" {
 		t.Fatalf("got.build.git_commit must be non-empty")
+	}
+}
+
+func TestDoctorCommand_JSONIncludesTermuxRuntimeWhenDetected(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prefix := filepath.Join(t.TempDir(), "com.termux", "files", "usr")
+	binDir := filepath.Join(prefix, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("mkdir termux bin: %v", err)
+	}
+	for _, name := range []string{"termux-wake-lock", "termux-notification"} {
+		if err := os.WriteFile(filepath.Join(binDir, name), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	t.Setenv("TERMUX_VERSION", "0.119.0")
+	t.Setenv("PREFIX", prefix)
+	t.Setenv("HOME", filepath.Join(filepath.Dir(prefix), "home"))
+	t.Setenv("PATH", binDir)
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
+	_ = cmd.Execute()
+
+	var got struct {
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Summary string `json:"summary"`
+			Items   []struct {
+				Name   string `json:"name"`
+				Status string `json:"status"`
+				Note   string `json:"note"`
+			} `json:"items"`
+		} `json:"checks"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nstderr=%s\nerr=%v", stdout.String(), stderr.String(), err)
+	}
+	var termux *struct {
+		Name    string `json:"name"`
+		Status  string `json:"status"`
+		Summary string `json:"summary"`
+		Items   []struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+			Note   string `json:"note"`
+		} `json:"items"`
+	}
+	for i := range got.Checks {
+		if got.Checks[i].Name == "Termux runtime" {
+			termux = &got.Checks[i]
+			break
+		}
+	}
+	if termux == nil {
+		t.Fatalf("doctor JSON missing Termux runtime check:\n%s", stdout.String())
+	}
+	if termux.Status != doctor.StatusWarn.String() {
+		t.Fatalf("Termux runtime status = %v, want WARN for lifecycle caveat", termux.Status)
+	}
+	formatted := termux.Summary
+	for _, item := range termux.Items {
+		formatted += "\n" + item.Name + " " + item.Note
+	}
+	for _, want := range []string{
+		"desktop-like command path ready",
+		"termux-api commands available",
+		"run long gateway sessions inside tmux",
+	} {
+		if !strings.Contains(formatted, want) {
+			t.Fatalf("Termux runtime output missing %q:\n%s", want, formatted)
+		}
 	}
 }
 

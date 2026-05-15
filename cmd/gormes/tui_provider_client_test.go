@@ -153,28 +153,32 @@ func TestTUIStartupFallsBackWhenSessionDBLocked(t *testing.T) {
 	var stderr bytes.Buffer
 	cmd.SetErr(&stderr)
 
-	var programRuns int
+	var rendered string
 	err = runResolvedTUIWithRuntime(cmd, tuiInvocation{
 		Config: config.Config{Hermes: config.HermesCfg{Model: "fixture-model"}},
 	}, rootRuntime{
-		tuiProgramFactory: func(_ tea.Model, _ ...tea.ProgramOption) tuiProgram {
-			return fakeTUIProgram{run: func() { programRuns++ }}
+		tuiProgramFactory: func(model tea.Model, _ ...tea.ProgramOption) tuiProgram {
+			return scriptedTUIProgram{run: func() {
+				current := model
+				current, _ = current.Update(tea.WindowSizeMsg{Width: 120, Height: 32})
+				rendered = current.View()
+			}}
 		},
 	})
 	if err != nil {
 		t.Fatalf("runResolvedTUIWithRuntime: %v", err)
 	}
-	if programRuns != 1 {
-		t.Fatalf("programRuns = %d, want 1", programRuns)
+	if strings.Contains(stderr.String(), "session persistence unavailable") ||
+		strings.Contains(stderr.String(), "running TUI with in-memory session state") {
+		t.Fatalf("locked sessions.db warning should render inside Bubble Tea, not stderr:\n%s", stderr.String())
 	}
 	for _, want := range []string{
-		"session persistence unavailable",
-		"running TUI with in-memory session state",
-		"gormes gateway stop",
-		"sessions.db",
+		"session state: in-memory",
+		"sessions.db locked",
+		"gateway status/stop",
 	} {
-		if !strings.Contains(stderr.String(), want) {
-			t.Fatalf("stderr missing %q:\n%s", want, stderr.String())
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("rendered TUI missing %q:\n%s", want, rendered)
 		}
 	}
 }

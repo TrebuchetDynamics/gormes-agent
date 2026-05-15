@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Run Hermes-compatible agents from one Go binary.</strong><br>
-  Gormes carries the 30 most-used Hermes skills into a Go-native runtime that runs on Termux, Windows-without-Python, and locked-down corp Linux — no pip, no venv, no Docker daemon.
+  <strong>Hermes-class agents from one Go binary.</strong><br>
+  Gormes is a Go-native runtime for Hermes-compatible agents: providers, tools, skills, local SQLite memory, sessions, and gateways in one static binary. It carries the 30 most-used Hermes skills to Termux, Windows-without-Python, and locked-down corp Linux — no pip, no venv, no Docker daemon.
 </p>
 
 <p align="center">
@@ -17,16 +17,29 @@
 
 ---
 
-![Gormes install and first-run onboarding demo](webpages/docs/assets/gormes-tui-demo.gif)
+<p align="center">
+  <img src="webpages/docs/assets/gormes-tui-demo.gif" alt="Gormes install, setup, provider setup, first task, web tools, Termux, and gateway demo" width="960">
+</p>
 
-`gormes --offline` starts locally with no API key, no network calls, and no Python runtime.
+Gormes is not a micro-agent. It keeps the broad Hermes agent architecture and makes it portable, inspectable, and cheap to operate from a normal terminal.
+
+## At A Glance
+
+| Signal | Current evidence |
+|---|---|
+| Runtime shape | One Go binary for CLI, TUI, provider turns, tools, skills, memory, sessions, dashboard, and gateways |
+| Install proof | `gormes doctor --offline` and `gormes --offline` run before any provider token is needed |
+| Measured footprint | Linux build ~45.3 MB; offline doctor peak RSS ~25.1 MB (`benchmarks.json`, 2026-05-15) |
+| Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
+| Stable channels | Telegram, Discord, and Slack through one gateway process |
+| Project posture | Scout release: useful today, with full Hermes parity, voice/TTS, signing, and package-manager lanes still hardening |
 
 ## Quick Install
 
 **Linux, macOS, WSL2:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
 ```
 
 **Windows (native PowerShell):**
@@ -41,26 +54,39 @@ After installation:
 
 ```bash
 gormes doctor --offline
-gormes --offline
+gormes setup
+gormes chat
 ```
 
-## First Proof
+That is the shortest path: prove the runtime locally, configure provider/model, then open a provider-backed terminal chat.
+
+## First Setup
 
 ```bash
+gormes setup                 # guided setup for provider, model, terminal, gateway, tools
+gormes setup provider        # direct provider setup shortcut
+gormes chat                  # provider-backed terminal chat
 gormes doctor --offline      # local runtime, TUI, gateway, memory — no credentials needed
 gormes --offline             # native TUI, no network
-gormes setup provider        # endpoint, model, API key (secrets to ~/.gormes/.env)
-gormes --oneshot "hello"     # one provider-backed turn
 ```
 
-If `--oneshot` returns, the TUI and gateway have a model to use.
+If `gormes chat` opens, the TUI and gateway have a model to use.
+
+## Built For
+
+- Developers who want a real agent runtime without Python environment drift.
+- Operators who need offline diagnostics before adding provider credentials.
+- Small servers, Termux/Android, WSL2, and locked-down Linux hosts where Docker or venv repair is friction.
+- Long-running personal or team agents that need local sessions, memory, tools, and chat gateways.
+
+Not yet for teams that require signed enterprise releases, full Hermes parity, voice/TTS parity, or broad channel parity on day one.
 
 ## What Works Today
 
 | Surface | Status |
 |---|---|
 | Install, offline smoke, doctor, dashboard | **Supported** |
-| CLI-first setup/config, TUI, one-shot turns, multi-agent routing | **Supported** |
+| CLI-first setup/config, TUI, scripted chat, multi-agent routing | **Supported** |
 | Providers: OpenAI, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, custom endpoints | **Supported** |
 | Local SQLite memory (Goncho), session state | **Supported** |
 | Gateways: Telegram, Discord, Slack | **Supported** |
@@ -77,17 +103,29 @@ Full Hermes-parity status by phase lives in the [roadmap](https://docs.gormes.ai
 | | Other agents | Gormes |
 |---|---|---|
 | **Install** | pip, venvs, system packages | One Go command from `install.sh` |
-| **First setup** | Find and edit config files | `gormes onboard` then `gormes setup provider` |
+| **First setup** | Find and edit config files | `gormes setup` |
 | **Smoke test** | Needs a live model first | `gormes doctor --offline` and `gormes --offline` |
 | **State** | Redis, vector DBs, sidecars | SQLite under `~/.gormes` |
 | **Channels** | Separate bot glue per platform | One gateway process with channel bindings |
+| **Footprint claims** | Often anecdotal | Binary size and RSS recorded in `benchmarks.json` |
 | **Release trust** | Ad-hoc local environments | Tagged release assets with SHA-256 + SBOMs |
+
+## How It Works
+
+Gormes follows the Hermes agent shape, but moves the operational surface into Go:
+
+1. `cmd/gormes` owns the CLI, setup, TUI entry point, dashboard, and gateway commands.
+2. `internal/kernel` runs the turn loop shared by the TUI, one-shot chat, and channel gateway.
+3. `internal/provider` and `internal/hermes` adapt OpenAI-compatible, Anthropic, DeepSeek, Groq, Ollama, Codex, OpenCode, and custom endpoints.
+4. `internal/tools` and `internal/skills` expose the tool and skill registry without a Python sidecar.
+5. `internal/goncho`, `internal/memory`, and `internal/session` keep local memory and session state inspectable in SQLite.
 
 ## Daily Use
 
 ```bash
 gormes                          # open the native TUI
-gormes onboard --wizard         # guided first-run readiness plan
+gormes setup                    # guided setup and reconfiguration
+gormes setup --quick            # fill missing setup items only
 gormes dashboard                # web UI at http://127.0.0.1:43827/dashboard
 gormes config show              # inspect config with secrets redacted
 gormes profile use <name>       # switch isolated profile homes
@@ -101,7 +139,7 @@ gormes logs                     # read recent gateway logs
 | Action | Local CLI | Messaging gateway |
 |---|---|---|
 | Start chatting | `gormes` | Run `gormes gateway`, then message the configured channel bot. |
-| Send one provider-backed turn | `gormes --oneshot "hello"` | Send a normal message after provider setup. |
+| Start provider-backed chat | `gormes chat` | Send a normal message after provider setup. |
 | Configure provider/model | `gormes setup provider` | Run setup locally, then `gormes gateway reload`. |
 | Diagnose runtime issues | `gormes doctor --offline`, `gormes logs` | `gormes gateway status`, then fix config or credentials locally. |
 
@@ -140,7 +178,7 @@ gormes doctor --offline
 | Section | What it covers |
 |---|---|
 | [Installation](https://docs.gormes.ai/getting-started/installation/) | Source build, installer path, PATH, and offline verification. |
-| [First run](https://docs.gormes.ai/getting-started/first-run/) | `doctor`, `onboard`, provider setup, and first provider-backed turn. |
+| [First run](https://docs.gormes.ai/getting-started/first-run/) | `doctor`, `setup`, provider setup, and first provider-backed turn. |
 | [What you can do](https://docs.gormes.ai/guides/what-you-can-do/) | Outcome-driven recipes for CLI, config, gateway, profiles, memory, and security. |
 | [CLI reference](https://docs.gormes.ai/reference/cli/) | Commands, flags, and operator workflows. |
 | [Providers](https://docs.gormes.ai/reference/providers/) | Supported provider config and credential paths. |
@@ -171,7 +209,7 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the p
 
 Latest public release: [v0.2.11](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.11).
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~40.4 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~45.3 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10). Offline doctor peaks at ~25.1 MB RSS (`benchmarks.json`, 2026-05-15).
 
 <details>
 <summary>Roadmap phase rollup</summary>
@@ -179,15 +217,15 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 <!-- PROGRESS:START kind=readme-rollup -->
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | ✅ | 5/5 subphases |
+| Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | ✅ | 4/4 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 5/6 subphases |
 <!-- PROGRESS:END -->
 
 </details>
