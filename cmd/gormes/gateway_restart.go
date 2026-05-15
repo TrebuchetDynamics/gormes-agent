@@ -229,7 +229,7 @@ func restartRecordedGatewayRuntime(ctx context.Context, timeout time.Duration) (
 	defer cancelStart()
 	newSnapshot, err := waitForGatewayRestartStart(startCtx, store, pid)
 	if err != nil {
-		return gatewayRestartReportJSON{}, err
+		return gatewayRestartReportJSON{}, gatewayRestartStartWaitError(startCfg.LogPath, err)
 	}
 	return gatewayRestartReportJSON{
 		Build:         newBuildProvenance(),
@@ -268,7 +268,7 @@ func startGatewayRuntimeWithoutLiveProcess(ctx context.Context, timeout time.Dur
 	defer cancelStart()
 	newSnapshot, err := waitForGatewayRestartStart(startCtx, store, gatewayStopPID(initial))
 	if err != nil {
-		return gatewayRestartReportJSON{}, err
+		return gatewayRestartReportJSON{}, gatewayRestartStartWaitError(startCfg.LogPath, err)
 	}
 	return gatewayRestartReportJSON{
 		Build:         newBuildProvenance(),
@@ -279,6 +279,28 @@ func startGatewayRuntimeWithoutLiveProcess(ctx context.Context, timeout time.Dur
 		FinalStatus:   string(newSnapshot.Validation.Status),
 		Message:       "no live gateway runtime; started new gateway",
 	}, nil
+}
+
+func gatewayRestartStartWaitError(logPath string, err error) error {
+	if evidence := gatewayRestartStartupEvidence(logPath); evidence != "" {
+		return fmt.Errorf("gateway restart: start gateway: %w: %s", err, evidence)
+	}
+	return fmt.Errorf("gateway restart: start gateway: %w", err)
+}
+
+func gatewayRestartStartupEvidence(logPath string) string {
+	if strings.TrimSpace(logPath) == "" {
+		return ""
+	}
+	raw, err := os.ReadFile(logPath)
+	if err != nil {
+		return ""
+	}
+	text := string(raw)
+	if strings.Contains(text, "no channels configured") {
+		return "no channels configured"
+	}
+	return ""
 }
 
 func waitForGatewayRestartStop(ctx context.Context, store gatewayRestartRuntimeStore, oldPID int) (gateway.RuntimeProcessValidation, error) {

@@ -93,11 +93,15 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('WhatsApp, WeChat, Signal, Matrix, and Mattermost.', { exact: true })).toBeVisible();
 
   // Install section
-  await expect(page.getByRole('heading', { name: 'Two install paths. One gormes command.' })).toBeVisible();
-  await expect(page.getByText('Build from source when you want maximum inspection.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Install first. Build from source when needed.' })).toBeVisible();
+  await expect(page.getByText('Use install.sh for the release-first managed install.')).toBeVisible();
   const installCommands = page.locator('#install pre code');
-  const sourceBuildCommand = installCommands.nth(0);
-  const installScriptCommand = installCommands.nth(1);
+  const installScriptCommand = installCommands.nth(0);
+  const sourceBuildCommand = installCommands.nth(1);
+  await expect(installScriptCommand).toContainText('curl -fsSL https://gormes.ai/install.sh | sh');
+  await expect(installScriptCommand).toContainText('gormes --version');
+  await expect(installScriptCommand).toContainText('gormes doctor --offline');
+  await expect(installScriptCommand).not.toContainText('raw.githubusercontent.com');
   await expect(sourceBuildCommand).toContainText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git');
   await expect(sourceBuildCommand).toContainText('cd gormes-agent');
   await expect(sourceBuildCommand).toContainText('mkdir -p bin');
@@ -105,17 +109,13 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(sourceBuildCommand).toContainText('./bin/gormes doctor --offline');
   await expect(sourceBuildCommand).toContainText('./bin/gormes --offline');
   await expect(sourceBuildCommand).not.toContainText('make build');
-  await expect(installScriptCommand).toContainText('curl -fsSLO https://gormes.ai/install.sh');
-  await expect(installScriptCommand).toContainText('less install.sh');
-  await expect(installScriptCommand).toContainText('sh install.sh');
-  await expect(installScriptCommand).toContainText('gormes doctor --offline');
   await expect(page.getByRole('heading', { name: 'After offline proof' })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes setup provider', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes --oneshot "hello"', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes gateway status', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('./bin/gormes goncho doctor --json', { exact: true })).toHaveCount(0);
   await expect(page.locator('#install').getByText('GORMES_ENDPOINT=')).toHaveCount(0);
-  await expect(page.getByText('Use ./bin/gormes from the source checkout, or run install.sh when you want a published gormes command on PATH.')).toBeVisible();
+  await expect(page.getByText('Use install.sh for the published gormes command on PATH, or ./bin/gormes from a source checkout when you are developing Gormes itself.')).toBeVisible();
 
   // Trust section
   await expect(page.getByRole('heading', { name: 'Who this is for' })).toBeVisible();
@@ -157,7 +157,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   // Explore + Final CTA
   await expect(page.getByRole('heading', { name: 'Explore' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Prove the runtime locally before you ever spend a token.' })).toBeVisible();
-  await expect(page.getByText('Build from source or inspect the release-first install.sh, run the offline doctor, then add credentials only after the machine has proven itself.')).toBeVisible();
+  await expect(page.getByText('Run the release-first installer or build from source, run the offline doctor, then add credentials only after the machine has proven itself.')).toBeVisible();
 
   // Footer release label
   await expect(page.locator('.footer-left').getByText(releaseLabelPattern)).toBeVisible();

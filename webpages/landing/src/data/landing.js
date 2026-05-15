@@ -84,23 +84,23 @@ export const page = {
     label: 'Read how the loop works ->',
     href: 'https://docs.gormes.ai/building-gormes/architecture_plan/',
   },
-  installHeadline: 'Two install paths. One gormes command.',
+  installHeadline: 'Install first. Build from source when needed.',
   installIntro:
-    'Build from source when you want maximum inspection. Use install.sh when you want the release-first managed install. Both paths keep the first proof offline.',
+    'Use install.sh for the release-first managed install. Build from source when you need local inspection, custom flags, or unsupported platform fallback. Both paths keep the first proof offline.',
   installSteps: [
     {
-      label: 'METHOD 1 · BUILD FROM SOURCE',
+      label: 'METHOD 1 · INSTALL.SH',
+      command:
+        'curl -fsSL https://gormes.ai/install.sh | sh\ngormes --version\ngormes doctor --offline',
+    },
+    {
+      label: 'METHOD 2 · BUILD FROM SOURCE',
       command:
         'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmkdir -p bin\nCGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes\n./bin/gormes doctor --offline\n./bin/gormes --offline',
     },
-    {
-      label: 'METHOD 2 · INSTALL.SH',
-      command:
-        'curl -fsSLO https://gormes.ai/install.sh\nless install.sh\nsh install.sh\ngormes doctor --offline',
-    },
   ],
   installFootnote:
-    'Use ./bin/gormes from the source checkout, or run install.sh when you want a published gormes command on PATH.',
+    'Use install.sh for the published gormes command on PATH, or ./bin/gormes from a source checkout when you are developing Gormes itself.',
   installFootnoteLink: {
     label: 'Read the install docs ->',
     href: 'https://docs.gormes.ai/using-gormes/install/',
@@ -275,7 +275,7 @@ export const page = {
   ],
   finalCtaHeadline: 'Prove the runtime locally before you ever spend a token.',
   finalCtaBody:
-    'Build from source or inspect the release-first install.sh, run the offline doctor, then add credentials only after the machine has proven itself.',
+    'Run the release-first installer or build from source, run the offline doctor, then add credentials only after the machine has proven itself.',
   finalPrimaryCta: { label: 'Install now', href: '#install' },
   finalSecondaryCta: {
     label: 'Star on GitHub',

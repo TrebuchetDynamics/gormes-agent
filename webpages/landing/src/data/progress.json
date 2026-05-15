@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-10T11:29:30Z",
+    "last_updated": "2026-05-15T06:11:36Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -48243,9 +48243,16 @@
                 "system"
               ],
               "degraded_mode": "Without this fix, every fresh `curl https://gormes.ai/install.sh | bash` downloads a Go toolchain (~150MB), clones the source repo, and runs go build — typically 2-5 minutes even on a fast machine, and impossible at all on locked-down hosts without a Go compiler or git. With the fix, the same fresh install completes in ~2 seconds via signed binary fetch.",
-              "fixture": "internal/installtest/install_method_test.go",
+              "fixture": "internal/installtest/install_method_test.go; internal/installtest/local_cli_e2e_test.go; internal/installtest/public_install_command_test.go",
               "source_refs": [
                 "install.sh",
+                "cmd/gormes/gateway_restart.go",
+                "internal/installtest/local_cli_e2e_test.go",
+                "internal/installtest/public_install_command_test.go",
+                "webpages/docs/content/install/linux-macos.md",
+                "webpages/landing/src/data/landing.js",
+                "webpages/landing/tests/home.spec.mjs",
+                "webpages/landing/legacy/go-renderer/internal/site/content.go",
                 "https://github.com/TrebuchetDynamics/gormes-agent/releases",
                 "webpages/docs/development-skills/gormes-install/references/test-recipes.md (binary-fetch coverage gap noted)"
               ],
@@ -48267,22 +48274,36 @@
                 "TestInstall_DryRunFromSourceEnvVar_ForcesSourceBuild: GORMES_INSTALL_FROM_SOURCE=1 has the same effect (unattended-install opt-out).",
                 "TestInstall_DryRunNonDefaultBranch_FallsBackToSourceBuild: --branch development triggers source-build because release binaries are only published from main.",
                 "TestInstall_DryRunVerboseDefault_SurfacesReleaseArchAndApi: verbose plan declares source_mode, release_arch, and release_api so operators can audit the network call.",
-                "End-to-end real install on Linux x86_64: curl-based fetch + SHA-256 verify + tar extract + binary publish completes in ~2 seconds with no Go toolchain installed and no git clone."
+                "End-to-end real install on Linux x86_64: curl-based fetch + SHA-256 verify + tar extract + binary publish completes in ~2 seconds with no Go toolchain installed and no git clone.",
+                "Candidate local install E2E publishes a usable binary, proves `gormes --version`, `gormes setup gateway --plan`, unconfigured `gormes gateway restart --json`, and `gormes gateway status --json` under isolated GORMES_HOME/PATH without touching the operator service manager.",
+                "Public install surfaces lead with `curl -fsSL https://gormes.ai/install.sh | sh`, keep source build as the fallback/developer path, and reject stale raw-GitHub, `go install`, and `make build` commands."
               ],
               "write_scope": [
                 "install.sh",
+                "cmd/gormes/gateway_restart.go",
                 "internal/installtest/install_method_test.go",
+                "internal/installtest/local_cli_e2e_test.go",
+                "internal/installtest/public_install_command_test.go",
+                "webpages/docs/content/install/linux-macos.md",
+                "webpages/landing/src/data/landing.js",
+                "webpages/landing/tests/home.spec.mjs",
+                "webpages/landing/legacy/go-renderer/internal/site/content.go",
+                "webpages/landing/legacy/go-renderer/internal/site/render_test.go",
+                "webpages/landing/legacy/go-renderer/internal/site/static_export_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/installtest -count=1",
+                "go test ./internal/installtest -run 'TestInstallLocalEndToEnd_PublishedBinaryRunsCoreCLI|TestPublicInstallSurfacesLeadWithReleaseInstaller' -count=1",
+                "(cd webpages/landing/legacy/go-renderer && go test ./... -count=1)",
+                "(cd webpages/landing && npm run test:e2e)",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Default `curl ... | bash` install completes via binary-fetch in <5 seconds with no Go toolchain on the host; --from-source opt-out and source-build fallback both verified."
+                "Default `curl ... | bash` install completes via binary-fetch in <5 seconds with no Go toolchain on the host; --from-source opt-out, source-build fallback, candidate local install CLI smoke, gateway restart failure evidence, and public install copy are verified."
               ],
-              "note": "Source: 2026-05-07 fresh-Fedora install report from operator. install.sh had been source-clone-and-build by design since v0.1.06 (noted as a coverage gap in webpages/docs/development-skills/gormes-install/references/test-recipes.md). COMPLETE 2026-05-07: install.sh now defines release_platform_arch() (maps uname -s/-m → release-asset slug), decide_install_method() (5-rule precedence: --local > --from-source > non-main branch > unsupported platform > binary-fetch), and fetch_release_binary() (GitHub API → curl/wget → SHA-256 verify → tar extract → publish to managed_bin_dir). Plan emitters surface the decision and reason. Verified by 5 dry-run plan tests in internal/installtest/install_method_test.go plus an end-to-end real install (1.832s wall, no Go invoked, exit=0, gormes 0.1.06 binary working).",
+              "note": "Source: 2026-05-07 fresh-Fedora install report from operator. install.sh had been source-clone-and-build by design since v0.1.06 (noted as a coverage gap in webpages/docs/development-skills/gormes-install/references/test-recipes.md). COMPLETE 2026-05-07: install.sh now defines release_platform_arch() (maps uname -s/-m → release-asset slug), decide_install_method() (5-rule precedence: --local > --from-source > non-main branch > unsupported platform > binary-fetch), and fetch_release_binary() (GitHub API → curl/wget → SHA-256 verify → tar extract → publish to managed_bin_dir). Plan emitters surface the decision and reason. Verified by 5 dry-run plan tests in internal/installtest/install_method_test.go plus an end-to-end real install (1.832s wall, no Go invoked, exit=0, gormes 0.1.06 binary working). 2026-05-15 candidate-install E2E hardening: internal/installtest now runs install.sh --local into a sandbox, executes the installed binary for version JSON, setup gateway --plan channel copy, unconfigured gateway restart, gateway status, config, and offline TUI paths, with PATH hiding systemctl so no live service manager is touched. gateway restart now reports safe startup evidence (`no channels configured`) instead of a bare timeout, and public landing/docs guards require the canonical release-first install command before source-build fallback copy.",
               "completed_at": "2026-05-07T21:08:33Z"
             }
           ]
