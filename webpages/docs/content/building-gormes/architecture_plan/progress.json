@@ -59313,9 +59313,9 @@
             },
             {
               "name": "Gormes-owned semantic chat style system",
-              "status": "planned",
+              "status": "complete",
               "contract": "Introduce a Gormes-owned internal/tui/styles.go exposing a small flat set of named semantic transcript-role styles (user, assistant, tool name, tool output, error, prompt, separator, status), each derived from the active HermesSkin (HermesSkinColors) rather than a new hardcoded palette, and route the transcript role/chrome rendering in view.go through it so user/assistant/tool/error messages are visually differentiated and scannable, replacing scattered ad-hoc lipgloss.NewStyle calls in the role/chrome path. markdown.go (the working hand-rolled body renderer with its own element styles) is out of scope and must not be rewritten; ccx-go's flat styles.go is a naming/composition donor only, not a palette to copy.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tui",
               "provenance": {
@@ -59360,7 +59360,7 @@
               "done_signal": [
                 "go test ./internal/tui -run 'Style|View|Skin' -count=1 green with the role-differentiated, skin-themed golden; markdown.go untouched."
               ],
-              "note": "owned. Upstream baseline: Hermes ui-tui skin. Divergence rationale: scannable visual hierarchy differentiator (user pain: visual hierarchy/polish). Pattern donor: /tmp/ccx-go/internal/tui/styles.go (MIT, patterns-only, no code copy). Proof: styles_test.go golden. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift; refined 2026-05-15/ccx-go-tui-refine — styles derive from HermesSkin not a copied palette; markdown.go removed from scope (working hand-rolled renderer, not glamour); donor is naming/composition only."
+              "note": "owned. Upstream baseline: Hermes ui-tui skin. Divergence rationale: scannable visual hierarchy differentiator (user pain: visual hierarchy/polish). Pattern donor: /tmp/ccx-go/internal/tui/styles.go (MIT, patterns-only, no code copy). Proof: styles_test.go golden. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift; refined 2026-05-15/ccx-go-tui-refine — styles derive from HermesSkin not a copied palette; markdown.go removed from scope (working hand-rolled renderer, not glamour); donor is naming/composition only. COMPLETE 2026-05-15: internal/tui/styles.go added (chatPalette/chatStyles/chatStylesFor/defaultChatStyles — every role color sourced from HermesSkinColors: user=UILabel, toolName=UIAcent, toolOutput=BannerDim, error=UIError, prompt=Prompt, separator/assistant=SessionBorder, status=UILabel); view.go top var block + turn-separator + tool-result/progress blocks rerouted through the named styles, the only inline lipgloss.NewStyle in the role/chrome path removed; styles_test.go proves skin-sourced + role-distinct + re-themes-per-skin + role differentiation survives; markdown.go untouched (git-verified). Evidence: go test ./internal/tui -run 'Style|View|Skin' -count=1 ok; full go test ./internal/tui -count=1 ok (hermes_chrome/viewport/fidelity/no-sidebar preserved); go test ./... ok; go run ./cmd/progress validate ok."
             },
             {
               "name": "Gormes-owned streaming feedback uplift",
