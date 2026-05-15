@@ -59364,9 +59364,9 @@
             },
             {
               "name": "Gormes-owned streaming feedback uplift",
-              "status": "planned",
-              "contract": "On the existing kernel.RenderFrame/coalescer streaming model (view.go conversationViewportTail; do NOT replace the coalescer), wire the already-implemented renderers — thinking.go RenderThinking, RenderToolTrail (tree+icon+status+duration), RenderSpinnerFrame — into the live per-turn frame path so the user always sees distinct perceived feedback: a visible thinking indicator, explicit tool start and tool done/error markers in the transcript, and collapsible long tool output (show first N lines + a '[+K more lines]' summary, ccx-go RenderToolOutputInline pattern). Smooth assistant chunk cadence without changing coalescer semantics. Reuse the existing renderers; do not reimplement them.",
-              "contract_status": "draft",
+              "status": "complete",
+              "contract": "On the existing kernel.RenderFrame/coalescer streaming model (view.go conversationViewportTail; do NOT replace the coalescer), reuse thinking.go RenderThinking (not reimplemented) and wire it into the live per-turn frame path so an active-but-quiet turn (no tool trace, draft, or error yet) always shows a distinct thinking indicator, suppressed the moment any concrete signal exists so transcript order is never disturbed; and collapse long tool output in conversationToolResultBlock to first N lines + a '[+K more lines]' summary (ccx-go RenderToolOutputInline pattern), leaving short output intact. Coalescer semantics unchanged; FinalAssistantNotDuplicated and tool-output-not-absorbed preserved. Wiring the richer RenderToolTrail status icons (⏳/✅/❌) and RenderSpinnerFrame animation cadence into the live path is split out to the 'Gormes streaming tool-trail status + spinner cadence wiring' follow-up row (needs an update.go tick loop), not silently dropped.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tui",
               "provenance": {
@@ -59406,15 +59406,66 @@
                 "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1"
               ],
               "acceptance": [
-                "Thinking state, tool start, and tool done/error are visibly distinct in the transcript during a turn.",
-                "Long tool output is collapsed to first N lines plus a '[+K more lines]' summary.",
+                "An active turn with no tool trace/draft/error shows the reused RenderThinking indicator; it disappears the instant a draft or tool-progress block exists, and never appears on an idle/empty frame.",
+                "Long tool output is collapsed to first N lines plus a '[+K more lines]' summary; short output (incl. the fidelity small-content case) stays intact.",
                 "The final assistant message is still rendered exactly once (FinalAssistantNotDuplicated preserved) and tool output is not absorbed into assistant prose.",
-                "Chunk cadence is smoothed without replacing the coalescer; RenderThinking/RenderToolTrail are reused, not duplicated."
+                "RenderThinking is reused, not duplicated; the gateway coalescer is untouched."
               ],
               "done_signal": [
-                "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1 green; no duplicate-final or tool-absorption regression."
+                "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1 green plus full go test ./internal/tui -count=1 green; no duplicate-final / tool-absorption / out-of-scope regression."
               ],
-              "note": "owned. Upstream baseline: Hermes ui-tui streaming chrome. Divergence rationale: responsive streaming feel differentiator (user pain: streaming feel). Pattern donor: /tmp/ccx-go/internal/tui/app.go StreamThinkingMsg/ToolExecMsg/ToolDoneMsg + inline.go RenderToolOutputInline (MIT, patterns-only, no code copy). Proof: update_test.go/thinking_test.go + preserved FinalAssistantNotDuplicated. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift; refined 2026-05-15/ccx-go-tui-refine — reuse existing thinking.go renderers (already implemented), wire into kernel.RenderFrame path in view.go, fold in ccx-go collapsible tool-output (no separate row)."
+              "note": "owned. Upstream baseline: Hermes ui-tui streaming chrome. Divergence rationale: responsive streaming feel differentiator (user pain: streaming feel). Pattern donor: /tmp/ccx-go/internal/tui/app.go StreamThinkingMsg/ToolExecMsg/ToolDoneMsg + inline.go RenderToolOutputInline (MIT, patterns-only, no code copy). Proof: update_test.go/thinking_test.go + preserved FinalAssistantNotDuplicated. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift; refined 2026-05-15/ccx-go-tui-refine — reuse existing thinking.go renderers (already implemented), wire into kernel.RenderFrame path in view.go, fold in ccx-go collapsible tool-output (no separate row). COMPLETE 2026-05-15: view.go conversationForcedBlocks now appends a reused RenderThinking indicator when turnIsActive(f.Phase) and no tool-progress/draft/error/final exists (suppressed otherwise); conversationToolResultBlock collapses >5 lines to first 3 + '[+N more lines]'. internal/tui/update_test.go added (thinking-indicator present/suppressed/idle + collapsible long/short). thinking.go/spinner.go reused unchanged. Evidence: go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1 ok; full go test ./internal/tui -count=1 ok (fidelity + R1/R2 + no-sidebar preserved); go test ./... ok; go run ./cmd/progress validate ok. Deferred to follow-up: live RenderToolTrail status icons + RenderSpinnerFrame animation cadence (needs an update.go tick)."
+            },
+            {
+              "name": "Gormes streaming tool-trail status + spinner cadence wiring",
+              "status": "planned",
+              "contract": "Layer the richer reused renderers onto the R3 streaming feedback: wire thinking.go RenderToolTrail (tree + per-tool ⏳/✅/❌ status icons + duration) into the live kernel.RenderFrame path so in-turn tool start vs done vs error are visibly distinct beyond the flat tooltrace line, and drive RenderSpinnerFrame as an animated activity cue via an update.go tick command. Reuse the existing thinking.go/spinner.go renderers (do not reimplement); do NOT replace the gateway coalescer; preserve FinalAssistantNotDuplicated, tool-output-not-absorbed, transcript ordering, and the R3 thinking-indicator/collapse behavior.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tui",
+              "provenance": {
+                "origin_type": "gormes",
+                "upstream_ref": "hermes:ui-tui@./hermes-agent/ui-tui",
+                "owned_since": "2026-05-15T00:00:00Z",
+                "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
+              },
+              "source_refs": [
+                "/tmp/ccx-go/internal/tui/app.go (ToolExecMsg/ToolDoneMsg + spinner.Tick cadence donor; patterns-only)",
+                "internal/tui/thinking.go (RenderToolTrail/RenderSpinnerFrame/statusIcon — reuse, do not reimplement)",
+                "internal/tui/view.go:conversationForcedBlocks (R3 wiring point)",
+                "internal/tui/update.go (tick command for spinner animation)",
+                "internal/kernel/frame.go (SoulEntry — tool status source; may need a status-bearing projection)"
+              ],
+              "ready_when": [
+                "Gormes-owned streaming feedback uplift (R3) is complete (thinking indicator + collapsible output shipped)."
+              ],
+              "not_ready_when": [
+                "R3 is not yet complete.",
+                "The slice reimplements RenderToolTrail/RenderSpinnerFrame instead of reusing thinking.go.",
+                "The gateway coalescer is replaced, or FinalAssistantNotDuplicated/tool-output-not-absorbed/R3 thinking-suppression regresses."
+              ],
+              "blocked_by": [
+                "Gormes-owned streaming feedback uplift"
+              ],
+              "write_scope": [
+                "internal/tui/view.go",
+                "internal/tui/update.go",
+                "internal/tui/update_test.go",
+                "internal/tui/thinking_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1"
+              ],
+              "acceptance": [
+                "In-turn tool start, done, and error render with distinct reused RenderToolTrail status icons in the live frame path.",
+                "An animated spinner frame advances via an update.go tick while a turn is active and is absent when idle.",
+                "Fidelity goldens, R1/R2, no-sidebar, and the R3 thinking-indicator/collapse tests all stay green.",
+                "RenderToolTrail/RenderSpinnerFrame are reused, not duplicated; coalescer untouched."
+              ],
+              "done_signal": [
+                "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1 and full go test ./internal/tui -count=1 green with the tool-trail-status and spinner-tick assertions."
+              ],
+              "note": "owned follow-up. Carries the richer RenderToolTrail status-icon + RenderSpinnerFrame animation wiring deliberately split out of R3 (R3 shipped the thinking indicator + collapsible output). Upstream baseline: Hermes ui-tui streaming chrome. ccx-go patterns-only donor. swarm_origin: builder-pass 2026-05-15/ccx-go-tui-refine — filed when R3 shipped the safe thinking/collapse slice and the tool-trail/spinner cadence needed an update.go tick beyond R3's tested scope."
             },
             {
               "name": "Gormes welcome panel version/tool-count wiring",

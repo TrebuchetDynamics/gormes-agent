@@ -1402,7 +1402,8 @@ classification and row-backed implementation queue.
 - [x] Gormes-owned chat TUI divergence ratification
 - [x] Gormes-owned session-aware welcome panel
 - [x] Gormes-owned semantic chat style system
-- [ ] Gormes-owned streaming feedback uplift
+- [x] Gormes-owned streaming feedback uplift
+- [ ] Gormes streaming tool-trail status + spinner cadence wiring
 - [ ] Gormes welcome panel version/tool-count wiring
 
 ### 8.E — Toolkit Extraction 🔨
