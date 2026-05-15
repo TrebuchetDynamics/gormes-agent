@@ -13,10 +13,16 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
 )
 
+// Transcript chrome renders through the Gormes-owned semantic style system
+// (styles.go), resolved from the active HermesSkin so every built-in skin
+// re-themes the chat surface. No role/chrome color is hardcoded here.
 var (
-	muted     = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
-	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("69")).Bold(true)
-	errStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	chatChrome     = defaultChatStyles()
+	muted          = chatChrome.Assistant // generic dim: hints, sentinels, assistant body
+	userStyle      = chatChrome.User
+	errStyle       = chatChrome.Error
+	separatorStyle = chatChrome.Separator
+	toolOutStyle   = chatChrome.ToolOutput
 )
 
 // View renders the bottom-pinned Hermes-compatible chrome. Layout matches
@@ -265,7 +271,7 @@ func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {
 	if compact {
 		return compactViewportText(progress)
 	}
-	return muted.Render(progress)
+	return toolOutStyle.Render(progress)
 }
 
 func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) string {
@@ -284,7 +290,7 @@ func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) s
 func conversationMessageBlockAt(history []hermes.Message, idx, wrapWidth int, compact bool) string {
 	block := conversationMessageBlock(history[idx], wrapWidth, compact)
 	if !compact && conversationNeedsTurnSeparator(history, idx) {
-		return muted.Render("───") + "\n\n" + block
+		return separatorStyle.Render("───") + "\n\n" + block
 	}
 	return block
 }
@@ -308,7 +314,7 @@ func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool
 	}
 	content := strings.TrimSpace(msg.Content)
 	if compact {
-		return muted.Render("⚡ " + name + " " + compactViewportText(content))
+		return toolOutStyle.Render("⚡ " + name + " " + compactViewportText(content))
 	}
 	content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	lines := strings.Split(content, "\n")
@@ -318,7 +324,7 @@ func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool
 	}
 	out = append(out, lines...)
 	out = append(out, "   ╰─")
-	return muted.Render(strings.Join(out, "\n"))
+	return toolOutStyle.Render(strings.Join(out, "\n"))
 }
 
 func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
