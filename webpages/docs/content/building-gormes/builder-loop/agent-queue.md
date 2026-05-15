@@ -47,7 +47,27 @@ selection.
 - Source refs: User design: 2026-05-13 coding-agent delegation plan, internal/codingagents/codingagents.go, internal/codingagents/workspace.go, internal/codingagents/git_snapshot.go
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 2. Agentic-porting-kit public repo scaffold
+## 2. Navivox VPN host enumeration helper
+
+- Phase: 9 / 9.E
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Contract: An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. Both `cmd/gormes/navivox` (SSH pair) and the navivox HTTP gateway channel consume it instead of detecting Tailscale ad-hoc.
+- Trust class: -
+- Ready when: Existing tailscale-only host detection in cmd/gormes/navivox.go (navivoxPairHostResolver, withNavivoxPairHostResolverTestSeams) is identified as the migration source., internal/channels/navivox already builds and `go test ./... -count=1` is green on development.
+- Not ready when: The slice also rebinds the running gateway or edits install.sh., The slice adds VPN providers beyond Tailscale and WireGuard without test fixtures.
+- Degraded mode: -
+- Fixture: `internal/network/vpnhost/vpnhost_test.go`
+- Write scope: `internal/network/vpnhost/`, `cmd/gormes/navivox.go`, `cmd/gormes/navivox_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/network/vpnhost -count=1`, `go test ./cmd/gormes -run NavivoxPairHost -count=1`
+- Done signal: `go test ./internal/network/vpnhost ./cmd/gormes -count=1` passes; cmd/gormes/navivox.go no longer shells out to `tailscale` directly.
+- Acceptance: internal/network/vpnhost.List(ctx) returns at least one entry on a host with Tailscale or WireGuard up, with kind ∈ {tailscale, wireguard, tun-other}., cmd/gormes/navivox.go consumes vpnhost.List for pair host resolution (Tailscale entry first), and existing TestNavivoxPairHost* tests still pass via seamed fakes., internal/network/vpnhost has zero imports from internal/channels or cmd/ so both can import it.
+- Source refs: cmd/gormes/navivox.go:navivoxPairHostResolver, cmd/gormes/navivox.go:withNavivoxPairHostResolverTestSeams, cmd/gormes/navivox_test.go:TestNavivoxPairHostAutoDetectFallsBackToLAN
+- Unblocks: Navivox HTTP gateway mandatory-VPN bind, Navivox HTTP gateway connect-info command
+- Why now: Unblocks Navivox HTTP gateway mandatory-VPN bind, Navivox HTTP gateway connect-info command.
+
+## 3. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

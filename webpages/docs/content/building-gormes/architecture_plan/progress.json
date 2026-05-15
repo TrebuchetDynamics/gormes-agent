@@ -916,7 +916,9 @@
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "Without the chassis, every admin-TUI screen would reinvent step UI, TTY detection, and golden testing; the admin-shell rows (1.E.2-1.E.5) cannot land cleanly.",
               "fixture": "internal/tui/wizard/wizard_test.go teatest scripts",
               "source_refs": [
@@ -980,7 +982,9 @@
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "Without the shell, every admin screen would have to ship its own keybindings/navigation/quit handling; 1.E.3-1.E.5 cannot land cleanly. Operators stuck on `gormes setup`/`gormes onboard`/per-subcommand flows cannot see config drift or jump to chat in one place.",
               "fixture": "internal/tui/admin/shell_test.go teatest scripts + cmd/gormes/admin_test.go entry point test",
               "source_refs": [
@@ -1048,7 +1052,9 @@
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "Without the health screen, operators rely on `gormes doctor --offline` output and CLI exit codes to discover misconfiguration; the user's explicit 'show missing config' anchor is unmet.",
               "fixture": "internal/tui/admin/health_test.go teatest + tempdir GORMES_HOME",
               "source_refs": [
@@ -1108,7 +1114,9 @@
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "Without the chat tab, every admin TUI session forces operators to leave the TUI (exit, run `gormes`) to test a configured provider; the user's explicit 'open chat easily' anchor is unmet.",
               "fixture": "internal/tui/admin/chat_test.go teatest fixtures + fake provider seam",
               "source_refs": [
@@ -1167,7 +1175,9 @@
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "fixture": "internal/tui/admin/agents_test.go teatest fixtures + tempdir Goncho",
               "source_refs": [
                 "internal/goncho/dynamic_agents.go (registry from 2.H.1 — Create/List/Bind/Unbind/Resolve)",
@@ -1222,7 +1232,9 @@
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "Without the Commands tab, the admin TUI covers setup, chat, and agents but still forces operators back to `gormes --help` or scattered subcommand help to discover the rest of the CLI surface.",
               "fixture": "internal/tui/admin/commands_test.go teatest fixture + cmd/gormes/admin_test.go command-tree catalog assertion",
               "source_refs": [
@@ -1280,7 +1292,9 @@
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "Without safe inline execution, the Commands tab is only discoverability; operators still need to leave `gormes admin` for routine read-only checks such as doctor, auth status, gateway status, and kanban list.",
               "fixture": "internal/tui/admin/commands_test.go teatest runner fixtures + cmd/gormes/admin_test.go safe allowlist and runner tests",
               "source_refs": [
@@ -1342,7 +1356,9 @@
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "Without search, the Commands tab can render and safely run commands, but operators still have to scroll through the whole CLI tree to find routine commands.",
               "fixture": "internal/tui/admin/commands_test.go teatest search fixtures",
               "source_refs": [
@@ -1459,7 +1475,10 @@
               "contract_status": "draft",
               "slice_size": "umbrella",
               "execution_owner": "tools",
-              "trust_class": ["operator", "system"],
+              "trust_class": [
+                "operator",
+                "system"
+              ],
               "degraded_mode": "Without the delegation surface, Gormes operators cannot hand a coding task to codex/claude-code/opencode from within Gormes and must shell out manually; doctor and tool registry report no coding-agent workers.",
               "fixture": "internal/codingagents",
               "source_refs": [
@@ -1507,7 +1526,10 @@
               "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tools",
-              "trust_class": ["operator", "system"],
+              "trust_class": [
+                "operator",
+                "system"
+              ],
               "degraded_mode": "Without the scaffold, later phases cannot compile codex/claude-code/opencode adapters against a shared contract; doctor cannot probe coding-agent binaries.",
               "fixture": "internal/codingagents",
               "source_refs": [
@@ -11401,7 +11423,9 @@
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "Without runtime mutation, every new agent persona requires editing config.toml and reloading; in-chat spawn UX from rows 2.H.2-4 cannot exist.",
               "fixture": "internal/goncho/dynamic_agents_test.go tempdir SQLite + fake clock",
               "source_refs": [
@@ -11458,7 +11482,9 @@
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "fixture": "cmd/gormes/agent_spawn_test.go tempdir Goncho home",
               "source_refs": [
                 "cmd/gormes/agent.go (existing agent command parent + reset child)",
@@ -11518,7 +11544,9 @@
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "degraded_mode": "If createForumTopic fails (rate limit, missing permission), the handler reports the API error and does not leave a stranded registry record — registry write is committed only after the topic exists.",
               "fixture": "internal/channels/telegram/spawn_test.go fake Telegram client + tempdir Goncho",
               "source_refs": [
@@ -11584,7 +11612,9 @@
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
-              "trust_class": ["operator"],
+              "trust_class": [
+                "operator"
+              ],
               "fixture": "internal/channels/discord/spawn_test.go fake discordgo session + tempdir Goncho",
               "source_refs": [
                 "internal/channels/discord/bot.go (ThreadID send paths, ParticipatedThreadIDs admission)",
@@ -59089,6 +59119,164 @@
               ],
               "done_signal": [
                 "transcribe_audio tool is registered by default; local whisper provider auto-downloads model on first use; no API key required for basic STT."
+              ]
+            }
+          ]
+        },
+        "9.E": {
+          "name": "Navivox VPN-mandatory Pairing",
+          "items": [
+            {
+              "name": "Navivox VPN host enumeration helper",
+              "status": "planned",
+              "execution_owner": "gateway",
+              "slice_size": "small",
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-14"
+              },
+              "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. Both `cmd/gormes/navivox` (SSH pair) and the navivox HTTP gateway channel consume it instead of detecting Tailscale ad-hoc.",
+              "contract_status": "draft",
+              "ready_when": [
+                "Existing tailscale-only host detection in cmd/gormes/navivox.go (navivoxPairHostResolver, withNavivoxPairHostResolverTestSeams) is identified as the migration source.",
+                "internal/channels/navivox already builds and `go test ./... -count=1` is green on development."
+              ],
+              "not_ready_when": [
+                "The slice also rebinds the running gateway or edits install.sh.",
+                "The slice adds VPN providers beyond Tailscale and WireGuard without test fixtures."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Navivox HTTP gateway mandatory-VPN bind",
+                "Navivox HTTP gateway connect-info command"
+              ],
+              "write_scope": [
+                "internal/network/vpnhost/",
+                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "source_refs": [
+                "cmd/gormes/navivox.go:navivoxPairHostResolver",
+                "cmd/gormes/navivox.go:withNavivoxPairHostResolverTestSeams",
+                "cmd/gormes/navivox_test.go:TestNavivoxPairHostAutoDetectFallsBackToLAN"
+              ],
+              "fixture": "internal/network/vpnhost/vpnhost_test.go",
+              "test_commands": [
+                "go test ./internal/network/vpnhost -count=1",
+                "go test ./cmd/gormes -run NavivoxPairHost -count=1"
+              ],
+              "acceptance": [
+                "internal/network/vpnhost.List(ctx) returns at least one entry on a host with Tailscale or WireGuard up, with kind ∈ {tailscale, wireguard, tun-other}.",
+                "cmd/gormes/navivox.go consumes vpnhost.List for pair host resolution (Tailscale entry first), and existing TestNavivoxPairHost* tests still pass via seamed fakes.",
+                "internal/network/vpnhost has zero imports from internal/channels or cmd/ so both can import it."
+              ],
+              "done_signal": [
+                "`go test ./internal/network/vpnhost ./cmd/gormes -count=1` passes; cmd/gormes/navivox.go no longer shells out to `tailscale` directly."
+              ]
+            },
+            {
+              "name": "Navivox HTTP gateway mandatory-VPN bind",
+              "status": "planned",
+              "execution_owner": "gateway",
+              "slice_size": "small",
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-14"
+              },
+              "contract": "When `[navivox]` exposure_mode is `tailscale`, `wireguard`, or `vpn`, config validation and gateway startup refuse to start unless bind_host matches an active VPN interface IP returned by internal/network/vpnhost. Loopback (127.0.0.1) remains valid only under exposure_mode=local; 0.0.0.0/:: remains gated behind exposure_mode=public + public_confirmed=true. The exposure_mode allowlist is extended to add `wireguard` and `vpn` alongside existing `local`/`tailscale`/`public`.",
+              "contract_status": "draft",
+              "ready_when": [
+                "internal/network/vpnhost shipped per `Navivox VPN host enumeration helper`.",
+                "internal/config navivox validation surface (NavivoxCfg / Validate path in internal/config/config.go) is the only mutation site for bind-host enforcement."
+              ],
+              "not_ready_when": [
+                "The slice removes loopback bind for exposure_mode=local.",
+                "The slice silently rewrites bind_host instead of failing closed with a typed error.",
+                "The slice requires tailscale CLI at runtime (vpnhost is the only seam)."
+              ],
+              "blocked_by": [
+                "Navivox VPN host enumeration helper"
+              ],
+              "unblocks": [
+                "Navivox HTTP gateway connect-info command"
+              ],
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/navivox_config_test.go",
+                "internal/channels/navivox/channel.go",
+                "internal/channels/navivox/channel_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "source_refs": [
+                "internal/config/config.go:NavivoxCfg",
+                "internal/config/config.go:NavivoxExposureLocal",
+                "internal/config/config.go:NavivoxExposureTailscale",
+                "internal/channels/navivox/channel.go:NewChannel"
+              ],
+              "fixture": "internal/config/navivox_config_test.go",
+              "test_commands": [
+                "go test ./internal/config -run Navivox -count=1",
+                "go test ./internal/channels/navivox -count=1"
+              ],
+              "acceptance": [
+                "Config validation fails closed with a typed error when exposure_mode ∈ {tailscale,wireguard,vpn} and bind_host does not match any IP returned by vpnhost.List.",
+                "Config validation passes when bind_host matches a tailscale or wireguard IP from vpnhost.List.",
+                "Channel constructor surfaces the validation error verbatim instead of partially initializing.",
+                "exposure_mode=local with loopback bind still accepted unchanged.",
+                "New exposure_mode values `wireguard` and `vpn` are accepted by validation alongside `tailscale`."
+              ],
+              "done_signal": [
+                "`go test ./internal/config ./internal/channels/navivox -count=1` passes; `gormes gateway` exits non-zero with a typed error when [navivox] exposure_mode=tailscale and bind_host=127.0.0.1."
+              ]
+            },
+            {
+              "name": "Navivox HTTP gateway connect-info command",
+              "status": "planned",
+              "execution_owner": "gateway",
+              "slice_size": "small",
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-14"
+              },
+              "contract": "A new `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` wire shape mirroring `gormes navivox pair --json`: `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`.",
+              "contract_status": "draft",
+              "ready_when": [
+                "internal/network/vpnhost shipped.",
+                "Navivox HTTP gateway mandatory-VPN bind shipped."
+              ],
+              "not_ready_when": [
+                "The slice also implements an HTTP /v1/navivox/connect-info server endpoint (split row).",
+                "The slice prints the static_token value to stdout or JSON output."
+              ],
+              "blocked_by": [
+                "Navivox VPN host enumeration helper",
+                "Navivox HTTP gateway mandatory-VPN bind"
+              ],
+              "unblocks": [],
+              "write_scope": [
+                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_connect_info_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "source_refs": [
+                "cmd/gormes/navivox.go:navivoxPairOptions",
+                "cmd/gormes/navivox.go:buildNavivoxPairingURI",
+                "cmd/gormes/navivox.go:renderNavivoxPairing"
+              ],
+              "fixture": "cmd/gormes/navivox_connect_info_test.go",
+              "test_commands": [
+                "go test ./cmd/gormes -run NavivoxConnectInfo -count=1"
+              ],
+              "acceptance": [
+                "`gormes navivox connect-info --json` returns one entry per VPN interface with `base_url=http://<vpn-ip>:<port>`, `host_source` ∈ {tailscale,wireguard,tun-other}, `healthz_url=base_url+/healthz`, `token_required=true` when auth_mode ∈ {static_token, pairing_token}.",
+                "Without --json, a human-readable list is printed (one URL per line) with the VPN kind shown next to each.",
+                "When exposure_mode=local, only `http://127.0.0.1:<port>` is printed.",
+                "When the channel is disabled, the command exits non-zero with a typed error pointing at `[navivox] enabled`.",
+                "The static_token value never appears in stdout or JSON output."
+              ],
+              "done_signal": [
+                "`go test ./cmd/gormes -run NavivoxConnectInfo -count=1` passes; on a tailscale host `gormes navivox connect-info --json` prints one base_url with host_source=tailscale and no token value."
               ]
             }
           ]
