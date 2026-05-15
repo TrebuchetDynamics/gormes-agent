@@ -1400,9 +1400,10 @@ classification and row-backed implementation queue.
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
 - [x] Gormes-owned chat TUI divergence ratification
-- [ ] Gormes-owned session-aware welcome panel
+- [x] Gormes-owned session-aware welcome panel
 - [ ] Gormes-owned semantic chat style system
 - [ ] Gormes-owned streaming feedback uplift
+- [ ] Gormes welcome panel version/tool-count wiring
 
 ### 8.E — Toolkit Extraction 🔨
 

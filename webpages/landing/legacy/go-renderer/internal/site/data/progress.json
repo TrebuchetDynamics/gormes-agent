@@ -59261,9 +59261,9 @@
             },
             {
               "name": "Gormes-owned session-aware welcome panel",
-              "status": "planned",
-              "contract": "Replace the static banner.go empty-transcript intro with a bordered, session-aware welcome panel that keeps the Gormes gradient logo/caduceus identity but adds live context (version, model, provider/auth, cwd, tool count) and a 'getting started' slash-tips block, rendered on the first frame before any turn.",
-              "contract_status": "draft",
+              "status": "complete",
+              "contract": "Replace the static empty-transcript intro (view.go conversationEmptyIntro; banner.go bannerLogo/bannerCaduceus/bannerWelcome are currently only test-referenced) with a bordered, session-aware welcome panel that keeps the Gormes caduceus/title identity but adds live context reachable from kernel.RenderFrame — model, provider/runtime (ProviderStatus.Provider/Runtime), cwd, session id — plus a best-effort version from runtime/debug.ReadBuildInfo (omitted on devel) and a 'getting started' slash-tips block, rendered on the first frame before any turn. Panel border/title/accent/dim colors MUST derive from the active HermesSkin (HermesSkinColors.Banner*) so all built-in skins keep theming the panel; ccx-go's single hardcoded orange palette is a layout/composition donor only. Degrade gracefully under HermesSkin.UseMinimalChrome (terminal width < 64) to a compact non-bordered form. Tool count is NOT in kernel.RenderFrame nor importable from internal/tui — deferred to the 'Gormes welcome panel version/tool-count wiring' follow-up row, not silently dropped.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tui",
               "provenance": {
@@ -59273,16 +59273,19 @@
                 "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
               },
               "source_refs": [
-                "/tmp/ccx-go/internal/tui/inline.go",
+                "/tmp/ccx-go/internal/tui/inline.go:RenderWelcomeInline (2-column bordered panel: greeting+pet+model·auth+cwd+toolcount | tips; patterns-only)",
                 "./hermes-agent/ui-tui",
-                "internal/tui/banner.go",
-                "internal/tui/view.go"
+                "internal/tui/banner.go (bannerLogo/bannerCaduceus/bannerWelcome — current static intro)",
+                "internal/tui/hermes_skin.go (HermesSkinColors.Banner*; UseMinimalChrome width<64)",
+                "internal/tui/view.go (View; first-frame composition)",
+                "internal/tui/banner_test.go"
               ],
               "ready_when": [
-                "Gormes-owned chat TUI divergence ratification is complete (EmptyTranscriptIntro no longer mandates the exact Hermes string)."
+                "Gormes-owned chat TUI divergence ratification is complete (R0 reframed hermes_behavioral_fidelity_test.go; EmptyTranscriptIntro no longer mandates the exact Hermes string)."
               ],
               "not_ready_when": [
-                "EmptyTranscriptIntro still pins the exact Hermes intro string."
+                "A fidelity/golden assertion still pins the exact static Hermes intro string.",
+                "Panel colors are hardcoded instead of read from the active HermesSkin (would break the 9 built-in skins)."
               ],
               "blocked_by": [
                 "Gormes-owned chat TUI divergence ratification"
@@ -59296,19 +59299,22 @@
                 "go test ./internal/tui -run 'Banner|EmptyTranscript|Welcome' -count=1"
               ],
               "acceptance": [
-                "First frame shows a bordered panel containing real session context (version, model, provider/auth, cwd, tool count) plus slash tips.",
-                "Gormes gradient logo and caduceus identity are preserved.",
-                "A teatest/golden snapshot pins the panel layout."
+                "First frame shows a bordered panel containing frame-reachable session context (model, provider/runtime, cwd, session id) plus a best-effort version line and slash tips.",
+                "Gormes caduceus/title identity is preserved.",
+                "Panel border/title/accent/dim colors come from the active HermesSkin; switching skin re-themes the panel (assert against >=2 BuiltinSkins).",
+                "Under HermesSkin.UseMinimalChrome (width < 64) the panel degrades to a compact non-bordered form without truncation artifacts.",
+                "The phrase 'Type your message or /help for commands.' remains present so the out-of-scope TestRenderConvViewportBinding_EmptyFramePlaceholder stays green.",
+                "A golden snapshot pins the panel layout."
               ],
               "done_signal": [
-                "go test ./internal/tui -run 'Banner|EmptyTranscript|Welcome' -count=1 green with the new bordered session-aware panel golden."
+                "go test ./internal/tui -run 'Banner|EmptyTranscript|Welcome' -count=1 green, plus full go test ./internal/tui -count=1 green (no out-of-scope viewport/fidelity regression)."
               ],
-              "note": "owned. Upstream baseline: Hermes ui-tui welcome chrome. Divergence rationale: premium first-impression differentiator (user pain: welcome/first-impression). Pattern donor: /tmp/ccx-go/internal/tui/inline.go:RenderWelcomeInline (MIT, patterns-only, no code copy). Proof: banner_test.go golden. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift."
+              "note": "owned. Upstream baseline: Hermes ui-tui welcome chrome. Divergence rationale: premium first-impression differentiator (user pain: welcome/first-impression). Pattern donor: /tmp/ccx-go/internal/tui/inline.go:RenderWelcomeInline (MIT, patterns-only, no code copy). Proof: banner_test.go golden. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift; refined 2026-05-15/ccx-go-tui-refine; builder-pass 2026-05-15 corrected acceptance to frame-reachable context — version is best-effort via debug.ReadBuildInfo, tool count deferred to follow-up row because it is absent from kernel.RenderFrame and main.Version is unimportable from internal/tui. COMPLETE 2026-05-15: welcomePanel/welcomeContext/welcomePalette added to internal/tui/banner.go (skin-derived colors; horizontal-rule frame instead of a box to honor the no-sidebar contract — no vertical pipe on the Gormes line); view.go conversationEmptyIntro now builds the panel from the render frame + buildInfoVersion(); 3 new banner_test.go tests green; full go test ./internal/tui -count=1 and go test ./... green with no out-of-scope viewport/fidelity/no-sidebar regression."
             },
             {
               "name": "Gormes-owned semantic chat style system",
               "status": "planned",
-              "contract": "Introduce a Gormes-owned internal/tui/styles.go exposing a small flat set of named semantic role styles (user, assistant, tool name, tool output, error, prompt, separator, status) over a Gormes palette, and route view.go/markdown.go role rendering through it so user/assistant/tool/error messages are visually differentiated and scannable, replacing scattered ad-hoc lipgloss.",
+              "contract": "Introduce a Gormes-owned internal/tui/styles.go exposing a small flat set of named semantic transcript-role styles (user, assistant, tool name, tool output, error, prompt, separator, status), each derived from the active HermesSkin (HermesSkinColors) rather than a new hardcoded palette, and route the transcript role/chrome rendering in view.go through it so user/assistant/tool/error messages are visually differentiated and scannable, replacing scattered ad-hoc lipgloss.NewStyle calls in the role/chrome path. markdown.go (the working hand-rolled body renderer with its own element styles) is out of scope and must not be rewritten; ccx-go's flat styles.go is a naming/composition donor only, not a palette to copy.",
               "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tui",
@@ -59319,17 +59325,20 @@
                 "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
               },
               "source_refs": [
-                "/tmp/ccx-go/internal/tui/styles.go",
+                "/tmp/ccx-go/internal/tui/styles.go (flat semantic role-style naming: prompt/user/error/toolName/toolOutput/separator/status; patterns-only, NOT its 204/86/242 palette)",
+                "/tmp/ccx-go/internal/tui/chat.go:RenderMessage (role switch composition donor)",
                 "./hermes-agent/ui-tui",
-                "internal/tui/view.go",
-                "internal/tui/markdown.go",
-                "internal/tui/hermes_skin.go"
+                "internal/tui/view.go (transcript role/chrome rendering — refactor target)",
+                "internal/tui/hermes_skin.go (HermesSkinColors source of truth for palette; BuiltinSkins)",
+                "internal/tui/markdown.go (OUT OF SCOPE — hand-rolled body renderer, do not edit)"
               ],
               "ready_when": [
-                "Gormes-owned chat TUI divergence ratification is complete (role labels/styling no longer forbidden by fidelity goldens)."
+                "Gormes-owned chat TUI divergence ratification is complete (R0 goldens no longer forbid role-differentiated rendering)."
               ],
               "not_ready_when": [
-                "NoLegacyPromptToolkitChrome still forbids role-differentiated rendering."
+                "A fidelity/golden assertion still forbids role-differentiated transcript rendering.",
+                "styles.go introduces a hardcoded palette that bypasses HermesSkin (would break the 9 built-in skins).",
+                "The slice edits internal/tui/markdown.go body-element rendering."
               ],
               "blocked_by": [
                 "Gormes-owned chat TUI divergence ratification"
@@ -59337,26 +59346,26 @@
               "write_scope": [
                 "internal/tui/styles.go",
                 "internal/tui/view.go",
-                "internal/tui/markdown.go",
                 "internal/tui/styles_test.go"
               ],
               "test_commands": [
-                "go test ./internal/tui -run 'Style|View|Markdown' -count=1"
+                "go test ./internal/tui -run 'Style|View|Skin' -count=1"
               ],
               "acceptance": [
-                "view.go/markdown.go role rendering references named styles from styles.go, not scattered inline lipgloss.NewStyle calls.",
+                "view.go transcript role/chrome rendering references named styles from styles.go, not scattered inline lipgloss.NewStyle calls.",
+                "Every semantic style resolves from the active HermesSkin; switching skin re-themes roles (assert against >=2 BuiltinSkins).",
                 "A golden snapshot proves user/assistant/tool/error visual differentiation.",
-                "Gormes palette is centralized in one place."
+                "internal/tui/markdown.go is unchanged (git diff shows no edit)."
               ],
               "done_signal": [
-                "go test ./internal/tui -run 'Style|View|Markdown' -count=1 green with the role-differentiated golden."
+                "go test ./internal/tui -run 'Style|View|Skin' -count=1 green with the role-differentiated, skin-themed golden; markdown.go untouched."
               ],
-              "note": "owned. Upstream baseline: Hermes ui-tui skin. Divergence rationale: scannable visual hierarchy differentiator (user pain: visual hierarchy/polish). Pattern donor: /tmp/ccx-go/internal/tui/styles.go (MIT, patterns-only, no code copy). Proof: styles_test.go golden. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift."
+              "note": "owned. Upstream baseline: Hermes ui-tui skin. Divergence rationale: scannable visual hierarchy differentiator (user pain: visual hierarchy/polish). Pattern donor: /tmp/ccx-go/internal/tui/styles.go (MIT, patterns-only, no code copy). Proof: styles_test.go golden. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift; refined 2026-05-15/ccx-go-tui-refine — styles derive from HermesSkin not a copied palette; markdown.go removed from scope (working hand-rolled renderer, not glamour); donor is naming/composition only."
             },
             {
               "name": "Gormes-owned streaming feedback uplift",
               "status": "planned",
-              "contract": "On the existing frame/coalescer streaming model (do not replace the coalescer), add distinct perceived-feedback affordances: a visible thinking indicator, explicit tool start and tool done/error markers in the transcript, and smoother assistant chunk cadence, so the user is never left wondering about system state during a turn.",
+              "contract": "On the existing kernel.RenderFrame/coalescer streaming model (view.go conversationViewportTail; do NOT replace the coalescer), wire the already-implemented renderers — thinking.go RenderThinking, RenderToolTrail (tree+icon+status+duration), RenderSpinnerFrame — into the live per-turn frame path so the user always sees distinct perceived feedback: a visible thinking indicator, explicit tool start and tool done/error markers in the transcript, and collapsible long tool output (show first N lines + a '[+K more lines]' summary, ccx-go RenderToolOutputInline pattern). Smooth assistant chunk cadence without changing coalescer semantics. Reuse the existing renderers; do not reimplement them.",
               "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tui",
@@ -59367,10 +59376,11 @@
                 "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
               },
               "source_refs": [
-                "/tmp/ccx-go/internal/tui/app.go",
-                "/tmp/ccx-go/internal/tui/inline.go",
-                "internal/tui/update.go",
-                "internal/tui/thinking.go",
+                "/tmp/ccx-go/internal/tui/app.go (StreamThinkingMsg/ToolExecMsg/ToolDoneMsg state-machine + statusMsg cadence donor)",
+                "/tmp/ccx-go/internal/tui/inline.go:RenderToolOutputInline (collapsible >5 lines -> first 3 + '[+N more lines]' donor)",
+                "internal/tui/view.go:conversationViewportTail (kernel.RenderFrame path — wiring target)",
+                "internal/tui/update.go (frame/coalescer update loop)",
+                "internal/tui/thinking.go (RenderThinking/RenderToolTrail/RenderSpinnerFrame already exist — reuse, do not reimplement)",
                 "internal/tui/spinner.go"
               ],
               "ready_when": [
@@ -59378,12 +59388,14 @@
               ],
               "not_ready_when": [
                 "Change replaces the gateway coalescer/frame model instead of layering feedback on it.",
-                "FinalAssistantNotDuplicated behavioral guarantee regresses."
+                "The slice reimplements thinking/tooltrail/spinner renderers instead of wiring the existing thinking.go ones.",
+                "FinalAssistantNotDuplicated or tool-output-not-absorbed behavioral guarantee regresses."
               ],
               "blocked_by": [
                 "Gormes-owned chat TUI divergence ratification"
               ],
               "write_scope": [
+                "internal/tui/view.go",
                 "internal/tui/update.go",
                 "internal/tui/thinking.go",
                 "internal/tui/spinner.go",
@@ -59395,13 +59407,64 @@
               ],
               "acceptance": [
                 "Thinking state, tool start, and tool done/error are visibly distinct in the transcript during a turn.",
-                "The final assistant message is still rendered exactly once (behavioral guarantee preserved).",
-                "Chunk cadence is smoothed without replacing the coalescer."
+                "Long tool output is collapsed to first N lines plus a '[+K more lines]' summary.",
+                "The final assistant message is still rendered exactly once (FinalAssistantNotDuplicated preserved) and tool output is not absorbed into assistant prose.",
+                "Chunk cadence is smoothed without replacing the coalescer; RenderThinking/RenderToolTrail are reused, not duplicated."
               ],
               "done_signal": [
-                "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1 green; no duplicate-final regression."
+                "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1 green; no duplicate-final or tool-absorption regression."
               ],
-              "note": "owned. Upstream baseline: Hermes ui-tui streaming chrome. Divergence rationale: responsive streaming feel differentiator (user pain: streaming feel). Pattern donor: /tmp/ccx-go/internal/tui/app.go StreamThinkingMsg/ToolExecMsg/ToolDoneMsg + inline.go RenderStreamChunk (MIT, patterns-only, no code copy). Proof: update_test.go/thinking_test.go + preserved FinalAssistantNotDuplicated. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift."
+              "note": "owned. Upstream baseline: Hermes ui-tui streaming chrome. Divergence rationale: responsive streaming feel differentiator (user pain: streaming feel). Pattern donor: /tmp/ccx-go/internal/tui/app.go StreamThinkingMsg/ToolExecMsg/ToolDoneMsg + inline.go RenderToolOutputInline (MIT, patterns-only, no code copy). Proof: update_test.go/thinking_test.go + preserved FinalAssistantNotDuplicated. swarm_origin: planner-pass 2026-05-15/ccx-go-tui-uplift; refined 2026-05-15/ccx-go-tui-refine — reuse existing thinking.go renderers (already implemented), wire into kernel.RenderFrame path in view.go, fold in ccx-go collapsible tool-output (no separate row)."
+            },
+            {
+              "name": "Gormes welcome panel version/tool-count wiring",
+              "status": "planned",
+              "contract": "Thread the operator-facing release version (cmd/gormes main.Version) and the agent tool count into the chat TUI so the session-aware welcome panel can show both. Add an optional WelcomeContext seam on the Model (set by cmd/gormes at startup, zero-value safe) that the welcome panel reads; when unset the panel keeps the R1 best-effort/omit behavior. This is the deliberately deferred cross-package half of the welcome panel — kept out of R1 because main.Version is unimportable from internal/tui and tool count is absent from kernel.RenderFrame.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tui",
+              "provenance": {
+                "origin_type": "gormes",
+                "upstream_ref": "hermes:ui-tui@./hermes-agent/ui-tui",
+                "owned_since": "2026-05-15T00:00:00Z",
+                "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
+              },
+              "source_refs": [
+                "/tmp/ccx-go/internal/tui/inline.go:RenderWelcomeInline (version + N tools available donor lines; patterns-only)",
+                "cmd/gormes/version.go (main.Version — startup source)",
+                "internal/tui/model.go (Model — add optional WelcomeContext seam)",
+                "internal/tui/banner.go (welcome panel — consumes the seam)"
+              ],
+              "ready_when": [
+                "Gormes-owned session-aware welcome panel is complete (panel exists with the version best-effort/omit seam)."
+              ],
+              "not_ready_when": [
+                "The R1 welcome panel does not yet exist.",
+                "Wiring hardcodes a version string instead of reading the real cmd/gormes startup value."
+              ],
+              "blocked_by": [
+                "Gormes-owned session-aware welcome panel"
+              ],
+              "write_scope": [
+                "internal/tui/model.go",
+                "internal/tui/banner.go",
+                "internal/tui/banner_test.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/chat_command_test.go"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'Welcome|Banner' -count=1",
+                "go test ./cmd/gormes -run 'Chat' -count=1"
+              ],
+              "acceptance": [
+                "Model exposes a zero-value-safe WelcomeContext seam; cmd/gormes seeds version + tool count at startup.",
+                "When seeded, the welcome panel renders the real release version and the agent tool count.",
+                "When unset, the panel keeps the R1 best-effort/omit behavior (no panic, no empty fields)."
+              ],
+              "done_signal": [
+                "go test ./internal/tui -run 'Welcome|Banner' -count=1 and go test ./cmd/gormes -run 'Chat' -count=1 green with the seeded version/tool-count assertions."
+              ],
+              "note": "owned follow-up. Carries the cross-package data (version/tool count) deliberately excluded from the R1 'Gormes-owned session-aware welcome panel' write_scope. Upstream baseline: Hermes ui-tui welcome chrome. swarm_origin: builder-pass 2026-05-15/ccx-go-tui-refine — filed when R1 implementation proved tool count absent from kernel.RenderFrame and main.Version unimportable from internal/tui."
             }
           ]
         },
