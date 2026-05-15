@@ -45905,7 +45905,7 @@
             {
               "name": "Gateway mutating-subcommand unavailability stub",
               "status": "complete",
-              "contract": "Gateway lifecycle CLI provides local safe `stop` and `restart` commands over validated runtime PID evidence: stop interrupts only the validated live gateway, restart first tries a fakeable systemd user-service restart on Linux and otherwise falls back to the recorded live runtime, while unsupported start/install/uninstall subcommands surface a stable `unavailable` error with a pointer to the existing internal/cli/service_restart.go helper instead of silently failing or shelling out through untested paths.",
+              "contract": "Gateway lifecycle CLI provides local safe `stop` and `restart` commands over validated runtime PID evidence: stop interrupts only the validated live gateway, restart first tries a fakeable systemd user-service restart on Linux, then falls back to the validated runtime record by restarting a live managed gateway or starting a fresh gateway when no live managed runtime exists, while unsupported start/install/uninstall subcommands surface a stable `unavailable` error with a pointer to the existing internal/cli/service_restart.go helper instead of silently failing or shelling out through untested paths.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -45914,7 +45914,7 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "`gormes gateway stop` is idempotent when runtime status is missing, stale, or pid-reused; it signals only a PID validated as the live Gormes gateway and refuses to stop while active_agents is non-zero. `gormes gateway restart` reports service-manager restart evidence when systemd succeeds, falls back to the recorded live runtime when the service manager is unavailable, and refuses active-agent restarts. Unsupported start/install/uninstall subcommands print a deterministic `gateway: <subcommand> is not available; use the systemd/service_restart helper` message and exit with a stable non-zero code.",
+              "degraded_mode": "`gormes gateway stop` is idempotent when runtime status is missing, stale, or pid-reused; it signals only a PID validated as the live Gormes gateway and refuses to stop while active_agents is non-zero. `gormes gateway restart` reports service-manager restart evidence when systemd succeeds, bounds service-manager restart calls with the requested timeout, falls back to the runtime record when the service manager is unavailable, starts a fresh gateway when the runtime record is missing or stale, and refuses active-agent or unsafe PID-validation restarts. Unsupported start/install/uninstall subcommands print a deterministic `gateway: <subcommand> is not available; use the systemd/service_restart helper` message and exit with a stable non-zero code.",
               "fixture": "cmd/gormes/gateway_mutating_unavailable_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/gateway.py@edc78e25:systemd_install,launchd_install,systemd_start,launchd_start,systemd_restart,launchd_restart",
@@ -45942,14 +45942,15 @@
               "acceptance": [
                 "`gormes gateway stop` reads validated runtime status, sends an interrupt only to the validated live gateway PID when active_agents is zero, waits for status to become non-live, and reports the validation status used for the stop result.",
                 "`gormes gateway stop` exits successfully without signalling when runtime status is missing, stale, stopped, pid-reused, or otherwise not live; it returns an actionable error without signalling when active_agents is non-zero.",
-                "`gormes gateway restart` on Linux delegates to a fakeable systemd user-service manager when available and emits JSON restart evidence after active-status polling reports restarted.",
+                "`gormes gateway restart` on Linux delegates to a fakeable systemd user-service manager when available, passes the requested timeout into the restart context, and emits JSON restart evidence after active-status polling reports restarted.",
                 "`gormes gateway restart` falls back to the recorded live runtime when the service manager is unavailable: it writes planned-stop evidence, interrupts the validated live PID, starts a detached gateway process, waits for a new live PID, and refuses restarts while active_agents is non-zero.",
+                "`gormes gateway restart` starts a detached gateway instead of erroring when validated runtime status proves no live managed process exists; it does not signal stale, missing, pid-reused, or permission-denied PIDs.",
                 "Adding unsupported mutating subcommands `start`, `install`, and `uninstall` to gatewayCmd registers a deterministic unavailability handler that returns `gateway: <subcommand> is not available; use the service_restart helper` and exits non-zero.",
-                "Tests in cmd/gormes/gateway_mutating_unavailable_test.go invoke `gormes gateway stop`, `gormes gateway restart`, and every unsupported mutating verb, asserting signal/no-signal behavior, service-manager/runtime restart evidence, or unavailable error + non-zero exit code without requiring live systemd/launchd.",
+                "Tests in cmd/gormes/gateway_mutating_unavailable_test.go invoke `gormes gateway stop`, `gormes gateway restart`, and every unsupported mutating verb, asserting signal/no-signal behavior, service-manager timeout context evidence, runtime restart/start evidence, or unavailable error + non-zero exit code without requiring live systemd/launchd.",
                 "The existing `gateway status` subcommand and runtime status path are unchanged.",
                 "No new persistent gateway runtime state file is introduced; service-manager access remains behind fakeable seams and unit tests do not shell out to live service managers."
               ],
-              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26 and closed the same day. cmd/gormes/gateway.go originally registered start/stop/restart/install/uninstall as deterministic unavailability stubs (gatewayMutatingUnavailableSubcommands + newGatewayMutatingUnavailableCommand) returning `gateway: <subcommand> is not available; use the service_restart helper` with stable exit code 2 via newExitCodeError; cmd/gormes/gateway_mutating_unavailable_test.go covered each verb, asserted no runtime/state file is opened, and verified `gateway status` is unaffected. 2026-04-30 dev-loop hardening promotes `gateway stop` from unavailable stub to safe local stop: cmd/gormes/gateway_stop.go reads validated runtime status, signals only the live gateway PID with os.Interrupt, waits for non-live validation, and treats missing/stale runtime as idempotent no-op so bin/gormes and go-run gateway testing can release sessions.db without killing by process name. 2026-05-14 lifecycle follow-up promotes non-Windows `gateway restart` from unavailable stub to a fakeable service-manager/runtime restart command while keeping start/install/uninstall on the deterministic unavailable path.",
+              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26 and closed the same day. cmd/gormes/gateway.go originally registered start/stop/restart/install/uninstall as deterministic unavailability stubs (gatewayMutatingUnavailableSubcommands + newGatewayMutatingUnavailableCommand) returning `gateway: <subcommand> is not available; use the service_restart helper` with stable exit code 2 via newExitCodeError; cmd/gormes/gateway_mutating_unavailable_test.go covered each verb, asserted no runtime/state file is opened, and verified `gateway status` is unaffected. 2026-04-30 dev-loop hardening promotes `gateway stop` from unavailable stub to safe local stop: cmd/gormes/gateway_stop.go reads validated runtime status, signals only the live gateway PID with os.Interrupt, waits for non-live validation, and treats missing/stale runtime as idempotent no-op so bin/gormes and go-run gateway testing can release sessions.db without killing by process name. 2026-05-14 lifecycle follow-up promotes non-Windows `gateway restart` from unavailable stub to a fakeable service-manager/runtime restart command while keeping start/install/uninstall on the deterministic unavailable path. 2026-05-15 hardening makes service-manager restart calls honor the requested timeout context and makes runtime fallback start a fresh detached gateway when no live managed runtime exists instead of failing the operator-facing restart command.",
               "write_scope": [
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_stop.go",
@@ -45963,7 +45964,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "TestGatewayStop* fixtures prove validated live gateway PIDs are interrupted only when active_agents is zero, missing/stale runtimes are no-op, active runtimes with active_agents are refused, TestGatewayRestart* fixtures prove service-manager and recorded-runtime restart paths with fake seams, and TestGatewayMutating* fixtures prove unsupported start/install/uninstall subcommands still return the stable unavailability error."
+                "TestGatewayStop* fixtures prove validated live gateway PIDs are interrupted only when active_agents is zero, missing/stale runtimes are no-op, active runtimes with active_agents are refused, TestGatewayRestart* fixtures prove service-manager timeout context, recorded-runtime restart, and no-live-runtime start paths with fake seams, and TestGatewayMutating* fixtures prove unsupported start/install/uninstall subcommands still return the stable unavailability error."
               ],
               "health": {
                 "attempt_count": 1,
@@ -45973,7 +45974,7 @@
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 hermes_cli/gateway.py",
-                "note": "Hermes exposes systemd/launchd mutating commands; Gormes intentionally defers service-manager start/restart/install/uninstall to the service_restart helper while providing a Go-native local stop command for validated live gateway runtimes."
+                "note": "Hermes exposes systemd/launchd mutating commands; Gormes keeps start/install/uninstall behind deterministic guidance while providing Go-native local stop and restart commands over validated runtime evidence, with service-manager restart still isolated behind fakeable seams."
               }
             },
             {

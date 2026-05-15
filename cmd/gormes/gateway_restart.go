@@ -114,7 +114,13 @@ func runGatewayRestart(cmd *cobra.Command, _ []string) error {
 
 	var serviceErr error
 	if manager := newGatewayRestartServiceManager(); manager != nil {
-		if err := manager.Restart(ctx, service); err == nil {
+		restartCtx := ctx
+		cancelRestart := func() {}
+		if timeout > 0 {
+			restartCtx, cancelRestart = context.WithTimeout(ctx, timeout)
+		}
+		if err := manager.Restart(restartCtx, service); err == nil {
+			cancelRestart()
 			report := cli.PollServiceRestartActive(cli.ServiceRestartPollOptions{
 				Service:      service,
 				Runner:       manager,
@@ -133,6 +139,7 @@ func runGatewayRestart(cmd *cobra.Command, _ []string) error {
 			}
 			return fmt.Errorf("gateway restart: service %s did not become active (outcome=%s)", service, report.Outcome)
 		} else {
+			cancelRestart()
 			serviceErr = err
 		}
 	}
@@ -160,7 +167,11 @@ func writeGatewayRestartSuccess(cmd *cobra.Command, asJSON bool, report gatewayR
 	case "service":
 		fmt.Fprintf(cmd.OutOrStdout(), "gateway restart: service %s restarted via %s\n", report.Service, report.Manager)
 	case "runtime":
-		fmt.Fprintf(cmd.OutOrStdout(), "gateway restart: restarted pid=%d -> %d\n", report.OldPID, report.NewPID)
+		if report.Action == "started" {
+			fmt.Fprintf(cmd.OutOrStdout(), "gateway restart: no live gateway runtime; started pid=%d\n", report.NewPID)
+		} else {
+			fmt.Fprintf(cmd.OutOrStdout(), "gateway restart: restarted pid=%d -> %d\n", report.OldPID, report.NewPID)
+		}
 	default:
 		fmt.Fprintln(cmd.OutOrStdout(), "gateway restart: restarted")
 	}
@@ -176,6 +187,9 @@ func restartRecordedGatewayRuntime(ctx context.Context, timeout time.Duration) (
 	pid := gatewayStopPID(snapshot)
 	validation := snapshot.Validation
 	if !validation.Live {
+		if canStartGatewayRuntimeWithoutLiveProcess(snapshot) {
+			return startGatewayRuntimeWithoutLiveProcess(ctx, timeout, store, snapshot)
+		}
 		return gatewayRestartReportJSON{}, fmt.Errorf("gateway restart: no live gateway runtime (status=%s message=%q)", validation.Status, validation.Message)
 	}
 	if pid <= 0 {
@@ -225,6 +239,45 @@ func restartRecordedGatewayRuntime(ctx context.Context, timeout time.Duration) (
 		NewPID:        gatewayStopPID(newSnapshot),
 		InitialStatus: string(validation.Status),
 		FinalStatus:   string(finalStop.Status),
+	}, nil
+}
+
+func canStartGatewayRuntimeWithoutLiveProcess(snapshot gateway.RuntimeStatusSnapshot) bool {
+	if snapshot.Missing {
+		return true
+	}
+	switch snapshot.Validation.Status {
+	case gateway.RuntimeProcessValidationStalePID,
+		gateway.RuntimeProcessValidationStopped:
+		return true
+	default:
+		return false
+	}
+}
+
+func startGatewayRuntimeWithoutLiveProcess(ctx context.Context, timeout time.Duration, store gatewayRestartRuntimeStore, initial gateway.RuntimeStatusSnapshot) (gatewayRestartReportJSON, error) {
+	startCfg, err := defaultGatewayRestartStartConfig()
+	if err != nil {
+		return gatewayRestartReportJSON{}, err
+	}
+	if err := startGatewayRestartProcess(ctx, startCfg); err != nil {
+		return gatewayRestartReportJSON{}, fmt.Errorf("gateway restart: start gateway: %w", err)
+	}
+
+	startCtx, cancelStart := context.WithTimeout(ctx, timeout)
+	defer cancelStart()
+	newSnapshot, err := waitForGatewayRestartStart(startCtx, store, gatewayStopPID(initial))
+	if err != nil {
+		return gatewayRestartReportJSON{}, err
+	}
+	return gatewayRestartReportJSON{
+		Build:         newBuildProvenance(),
+		Action:        "started",
+		Mode:          "runtime",
+		NewPID:        gatewayStopPID(newSnapshot),
+		InitialStatus: string(initial.Validation.Status),
+		FinalStatus:   string(newSnapshot.Validation.Status),
+		Message:       "no live gateway runtime; started new gateway",
 	}, nil
 }
 

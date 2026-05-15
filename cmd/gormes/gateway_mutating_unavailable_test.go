@@ -132,6 +132,28 @@ func TestGatewayRestartUsesServiceManagerOnLinux(t *testing.T) {
 	}
 }
 
+func TestGatewayRestartServiceManagerUsesTimeoutContext(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")
+	defer restoreGOOS()
+	runner := &fakeGatewayRestartServiceManager{
+		statuses: []cli.ServiceActiveStatusCheck{{
+			Status: cli.ServiceActiveStatusActive,
+			Raw:    "active\n",
+		}},
+	}
+	restoreService := gatewayRestartServiceManagerForTest(t, runner)
+	defer restoreService()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "restart", "--timeout=250ms", "--json")
+	if err != nil {
+		t.Fatalf("gateway restart --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(runner.restartHadDeadlines) != 1 || !runner.restartHadDeadlines[0] {
+		t.Fatalf("restart deadline evidence = %v, want one restart call with context deadline", runner.restartHadDeadlines)
+	}
+}
+
 func TestGatewayRestartFallsBackToRecordedLiveRuntime(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")
@@ -221,6 +243,84 @@ func TestGatewayRestartFallsBackToRecordedLiveRuntime(t *testing.T) {
 	}
 	if got.Action != "restarted" || got.Mode != "runtime" || got.OldPID != 4242 || got.NewPID != 5151 {
 		t.Fatalf("restart fallback json = %+v, want runtime restart evidence", got)
+	}
+}
+
+func TestGatewayRestartStartsRuntimeWhenNoLiveRuntimeExists(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")
+	defer restoreGOOS()
+	restoreService := gatewayRestartServiceManagerForTest(t, nil)
+	defer restoreService()
+	store := &fakeGatewayRestartRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{
+			{
+				Missing: true,
+				Validation: gateway.RuntimeProcessValidation{
+					Status:  gateway.RuntimeProcessValidationMissingState,
+					Live:    false,
+					Message: "runtime status is missing",
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          5151,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status: gateway.RuntimeProcessValidationLive,
+					Live:   true,
+					PID:    5151,
+				},
+			},
+		},
+	}
+	restoreStore := gatewayRestartRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayRestartSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+	starts := 0
+	restoreStarter := gatewayRestartStarterForTest(t, func(context.Context, gatewayRestartStartConfig) error {
+		starts++
+		return nil
+	})
+	defer restoreStarter()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "restart", "--timeout=100ms", "--json")
+	if err != nil {
+		t.Fatalf("gateway restart should start when no live runtime exists: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 0 {
+		t.Fatalf("signals = %+v, want none when no live runtime exists", signals)
+	}
+	if starts != 1 {
+		t.Fatalf("starts = %d, want 1", starts)
+	}
+
+	var got struct {
+		Action        string `json:"action"`
+		Mode          string `json:"mode"`
+		NewPID        int    `json:"new_pid"`
+		InitialStatus string `json:"initial_status"`
+		FinalStatus   string `json:"final_status"`
+		Message       string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("gateway restart start output must be valid JSON: %v\nstdout=%s", err, stdout)
+	}
+	if got.Action != "started" || got.Mode != "runtime" || got.NewPID != 5151 {
+		t.Fatalf("restart start json = %+v, want runtime start evidence for pid 5151", got)
+	}
+	if got.InitialStatus != string(gateway.RuntimeProcessValidationMissingState) || got.FinalStatus != string(gateway.RuntimeProcessValidationLive) {
+		t.Fatalf("restart start statuses = %q -> %q, want missing_state -> live", got.InitialStatus, got.FinalStatus)
+	}
+	if !strings.Contains(got.Message, "no live gateway runtime") {
+		t.Fatalf("restart start message = %q, want no-live-runtime evidence", got.Message)
 	}
 }
 
@@ -1099,14 +1199,17 @@ func (r *fakeGatewayWindowsScheduledTaskRunner) Uninstall(_ context.Context, cfg
 }
 
 type fakeGatewayRestartServiceManager struct {
-	restarts   []string
-	statuses   []cli.ServiceActiveStatusCheck
-	restartErr error
-	statusErr  error
+	restarts            []string
+	restartHadDeadlines []bool
+	statuses            []cli.ServiceActiveStatusCheck
+	restartErr          error
+	statusErr           error
 }
 
-func (r *fakeGatewayRestartServiceManager) Restart(_ context.Context, service string) error {
+func (r *fakeGatewayRestartServiceManager) Restart(ctx context.Context, service string) error {
 	r.restarts = append(r.restarts, service)
+	_, hasDeadline := ctx.Deadline()
+	r.restartHadDeadlines = append(r.restartHadDeadlines, hasDeadline)
 	return r.restartErr
 }
 
