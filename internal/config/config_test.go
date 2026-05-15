@@ -509,7 +509,9 @@ fresh_final_after_seconds = 12.5
 
 func TestLoad_TelegramEnvOverride(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "abc:xyz")
+	t.Setenv("GORMES_TELEGRAM_HOME_CHANNEL", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "99999")
 	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "111, 222")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "ignored:alias")
@@ -525,6 +527,9 @@ func TestLoad_TelegramEnvOverride(t *testing.T) {
 	if cfg.Telegram.AllowedChatID != 99999 {
 		t.Errorf("AllowedChatID = %d", cfg.Telegram.AllowedChatID)
 	}
+	if cfg.Telegram.HomeChannel.ChatID != "99999" {
+		t.Errorf("HomeChannel.ChatID = %q, want legacy chat ID backfill", cfg.Telegram.HomeChannel.ChatID)
+	}
 	if got, want := cfg.Telegram.AllowedUserIDs, []int64{111, 222}; len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Errorf("AllowedUserIDs = %v, want %v", got, want)
 	}
@@ -532,7 +537,9 @@ func TestLoad_TelegramEnvOverride(t *testing.T) {
 
 func TestLoad_TelegramHermesEnvAliases(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_HOME_CHANNEL", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
 	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "123:hermes-token")
@@ -549,8 +556,121 @@ func TestLoad_TelegramHermesEnvAliases(t *testing.T) {
 	if cfg.Telegram.AllowedChatID != -10042 {
 		t.Errorf("AllowedChatID = %d", cfg.Telegram.AllowedChatID)
 	}
+	if cfg.Telegram.HomeChannel.ChatID != "-10042" {
+		t.Errorf("HomeChannel.ChatID = %q, want TELEGRAM_HOME_CHANNEL", cfg.Telegram.HomeChannel.ChatID)
+	}
 	if got, want := cfg.Telegram.AllowedUserIDs, []int64{6586915095, 12345}; len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Errorf("AllowedUserIDs = %v, want %v", got, want)
+	}
+}
+
+func TestTelegramHomeChannelStructuredConfigAndLegacyAllowedChat(t *testing.T) {
+	t.Run("structured home channel stays string typed", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+		dir := filepath.Join(cfgHome, "gormes")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[telegram]
+allowed_user_ids = [6586915095]
+
+[telegram.home_channel]
+chat_id = "-1001234567890"
+thread_id = "42"
+`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Telegram.HomeChannel.ChatID != "-1001234567890" {
+			t.Fatalf("HomeChannel.ChatID = %q, want structured chat id", cfg.Telegram.HomeChannel.ChatID)
+		}
+		if cfg.Telegram.HomeChannel.ThreadID != "42" {
+			t.Fatalf("HomeChannel.ThreadID = %q, want structured thread id", cfg.Telegram.HomeChannel.ThreadID)
+		}
+	})
+
+	t.Run("legacy allowed_chat_id backfills structured home channel", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+		dir := filepath.Join(cfgHome, "gormes")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[telegram]
+bot_token = "123456:test-token"
+allowed_chat_id = 4242
+`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Telegram.AllowedChatID != 4242 {
+			t.Fatalf("AllowedChatID = %d, want legacy value", cfg.Telegram.AllowedChatID)
+		}
+		if cfg.Telegram.HomeChannel.ChatID != "4242" {
+			t.Fatalf("HomeChannel.ChatID = %q, want legacy allowed_chat_id backfill", cfg.Telegram.HomeChannel.ChatID)
+		}
+	})
+}
+
+func TestTelegramEnvAliasPrecedenceAndHomeChannel(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	dir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[telegram]
+bot_token = "config-token"
+allowed_user_ids = [111]
+
+[telegram.home_channel]
+chat_id = "config-home"
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "g-pref-token")
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "g-legacy-token")
+	t.Setenv("HERMES_TELEGRAM_BOT_TOKEN", "h-token")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "unprefixed-token")
+	t.Setenv("GORMES_TELEGRAM_HOME_CHANNEL", "-100999")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "-100888")
+	t.Setenv("HERMES_TELEGRAM_HOME_CHANNEL", "-100777")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "-100666")
+	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "222,333")
+	t.Setenv("HERMES_TELEGRAM_ALLOWED_USERS", "444")
+	t.Setenv("TELEGRAM_ALLOWED_USERS", "555")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.BotToken != "g-pref-token" {
+		t.Fatalf("BotToken = %q, want preferred GORMES_TELEGRAM_BOT_TOKEN", cfg.Telegram.BotToken)
+	}
+	if cfg.Telegram.HomeChannel.ChatID != "-100999" {
+		t.Fatalf("HomeChannel.ChatID = %q, want GORMES_TELEGRAM_HOME_CHANNEL", cfg.Telegram.HomeChannel.ChatID)
+	}
+	if cfg.Telegram.AllowedChatID != -100999 {
+		t.Fatalf("AllowedChatID = %d, want env home channel compatibility", cfg.Telegram.AllowedChatID)
+	}
+	if got, want := cfg.Telegram.AllowedUserIDs, []int64{222, 333}; len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("AllowedUserIDs = %v, want %v", got, want)
 	}
 }
 

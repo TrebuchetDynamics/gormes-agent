@@ -255,7 +255,7 @@ func TestConfigCommand_SetAPIKeyWritesEnvFileNotTOML(t *testing.T) {
 
 func TestConfigCommand_SetTelegramBotTokenWritesLoadableEnvName(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
-	unsetEnvForConfigCommandTest(t, "GORMES_TELEGRAM_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN")
+	unsetEnvForConfigCommandTest(t, "GORMES_TELEGRAM_BOT_TOKEN", "GORMES_TELEGRAM_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN")
 
 	secret := "123456:telegram-secret"
 	cmd := newRootCommandWithRuntime(rootRuntime{})
@@ -263,7 +263,7 @@ func TestConfigCommand_SetTelegramBotTokenWritesLoadableEnvName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("set telegram.bot_token: %v stderr=%s", err, stderr)
 	}
-	if !strings.Contains(stdout, "GORMES_TELEGRAM_TOKEN") || strings.Contains(stdout, secret) {
+	if !strings.Contains(stdout, "GORMES_TELEGRAM_BOT_TOKEN") || strings.Contains(stdout, secret) {
 		t.Fatalf("stdout = %q, want env name only and no raw secret", stdout)
 	}
 
@@ -271,7 +271,7 @@ func TestConfigCommand_SetTelegramBotTokenWritesLoadableEnvName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read .env: %v", err)
 	}
-	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_TOKEN="+secret) {
+	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_BOT_TOKEN="+secret) {
 		t.Fatalf(".env missing loadable Telegram token env name:\n%s", envBody)
 	}
 	if strings.Contains(string(envBody), "TELEGRAM.BOT_TOKEN=") {

@@ -14,6 +14,7 @@ import (
 func TestSetupGatewayChecklistShowsCorePlatforms(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 
 	fake := &setupCommandFakeSeams{isTTY: false}
 	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "gateway", "--non-interactive")
@@ -23,18 +24,13 @@ func TestSetupGatewayChecklistShowsCorePlatforms(t *testing.T) {
 
 	for _, want := range []string{
 		"Messaging Platforms",
-		"Which platforms would you like to set up?",
-		"Telegram",
-		"telegram",
-		"Discord",
-		"discord",
-		"Slack",
-		"slack",
-		"WhatsApp",
-		"whatsapp",
-		"Navivox",
-		"navivox",
-		"not configured",
+		"Plan only: no files will be written and no live APIs will be called.",
+		"Telegram (telegram): unconfigured",
+		"Discord (discord): unconfigured",
+		"Slack (slack): unconfigured",
+		"WhatsApp (whatsapp): unconfigured",
+		"Navivox (navivox): unconfigured",
+		"Planned writes:",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -48,7 +44,9 @@ func TestSetupGatewayChecklistShowsCorePlatforms(t *testing.T) {
 func TestSetupGatewayPreselectsConfiguredPlatforms(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -84,15 +82,12 @@ allowed_channel_id = "C42"
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"[x] Telegram",
-		"telegram",
-		"configured (allowed_chat_id=4242)",
-		"[x] Discord",
-		"discord",
-		"configured (allowed_channel_id=D42)",
-		"[x] Slack",
-		"slack",
-		"configured (allowed_channel_id=C42)",
+		"Telegram (telegram): configured",
+		"telegram.home_channel.chat_id=4242",
+		"Discord (discord): configured",
+		"discord.allowed_channel_id=D42",
+		"Slack (slack): configured",
+		"slack.allowed_channel_id=C42",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -129,7 +124,9 @@ func TestSetupGatewayNoSelectionDoesNotMutateConfig(t *testing.T) {
 func TestSetupGatewayTelegramWritesTokenAndAllowedChatWithoutLeakingSecret(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -149,7 +146,7 @@ func TestSetupGatewayTelegramWritesTokenAndAllowedChatWithoutLeakingSecret(t *te
 	if err != nil {
 		t.Fatalf("read env file: %v", err)
 	}
-	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_TOKEN="+token) {
+	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_BOT_TOKEN="+token) {
 		t.Fatalf(".env missing Telegram token env name:\n%s", envBody)
 	}
 	if data, err := os.ReadFile(config.ConfigPath()); err == nil && strings.Contains(string(data), token) {
@@ -173,7 +170,9 @@ func TestSetupGatewayTelegramWritesTokenAndAllowedChatWithoutLeakingSecret(t *te
 func TestSetupGatewayTelegramBlankFreshTokenFailsWithoutWritingChannelConfig(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -540,7 +539,9 @@ func TestSetupGatewaySelectedPlatformDelegatesOrReportsRowBacked(t *testing.T) {
 func TestSetupGatewayDoesNotStartGateway(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -746,7 +747,9 @@ func TestSetupQuickNonInteractiveTelegramTargetPrintsCommandWithoutPrompting(t *
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	t.Setenv("GORMES_API_KEY", "sk-telegram-noninteractive-test")
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
@@ -799,7 +802,9 @@ func TestSetupQuickTelegramTargetSkipsConfiguredChannelSetup(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	t.Setenv("GORMES_API_KEY", "sk-telegram-ready-test")
+	clearSetupGatewayTelegramEnv(t)
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")

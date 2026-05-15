@@ -83,12 +83,20 @@ type TelegramAccountCfg struct {
 	AllowedUserIDs []int64 `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
 }
 
+type TelegramHomeChannelCfg struct {
+	Platform string `toml:"platform" yaml:"platform"`
+	ChatID   string `toml:"chat_id" yaml:"chat_id"`
+	Name     string `toml:"name" yaml:"name"`
+	ThreadID string `toml:"thread_id" yaml:"thread_id"`
+}
+
 type TelegramCfg struct {
 	BotToken               string                        `toml:"bot_token" yaml:"bot_token"`
 	BotTokenRef            *SecretRef                    `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
 	Accounts               map[string]TelegramAccountCfg `toml:"accounts" yaml:"accounts"`
 	AccountID              string                        `toml:"-" yaml:"-"`
 	AllowedChatID          int64                         `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	HomeChannel            TelegramHomeChannelCfg        `toml:"home_channel" yaml:"home_channel"`
 	AllowedChats           any                           `toml:"allowed_chats" yaml:"allowed_chats"`
 	AllowedUserIDs         []int64                       `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
 	RequireMention         bool                          `toml:"require_mention" yaml:"require_mention"`
@@ -133,7 +141,11 @@ type TelegramCfg struct {
 }
 
 func (c TelegramCfg) AllowedChatIDs() []string {
-	return flexibleStringList(c.AllowedChats)
+	values := flexibleStringList(c.AllowedChats)
+	if strings.TrimSpace(c.HomeChannel.ChatID) != "" {
+		values = append([]string{strings.TrimSpace(c.HomeChannel.ChatID)}, values...)
+	}
+	return compactStrings(values)
 }
 
 // DiscordCfg drives the Discord channel adapter.
@@ -1135,21 +1147,47 @@ func loadEnv(cfg *Config) error {
 	if v := strings.TrimSpace(os.Getenv("GORMES_VOICE_RECORD_KEY")); v != "" {
 		cfg.Voice.RecordKey = v
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_TOKEN"), os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_TOKEN")); v != "" {
+	if v := firstNonEmpty(
+		os.Getenv("GORMES_TELEGRAM_BOT_TOKEN"),
+		os.Getenv("GORMES_TELEGRAM_TOKEN"),
+		os.Getenv("HERMES_TELEGRAM_BOT_TOKEN"),
+		os.Getenv("HERMES_TELEGRAM_TOKEN"),
+		os.Getenv("TELEGRAM_BOT_TOKEN"),
+		os.Getenv("TELEGRAM_TOKEN"),
+	); v != "" {
 		cfg.Telegram.BotToken = v
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_CHAT_ID"), os.Getenv("TELEGRAM_HOME_CHANNEL"), os.Getenv("TELEGRAM_CHAT_ID")); v != "" {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			cfg.Telegram.AllowedChatID = id
-		}
+	if v := firstNonEmpty(
+		os.Getenv("GORMES_TELEGRAM_HOME_CHANNEL"),
+		os.Getenv("GORMES_TELEGRAM_CHAT_ID"),
+		os.Getenv("HERMES_TELEGRAM_HOME_CHANNEL"),
+		os.Getenv("HERMES_TELEGRAM_CHAT_ID"),
+		os.Getenv("TELEGRAM_HOME_CHANNEL"),
+		os.Getenv("TELEGRAM_CHAT_ID"),
+	); v != "" {
+		applyTelegramHomeChannel(cfg, v)
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("TELEGRAM_ALLOWED_USERS")); v != "" {
+	if v := firstNonEmpty(
+		os.Getenv("GORMES_TELEGRAM_HOME_CHANNEL_NAME"),
+		os.Getenv("HERMES_TELEGRAM_HOME_CHANNEL_NAME"),
+		os.Getenv("TELEGRAM_HOME_CHANNEL_NAME"),
+	); v != "" {
+		cfg.Telegram.HomeChannel.Name = v
+	}
+	if v := firstNonEmpty(
+		os.Getenv("GORMES_TELEGRAM_HOME_CHANNEL_THREAD_ID"),
+		os.Getenv("HERMES_TELEGRAM_HOME_CHANNEL_THREAD_ID"),
+		os.Getenv("TELEGRAM_HOME_CHANNEL_THREAD_ID"),
+	); v != "" {
+		cfg.Telegram.HomeChannel.ThreadID = v
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("HERMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("TELEGRAM_ALLOWED_USERS")); v != "" {
 		cfg.Telegram.AllowedUserIDs = parseEnvInt64CSV(v)
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_CHATS"), os.Getenv("TELEGRAM_ALLOWED_CHATS")); v != "" {
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_CHATS"), os.Getenv("HERMES_TELEGRAM_ALLOWED_CHATS"), os.Getenv("TELEGRAM_ALLOWED_CHATS")); v != "" {
 		cfg.Telegram.AllowedChats = parseEnvCSV(v)
 	}
-	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_GUEST_MODE"), os.Getenv("TELEGRAM_GUEST_MODE")); v != "" {
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_GUEST_MODE"), os.Getenv("HERMES_TELEGRAM_GUEST_MODE"), os.Getenv("TELEGRAM_GUEST_MODE")); v != "" {
 		parsed, err := parseEnvBool("TELEGRAM_GUEST_MODE", v)
 		if err != nil {
 			return err
@@ -1568,6 +1606,7 @@ func validateConfig(cfg *Config) error {
 	if cfg.Voice.RecordKey == "" {
 		cfg.Voice.RecordKey = "ctrl+b"
 	}
+	normalizeTelegramConfig(&cfg.Telegram)
 	cfg.Telegram.Notifications = normalizeTelegramNotifications(cfg.Telegram.Notifications)
 	if strings.TrimSpace(cfg.Runtime.TerminalBackend) == "" {
 		cfg.Runtime.TerminalBackend = cfg.Terminal.Backend
@@ -1622,6 +1661,56 @@ func validateConfig(cfg *Config) error {
 		return fmt.Errorf("config: delegation.max_waiting must be non-negative, got %d", cfg.Delegation.MaxWaiting)
 	}
 	return nil
+}
+
+func applyTelegramHomeChannel(cfg *Config, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return
+	}
+	cfg.Telegram.HomeChannel.ChatID = value
+	if id, err := strconv.ParseInt(value, 10, 64); err == nil {
+		cfg.Telegram.AllowedChatID = id
+	}
+}
+
+func normalizeTelegramConfig(cfg *TelegramCfg) {
+	cfg.BotToken = strings.TrimSpace(cfg.BotToken)
+	cfg.HomeChannel.Platform = strings.TrimSpace(cfg.HomeChannel.Platform)
+	if cfg.HomeChannel.Platform == "" && strings.TrimSpace(cfg.HomeChannel.ChatID) != "" {
+		cfg.HomeChannel.Platform = "telegram"
+	}
+	cfg.HomeChannel.ChatID = strings.TrimSpace(cfg.HomeChannel.ChatID)
+	cfg.HomeChannel.Name = strings.TrimSpace(cfg.HomeChannel.Name)
+	cfg.HomeChannel.ThreadID = strings.TrimSpace(cfg.HomeChannel.ThreadID)
+	if cfg.HomeChannel.ChatID == "" && cfg.AllowedChatID != 0 {
+		cfg.HomeChannel.ChatID = strconv.FormatInt(cfg.AllowedChatID, 10)
+		if cfg.HomeChannel.Platform == "" {
+			cfg.HomeChannel.Platform = "telegram"
+		}
+	}
+	if cfg.AllowedChatID == 0 && cfg.HomeChannel.ChatID != "" {
+		if id, err := strconv.ParseInt(cfg.HomeChannel.ChatID, 10, 64); err == nil {
+			cfg.AllowedChatID = id
+		}
+	}
+	cfg.AllowedUserIDs = compactInt64s(cfg.AllowedUserIDs)
+}
+
+func compactInt64s(values []int64) []int64 {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]int64, 0, len(values))
+	for _, value := range values {
+		if value != 0 {
+			out = append(out, value)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func normalizeNavivoxConfig(cfg *NavivoxCfg) error {

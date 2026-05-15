@@ -22,16 +22,17 @@ type setupCommandFakeSeams struct {
 	modelPickerCalls int
 	loadedCurrent    int
 
-	chooseSetupAction   func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	chooseSetupTarget   func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
-	runSetupProvider    func(*cobra.Command, bool) error
-	runProviderLiveTest func(*cobra.Command) error
-	runFullWizard       func(*cobra.Command, bool) error
-	runSetupGateway     func(*cobra.Command, bool) error
-	runGatewayPlatform  func(*cobra.Command, string) error
-	runWhatsAppSetup    func(*cobra.Command) error
-	detectHermes        func() string
-	detectOpenClaw      func() string
+	chooseSetupAction     func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	chooseSetupTarget     func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
+	runSetupProvider      func(*cobra.Command, bool) error
+	runProviderLiveTest   func(*cobra.Command) error
+	runFullWizard         func(*cobra.Command, bool) error
+	runSetupGateway       func(*cobra.Command, bool) error
+	runGatewaySetupWizard func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
+	runGatewayPlatform    func(*cobra.Command, string) error
+	runWhatsAppSetup      func(*cobra.Command) error
+	detectHermes          func() string
+	detectOpenClaw        func() string
 }
 
 func (f *setupCommandFakeSeams) seams() setupCommandSeams {
@@ -69,6 +70,7 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 		RunProviderLiveTest:           f.runProviderLiveTest,
 		RunFullWizard:                 f.runFullWizard,
 		RunSetupGateway:               f.runSetupGateway,
+		RunGatewaySetupWizard:         firstSetupGatewayWizardSeam(f.runGatewaySetupWizard),
 		RunGatewayPlatform:            f.runGatewayPlatform,
 		RunWhatsAppSetup:              f.runWhatsAppSetup,
 		DetectHermesMigrationSource:   detectHermes,
@@ -95,6 +97,27 @@ func runSetupTestCommandWithInput(t *testing.T, seams setupCommandSeams, input s
 	cmd.SetArgs(args)
 	err := cmd.Execute()
 	return stdout.String(), stderr.String(), err
+}
+
+func firstSetupGatewayWizardSeam(fn func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)) func(*cobra.Command, config.Config) (setupGatewayWizardResult, error) {
+	if fn != nil {
+		return fn
+	}
+	return func(cmd *cobra.Command, cfg config.Config) (setupGatewayWizardResult, error) {
+		options := setupGatewayPlatformOptions(cfg)
+		selection, err := promptString(cmd, "Messaging platforms (comma-separated numbers or ids, blank to keep current): ", "")
+		if err != nil {
+			return setupGatewayWizardResult{}, err
+		}
+		selected, keepCurrent, err := parseSetupGatewaySelection(selection, options)
+		if err != nil {
+			return setupGatewayWizardResult{}, err
+		}
+		if keepCurrent {
+			return setupGatewayWizardResult{}, nil
+		}
+		return setupGatewayWizardResult{SelectedPlatforms: selected}, nil
+	}
 }
 
 func TestSetupNoSectionNonTTYPrintsSectionList(t *testing.T) {
