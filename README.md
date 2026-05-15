@@ -17,9 +17,11 @@
 
 ---
 
-![Gormes install and first-run onboarding demo](webpages/docs/assets/gormes-tui-demo.gif)
+<p align="center">
+  <img src="webpages/docs/assets/gormes-tui-demo.gif" alt="Gormes install, setup, provider setup, first task, web tools, Termux, and gateway demo" width="960">
+</p>
 
-`gormes --offline` starts locally with no API key, no network calls, and no Python runtime.
+Install once, run `gormes setup`, configure a provider, and open chat from a normal terminal.
 
 ## Quick Install
 
@@ -40,27 +42,28 @@ irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/script
 After installation:
 
 ```bash
-gormes doctor --offline
-gormes --offline
+gormes setup
+gormes chat
 ```
 
-## First Proof
+## First Setup
 
 ```bash
+gormes setup                 # guided setup for provider, model, terminal, gateway, tools
+gormes setup provider        # direct provider setup shortcut
+gormes chat                  # provider-backed terminal chat
 gormes doctor --offline      # local runtime, TUI, gateway, memory — no credentials needed
 gormes --offline             # native TUI, no network
-gormes setup provider        # endpoint, model, API key (secrets to ~/.gormes/.env)
-gormes --oneshot "hello"     # one provider-backed turn
 ```
 
-If `--oneshot` returns, the TUI and gateway have a model to use.
+If `gormes chat` opens, the TUI and gateway have a model to use.
 
 ## What Works Today
 
 | Surface | Status |
 |---|---|
 | Install, offline smoke, doctor, dashboard | **Supported** |
-| CLI-first setup/config, TUI, one-shot turns, multi-agent routing | **Supported** |
+| CLI-first setup/config, TUI, scripted chat, multi-agent routing | **Supported** |
 | Providers: OpenAI, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, custom endpoints | **Supported** |
 | Local SQLite memory (Goncho), session state | **Supported** |
 | Gateways: Telegram, Discord, Slack | **Supported** |
@@ -77,7 +80,7 @@ Full Hermes-parity status by phase lives in the [roadmap](https://docs.gormes.ai
 | | Other agents | Gormes |
 |---|---|---|
 | **Install** | pip, venvs, system packages | One Go command from `install.sh` |
-| **First setup** | Find and edit config files | `gormes onboard` then `gormes setup provider` |
+| **First setup** | Find and edit config files | `gormes setup` |
 | **Smoke test** | Needs a live model first | `gormes doctor --offline` and `gormes --offline` |
 | **State** | Redis, vector DBs, sidecars | SQLite under `~/.gormes` |
 | **Channels** | Separate bot glue per platform | One gateway process with channel bindings |
@@ -87,7 +90,8 @@ Full Hermes-parity status by phase lives in the [roadmap](https://docs.gormes.ai
 
 ```bash
 gormes                          # open the native TUI
-gormes onboard --wizard         # guided first-run readiness plan
+gormes setup                    # guided setup and reconfiguration
+gormes setup --quick            # fill missing setup items only
 gormes dashboard                # web UI at http://127.0.0.1:43827/dashboard
 gormes config show              # inspect config with secrets redacted
 gormes profile use <name>       # switch isolated profile homes
@@ -101,7 +105,7 @@ gormes logs                     # read recent gateway logs
 | Action | Local CLI | Messaging gateway |
 |---|---|---|
 | Start chatting | `gormes` | Run `gormes gateway`, then message the configured channel bot. |
-| Send one provider-backed turn | `gormes --oneshot "hello"` | Send a normal message after provider setup. |
+| Start provider-backed chat | `gormes chat` | Send a normal message after provider setup. |
 | Configure provider/model | `gormes setup provider` | Run setup locally, then `gormes gateway reload`. |
 | Diagnose runtime issues | `gormes doctor --offline`, `gormes logs` | `gormes gateway status`, then fix config or credentials locally. |
 
@@ -140,7 +144,7 @@ gormes doctor --offline
 | Section | What it covers |
 |---|---|
 | [Installation](https://docs.gormes.ai/getting-started/installation/) | Source build, installer path, PATH, and offline verification. |
-| [First run](https://docs.gormes.ai/getting-started/first-run/) | `doctor`, `onboard`, provider setup, and first provider-backed turn. |
+| [First run](https://docs.gormes.ai/getting-started/first-run/) | `doctor`, `setup`, provider setup, and first provider-backed turn. |
 | [What you can do](https://docs.gormes.ai/guides/what-you-can-do/) | Outcome-driven recipes for CLI, config, gateway, profiles, memory, and security. |
 | [CLI reference](https://docs.gormes.ai/reference/cli/) | Commands, flags, and operator workflows. |
 | [Providers](https://docs.gormes.ai/reference/providers/) | Supported provider config and credential paths. |

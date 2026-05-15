@@ -110,9 +110,9 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(sourceBuildCommand).toContainText('./bin/gormes doctor --offline');
   await expect(sourceBuildCommand).toContainText('./bin/gormes --offline');
   await expect(sourceBuildCommand).not.toContainText('make build');
-  await expect(page.getByRole('heading', { name: 'After offline proof' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'After setup' })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes setup provider', { exact: true })).toBeVisible();
-  await expect(page.locator('#install').getByText('gormes --oneshot "hello"', { exact: true })).toBeVisible();
+  await expect(page.locator('#install').getByText('gormes chat', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes gateway status', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('./bin/gormes goncho doctor --json', { exact: true })).toHaveCount(0);
   await expect(page.locator('#install').getByText('GORMES_ENDPOINT=')).toHaveCount(0);

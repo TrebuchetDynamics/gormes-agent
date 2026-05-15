@@ -1,6 +1,7 @@
 package repoctl
 
 import (
+	"image/gif"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -247,18 +248,21 @@ func TestREADMEMentionsDifferentiator(t *testing.T) {
 
 // TestREADMEPreservesOperatorSections asserts the runtime-first
 // sections operators rely on. Section names tracked here: Quick
-// Install (entry point), First Proof (the rebalanced "First Run" —
-// renamed to lean into doctor/--offline as the proof), Status (the
-// release/CI summary). The two install-script invocations and the
-// two offline-proof commands round out the contract.
+// Install (entry point), First Setup (guided setup, provider shortcut,
+// and first model-backed chat), Status (the release/CI summary). The two
+// install-script invocations and the two offline-proof commands round
+// out the contract.
 func TestREADMEPreservesOperatorSections(t *testing.T) {
 	raw := readRepoFile(t, "README.md")
 	wants := []string{
 		"## Quick Install",
-		"## First Proof",
+		"## First Setup",
 		"## Status",
 		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
 		"irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex",
+		"gormes setup",
+		"gormes setup provider",
+		"gormes chat",
 		"gormes doctor --offline",
 		"gormes --offline",
 	}
@@ -266,6 +270,38 @@ func TestREADMEPreservesOperatorSections(t *testing.T) {
 		if !strings.Contains(raw, want) {
 			t.Fatalf("README must preserve operator section or command %q", want)
 		}
+	}
+}
+
+func TestREADMEHeroDemoGIFExists(t *testing.T) {
+	raw := readRepoFile(t, "README.md")
+	const assetPath = "webpages/docs/assets/gormes-tui-demo.gif"
+	wants := []string{
+		`<img src="` + assetPath + `"`,
+		"install, setup, provider setup, first task",
+		`width="960"`,
+	}
+	for _, want := range wants {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("README hero demo GIF embed missing %q", want)
+		}
+	}
+
+	f, err := os.Open(filepath.Join(repoRoot(t), assetPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	decoded, err := gif.DecodeAll(f)
+	if err != nil {
+		t.Fatalf("decode README hero GIF: %v", err)
+	}
+	if len(decoded.Image) < 6 {
+		t.Fatalf("README hero GIF should tell a multi-step product story; got %d frame(s)", len(decoded.Image))
+	}
+	bounds := decoded.Image[0].Bounds()
+	if bounds.Dx() < 1000 || bounds.Dy() < 600 {
+		t.Fatalf("README hero GIF should be high-resolution; got %dx%d", bounds.Dx(), bounds.Dy())
 	}
 }
 
@@ -279,16 +315,20 @@ func TestREADMELinksStrategyDoc(t *testing.T) {
 
 func readRepoFile(t *testing.T, rel string) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
-	raw, err := os.ReadFile(filepath.Join(root, rel))
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return string(raw)
+}
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 }
 
 func firstReadmeBodyParagraph(raw string) string {

@@ -105,7 +105,7 @@ export const page = {
     label: 'Read the install docs ->',
     href: 'https://docs.gormes.ai/using-gormes/install/',
   },
-  afterProofHeadline: 'After offline proof',
+  afterProofHeadline: 'After setup',
   afterProofItems: [
     {
       label: 'Add a provider',
@@ -113,9 +113,9 @@ export const page = {
       body: 'Configure endpoint credentials only after the local doctor and offline TUI prove the machine.',
     },
     {
-      label: 'Smoke-test a turn',
-      command: 'gormes --oneshot "hello"',
-      body: 'Run a single provider turn before starting longer local sessions or gateways.',
+      label: 'Start chat',
+      command: 'gormes chat',
+      body: 'Open a provider-backed terminal chat before starting longer local sessions or gateways.',
     },
     {
       label: 'Check gateway state',
@@ -233,7 +233,7 @@ export const page = {
         'Offline TUI and doctor',
         'Release-first install.sh and setup handoff',
         'Onboard/setup flows',
-        'Provider one-shots',
+        'Provider-backed chat',
         'Local SQLite memory and sessions',
         'Dashboard inspection',
         'Logs, security audit, and secrets audit',
