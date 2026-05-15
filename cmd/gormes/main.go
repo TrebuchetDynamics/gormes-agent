@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -1058,6 +1060,74 @@ func defaultTUIProgramFactory(model tea.Model, options ...tea.ProgramOption) tui
 	return tea.NewProgram(model, options...)
 }
 
+// welcomeStartupSeed returns the operator-facing release version and the
+// agent tool count used to seed the session-aware welcome panel. internal/tui
+// cannot import main.Version and the tool count is absent from
+// kernel.RenderFrame, so cmd/gormes computes both here at startup.
+func welcomeStartupSeed(reg *tools.Registry) (string, int, []string) {
+	descs := registryDescriptors(reg)
+	return Version, len(descs), welcomeToolsets(descs)
+}
+
+func welcomeToolsets(descs []hermes.ToolDescriptor) []string {
+	seen := map[string]struct{}{}
+	for _, desc := range descs {
+		for _, toolset := range toolsetsForToolName(desc.Name) {
+			seen[toolset] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for toolset := range seen {
+		out = append(out, toolset)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func toolsetsForToolName(name string) []string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	switch {
+	case name == "":
+		return nil
+	case strings.Contains(name, "browser"), strings.HasPrefix(name, "web_"):
+		return []string{"browser"}
+	case strings.Contains(name, "clarify"):
+		return []string{"clarify"}
+	case strings.Contains(name, "execute_code"):
+		return []string{"code_execution"}
+	case strings.Contains(name, "cron"):
+		return []string{"cronjob"}
+	case strings.Contains(name, "delegate"):
+		return []string{"delegation"}
+	case strings.Contains(name, "file"), strings.Contains(name, "patch"):
+		return []string{"file"}
+	case strings.Contains(name, "homeassistant"):
+		return []string{"homeassistant"}
+	case strings.Contains(name, "image"):
+		return []string{"image_gen"}
+	case strings.Contains(name, "kanban"):
+		return []string{"kanban"}
+	case strings.Contains(name, "memory"):
+		return []string{"memory"}
+	case strings.Contains(name, "message"):
+		return []string{"messaging"}
+	case strings.Contains(name, "session_search"):
+		return []string{"session_search"}
+	case strings.Contains(name, "skill"):
+		return []string{"skills"}
+	case strings.Contains(name, "terminal"):
+		return []string{"terminal"}
+	case strings.Contains(name, "todo"):
+		return []string{"todo"}
+	case strings.Contains(name, "speech"), strings.Contains(name, "tts"), strings.Contains(name, "transcribe"):
+		return []string{"tts"}
+	case strings.Contains(name, "vision"), strings.Contains(name, "video"):
+		return []string{"vision"}
+	default:
+		return nil
+	}
+}
+
 func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runtime rootRuntime) error {
 	runNativeTUIStartupPreflight(context.Background(), tuiStartupPreflightOptions{})
 	if runtime.tuiProgramFactory == nil {
@@ -1176,6 +1246,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
 	}
 
+	welcomeVersion, welcomeToolCount, welcomeToolsets := welcomeStartupSeed(registry)
 	model := tui.NewModelWithOptions(hookedFrames, submit, cancelTurn, tui.Options{
 		MouseTracking:  cfg.TUI.MouseTracking,
 		VoiceRecordKey: cfg.Voice.RecordKey,
@@ -1183,8 +1254,11 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		KanbanSlash: func(input string) (string, error) {
 			return runTUIKanbanSlashCommand(rootCtx, input)
 		},
-		OfflineSmoke:  offline,
-		StartupNotice: startupNotice,
+		OfflineSmoke:     offline,
+		StartupNotice:    startupNotice,
+		WelcomeVersion:   welcomeVersion,
+		WelcomeToolCount: welcomeToolCount,
+		WelcomeToolsets:  welcomeToolsets,
 	})
 	// Hermes' current Ink TUI runs in an alternate screen by default. The
 	// Bubble Tea port mirrors that for the full-screen dashboard so repeated

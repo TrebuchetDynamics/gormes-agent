@@ -67,6 +67,14 @@ type Options struct {
 	// Runtime callers use it for recoverable degraded state that should not
 	// scar terminal scrollback before Bubble Tea enters the alt screen.
 	StartupNotice string
+	// WelcomeVersion / WelcomeToolCount seed the session-aware welcome panel
+	// with the operator-facing release version and agent tool count, which
+	// are unreachable from internal/tui (main.Version is package main; the
+	// tool count is absent from kernel.RenderFrame). Zero values keep the
+	// R1 best-effort/omit behavior.
+	WelcomeVersion   string
+	WelcomeToolCount int
+	WelcomeToolsets  []string
 }
 
 // BusyInputVerdict mirrors the cli.BusyInputVerdict shape for callers that
@@ -144,6 +152,11 @@ func NewModel(frames <-chan kernel.RenderFrame, submit Submitter, cancel Cancell
 // options. cmd/gormes seeds these from config; tests can inject MouseModeCmd to
 // assert terminal mode changes without a real terminal.
 func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, cancel Canceller, opts Options) Model {
+	// Seed the session-aware welcome panel from the caller (cmd/gormes wires
+	// the real release version + agent tool count). Zero values are safe and
+	// keep the R1 best-effort/omit behavior.
+	SetWelcomeContext(opts.WelcomeVersion, opts.WelcomeToolCount, opts.WelcomeToolsets...)
+
 	ta := textarea.New()
 	ta.Placeholder = "Type a message and hit Enter…"
 	ta.ShowLineNumbers = false

@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -11,7 +14,38 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
+
+func TestChatWelcomeStartupSeedUsesRealVersionAndToolCount(t *testing.T) {
+	if Version == "" {
+		t.Fatal("main.Version must be non-empty for the welcome panel seed")
+	}
+
+	v, n, toolsets := welcomeStartupSeed(tools.NewRegistry())
+	if v != Version {
+		t.Fatalf("welcomeStartupSeed version = %q, want main.Version %q", v, Version)
+	}
+	if n != 0 {
+		t.Fatalf("empty registry tool count = %d, want 0", n)
+	}
+	if len(toolsets) != 0 {
+		t.Fatalf("empty registry toolsets = %v, want none", toolsets)
+	}
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{
+		NameStr: "terminal",
+		ExecuteFn: func(context.Context, json.RawMessage) (json.RawMessage, error) {
+			return json.RawMessage(`{}`), nil
+		},
+	})
+	if _, n2, toolsets2 := welcomeStartupSeed(reg); n2 != 1 {
+		t.Fatalf("one-tool registry count = %d, want 1", n2)
+	} else if !slices.Contains(toolsets2, "terminal") {
+		t.Fatalf("one-tool registry toolsets = %v, want terminal", toolsets2)
+	}
+}
 
 func TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad(t *testing.T) {
 	setupOneshotFlagTestEnv(t)

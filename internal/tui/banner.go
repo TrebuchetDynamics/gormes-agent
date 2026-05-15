@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -98,6 +99,24 @@ type welcomeContext struct {
 	CWD       string
 	SessionID string
 	Version   string // best-effort; "" => version line omitted
+	ToolCount int    // 0 => tools line omitted
+	Toolsets  []string
+}
+
+// welcomeSeed is the process-wide startup seam: cmd/gormes seeds the real
+// release version and agent tool count here (via SetWelcomeContext, wired
+// through tui.Options) because main.Version is unimportable from internal/tui
+// and the tool count is absent from kernel.RenderFrame. Zero value = unset,
+// in which case welcomePanel keeps the R1 best-effort/omit behavior.
+var welcomeSeed welcomeContext
+
+// SetWelcomeContext seeds the welcome panel with the operator-facing release
+// version and agent tool count. Safe to call with zero values (resets to the
+// R1 best-effort/omit behavior); idempotent and called once at startup.
+func SetWelcomeContext(version string, toolCount int, toolsets ...string) {
+	welcomeSeed.Version = version
+	welcomeSeed.ToolCount = toolCount
+	welcomeSeed.Toolsets = append([]string(nil), toolsets...)
 }
 
 // welcomePalette is the small set of colors the welcome panel needs. It is
@@ -144,39 +163,108 @@ func welcomePanel(skin HermesSkin, ctx welcomeContext, width int) string {
 		}
 		ctxLines = append(ctxLines, accentStyle.Render(label+" ")+dimStyle.Render(value))
 	}
-	addCtx("model", ctx.Model)
-	addCtx("provider", strings.TrimSpace(ctx.Provider+" "+ctx.Runtime))
+	// Overlay the startup seam: explicit frame-derived ctx values win;
+	// otherwise fall back to the cmd/gormes-seeded version/tool count;
+	// otherwise omit (R1 best-effort behavior).
+	version := strings.TrimSpace(ctx.Version)
+	if version == "" {
+		version = strings.TrimSpace(welcomeSeed.Version)
+	}
+	toolCount := ctx.ToolCount
+	if toolCount <= 0 {
+		toolCount = welcomeSeed.ToolCount
+	}
+	toolsets := ctx.Toolsets
+	if len(toolsets) == 0 {
+		toolsets = welcomeSeed.Toolsets
+	}
+
 	addCtx("cwd", ctx.CWD)
 	if id := strings.TrimSpace(ctx.SessionID); id != "" {
 		addCtx("session", shortSessionID(id))
 	}
-	addCtx("version", ctx.Version)
+	addCtx("version", version)
 	if len(ctxLines) > 0 {
 		body = append(body, "")
 		body = append(body, ctxLines...)
 	}
+	if summary := welcomeSummary(ctx, toolCount, toolsets, dimStyle, accentStyle); summary != "" {
+		body = append(body, "")
+		body = append(body, summary)
+	}
 
 	body = append(body, "")
+	body = append(body, dimStyle.Render("Welcome to Gormes."))
 	body = append(body, dimStyle.Render("Type your message or /help for commands."))
+	body = append(body, dimStyle.Render("Tip: Type /new for a fresh session, /model to switch models, or /skills list."))
 	content := strings.Join(body, "\n")
 
 	if skin.UseMinimalChrome(width) {
 		return content
 	}
 
-	// Frame with skin-colored horizontal rules only. Gormes' bottom-pinned
-	// chrome forbids vertical pipe pairs on the response/identity row (the
-	// no-sidebar contract), so the panel must never wrap content in a box
-	// border. This mirrors ccx-go's header-rule pattern, not its side box.
-	ruleW := width - 2
-	if ruleW < 8 {
-		ruleW = 8
+	banner := welcomeBannerBox(skin, version, width)
+	return strings.Join([]string{banner, content}, "\n\n")
+}
+
+func welcomeSummary(ctx welcomeContext, toolCount int, toolsets []string, dimStyle, accentStyle lipgloss.Style) string {
+	var parts []string
+	if model := strings.TrimSpace(ctx.Model); model != "" {
+		parts = append(parts, model)
 	}
-	if ruleW > 78 {
-		ruleW = 78
+	if toolCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d tools", toolCount))
 	}
-	rule := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(pal.border)).
-		Render(strings.Repeat("─", ruleW))
-	return strings.Join([]string{rule, content, rule}, "\n")
+	if len(toolsets) > 0 {
+		parts = append(parts, "toolsets: "+strings.Join(toolsets, ", "))
+	}
+	if provider := strings.TrimSpace(ctx.Provider + " " + ctx.Runtime); provider != "" {
+		parts = append(parts, "provider: "+provider)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return accentStyle.Render("● ") + dimStyle.Render(strings.Join(parts, " · "))
+}
+
+func welcomeBannerBox(skin HermesSkin, version string, width int) string {
+	pal := welcomePaletteFor(skin)
+	border := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.border))
+	title := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.title)).Bold(true)
+	dim := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.dim))
+
+	innerW := width - 4
+	if innerW < 36 {
+		innerW = 36
+	}
+	if innerW > 68 {
+		innerW = 68
+	}
+	line1 := fitWelcomeLine("⚕ Gormes - Go-native Hermes-compatible agent", innerW)
+	line2Text := "Gormes"
+	if version = strings.TrimSpace(version); version != "" {
+		line2Text += " v" + strings.TrimPrefix(version, "v")
+	}
+	line2 := fitWelcomeLine(line2Text, innerW)
+
+	top := border.Render("╔" + strings.Repeat("═", innerW+2) + "╗")
+	mid1 := border.Render("║ ") + title.Render(line1) + border.Render(" ║")
+	mid2 := border.Render("║ ") + dim.Render(line2) + border.Render(" ║")
+	bot := border.Render("╚" + strings.Repeat("═", innerW+2) + "╝")
+	return strings.Join([]string{top, mid1, mid2, bot}, "\n")
+}
+
+func fitWelcomeLine(value string, width int) string {
+	value = strings.TrimSpace(value)
+	if width <= 0 {
+		return ""
+	}
+	if lipgloss.Width(value) > width {
+		value = truncateEllipsis(value, width)
+	}
+	padding := width - lipgloss.Width(value)
+	if padding > 0 {
+		value += strings.Repeat(" ", padding)
+	}
+	return value
 }

@@ -78,14 +78,13 @@ func TestWelcomePanel_SessionContextAndIdentity(t *testing.T) {
 		}
 	}
 
-	// Framed with a horizontal rule at full width.
-	if !strings.Contains(got, strings.Repeat("─", 8)) {
-		t.Fatalf("welcome panel not rule-framed at width 100:\n%s", got)
-	}
-	// No-sidebar contract: no line carrying "Gormes" may pair vertical pipes,
-	// and the panel must not draw a box border at all.
-	if strings.Contains(got, "│") {
-		t.Fatalf("welcome panel drew sidebar/box pipes (violates no-sidebar contract):\n%s", got)
+	// Framed with a boxed product banner at full width, matching the
+	// operator-visible Hermes/Gormes startup surface rather than a loose
+	// rule-delimited text block.
+	for _, want := range []string{"╔", "║", "╚"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("welcome panel missing boxed banner marker %q:\n%s", want, got)
+		}
 	}
 	if strings.Contains(got, "start typing below to begin") {
 		t.Fatalf("welcome panel leaked legacy placeholder:\n%s", got)
@@ -120,13 +119,46 @@ func TestWelcomePanel_SkinDerivedPalette(t *testing.T) {
 	}
 }
 
+func TestWelcomePanel_VersionToolCountSeam(t *testing.T) {
+	// Zero-value safe: with no seam set and an empty ctx, R1 best-effort/omit
+	// behavior holds — no version/tools lines, no panic.
+	SetWelcomeContext("", 0)
+	bare := welcomePanel(DefaultHermesSkin(), welcomeContext{Model: "anthropic/x"}, 100)
+	if strings.Contains(bare, " tools") {
+		t.Fatalf("unset seam must not render a tool-count line:\n%s", bare)
+	}
+
+	// Seeded by cmd/gormes at startup: real version + agent tool count show.
+	SetWelcomeContext("0.2.11", 42, "terminal", "skills")
+	defer SetWelcomeContext("", 0)
+	got := welcomePanel(DefaultHermesSkin(), welcomeContext{Model: "anthropic/x"}, 100)
+	if !strings.Contains(got, "0.2.11") {
+		t.Fatalf("seeded version not rendered:\n%s", got)
+	}
+	if !strings.Contains(got, "42 tools") {
+		t.Fatalf("seeded tool count not rendered:\n%s", got)
+	}
+	if !strings.Contains(got, "toolsets: terminal, skills") {
+		t.Fatalf("seeded toolsets not rendered:\n%s", got)
+	}
+
+	// An explicit ctx value still wins over the seam (frame-derived data is
+	// authoritative when present).
+	ctxWin := welcomePanel(DefaultHermesSkin(), welcomeContext{Model: "m", Version: "9.9.9"}, 100)
+	if !strings.Contains(ctxWin, "9.9.9") || strings.Contains(ctxWin, "0.2.11") {
+		t.Fatalf("explicit ctx.Version must win over seam:\n%s", ctxWin)
+	}
+}
+
 func TestWelcomePanel_MinimalChromeDegrades(t *testing.T) {
 	skin := DefaultHermesSkin()
 	ctx := welcomeContext{Model: "anthropic/x"}
 	got := welcomePanel(skin, ctx, 50) // < hermesMinimalChromeWidth (64)
 
-	if strings.Contains(got, strings.Repeat("─", 8)) {
-		t.Fatalf("minimal-chrome welcome panel must drop the rule frame at width 50:\n%s", got)
+	for _, banned := range []string{"╔", "║", "╚"} {
+		if strings.Contains(got, banned) {
+			t.Fatalf("minimal-chrome welcome panel must drop boxed banner marker %q at width 50:\n%s", banned, got)
+		}
 	}
 	if !strings.Contains(got, "Type your message or /help for commands.") {
 		t.Fatalf("minimal-chrome welcome panel dropped the slash tip:\n%s", got)
