@@ -223,6 +223,8 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
         _upsertAssistantMessage(event);
       case 'tool_call_started':
         _upsertToolCall(event, 'started');
+      case 'tool_call_updated':
+        _upsertToolCall(event, event.status ?? 'updated');
       case 'tool_call_finished':
         _upsertToolCall(event, event.status ?? 'finished');
       case 'error':
@@ -291,6 +293,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     final toolCallId = event.toolCallId ?? 'tool-${_uuid.v4()}';
     final index = _state.messages.indexWhere((m) => m.id == toolCallId);
     final prior = index >= 0 ? _state.messages[index].toolCall : null;
+    final summary = event.message ?? event.text ?? prior?.summary ?? '';
     final message = NavivoxChatMessage(
       id: toolCallId,
       author: NavivoxMessageAuthor.assistant,
@@ -299,7 +302,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
       toolCall: NavivoxToolCall(
         name: event.toolName ?? prior?.name ?? 'tool',
         status: status,
-        summary: prior?.summary ?? '',
+        summary: summary,
         artifacts: prior?.artifacts ?? const [],
       ),
     );

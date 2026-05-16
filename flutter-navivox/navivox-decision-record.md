@@ -104,6 +104,7 @@ Current server events:
 - `assistant_delta`
 - `assistant_message`
 - `tool_call_started`
+- `tool_call_updated`
 - `tool_call_finished`
 - `error`
 - `done`
@@ -114,6 +115,8 @@ Rules:
 - HTTP auth uses bearer tokens when `auth_mode` requires a token.
 - `NavivoxGatewayConfig` derives `ws://` or `wss://` stream URLs from the base
   URL returned by `connect-info`.
+- Tool events are structured cards with bounded summaries; raw tool arguments,
+  stdout, secrets, and full logs must not be serialized as chat text.
 - Binary audio transport is future work; the first voice loop can submit device
   transcripts as text while voice run records are designed.
 

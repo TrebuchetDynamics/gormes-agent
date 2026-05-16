@@ -99,12 +99,19 @@ Server events:
 - `assistant_delta`
 - `assistant_message`
 - `tool_call_started`
+- `tool_call_updated`
 - `tool_call_finished`
 - `error`
 - `done`
 
 Every client request must include `request_id`. Runtime actions use
 `session_id` when available.
+
+Tool events are structured Navivox events, not assistant text. They include
+`tool_call_id`, `tool_name`, `status`, and a bounded `message` summary. The
+gateway deliberately avoids serializing raw tool arguments, stdout, secrets, or
+full logs into these events. Non-Navivox channels keep their existing text
+progress behavior.
 
 ## Firewall
 

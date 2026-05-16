@@ -149,9 +149,14 @@ Trust boundaries:
 | `assistant_delta` | Streaming assistant text delta. |
 | `assistant_message` | Final or replaced assistant message. |
 | `tool_call_started` | Begin a structured tool card. |
-| `tool_call_finished` | Complete or update a structured tool card. |
+| `tool_call_updated` | Update status or bounded summary for a tool card. |
+| `tool_call_finished` | Complete a structured tool card. |
 | `error` | Safe error code/message. |
 | `done` | End of the current turn stream. |
+
+Tool events carry `tool_call_id`, `tool_name`, `status`, and a bounded
+`message` summary. Raw tool arguments, stdout, secrets, and full logs are out
+of scope for Navivox events.
 
 ## 8. First Useful Screen
 
