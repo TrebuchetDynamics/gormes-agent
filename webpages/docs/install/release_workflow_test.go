@@ -80,6 +80,43 @@ func TestReleaseWorkflowContract(t *testing.T) {
 	}
 }
 
+func TestReleaseWorkflowValidateJobCoversCIBlogGate(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+
+	wantAll := []string{
+		"cache-dependency-path: |",
+		"webpages/docs/package-lock.json",
+		"webpages/blog/package-lock.json",
+		"- name: Install docs dependencies",
+		"working-directory: webpages/docs",
+		"run: npm ci",
+		"- name: Install blog dependencies",
+		"working-directory: webpages/blog",
+		"- name: Test engineering blog",
+		"run: npm run test",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(workflow, want) {
+			t.Errorf("release validate job missing %q", want)
+		}
+	}
+
+	installBlog := workflowStepBlock(t, workflow, "- name: Install blog dependencies")
+	if !strings.Contains(installBlog, "working-directory: webpages/blog") || !strings.Contains(installBlog, "run: npm ci") {
+		t.Fatalf("Install blog dependencies step is incomplete:\n%s", installBlog)
+	}
+	testBlog := workflowStepBlock(t, workflow, "- name: Test engineering blog")
+	if !strings.Contains(testBlog, "working-directory: webpages/blog") || !strings.Contains(testBlog, "run: npm run test") {
+		t.Fatalf("Test engineering blog step is incomplete:\n%s", testBlog)
+	}
+
+	assertWorkflowOrder(t, workflow, "webpages/docs/package-lock.json", "webpages/blog/package-lock.json")
+	assertWorkflowOrder(t, workflow, "- name: Install docs dependencies", "- name: Install blog dependencies")
+	assertWorkflowOrder(t, workflow, "- name: Install blog dependencies", "- name: Run Go tests")
+	assertWorkflowOrder(t, workflow, "- name: Run Go tests", "- name: Test engineering blog")
+	assertWorkflowOrder(t, workflow, "- name: Test engineering blog", "- name: Validate progress")
+}
+
 func TestReleaseWorkflowInjectsBuildDateProvenance(t *testing.T) {
 	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
 	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
