@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Gormes update release planner and dry-run contract
+## 1. Navivox HTTP/WS documentation refresh
+
+- Phase: 9 / 9.F
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Refresh the stale Navivox planning docs so every operator and builder surface describes the current HTTP/WebSocket gateway channel, not the deleted SSH stdio transport. The pass updates the decision record, PRD, architecture, routes, testing plan, and generated CLI/docs references to say that `gormes navivox connect-info`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream` are the supported path; `gormes navivox serve\|pair\|setup-host`, NVOX binary frames, dartssh2, SSH keys, and fake-server mode are historical/deleted only.
+- Trust class: operator, gateway, system
+- Ready when: The current changelog proves SSH stdio was removed and HTTP/WS is the only Navivox transport., `docs/content/cli/navivox.md` already documents `connect-info` as the surviving CLI surface., The pass stays docs-only and does not edit runtime code under cmd/ or internal/.
+- Not ready when: The edit reintroduces `gormes navivox serve`, `pair`, `setup-host`, dartssh2, SSH keys, NVOX frame codec, or fake-server mode as current behavior., The edit describes public exposure without the existing local/Tailscale/public confirmation gates., The edit starts planning campaigns, telephony, retries, scheduling, or human handoff before the core Navivox talk loop is proven.
+- Degraded mode: If docs remain stale, builders may reintroduce the deleted SSH/stdin protocol or fake-server client; runtime behavior stays HTTP/WS but operator setup guidance is contradictory.
+- Fixture: `docs/content/cli/navivox.md`
+- Write scope: `flutter-navivox/navivox-decision-record.md`, `flutter-navivox/navivox-prd.md`, `flutter-navivox/navivox-architecture.md`, `flutter-navivox/navivox-routes.md`, `flutter-navivox/navivox-testing-plan.md`, `docs/content/cli/navivox.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `rg -n 'serve --stdio\|navivox pair\|setup-host\|dartssh2\|NVOX\|SSH stdio\|fake-server' flutter-navivox docs/content/cli docs/content/building-gormes`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Navivox planning docs describe only HTTP/WS as current, stale SSH/NVOX terms are removed or explicitly historical, and progress validation plus diff-check pass.
+- Acceptance: `rg -n 'serve --stdio\|navivox pair\|setup-host\|dartssh2\|NVOX\|SSH stdio\|fake-server' flutter-navivox docs/content/cli docs/content/building-gormes` returns only historical/deleted mentions that are explicitly labeled as removed., The docs name the live HTTP/WS endpoints and `gormes navivox connect-info` path., The Dograh-inspired activation principle is documented as `connect and talk without telephony setup`, not as telephony/campaign scope., HTTP/WS trust boundaries remain visible: disabled by default, loopback by default, VPN/public exposure gates, token redaction.
+- Source refs: CHANGELOG.md:31, CHANGELOG.md:67, docs/content/cli/navivox.md, flutter-navivox/navivox-decision-record.md:63, flutter-navivox/navivox-prd.md:75, flutter-navivox/navivox-architecture.md:431, https://github.com/dograh-hq/dograh#your-first-voice-bot
+- Unblocks: Navivox connect-and-talk first screen, Navivox natural-language agent seed flow, Navivox structured tool event cards, Navivox safe config admin over HTTP, Navivox voice run records, Navivox per-agent BYO voice profiles
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Gormes update release planner and dry-run contract
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -48,7 +69,7 @@ selection.
 - Unblocks: Gormes update verified binary swap and rollback
 - Why now: Unblocks Gormes update verified binary swap and rollback.
 
-## 2. Termux remote execution guidance
+## 3. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -68,7 +89,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Agentic-porting-kit public repo scaffold
+## 4. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

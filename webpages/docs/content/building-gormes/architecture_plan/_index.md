@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/109 subphases shipped · 10 in progress · 1 planned
+**Overall:** 98/110 subphases shipped · 10 in progress · 2 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -103,7 +103,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | ✅ | 6/6 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
 
@@ -1118,6 +1118,7 @@ classification and row-backed implementation queue.
 - [x] gormes doctor actionable issues summary and --fix auto-remediation
 - [x] gormes doctor ◆ Section grouping + upstream section ordering (UX parity)
 - [ ] gormes doctor section-content parity (Security Advisories / Directory Structure / Skills Hub / Auth Providers / Profiles)
+- [x] gormes setup <section> boxed header + completion footer (UX parity)
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
 - [x] CLI log redactor for known secret shapes
@@ -1434,7 +1435,7 @@ classification and row-backed implementation queue.
 - [x] Built-with-Gormes page scaffold
 - [x] Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening ✅
+## Phase 9 — Design & Security Hardening 🔨
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
@@ -1463,7 +1464,17 @@ classification and row-backed implementation queue.
 - [x] Navivox HTTP gateway mandatory-VPN bind
 - [x] Navivox HTTP gateway connect-info command
 
-### 9.F — External Issue Radar Regression Guards ✅
+### 9.F — Navivox Operator Activation ⏳
+
+- [ ] Navivox HTTP/WS documentation refresh
+- [ ] Navivox connect-and-talk first screen
+- [ ] Navivox natural-language agent seed flow
+- [ ] Navivox structured tool event cards
+- [ ] Navivox safe config admin over HTTP
+- [ ] Navivox voice run records
+- [ ] Navivox per-agent BYO voice profiles
+
+### 9.G — External Issue Radar Regression Guards ✅
 
 - [x] PicoClaw-derived channel media and identity regression matrix
 - [x] PicoClaw-derived session ledger read-model regression matrix
