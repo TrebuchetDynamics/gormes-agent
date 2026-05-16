@@ -50,4 +50,5 @@ and acceptance checks before assigning them to an implementation agent.
 | 6 / 6.A | Heuristic or LLM-scored signal | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 6 / 6.E | Skill effectiveness scoring | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
 | 6 / 6.F | TUI + Telegram browsing | `docs` | The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet. | - |
+| 8 / 8.F | Module-split the progress backlog (per-subsystem files, parity-aligned) | `tools` | Built as a big-bang rewrite; rows migrated lossily; internal/progress.Load public contract broken; a consumer left reading a now-missing monolith; docs/landing generators silently diverged; AGENTS.md/skills not updated to the split layout. | - |
 <!-- PROGRESS:END -->

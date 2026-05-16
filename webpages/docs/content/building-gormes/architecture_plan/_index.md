@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 100/110 subphases shipped · 9 in progress · 1 planned
+**Overall:** 99/110 subphases shipped · 10 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -102,7 +102,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -1435,9 +1435,13 @@ classification and row-backed implementation queue.
 - [x] Agentic-porting-kit extraction spec
 - [ ] Agentic-porting-kit public repo scaffold
 
-### 8.F — Cost Discipline & Loop Economics ✅
+### 8.F — Cost Discipline & Loop Economics 🔨
 
 - [x] Loop $/iteration cost metric in status file
+- [ ] Stop git-tracking duplicate landing progress mirrors (build-time generate)
+- [ ] Compact completed-row shipped-evidence notes to a one-line pointer
+- [ ] Module-split the progress backlog (per-subsystem files, parity-aligned)
+- [ ] Backlog split C1: lossless multi-file loader/writer behind the single-file API
 
 ### 8.G — Community & External Contributions ✅
 
