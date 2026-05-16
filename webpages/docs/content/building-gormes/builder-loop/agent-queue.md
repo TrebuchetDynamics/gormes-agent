@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Termux notification bridge via termux-api
-
-- Phase: 1 / 5.X
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Add an optional Termux notification adapter that shells out to termux-notification only when Termux and the command are detected. Gateway/long-run status can emit Android notifications through this adapter, while non-Termux hosts and Termux hosts without Termux:API degrade to structured no-op/WARN evidence. The adapter must redact secrets and never make termux-api a hard dependency.
-- Trust class: operator, gateway, system
-- Ready when: Termux runtime doctor check is complete., A small notification sender interface can be injected into gateway/status paths without changing core gateway contracts., Tests can fake command lookup and command execution.
-- Not ready when: The adapter invokes live termux-notification in tests., Missing Termux:API fails doctor, gateway, or long-running tasks., Notification text can include provider tokens, bot tokens, prompts containing secrets, or raw command output without redaction.
-- Degraded mode: Missing termux-notification or missing Termux:API app returns optional_notification_unavailable evidence; Gormes continues normally without Android notifications.
-- Fixture: `internal/gateway or internal/tools Termux notification adapter tests with fake exec runner`
-- Write scope: `internal/gateway/`, `internal/tools/`, `internal/doctor/`, `cmd/gormes/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/gateway ./internal/tools -run 'Termux.*Notification\|Notification.*Termux' -count=1`, `go test ./cmd/gormes -run 'Termux\|Notification' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Optional termux-api notification adapter sends through fake exec under Termux and degrades cleanly everywhere else.
-- Acceptance: Fake-exec tests prove Termux notification sends title/body through termux-notification with bounded arguments., Non-Termux and missing-command tests return structured no-op/WARN evidence., Doctor/status output references notification availability without requiring Termux:API., Secret redaction tests prove tokens are not passed into notification bodies.
-- Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Termux real-device smoke evidence
+## 1. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -68,7 +48,7 @@ selection.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Termux remote execution guidance
+## 2. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -88,7 +68,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Agentic-porting-kit public repo scaffold
+## 3. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

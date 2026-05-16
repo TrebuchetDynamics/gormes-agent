@@ -159,7 +159,7 @@ classification and row-backed implementation queue.
 - [x] Termux install and release smoke guide
 - [x] Termux storage and path safety audit
 - [x] Termux gateway foreground tmux lifecycle
-- [ ] Termux notification bridge via termux-api
+- [x] Termux notification bridge via termux-api
 - [ ] Termux real-device smoke evidence
 - [ ] Termux remote execution guidance
 

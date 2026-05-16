@@ -38,6 +38,7 @@ func TestCheckTermuxRuntimeReportsPCLikePathAndAndroidLifecycle(t *testing.T) {
 		"install_dir=/data/data/com.termux/files/usr/bin",
 		"tmux available",
 		"termux-api commands available",
+		"termux-notification",
 		"run long gateway sessions inside tmux",
 		"termux-wake-lock",
 	} {

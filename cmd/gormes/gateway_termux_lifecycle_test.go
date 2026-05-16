@@ -20,6 +20,8 @@ func TestTermuxGatewayStatusTextIncludesForegroundLifecycleGuidance(t *testing.T
 		"foreground/tmux lifecycle",
 		"gormes gateway",
 		"termux-wake-lock",
+		"Termux notification:",
+		"available",
 		"Android battery",
 		"best-effort",
 	} {
@@ -79,6 +81,9 @@ func TestTermuxGatewayStatusJSONKeepsDesktopContract(t *testing.T) {
 	if strings.Contains(stdout, "Termux gateway:") || strings.Contains(stdout, "foreground/tmux lifecycle") {
 		t.Fatalf("gateway status --json mixed human Termux guidance into JSON:\n%s", stdout)
 	}
+	if strings.Contains(stdout, "Termux notification:") {
+		t.Fatalf("gateway status --json mixed human Termux notification guidance into JSON:\n%s", stdout)
+	}
 }
 
 func TestTermuxGatewayStopJSONKeepsDesktopContract(t *testing.T) {
@@ -100,7 +105,29 @@ func TestTermuxGatewayStopJSONKeepsDesktopContract(t *testing.T) {
 	}
 }
 
+func TestTermuxGatewayStatusTextReportsNotificationUnavailable(t *testing.T) {
+	setupTermuxGatewayLifecycleTestEnvWithCommands(t, []string{"tmux", "termux-wake-lock"})
+
+	stdout, stderr, err := executeGatewayStatusCommand(t)
+	if err != nil {
+		t.Fatalf("gateway status: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Termux notification:",
+		"optional_notification_unavailable",
+		"termux-notification missing",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("gateway status missing notification degradation %q:\n%s", want, stdout)
+		}
+	}
+}
+
 func setupTermuxGatewayLifecycleTestEnv(t *testing.T) {
+	setupTermuxGatewayLifecycleTestEnvWithCommands(t, []string{"tmux", "termux-wake-lock", "termux-notification"})
+}
+
+func setupTermuxGatewayLifecycleTestEnvWithCommands(t *testing.T, commands []string) {
 	t.Helper()
 	root, err := os.MkdirTemp("/tmp", "gormes-termux-gateway-")
 	if err != nil {
@@ -122,7 +149,7 @@ func setupTermuxGatewayLifecycleTestEnv(t *testing.T) {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
-	for _, name := range []string{"tmux", "termux-wake-lock", "termux-notification"} {
+	for _, name := range commands {
 		if err := os.WriteFile(filepath.Join(binDir, name), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 			t.Fatalf("write %s: %v", name, err)
 		}
