@@ -77,7 +77,7 @@ Useful discovery:
 
 ```sh
 go run ./cmd/progress validate
-jq -r '.phases | to_entries[] | .key as $phase | .value.subphases | to_entries[] | .key as $subphase | .value.items[]? | select(.status=="planned" or .status=="porting" or .status=="fixture_ready") | [$phase,$subphase,.name,.priority] | @tsv' docs/content/building-gormes/architecture_plan/progress.json | head -20
+go run ./cmd/progress emit | jq -r '.phases | to_entries[] | .key as $phase | .value.subphases | to_entries[] | .key as $subphase | .value.items[]? | select(.status=="planned" or .status=="porting" or .status=="fixture_ready") | [$phase,$subphase,.name,.priority] | @tsv' | head -20
 ```
 
 ## Build Workflow

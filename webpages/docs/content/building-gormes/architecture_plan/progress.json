@@ -61836,12 +61836,12 @@
             {
               "name": "Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "The gormes-planner, gormes-builder, and gormes-provider-parity SKILL.md discovery snippets run `jq ... docs/content/building-gormes/architecture_plan/progress.json` directly against the canonical backlog. `jq` on a directory fails, so every future planner/builder/provider-parity pass — and the autonomous fleet that drives them — breaks the moment the canonical path becomes a module-keyed split DIRECTORY (C5). Replace the raw-jq discovery snippets with a split-safe equivalent: prefer `go run ./cmd/progress` (a read-only list/emit) or `jq` over `go run ./cmd/progress`'s merged emit, so discovery returns the same row inventory whether the canonical is a monolithic file or a split directory. Canonical skill sources are docs/development-skills/<name>/SKILL.md; .agents/.claude/.codex are symlink loader views (auto-resolve) and the webpages/docs/development-skills copies regenerate. If `cmd/progress` lacks a discovery-shaped read-only emit, this row MAY add a pure, non-default read-only subcommand (mirror the ROW B/C1 separate-explicit-action precedent) — record any cmd/progress write-scope addition in the row note. Owned Gormes infra; prerequisite for C5.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -61884,7 +61884,7 @@
               "done_signal": [
                 "gormes-* skill discovery is split-directory-safe; no raw jq of the canonical path in any gormes-* skill; symlink views resolve."
               ],
-              "note": "Module-split umbrella prerequisite for C5. Authored 2026-05-16 planner pass from the C5-not-executable raw-reader audit (raw jq breaks every future planner/builder pass + the autonomous fleet fleet-wide). Doc/skill-only (+ optional pure read-only cmd/progress emit). Builder-ready: blocked_by C1+C5b (both SHIPPED). Builder chain: gormes-builder (skill copy) or gormes-tdd-slice if a cmd/progress emit is added."
+              "note": "SHIPPED 2026-05-16 see git log — added pure read-only non-default `progress emit` (cmd/progress/main.go + progressctl.Emit: loadValidProgress→SaveProgress(temp)→stdout, byte-identical canonical for monolith/phase-split/module-split, never mutates canonical); gormes-planner:91 + gormes-builder:80 jq snippets repointed to `go run ./cmd/progress emit | jq …` (exact pipelines preserved). Write-scope corrections: gormes-provider-parity:45 is prose with NO jq snippet — untouched (source_refs over-assumed 3 jq snippets, only planner+builder had them); the emit impl lives in internal/progressctl/progressctl.go + progressctl_test.go (within the row's cmd/progress intent — the thin main.go just dispatches). Audit: zero raw jq of the canonical path remains in any gormes-* skill; symlink views (.agents/.claude/.codex) resolve to the edited canonical sources."
             },
             {
               "name": "Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe",

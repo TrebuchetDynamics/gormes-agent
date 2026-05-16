@@ -88,7 +88,7 @@ contract and inspect the backlog; they do not start an autonomous planner loop:
 
 ```sh
 go run ./cmd/progress validate
-jq -r '.phases | to_entries[] | [.key, (.value.name // ""), ([.value.subphases[]?.items[]?] | length)] | @tsv' docs/content/building-gormes/architecture_plan/progress.json
+go run ./cmd/progress emit | jq -r '.phases | to_entries[] | [.key, (.value.name // ""), ([.value.subphases[]?.items[]?] | length)] | @tsv'
 find cmd internal -maxdepth 2 -type f -name '*.go' | sort
 ```
 

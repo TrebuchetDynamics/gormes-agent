@@ -1448,7 +1448,7 @@ classification and row-backed implementation queue.
 - [x] Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout
 - [x] Backlog split C5b: module-keyed split layout behind the existing API
 - [x] Backlog split C5c: migrate webpages/docs raw progress.json readers to internal/progress.Load
-- [ ] Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json
+- [x] Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json
 - [ ] Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe
 - [ ] Backlog split C5: single atomic operator-gated flip to the module-keyed split directory
 
