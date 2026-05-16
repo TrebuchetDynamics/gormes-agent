@@ -242,8 +242,17 @@ func (ph Phase) DerivedStatus() Status {
 	}
 }
 
-// Load reads and parses progress.json from the given path.
+// Load reads and parses the backlog from the given path. It is layout
+// transparent: a regular file is parsed as the monolithic progress.json
+// (unchanged historical behavior), while a directory is parsed as a split
+// layout (index.json + phases/<id>.json) and returns the identical
+// in-memory model. No consumer passes a directory today, so the monolithic
+// path is byte-for-byte unchanged; a malformed split dir yields
+// ErrMalformedSplit rather than a silently partial backlog.
 func Load(path string) (*Progress, error) {
+	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
+		return loadSplit(path)
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("progress: read %s: %w", path, err)

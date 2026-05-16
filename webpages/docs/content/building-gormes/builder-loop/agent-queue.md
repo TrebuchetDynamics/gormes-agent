@@ -47,24 +47,4 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/agentic-porting-kit.md, docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Backlog split C1: lossless multi-file loader/writer behind the single-file API
-
-- Phase: 8 / 8.F
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Child 1 of the module-split umbrella — the smallest NON-behavior-changing first step. In internal/progress, add the ability to load AND write a split layout (a directory of per-module files, or index + per-module files) BEHIND the existing single-file public API: internal/progress.Load(path) (progress.go:245) must transparently accept EITHER the monolithic progress.json OR the split layout and return the identical in-memory model; add a round-trip pair (e.g. `go run ./cmd/progress split` / `... merge`, or internal Split()/Merge()) that is BYTE-STABLE through the existing stable marshal (internal/progress/progress_marshal.go) — merge(split(x)) == x and validate output identical. Do NOT move any real rows, do NOT change any consumer (cmd/progress, plannerloop, builderloop, status, docs/landing generators), do NOT change validate semantics. This is purely a back-compat shim + a lossless round-trip proven by tests, so a later child can flip the on-disk layout with zero behavior change. Owned Gormes infra.
-- Trust class: system
-- Ready when: Stable marshal + Load contract understood; existing preservation_test.go round-trip pattern is the template.
-- Not ready when: Moves real rows or changes any consumer; Load's public signature/behavior for the monolithic file changes; merge(split(x)) is not byte-stable; validate output differs between layouts.
-- Degraded mode: If a split layout is malformed/partial, Load must return a typed error (never a silently partial backlog) and the monolithic path must keep working unchanged.
-- Fixture: `internal/progress/split_test.go`
-- Write scope: `internal/progress/split.go`, `internal/progress/split_test.go`, `internal/progress/progress.go`, `cmd/progress/main.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/progress -count=1`, `go test ./webpages/docs -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Lossless split↔merge round-trip + dual-layout Load proven by tests; zero behavior/consumer change; monolith still canonical until a later child flips it.
-- Acceptance: internal/progress.Load transparently reads both the monolithic file and the split layout into an identical model (test with a fixture in both layouts)., Split()+Merge() (or `cmd/progress split`/`merge`) round-trips byte-stably: merge(split(canonical)) is byte-identical to the stable-marshalled canonical, and `go run ./cmd/progress validate` output is identical for both layouts., No consumer and no real row is changed; monolithic path behavior is unchanged; `go test ./internal/progress -count=1` + `go test ./webpages/docs -count=1` green., Malformed split layout → typed error, monolith still works.
-- Source refs: internal/progress/progress.go:245 Load (public API to keep stable), internal/progress/progress_marshal.go (stable key/order marshal — round-trip basis), internal/progress/validate_test.go ; internal/progress/preservation_test.go (existing round-trip/preservation patterns to mirror), cmd/progress/main.go (where a split/merge subcommand would attach)
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
 <!-- PROGRESS:END -->

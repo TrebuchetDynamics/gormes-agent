@@ -136,6 +136,30 @@ func Compact(stdout io.Writer, root string) error {
 	return err
 }
 
+// Split writes the canonical backlog to destDir as a split layout
+// (index.json + phases/<id>.json) without touching the canonical
+// progress.json. It is a standalone, explicit, read-only-against-canonical
+// maintenance action: Validate, Write, and Compact never invoke it, and it
+// moves no rows. internal/progress.Load already reads such a directory back
+// into the identical model (dual-layout transparency), so this is the
+// operator entry point for the module-split umbrella's later children. The
+// inverse write-back ("flip the on-disk layout") is intentionally deferred
+// to a later child so this shim stays non-behavior-changing.
+func Split(stdout io.Writer, root, destDir string) error {
+	if destDir == "" {
+		return fmt.Errorf("progress: split requires a destination directory")
+	}
+	p, err := loadValidProgress(root)
+	if err != nil {
+		return err
+	}
+	if err := progress.WriteSplit(destDir, p); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "progress: split %d phases into %s\n", len(p.Phases), destDir)
+	return err
+}
+
 type marker struct {
 	pathOf func(pathSet) string
 	kind   string

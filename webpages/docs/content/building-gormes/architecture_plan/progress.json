@@ -61465,12 +61465,12 @@
             {
               "name": "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "Child 1 of the module-split umbrella — the smallest NON-behavior-changing first step. In internal/progress, add the ability to load AND write a split layout (a directory of per-module files, or index + per-module files) BEHIND the existing single-file public API: internal/progress.Load(path) (progress.go:245) must transparently accept EITHER the monolithic progress.json OR the split layout and return the identical in-memory model; add a round-trip pair (e.g. `go run ./cmd/progress split` / `... merge`, or internal Split()/Merge()) that is BYTE-STABLE through the existing stable marshal (internal/progress/progress_marshal.go) — merge(split(x)) == x and validate output identical. Do NOT move any real rows, do NOT change any consumer (cmd/progress, plannerloop, builderloop, status, docs/landing generators), do NOT change validate semantics. This is purely a back-compat shim + a lossless round-trip proven by tests, so a later child can flip the on-disk layout with zero behavior change. Owned Gormes infra.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -61502,6 +61502,8 @@
                 "internal/progress/split_test.go",
                 "internal/progress/progress.go",
                 "cmd/progress/main.go",
+                "internal/progressctl/progressctl.go",
+                "internal/progressctl/progressctl_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -61513,7 +61515,7 @@
               "done_signal": [
                 "Lossless split↔merge round-trip + dual-layout Load proven by tests; zero behavior/consumer change; monolith still canonical until a later child flips it."
               ],
-              "note": "Child C1 of 'Module-split the progress backlog ...'. Builder-ready, independent of A/B but SAFER after them. Pure back-compat shim + lossless round-trip — no row movement, no consumer change. C2+ (generators, consumer migration, AGENTS.md/skills wording, per-module-batch migration) are specified in the umbrella and must be planner-refined before building. Recommended chain: gormes-tdd-slice (after ROW A + ROW B)."
+              "note": "SHIPPED 2026-05-16 see git log — internal/progress Split/Merge/WriteSplit/ErrMalformedSplit + dual-layout Load(dir); read-only `progress split <dir>` (progressctl.Split, not auto-run by validate/write/compact). Byte-stable round-trip incl. live 4.7MB canonical; merge/flip deferred to C2+."
             }
           ]
         },

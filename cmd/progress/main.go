@@ -12,7 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progressctl"
 )
 
-const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact}"
+const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact|split <dir>}"
 
 var errParse = errors.New("parse error")
 
@@ -54,6 +54,11 @@ func run(stdout, stderr io.Writer, args []string) error {
 			return fmt.Errorf("%w\n%s", errParse, usage)
 		}
 		return progressctl.Compact(stdout, root)
+	case "split":
+		if len(args) != 2 {
+			return fmt.Errorf("%w\n%s", errParse, usage)
+		}
+		return progressctl.Split(stdout, root, args[1])
 	default:
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}

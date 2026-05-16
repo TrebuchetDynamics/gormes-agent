@@ -1441,7 +1441,7 @@ classification and row-backed implementation queue.
 - [x] Stop git-tracking duplicate landing progress mirrors (build-time generate)
 - [x] Compact completed-row shipped-evidence notes to a one-line pointer
 - [ ] Module-split the progress backlog (per-subsystem files, parity-aligned)
-- [ ] Backlog split C1: lossless multi-file loader/writer behind the single-file API
+- [x] Backlog split C1: lossless multi-file loader/writer behind the single-file API
 
 ### 8.G — Community & External Contributions ✅
 
