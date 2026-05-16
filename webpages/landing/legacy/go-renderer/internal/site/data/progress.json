@@ -1914,9 +1914,9 @@
             {
               "name": "Termux remote execution guidance",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Document and, where useful, add setup/status guidance for using Termux Gormes as the mobile operator/controller while SSHing to stronger machines for heavy builds, Docker, local browser automation, and GPU/local model inference. The guidance must preserve PC-like local Gormes CLI behavior while making remote execution the credible path for workstation/server workloads.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -1960,6 +1960,13 @@
               "done_signal": [
                 "Termux docs make the mobile-control-plane plus remote-executor architecture concrete without expanding local Termux support beyond proven capability."
               ],
+              "evidence": [
+                "RED: go test ./webpages/docs/install -run TestLinuxMacInstallGuideDocumentsTermuxRemoteExecutionBoundary -count=1 failed because the Termux install guide did not spell out phone-as-controller, remote-host-as-heavy-executor, SSH/tmux commands, GORMES_REMOTE_HOST, or README positioning.",
+                "GREEN: webpages/docs/content/install/linux-macos.md adds a Termux remote execution section with concrete SSH/tmux examples for remote doctor, large go test runs, one-off gormes chat -q turns, and remote gormes gateway sessions while explicitly keeping Docker builds, remote browser automation, GPU/local model inference, and large test suites off local Android.",
+                "GREEN: README.md now positions Termux as the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds.",
+                "VALIDATION: go test ./webpages/docs/install -run 'TestLinuxMacInstallGuideDocumentsTermux' -count=1 PASS; go test ./webpages/docs -count=1 PASS; go run ./cmd/progress validate PASS; git diff --check PASS."
+              ],
+              "completed_at": "2026-05-16T04:07:29Z",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Product positioning decision from 2026-05-15 Termux planning."
@@ -2033,10 +2040,10 @@
             },
             {
               "name": "Coding-agent delegation tooling (codex/claude-code/opencode)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Workspace-guarded delegation of coding tasks to external agent binaries (codex, claude-code, opencode) with structured request/result, mode/edit-permission/timeout controls, and git-diff capture so Gormes can compare workers and present diffs to the operator.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "trust_class": [
@@ -47312,7 +47319,7 @@
             },
             {
               "name": "Gormes update release planner and dry-run contract",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "`gormes update` must distinguish normal release-installed operators from managed source checkouts before it mutates anything. For release installs, the command plans against trusted GitHub Releases: detect install layout, current version/build, OS/arch artifact name, channel policy (`stable` by default, `development` explicit), latest release metadata, snapshot path, components to update, blocked reasons, and whether an update is available. `gormes update --dry-run` prints the exact non-mutating plan; `gormes update --check` performs no mutation and exits 0 when current, 10 when an update is available, and nonzero for check errors. Existing source-checkout behavior from `Self-update command lifecycle safety` remains the managed/dev path and must not be silently used for release installs.",
               "contract_status": "validated",
@@ -47463,10 +47470,10 @@
             },
             {
               "name": "Gormes update bundled assets and skills sync",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "After release binary update is safe, release-installed `gormes update` must read a verified release manifest and apply only manifest-enumerated bundled assets and bundled skills. The manifest is part of the trusted release chain: strict schema, path, digest, and duplicate-entry validation must complete before mutation; local web builds and runtime directory scans are not authoritative for release installs. Update snapshots every file it may mutate, updates all known profiles with digest-based three-way bundled skill sync, preserves user-modified active skills, writes deterministic conflict copies for new bundled versions, removes only unmodified removed-from-manifest bundled skills, marks modified removed skills as orphaned, records a release install ledger/report, and supports rollback of update-mutated files with post-update-edit conflict preservation. User config, credentials, sessions, memory databases, operator-created files, service drain/restart behavior, and public component-selection flags are out of scope for this slice.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "tools",
               "trust_class": [
@@ -47529,6 +47536,16 @@
               "done_signal": [
                 "Release asset/skill fixtures prove manifest verification, three-way bundled skill sync, user-modified preservation, removed-skill orphan reporting, snapshot inclusion, rollback, and no config/session/memory mutation."
               ],
+              "evidence": [
+                "RED: go test ./internal/cli -run TestUpdateReleaseAssetSyncRejectsInvalidManifestBeforeMutation -count=1 failed because RunUpdateReleaseAssetSkillSync, release manifest types, and manifest evidence did not exist.",
+                "GREEN: internal/cli/update_release_assets.go adds strict schema/path/payload SHA-256 validation, symlink rejection, manifest-enumerated asset application, pre-mutation snapshots, rollback, and post-update edit conflict preservation for release assets.",
+                "RED: go test ./internal/skills -run TestSyncBundledSkillsFromManifestUsesDigestThreeWayAndConflictCopies -count=1 failed because manifest-driven digest three-way bundled skill sync did not exist.",
+                "GREEN: internal/skills/update_sync.go adds digest-based all-profile bundled skill sync from verified manifest entries, deterministic conflict copies under skills/.bundled-conflicts, unmodified removed-skill deletion, and modified removed-skill orphan preservation.",
+                "RED: go test ./cmd/gormes -run TestUpdateReleaseAssetsCommandRunsAssetSkillSyncAfterBinaryUpdate -count=1 failed because the release update command had no release asset/skill manifest seams.",
+                "GREEN: cmd/gormes/update.go loads release asset manifests for release installs, routes them through the asset/skill sync seam after verified binary update or when the binary is current, avoids source-checkout web builds, appends release update ledger events, and includes asset/skill evidence in JSON/human reports.",
+                "VALIDATION: go test ./cmd/gormes ./internal/cli ./internal/skills -run 'TestUpdateReleaseAsset|TestUpdateReleaseSkill|TestSyncBundledSkills' -count=1 PASS; go test ./cmd/gormes ./internal/cli ./internal/skills -count=1 PASS."
+              ],
+              "completed_at": "2026-05-16T03:44:04Z",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "grill_origin: 2026-05-16 row 3. Mirrors the Hermes-style bundled skill preservation behavior while adapting it to Gormes release artifacts and static web/TUI assets."
@@ -47536,10 +47553,10 @@
             },
             {
               "name": "Gormes update managed service drain and restart",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "`gormes update` must coordinate release updates with live Gormes processes after binary/assets/skills sync is safe: acquire a global update lock, detect managed gateway/background services, drain and stop managed services before mutation, refuse or prompt for unmanaged active sessions unless `--force` is given, restart managed services after update, health-check them, and restore prior service state after rollback when possible. The existing source-checkout gateway restart evidence remains valid, but release updates need a broader lock/drain/restore wrapper that prevents two updates or live services from mutating shared assets concurrently.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "tools",
               "trust_class": [
@@ -47595,9 +47612,17 @@
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
+              "evidence": [
+                "RED: go test ./internal/cli -run 'TestUpdateServiceCoordination|TestUpdateLock' -count=1 failed because RunUpdateServiceCoordination, UpdateServiceCoordinationOptions, UpdateManagedService, UpdateLockHandle, file update lock, and service/lock evidence kinds did not exist.",
+                "GREEN: internal/cli/update_service_coordination.go adds the fakeable release update coordinator with global lock acquisition/release, unmanaged-session force policy, managed service drain/stop before mutation, restart/health-check after success, and service-state restore after failed mutation/rollback evidence.",
+                "RED: go test ./cmd/gormes -run 'TestUpdateReleaseService' -count=1 failed because updateCommandSeams had no release service coordination, lock, managed-service, or unmanaged-session seams.",
+                "GREEN: cmd/gormes/update.go wraps release binary update, release asset/skill sync, current-binary asset sync, and explicit --rollback mutations in the service coordinator; default production seams use an install-scoped file lock, conservative systemd user-service detection by unit-file existence, service-manager stop/start/active polling, and runtime-status unmanaged active-session detection.",
+                "VALIDATION: go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleaseService|TestUpdateServiceCoordination|TestUpdateLock' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS; go run ./cmd/progress validate PASS; git diff --check PASS; go test ./... -count=1 PASS."
+              ],
               "done_signal": [
                 "Service coordination fixtures prove global update locking, managed drain/stop/restart/health-check, unmanaged-session force policy, rollback service-state restore, and no direct process killing or live service-manager dependency."
               ],
+              "completed_at": "2026-05-16T03:58:28Z",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "grill_origin: 2026-05-16 row 4. Wraps the proven release updater with process-aware safety so release-installed operators get Hermes-like drain semantics without blindly killing user work."
@@ -47846,7 +47871,297 @@
                 ],
                 "note": "skill_origin: 2026-05-16 gormes-hermes-parity doctor UX sweep -> gormes-planner. Deferred-content companion to the section-grouping UX row; keeps the larger doctor-section-content behaviors mapped without bloating the UX slice."
               },
-              "note": "Planner pass 2026-05-16: umbrella inventory parent for deferred doctor section CONTENT. Not builder-selectable. Split per upstream section into individual rows (Security Advisories scan; Directory Structure listing; Skills Hub init+GITHUB_TOKEN note; Auth Providers enumeration; per-profile Profiles) when prioritized. Sequenced after the 'gormes doctor ◆ Section grouping' row so content has `◆` headers to attach under."
+              "note": "Planner pass 2026-05-16: umbrella inventory parent for deferred doctor section CONTENT. Not builder-selectable. SPLIT 2026-05-16 (gormes-hermes-parity -> gormes-planner) into 5 sibling child rows: 'gormes doctor ◆ Directory Structure section content' (P1, builder-ready, SELECTED first slice), 'gormes doctor ◆ Skills Hub section content' (P2), 'gormes doctor ◆ Auth Providers section content' (P2, route via gormes-provider-parity), 'gormes doctor ◆ Profiles section content' (P3, owned-divergence), 'gormes doctor ◆ Security Advisories section content' (P3, large — Go advisory-dataset port). Parent stays non-selectable; children carry the tests. Sequenced after the shipped 'gormes doctor ◆ Section grouping' row so content attaches under existing `◆` headers via internal/doctor.sectionForCheck."
+            },
+            {
+              "name": "gormes doctor ◆ Directory Structure section content",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Add the missing `◆ Directory Structure` diagnostic CONTENT to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:812). The ◆-section grouping/header UX already ships (internal/doctor.sectionForCheck maps a check named \"Directory Structure\" → SectionDirectoryStructure), but no check feeds it so the section never renders. Add a new internal/doctor check that inspects config.GormesHome() and emits ONE CheckResult{Name:\"Directory Structure\"} whose Items (ItemInfo PASS/WARN) report: the Gormes home dir exists; the Gormes-owned subdir layout (NOT Hermes' cron/sessions/logs/skills/memories) — the actual ~/.gormes layout: sessions/, memory/, skills/, cron/, subagents/, tools/, hooks/ (missing → WARN \"will be created on first use\"); and the agent-template starter files SOUL.md, memory/MEMORY.md, memory/USER.md whose canonical paths come from internal/agenttemplate/parity_manifest.go (reuse that manifest as the source of truth — do NOT hardcode a parallel path list). SOUL.md present with non-template content → PASS \"persona configured\"; present but empty/template-only → PASS with note \"edit it to customize personality\"; missing → WARN \"run `gormes setup`\". MEMORY.md/USER.md: present → PASS with char count; not yet created → a non-actionable PASS item with note \"not yet created (written on first memory)\" (Gormes Status has no INFO; upstream check_info maps to a PASS ItemInfo with an explanatory note — do NOT add a new Status enum value and do NOT make 'not yet created' a WARN, which would falsely inflate the `Found N issue(s)` count). Wire via reporter.Add in cmd/gormes/doctor.go so it auto-groups under the existing `◆ Directory Structure` header; `--offline` unaffected (pure local FS, no network/secrets); hermetic via temp GORMES_HOME. Owned divergence: all paths/wording Gormes (`~/.gormes`, `memory/` not `memories/`, `gormes setup`, `gormes config edit`) — never `~/.hermes`/`hermes`. Do NOT add other section content (Skills Hub/Auth Providers/Profiles/Security Advisories are sibling rows) and do not change existing checks or the full wizard.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "degraded_mode": "If config.GormesHome() does not exist yet, the home item is WARN \"will be created on first use\" and subdir/file items report missing without erroring (fresh-install is not a doctor failure). A check that cannot stat a path degrades that item to WARN with a typed note rather than panicking or failing the whole run. The section header only renders because the check is emitted (consistent with the shipped ◆-grouping empty-section rule).",
+              "fixture": "internal/doctor/doctor_directory_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:812:◆ Directory Structure (home + subdirs + SOUL.md + memories/MEMORY.md + memories/USER.md, check_ok/check_warn/check_info)",
+                "internal/config/config.go GormesHome()/ConfigPath() (Gormes-owned ~/.gormes layout: sessions/ memory/ skills/ cron/ subagents/ tools/ hooks/)",
+                "internal/agenttemplate/parity_manifest.go (canonical seed paths: \"SOUL.md\", \"memory/USER.md\", \"memory/MEMORY.md\" — reuse as source of truth)",
+                "internal/doctor/doctor_section.go sectionForCheck (\"Directory Structure\" → SectionDirectoryStructure; shipped) ; internal/doctor/doctor.go CheckResult/ItemInfo/Status (PASS/WARN/SKIP only, no INFO)",
+                "cmd/gormes/doctor.go doctorReporter.Add (wire the new check so it groups under ◆ Directory Structure before the Found-N summary)"
+              ],
+              "ready_when": [
+                "◆-section grouping shipped (sectionForCheck already routes \"Directory Structure\"); reporter.Add accumulation in place.",
+                "internal/agenttemplate/parity_manifest.go exposes the SOUL.md/memory/MEMORY.md/memory/USER.md paths to reuse.",
+                "Tests can drive the check with a temp GORMES_HOME (populated and empty) and assert ItemInfo statuses/notes; `gormes doctor --offline` cobra-driven test asserts the `◆ Directory Structure` section now renders."
+              ],
+              "not_ready_when": [
+                "The check hardcodes Hermes paths (`memories/`, `logs/`, `~/.hermes`) instead of the Gormes-owned layout / agenttemplate manifest.",
+                "'not yet created' MEMORY.md/USER.md is emitted as WARN/FAIL (would inflate the computed Found-N issue count).",
+                "A new Status enum value is added, or existing checks / full wizard / other sections are modified.",
+                "The check performs network or reads the developer's real ~/.gormes instead of a hermetic temp home in tests."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "`gormes doctor --offline` (cobra-driven, temp GORMES_HOME) renders a `◆ Directory Structure` section with a `[PASS|WARN] Directory Structure:` line and per-item ItemInfo for home dir, the Gormes-owned subdirs, SOUL.md, memory/MEMORY.md, memory/USER.md.",
+                "A populated temp home → SOUL.md persona PASS, default SOUL.md template-only PASS with customization guidance, MEMORY.md/USER.md PASS with char counts; an empty/fresh temp home → subdirs/SOUL.md WARN with `gormes setup`/`will be created` notes, MEMORY.md/USER.md as non-actionable PASS 'not yet created' (NOT counted in `Found N issue(s)`).",
+                "Subdir/seed paths come from config.GormesHome() + internal/agenttemplate/parity_manifest.go, not a hardcoded Hermes list; no `~/.hermes`/`memories/`/`hermes` wording.",
+                "`--offline` behaves identically (pure FS); existing checks, the Found-N summary, --fix, and other sections are unchanged.",
+                "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1 and go test ./cmd/gormes -count=1 are green."
+              ],
+              "write_scope": [
+                "internal/doctor/doctor_directory.go",
+                "internal/doctor/doctor_directory_test.go",
+                "internal/doctor/doctor_section.go",
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/doctor_directory_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fixtures prove the `◆ Directory Structure` section renders with Gormes-owned home/subdir/SOUL.md/memory layout from config.GormesHome()+agenttemplate manifest, 'not yet created' files are non-actionable (not in Found-N), `--offline` is FS-only, no Hermes paths/wording, and existing doctor surfaces are unchanged — citing hermes 55c9f3206 doctor.py:812."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55c9f3206 hermes_cli/doctor.py:812 ◆ Directory Structure"
+                ],
+                "note": "skill_origin: 2026-05-16 gormes-hermes-parity deferred doctor section-content sweep -> gormes-planner. Highest-value child of the section-content umbrella: pure local FS, deterministic, hermetic, feeds the user-visible empty ◆ Directory Structure section. Owned-divergence vs Hermes path layout is the central correctness point."
+              },
+              "note": "Child 1/5 of the doctor section-content umbrella split. SELECTED first vertical slice (lowest risk, no network/secrets, deterministic, currently-empty section the user sees live). Reuse internal/agenttemplate/parity_manifest.go for SOUL.md/memory/MEMORY.md/memory/USER.md; reuse config.GormesHome() for the dir layout — central correctness point is owned divergence (Gormes layout, not Hermes cron/sessions/logs/skills/memories). Recommended chain: gormes-tdd-slice. SHIPPED 2026-05-16 (gormes-tdd-slice): tracer-bullet RED→GREEN. internal/doctor/doctor_directory.go: CheckDirectoryStructure(home) emits CheckResult{Name:\"Directory Structure\"} — ~/.gormes home item + gormesHomeSubdirs (sessions/memory/skills/cron/subagents/tools/hooks) PASS/WARN \"will be created on first use\"; soulItem (missing→WARN `gormes setup`; soulHasRealContent treats the exact agenttemplate.DefaultFiles SOUL.md as template-only and ports doctor.py:840 blank/comment stripping → PASS \"persona configured\" vs PASS \"template-only — edit to customize\"); memoryStarterItem for memory/MEMORY.md+memory/USER.md (present→PASS \"<n> chars\"; absent→non-actionable PASS \"not yet created (written on first memory)\"). Seed paths are filtered from agenttemplate.TemplatePairManifest() by template ID and then read from the manifest path, so there is no hardcoded parallel path list. cmd/gormes/doctor.go wires reporter.Add(doctor.CheckDirectoryStructure(config.GormesHome())) after the TUI check (FS-only, --offline-safe). Write-scope correction (recorded): sectionForCheck did NOT yet map \"Directory Structure\" (the row assumed it did) — added the 1-line `case \"Directory Structure\": return SectionDirectoryStructure` to internal/doctor/doctor_section.go so the check groups under the ◆ header. Tests GREEN: internal/doctor/doctor_directory_test.go (populated home all-PASS + no Hermes wording; default SOUL.md template-only PASS customization note; fresh home WARN subdirs/SOUL + non-actionable PASS memory starters not in CollectDoctorIssues) + cmd/gormes/doctor_directory_test.go (`gormes doctor --offline` renders ◆ Directory Structure with ~/.gormes+sessions/ layout, no ~/.hermes/memories/). Gates: `go test ./internal/doctor ./cmd/gormes -run Doctor -count=1` ok, `go test ./cmd/gormes -count=1` ok (10.6s), `go test ./internal/doctor -count=1` ok, `go run ./cmd/progress validate` ok (9 phases), `git diff --check` clean. Umbrella now 1/5 children complete; Skills Hub (P2) is next."
+            },
+            {
+              "name": "gormes doctor ◆ Skills Hub section content",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Add `◆ Skills Hub` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:1637): a check that inspects `~/.gormes/skills/.hub` (exists?), `.hub/lock.json` installed-skill count (corrupt → WARN), `.hub/quarantine` pending count (WARN if >0), and a GITHUB_TOKEN/GH_TOKEN rate-limit note (token configured → PASS; gh CLI authenticated → PASS; neither → WARN '60 req/hr — set in ~/.gormes/.env'). Emit one CheckResult{Name:\"Skills Hub\"} so it groups under the shipped ◆ Skills Hub header. Owned divergence: `~/.gormes` paths, Gormes skills-hub layout, never `~/.hermes`/`hermes skills`. Partial overlap with the existing 'GitHub auth' check — reuse its token-resolution logic, do not duplicate it. Hermetic temp GORMES_HOME; `--offline` skips only the gh-CLI network probe.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "degraded_mode": "Missing `.hub` dir → WARN 'not initialized (run: gormes skills list)'; corrupt lock.json → WARN, not a panic; gh probe under --offline → SKIP that sub-item.",
+              "fixture": "internal/doctor/doctor_skills_hub_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:1637:◆ Skills Hub (.hub/lock.json/quarantine + GITHUB_TOKEN note)",
+                "internal/doctor/doctor.go CheckGitHubAuth / cmd/gormes/doctor.go doctorGitHubAuthStatus (reuse token resolution)",
+                "internal/doctor/doctor_section.go sectionForCheck (add \"Skills Hub\" → SectionSkillsHub)"
+              ],
+              "ready_when": [
+                "◆-section grouping shipped; Directory Structure child establishes the section-content check pattern to follow.",
+                "Existing GitHub auth token-resolution seam available to reuse."
+              ],
+              "not_ready_when": [
+                "Duplicates GitHub token logic instead of reusing the existing seam.",
+                "Hardcodes ~/.hermes/hermes skills wording, or performs the gh network probe under --offline.",
+                "Implemented before the Directory Structure child sets the section-content pattern."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "`gormes doctor` renders `◆ Skills Hub` with .hub existence, lock.json installed count, quarantine count, and a Gormes-owned GITHUB_TOKEN rate-limit note.",
+                "Missing .hub → WARN with `gormes skills list` guidance; --offline skips the gh probe; wording is Gormes-owned."
+              ],
+              "evidence": [
+                "RED: go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1 failed because CheckSkillsHub/SkillsHubOptions did not exist and doctor output had no ◆ Skills Hub section.",
+                "GREEN: internal/doctor/doctor_skills_hub.go adds CheckSkillsHub(ctx, opts), inspecting ~/.gormes/skills/.hub, lock.json installed count, quarantine dir count, corrupt/unreadable WARNs, and a GitHub rate-limit item that calls CheckGitHubAuth through the existing runner seam except when --offline skips the gh probe.",
+                "GREEN: cmd/gormes/doctor.go wires reporter.Add(doctor.CheckSkillsHub(...)) with config.GormesHome(), doctorGitHubAuthEnv(), doctorGitHubAuthRunner, and the offline flag; internal/doctor/doctor_section.go maps \"Skills Hub\" to SectionSkillsHub.",
+                "VALIDATION: go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1 PASS; go test ./cmd/gormes -count=1 PASS; go test ./internal/doctor -count=1 PASS."
+              ],
+              "completed_at": "2026-05-16T04:25:38Z",
+              "write_scope": [
+                "internal/doctor/doctor_skills_hub.go",
+                "internal/doctor/doctor_skills_hub_test.go",
+                "internal/doctor/doctor_section.go",
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/doctor_skills_hub_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fixtures prove the ◆ Skills Hub section content with Gormes-owned paths/wording, reused GitHub-token resolution, and --offline gh-probe skip — citing hermes 55c9f3206 doctor.py:1637."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55c9f3206 hermes_cli/doctor.py:1637 ◆ Skills Hub"
+                ],
+                "note": "skill_origin: 2026-05-16 gormes-hermes-parity deferred doctor section-content sweep -> gormes-planner. Child 2/5."
+              },
+              "note": "Child 2/5 of the doctor section-content umbrella split. SHIPPED 2026-05-16 (gormes-tdd-slice): CheckSkillsHub emits one CheckResult{Name:\"Skills Hub\"} from local ~/.gormes/skills/.hub state. It reports .hub presence, lock.json hub-installed skill count, corrupt lock WARN, quarantine dir count with pending-review WARN, and GitHub access/rate-limit status via CheckGitHubAuth and the existing doctorGitHubAuthRunner seam. --offline skips only the gh CLI probe when no GITHUB_TOKEN/GH_TOKEN is configured, while env tokens still PASS without calling gh. cmd/gormes/doctor.go wires the check with config.GormesHome(), doctorGitHubAuthEnv(), doctorGitHubAuthRunner, and offline; doctor_section.go maps \"Skills Hub\" to SectionSkillsHub. Fixtures prove initialized, missing-hub/offline, corrupt-lock/gh-CLI, command-rendering, no token leak, no ~/.hermes/hermes skills wording. Gates so far: `go test ./internal/doctor ./cmd/gormes -run Doctor -count=1` ok; `go test ./cmd/gormes -count=1` ok; `go test ./internal/doctor -count=1` ok."
+            },
+            {
+              "name": "gormes doctor ◆ Auth Providers section content",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Add `◆ Auth Providers` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:749): a per-provider auth-status enumeration. Upstream lists Nous Portal / OpenAI Codex / Gemini OAuth / MiniMax OAuth login state. Gormes owns a different provider set (openai-codex credential pool, nous, custom endpoint) — emit one CheckResult{Name:\"Auth Providers\"} enumerating each Gormes-supported provider's configured/authenticated state, reusing the existing credential-pool / SecretRef-runtime / auth-status seams (do NOT infer readiness from hermes.api_key alone; credential-pool providers like openai-codex must show configured). Owned divergence: Gormes provider taxonomy + `~/.gormes` paths; redact all tokens/JWTs. Partial overlap with existing SecretRef runtime / Custom endpoint / provider-health checks — this row adds the missing per-provider list, it does not replace them.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "degraded_mode": "A provider whose auth status cannot be resolved → WARN 'not logged in' with redacted reason, never a token leak or panic; --offline reports last-known/local state without a network probe.",
+              "fixture": "internal/doctor/doctor_auth_providers_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:749:◆ Auth Providers (get_nous_auth_status/get_codex_auth_status/get_gemini_oauth_auth_status/get_minimax_oauth_auth_status)",
+                "Gormes credential-pool / auth status / SecretRef-runtime seams (internal/cli auth status, doctorSecretRuntimeStatus, configuredProviderAuthPresent)",
+                "internal/doctor/doctor_section.go sectionForCheck (add \"Auth Providers\" → SectionAuthProviders)"
+              ],
+              "ready_when": [
+                "◆-section grouping shipped; Gormes provider auth-status seams exist to enumerate.",
+                "Routed through gormes-provider-parity first to fix the active per-provider auth contract before TDD."
+              ],
+              "not_ready_when": [
+                "Implemented straight via gormes-tdd-slice without a gormes-provider-parity pass on the provider auth contract.",
+                "Infers readiness from hermes.api_key alone, leaks tokens, or hardcodes Hermes provider names/paths."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "`gormes doctor` renders `◆ Auth Providers` enumerating each Gormes-supported provider's configured/authenticated state with redacted evidence.",
+                "Credential-pool providers (openai-codex) show configured when present; wording/paths Gormes-owned; no token leakage."
+              ],
+              "evidence": [
+                "RED: go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1 failed because CheckAuthProviders/AuthProviderStatus did not exist and doctor output only grouped the existing SecretRef runtime under ◆ Auth Providers.",
+                "GREEN: internal/doctor/doctor_auth_providers.go adds CheckAuthProviders with per-provider OpenAI Codex/Nous/custom endpoint item semantics, WARN not-logged-in degraded mode, SKIP for not-configured custom endpoint, credential counts, and token/JWT/API-key reason redaction.",
+                "GREEN: cmd/gormes/doctor.go wires one Auth Providers check using cli.ResolveAuthStatus for openai-codex and nous plus a local custom-endpoint adapter; --offline remains local-state only and does not add network probes.",
+                "GREEN: internal/doctor/doctor_section.go maps \"Auth Providers\" to SectionAuthProviders so the check renders under the existing ◆ Auth Providers header.",
+                "VALIDATION: go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1 PASS; go test ./cmd/gormes -count=1 PASS; go test ./internal/doctor -count=1 PASS."
+              ],
+              "completed_at": "2026-05-16T04:38:34Z",
+              "write_scope": [
+                "internal/doctor/doctor_auth_providers.go",
+                "internal/doctor/doctor_auth_providers_test.go",
+                "internal/doctor/doctor_section.go",
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/doctor_auth_providers_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fixtures prove the ◆ Auth Providers per-provider enumeration with redacted evidence, credential-pool visibility, and Gormes-owned taxonomy — citing hermes 55c9f3206 doctor.py:749; preceded by a gormes-provider-parity contract pass."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55c9f3206 hermes_cli/doctor.py:749 ◆ Auth Providers"
+                ],
+                "note": "skill_origin: 2026-05-16 gormes-hermes-parity deferred doctor section-content sweep -> gormes-planner. Child 3/5. Provider-auth coupling: route gormes-provider-parity before gormes-tdd-slice."
+              },
+              "note": "Child 3/5 of the doctor section-content umbrella split. SHIPPED 2026-05-16 (gormes-provider-parity -> gormes-tdd-slice): CheckAuthProviders emits one CheckResult{Name:\"Auth Providers\"} with Gormes-owned provider taxonomy: OpenAI Codex (openai-codex credential-pool/Codex OAuth auth status), Nous Portal (credential-pool auth status), and Custom endpoint (local endpoint+API-key readiness). The command adapter reuses cli.ResolveAuthStatus and configuredProviderAPIKeyRefPresent instead of inferring credential-pool readiness from hermes.api_key. Degraded unresolved auth is WARN/not logged in with redacted reason; not-configured custom endpoint is SKIP; no network probes are added under --offline. Fixtures prove per-provider enumeration, credential count visibility, token/JWT/API-key redaction, no ~/.hermes/hermes auth wording, and grouping under ◆ Auth Providers. Gates so far: `go test ./internal/doctor ./cmd/gormes -run Doctor -count=1` ok; `go test ./cmd/gormes -count=1` ok; `go test ./internal/doctor -count=1` ok."
+            },
+            {
+              "name": "gormes doctor ◆ Profiles section content",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Add `◆ Profiles` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:1768): per-profile gateway-running + model summary. Gormes' profile model differs from Hermes' — this row first needs the active Gormes profile inventory contract identified (owned divergence) before TDD; emit one CheckResult{Name:\"Profiles\"} listing each Gormes profile with its gateway state + resolved model, Gormes-owned wording/paths. Out of scope until the Gormes profile contract is mapped.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "degraded_mode": "No profiles configured → single PASS item 'default profile only'; unresolved profile → WARN, never panic.",
+              "fixture": "internal/doctor/doctor_profiles_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:1768:◆ Profiles (per-profile gateway + model)",
+                "../hermes-agent/hermes_cli/profiles.py@55c9f3206 (Hermes profile model — owned-divergence reference)",
+                "Gormes profile/config seams (internal/config profile handling) — identify active contract before TDD"
+              ],
+              "ready_when": [
+                "◆-section grouping shipped; the Gormes profile inventory contract is identified (owned divergence vs Hermes profiles.py)."
+              ],
+              "not_ready_when": [
+                "Implemented before the Gormes profile contract is mapped, or copies Hermes profile semantics blindly."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "`gormes doctor` renders `◆ Profiles` with each Gormes profile's gateway state + model in Gormes-owned wording; no-profile case is a clean PASS."
+              ],
+              "write_scope": [
+                "internal/doctor/doctor_profiles.go",
+                "internal/doctor/doctor_profiles_test.go",
+                "internal/doctor/doctor_section.go",
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/doctor_profiles_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fixtures prove the ◆ Profiles per-profile gateway+model summary with Gormes-owned profile semantics — citing hermes 55c9f3206 doctor.py:1768; preceded by a Gormes profile-contract mapping pass."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55c9f3206 hermes_cli/doctor.py:1768 ◆ Profiles"
+                ],
+                "note": "skill_origin: 2026-05-16 gormes-hermes-parity deferred doctor section-content sweep -> gormes-planner. Child 4/5. Owned-divergence-heavy: map Gormes profile contract first."
+              },
+              "note": "Child 4/5 of the doctor section-content umbrella split. Lower priority: needs the Gormes profile inventory contract identified before TDD."
+            },
+            {
+              "name": "gormes doctor ◆ Security Advisories section content",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Add `◆ Security Advisories` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:350). Upstream uses hermes_cli.security_advisories (detect_compromised / filter_unacked / full_remediation_text / get_acked_ids) to scan for compromised dependencies and surface unacked advisories with remediation + ack state. Gormes has no Go advisory dataset/ack-state subsystem — this row is the LARGEST child and carries its own dependency: design + port a Gormes-owned advisory source + ack-state store (internal/security or similar), THEN a doctor check that emits CheckResult{Name:\"Security Advisories\"} as the first section. Owned divergence: Gormes-owned advisory data + `~/.gormes` ack store, never the Python advisory DB. Likely needs gormes-interface-designer for the advisory-store boundary before TDD.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "degraded_mode": "No advisory data available / fetch disabled (--offline) → SKIP 'advisory scan skipped' rather than WARN; ack store missing → treat all as unacked, never panic.",
+              "fixture": "internal/security/advisories_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:350:◆ Security Advisories",
+                "../hermes-agent/hermes_cli/security_advisories.py@55c9f3206 (detect_compromised/filter_unacked/full_remediation_text/get_acked_ids — port reference)",
+                "Gormes has no equivalent — new internal/security advisory + ack-state subsystem required (owned)"
+              ],
+              "ready_when": [
+                "◆-section grouping shipped; a Gormes advisory-store interface is designed (gormes-interface-designer) and the advisory data source decided."
+              ],
+              "not_ready_when": [
+                "Attempted as a doctor-only slice without the advisory dataset + ack-state subsystem; or embeds/depends on the Python advisory DB."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "A Gormes-owned advisory + ack-state subsystem exists with tests; `gormes doctor` renders `◆ Security Advisories` first, listing unacked advisories with Gormes-owned remediation, --offline → clean SKIP.",
+                "No dependency on Hermes' Python advisory DB; ack store under ~/.gormes."
+              ],
+              "write_scope": [
+                "internal/security/advisories.go",
+                "internal/security/advisories_test.go",
+                "internal/doctor/doctor_security_advisories.go",
+                "internal/doctor/doctor_security_advisories_test.go",
+                "internal/doctor/doctor_section.go",
+                "cmd/gormes/doctor.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/security ./internal/doctor ./cmd/gormes -run 'Advisor|Doctor' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fixtures prove a Gormes-owned advisory+ack subsystem and the ◆ Security Advisories doctor section (unacked listing + remediation + --offline SKIP), no Python advisory-DB dependency — citing hermes 55c9f3206 doctor.py:350 + security_advisories.py."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55c9f3206 hermes_cli/doctor.py:350 ◆ Security Advisories; hermes_cli/security_advisories.py"
+                ],
+                "note": "skill_origin: 2026-05-16 gormes-hermes-parity deferred doctor section-content sweep -> gormes-planner. Child 5/5. Largest: needs an owned advisory+ack subsystem; gormes-interface-designer before TDD."
+              },
+              "note": "Child 5/5 of the doctor section-content umbrella split. Largest/last: carries its own internal/security advisory+ack-state subsystem dependency; route gormes-interface-designer for the store boundary before gormes-tdd-slice."
             },
             {
               "name": "gormes setup <section> boxed header + completion footer (UX parity)",
@@ -61656,6 +61971,8 @@
             "flutter-navivox/app/lib/core/gateway/navivox_gateway_protocol.dart:NavivoxGatewayConfig",
             "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart:connect",
             "flutter-navivox/app/test/core/channel/gateway_navivox_channel_test.dart",
+            "flutter-navivox/navivox-ui-design.md:2.1",
+            "flutter-navivox/navivox-chat-ui-research.md:2",
             "https://docs.dograh.com/voice-agent/introduction"
           ],
           "ready_when": [
@@ -61707,6 +62024,76 @@
           "provenance": {
             "origin_type": "gormes",
             "owned_since": "2026-05-16"
+          }
+        },
+        {
+          "name": "Navivox Telegram-inspired chat polish",
+          "priority": "P1",
+          "status": "planned",
+          "contract": "After the connect-and-talk loop works, make Navivox feel like a polished Telegram-inspired operator client without changing the Gormes HTTP/WS backend. Add a chat list with avatar/agent, last-message preview, timestamp, gateway health, and attention badges; render the chat screen with grouped Telegram-style bubbles, compact timestamps, local send/queued/streaming/done/error ticks, a pinned redacted gateway status banner, and an always-reachable composer; use Telegram-like draggable sheets for agent/server/action/tool detail flows. Evaluate `v_chat_bubbles` as the bubble renderer (`VBubbleStyle.telegram`, `VCustomBubble` for ToolCallCard, performance config for long transcripts) but fall back to local widgets if the package fails accessibility, theming, performance, or dependency review. This row is visual/interaction polish only: no TDLib, MTProto, Firebase chat backend, Telegram login, telephony, campaigns, or call-center scope.",
+          "contract_status": "fixture_ready",
+          "slice_size": "medium",
+          "execution_owner": "gateway",
+          "trust_class": [
+            "operator",
+            "gateway"
+          ],
+          "degraded_mode": "If `v_chat_bubbles` is unsuitable, Navivox keeps the current simple adapter and implements only local Telegram-like preview tiles, grouped bubbles, status ticks, and sheets. Text chat, tool cards, and voice transcript fallback remain usable.",
+          "fixture": "flutter-navivox/app/test/features/chat/navivox_telegram_polish_test.dart",
+          "source_refs": [
+            "flutter-navivox/navivox-chat-ui-research.md:2",
+            "flutter-navivox/navivox-ui-design.md:2.1",
+            "https://pub.dev/packages/v_chat_bubbles",
+            "https://docs.flutter.dev/ui/design/material",
+            "https://api.flutter.dev/flutter/widgets/DraggableScrollableSheet-class.html",
+            "https://github.com/tdlib/td",
+            "https://github.com/babakcode/flutter_chat"
+          ],
+          "ready_when": [
+            "`Navivox connect-and-talk first screen` has landed and provides a live chat fixture.",
+            "The UI docs classify Telegram/TDLib references as rendering/lifecycle inspiration only, not backend dependencies.",
+            "The package/dependency review for `v_chat_bubbles` can be performed without blocking text chat."
+          ],
+          "not_ready_when": [
+            "The slice adds Telegram account login, MTProto, TDLib, Firebase Firestore, or another chat backend.",
+            "The slice makes `v_chat_bubbles` mandatory before proving it can render ToolCallCard as a custom bubble.",
+            "The slice hides gateway status, auth mode, token-required state, or redaction evidence in favor of decorative chat styling.",
+            "The slice introduces telephony, campaigns, scheduling, retries, or human handoff."
+          ],
+          "blocked_by": [
+            "Navivox connect-and-talk first screen"
+          ],
+          "acceptance": [
+            "Chat list previews show avatar/agent, last message, timestamp, health/auth status, and attention badges for tool/voice/error states.",
+            "Chat bubbles are grouped by author and time gap, have compact timestamps and local delivery-state ticks, and update one assistant bubble during streaming.",
+            "ToolCallCard remains a structured custom bubble or local widget with redaction, status, and expandable details; tool output is not rendered as assistant prose.",
+            "Agent/server/action/tool detail panels use `DraggableScrollableSheet` or a tested desktop side-panel equivalent.",
+            "Mobile uses Material 3 `NavigationBar`; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage.",
+            "A package gate documents whether `v_chat_bubbles` was adopted or rejected, including accessibility, theming, performance, license, and dependency findings."
+          ],
+          "write_scope": [
+            "flutter-navivox/app/pubspec.yaml",
+            "flutter-navivox/app/lib/features/chat/",
+            "flutter-navivox/app/lib/features/servers/",
+            "flutter-navivox/app/lib/shared/widgets/",
+            "flutter-navivox/app/test/features/chat/",
+            "flutter-navivox/app/test/features/servers/",
+            "flutter-navivox/navivox-chat-ui-research.md",
+            "flutter-navivox/navivox-ui-design.md",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "sh -c 'cd flutter-navivox/app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart'",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "Navivox opens to a Telegram-inspired chat list and chat surface that is visually polished, operationally useful, and still backed only by the Gormes HTTP/WS gateway."
+          ],
+          "provenance": {
+            "origin_type": "gormes",
+            "owned_since": "2026-05-16",
+            "note": "User-supplied Telegram-style reference pass: use Telware/telega2/babakcode-style lessons for visual density and interaction design, verify third-party sources before dependency adoption, and keep Navivox Gormes-owned rather than becoming a Telegram client."
           }
         },
         {

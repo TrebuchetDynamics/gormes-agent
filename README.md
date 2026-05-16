@@ -77,6 +77,7 @@ If `gormes chat` opens, the TUI and gateway have a model to use.
 - Developers who want a real agent runtime without Python environment drift.
 - Operators who need offline diagnostics before adding provider credentials.
 - Small servers, Termux/Android, WSL2, and locked-down Linux hosts where Docker or venv repair is friction.
+- Termux can be the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds.
 - Long-running personal or team agents that need local sessions, memory, tools, and chat gateways.
 
 Not yet for teams that require signed enterprise releases, full Hermes parity, voice/TTS parity, or broad channel parity on day one.
@@ -217,8 +218,8 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 <!-- PROGRESS:START kind=readme-rollup -->
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 1 — The Dashboard | ✅ | 6/6 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 21/23 subphases |

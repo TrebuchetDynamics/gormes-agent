@@ -91,12 +91,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/110 subphases shipped · 11 in progress · 1 planned
+**Overall:** 100/110 subphases shipped · 9 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 1 — The Dashboard | ✅ | 6/6 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
@@ -107,7 +107,7 @@ classification and row-backed implementation queue.
 
 ---
 
-## Phase 1 — The Dashboard 🔨
+## Phase 1 — The Dashboard ✅
 
 *Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary*
 
@@ -152,7 +152,7 @@ classification and row-backed implementation queue.
 - [x] Admin TUI: Safe command execution from the Commands tab
 - [x] Admin TUI: Searchable Commands palette
 
-### 5.X — Termux Runtime Compatibility 🔨
+### 5.X — Termux Runtime Compatibility ✅
 
 - [x] Gormes Termux Runtime Compatibility
 - [x] Termux runtime doctor check
@@ -161,19 +161,19 @@ classification and row-backed implementation queue.
 - [x] Termux gateway foreground tmux lifecycle
 - [x] Termux notification bridge via termux-api
 - [x] Termux real-device smoke evidence
-- [ ] Termux remote execution guidance
+- [x] Termux remote execution guidance
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
-### 2.A — Tool Registry 🔨
+### 2.A — Tool Registry ✅
 
 - [x] In-process Go tool registry
 - [x] Streamed tool_calls accumulation
 - [x] Kernel tool loop
 - [x] Doctor verification
-- [ ] Coding-agent delegation tooling (codex/claude-code/opencode)
+- [x] Coding-agent delegation tooling (codex/claude-code/opencode)
 - [x] Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
 
 ### 2.B.1 — Telegram Scout ✅
@@ -1110,14 +1110,19 @@ classification and row-backed implementation queue.
 - [x] Hermes sessions CLI MRU browse/delete ergonomics
 - [x] Backup/update opt-in and exclusion policy
 - [x] Self-update command lifecycle safety
-- [ ] Gormes update release planner and dry-run contract
+- [x] Gormes update release planner and dry-run contract
 - [x] Gormes update verified binary swap and rollback
-- [ ] Gormes update bundled assets and skills sync
-- [ ] Gormes update managed service drain and restart
+- [x] Gormes update bundled assets and skills sync
+- [x] Gormes update managed service drain and restart
 - [x] doctorCustomEndpointReadiness check function
 - [x] gormes doctor actionable issues summary and --fix auto-remediation
 - [x] gormes doctor ◆ Section grouping + upstream section ordering (UX parity)
 - [ ] gormes doctor section-content parity (Security Advisories / Directory Structure / Skills Hub / Auth Providers / Profiles)
+- [x] gormes doctor ◆ Directory Structure section content
+- [x] gormes doctor ◆ Skills Hub section content
+- [x] gormes doctor ◆ Auth Providers section content
+- [ ] gormes doctor ◆ Profiles section content
+- [ ] gormes doctor ◆ Security Advisories section content
 - [x] gormes setup <section> boxed header + completion footer (UX parity)
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
@@ -1468,6 +1473,7 @@ classification and row-backed implementation queue.
 
 - [x] Navivox HTTP/WS documentation refresh
 - [ ] Navivox connect-and-talk first screen
+- [ ] Navivox Telegram-inspired chat polish
 - [ ] Navivox natural-language agent seed flow
 - [ ] Navivox structured tool event cards
 - [ ] Navivox safe config admin over HTTP

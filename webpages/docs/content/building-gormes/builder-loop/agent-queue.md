@@ -27,45 +27,44 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Gormes update release planner and dry-run contract
+## 1. gormes doctor ◆ Profiles section content
 
 - Phase: 5 / 5.O
 - Owner: `tools`
 - Size: `medium`
 - Status: `planned`
-- Priority: `P1`
-- Contract: `gormes update` must distinguish normal release-installed operators from managed source checkouts before it mutates anything. For release installs, the command plans against trusted GitHub Releases: detect install layout, current version/build, OS/arch artifact name, channel policy (`stable` by default, `development` explicit), latest release metadata, snapshot path, components to update, blocked reasons, and whether an update is available. `gormes update --dry-run` prints the exact non-mutating plan; `gormes update --check` performs no mutation and exits 0 when current, 10 when an update is available, and nonzero for check errors. Existing source-checkout behavior from `Self-update command lifecycle safety` remains the managed/dev path and must not be silently used for release installs.
-- Trust class: operator, system
-- Ready when: The existing source-checkout `gormes update` command and lifecycle seams are complete and validated., Installer release-binary fetch behavior already defines trusted repo, platform artifact names, release channels, and SHA-256 sidecar expectations., Tests can inject install layout, current build, release metadata, OS/arch, channel, and clock without network or filesystem mutation.
-- Not ready when: The slice downloads or swaps binaries, syncs skills/assets, restarts services, or pulls git remotes., Release-installed binaries silently fall back to managed source checkout mutation., `--check` or `--dry-run` writes update logs, snapshots, config, skills, sessions, services, or source checkout state., Exit codes for current/update-available/error are not deterministic and tested.
-- Degraded mode: Unknown install layout, unsupported OS/arch, missing release metadata, channel mismatch, dirty unmanaged source checkout, and network/API lookup failures produce typed plan blockers without changing binaries, assets, skills, services, config, credentials, sessions, memory, or source checkouts.
-- Fixture: `cmd/gormes/update_release_plan_test.go; internal/cli/update_release_plan_test.go`
-- Write scope: `cmd/gormes/update.go`, `cmd/gormes/update_release_plan_test.go`, `internal/cli/update_release_plan.go`, `internal/cli/update_release_plan_test.go`, `internal/cli/update_lifecycle.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner\|TestUpdateCommandReleaseDryRun\|TestUpdateCommandCheck' -count=1`, `go test ./cmd/gormes ./internal/cli -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Update planner fixtures prove release/source/unknown layout detection, current-vs-target metadata, stable/development channel policy, dry-run output, --check exit codes, and zero mutation before any release artifact install path exists.
-- Acceptance: Release install, managed source checkout, unmanaged source checkout, and unknown install layouts are classified with typed evidence., `gormes update --dry-run` prints current version/build, target version/build, source (`github_release` or `managed_source`), channel, artifact, snapshot path, component plan, and blockers without mutation., `gormes update --check` exits 0 when current, 10 when an update is available, and nonzero for check errors, with JSON and text reports carrying the same state., Stable vs development channel policy is explicit; release installs use GitHub Releases by default, managed source/dev installs use the existing source lifecycle only when detected or explicitly requested., No binary, asset, skill, service, config, credential, session, memory, git checkout, or update ledger file changes during planner/check/dry-run tests.
-- Source refs: cmd/gormes/update.go:newUpdateCommandWithSeams (current source-checkout update command and injectable seams), internal/cli/update_lifecycle.go:RunUpdateLifecycle (completed managed source-checkout updater), cmd/gormes/version.go:newVersionCommand/newBuildProvenance (current version/build evidence), install.sh:decide_install_method + fetch_release_binary (release asset naming, GitHub latest release lookup, SHA-256 sidecar evidence), scripts/install.ps1:release binary fetch block (Windows release asset naming and SHA-256 sidecar evidence), internal/installtest/install_method_test.go (release-vs-source installer behavior), Completed row: Self-update command lifecycle safety (source-checkout update path remains intact)
-- Unblocks: Gormes update verified binary swap and rollback
-- Why now: Unblocks Gormes update verified binary swap and rollback.
+- Priority: `P3`
+- Contract: Add `◆ Profiles` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:1768): per-profile gateway-running + model summary. Gormes' profile model differs from Hermes' — this row first needs the active Gormes profile inventory contract identified (owned divergence) before TDD; emit one CheckResult{Name:"Profiles"} listing each Gormes profile with its gateway state + resolved model, Gormes-owned wording/paths. Out of scope until the Gormes profile contract is mapped.
+- Trust class: -
+- Ready when: ◆-section grouping shipped; the Gormes profile inventory contract is identified (owned divergence vs Hermes profiles.py).
+- Not ready when: Implemented before the Gormes profile contract is mapped, or copies Hermes profile semantics blindly.
+- Degraded mode: No profiles configured → single PASS item 'default profile only'; unresolved profile → WARN, never panic.
+- Fixture: `internal/doctor/doctor_profiles_test.go`
+- Write scope: `internal/doctor/doctor_profiles.go`, `internal/doctor/doctor_profiles_test.go`, `internal/doctor/doctor_section.go`, `cmd/gormes/doctor.go`, `cmd/gormes/doctor_profiles_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1`, `go test ./cmd/gormes -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Fixtures prove the ◆ Profiles per-profile gateway+model summary with Gormes-owned profile semantics — citing hermes 55c9f3206 doctor.py:1768; preceded by a Gormes profile-contract mapping pass.
+- Acceptance: `gormes doctor` renders `◆ Profiles` with each Gormes profile's gateway state + model in Gormes-owned wording; no-profile case is a clean PASS.
+- Source refs: ../hermes-agent/hermes_cli/doctor.py@55c9f3206:1768:◆ Profiles (per-profile gateway + model), ../hermes-agent/hermes_cli/profiles.py@55c9f3206 (Hermes profile model — owned-divergence reference), Gormes profile/config seams (internal/config profile handling) — identify active contract before TDD
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Termux remote execution guidance
+## 2. gormes doctor ◆ Security Advisories section content
 
-- Phase: 1 / 5.X
-- Owner: `docs`
-- Size: `small`
+- Phase: 5 / 5.O
+- Owner: `tools`
+- Size: `large`
 - Status: `planned`
-- Priority: `P2`
-- Contract: Document and, where useful, add setup/status guidance for using Termux Gormes as the mobile operator/controller while SSHing to stronger machines for heavy builds, Docker, local browser automation, and GPU/local model inference. The guidance must preserve PC-like local Gormes CLI behavior while making remote execution the credible path for workstation/server workloads.
-- Trust class: operator, system
-- Ready when: Termux runtime doctor check is complete., Termux install docs exist., Current shell/terminal/SSH tool behavior is documented from existing Gormes command surfaces.
-- Not ready when: The docs claim local Termux can run Docker, heavy browser automation, GPU/local LLM, or large test suites like a workstation., The guidance introduces a new top-level gormes run command instead of existing gormes chat -q/gateway surfaces., The guidance requires root, privileged Android features, or a specific private server.
-- Degraded mode: If no remote host is configured, Termux remains a local CLI/TUI/gateway runtime and doctor/docs explain which heavy workloads are out of local scope.
-- Fixture: `webpages/docs/content/install/ Termux remote-execution docs`
-- Write scope: `webpages/docs/content/install/`, `README.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./webpages/docs -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Termux docs make the mobile-control-plane plus remote-executor architecture concrete without expanding local Termux support beyond proven capability.
-- Acceptance: Docs include the architecture: phone equals Gormes controller/light executor, remote host equals heavy build/browser/Docker/GPU executor., Docs give concrete SSH/tmux command examples without adding a new top-level gormes run command., Doctor or install docs point Termux users at remote execution for local browser/Docker/GPU-heavy workloads., The support matrix remains explicit about what is local, optional, and remote/degraded.
-- Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
+- Priority: `P3`
+- Contract: Add `◆ Security Advisories` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:350). Upstream uses hermes_cli.security_advisories (detect_compromised / filter_unacked / full_remediation_text / get_acked_ids) to scan for compromised dependencies and surface unacked advisories with remediation + ack state. Gormes has no Go advisory dataset/ack-state subsystem — this row is the LARGEST child and carries its own dependency: design + port a Gormes-owned advisory source + ack-state store (internal/security or similar), THEN a doctor check that emits CheckResult{Name:"Security Advisories"} as the first section. Owned divergence: Gormes-owned advisory data + `~/.gormes` ack store, never the Python advisory DB. Likely needs gormes-interface-designer for the advisory-store boundary before TDD.
+- Trust class: -
+- Ready when: ◆-section grouping shipped; a Gormes advisory-store interface is designed (gormes-interface-designer) and the advisory data source decided.
+- Not ready when: Attempted as a doctor-only slice without the advisory dataset + ack-state subsystem; or embeds/depends on the Python advisory DB.
+- Degraded mode: No advisory data available / fetch disabled (--offline) → SKIP 'advisory scan skipped' rather than WARN; ack store missing → treat all as unacked, never panic.
+- Fixture: `internal/security/advisories_test.go`
+- Write scope: `internal/security/advisories.go`, `internal/security/advisories_test.go`, `internal/doctor/doctor_security_advisories.go`, `internal/doctor/doctor_security_advisories_test.go`, `internal/doctor/doctor_section.go`, `cmd/gormes/doctor.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/security ./internal/doctor ./cmd/gormes -run 'Advisor\|Doctor' -count=1`, `go test ./cmd/gormes -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Fixtures prove a Gormes-owned advisory+ack subsystem and the ◆ Security Advisories doctor section (unacked listing + remediation + --offline SKIP), no Python advisory-DB dependency — citing hermes 55c9f3206 doctor.py:350 + security_advisories.py.
+- Acceptance: A Gormes-owned advisory + ack-state subsystem exists with tests; `gormes doctor` renders `◆ Security Advisories` first, listing unacked advisories with Gormes-owned remediation, --offline → clean SKIP., No dependency on Hermes' Python advisory DB; ack store under ~/.gormes.
+- Source refs: ../hermes-agent/hermes_cli/doctor.py@55c9f3206:350:◆ Security Advisories, ../hermes-agent/hermes_cli/security_advisories.py@55c9f3206 (detect_compromised/filter_unacked/full_remediation_text/get_acked_ids — port reference), Gormes has no equivalent — new internal/security advisory + ack-state subsystem required (owned)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 ## 3. Agentic-porting-kit public repo scaffold
