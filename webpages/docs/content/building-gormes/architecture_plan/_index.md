@@ -1067,7 +1067,7 @@ classification and row-backed implementation queue.
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
 - [x] Gormes setup full-wizard shell and branded summary
-- [ ] Gormes setup model step uses the dynamic provider-tracked model picker
+- [x] Gormes setup model step uses the dynamic provider-tracked model picker
 - [x] Hermes setup entry-mode and reset semantics
 - [x] Gormes setup tools checklist command binding
 - [x] Gormes setup gateway platform checklist command binding
@@ -1111,6 +1111,7 @@ classification and row-backed implementation queue.
 - [x] Backup/update opt-in and exclusion policy
 - [x] Self-update command lifecycle safety
 - [x] doctorCustomEndpointReadiness check function
+- [ ] gormes doctor actionable issues summary and --fix auto-remediation
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
 - [x] CLI log redactor for known secret shapes
