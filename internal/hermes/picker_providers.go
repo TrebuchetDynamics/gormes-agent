@@ -2,8 +2,8 @@ package hermes
 
 import "strings"
 
-// PickerProvider is one curated provider with its models array for the
-// gateway /model interactive picker.
+// PickerProvider is one curated provider with its models array for the shared
+// gateway, setup, CLI, and TUI model pickers.
 type PickerProvider struct {
 	// Slug is the canonical provider ID used in callback data (e.g. "openrouter").
 	Slug string
@@ -13,8 +13,8 @@ type PickerProvider struct {
 	Models []string
 }
 
-// ListPickerProviders returns the curated provider list for the gateway
-// /model interactive picker. It filters the provider manifest to only
+// ListPickerProviders returns the curated provider list for the shared
+// model pickers. It filters the provider manifest to only
 // implemented and owned providers, skipping row_backed and excluded
 // entries. Aggregator providers (openrouter, etc.) are included so users
 // can switch to an aggregator directly.
@@ -39,10 +39,18 @@ func ListPickerProviders() []PickerProvider {
 		out = append(out, PickerProvider{
 			Slug:   slug,
 			Label:  label,
-			Models: nil,
+			Models: pickerProviderModelIDs(slug),
 		})
 	}
 	return out
+}
+
+func pickerProviderModelIDs(provider string) []string {
+	models := ProviderModelCatalogSuggestions(provider, nil)
+	if len(models) == 0 {
+		return nil
+	}
+	return append([]string(nil), models...)
 }
 
 // pickerProviderDisplayLabel returns the human-readable label for a

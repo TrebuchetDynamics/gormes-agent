@@ -28,6 +28,20 @@ type modelCommandSeams struct {
 	PersistSelection func(cli.Selection) error
 }
 
+const (
+	modelChoiceSuggestionLimitDefault   = 5
+	modelChoiceSuggestionLimitUnlimited = -1
+)
+
+type modelChoicePromptOptions struct {
+	SuggestionLimit int
+}
+
+type modelPickerSuggestionSet struct {
+	Models         []string
+	DegradedReason string
+}
+
 func newModelCommand() *cobra.Command {
 	return newModelCommandWithSeams(defaultModelCommandSeams())
 }
@@ -84,7 +98,7 @@ func defaultModelCommandSeams() modelCommandSeams {
 			return promptProviderChoice(os.Stdin, os.Stdout, entries, defaultIndex)
 		},
 		ChooseModel: func(provider string, current string) (string, error) {
-			return promptModelChoice(os.Stdin, os.Stdout, provider, current, defaultModelCatalogSuggestions(provider))
+			return promptModelChoice(os.Stdin, os.Stdout, provider, current, defaultModelPickerSuggestions(provider))
 		},
 		PersistSelection: persistModelSelectionToConfig,
 	}
@@ -170,8 +184,45 @@ func defaultModelCatalogSuggestions(provider string) []string {
 	return hermes.ProviderModelCatalogSuggestions(provider, nil)
 }
 
+func defaultModelPickerSuggestions(provider string) []string {
+	return defaultModelPickerSuggestionSet(provider).Models
+}
+
+func defaultModelPickerSuggestionSet(provider string) modelPickerSuggestionSet {
+	provider = strings.TrimSpace(provider)
+	foundProvider := false
+	for _, entry := range hermes.ListPickerProviders() {
+		if !strings.EqualFold(entry.Slug, provider) {
+			continue
+		}
+		foundProvider = true
+		if len(entry.Models) > 0 {
+			return modelPickerSuggestionSet{Models: append([]string(nil), entry.Models...)}
+		}
+		break
+	}
+	fallback := defaultModelCatalogSuggestions(provider)
+	if len(fallback) > 0 {
+		reason := "provider not in picker catalog"
+		if foundProvider {
+			reason = "picker catalog had no models"
+		}
+		return modelPickerSuggestionSet{Models: fallback, DegradedReason: reason}
+	}
+	if foundProvider {
+		return modelPickerSuggestionSet{DegradedReason: "picker catalog had no models"}
+	}
+	return modelPickerSuggestionSet{DegradedReason: "provider not in picker catalog"}
+}
+
 func promptModelChoice(in io.Reader, out io.Writer, provider string, current string, suggestions []string) (string, error) {
-	if bounded := boundedModelCatalogSuggestions(suggestions, 5); len(bounded) > 0 {
+	return promptModelChoiceWithOptions(in, out, provider, current, suggestions, modelChoicePromptOptions{
+		SuggestionLimit: modelChoiceSuggestionLimitDefault,
+	})
+}
+
+func promptModelChoiceWithOptions(in io.Reader, out io.Writer, provider string, current string, suggestions []string, opts modelChoicePromptOptions) (string, error) {
+	if bounded := modelCatalogSuggestionsForPrompt(suggestions, opts.SuggestionLimit); len(bounded) > 0 {
 		fmt.Fprintf(out, "Suggested models for %s: %s\n", provider, strings.Join(bounded, ", "))
 	}
 	if strings.TrimSpace(current) != "" {
@@ -195,6 +246,13 @@ func promptModelChoice(in io.Reader, out io.Writer, provider string, current str
 		return "", cli.ErrSelectorNoMatch
 	}
 	return answer, nil
+}
+
+func modelCatalogSuggestionsForPrompt(suggestions []string, max int) []string {
+	if max == modelChoiceSuggestionLimitUnlimited {
+		max = len(suggestions)
+	}
+	return boundedModelCatalogSuggestions(suggestions, max)
 }
 
 func boundedModelCatalogSuggestions(suggestions []string, max int) []string {

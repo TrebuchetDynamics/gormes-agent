@@ -1022,7 +1022,13 @@ func runSetupActiveProviderModelPicker(cmd *cobra.Command, current cli.ProviderM
 	if provider == "" {
 		return cli.ErrSelectorNoMatch
 	}
-	model, err := promptModelChoice(cmd.InOrStdin(), cmd.OutOrStdout(), provider, current.Model, defaultModelCatalogSuggestions(provider))
+	suggestions := defaultModelPickerSuggestionSet(provider)
+	if suggestions.DegradedReason != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "Model catalog degraded for %s: %s; accepting free-text model.\n", provider, suggestions.DegradedReason)
+	}
+	model, err := promptModelChoiceWithOptions(cmd.InOrStdin(), cmd.OutOrStdout(), provider, current.Model, suggestions.Models, modelChoicePromptOptions{
+		SuggestionLimit: modelChoiceSuggestionLimitUnlimited,
+	})
 	if err != nil {
 		return err
 	}
