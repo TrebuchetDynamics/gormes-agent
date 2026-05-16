@@ -51,8 +51,7 @@ func TestAgentLifecycleHook_StartEndFiresOnSimpleTurn(t *testing.T) {
 		return f.Phase == PhaseIdle && f.Seq > 1
 	}, 500*time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
+	events = waitForAgentLifecycleEvents(t, &mu, &events, 2)
 	if len(events) != 2 {
 		t.Fatalf("got %d lifecycle events, want 2 (start + end)", len(events))
 	}
@@ -120,8 +119,7 @@ func TestAgentLifecycleHook_StepFiresOnToolTurn(t *testing.T) {
 		return f.Phase == PhaseIdle && f.Seq > 1
 	}, 500*time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
+	events = waitForAgentLifecycleEvents(t, &mu, &events, 3)
 	if len(events) != 3 {
 		t.Fatalf("got %d lifecycle events, want 3 (start + step + end)", len(events))
 	}
@@ -176,8 +174,7 @@ func TestAgentLifecycleHook_EndFiresOnStreamError(t *testing.T) {
 		return f.Phase == PhaseFailed || (f.Phase == PhaseIdle && f.Seq > 1)
 	}, 2*time.Second)
 
-	mu.Lock()
-	defer mu.Unlock()
+	events = waitForAgentLifecycleEvents(t, &mu, &events, 2)
 	foundEnd := false
 	for _, ev := range events {
 		if ev.Point == AgentLifecycleEnd {
@@ -190,6 +187,30 @@ func TestAgentLifecycleHook_EndFiresOnStreamError(t *testing.T) {
 	}
 	if !foundEnd {
 		t.Fatal("agent:end did not fire for failed turn")
+	}
+}
+
+func waitForAgentLifecycleEvents(t *testing.T, mu *sync.Mutex, events *[]AgentLifecycleEvent, want int) []AgentLifecycleEvent {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		mu.Lock()
+		if len(*events) >= want {
+			got := append([]AgentLifecycleEvent(nil), (*events)...)
+			mu.Unlock()
+			return got
+		}
+		mu.Unlock()
+		select {
+		case <-ticker.C:
+		case <-deadline:
+			mu.Lock()
+			got := append([]AgentLifecycleEvent(nil), (*events)...)
+			mu.Unlock()
+			t.Fatalf("got %d lifecycle events, want at least %d: %+v", len(got), want, got)
+		}
 	}
 }
 
