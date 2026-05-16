@@ -21,7 +21,7 @@ func CheckTermuxRuntime(opts TermuxRuntimeOptions) CheckResult {
 	if env == nil {
 		env = currentEnvMap()
 	}
-	if !isTermuxEnv(env) {
+	if !IsTermuxEnvironment(env) {
 		return CheckResult{
 			Name:    "Termux runtime",
 			Status:  StatusSkip,
@@ -65,6 +65,21 @@ func CheckTermuxRuntime(opts TermuxRuntimeOptions) CheckResult {
 			note = "install_dir=" + installDir + " not present on PATH; install.sh publishes gormes there"
 		}
 		items = append(items, ItemInfo{Name: "command_path", Status: StatusWarn, Note: note})
+	}
+
+	if _, err := lookPath("tmux"); err == nil {
+		items = append(items, ItemInfo{
+			Name:   "tmux",
+			Status: StatusPass,
+			Note:   "tmux available for foreground gateway sessions",
+		})
+	} else {
+		status = StatusWarn
+		items = append(items, ItemInfo{
+			Name:   "tmux",
+			Status: StatusWarn,
+			Note:   "tmux missing; gateway foreground mode still works from the current shell; run `pkg install tmux` for resilient foreground sessions",
+		})
 	}
 
 	missingAPI := missingTermuxAPICommands(lookPath)
@@ -114,6 +129,15 @@ func currentEnvMap() map[string]string {
 		}
 	}
 	return env
+}
+
+// IsTermuxEnvironment reports whether env carries standard Termux evidence. If
+// env is nil, the current process environment is used.
+func IsTermuxEnvironment(env map[string]string) bool {
+	if env == nil {
+		env = currentEnvMap()
+	}
+	return isTermuxEnv(env)
 }
 
 func isTermuxEnv(env map[string]string) bool {

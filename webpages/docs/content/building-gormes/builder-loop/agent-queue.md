@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Termux gateway foreground tmux lifecycle
-
-- Phase: 1 / 5.X
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Gateway lifecycle commands and docs present a Termux-specific foreground/tmux model: Telegram/Discord/Slack gateways are supported from a foreground shell or tmux session, systemd/Windows service assumptions are not advertised, and doctor/status guidance names termux-wake-lock plus Android battery settings as best-effort survival aids. The implementation must preserve the same gateway command names and JSON contracts as desktop Linux.
-- Trust class: operator, gateway, system
-- Ready when: Termux runtime doctor check is complete., Gateway command tests can run with temp GORMES_HOME and fake runtime status stores., Termux install docs identify foreground/tmux as the supported local gateway model.
-- Not ready when: The command tries to install systemd units, Android services, or Termux:Boot entries by default., Doctor/status claims guaranteed unattended background uptime on Android., Gateway command names, flags, or JSON shapes diverge from desktop Linux only for Termux.
-- Degraded mode: If Termux lacks tmux or termux-wake-lock, gateway startup remains possible but doctor/status emits WARN guidance. Android process death is treated as recoverable operator environment behavior, not a Gormes crash.
-- Fixture: `cmd/gormes gateway/doctor fixtures under synthetic Termux env`
-- Write scope: `cmd/gormes/`, `internal/gateway/`, `internal/doctor/`, `webpages/docs/content/install/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes -run 'Test.*Termux.*Gateway\|TestDoctorCommand_JSONIncludesTermuxRuntimeWhenDetected' -count=1`, `go test ./internal/gateway -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gateway fixtures and docs prove Termux uses the same operator CLI with foreground/tmux lifecycle guidance and bounded Android process-survival claims.
-- Acceptance: Synthetic Termux doctor/status output includes foreground/tmux and wake-lock guidance., Gateway start/status/stop command surfaces keep the same names and JSON contracts under synthetic Termux env., Termux docs explain tmux, termux-wake-lock, battery optimization, and Termux:Boot as operator-managed aids., No test starts live Telegram/Discord/Slack connections or Android services.
-- Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Termux notification bridge via termux-api
+## 1. Termux notification bridge via termux-api
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -67,7 +47,7 @@ selection.
 - Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Termux real-device smoke evidence
+## 2. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -88,7 +68,7 @@ selection.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Termux remote execution guidance
+## 3. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -108,7 +88,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Agentic-porting-kit public repo scaffold
+## 4. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

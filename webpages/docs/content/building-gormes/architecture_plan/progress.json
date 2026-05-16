@@ -1709,9 +1709,9 @@
             {
               "name": "Termux gateway foreground tmux lifecycle",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gateway lifecycle commands and docs present a Termux-specific foreground/tmux model: Telegram/Discord/Slack gateways are supported from a foreground shell or tmux session, systemd/Windows service assumptions are not advertised, and doctor/status guidance names termux-wake-lock plus Android battery settings as best-effort survival aids. The implementation must preserve the same gateway command names and JSON contracts as desktop Linux.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -1723,10 +1723,15 @@
               "fixture": "cmd/gormes gateway/doctor fixtures under synthetic Termux env",
               "source_refs": [
                 "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_termux.go",
                 "cmd/gormes/gateway_status.go",
+                "cmd/gormes/gateway_termux_lifecycle_test.go",
                 "cmd/gormes/doctor.go",
                 "internal/gateway/status.go",
-                "internal/doctor/termux.go"
+                "internal/doctor/termux.go",
+                "internal/doctor/termux_test.go",
+                "webpages/docs/content/install/linux-macos.md",
+                "webpages/docs/install/termux_guide_test.go"
               ],
               "ready_when": [
                 "Termux runtime doctor check is complete.",
@@ -1753,7 +1758,9 @@
               ],
               "test_commands": [
                 "go test ./cmd/gormes -run 'Test.*Termux.*Gateway|TestDoctorCommand_JSONIncludesTermuxRuntimeWhenDetected' -count=1",
+                "go test ./internal/doctor -run Termux -count=1",
                 "go test ./internal/gateway -count=1",
+                "go test ./webpages/docs/install -run Termux -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
@@ -1762,6 +1769,21 @@
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned Termux gateway support boundary."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/doctor/termux.go: CheckTermuxRuntime now emits explicit tmux PASS/WARN evidence while keeping Android lifecycle caveats WARN.",
+                  "cmd/gormes/gateway_termux.go + cmd/gormes/gateway.go: Termux start/install/uninstall commands guide operators to the foreground/tmux gateway lifecycle instead of desktop service helpers.",
+                  "cmd/gormes/gateway_status.go: text status appends Termux foreground/tmux, wake-lock, and battery guidance without mixing human guidance into --json.",
+                  "webpages/docs/content/install/linux-macos.md: Termux guide documents tmux, termux-wake-lock, battery optimization, Termux:Boot as operator-managed, and status/stop control commands."
+                ],
+                "tests": [
+                  "go test ./cmd/gormes -run 'Test.*Termux.*Gateway|TestDoctorCommand_JSONIncludesTermuxRuntimeWhenDetected' -count=1",
+                  "go test ./internal/doctor -run Termux -count=1",
+                  "go test ./internal/gateway -count=1",
+                  "go test ./webpages/docs/install -run Termux -count=1"
+                ],
+                "note": "Completed 2026-05-15 with synthetic Termux command fixtures. JSON status/stop contracts remain parseable and free of human Termux guidance; no tests start live channel transports or Android services."
               }
             },
             {
@@ -49022,6 +49044,72 @@
               ],
               "note": "Source: 2026-05-07 fresh-Fedora install report from operator. install.sh had been source-clone-and-build by design since v0.1.06 (noted as a coverage gap in webpages/docs/development-skills/gormes-install/references/test-recipes.md). COMPLETE 2026-05-07: install.sh now defines release_platform_arch() (maps uname -s/-m → release-asset slug), decide_install_method() (5-rule precedence: --local > --from-source > non-main branch > unsupported platform > binary-fetch), and fetch_release_binary() (GitHub API → curl/wget → SHA-256 verify → tar extract → publish to managed_bin_dir). Plan emitters surface the decision and reason. Verified by 5 dry-run plan tests in internal/installtest/install_method_test.go plus an end-to-end real install (1.832s wall, no Go invoked, exit=0, gormes 0.1.06 binary working). 2026-05-15 candidate-install E2E hardening: internal/installtest now runs install.sh --local into a sandbox, executes the installed binary for version JSON, setup gateway --plan channel copy, unconfigured gateway restart, gateway status, config, and offline TUI paths, with PATH hiding systemctl so no live service manager is touched. gateway restart now reports safe startup evidence (`no channels configured`) instead of a bare timeout. 2026-05-15 public trust hardening: install docs, README, landing copy, docs deploy checks, and landing deploy checks now use the GitHub Releases `releases/latest/download/install.sh` URL, and the active plus legacy landing sites no longer publish a Unix installer path from the custom domain.",
               "completed_at": "2026-05-07T21:08:33Z"
+            },
+            {
+              "name": "Install: Termux publishes a real $PREFIX/bin binary, not an $HOME-targeting symlink",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "On Termux/Android the installer publishes `$PREFIX/bin/gormes` as a real, directly-executable file, never a symlink whose target resolves under the app-private writable `$HOME` (`/data/data/com.termux/files/home/.gormes/bin/gormes`). The pre-fix failure was in install.sh:publish_built_binary: the symlink-preferred path could make `$PREFIX/bin/gormes` resolve to `$HOME/.gormes/bin/gormes`, causing Android 10+ exec restrictions to reject the post-publish verify and roll back the command. The fixed path copies the real binary into `$PREFIX/bin` whenever `is_termux` is true, while keeping the release build, android-arm64 asset, managed_bin_dir bookkeeping, and non-Termux symlink behavior unchanged.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "degraded_mode": "On non-Termux hosts the existing symlink-preferred publish path is unchanged. If the Termux copy cannot be written to `$PREFIX/bin`, install.sh fails with the existing not-writable guidance rather than silently falling back to a broken `$HOME` symlink.",
+              "fixture": "internal/installtest/termux_publish_test.go",
+              "source_refs": [
+                "install.sh:publish_built_binary (~1498-1545): skips the symlink path when `is_termux` is true and publishes a copied executable into `$PREFIX/bin`, then verifies `\"$published_bin\" version` before committing the target",
+                "install.sh:is_termux (~243-245), pick_bin_dir Termux branch (~312-313 → `$PREFIX/bin`), managed_bin_dir (~299-301 → `$HOME/.gormes/bin`)",
+                ".github/workflows/release.yml:95-96,148 (CGO_ENABLED=0 GOOS=android GOARCH=arm64 static build — not a build defect)",
+                "webpages/docs/development-skills/gormes-install/references/known-issues.md: [termux-publish-symlink-noexec] (operator transcript witness, v0.2.12, 2026-05-15; fixed in development for next release)",
+                "internal/installtest/iso_bin_dir_test.go + internal/installtest/harness.go (sandboxed install.sh dry-run/plan + --local install harness pattern to extend)",
+                "progress.json Phase 5.P sibling 'Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary'; existing Termux rows (~1413 Termux first-class runtime, ~1564 Termux install docs) assume `$PREFIX/bin` publication works and do NOT cover this exec-domain mismatch"
+              ],
+              "ready_when": [
+                "install.sh and the internal/installtest harness already exist; no new subsystem is required.",
+                "Test can force Termux mode hermetically by setting TERMUX_VERSION (and a sandbox PREFIX/GORMES_PREFIX) so is_termux is true without a real Android device, and inspect the published file type."
+              ],
+              "not_ready_when": [
+                "The slice changes the release build, the android-arm64 asset, or non-Termux symlink-publish behavior.",
+                "The fix only edits the install plan emitter text without changing the actual publish_built_binary file-type behavior on Termux.",
+                "The published Termux command remains a symlink whose target is under `$HOME`, or verify still execs a `$HOME` path."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "On Termux (is_termux true / publish target == `$PREFIX/bin`), `$PREFIX/bin/gormes` after install is a regular executable file, `[ ! -L \"$PREFIX/bin/gormes\" ]` holds, and it does not resolve to a path under `$HOME`.",
+                "The post-publish verify `\"$published_bin\" version` succeeds on Termux (no rollback, no 'published command verification failed' fail).",
+                "Non-Termux hosts still publish via the existing symlink-preferred path (regression-fenced).",
+                "A fresh simulated-Termux install leaves a working published `gormes` command on PATH."
+              ],
+              "write_scope": [
+                "install.sh",
+                "internal/installtest/termux_publish_test.go",
+                "internal/installtest/harness.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/installtest -run 'TestTermuxPublishesRealBinaryNotHomeSymlink|TestNonTermuxPublishKeepsSymlink' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "internal/installtest fixtures prove a forced-Termux sandbox install publishes a real (non-symlink, non-$HOME-resolving) executable into `$PREFIX/bin`, verify passes without rollback, and non-Termux symlink publish is unchanged; known-issues [termux-publish-symlink-noexec] can move to fixed-in-<version>."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "skill_origin: 2026-05-15 gormes-install real-Termux/Android pass on published v0.2.12 -> gormes-planner. Gormes-owned installer behavior (install.sh has no Hermes upstream equivalent); not a Hermes parity row. Severity P1: the latest public release is non-functional for fresh Termux installs."
+              },
+              "evidence": {
+                "implementation": [
+                  "install.sh:publish_built_binary now skips symlink publication when `is_termux` is true and copies the managed binary into the published `$PREFIX/bin/gormes` path before verification.",
+                  "internal/installtest/termux_publish_test.go sources install.sh in test mode, calls publish_built_binary directly, and inspects the published file type/resolved target under synthetic Termux and non-Termux environments."
+                ],
+                "tests": [
+                  "go test ./internal/installtest -run '^TestTermuxPublishesRealBinaryNotHomeSymlink$' -count=1 -v",
+                  "go test ./internal/installtest -run 'TestTermuxPublishesRealBinaryNotHomeSymlink|TestNonTermuxPublishKeepsSymlink' -count=1"
+                ],
+                "note": "Completed 2026-05-15 for development after the v0.2.12 real-Termux report. Termux publication is now a regular file under `$PREFIX/bin`; non-Termux publication remains symlink-preferred."
+              },
+              "completed_at": "2026-05-15T00:00:00Z",
+              "note": "Complete 2026-05-15: fixed the v0.2.12 [termux-publish-symlink-noexec] regression by preferring copy publication on Termux and preserving non-Termux symlink behavior."
             }
           ]
         },

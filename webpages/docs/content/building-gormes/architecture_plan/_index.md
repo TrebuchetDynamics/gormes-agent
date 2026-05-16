@@ -158,7 +158,7 @@ classification and row-backed implementation queue.
 - [x] Termux runtime doctor check
 - [x] Termux install and release smoke guide
 - [x] Termux storage and path safety audit
-- [ ] Termux gateway foreground tmux lifecycle
+- [x] Termux gateway foreground tmux lifecycle
 - [ ] Termux notification bridge via termux-api
 - [ ] Termux real-device smoke evidence
 - [ ] Termux remote execution guidance
@@ -1138,6 +1138,7 @@ classification and row-backed implementation queue.
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
 - [x] Install isolation: skip system service install when sandbox bin dir is set
 - [x] Install: prefer pre-built release binary over source build by default
+- [x] Install: Termux publishes a real $PREFIX/bin binary, not an $HOME-targeting symlink
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 

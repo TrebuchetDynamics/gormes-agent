@@ -25,7 +25,13 @@ func TestLinuxMacInstallGuideDocumentsTermuxReleaseFirstPath(t *testing.T) {
 		"Only source fallback or contributor builds need the build toolchain",
 		"pkg install git golang clang tmux openssh curl jq sqlite",
 		"tmux",
+		"tmux new -s gormes-gateway",
 		"termux-wake-lock",
+		"gormes gateway status",
+		"gormes gateway stop",
+		"Android battery-optimization",
+		"Termux:Boot",
+		"does not install or manage Android services automatically",
 	} {
 		if !strings.Contains(guide, want) {
 			t.Fatalf("Termux install guide missing %q", want)
