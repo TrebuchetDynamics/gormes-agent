@@ -1409,9 +1409,9 @@
             {
               "name": "Gormes Termux Runtime Compatibility",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes treats no-root Termux on Android arm64/aarch64 as a first-class runtime for PC-like operator workflows: same gormes command names and flags, same config/auth/model/session/Goncho/gateway surfaces, repo-root install.sh release-binary install into $PREFIX/bin/gormes, and Android-specific doctor/degraded-mode guidance. Local Docker, GPU/local LLM, heavy browser automation, and large builds are explicitly delegated or remote/degraded rather than required for Termux compatibility.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "umbrella",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -1861,9 +1861,9 @@
             {
               "name": "Termux real-device smoke evidence",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Capture a dated real-device no-root Android Termux smoke record for the current release: install via repo-root install.sh release asset, run gormes version, gormes doctor --offline --json, gormes config check, initialize SQLite/Goncho state, and run a provider-backed gormes chat -q \"hello from Termux\" when a test credential is available. The evidence must record Android/Termux versions, device arch, install method, and any caveats without leaking credentials.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -47369,9 +47369,16 @@
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
+              "evidence": [
+                "RED: go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner|TestUpdateCommandReleaseDryRun|TestUpdateCommandCheck' -count=1 failed because BuildUpdateReleasePlan, release update metadata types, install-kind/channel/source enums, and update command release-planner seams did not exist.",
+                "GREEN: internal/cli/update_release_plan.go adds the pure release update planner with typed install layout classification, github_release vs managed_source routing, stable/development channel blockers, platform artifact naming, snapshot/component plans, current-vs-target version/build comparison, and typed degraded blockers.",
+                "GREEN: cmd/gormes/update.go adds --dry-run and --channel, routes release-installed --check and all --dry-run invocations through the non-mutating planner, emits JSON/text plan reports with build provenance, returns exit 0/current, 10/update-available, and 1/blocker, and keeps existing source-checkout lifecycle behavior for managed-source checks.",
+                "VALIDATION: go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner|TestUpdateCommandReleaseDryRun|TestUpdateCommandCheck' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS; go run ./cmd/progress validate PASS; git diff --check PASS."
+              ],
               "done_signal": [
                 "Update planner fixtures prove release/source/unknown layout detection, current-vs-target metadata, stable/development channel policy, dry-run output, --check exit codes, and zero mutation before any release artifact install path exists."
               ],
+              "completed_at": "2026-05-16T01:56:01Z",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "grill_origin: 2026-05-16 operator plan for a safer `gormes update` command. This row extends the completed Hermes-style managed source updater with Gormes-owned release-install planning semantics for the single-binary distribution."
@@ -47380,10 +47387,10 @@
             },
             {
               "name": "Gormes update verified binary swap and rollback",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "For release installs, `gormes update` must turn a validated release plan into a binary-only mutation: create a pre-update snapshot, download the selected GitHub release artifact through an injectable downloader, verify OS/arch, checksum manifest, and signature/provenance when available, smoke-test the staged binary with `gormes version --json`, atomically swap the managed and published binary paths, and roll back automatically on any post-snapshot failure. `gormes update --rollback <snapshot-id>` restores a previous binary snapshot. `--force` may bypass downgrade or unmanaged-session warnings but must never bypass checksum, signature, provenance, platform, or smoke-test failures.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "tools",
               "trust_class": [
@@ -47439,9 +47446,16 @@
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
+              "evidence": [
+                "RED: go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleaseBinary|TestUpdateReleaseSnapshot|TestUpdateReleaseRollback' -count=1 failed because RunUpdateReleaseBinaryUpdate, release artifact downloader/report/snapshot types, release binary evidence kinds, and update command release-binary/rollback seams did not exist.",
+                "GREEN: internal/cli/update_release_binary.go adds the release binary updater with injectable downloader, SHA-256 enforcement, optional provenance verifier, staged `version --json` smoke check, planned snapshot manifest, atomic managed/published binary replacement, automatic rollback on post-snapshot failure, and explicit snapshot rollback restore.",
+                "GREEN: cmd/gormes/update.go routes normal release-installed updates through the release binary updater, adds --force and --rollback <snapshot-id>, emits JSON/text binary update and rollback reports, and keeps the existing source-checkout lifecycle separate for managed source installs.",
+                "VALIDATION: go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleaseBinary|TestUpdateReleaseSnapshot|TestUpdateReleaseRollback' -count=1 PASS; go test ./cmd/gormes -run 'TestUpdateCommand|TestUpdateRelease' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS; go run ./cmd/progress validate PASS; git diff --check PASS."
+              ],
               "done_signal": [
                 "Release binary fixtures prove verified download, staged smoke check, snapshot retention, atomic swap, automatic rollback, explicit rollback command, and integrity failures that --force cannot bypass."
               ],
+              "completed_at": "2026-05-16T02:08:05Z",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "grill_origin: 2026-05-16 row 2. Gormes-owned release binary updater for normal single-binary installs; intentionally separate from the completed Hermes-style source-checkout updater."
@@ -47718,6 +47732,117 @@
                 "note": "skill_origin: 2026-05-15 gormes-hermes-parity doctor sweep (gormes doctor vs hermes doctor) -> gormes-planner. Transcript witness: gormes doctor ends with no summary; hermes doctor prints 'Found 2 issue(s) to address ... Tip: run hermes doctor --fix'. Local ../hermes-agent aac6d97a1 is 48 behind upstream main 6784c8079 which carries the current run_doctor end-of-report contract; classify against 6784c8079."
               },
               "note": "Planner pass 2026-05-15 (gormes-hermes-parity -> gormes-planner): dedicated Phase 5.O row, highest-value gap from the doctor parity sweep. No existing row owns the doctor issues-summary or --fix (the 8 complete doctor rows are piecemeal: Termux, durable-RSS, ACP, GitHub fallback, custom endpoint, browser-harness, Doctor verification, Plugin Marketplace+Doctor). Security Advisories / Directory Structure / Skills Hub doctor sections are separate sweep passes, intentionally out of this slice. Recommended chain: gormes-tdd-slice. If the slice lands and the submodule is bumped to 6784c8079 for the contract, stage it per the parity-driven change-set rule. SHIPPED 2026-05-15 (gormes-tdd-slice): tracer-bullet RED→GREEN. Behavior 1 — internal/doctor/doctor_fix.go CollectDoctorIssues (WARN+FAIL only, count computed) + classifyDoctorFix (config-version/published-symlink) + Gormes-owned doctorRemediationHint + RenderDoctorIssuesSummary (zero→clean line/no tip; conditional `gormes doctor --fix` tip only when any issue Fixable); cmd/gormes/doctor.go doctorReporter.Add always accumulates r.collected and Finalize prints the summary in human mode (JSON unchanged). Behavior 2 — added `--fix` flag; doctorApplyFix wires the real config.MigrateConfigFile(config.ConfigPath()) seam for the config-version class (pure local file op → no network remediation under --offline by construction), doctor.RunDoctorFix/AutoFixableClasses/RenderDoctorFixReport report computed fixed-vs-still-manual; residualManualIssues surfaces non-auto-fixable WARN/FAIL (incl. guided published-symlink → `gormes setup`) instead of dropping them. Tests GREEN: internal/doctor/doctor_fix_test.go (6: summary count/wording, zero-issue, no-fix-tip, RunDoctorFix-applies-every-class, render-nothing-to-do) + cmd/gormes/doctor_fix_test.go (5: human finalize summary, clean no-issues, JSON-unchanged, --fix migrates unstamped config w/ Gormes wording + still SKIPs provider health under --offline, --fix idempotent already-current). Gates: `go test ./internal/doctor ./cmd/gormes -run Doctor -count=1` ok, `go test ./cmd/gormes -count=1` ok (10.7s), `go test ./internal/doctor -count=1` ok, `go run ./cmd/progress validate` ok (9 phases), `git diff --check` clean. Scope-honest nuance: this slice does NOT add a config-schema doctor CHECK that narrates a config-version WARN (the 'Configuration Files (config version vN)' doctor-section is a separate parity row, explicitly out of contract); `gormes doctor --fix` still source-backed-remediates the config schema stamp regardless of narration — faithful to Hermes doctor.py:run_doctor --fix where the migrate runs independent of a narrated check (counts computed not narrated, progress.json:40064 anchor). Submodule not bumped (in-repo ./hermes-agent unchanged this slice; tdd-slice does not commit)."
+            },
+            {
+              "name": "gormes doctor ◆ Section grouping + upstream section ordering (UX parity)",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "`gormes doctor` must present its diagnostics with the same organized UX as upstream `hermes doctor`: labeled `◆ <Section>` headers (cyan+bold-equivalent) printed in the upstream order, grouping the EXISTING gormes CheckResults — NOT adding new diagnostic data. Today internal/doctor/doctor.go:179 CheckResult.Format() emits a flat `[PASS]/[WARN]/[SKIP] <name>: <summary>` stream and cmd/gormes/doctor.go's doctorReporter funnels each result through Format() with no section grouping; hermes_cli/doctor.py:297 run_doctor instead renders `print(); print(color(\"◆ <Name>\", CYAN, BOLD))` per section in the fixed order Security Advisories, Configuration Files, Auth Providers, Directory Structure, External Tools, API Connectivity, Tool Availability, Skills Hub, Memory Provider, Profiles, then the (already-shipped) `Found N issue(s) to address:` end block. Introduce a section taxonomy + a section-aware reporter path that maps each current gormes check to its upstream section and prints a blank-line-then-`◆ <Section>` header before that section's checks (header only when the section has ≥1 check). The shipped `Found N issue(s)` summary + `--fix` block must still render AFTER the sections, byte-equivalent. `gormes doctor --json` output ({build,failed,target,checks:[...]}) must be unchanged (sections are a human-mode presentation concern only). All wording stays Gormes-owned (`gormes setup`, `gormes config migrate`, `~/.gormes`), never `hermes setup`/`~/.hermes`. Owned divergence: gormes-only checks with no 1:1 Hermes section — build identity, TUI, Termux runtime, Goncho config (→ Memory Provider), Custom endpoint (→ Configuration Files/API Connectivity), gateway/telegram|discord|Slack (→ API Connectivity) — are placed under the nearest upstream section or a single named Gormes-owned section, and that placement is documented as intentional ownership, never silently dropped. This row does NOT add new section CONTENT (live Security Advisories scan, full Directory Structure tree, Skills Hub init + GITHUB_TOKEN note, Auth Providers enumeration, per-profile Profiles) — those are the separate follow-up umbrella row.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "degraded_mode": "A check whose name maps to no known section falls under a single explicit Gormes-owned catch-all section header rather than being dropped or panicking; a section with zero checks prints no header (no empty `◆` lines). If section grouping cannot be resolved the reporter falls back to the existing flat Format() stream so doctor never fails solely due to presentation.",
+              "fixture": "cmd/gormes/doctor_section_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:297:run_doctor",
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:350:◆ Security Advisories; :460:◆ Configuration Files; :749:◆ Auth Providers; :812:◆ Directory Structure; :1009:◆ External Tools; :1263:◆ API Connectivity; :1604:◆ Tool Availability; :1637:◆ Skills Hub; :1683:◆ Memory Provider; :1768:◆ Profiles; :1824:Found N issue(s)",
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:155,158,161:check_ok/check_warn/check_fail within-section helpers",
+                "internal/doctor/doctor.go:179 CheckResult.Format() (flat reporter to extend with a section-aware path)",
+                "cmd/gormes/doctor.go doctorReporter (funnels CheckResult.Format(); add section grouping in human mode only)",
+                "Phase 5.O sibling 'gormes doctor actionable issues summary and --fix auto-remediation' (Found N + --fix already shipped; must keep rendering after sections); progress.json:40064 'doctor counts must be computed not narrated' anchor"
+              ],
+              "ready_when": [
+                "internal/doctor reporter + CheckResult/ItemInfo model already exist (multiple complete doctor rows).",
+                "The `Found N issue(s)` summary + `--fix` slice is shipped (sibling row complete) so this row only adds section presentation above it.",
+                "Tests can drive `gormes doctor --offline` through cobra with a temp GORMES_HOME and assert section headers/order/grouping without live providers or network."
+              ],
+              "not_ready_when": [
+                "The slice adds new diagnostic data/content (Security Advisories scan, full Directory Structure tree, Skills Hub init + GITHUB_TOKEN note, Auth Providers enumeration, per-profile Profiles) — those belong to the follow-up umbrella, not this UX-grouping slice.",
+                "`gormes doctor --json` output bytes change for identical inputs.",
+                "Section headers, hints, or remediation text print `hermes`/`~/.hermes` instead of Gormes-owned wording.",
+                "Any existing check is dropped, renamed, or has its PASS/WARN/FAIL semantics changed to fit a section.",
+                "The shipped `Found N issue(s)` summary / `--fix` block stops rendering or moves before the sections."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "`gormes doctor --offline` renders labeled `◆ <Section>` headers in the upstream order (Security Advisories, Configuration Files, Auth Providers, Directory Structure, External Tools, API Connectivity, Tool Availability, Skills Hub, Memory Provider, Profiles) for every section that has ≥1 mapped check.",
+                "Every existing gormes check appears exactly once, grouped under its mapped section; gormes-only checks (build identity/TUI/Termux/Goncho/Custom endpoint/gateway channels) appear under their documented owned-divergence section, none dropped.",
+                "The shipped `Found N issue(s) to address:` summary and `--fix` auto-fix block still render, unchanged, AFTER all sections.",
+                "`gormes doctor --json` produces byte-identical output to pre-change for the same injected check set (sections are human-mode only).",
+                "All section/header/remediation text uses Gormes-owned wording (`gormes setup`, `gormes config migrate`, `~/.gormes`) — never `hermes`/`~/.hermes`.",
+                "A check with no mapped section is placed under the explicit Gormes catch-all section rather than dropped or panicking (degraded_mode proven by test)."
+              ],
+              "write_scope": [
+                "internal/doctor/doctor.go",
+                "internal/doctor/doctor_section.go",
+                "internal/doctor/doctor_section_test.go",
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/doctor_section_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Doctor fixtures prove the `◆ <Section>` headers render in the upstream order, every existing check is grouped under its mapped section (incl. documented gormes-only owned placements), the shipped `Found N issue(s)`+`--fix` block still renders after the sections, `--json` is byte-unchanged, all wording is Gormes-owned, and a no-section check falls back to the named catch-all — with source evidence citing Hermes 55c9f3206 doctor.py run_doctor section headers."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55c9f3206 hermes_cli/doctor.py:297 run_doctor (◆ section headers 350/460/749/812/1009/1263/1604/1637/1683/1768; check helpers 155/158/161)"
+                ],
+                "note": "skill_origin: 2026-05-16 gormes-hermes-parity doctor UX sweep (gormes doctor flat list vs hermes doctor ◆ sections) -> gormes-planner. User ask: 'gormes doctor must be similar ux ui to hermes doctor'. hermes-agent submodule refreshed to upstream main 55c9f3206 for this contract."
+              },
+              "note": "Planner pass 2026-05-16 (gormes-hermes-parity -> gormes-planner): the highest-value remaining doctor UX-parity gap after the Phase 5.O issues-summary/--fix row shipped. Smallest vertical slice: section GROUPING/headers over the EXISTING checks only — make gormes doctor look/feel like hermes doctor without changing any check's data or semantics. Deferred (separate follow-up umbrella row 'gormes doctor section-content parity'): live Security Advisories scan, full Directory Structure tree, Skills Hub init + GITHUB_TOKEN rate-limit note, Auth Providers enumeration, per-profile Profiles. Owned-divergence placements are explicit in the contract and must be asserted by tests, not silently dropped. JSON mode is intentionally out of scope (human presentation only) to keep --json fleet consumers stable. Recommended chain: gormes-tdd-slice (tracer-bullet: section taxonomy + section-aware reporter first, then owned-divergence placement, then catch-all fallback). hermes-agent submodule advanced 6784c8079→55c9f3206 for this sweep; stage the submodule bump with the row work per the parity-driven change-set rule. SHIPPED 2026-05-16 (gormes-tdd-slice): tracer-bullet RED→GREEN. (1) internal/doctor/doctor_section.go — section taxonomy (Section* consts), OrderedDoctorSections() (10 upstream sections + Gormes-owned SectionGormesRuntime catch-all last), sectionForCheck() owned-divergence map, RenderSectionedReport() renders blank-line-then-`◆ <Section>` in upstream order, header only for sections with ≥1 check, checks via existing CheckResult.Format() (no data/semantic change). (2) Owned-divergence placement locked by test: build identity/Custom endpoint/target readiness/config schema→Configuration Files, SecretRef runtime→Auth Providers, Termux/Browser/ACP/GitHub→External Tools, provider health|setup/Gateway Slack/gateway*→API Connectivity, Native TUI/Toolbox/Web tools→Tool Availability, Goncho config→Memory Provider; every input check rendered exactly once (no drop/dupe). (3) Catch-all fallback: unmapped check → `◆ Gormes Runtime`, never dropped/panic; empty sections print no header. Wiring: cmd/gormes/doctor.go doctorReporter.Add() no longer streams flat in human mode (accumulates only); Finalize() human path prints RenderSectionedReport(collected) then the shipped Found-N summary then --fix — JSON mode untouched (no ◆ in --json, asserted). Tests GREEN: internal/doctor/doctor_section_test.go (3: ordered grouping/empty-section/blank-line, owned-divergence placement+no-drop, unknown→catch-all) + cmd/gormes/doctor_section_test.go (2: human section-grouped w/ Found-N after + no dup + Gormes wording, --json has no ◆). Gates: `go test ./internal/doctor -count=1` ok, `go test ./cmd/gormes -run Doctor -count=1` ok, `go test ./cmd/gormes -count=1` ok (12.7s; the earlier unrelated parallel-agent update.go build break self-healed), `go run ./cmd/progress validate` ok (9 phases), `git diff --check` clean. Section CONTENT remains the separate umbrella follow-up row (unchanged)."
+            },
+            {
+              "name": "gormes doctor section-content parity (Security Advisories / Directory Structure / Skills Hub / Auth Providers / Profiles)",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Umbrella inventory parent for the upstream `hermes doctor` section CONTENT that gormes doctor does not yet emit, tracked separately from the section-grouping UX slice. Upstream hermes_cli/doctor.py@55c9f3206 run_doctor renders, inside its `◆` sections, diagnostic data gormes currently lacks: a live Security Advisories scan with remediation (doctor.py:350), a Directory Structure listing of SOUL.md/MEMORY.md/USER.md/state.db sessions (:812), Skills Hub directory init state + a GITHUB_TOKEN rate-limit note (:1637), an Auth Providers enumeration (Nous Portal / Gemini OAuth / MiniMax / codex CLI) (:749), and per-profile Profiles (gateway running + model per profile) (:1768). Each is its own builder-ready behavior with distinct source seams; this parent only inventories them so they are not lost. Child rows must be split before implementation — do not implement this parent as one slice.",
+              "contract_status": "draft",
+              "slice_size": "umbrella",
+              "execution_owner": "tools",
+              "degraded_mode": "Parent row is inventory-only and non-selectable; each child behavior carries its own degraded_mode when split.",
+              "fixture": "n/a (inventory parent; child rows carry fixtures)",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:350:◆ Security Advisories (security_advisories: detect_compromised/filter_unacked/full_remediation_text/get_acked_ids)",
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:812:◆ Directory Structure (SOUL.md/MEMORY.md/USER.md/state.db sessions)",
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:1637:◆ Skills Hub (directory init + GITHUB_TOKEN rate-limit note)",
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:749:◆ Auth Providers (provider enumeration)",
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:1768:◆ Profiles (per-profile gateway + model)",
+                "Depends on the section-grouping UX row landing first so content attaches under existing `◆` headers"
+              ],
+              "ready_when": [
+                "Inventory parent only: it stays non-selectable while its child behaviors remain enumerated here and the section-grouping UX row provides the `◆` header host.",
+                "Split into per-section builder-ready child rows before any implementation."
+              ],
+              "not_ready_when": [
+                "Anyone attempts to assign this umbrella as a single combined implementation slice.",
+                "Child behaviors are implemented without first being split into their own rows with write_scope and tests."
+              ],
+              "blocked_by": [],
+              "no_test_required": "Inventory parent; executable child rows (one per upstream section's content) carry the focused tests when split.",
+              "acceptance": [
+                "Parent remains source-backed and non-selectable; each upstream section's content gap is split into its own builder-ready row before implementation, citing the exact 55c9f3206 doctor.py seam."
+              ],
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "done_signal": [
+                "Parent stays non-selectable and source-backed while child rows provide runnable implementation and tests; no child behavior is lost from the doctor parity map."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55c9f3206 hermes_cli/doctor.py:297 run_doctor section content (350/749/812/1637/1768)"
+                ],
+                "note": "skill_origin: 2026-05-16 gormes-hermes-parity doctor UX sweep -> gormes-planner. Deferred-content companion to the section-grouping UX row; keeps the larger doctor-section-content behaviors mapped without bloating the UX slice."
+              },
+              "note": "Planner pass 2026-05-16: umbrella inventory parent for deferred doctor section CONTENT. Not builder-selectable. Split per upstream section into individual rows (Security Advisories scan; Directory Structure listing; Skills Hub init+GITHUB_TOKEN note; Auth Providers enumeration; per-profile Profiles) when prioritized. Sequenced after the 'gormes doctor ◆ Section grouping' row so content has `◆` headers to attach under."
             },
             {
               "name": "Custom provider model-switch credential preservation",

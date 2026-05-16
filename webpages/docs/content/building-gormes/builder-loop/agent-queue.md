@@ -48,28 +48,7 @@ selection.
 - Unblocks: Gormes update verified binary swap and rollback
 - Why now: Unblocks Gormes update verified binary swap and rollback.
 
-## 2. Termux real-device smoke evidence
-
-- Phase: 1 / 5.X
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Capture a dated real-device no-root Android Termux smoke record for the current release: install via repo-root install.sh release asset, run gormes version, gormes doctor --offline --json, gormes config check, initialize SQLite/Goncho state, and run a provider-backed gormes chat -q "hello from Termux" when a test credential is available. The evidence must record Android/Termux versions, device arch, install method, and any caveats without leaking credentials.
-- Trust class: operator, system
-- Ready when: Termux runtime doctor check is complete., Termux install and release smoke guide is complete., A real no-root Android arm64/aarch64 Termux environment is available to the operator.
-- Not ready when: The evidence is only CI simulation or local Linux fake TERMUX_VERSION output., The smoke transcript includes raw provider keys, bot tokens, device-private paths beyond normal Termux paths, or personal chat IDs., The smoke uses source build as the primary install path unless the release asset is explicitly unavailable.
-- Degraded mode: If no provider credential is available, record provider-backed oneshot as skipped with credential-unavailable evidence; local install/version/doctor/config/Goncho smoke remains required.
-- Fixture: `webpages/docs/content/install/termux-smoke.md or release evidence note`
-- Write scope: `webpages/docs/content/install/`, `docs/content/building-gormes/architecture_plan/progress.json`, `README.md`
-- Test commands: -
-- No test required: Manual real-device evidence row; CI simulation cannot replace the Android smoke transcript.
-- Done signal: A dated redacted real-device Termux smoke record is checked in and linked from the install docs/progress row.
-- Acceptance: Evidence records exact date, device arch, Android version, Termux version, and Gormes version/commit., Evidence shows install.sh release-binary path into $PREFIX/bin/gormes., Evidence includes gormes version, gormes doctor --offline --json, gormes config check, and SQLite/Goncho initialization outputs or redacted summaries., Provider-backed gormes chat -q succeeds or is explicitly skipped for missing test credential., The public compatibility claim remains bounded to the proven support matrix.
-- Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Termux remote execution guidance
+## 2. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -89,7 +68,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Agentic-porting-kit public repo scaffold
+## 3. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

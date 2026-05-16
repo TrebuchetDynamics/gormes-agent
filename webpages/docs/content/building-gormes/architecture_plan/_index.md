@@ -154,13 +154,13 @@ classification and row-backed implementation queue.
 
 ### 5.X — Termux Runtime Compatibility 🔨
 
-- [ ] Gormes Termux Runtime Compatibility
+- [x] Gormes Termux Runtime Compatibility
 - [x] Termux runtime doctor check
 - [x] Termux install and release smoke guide
 - [x] Termux storage and path safety audit
 - [x] Termux gateway foreground tmux lifecycle
 - [x] Termux notification bridge via termux-api
-- [ ] Termux real-device smoke evidence
+- [x] Termux real-device smoke evidence
 - [ ] Termux remote execution guidance
 
 ## Phase 2 — The Gateway 🔨
@@ -1111,11 +1111,13 @@ classification and row-backed implementation queue.
 - [x] Backup/update opt-in and exclusion policy
 - [x] Self-update command lifecycle safety
 - [ ] Gormes update release planner and dry-run contract
-- [ ] Gormes update verified binary swap and rollback
+- [x] Gormes update verified binary swap and rollback
 - [ ] Gormes update bundled assets and skills sync
 - [ ] Gormes update managed service drain and restart
 - [x] doctorCustomEndpointReadiness check function
 - [x] gormes doctor actionable issues summary and --fix auto-remediation
+- [x] gormes doctor ◆ Section grouping + upstream section ordering (UX parity)
+- [ ] gormes doctor section-content parity (Security Advisories / Directory Structure / Skills Hub / Auth Providers / Profiles)
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
 - [x] CLI log redactor for known secret shapes
