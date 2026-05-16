@@ -1,8 +1,10 @@
 package main
 
 import (
+	"os"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -87,6 +89,26 @@ func TestNativeTUIStartupDoesNotCaptureMouseByDefault(t *testing.T) {
 		}
 		if name := runtime.FuncForPC(ptr).Name(); name != "" && containsMouseAllMotion(name) {
 			t.Fatalf("local TUI startup enabled mouse tracking by default via %s; terminal text selection must work without /mouse off", name)
+		}
+	}
+}
+
+func TestNativeTUIKernelLoggerDoesNotWriteProviderErrorsToTerminal(t *testing.T) {
+	raw, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("read main.go: %v", err)
+	}
+	text := string(raw)
+	if strings.Contains(text, "}, c, store.NewNoop(), tm, slog.Default())") {
+		t.Fatal("local TUI kernel still uses slog.Default(); provider/auth provenance logs can leak into the terminal")
+	}
+	for _, want := range []string{
+		"func tuiKernelLogger() *slog.Logger",
+		"slog.NewTextHandler(io.Discard, nil)",
+		"}, c, store.NewNoop(), tm, tuiKernelLogger())",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("local TUI kernel log suppression missing marker %q", want)
 		}
 	}
 }

@@ -1027,6 +1027,7 @@ func runSetupActiveProviderModelPicker(cmd *cobra.Command, current cli.ProviderM
 		fmt.Fprintf(cmd.OutOrStdout(), "Model catalog degraded for %s: %s; accepting free-text model.\n", provider, suggestions.DegradedReason)
 	}
 	model, err := promptModelChoiceWithOptions(cmd.InOrStdin(), cmd.OutOrStdout(), provider, current.Model, suggestions.Models, modelChoicePromptOptions{
+		Context:         cmd.Context(),
 		SuggestionLimit: modelChoiceSuggestionLimitUnlimited,
 	})
 	if err != nil {
@@ -2249,6 +2250,90 @@ func saveSetupToolsSelection(cmd *cobra.Command, doc map[string]any, toolCfg *cl
 	return nil
 }
 
+var setupToolProgressModes = []string{"off", "new", "all", "verbose"}
+
+func promptSetupToolProgressMode(cmd *cobra.Command, current string) (mode string, selected bool, invalid string, err error) {
+	current = normalizeSetupChoice(current)
+	if !isKnownToolProgressMode(current) {
+		current = "all"
+	}
+	if stdin, ok := cmd.InOrStdin().(*os.File); ok && setupInputIsTerminal(stdin) {
+		selectedMode, pickErr := runBubbleTeaPick(
+			cmd.Context(),
+			stdin,
+			cmd.OutOrStdout(),
+			"Tool progress mode",
+			setupToolProgressPickerChoices(),
+			current,
+		)
+		if pickErr == nil {
+			if selectedMode == "" {
+				return current, false, "", nil
+			}
+			return selectedMode, true, "", nil
+		}
+		if !bubbleTeaPickShouldFallback(pickErr) {
+			return "", false, "", pickErr
+		}
+	}
+	return promptSetupToolProgressModeText(cmd, current)
+}
+
+func promptSetupToolProgressModeText(cmd *cobra.Command, current string) (mode string, selected bool, invalid string, err error) {
+	out := cmd.OutOrStdout()
+	defaultIndex := indexSetupToolProgressMode(current)
+	if defaultIndex < 0 {
+		defaultIndex = indexSetupToolProgressMode("all")
+	}
+	fmt.Fprintln(out, "Select tool progress mode:")
+	for i, mode := range setupToolProgressModes {
+		marker := " "
+		if i == defaultIndex {
+			marker = "→"
+		}
+		fmt.Fprintf(out, "  %s %d. %s\n", marker, i+1, mode)
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "Choice [1-%d] (%d), or q to cancel: ", len(setupToolProgressModes), defaultIndex+1)
+	answer, err := scanPromptString(cmd, strconv.Itoa(defaultIndex+1))
+	if err != nil {
+		return "", false, "", err
+	}
+	rawAnswer := strings.TrimSpace(answer)
+	normalized := normalizeSetupChoice(rawAnswer)
+	if normalized == "q" || normalized == "cancel" || normalized == "keep" {
+		return current, false, "", nil
+	}
+	if idx, parseErr := strconv.Atoi(rawAnswer); parseErr == nil {
+		if idx < 1 || idx > len(setupToolProgressModes) {
+			return current, false, rawAnswer, nil
+		}
+		return setupToolProgressModes[idx-1], true, "", nil
+	}
+	if isKnownToolProgressMode(normalized) {
+		return normalized, true, "", nil
+	}
+	return current, false, rawAnswer, nil
+}
+
+func setupToolProgressPickerChoices() []tuiPickChoice {
+	choices := make([]tuiPickChoice, len(setupToolProgressModes))
+	for i, mode := range setupToolProgressModes {
+		choices[i] = tuiPickChoice{ID: mode, Label: mode}
+	}
+	return choices
+}
+
+func indexSetupToolProgressMode(current string) int {
+	current = normalizeSetupChoice(current)
+	for i, mode := range setupToolProgressModes {
+		if mode == current {
+			return i
+		}
+	}
+	return -1
+}
+
 func runSetupAgentSettingsSection(cmd *cobra.Command, nonInteractive bool) error {
 	out := cmd.OutOrStdout()
 	cfg, _ := config.Load(nil)
@@ -2286,18 +2371,19 @@ func runSetupAgentSettingsSection(cmd *cobra.Command, nonInteractive bool) error
 		fmt.Fprintf(out, "setup_agent_value_ignored: max_iterations=%q\n", maxText)
 	}
 
-	progress, err := promptString(cmd, fmt.Sprintf("Tool progress mode [%s]: ", toolProgress), toolProgress)
+	progress, selectedProgress, invalidProgress, err := promptSetupToolProgressMode(cmd, toolProgress)
 	if err != nil {
 		return err
 	}
-	progress = normalizeSetupChoice(progress)
-	if isKnownToolProgressMode(progress) {
+	if invalidProgress != "" {
+		fmt.Fprintf(out, "Unknown tool progress mode %q; keeping %s\n", invalidProgress, toolProgress)
+	} else if selectedProgress {
 		if err := config.WriteTOMLValue(config.ConfigPath(), "display.tool_progress", progress); err != nil {
 			return err
 		}
 		fmt.Fprintf(out, "Tool progress set to: %s\n", progress)
 	} else {
-		fmt.Fprintf(out, "setup_agent_value_ignored: tool_progress=%q\n", progress)
+		fmt.Fprintf(out, "Tool progress unchanged: %s\n", progress)
 	}
 
 	thresholdText, err := promptString(cmd, fmt.Sprintf("Compression threshold [%.2g]: ", compressionThreshold), strconv.FormatFloat(compressionThreshold, 'f', -1, 64))
@@ -2596,12 +2682,12 @@ func parseThreshold(value string) (float64, bool) {
 }
 
 func isKnownToolProgressMode(value string) bool {
-	switch value {
-	case "off", "new", "all", "verbose":
-		return true
-	default:
-		return false
+	for _, mode := range setupToolProgressModes {
+		if value == mode {
+			return true
+		}
 	}
+	return false
 }
 
 func isKnownSessionResetPolicy(value string) bool {

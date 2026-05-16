@@ -426,10 +426,13 @@ func TestSetupActiveProviderModelPickerSkipsProviderList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runSetupActiveProviderModelPicker() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
 	}
-	for _, want := range []string{"Suggested models for openai-codex:", "Model for openai-codex [gpt-5.5]", "model selection saved: provider=openai-codex model=gpt-5.5"} {
+	for _, want := range []string{"Select model for openai-codex:", "1. gpt-5.5", "Choice [1-8] (1), custom model, or q to cancel:", "model selection saved: provider=openai-codex model=gpt-5.5"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
 		}
+	}
+	if strings.Contains(stdout.String(), "Suggested models for openai-codex:") {
+		t.Fatalf("stdout still uses comma-separated model suggestions:\n%s", stdout.String())
 	}
 	for _, forbidden := range []string{"Choose a provider", "github-models (api_key)", "openai-codex (oauth_external)"} {
 		if strings.Contains(stdout.String(), forbidden) {
@@ -748,11 +751,20 @@ func TestSetupAgentSettingsInteractivePersistsRuntimeConfig(t *testing.T) {
 	t.Setenv("GORMES_HOME", home)
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "200\nverbose\n0.75\ndaily\n", "agent")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "200\n4\n0.75\ndaily\n", "agent")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Max iterations set to 200", "Tool progress set to: verbose", "Compression threshold set to 0.75", "Session reset policy set to: daily"} {
+	for _, want := range []string{
+		"Max iterations set to 200",
+		"Select tool progress mode:",
+		"3. all",
+		"4. verbose",
+		"Choice [1-4] (3), or q to cancel:",
+		"Tool progress set to: verbose",
+		"Compression threshold set to 0.75",
+		"Session reset policy set to: daily",
+	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -777,6 +789,42 @@ func TestSetupAgentSettingsInteractivePersistsRuntimeConfig(t *testing.T) {
 	}
 	if got := configuredMaxToolIterations(cfg); got != 200 {
 		t.Fatalf("configuredMaxToolIterations = %d, want 200", got)
+	}
+}
+
+func TestSetupAgentSettingsToolProgressRejectsNonOption(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "200\nhi\n0.75\ndaily\n", "agent")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Select tool progress mode:",
+		"Choice [1-4] (3), or q to cancel:",
+		"Unknown tool progress mode \"hi\"; keeping all",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{
+		"Tool progress set to: hi",
+		"tool_progress = 'hi'",
+		"setup_agent_value_ignored: tool_progress",
+	} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("output contains forbidden %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	body, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if strings.Contains(string(body), "tool_progress = 'hi'") {
+		t.Fatalf("config persisted invalid tool_progress:\n%s", string(body))
 	}
 }
 

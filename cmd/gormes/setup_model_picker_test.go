@@ -20,24 +20,25 @@ func TestSetupModelPickerUsesActiveProviderPickerModelSet(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	cmd.SetIn(strings.NewReader("gpt-5.2-codex\n"))
+	cmd.SetIn(strings.NewReader("6\n"))
 
 	err := runSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"})
 	if err != nil {
 		t.Fatalf("runSetupActiveProviderModelPicker() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
 	}
-	suggestionLine := firstSetupModelPickerLineWithPrefix(stdout.String(), "Suggested models for openai-codex:")
-	if !strings.Contains(suggestionLine, "gpt-5.2-codex") {
-		t.Fatalf("suggestion line missing picker model beyond static prompt ceiling:\n%s", stdout.String())
-	}
 	for _, want := range []string{
-		"Suggested models for openai-codex:",
-		"Model for openai-codex [gpt-5.5]",
+		"Select model for openai-codex:",
+		"1. gpt-5.5",
+		"6. gpt-5.2-codex",
+		"Choice [1-8] (1), custom model, or q to cancel:",
 		"model selection saved: provider=openai-codex model=gpt-5.2-codex",
 	} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
 		}
+	}
+	if strings.Contains(stdout.String(), "Suggested models for openai-codex:") {
+		t.Fatalf("stdout still uses comma-separated suggestion line instead of selectable list:\n%s", stdout.String())
 	}
 	if strings.Contains(stdout.String(), "Model for openrouter") {
 		t.Fatalf("stdout used wrong provider prompt:\n%s", stdout.String())
@@ -96,13 +97,4 @@ func TestSetupModelPickerReportsDegradedFallback(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
 		}
 	}
-}
-
-func firstSetupModelPickerLineWithPrefix(text, prefix string) string {
-	for _, line := range strings.Split(text, "\n") {
-		if strings.HasPrefix(line, prefix) {
-			return line
-		}
-	}
-	return ""
 }

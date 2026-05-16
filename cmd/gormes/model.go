@@ -34,6 +34,7 @@ const (
 )
 
 type modelChoicePromptOptions struct {
+	Context         context.Context
 	SuggestionLimit int
 }
 
@@ -222,14 +223,53 @@ func promptModelChoice(in io.Reader, out io.Writer, provider string, current str
 }
 
 func promptModelChoiceWithOptions(in io.Reader, out io.Writer, provider string, current string, suggestions []string, opts modelChoicePromptOptions) (string, error) {
-	if bounded := modelCatalogSuggestionsForPrompt(suggestions, opts.SuggestionLimit); len(bounded) > 0 {
-		fmt.Fprintf(out, "Suggested models for %s: %s\n", provider, strings.Join(bounded, ", "))
+	models := modelCatalogSuggestionsForPrompt(suggestions, opts.SuggestionLimit)
+	if stdin, ok := in.(*os.File); ok && term.IsTerminal(int(stdin.Fd())) && len(models) > 0 {
+		ctx := opts.Context
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		selected, err := runBubbleTeaPick(ctx, stdin, out, "Select model for "+provider, modelPickerChoices(models), defaultModelChoiceID(models, current))
+		if err == nil {
+			if selected == "" {
+				return "", cli.ErrModelPickerCancelled
+			}
+			return selected, nil
+		}
+		if !bubbleTeaPickShouldFallback(err) {
+			return "", err
+		}
 	}
-	if strings.TrimSpace(current) != "" {
+	return promptModelChoiceText(in, out, provider, current, models)
+}
+
+func promptModelChoiceText(in io.Reader, out io.Writer, provider string, current string, models []string) (string, error) {
+	current = strings.TrimSpace(current)
+	if len(models) > 0 {
+		defaultIndex := indexModelChoice(models, current)
+		fmt.Fprintf(out, "Select model for %s:\n", provider)
+		for i, model := range models {
+			marker := " "
+			if i == defaultIndex {
+				marker = "→"
+			}
+			fmt.Fprintf(out, "  %s %d. %s\n", marker, i+1, model)
+		}
+		fmt.Fprintln(out)
+		switch {
+		case defaultIndex >= 0:
+			fmt.Fprintf(out, "Choice [1-%d] (%d), custom model, or q to cancel: ", len(models), defaultIndex+1)
+		case current != "":
+			fmt.Fprintf(out, "Choice [1-%d], custom model [%s], or q to cancel: ", len(models), current)
+		default:
+			fmt.Fprintf(out, "Choice [1-%d], custom model, or q to cancel: ", len(models))
+		}
+	} else if current != "" {
 		fmt.Fprintf(out, "Model for %s [%s] (or q to cancel): ", provider, current)
 	} else {
 		fmt.Fprintf(out, "Model for %s (or q to cancel): ", provider)
 	}
+
 	reader := bufio.NewReader(in)
 	line, err := reader.ReadString('\n')
 	if err != nil && strings.TrimSpace(line) == "" {
@@ -240,12 +280,64 @@ func promptModelChoiceWithOptions(in io.Reader, out io.Writer, provider string, 
 		return "", cli.ErrModelPickerCancelled
 	}
 	if answer == "" {
-		answer = strings.TrimSpace(current)
+		answer = current
 	}
 	if answer == "" {
 		return "", cli.ErrSelectorNoMatch
 	}
+	if len(models) > 0 {
+		if idx, parseErr := strconv.Atoi(answer); parseErr == nil {
+			if idx < 1 || idx > len(models) {
+				return "", fmt.Errorf("invalid model choice")
+			}
+			return models[idx-1], nil
+		}
+	}
 	return answer, nil
+}
+
+func modelPickerChoices(models []string) []tuiPickChoice {
+	choices := make([]tuiPickChoice, 0, len(models))
+	seen := make(map[string]struct{}, len(models))
+	for _, model := range models {
+		model = strings.TrimSpace(model)
+		key := strings.ToLower(model)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		choices = append(choices, tuiPickChoice{ID: model, Label: model})
+	}
+	return choices
+}
+
+func defaultModelChoiceID(models []string, current string) string {
+	current = strings.TrimSpace(current)
+	if current == "" {
+		return ""
+	}
+	for _, model := range models {
+		if strings.EqualFold(strings.TrimSpace(model), current) {
+			return strings.TrimSpace(model)
+		}
+	}
+	return ""
+}
+
+func indexModelChoice(models []string, current string) int {
+	current = strings.TrimSpace(current)
+	if current == "" {
+		return -1
+	}
+	for i, model := range models {
+		if strings.EqualFold(strings.TrimSpace(model), current) {
+			return i
+		}
+	}
+	return -1
 }
 
 func modelCatalogSuggestionsForPrompt(suggestions []string, max int) []string {
