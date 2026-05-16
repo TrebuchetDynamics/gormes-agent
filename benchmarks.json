@@ -1,7 +1,7 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "7c321c0a7",
+    "commit": "3bd34ace0",
     "go_version": "1.26+",
     "last_measured": "2026-05-15",
     "linker": "static",
@@ -157,14 +157,14 @@
   "runtime": {
     "offline_doctor": {
       "command": "bin/gormes doctor --offline --json",
-      "commit": "7c321c0a7",
+      "commit": "3bd34ace0",
       "elapsed_ms": 8,
       "goarch": "amd64",
       "goos": "linux",
       "isolated_home": true,
       "last_measured": "2026-05-15",
-      "peak_rss_kb": 25376,
-      "peak_rss_mb": 24.8,
+      "peak_rss_kb": 25560,
+      "peak_rss_mb": 25,
       "status": "measured"
     }
   },
