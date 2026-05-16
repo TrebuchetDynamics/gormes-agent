@@ -34,11 +34,15 @@ type BundledSkillProfileSyncReport struct {
 }
 
 type SkillProfileSyncSummary struct {
-	Profile   string
-	Added     int
-	Unchanged int
-	Conflicts int
-	Failed    int
+	Profile        string
+	Added          int
+	Updated        int
+	Unchanged      int
+	Conflicts      int
+	ConflictCopies int
+	Removed        int
+	Orphaned       int
+	Failed         int
 }
 
 type SkillProfileSyncEvidence struct {
