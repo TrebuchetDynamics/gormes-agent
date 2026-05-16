@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -20,7 +19,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   final StreamController<NavivoxApprovalRequest> _approvals =
       StreamController<NavivoxApprovalRequest>.broadcast();
 
-  WebSocket? _socket;
+  NavivoxGatewaySocket? _socket;
   StreamSubscription<NavivoxGatewayEvent>? _events;
   NavivoxChannelState _state = const NavivoxChannelState();
   String? _activeSessionId;
@@ -39,7 +38,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     final socket = await client.connectStream();
     _socket = socket;
     _events = client
-        .decodeEvents(socket)
+        .decodeEvents(socket.events)
         .listen(
           _onEvent,
           onError: (Object error) =>

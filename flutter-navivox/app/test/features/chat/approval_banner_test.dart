@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:navivox/core/channel/navivox_channel_provider.dart';
 import '../../support/test_navivox_channel.dart';
 import 'package:navivox/core/channel/navivox_channel.dart';
 import 'package:navivox/features/chat/widgets/approval_banner.dart';

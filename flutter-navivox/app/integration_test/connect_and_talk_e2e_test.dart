@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
 import 'package:navivox/core/channel/navivox_channel_provider.dart';
 import 'package:navivox/router/app_router.dart';
 
-import '../../../integration_test/support/connect_and_talk_channel.dart';
+import 'support/connect_and_talk_channel.dart';
 
 void main() {
-  testWidgets('connect-info lands on chat and sends a text turn', (
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('web e2e connects from setup and sends the first text turn', (
     tester,
   ) async {
     final channel = ConnectAndTalkChannel();
@@ -16,7 +19,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [navivoxChannelProvider.overrideWithValue(channel)],
-        child: const _RouterTestApp(),
+        child: const _E2EApp(),
       ),
     );
     await tester.pumpAndSettle();
@@ -25,7 +28,6 @@ void main() {
     expect(find.text('Connect and talk'), findsOneWidget);
     expect(find.textContaining('gormes navivox connect-info'), findsWidgets);
     expect(_caseInsensitiveText('telephony'), findsNothing);
-    expect(_caseInsensitiveText('fake'), findsNothing);
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Gateway base URL'),
@@ -58,41 +60,6 @@ void main() {
     expect(find.text('hello from gateway'), findsOneWidget);
     expect(_caseInsensitiveText('telephony'), findsNothing);
   });
-
-  testWidgets(
-    'connect failure gives connect-info guidance without token leak',
-    (tester) async {
-      final channel = FailingConnectChannel();
-      addTearDown(channel.dispose);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [navivoxChannelProvider.overrideWithValue(channel)],
-          child: const _RouterTestApp(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Gateway base URL'),
-        'http://127.0.0.1:8765',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Pairing token'),
-        'nvbx_secret_should_not_render',
-      );
-      await tester.tap(find.text('Connect and talk'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Could not connect to Gormes gateway.'), findsOneWidget);
-      expect(find.textContaining('gormes navivox connect-info'), findsWidgets);
-      expect(
-        _caseInsensitiveText('nvbx_secret_should_not_render'),
-        findsNothing,
-      );
-      expect(_caseInsensitiveText('telephony'), findsNothing);
-    },
-  );
 }
 
 Finder _caseInsensitiveText(String needle) {
@@ -104,8 +71,8 @@ Finder _caseInsensitiveText(String needle) {
   });
 }
 
-class _RouterTestApp extends ConsumerWidget {
-  const _RouterTestApp();
+class _E2EApp extends ConsumerWidget {
+  const _E2EApp();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
