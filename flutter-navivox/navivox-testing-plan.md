@@ -213,6 +213,26 @@ Use the Go Navivox handler in a test fixture for one narrow smoke:
 | E7 | Agent seed draft | Seed creates editable draft, not an auto-applied agent. |
 | E8 | Config secret edit | Secret value is write-only and redacted after apply. |
 
+### 7.1 Web E2E Gate
+
+Navivox must keep the connect-and-talk loop working in Chrome, not only in
+hosted Flutter widget tests. The required browser smoke is:
+
+```bash
+cd flutter-navivox/app
+flutter test --platform chrome test/e2e/connect_and_talk_web_e2e_test.dart
+flutter build web --no-web-resources-cdn
+```
+
+Flutter's `integration_test` web runner remains available for environments
+with matching ChromeDriver/WebDriver configured:
+
+```bash
+cd flutter-navivox/app
+flutter drive --driver=test_driver/integration_test.dart \
+  --target=integration_test/connect_and_talk_e2e_test.dart -d chrome
+```
+
 ## 8. Fixtures
 
 Recommended fixtures:
@@ -238,6 +258,8 @@ go test ./cmd/gormes -run NavivoxConnectInfo -count=1
 go test ./internal/channels/navivox -count=1
 go test ./internal/config -run Navivox -count=1
 cd flutter-navivox/app && flutter test
+cd flutter-navivox/app && flutter test --platform chrome test/e2e/connect_and_talk_web_e2e_test.dart
+cd flutter-navivox/app && flutter build web --no-web-resources-cdn
 ```
 
 Docs-only rows should also run:
