@@ -97,10 +97,43 @@ func Write(stdout io.Writer, root string) error {
 			errs = append(errs, err)
 		}
 	}
+	if paths.siteProgressSlim != "" {
+		if err := writeSlimProgress(p, paths.siteProgressSlim); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	if len(errs) == 0 {
 		fmt.Fprintln(stdout, "progress: site progress data refreshed")
 	}
 	return joinErrors(stdout, errs)
+}
+
+// Compact rewrites every completed row's verbose shipped-evidence note to a
+// one-line "SHIPPED <date> see git log — <summary>" pointer and writes the
+// canonical progress.json back through the same stable marshaller Write uses,
+// so only `note` strings change in the diff. It is deliberately a standalone
+// maintenance action: Write and Validate never invoke it, keeping doc
+// regeneration and schema validation pure. It is idempotent and fully
+// reversible via git.
+func Compact(stdout io.Writer, root string) error {
+	p, err := loadValidProgress(root)
+	if err != nil {
+		return err
+	}
+	n := progress.CompactCompletedNotes(p)
+	if n == 0 {
+		_, err = fmt.Fprintln(stdout, "progress: notes already compact (no changes)")
+		return err
+	}
+	path := progressPaths(root).progressJSON
+	if err := progress.SaveProgress(path, p); err != nil {
+		return err
+	}
+	if err := progress.Validate(p); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "progress: compacted %d completed-row note(s)\n", n)
+	return err
 }
 
 type marker struct {
@@ -122,6 +155,7 @@ type pathSet struct {
 	umbrellaCleanup    string
 	progressSchema     string
 	siteProgress       []string
+	siteProgressSlim   string
 }
 
 func progressPaths(root string) pathSet {
@@ -138,10 +172,17 @@ func progressPaths(root string) pathSet {
 		blockedSlices:      filepath.Join(builderLoopDir, "blocked-slices.md"),
 		umbrellaCleanup:    filepath.Join(builderLoopDir, "umbrella-cleanup.md"),
 		progressSchema:     filepath.Join(builderLoopDir, "progress-schema.md"),
-		siteProgress: []string{
-			filepath.Join(root, "webpages", "landing", "src", "data", "progress.json"),
-			filepath.Join(root, "webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
-		},
+		// Verbatim site mirrors: now empty. The dead
+		// webpages/landing/src/data/progress.json mirror had no consumer
+		// (nothing in the Astro site imports it) and is no longer
+		// generated or tracked. Backlog-efficiency #1, 2026-05-16.
+		siteProgress: nil,
+		// The legacy go-renderer go:embed mirror MUST exist at build time
+		// (//go:embed data/progress.json). It is regenerated SLIM
+		// (phase/subphase names + statuses only — everything the renderer
+		// reads, none of the per-item prose) so it stays a valid embed
+		// without duplicating the 5.2 MB archive on every progress edit.
+		siteProgressSlim: filepath.Join(root, "webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
 	}
 }
 
@@ -167,6 +208,62 @@ func rewriteMarker(path, kind, body string) error {
 	}
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
+// slimProgress returns a reduced copy of p containing exactly what the
+// landing renderer reads — phase/subphase names, deliverable, dependency
+// note, subphase priority/status/drift, and per-item Status — and nothing
+// else. All per-item prose (name, contract, notes, acceptance, source refs,
+// write scope, ...) is dropped. DerivedStatus and Stats are byte-for-byte
+// equivalent because they only depend on the preserved fields.
+func slimProgress(p *progress.Progress) *progress.Progress {
+	if p == nil {
+		return nil
+	}
+	out := &progress.Progress{Meta: p.Meta, Phases: make(map[string]progress.Phase, len(p.Phases))}
+	for pk, ph := range p.Phases {
+		sps := make(map[string]progress.Subphase, len(ph.Subphases))
+		for sk, sp := range ph.Subphases {
+			var items []progress.Item
+			if len(sp.Items) > 0 {
+				items = make([]progress.Item, 0, len(sp.Items))
+				for _, it := range sp.Items {
+					items = append(items, progress.Item{Status: it.Status})
+				}
+			}
+			sps[sk] = progress.Subphase{
+				Name:       sp.Name,
+				Priority:   sp.Priority,
+				Items:      items,
+				Status:     sp.Status,
+				DriftState: sp.DriftState,
+			}
+		}
+		out.Phases[pk] = progress.Phase{
+			Name:           ph.Name,
+			Deliverable:    ph.Deliverable,
+			DependencyNote: ph.DependencyNote,
+			Subphases:      sps,
+		}
+	}
+	return out
+}
+
+// writeSlimProgress marshals slimProgress(p) to dst. The legacy go-renderer
+// go:embed's this path, so it must always exist and be valid JSON, but it is
+// now KB (status/name only) instead of a 5.2 MB verbatim archive copy.
+func writeSlimProgress(p *progress.Progress, dst string) error {
+	b, err := json.MarshalIndent(slimProgress(p), "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal slim progress: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", filepath.Dir(dst), err)
+	}
+	if err := os.WriteFile(dst, append(b, '\n'), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", dst, err)
 	}
 	return nil
 }
