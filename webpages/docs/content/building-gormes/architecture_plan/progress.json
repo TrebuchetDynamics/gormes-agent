@@ -61520,12 +61520,12 @@
             {
               "name": "Backlog split C2: docs/landing generators read the split layout",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "Make the docs/landing generators source the canonical backlog through C1's dual-layout Load so they work identically whether the backlog is the monolithic progress.json OR a split directory. Today internal/progressctl.Write/Validate/Compact call progress.Load(progressPaths(root).progressJSON) (a fixed FILE path); add split-layout resolution (when a split directory exists at the canonical location, or an opt-in path, load it via the C1 transparent Load) and prove every generated artifact — the building-gormes markered docs (_index.md, agent-queue.md, next-slices.md, blocked-slices.md, contract-readiness.md, umbrella-cleanup.md, progress-schema.md), the slim go:embed legacy mirror, and the validate JSON — is BYTE-IDENTICAL regardless of which physical layout backs the source. No row is moved and the monolith stays the default; this is purely teaching the generators to read either layout. Owned Gormes infra.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -61556,7 +61556,6 @@
               "write_scope": [
                 "internal/progressctl/progressctl.go",
                 "internal/progressctl/progressctl_test.go",
-                "internal/progress/progress.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -61568,7 +61567,7 @@
               "done_signal": [
                 "Generators read either layout; all generated artifacts byte-identical across layouts; monolith still default; zero row movement."
               ],
-              "note": "Module-split umbrella child C2. Builder-ready (only blocker C1 is SHIPPED). Smallest next step. Recommended chain: gormes-tdd-slice. Keep the monolith canonical; this only makes generators layout-agnostic."
+              "note": "SHIPPED 2026-05-16 see git log — progressctl.canonicalSource + pathSet.progressSplitDir; loadValidProgress resolves split dir else monolith via C1 Load (generators layout-agnostic & byte-identical, monolith default, malformed→ErrMalformedSplit, Compact split write-back guarded for C3). progress.go untouched (C1 Load already dual-dispatches)."
             },
             {
               "name": "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout",

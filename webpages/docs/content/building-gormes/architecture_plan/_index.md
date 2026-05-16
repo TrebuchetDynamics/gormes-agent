@@ -1442,7 +1442,7 @@ classification and row-backed implementation queue.
 - [x] Compact completed-row shipped-evidence notes to a one-line pointer
 - [ ] Module-split the progress backlog (per-subsystem files, parity-aligned)
 - [x] Backlog split C1: lossless multi-file loader/writer behind the single-file API
-- [ ] Backlog split C2: docs/landing generators read the split layout
+- [x] Backlog split C2: docs/landing generators read the split layout
 - [ ] Backlog split C3: migrate remaining backlog consumers and the write path to the split layout
 - [ ] Backlog split C5a: optional per-row module key + deterministic derivation + backfill
 - [ ] Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout
