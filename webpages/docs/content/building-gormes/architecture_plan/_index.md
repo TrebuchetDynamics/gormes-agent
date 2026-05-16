@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 99/109 subphases shipped · 9 in progress · 1 planned
+**Overall:** 98/109 subphases shipped · 10 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -1022,7 +1022,7 @@ classification and row-backed implementation queue.
 - [x] Navivox host setup apply with transient sudo
 - [x] Gateway auto-resume on restart
 
-### 5.O — Hermes CLI Parity ✅
+### 5.O — Hermes CLI Parity 🔨
 
 - [x] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
@@ -1110,6 +1110,10 @@ classification and row-backed implementation queue.
 - [x] Hermes sessions CLI MRU browse/delete ergonomics
 - [x] Backup/update opt-in and exclusion policy
 - [x] Self-update command lifecycle safety
+- [ ] Gormes update release planner and dry-run contract
+- [ ] Gormes update verified binary swap and rollback
+- [ ] Gormes update bundled assets and skills sync
+- [ ] Gormes update managed service drain and restart
 - [x] doctorCustomEndpointReadiness check function
 - [x] gormes doctor actionable issues summary and --fix auto-remediation
 - [x] Custom provider model-switch credential preservation

@@ -47311,6 +47311,281 @@
               }
             },
             {
+              "name": "Gormes update release planner and dry-run contract",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "`gormes update` must distinguish normal release-installed operators from managed source checkouts before it mutates anything. For release installs, the command plans against trusted GitHub Releases: detect install layout, current version/build, OS/arch artifact name, channel policy (`stable` by default, `development` explicit), latest release metadata, snapshot path, components to update, blocked reasons, and whether an update is available. `gormes update --dry-run` prints the exact non-mutating plan; `gormes update --check` performs no mutation and exits 0 when current, 10 when an update is available, and nonzero for check errors. Existing source-checkout behavior from `Self-update command lifecycle safety` remains the managed/dev path and must not be silently used for release installs.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown install layout, unsupported OS/arch, missing release metadata, channel mismatch, dirty unmanaged source checkout, and network/API lookup failures produce typed plan blockers without changing binaries, assets, skills, services, config, credentials, sessions, memory, or source checkouts.",
+              "fixture": "cmd/gormes/update_release_plan_test.go; internal/cli/update_release_plan_test.go",
+              "source_refs": [
+                "cmd/gormes/update.go:newUpdateCommandWithSeams (current source-checkout update command and injectable seams)",
+                "internal/cli/update_lifecycle.go:RunUpdateLifecycle (completed managed source-checkout updater)",
+                "cmd/gormes/version.go:newVersionCommand/newBuildProvenance (current version/build evidence)",
+                "install.sh:decide_install_method + fetch_release_binary (release asset naming, GitHub latest release lookup, SHA-256 sidecar evidence)",
+                "scripts/install.ps1:release binary fetch block (Windows release asset naming and SHA-256 sidecar evidence)",
+                "internal/installtest/install_method_test.go (release-vs-source installer behavior)",
+                "Completed row: Self-update command lifecycle safety (source-checkout update path remains intact)"
+              ],
+              "ready_when": [
+                "The existing source-checkout `gormes update` command and lifecycle seams are complete and validated.",
+                "Installer release-binary fetch behavior already defines trusted repo, platform artifact names, release channels, and SHA-256 sidecar expectations.",
+                "Tests can inject install layout, current build, release metadata, OS/arch, channel, and clock without network or filesystem mutation."
+              ],
+              "not_ready_when": [
+                "The slice downloads or swaps binaries, syncs skills/assets, restarts services, or pulls git remotes.",
+                "Release-installed binaries silently fall back to managed source checkout mutation.",
+                "`--check` or `--dry-run` writes update logs, snapshots, config, skills, sessions, services, or source checkout state.",
+                "Exit codes for current/update-available/error are not deterministic and tested."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Gormes update verified binary swap and rollback"
+              ],
+              "acceptance": [
+                "Release install, managed source checkout, unmanaged source checkout, and unknown install layouts are classified with typed evidence.",
+                "`gormes update --dry-run` prints current version/build, target version/build, source (`github_release` or `managed_source`), channel, artifact, snapshot path, component plan, and blockers without mutation.",
+                "`gormes update --check` exits 0 when current, 10 when an update is available, and nonzero for check errors, with JSON and text reports carrying the same state.",
+                "Stable vs development channel policy is explicit; release installs use GitHub Releases by default, managed source/dev installs use the existing source lifecycle only when detected or explicitly requested.",
+                "No binary, asset, skill, service, config, credential, session, memory, git checkout, or update ledger file changes during planner/check/dry-run tests."
+              ],
+              "write_scope": [
+                "cmd/gormes/update.go",
+                "cmd/gormes/update_release_plan_test.go",
+                "internal/cli/update_release_plan.go",
+                "internal/cli/update_release_plan_test.go",
+                "internal/cli/update_lifecycle.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner|TestUpdateCommandReleaseDryRun|TestUpdateCommandCheck' -count=1",
+                "go test ./cmd/gormes ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Update planner fixtures prove release/source/unknown layout detection, current-vs-target metadata, stable/development channel policy, dry-run output, --check exit codes, and zero mutation before any release artifact install path exists."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "grill_origin: 2026-05-16 operator plan for a safer `gormes update` command. This row extends the completed Hermes-style managed source updater with Gormes-owned release-install planning semantics for the single-binary distribution."
+              },
+              "note": "Builder-ready row 1 of the grilled release-update cluster. It deliberately avoids mutation so the release-installed operator contract can be proven before binary replacement, bundled asset/skill sync, or service coordination."
+            },
+            {
+              "name": "Gormes update verified binary swap and rollback",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "For release installs, `gormes update` must turn a validated release plan into a binary-only mutation: create a pre-update snapshot, download the selected GitHub release artifact through an injectable downloader, verify OS/arch, checksum manifest, and signature/provenance when available, smoke-test the staged binary with `gormes version --json`, atomically swap the managed and published binary paths, and roll back automatically on any post-snapshot failure. `gormes update --rollback <snapshot-id>` restores a previous binary snapshot. `--force` may bypass downgrade or unmanaged-session warnings but must never bypass checksum, signature, provenance, platform, or smoke-test failures.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Download, checksum, signature/provenance, platform mismatch, smoke-test, permission, atomic-rename, and rollback failures emit typed evidence, preserve the snapshot ID, and never report update success while the active binary is old or partially replaced.",
+              "fixture": "cmd/gormes/update_release_binary_test.go; internal/cli/update_release_binary_test.go",
+              "source_refs": [
+                "Prerequisite row: Gormes update release planner and dry-run contract",
+                "cmd/gormes/update.go:newUpdateCommandWithSeams (CLI flags/reporting surface)",
+                "cmd/gormes/version.go:newVersionCommand (staged binary smoke-check contract)",
+                "install.sh:fetch_release_binary (release download + SHA-256 sidecar precedent)",
+                "scripts/install.ps1:release binary fetch block (Windows checksum precedent)",
+                "cmd/gormes/restore.go + cmd/gormes/restore_command_test.go (existing backup/restore reporting patterns)",
+                "internal/cli/update_lifecycle.go:UpdateBinaryPublisher (current source-build publish seam; release binary swap should be separate, not a source-build path)"
+              ],
+              "ready_when": [
+                "`Gormes update release planner and dry-run contract` is complete and exposes a typed release update plan.",
+                "The builder can fixture release artifacts, checksums, signatures/provenance states, staged binary smoke results, and filesystem rename failures without network access.",
+                "Snapshot retention policy is documented in the plan row and can be implemented without touching user config/session/memory state."
+              ],
+              "not_ready_when": [
+                "The slice syncs bundled assets/skills, restarts services, or rewrites user config/migrations.",
+                "Integrity verification can be bypassed by --force.",
+                "The binary is replaced before the staged artifact passes verification and `version --json` smoke checks.",
+                "Rollback only prints advice after a partial install instead of attempting automatic restore from the snapshot."
+              ],
+              "blocked_by": [
+                "Gormes update release planner and dry-run contract"
+              ],
+              "unblocks": [
+                "Gormes update bundled assets and skills sync"
+              ],
+              "acceptance": [
+                "A release-installed update downloads only the planned OS/arch artifact from the configured trusted repo and rejects mismatched artifact names.",
+                "Checksum mismatch and missing/invalid signature or provenance, when required/available, fail before mutation and cannot be forced.",
+                "A staged binary must pass `gormes version --json` and report the expected version/build before any managed or published binary path is swapped.",
+                "Pre-update snapshot creation, atomic swap, rollback on failure, and `gormes update --rollback <snapshot-id>` are covered with temp-dir fixtures.",
+                "Failure output reports failed step, rollback result, snapshot ID, manual restore path, and log path; success output reports previous/new version and binary paths."
+              ],
+              "write_scope": [
+                "cmd/gormes/update.go",
+                "cmd/gormes/update_release_binary_test.go",
+                "internal/cli/update_release_binary.go",
+                "internal/cli/update_release_binary_test.go",
+                "internal/cli/update_release_plan.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleaseBinary|TestUpdateReleaseSnapshot|TestUpdateReleaseRollback' -count=1",
+                "go test ./cmd/gormes ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release binary fixtures prove verified download, staged smoke check, snapshot retention, atomic swap, automatic rollback, explicit rollback command, and integrity failures that --force cannot bypass."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "grill_origin: 2026-05-16 row 2. Gormes-owned release binary updater for normal single-binary installs; intentionally separate from the completed Hermes-style source-checkout updater."
+              }
+            },
+            {
+              "name": "Gormes update bundled assets and skills sync",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "After release binary update is safe, `gormes update` must sync release-bundled assets and bundled skills from a release manifest without clobbering user state. The release manifest names web/TUI/static assets, bundled skill versions, removed-from-manifest skills, and checksums. Update installs new bundled skills, replaces only unmodified bundled skills, preserves user-modified bundled skills with conflict/new-copy reporting, removes only unmodified removed skills, keeps user-modified removed skills as orphaned, and includes assets/skills in snapshots and rollback. User config, credentials, sessions, memory databases, and operator-created files are never rewritten by this slice.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing or invalid release manifest, asset checksum mismatch, unwritable asset directory, skill conflict, or rollback failure emits typed evidence and preserves user-modified content; update may finish with a degraded sync report only when the binary remains valid and user state was not clobbered.",
+              "fixture": "cmd/gormes/update_release_assets_test.go; internal/cli/update_release_assets_test.go; internal/skills/update_sync_test.go",
+              "source_refs": [
+                "Prerequisite row: Gormes update verified binary swap and rollback",
+                "cmd/gormes/update.go:SkillSyncFor/WebBuildFor seams (existing source-checkout skill/web update hooks)",
+                "internal/skills sync code consumed by defaultSkillSyncFor (three-way bundled skill behavior precedent)",
+                "install.sh:fetch_release_binary (release artifact and install log precedent)",
+                "webpages/landing/src/data/progress.json + webpages/landing/legacy/go-renderer/internal/site/data/progress.json (generated release/site data mirrors)",
+                "docs/development-skills/*/SKILL.md (bundled skill source layout)"
+              ],
+              "ready_when": [
+                "`Gormes update verified binary swap and rollback` is complete and exposes snapshot/rollback primitives for release installs.",
+                "Release artifacts can include or point to a manifest with checksums for bundled assets and skills.",
+                "Tests can fixture bundled skill roots, user-modified skill copies, removed manifest entries, asset checksum failures, and rollback without live network."
+              ],
+              "not_ready_when": [
+                "The slice rewrites config.toml, credentials, sessions, memory DBs, user-created skills, or operator files.",
+                "User-modified bundled skills are overwritten instead of preserved and reported.",
+                "Removed-from-manifest bundled skills are deleted even when user-modified.",
+                "The slice adds service drain/restart behavior; service coordination is the next row."
+              ],
+              "blocked_by": [
+                "Gormes update verified binary swap and rollback"
+              ],
+              "unblocks": [
+                "Gormes update managed service drain and restart"
+              ],
+              "acceptance": [
+                "Release manifest verification covers bundled asset and bundled skill checksums before install.",
+                "New, updated, unchanged, user-modified-kept, conflict-copy, removed, orphaned, and failed skill counts are reported per profile.",
+                "Unmodified bundled assets/skills update; user-modified bundled skills are preserved with `.new` or conflict-copy output; user-created skills are untouched.",
+                "Removed-from-manifest skills are removed only when unmodified and reported as orphaned when user-modified.",
+                "Asset/skill sync participates in snapshot and rollback, with tests proving rollback restores the prior bundled state."
+              ],
+              "write_scope": [
+                "cmd/gormes/update.go",
+                "cmd/gormes/update_release_assets_test.go",
+                "internal/cli/update_release_assets.go",
+                "internal/cli/update_release_assets_test.go",
+                "internal/skills/update_sync_test.go",
+                "internal/skills",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/cli ./internal/skills -run 'TestUpdateReleaseAsset|TestUpdateReleaseSkill|TestSyncBundledSkills' -count=1",
+                "go test ./cmd/gormes ./internal/cli ./internal/skills -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release asset/skill fixtures prove manifest verification, three-way bundled skill sync, user-modified preservation, removed-skill orphan reporting, snapshot inclusion, rollback, and no config/session/memory mutation."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "grill_origin: 2026-05-16 row 3. Mirrors the Hermes-style bundled skill preservation behavior while adapting it to Gormes release artifacts and static web/TUI assets."
+              }
+            },
+            {
+              "name": "Gormes update managed service drain and restart",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "`gormes update` must coordinate release updates with live Gormes processes after binary/assets/skills sync is safe: acquire a global update lock, detect managed gateway/background services, drain and stop managed services before mutation, refuse or prompt for unmanaged active sessions unless `--force` is given, restart managed services after update, health-check them, and restore prior service state after rollback when possible. The existing source-checkout gateway restart evidence remains valid, but release updates need a broader lock/drain/restore wrapper that prevents two updates or live services from mutating shared assets concurrently.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Lock contention, drain timeout, stop failure, unmanaged active sessions, restart failure, health-check timeout, and rollback service-restore failure produce typed evidence with snapshot/manual recovery paths; `--force` may bypass unmanaged-session warnings but not lock integrity, snapshot, binary verification, or service health evidence.",
+              "fixture": "cmd/gormes/update_release_services_test.go; internal/cli/update_service_coordination_test.go",
+              "source_refs": [
+                "Prerequisite row: Gormes update bundled assets and skills sync",
+                "Completed row: Self-update command lifecycle safety (gateway restart evidence and stale dashboard handling)",
+                "internal/cli/service_restart.go (service RestartSec parsing and active-status polling helpers)",
+                "cmd/gormes/gateway_restart.go + cmd/gormes/gateway_stop.go (operator-facing gateway service controls)",
+                "internal/gateway runtime status surfaces used by gateway status/stop/restart commands",
+                "cmd/gormes/update.go:GatewayRestartFor and restart-gateway policy flags"
+              ],
+              "ready_when": [
+                "`Gormes update bundled assets and skills sync` is complete and release updates can roll back binary/assets/skills coherently.",
+                "Service restart and gateway status helpers are already tested through fake service/runtime seams.",
+                "Tests can inject process tables, lock files, service states, drain timeouts, restart failures, health-check results, and rollback state without real systemd/launchd/sc.exe or live gateway."
+              ],
+              "not_ready_when": [
+                "The slice kills process names directly instead of using validated service/runtime seams.",
+                "Two `gormes update` processes can mutate the same install concurrently.",
+                "Unmanaged interactive sessions are terminated without prompt/force policy.",
+                "Rollback restores files but ignores the prior managed service state."
+              ],
+              "blocked_by": [
+                "Gormes update bundled assets and skills sync"
+              ],
+              "unblocks": [
+                "Installed-runtime self-healing smoke",
+                "Gormes release operator trust report"
+              ],
+              "acceptance": [
+                "A global update lock prevents concurrent updates and reports the owning PID/path when lock acquisition fails.",
+                "Managed gateway/background services drain and stop before binary/assets/skills mutation; unmanaged active sessions block unless --force is explicit.",
+                "After successful update, managed services restart and health-check through injected service/runtime seams.",
+                "If mutation fails and rollback succeeds, the updater attempts to restore the prior service state and reports whether that succeeded.",
+                "No live service manager, real gateway, process kill, or network is used in tests."
+              ],
+              "write_scope": [
+                "cmd/gormes/update.go",
+                "cmd/gormes/update_release_services_test.go",
+                "internal/cli/update_service_coordination.go",
+                "internal/cli/update_service_coordination_test.go",
+                "internal/cli/service_restart.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleaseService|TestUpdateServiceCoordination|TestUpdateLock' -count=1",
+                "go test ./cmd/gormes ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Service coordination fixtures prove global update locking, managed drain/stop/restart/health-check, unmanaged-session force policy, rollback service-state restore, and no direct process killing or live service-manager dependency."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "grill_origin: 2026-05-16 row 4. Wraps the proven release updater with process-aware safety so release-installed operators get Hermes-like drain semantics without blindly killing user work."
+              }
+            },
+            {
               "name": "doctorCustomEndpointReadiness check function",
               "priority": "P2",
               "status": "complete",

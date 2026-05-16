@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Termux real-device smoke evidence
+## 1. Gormes update release planner and dry-run contract
+
+- Phase: 5 / 5.O
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: `gormes update` must distinguish normal release-installed operators from managed source checkouts before it mutates anything. For release installs, the command plans against trusted GitHub Releases: detect install layout, current version/build, OS/arch artifact name, channel policy (`stable` by default, `development` explicit), latest release metadata, snapshot path, components to update, blocked reasons, and whether an update is available. `gormes update --dry-run` prints the exact non-mutating plan; `gormes update --check` performs no mutation and exits 0 when current, 10 when an update is available, and nonzero for check errors. Existing source-checkout behavior from `Self-update command lifecycle safety` remains the managed/dev path and must not be silently used for release installs.
+- Trust class: operator, system
+- Ready when: The existing source-checkout `gormes update` command and lifecycle seams are complete and validated., Installer release-binary fetch behavior already defines trusted repo, platform artifact names, release channels, and SHA-256 sidecar expectations., Tests can inject install layout, current build, release metadata, OS/arch, channel, and clock without network or filesystem mutation.
+- Not ready when: The slice downloads or swaps binaries, syncs skills/assets, restarts services, or pulls git remotes., Release-installed binaries silently fall back to managed source checkout mutation., `--check` or `--dry-run` writes update logs, snapshots, config, skills, sessions, services, or source checkout state., Exit codes for current/update-available/error are not deterministic and tested.
+- Degraded mode: Unknown install layout, unsupported OS/arch, missing release metadata, channel mismatch, dirty unmanaged source checkout, and network/API lookup failures produce typed plan blockers without changing binaries, assets, skills, services, config, credentials, sessions, memory, or source checkouts.
+- Fixture: `cmd/gormes/update_release_plan_test.go; internal/cli/update_release_plan_test.go`
+- Write scope: `cmd/gormes/update.go`, `cmd/gormes/update_release_plan_test.go`, `internal/cli/update_release_plan.go`, `internal/cli/update_release_plan_test.go`, `internal/cli/update_lifecycle.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner\|TestUpdateCommandReleaseDryRun\|TestUpdateCommandCheck' -count=1`, `go test ./cmd/gormes ./internal/cli -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Update planner fixtures prove release/source/unknown layout detection, current-vs-target metadata, stable/development channel policy, dry-run output, --check exit codes, and zero mutation before any release artifact install path exists.
+- Acceptance: Release install, managed source checkout, unmanaged source checkout, and unknown install layouts are classified with typed evidence., `gormes update --dry-run` prints current version/build, target version/build, source (`github_release` or `managed_source`), channel, artifact, snapshot path, component plan, and blockers without mutation., `gormes update --check` exits 0 when current, 10 when an update is available, and nonzero for check errors, with JSON and text reports carrying the same state., Stable vs development channel policy is explicit; release installs use GitHub Releases by default, managed source/dev installs use the existing source lifecycle only when detected or explicitly requested., No binary, asset, skill, service, config, credential, session, memory, git checkout, or update ledger file changes during planner/check/dry-run tests.
+- Source refs: cmd/gormes/update.go:newUpdateCommandWithSeams (current source-checkout update command and injectable seams), internal/cli/update_lifecycle.go:RunUpdateLifecycle (completed managed source-checkout updater), cmd/gormes/version.go:newVersionCommand/newBuildProvenance (current version/build evidence), install.sh:decide_install_method + fetch_release_binary (release asset naming, GitHub latest release lookup, SHA-256 sidecar evidence), scripts/install.ps1:release binary fetch block (Windows release asset naming and SHA-256 sidecar evidence), internal/installtest/install_method_test.go (release-vs-source installer behavior), Completed row: Self-update command lifecycle safety (source-checkout update path remains intact)
+- Unblocks: Gormes update verified binary swap and rollback
+- Why now: Unblocks Gormes update verified binary swap and rollback.
+
+## 2. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -48,7 +69,7 @@ selection.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Termux remote execution guidance
+## 3. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -68,7 +89,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Agentic-porting-kit public repo scaffold
+## 4. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
