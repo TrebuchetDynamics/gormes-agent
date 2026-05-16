@@ -62817,8 +62817,7 @@
             "The slice buries tool progress in assistant text instead of distinct message objects."
           ],
           "blocked_by": [
-            "Navivox connect-and-talk first screen",
-            "Navivox continuous voice command mode"
+            "Navivox connect-and-talk first screen"
           ],
           "acceptance": [
             "A Go gateway fixture emits tool start/update/finish/failure events through Navivox as `tool_call_started`, `tool_call_updated`, and `tool_call_finished` with stable ids and redacted metadata.",
@@ -62964,7 +62963,8 @@
             "The slice reports fake token cost when provider usage is absent."
           ],
           "blocked_by": [
-            "Navivox connect-and-talk first screen"
+            "Navivox connect-and-talk first screen",
+            "Navivox continuous voice command mode"
           ],
           "unblocks": [
             "Navivox per-profile BYO voice profiles"

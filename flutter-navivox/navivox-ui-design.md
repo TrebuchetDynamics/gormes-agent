@@ -9,7 +9,7 @@ Source: current HTTP/WebSocket gateway plan, PRD, and app shell
 1. **Connect and talk first**: the first useful path is base URL, token, health
    check, stream, chat.
 2. **Work-focused, not marketing**: no landing page before the operator can talk
-   to an agent.
+   to a Gormes profile.
 3. **Tool calls are first-class UI**: use structured cards, not transcript log
    dumps.
 4. **Secrets are invisible by design**: write-only fields, redacted status, no
@@ -24,43 +24,71 @@ Source: current HTTP/WebSocket gateway plan, PRD, and app shell
    left rail and status bar.
 9. **Telegram-inspired, Gormes-owned**: borrow fast scanning, grouped bubbles,
    status ticks, action sheets, and compact navigation from Telegram-like apps,
-   but keep Navivox focused on Gormes agents, tools, voice transcripts, and safe
-   config.
+   but keep Navivox focused on Gormes profiles, tools, voice transcripts, and
+   safe config.
+10. **Profiles are contacts**: the chat list represents `server + profile_id`
+    contacts. A profile is an isolated Gormes home, not a live concurrent agent
+    router.
+11. **Local voice commands stay local**: the command word, calibration, aliases,
+    pins, server trust, and voice switching are Navivox app settings; Gormes
+    remains authoritative for profile/config/workspace state.
 
 ## 2. Primary Screens
 
-### 2.1 Chat List
+### 2.1 Launch Routing
+
+- No saved or trusted server: open setup.
+- One healthy saved server and usable profile: open that profile chat.
+- Multiple servers, offline/auth issue, or pending attention: open the profile
+  contact list.
+
+### 2.2 Profile Contact List
 
 ```text
 +------------------------------------------------+
 | Navivox                              [search]  |
 +------------------------------------------------+
-| Local Gormes                         OK   9:41 |
-| default agent: Server is healthy.              |
-| tools idle                                     |
+| M  Mineru Builder              local  OK  9:41 |
+|    Server is healthy.                         o|
+|    2 roots                                     |
 |                                                |
-| Lead screen                         auth   9:22 |
-| Waiting for token.                             |
-| connect-info needed                            |
+| W  Work Profile               office auth 9:22 |
+|    Waiting for token.                         o|
+|    model setup                                 |
 |                                                |
-| Support triage                    offline Tue  |
-| Gateway unavailable.                           |
-| Retry from connect-info                        |
+| P  Personal                  laptop offline Tue |
+|    Gateway unavailable.                       o|
+|    retry required                              |
 +------------------------------------------------+
-| Chats      Agents      Config      Servers     |
+| Chats              Servers              Settings|
++------------------------------------------------+
+|                          [+]                   |
 +------------------------------------------------+
 ```
 
-Chat list rows use:
+Chat list rows are profile contacts:
 
-- Agent or gateway avatar.
-- Display name.
-- Last user/assistant/tool/voice preview.
-- Time.
-- Gateway status badge.
-- Unread/attention count for tool approvals or failed voice runs.
+- Stable identity: `server_id + profile_id`.
+- Deterministic generated avatar from `server_id + profile_id`.
+- Server label as a small chip.
+- Server-authoritative display name, with canonical profile id in details.
+- Sanitized latest preview from the server.
+- Timestamp.
+- Health chips for config/provider/model/memory/gateway/WS.
+- Attention count for approvals, failed tools, auth, offline server, workspace
+  issues, or active/stuck turns.
+- Compact workspace summary such as `2 roots` or `workspace issue`, never raw
+  paths.
+- Row tap opens the current/latest session for the profile.
+- Row mic opens continuous voice when the server is trusted and healthy.
+- Long press opens profile details/edit.
+- Bottom add button opens an action sheet with New profile, Add server, and
+  Import connect-info.
 
-### 2.2 Setup Screen
+The list is flat by default. Pinned contacts sort first locally, but pins never
+change command routing.
+
+### 2.3 Setup Screen
 
 ```text
 +------------------------------------------------+
@@ -90,20 +118,20 @@ States:
 - Exposure blocked: show server-side exposure guidance.
 - Connected: navigate to chat.
 
-### 2.3 Chat Screen
+### 2.4 Chat Screen
 
 ```text
 +------------------------------------------------+
-| < Local Gormes             default agent   OK  |
+| < Mineru Builder             local-gormes  OK  |
 +------------------------------------------------+
-| Pinned: connected locally, token redacted       |
+| Pinned: trusted local server, token redacted    |
 |                                                |
 | Today                                      v   |
 |                                                |
 |                         Check server status    |
 |                                      9:41  sent |
 |                                                |
-| Agent                                          |
+| Mineru Builder                                 |
 | Checking now...                                |
 |                                                |
 | +-- execute_command ------------------------+  |
@@ -112,7 +140,7 @@ States:
 | | [Expand]                                   |  |
 | +---------------------------------------------+ |
 |                                                |
-| Agent                                          |
+| Mineru Builder                                 |
 | Server is healthy.                             |
 +------------------------------------------------+
 | [+]  Message Navivox...              [mic]  >  |
@@ -122,42 +150,81 @@ States:
 Key UI elements:
 
 - Server label opens server switcher.
-- Agent pill opens agent switcher.
+- Profile pill opens profile switcher.
 - Status chip shows connected, reconnecting, offline, unauthorized, or blocked.
 - User messages are right-aligned.
 - Assistant messages are left-aligned.
 - Streaming assistant text updates in place.
-- `ToolCallCard` appears inline with status and expandable details.
-- Voice button can submit a transcript through the current turn path.
+- `ToolCallCard` appears inline as a distinct execution card with status,
+  approvals, and expandable details.
+- Voice button starts continuous voice for the active profile when allowed.
 - Long press opens a message action sheet: copy, retry, inspect event, reveal
   redacted fields when authorized.
-- The plus button opens the action tray for agent seed, tool approvals, config
-  edits, and future attachments.
+- The plus button opens the action tray for profile seed, tool approvals,
+  profile config, workspace roots, and future attachments.
+- Composer text that exactly matches a command-word command, such as
+  `navi mineru`, is handled locally by Navivox and is not sent to Gormes.
 
-### 2.4 Voice Active
+### 2.5 Continuous Voice
 
 ```text
 +------------------------------------------------+
-| Gormes Gateway             default agent   OK  |
+| Voice: Mineru Builder       local-gormes   OK  |
 +------------------------------------------------+
-| Voice turn                                      |
+| Listening                                      |
+| Command word: Navi                             |
 |                                                |
-| Listening...                              [x]  |
-| [ transcript appears here as the device hears ] |
+| user bubble: checking server status            |
+| Sending...                               cancel |
 |                                                |
-| Confidence: high                               |
-|                                                |
-| [Send Transcript] [Cancel]                     |
+| [command] [stop]                               |
++------------------------------------------------+
+```
+
+Command mode:
+
+```text
++------------------------------------------------+
+| Command mode                              0:05 |
++------------------------------------------------+
+| Say a profile name, stop, cancel, settings,    |
+| or help.                                       |
 +------------------------------------------------+
 ```
 
 Voice rules:
 
-- A transcript can be sent as text immediately.
+- Continuous voice is a global app mode with one active target profile.
+- Row mic starts listening immediately after mic permission and per-server
+  local trust exist.
+- Device speech-to-text streams into the active profile as a voice-marked user
+  bubble.
+- Auto-send is the default, with a short visible `Sending...` grace window.
+- The command word defaults to `navi` and can be changed locally.
+- Optional calibration asks the user to say the command word three times; reset
+  is available in Settings.
+- Command word detection only works at the beginning of an utterance and only
+  while Navivox voice mode is active.
+- Saying the command word alone enters local command mode for about five
+  seconds.
+- Direct commands also work: `navi mineru`, `navi cancel`, `navi stop`,
+  `navi settings`, `navi help`.
+- Command-mode speech is discarded on timeout and is never sent to Gormes.
+- Profile commands match the app's known flat `server + profile` contact list;
+  exact normalized unique matches switch immediately, duplicates show
+  disambiguation.
+- Voice profile switching is a global app setting. If disabled, command-word
+  profile switches are ignored and treated as normal dictation only when they
+  are not recognized as local commands.
+- `navi cancel` cancels the current cancellable voice turn. Before server
+  commit it can discard/delete; after server commit it marks cancelled/stopped
+  and never pretends tool side effects were undone.
+- `navi settings` opens local Navivox settings, not profile config.
+- Voice approvals and profile config edits by voice are deferred.
 - Audio upload and playback state appear only after voice run records exist.
 - Text fallback is always available.
 
-### 2.5 Action Sheet
+### 2.6 Action Sheet
 
 Use `DraggableScrollableSheet` for Telegram-like panels.
 
@@ -165,10 +232,10 @@ Use `DraggableScrollableSheet` for Telegram-like panels.
 +------------------------------------------------+
 | Actions                                        |
 +------------------------------------------------+
-| Agent seed                                     |
+| New profile                                    |
 | Tool approvals                                 |
-| Voice transcript                               |
-| Config change                                  |
+| Workspace roots                                |
+| Profile config                                 |
 | Gateway details                                |
 | Future file attach                             |
 +------------------------------------------------+
@@ -181,7 +248,7 @@ Sheet rules:
 - Desktop gets a visible drag handle or side panel equivalent.
 - Tokens and secret values never appear in sheet titles or route URLs.
 
-### 2.6 Servers Screen
+### 2.7 Servers Screen
 
 ```text
 +------------------------------------------------+
@@ -211,65 +278,69 @@ Server detail shows:
 - Last successful status.
 - Last stream error.
 - Redacted local credential status.
+- Local trust for continuous voice.
+- Capability summary: contacts, chat, voice input, schema config.
 
-### 2.7 Agents Screen
+Continuous voice requires per-server local trust. The trust prompt shows safe
+server identity/exposure/auth/capability evidence only.
 
-```text
-+------------------------------------------------+
-| Agents                                  [+]    |
-+------------------------------------------------+
-| Create from seed                              |
-| [ screen inbound leads                   ]     |
-| [Generate Draft]                               |
-|                                                |
-| default agent                                  |
-| Voice: system default                          |
-| Tools: safe default set                        |
-| [Edit] [Use]                                   |
-|                                                |
-| support triage                                 |
-| Voice: warm assistant                          |
-| Tools: ticket lookup, summarize                |
-| [Edit] [Use]                                   |
-+------------------------------------------------+
-```
-
-Agent creation starts with a short phrase and produces an editable draft:
-
-- Name and description.
-- Prompt/instructions.
-- Tool set and permissions.
-- Voice defaults.
-- STT/TTS provider/profile preferences.
-- Safety and escalation notes.
-
-### 2.8 Agent Editor
+### 2.8 Profile Editor
 
 ```text
 +------------------------------------------------+
-| Edit Agent                              [Save] |
+| Edit Profile                            [Save] |
 +------------------------------------------------+
-| Name                                           |
-| [ support triage                         ]     |
+| Server: local-gormes                           |
+| Profile ID: mineru                             |
+| Display Name                                  |
+| [ Mineru Builder                         ]     |
+|                                                |
+| Seed                                           |
+| [ work on mineru repo                    ]     |
 |                                                |
 | Instructions                                   |
-| [ summarize the issue, ask one clarifier... ]  |
+| [ concise coding assistant for this repo... ]  |
 |                                                |
-| Tools                                          |
-| [ ] shell                                      |
-| [x] ticket lookup                              |
-| [x] summarize                                  |
-|                                                |
-| Voice Profile                                  |
-| Provider: [Server default v]                   |
-| Voice:    [Warm assistant v]                   |
-| STT:      [Server default v]                   |
-|                                                |
-| Safety                                         |
-| [x] Confirm before irreversible actions        |
-| [x] Redact sensitive tool output               |
+| Workspace Roots                                |
+| mineru repo     repo       read-write    OK    |
+| downloads       downloads  read-write    OK    |
+| [Add Root]                                     |
 +------------------------------------------------+
 ```
+
+Profile creation starts with a short phrase and produces an editable draft:
+
+- Server selection.
+- Canonical profile id.
+- Display name.
+- Prompt/instructions.
+- Provider/model draft, allowed to stay unset with a `model setup` attention
+  badge.
+- Tool set and permissions.
+- Voice profile defaults for future server-side TTS/STT routing.
+- Workspace root suggestions by label/purpose only; actual paths must be
+  explicitly entered or confirmed.
+- Safety and escalation notes.
+
+Workspace root fields:
+
+- `path`
+- `label`
+- `mode`: `read-only` or `read-write`
+- `purpose`: `repo`, `downloads`, `docs`, `scratch`, or `other`
+- server-returned health
+
+Workspace root rules:
+
+- Navivox sends add/remove/update requests; Gormes validates and persists.
+- Gormes canonicalizes paths server-side and rejects dangerous or broad roots
+  by policy.
+- First version uses manual path entry plus server validation.
+- Removing a root never deletes files.
+- Applying root changes is blocked or deferred while the profile has active
+  work, unless Gormes reports it is safe.
+- A profile can exist with zero roots; filesystem tools remain disabled or
+  setup-gated until roots exist.
 
 ### 2.9 Config Overview
 
@@ -285,7 +356,7 @@ Agent creation starts with a short phrase and produces an editable draft:
 | Voice Providers                         >       |
 | Navivox Gateway                         >       |
 | Tools and Approvals                     >       |
-| Agents                                  >       |
+| Profiles                                >       |
 | Security                                >       |
 |                                                |
 | [Reload Schema] [Review Pending Changes]       |
@@ -357,8 +428,16 @@ gate when the server allows it.
 | Density: [Compact v]                           |
 |                                                |
 | Voice Defaults                                 |
-| Wake Word: [NAVI]                              |
-| Text fallback: enabled                         |
+| Command Word: [Navi]                           |
+| Continuous Voice: [on]                         |
+| Voice Profile Switching: [on]                  |
+| Auto-send Grace: [1.5s]                        |
+| [Calibrate Command Word]                       |
+| [Reset Calibration]                            |
+|                                                |
+| Local Contact Preferences                      |
+| Pinned contacts                                |
+| Voice aliases                                  |
 |                                                |
 | Security                                       |
 | App Lock: [on]                                 |
@@ -382,7 +461,7 @@ gate when the server allows it.
 AppScaffold
 ConnectionStatusBar
 ServerSwitcher
-AgentPill
+ProfilePill
 ErrorRecoverySheet
 
 // Setup
@@ -399,6 +478,8 @@ TypingIndicator
 DateSeparator
 MessageComposer
 VoiceControlBar
+GlobalVoiceBar
+CommandModeSheet
 
 // Config
 ConfigSectionCard
@@ -408,10 +489,12 @@ ConfigDiffViewer
 ApplyConfirmSheet
 LocalUnlockGate
 
-// Agents
-AgentCard
-AgentSeedInput
-AgentDraftEditor
+// Profiles
+ProfileContactTile
+ProfileAvatar
+ProfileSeedInput
+ProfileDraftEditor
+WorkspaceRootsEditor
 VoiceProfilePicker
 
 // Servers
@@ -421,7 +504,6 @@ ReachabilityBadge
 
 // Telegram-inspired surfaces
 ChatPreviewTile
-GatewayAvatar
 MessageActionSheet
 NavivoxBubbleScope
 ```
@@ -437,6 +519,9 @@ NavivoxBubbleScope
 | Inbox full | Assistant/system error | Try again |
 | Tool failed | Failed tool card | Expand details |
 | Secret denied | Field error | Request admin role or unlock |
+| Workspace issue | Profile row attention badge | Open workspace roots |
+| Voice disabled | Disabled mic with reason | Enable continuous voice |
+| Server untrusted | Trust banner/sheet | Review and trust server |
 
 All error copy should point to a next action and avoid raw provider errors or
 secret-shaped values.
@@ -447,7 +532,8 @@ Mobile:
 
 - Material 3 `NavigationBar`.
 - Single-column chat.
-- Sheets for server and agent switching.
+- Tabs: Chats, Servers, Settings.
+- Sheets for server and profile switching.
 - Voice controls as bottom panel.
 
 Desktop:
@@ -462,7 +548,8 @@ Desktop:
 - All icon buttons have labels/tooltips.
 - Status chips have text, not color alone.
 - Tool cards are keyboard expandable.
-- Voice transcript can be edited before send.
+- Voice transcript can be cancelled during the grace window.
+- Command mode has visible state, timeout, and cancel affordances.
 - Secret fields describe state without exposing values.
 
 ## 7. Product Boundaries
@@ -470,10 +557,12 @@ Desktop:
 Do now:
 
 - Connect to gateway.
-- Talk to agent.
+- Talk to a profile contact.
 - Show structured tool activity.
-- Seed editable agents.
-- Edit config through server APIs.
+- Seed editable profiles.
+- Edit profile workspace roots through server APIs.
+- Edit server/profile config through schema-driven server APIs.
+- Support local command-word settings and continuous voice input.
 - Record voice run metadata before streaming audio complexity.
 
 Defer:
@@ -484,4 +573,8 @@ Defer:
 - Call routing.
 - Human handoff.
 - Generic server administration surfaces.
+- Always-listening command-word detection.
+- Voice-driven tool approvals or profile config mutations.
+- Full session picker/history as a primary navigation surface.
+- User-uploaded avatars.
 - Telegram network clients, TDLib/MTProto, and Firebase chat backends.
