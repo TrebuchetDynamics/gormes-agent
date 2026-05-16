@@ -246,6 +246,7 @@ func buildDoctorCmd() *cobra.Command {
 			if secretRuntimeResult.Status == doctor.StatusFail {
 				markFailure(2)
 			}
+			reporter.Add(doctorAuthProvidersStatus(cmd.Context(), cfg))
 
 			if !offline {
 				providerName := cfg.Hermes.Provider
@@ -280,6 +281,10 @@ func buildDoctorCmd() *cobra.Command {
 			}
 
 			reporter.Add(doctorTUIStatus())
+			// Pure local FS inspection of the Gormes-owned home layout -
+			// no network, identical under --offline. Auto-groups under the
+			// ◆ Directory Structure header via sectionForCheck.
+			reporter.Add(doctor.CheckDirectoryStructure(config.GormesHome()))
 			if termuxRuntime := doctor.CheckTermuxRuntime(doctor.TermuxRuntimeOptions{}); termuxRuntime.Status != doctor.StatusSkip {
 				reporter.Add(termuxRuntime)
 			}
@@ -292,6 +297,12 @@ func buildDoctorCmd() *cobra.Command {
 			reporter.Add(doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{offline: offline}))
 			reporter.Add(doctorACPBridgeStatus())
 			reporter.Add(doctorGitHubAuthStatus(cmd.Context(), offline))
+			reporter.Add(doctor.CheckSkillsHub(cmd.Context(), doctor.SkillsHubOptions{
+				Home:            config.GormesHome(),
+				Env:             doctorGitHubAuthEnv(),
+				RunGHAuthStatus: doctorGitHubAuthRunner,
+				Offline:         offline,
+			}))
 			reporter.Add(doctorGonchoConfig(cfg))
 
 			runtimeStatus := gateway.RuntimeStatus{}
@@ -473,6 +484,74 @@ func doctorGitHubAuthStatus(ctx context.Context, offline bool) doctor.CheckResul
 		Env:             env,
 		RunGHAuthStatus: doctorGitHubAuthRunner,
 	})
+}
+
+func doctorAuthProvidersStatus(ctx context.Context, cfg config.Config) doctor.CheckResult {
+	codexStatus, codexErr := cli.ResolveAuthStatus(ctx, config.CodexOAuthProvider, cli.AuthStatusOptions{})
+	nousStatus, nousErr := cli.ResolveAuthStatus(ctx, config.NousOAuthProvider, cli.AuthStatusOptions{})
+	return doctor.CheckAuthProviders([]doctor.AuthProviderStatus{
+		doctorAuthProviderFromCLI("OpenAI Codex", config.CodexOAuthProvider, codexStatus, codexErr),
+		doctorAuthProviderFromCLI("Nous Portal", config.NousOAuthProvider, nousStatus, nousErr),
+		doctorCustomEndpointAuthProviderStatus(cfg),
+	})
+}
+
+func doctorAuthProviderFromCLI(label, provider string, status cli.ProviderAuthStatus, err error) doctor.AuthProviderStatus {
+	out := doctor.AuthProviderStatus{
+		Name:            label,
+		Provider:        firstNonEmpty(strings.TrimSpace(status.Provider), provider),
+		AuthType:        strings.TrimSpace(status.AuthType),
+		Status:          strings.TrimSpace(status.Status),
+		Reason:          strings.TrimSpace(status.Reason),
+		Authenticated:   status.Authenticated,
+		CredentialCount: len(status.Credentials),
+		Redacted:        true,
+	}
+	if out.Status == "" {
+		out.Status = doctor.AuthProviderLoggedOut
+	}
+	if err != nil {
+		out.Status = doctor.AuthProviderError
+		if out.Reason == "" {
+			out.Reason = "auth_status_error"
+		}
+	}
+	return out
+}
+
+func doctorCustomEndpointAuthProviderStatus(cfg config.Config) doctor.AuthProviderStatus {
+	h := cfg.Hermes
+	out := doctor.AuthProviderStatus{
+		Name:     "Custom endpoint",
+		Provider: "custom",
+		AuthType: "api_key",
+		Status:   doctor.AuthProviderSkipped,
+		Reason:   "not configured",
+		Redacted: true,
+	}
+	if strings.EqualFold(strings.TrimSpace(h.Provider), config.CodexOAuthProvider) {
+		out.AuthType = "oauth_external"
+		out.Reason = "handled by active provider openai-codex"
+		return out
+	}
+	endpointSet := strings.TrimSpace(h.Endpoint) != ""
+	authSet := strings.TrimSpace(h.APIKey) != "" || configuredProviderAPIKeyRefPresent(cfg)
+	switch {
+	case !endpointSet && !authSet:
+		return out
+	case endpointSet && authSet:
+		out.Status = doctor.AuthProviderLoggedIn
+		out.Authenticated = true
+		out.CredentialCount = 1
+		out.Reason = "configured"
+	case endpointSet:
+		out.Status = doctor.AuthProviderLoggedOut
+		out.Reason = "api_key_missing"
+	default:
+		out.Status = doctor.AuthProviderSkipped
+		out.Reason = "endpoint_missing"
+	}
+	return out
 }
 
 func doctorWebToolsStatus(cfg config.Config) doctor.CheckResult {

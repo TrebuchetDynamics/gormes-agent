@@ -94,7 +94,9 @@ func sectionForCheck(name string) string {
 	switch name {
 	case "build identity", "Custom endpoint", "target readiness", "config schema":
 		return SectionConfigurationFiles
-	case "SecretRef runtime":
+	case "Directory Structure":
+		return SectionDirectoryStructure
+	case "Auth Providers", "SecretRef runtime":
 		return SectionAuthProviders
 	case "Termux runtime", "Browser runtime", "ACP bridge", "GitHub auth":
 		return SectionExternalTools
@@ -103,6 +105,8 @@ func sectionForCheck(name string) string {
 		return SectionAPIConnectivity
 	case "Native TUI", "Toolbox", "Web tools":
 		return SectionToolAvailability
+	case "Skills Hub":
+		return SectionSkillsHub
 	case "Goncho config":
 		return SectionMemoryProvider
 	default:
