@@ -1,592 +1,317 @@
 # Navivox Data Model
 
 Status: planning draft
-Source: derived from navivox-prd.md
-
-## 1. Database Schema (Drift/SQLite)
-
-### 1.1 Tables
-
-#### servers
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| id | TEXT | PRIMARY KEY | UUID |
-| display_name | TEXT | NOT NULL | User-friendly name |
-| hostname | TEXT | NOT NULL | |
-| port | INTEGER | NOT NULL, DEFAULT 22 | |
-| username | TEXT | NOT NULL | SSH username |
-| identity_id | TEXT | REFERENCES identities(id) | Selected SSH key |
-| pinned_host_key | TEXT | | SHA256 fingerprint |
-| last_connected_at | INTEGER | | Unix timestamp |
-| last_status | TEXT | | 'unknown', 'reachable', 'unreachable', 'gormes_ready' |
-| gormes_version | TEXT | | From server.status |
-| gormes_config_version | TEXT | | Config version hash |
-| preferred_agent_id | TEXT | | Last used agent |
-| terminal_profile | TEXT | | JSON blob for terminal settings |
-| import_source | TEXT | | 'manual', 'termius', 'ssh_config' |
-| import_metadata | TEXT | | JSON blob for import tracking |
-| pairing_device_id | TEXT | | Current paired device ID |
-| pairing_role | TEXT | | 'owner', 'admin', 'operator', 'viewer' |
-| created_at | INTEGER | NOT NULL | Unix timestamp |
-| updated_at | INTEGER | NOT NULL | Unix timestamp |
-
-#### identities
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| id | TEXT | PRIMARY KEY | UUID |
-| label | TEXT | NOT NULL | Display name |
-| key_type | TEXT | NOT NULL | 'ed25519', 'rsa', 'ecdsa' |
-| public_key | TEXT | NOT NULL | OpenSSH format public key |
-| public_key_fingerprint | TEXT | NOT NULL | SHA256 fingerprint |
-| private_key_secure_id | TEXT | NOT NULL | Secure storage key reference |
-| is_encrypted | INTEGER | NOT NULL, DEFAULT 0 | Has passphrase? |
-| key_size | INTEGER | | For RSA keys |
-| comment | TEXT | | SSH key comment field |
-| import_source | TEXT | | 'generated', 'termius', 'file_import' |
-| created_at | INTEGER | NOT NULL | Unix timestamp |
-
-#### host_known_keys
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| id | TEXT | PRIMARY KEY | UUID |
-| server_id | TEXT | REFERENCES servers(id) | |
-| hostname | TEXT | NOT NULL | |
-| key_type | TEXT | NOT NULL | 'ssh-ed25519', 'ssh-rsa', etc. |
-| fingerprint | TEXT | NOT NULL | SHA256 fingerprint |
-| raw_key | TEXT | NOT NULL | Full known_hosts line |
-| is_pinned | INTEGER | NOT NULL, DEFAULT 1 | User explicitly trusted? |
-| pinned_at | INTEGER | | Unix timestamp |
-| last_seen_at | INTEGER | | Unix timestamp |
-| trust_status | TEXT | NOT NULL | 'trusted', 'changed', 'revoked' |
-
-#### agents (local cache)
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| id | TEXT | PRIMARY KEY | Agent ID from Gormes |
-| server_id | TEXT | NOT NULL | Owning server |
-| display_name | TEXT | NOT NULL | |
-| workspace_dir | TEXT | | Remote path |
-| agent_dir | TEXT | | Remote path |
-| is_default | INTEGER | DEFAULT 0 | |
-| model_override | TEXT | | |
-| skills | TEXT | | JSON array |
-| tool_allow_list | TEXT | | JSON array |
-| tool_deny_list | TEXT | | JSON array |
-| voice_provider | TEXT | | TTS provider |
-| voice_id | TEXT | | Voice model ID |
-| voice_locale | TEXT | | e.g., 'en-US' |
-| voice_speed | REAL | | 0.5 - 2.0 |
-| language_policy | TEXT | | JSON blob |
-| is_archived | INTEGER | DEFAULT 0 | |
-| synced_at | INTEGER | | Unix timestamp |
-
-#### messages (local cache)
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| id | TEXT | PRIMARY KEY | Message ID from server |
-| server_id | TEXT | NOT NULL | |
-| thread_id | TEXT | NOT NULL | Conversation/device thread ID |
-| role | TEXT | NOT NULL | 'user', 'assistant', 'system' |
-| content | TEXT | NOT NULL | Markdown text |
-| content_type | TEXT | NOT NULL | 'text', 'voice', 'mixed' |
-| turn_id | TEXT | | Groups messages in a turn |
-| voice_transcript | TEXT | | Device or server transcript |
-| voice_confidence | REAL | | 0.0 - 1.0 |
-| has_audio | INTEGER | DEFAULT 0 | Has voice recording? |
-| audio_duration_ms | INTEGER | | |
-| is_final | INTEGER | DEFAULT 0 | Stream finished? |
-| is_deleted | INTEGER | DEFAULT 0 | |
-| agent_id | TEXT | | Which agent responded |
-| created_at | INTEGER | NOT NULL | Server timestamp |
-
-#### tool_calls (local cache)
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| id | TEXT | PRIMARY KEY | Tool call ID |
-| message_id | TEXT | REFERENCES messages(id) | Parent message |
-| server_id | TEXT | NOT NULL | |
-| turn_id | TEXT | | Parent turn |
-| tool_name | TEXT | NOT NULL | |
-| display_name | TEXT | | Human-readable name |
-| icon_hint | TEXT | | Emoji or icon hint |
-| preview | TEXT | | Short summary |
-| status | TEXT | NOT NULL | 'started','progress','completed','failed','cancelled','blocked' |
-| risk_level | TEXT | | 'low', 'medium', 'high' |
-| is_mutating | INTEGER | DEFAULT 0 | |
-| requires_approval | INTEGER | DEFAULT 0 | |
-| approval_status | TEXT | | 'pending', 'approved', 'denied' |
-| result_summary | TEXT | | |
-| error_message | TEXT | | Redacted error |
-| artifact_refs | TEXT | | JSON array of refs |
-| agent_id | TEXT | | |
-| workspace | TEXT | | |
-| started_at | INTEGER | | Server timestamp |
-| completed_at | INTEGER | | Server timestamp |
-| elapsed_ms | INTEGER | | Duration |
-
-#### config_cache
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT | |
-| server_id | TEXT | NOT NULL | |
-| section | TEXT | NOT NULL | e.g., 'hermes', 'telegram' |
-| key_path | TEXT | NOT NULL | e.g., 'hermes.model' |
-| value | TEXT | | Always string/JSON |
-| is_secret | INTEGER | NOT NULL, DEFAULT 0 | |
-| schema_type | TEXT | | 'string', 'int', 'bool', 'enum', 'object' |
-| schema_enum_values | TEXT | | JSON array |
-| schema_default | TEXT | | |
-| is_dirty | INTEGER | DEFAULT 0 | Pending local change? |
-| synced_at | INTEGER | | Unix timestamp |
-
-#### settings
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| key | TEXT | PRIMARY KEY | |
-| value | TEXT | NOT NULL | |
-| updated_at | INTEGER | NOT NULL | |
-
-### 1.2 Relationships
-
-```
-servers 1───* identities (via identity_id FK)
-servers 1───* host_known_keys (via server_id FK)
-servers 1───* agents (via server_id FK)
-servers 1───* messages (via server_id FK)
-messages 1───* tool_calls (via message_id FK)
-servers 1───* config_cache (via server_id FK)
-```
-
-## 2. Domain Models (Freezed)
-
-### 2.1 Core Models
-
-```dart
-@freezed
-class Server with _$Server {
-  const factory Server({
-    required String id,
-    required String displayName,
-    required String hostname,
-    @Default(22) int port,
-    required String username,
-    String? identityId,
-    String? pinnedHostKey,
-    DateTime? lastConnectedAt,
-    @Default(ServerStatus.unknown) ServerStatus lastStatus,
-    String? gormesVersion,
-    String? gormesConfigVersion,
-    String? preferredAgentId,
-    TerminalProfile? terminalProfile,
-    @Default(ImportSource.manual) ImportSource importSource,
-    Map<String, dynamic>? importMetadata,
-    String? pairingDeviceId,
-    PairingRole? pairingRole,
-    required DateTime createdAt,
-    required DateTime updatedAt,
-  }) = _Server;
-
-  factory Server.fromJson(Map<String, dynamic> json) => _$ServerFromJson(json);
-}
-
-enum ServerStatus { unknown, reachable, unreachable, gormesReady }
-enum ImportSource { manual, termius, sshConfig }
-enum PairingRole { owner, admin, operator, viewer }
-
-@freezed
-class Identity with _$Identity {
-  const factory Identity({
-    required String id,
-    required String label,
-    required KeyType keyType,
-    required String publicKey,
-    required String publicKeyFingerprint,
-    required String privateKeySecureId,
-    @Default(false) bool isEncrypted,
-    int? keySize,
-    String? comment,
-    ImportSource? importSource,
-    required DateTime createdAt,
-  }) = _Identity;
-
-  factory Identity.fromJson(Map<String, dynamic> json) => _$IdentityFromJson(json);
-}
-
-enum KeyType { ed25519, rsa, ecdsa }
-
-@freezed
-class HostKnownKey with _$HostKnownKey {
-  const factory HostKnownKey({
-    required String id,
-    required String serverId,
-    required String hostname,
-    required String keyType,
-    required String fingerprint,
-    required String rawKey,
-    @Default(true) bool isPinned,
-    DateTime? pinnedAt,
-    DateTime? lastSeenAt,
-    @Default(TrustStatus.trusted) TrustStatus trustStatus,
-  }) = _HostKnownKey;
-
-  factory HostKnownKey.fromJson(Map<String, dynamic> json) => _$HostKnownKeyFromJson(json);
-}
-
-enum TrustStatus { trusted, changed, revoked }
-
-@freezed
-class Agent with _$Agent {
-  const factory Agent({
-    required String id,
-    required String serverId,
-    required String displayName,
-    String? workspaceDir,
-    String? agentDir,
-    @Default(false) bool isDefault,
-    String? modelOverride,
-    @Default([]) List<String> skills,
-    @Default([]) List<String> toolAllowList,
-    @Default([]) List<String> toolDenyList,
-    String? voiceProvider,
-    String? voiceId,
-    String? voiceLocale,
-    @Default(1.0) double voiceSpeed,
-    LanguagePolicy? languagePolicy,
-    @Default(false) bool isArchived,
-    DateTime? syncedAt,
-  }) = _Agent;
-
-  factory Agent.fromJson(Map<String, dynamic> json) => _$AgentFromJson(json);
-}
-```
-
-### 2.2 Chat Models
-
-```dart
-@freezed
-class ChatMessage with _$ChatMessage {
-  const factory ChatMessage({
-    required String id,
-    required String serverId,
-    required String threadId,
-    required MessageRole role,
-    required String content,
-    @Default(ContentType.text) ContentType contentType,
-    String? turnId,
-    String? voiceTranscript,
-    double? voiceConfidence,
-    @Default(false) bool hasAudio,
-    int? audioDurationMs,
-    @Default(false) bool isFinal,
-    @Default(false) bool isDeleted,
-    String? agentId,
-    required DateTime createdAt,
-  }) = _ChatMessage;
-
-  factory ChatMessage.fromJson(Map<String, dynamic> json) => _$ChatMessageFromJson(json);
-}
-
-enum MessageRole { user, assistant, system }
-enum ContentType { text, voice, mixed }
-
-@freezed
-class ToolCall with _$ToolCall {
-  const factory ToolCall({
-    required String id,
-    required String messageId,
-    required String serverId,
-    String? turnId,
-    required String toolName,
-    String? displayName,
-    String? iconHint,
-    String? preview,
-    required ToolCallStatus status,
-    @Default(RiskLevel.low) RiskLevel riskLevel,
-    @Default(false) bool isMutating,
-    @Default(false) bool requiresApproval,
-    ApprovalStatus? approvalStatus,
-    String? resultSummary,
-    String? errorMessage,
-    @Default([]) List<String> artifactRefs,
-    String? agentId,
-    String? workspace,
-    DateTime? startedAt,
-    DateTime? completedAt,
-    int? elapsedMs,
-  }) = _ToolCall;
-
-  factory ToolCall.fromJson(Map<String, dynamic> json) => _$ToolCallFromJson(json);
-}
-
-enum ToolCallStatus { started, progress, completed, failed, cancelled, blocked }
-enum RiskLevel { low, medium, high }
-enum ApprovalStatus { pending, approved, denied }
-```
-
-### 2.3 Config Models
-
-```dart
-@freezed
-class ConfigSchema with _$ConfigSchema {
-  const factory ConfigSchema({
-    required String version,
-    required List<ConfigSection> sections,
-  }) = _ConfigSchema;
-
-  factory ConfigSchema.fromJson(Map<String, dynamic> json) => _$ConfigSchemaFromJson(json);
-}
-
-@freezed
-class ConfigSection with _$ConfigSection {
-  const factory ConfigSection({
-    required String name,
-    required String displayName,
-    required String description,
-    required List<ConfigField> fields,
-  }) = _ConfigSection;
-
-  factory ConfigSection.fromJson(Map<String, dynamic> json) => _$ConfigSectionFromJson(json);
-}
-
-@freezed
-class ConfigField with _$ConfigField {
-  const factory ConfigField({
-    required String keyPath,
-    required String displayName,
-    String? description,
-    required ConfigFieldType type,
-    @Default(false) bool isSecret,
-    @Default(false) bool sensitive,
-    bool? required,
-    dynamic defaultValue,
-    List<String>? enumValues,
-    dynamic minValue,
-    dynamic maxValue,
-    String? placeholder,
-    String? hint,
-  }) = _ConfigField;
-
-  factory ConfigField.fromJson(Map<String, dynamic> json) => _$ConfigFieldFromJson(json);
-}
-
-enum ConfigFieldType { string, integer, boolean, enum_choice, object, array, secret, host, port, filepath }
-
-@freezed
-class ConfigDiff with _$ConfigDiff {
-  const factory ConfigDiff({
-    required List<ConfigChange> changes,
-    required List<String> warnings,
-    required List<String> errors,
-    required bool isValid,
-  }) = _ConfigDiff;
-
-  factory ConfigDiff.fromJson(Map<String, dynamic> json) => _$ConfigDiffFromJson(json);
-}
-
-@freezed
-class ConfigChange with _$ConfigChange {
-  const factory ConfigChange({
-    required String keyPath,
-    required String section,
-    String? before,
-    required String after,
-    required bool isSensitive,
-    @Default(false) bool isSecret,
-  }) = _ConfigChange;
-
-  factory ConfigChange.fromJson(Map<String, dynamic> json) => _$ConfigChangeFromJson(json);
-}
-
-@freezed
-class ApplyResult with _$ApplyResult {
-  const factory ApplyResult({
-    required ApplyStatus status,
-    String? message,
-    List<String>? warnings,
-    List<String>? errors,
-    bool? requiresRestart,
-  }) = _ApplyResult;
-
-  factory ApplyResult.fromJson(Map<String, dynamic> json) => _$ApplyResultFromJson(json);
-}
-
-enum ApplyStatus { applied, pendingRestart, rolledBack, failed }
-```
-
-### 2.4 Voice Models
-
-```dart
-@freezed
-class VoiceState with _$VoiceState {
-  const factory VoiceState.idle() = VoiceIdle;
-  const factory VoiceState.listening({
-    @Default(false) bool wakeWordDetected,
-    @Default(0.0) double audioLevel,
-  }) = VoiceListening;
-  const factory VoiceState.processing({
-    String? partialTranscript,
-  }) = VoiceProcessing;
-  const factory VoiceState.speaking({
-    required String agentId,
-    required String voiceId,
-  }) = VoiceSpeaking;
-  const factory VoiceState.error({
-    required String message,
-  }) = VoiceError;
-}
-
-@freezed
-class VoiceProfile with _$VoiceProfile {
-  const factory VoiceProfile({
-    required String provider,
-    required String voiceId,
-    @Default('en-US') String locale,
-    @Default(1.0) double speed,
-    double? pitch,
-    String? style,
-    String? fallbackVoiceId,
-  }) = _VoiceProfile;
-
-  factory VoiceProfile.fromJson(Map<String, dynamic> json) => _$VoiceProfileFromJson(json);
-}
-
-@freezed
-class LanguagePolicy with _$LanguagePolicy {
-  const factory LanguagePolicy({
-    @Default('en') String defaultLanguage,
-    @Default([]) List<String> allowedLanguages,
-    @Default(false) bool autoDetect,
-  }) = _LanguagePolicy;
-
-  factory LanguagePolicy.fromJson(Map<String, dynamic> json) => _$LanguagePolicyFromJson(json);
-}
-```
-
-## 3. Drift Database Definition
-
-```dart
-@DriftDatabase(
-  tables: [Servers, Identities, HostKnownKeys, Agents, Messages, ToolCalls, ConfigCache, Settings],
-)
-class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
-
-  @override
-  int get schemaVersion => 1;
-
-  static QueryExecutor _openConnection() {
-    return driftDatabase(name: 'navivox_database');
-  }
-
-  // Server queries
-  Future<List<ServerData>> getAllServers() => select(servers).get();
-  Stream<List<ServerData>> watchServers() => select(servers).watch();
-  Future<ServerData?> getServerById(String id) =>
-      (select(servers)..where((s) => s.id.equals(id))).getSingleOrNull();
-
-  // Identity queries
-  Future<List<IdentityData>> getAllIdentities() => select(identities).get();
-  Stream<List<IdentityData>> watchIdentities() => select(identities).watch();
-
-  // Chat queries
-  Stream<List<MessageData>> watchMessages(String serverId, String threadId) =>
-      (select(messages)
-        ..where((m) => m.serverId.equals(serverId) & m.threadId.equals(threadId))
-        ..orderBy([(m) => OrderingTerm(expression: m.createdAt, mode: OrderingMode.asc)]))
-      .watch();
-
-  // Tool call queries
-  Future<List<ToolCallData>> getToolCallsForMessage(String messageId) =>
-      (select(toolCalls)..where((t) => t.messageId.equals(messageId))).get();
-
-  // Config cache
-  Future<void> cacheConfigSection(String serverId, String section, List<ConfigCacheCompanion> entries) {
-    return transaction(() async {
-      await (delete(configCache)..where((c) => c.serverId.equals(serverId) & c.section.equals(section))).go();
-      await batch((b) {
-        b.insertAll(configCache, entries);
-      });
-    });
-  }
-}
-```
-
-## 4. Termius Export Format
-
-Termius exports hosts as JSON. Expected structure:
+Updated: 2026-05-16
+Source: current HTTP/WebSocket gateway contract and Navivox PRD
+
+## 1. Model Principles
+
+- Gormes is authoritative for agents, sessions, config, tools, provider
+  settings, and voice profiles.
+- Flutter caches local UI state and safe snapshots only.
+- Tokens and secrets are never serialized into route paths, screenshots, debug
+  logs, or exported diagnostics.
+- Local persistence starts minimal. Add a database only when offline history,
+  voice run retention, or draft recovery needs it.
+- Every model should be rebuildable from server state plus local connection
+  settings.
+
+## 2. Gateway Connection
+
+Represents one saved way to reach a Navivox gateway.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Local UUID. |
+| `label` | string | Human-friendly name, default from host. |
+| `base_url` | string | From `gormes navivox connect-info`. |
+| `healthz_url` | string | Usually `base_url + /healthz`. |
+| `host` | string | Parsed host for display. |
+| `port` | integer | Parsed or reported port. |
+| `host_source` | string | `local`, `tailscale`, `wireguard`, `tun-other`, or `manual`. |
+| `auth_mode` | string | Server-reported when known. |
+| `token_required` | boolean | From `connect-info` or status probe. |
+| `token_ref` | string | Local secure-storage reference, never the token value. |
+| `exposure_mode` | string | Server-reported mode. |
+| `last_health_status` | string | `unknown`, `ok`, `offline`, `blocked`. |
+| `last_stream_status` | string | `disconnected`, `connecting`, `connected`, `reconnecting`. |
+| `last_error_code` | string | Safe error code. |
+| `created_at` | timestamp | Local creation time. |
+| `updated_at` | timestamp | Local update time. |
+
+Example:
 
 ```json
 {
-  "hosts": [
-    {
-      "id": "uuid",
-      "label": "My Server",
-      "hostname": "example.com",
-      "port": 22,
-      "username": "root",
-      "identity": "uuid",          // references identities
-      "group": "Production",
-      "tags": ["web", "api"],
-      "known_host": "ssh-ed25519 AAAAC3NzaC1lZ...",
-      "port_forwarding": [
-        {
-          "local_port": 8080,
-          "remote_host": "localhost",
-          "remote_port": 80
-        }
-      ]
-    }
-  ],
-  "identities": [
-    {
-      "id": "uuid",
-      "label": "My Key",
-      "private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
-      "public_key": "ssh-ed25519 AAAAC3NzaC1lZ...",
-      "passphrase": null
-    }
-  ],
-  "groups": [
-    {
-      "id": "uuid",
-      "name": "Production"
-    }
-  ]
+  "id": "local-gateway",
+  "label": "Local Gormes",
+  "base_url": "http://127.0.0.1:8765",
+  "healthz_url": "http://127.0.0.1:8765/healthz",
+  "host_source": "local",
+  "token_required": true,
+  "token_ref": "secure:navivox/local-gateway",
+  "exposure_mode": "local",
+  "last_health_status": "ok",
+  "last_stream_status": "connected"
 }
 ```
 
-### Termius Import Mapping
+## 3. Gateway Status Snapshot
 
-| Termius Field | Navivox Field | Notes |
-|---------------|---------------|-------|
-| hosts[].id | import_metadata.termius_id | For dedup |
-| hosts[].label | servers.display_name | |
-| hosts[].hostname | servers.hostname | |
-| hosts[].port | servers.port | |
-| hosts[].username | servers.username | |
-| hosts[].identity | servers.identity_id | Look up after importing keys |
-| hosts[].group | servers.import_metadata.group | |
-| hosts[].tags | servers.import_metadata.tags | |
-| hosts[].known_host | host_known_keys.raw_key | Parse and fingerprint |
-| hosts[].port_forwarding | servers.import_metadata.port_forwarding | V1 stores, V2 renders |
-| identities[].id | identities.import_source | |
-| identities[].label | identities.label | |
-| identities[].private_key | identities.private_key_secure_id | Store in secure storage |
-| identities[].public_key | identities.public_key | |
-| identities[].passphrase | identities.is_encrypted | Mark encrypted |
+Mirrors `GET /v1/navivox/status`.
 
-### Import Validation Rules
+| Field | Type | Notes |
+|-------|------|-------|
+| `enabled` | boolean | Server channel enabled state. |
+| `bind_host` | string | Safe to display. |
+| `port` | integer | Gateway port. |
+| `exposure_mode` | string | `local`, `tailscale`, `wireguard`, `vpn`, or `public`. |
+| `auth_mode` | string | `static_token`, `pairing_token`, or `tailscale_identity`. |
+| `sessions` | integer | Count. |
+| `ws_connections` | integer | Count. |
+| `observed_at` | timestamp | Local observation time. |
 
-- Reject identity if `private_key` is null/empty and no `public_key` present (password-only identity)
-- Warn if `private_key` is encrypted (will need passphrase on first use)
-- Skip host if hostname is empty
-- Deduplicate by hostname + port + username + key fingerprint
-- If Termius ID matches existing import_metadata, update rather than duplicate
+The app should keep the latest status snapshot for UI display, but should not
+treat cached status as authorization.
+
+## 4. Session
+
+Mirrors server session state.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `session_id` | string | Server id. |
+| `last_request_id` | string | Optional. |
+| `created_at` | timestamp | Server timestamp. |
+| `updated_at` | timestamp | Server timestamp. |
+| `subscribers` | integer | Server count. |
+| `active_agent_id` | string | Future server field. |
+| `local_title` | string | Optional local display title. |
+
+Sessions are loaded from `/v1/navivox/sessions` and updated by stream events.
+
+## 5. Messages
+
+Messages are local render objects derived from user input and gateway events.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Local or server id. |
+| `session_id` | string | Owning session. |
+| `request_id` | string | Correlates user turn and assistant stream. |
+| `author` | enum | `user`, `assistant`, `system`. |
+| `kind` | enum | `text`, `tool_call`, `voice`, `error`. |
+| `text` | string | Redacted when marked private. |
+| `is_final` | boolean | Streaming completion state. |
+| `created_at` | timestamp | Local or server timestamp. |
+| `updated_at` | timestamp | Updated during stream. |
+
+Assistant deltas should update one message per request rather than appending a
+new bubble for every delta.
+
+## 6. Tool Calls
+
+Tool calls are first-class UI objects.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `tool_call_id` | string | Stable id from event or local generated id. |
+| `session_id` | string | Owning session. |
+| `request_id` | string | Turn correlation id. |
+| `tool_name` | string | Display-safe tool name. |
+| `status` | enum | `queued`, `running`, `needs_approval`, `approved`, `denied`, `completed`, `failed`. |
+| `summary` | string | Short safe summary. |
+| `input_preview` | object | Redacted preview. |
+| `output_preview` | object | Redacted preview. |
+| `artifacts` | list | Safe artifact refs. |
+| `requires_approval` | boolean | Future approval state. |
+| `redaction_level` | enum | `none`, `partial`, `hidden`. |
+| `started_at` | timestamp | Optional. |
+| `completed_at` | timestamp | Optional. |
+
+Raw JSON belongs behind a debug affordance. The default renderer is
+`ToolCallCard`.
+
+## 7. Agent Draft And Profile
+
+The natural-language seed flow produces an editable draft.
+
+### 7.1 Agent Seed Request
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `seed` | string | Example: `screen inbound leads`. |
+| `base_agent_id` | string | Optional template/source agent. |
+| `session_id` | string | Optional context. |
+
+### 7.2 Agent Draft
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `draft_id` | string | Server or local id. |
+| `name` | string | Editable. |
+| `description` | string | Editable. |
+| `instructions` | string | Editable. |
+| `tools` | list | Draft tool settings. |
+| `voice_profile` | object | Draft voice defaults. |
+| `stt_profile` | object | Draft STT defaults. |
+| `safety_policy` | object | Approval/escalation/redaction settings. |
+| `validation_errors` | list | Server field errors. |
+
+### 7.3 Tool Setting
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `tool_name` | string | Tool id. |
+| `enabled` | boolean | Draft value. |
+| `permission` | enum | `allow`, `ask`, `deny`. |
+| `redaction_policy` | enum | `default`, `strict`. |
+
+## 8. Voice Profile And Voice Run
+
+### 8.1 Voice Profile
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `profile_id` | string | Server id. |
+| `label` | string | Display name. |
+| `stt_provider` | string | Optional. |
+| `stt_model` | string | Optional. |
+| `tts_provider` | string | Optional. |
+| `tts_voice` | string | Optional. |
+| `locale` | string | Optional. |
+| `speed` | number | Optional. |
+
+### 8.2 Voice Run
+
+Voice runs should exist before persistent audio upload/playback features.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `voice_run_id` | string | Stable id. |
+| `session_id` | string | Owning session. |
+| `request_id` | string | Turn correlation id. |
+| `capture_status` | enum | `idle`, `recording`, `transcribing`, `submitted`, `failed`. |
+| `transcript` | string | Device or server transcript. |
+| `transcript_source` | enum | `device`, `server`, `manual`. |
+| `confidence` | number | Optional. |
+| `duration_ms` | integer | Optional. |
+| `stt_profile_id` | string | Optional. |
+| `tts_profile_id` | string | Optional. |
+| `retention_policy` | string | Required before audio persistence. |
+
+## 9. Config Models
+
+Config admin is schema-driven and server-authoritative.
+
+### 9.1 Config Schema
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `schema_version` | string | Server version. |
+| `sections` | list | Section definitions. |
+| `generated_at` | timestamp | Server timestamp. |
+
+### 9.2 Config Field
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `path` | string | Example: `navivox.exposure_mode`. |
+| `label` | string | Display label. |
+| `type` | enum | `string`, `integer`, `boolean`, `enum`, `object`, `array`, `secret`. |
+| `required` | boolean | Validation hint. |
+| `enum_values` | list | Optional. |
+| `default` | any | Optional. |
+| `secret` | boolean | Secret field marker. |
+| `restart_required` | boolean | Server hint. |
+| `risk_level` | enum | `low`, `medium`, `high`. |
+
+### 9.3 Redacted Config Value
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `path` | string | Field path. |
+| `value` | any | Non-secret value only. |
+| `secret_status` | string | `unset`, `configured`, `external`, `unknown`. |
+| `source` | string | Safe source evidence. |
+| `updated_at` | timestamp | Optional. |
+
+### 9.4 Draft Change
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `path` | string | Field path. |
+| `old_value` | any | Non-secret only. |
+| `new_value` | any | Redacted for secret changes. |
+| `validation_state` | enum | `unknown`, `valid`, `invalid`. |
+| `requires_confirmation` | boolean | High-risk fields. |
+
+## 10. Local Settings
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `theme` | enum | `system`, `dark`, `light`. |
+| `density` | enum | `compact`, `comfortable`. |
+| `app_lock_enabled` | boolean | Local only. |
+| `lock_timeout_seconds` | integer | Local only. |
+| `wake_word` | string | Local voice hint. |
+| `text_fallback_enabled` | boolean | Always true by default. |
+
+## 11. Persistence Plan
+
+### 11.1 In-Memory First
+
+Use in-memory provider state for:
+
+- Active connection.
+- Active session.
+- Current chat transcript.
+- Setup errors.
+- Agent draft before apply.
+
+### 11.2 Secure Storage
+
+Use secure storage for:
+
+- Gateway tokens.
+- Local app unlock material.
+
+Never store:
+
+- Secret values read from server config.
+- Raw provider keys.
+- Unredacted sensitive tool output.
+
+### 11.3 Optional Database
+
+Add a database only when the product needs durable:
+
+- Message history.
+- Voice run records.
+- Agent draft recovery.
+- Config schema snapshots.
+
+Before adding one, define migrations, clear-local-data behavior, redaction
+policy, and export policy.
+
+## 12. Event Mapping
+
+| Gateway Event | Model Update |
+|---------------|--------------|
+| `session_started` | Create/update `Session`; set active session. |
+| `assistant_delta` | Append text to one assistant `Message` for the request. |
+| `assistant_message` | Upsert/finalize assistant `Message`. |
+| `tool_call_started` | Create or update `ToolCall` with running status. |
+| `tool_call_finished` | Update `ToolCall` status, summary, and artifacts. |
+| `error` | Append safe system/error `Message`. |
+| `done` | Mark active turn complete. |
+
+## 13. Redaction Rules
+
+- Token fields store only `token_ref` and status.
+- Secret config values store only `secret_status` and source evidence.
+- Tool inputs/outputs default to `redaction_level=partial` unless server marks
+  them safe.
+- Voice transcripts can be marked private and omitted from diagnostics.
+- Diagnostic export must strip tokens, secrets, private transcripts, and hidden
+  tool payloads.

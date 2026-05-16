@@ -1,487 +1,292 @@
 # Navivox Chat UI Research
 
 Status: planning draft
-Source: analysis of 15+ Flutter open-source chat/UI projects (2025-2026)
+Updated: 2026-05-16
+Source: current Navivox product direction and prior open-source UI survey
 
-## 1. Projects Analyzed
+## 1. Decision Summary
 
-### 1.1 Chat SDKs (Production-Ready)
+Navivox should keep the current simple chat adapter until the connect-and-talk
+loop is proven. The planned production chat foundation remains
+`flyerhq/flutter_chat_ui` because it is backend-agnostic and supports custom
+message builders, which Navivox needs for tool cards and voice bubbles.
 
-| Project | Stars | License | Relevance | Verdict |
-|---------|-------|---------|-----------|--------|
-| **flyerhq/flutter_chat_ui** | 2,262 | Apache 2.0 | ⭐⭐⭐⭐⭐ | Best-in-class chat SDK. Backend-agnostic, modular, actively maintained. |
-| **SimformSolutionsPvtLtd/flutter_chatview** | Active | MIT | ⭐⭐⭐⭐ | Feature-rich with reactions, replies, voice messages, link previews. |
-| **Tealseed-Lab/simple_chat** | 88 | MIT | ⭐⭐⭐ | Clean, minimal, supports custom message cells. Good reference for simplicity. |
-| **v-chat-sdk/v_chat_bubbles** | New | - | ⭐⭐⭐ | Multi-platform bubble styles (Telegram, WhatsApp, Messenger, iMessage). |
-| **chat_bubbles** (prahack) | 103 | - | ⭐⭐⭐ | WhatsApp-style bubbles, voice waveform, swipe actions, grouping. |
-| **modern_chat_bubbles** | New | - | ⭐⭐⭐ | Glassmorphic/neomorphic designs, fluid animations. |
-| **MOUKZ/chat_package** | - | - | ⭐⭐ | Voice record with slide-to-cancel, press-and-hold audio. |
+The Flutter app talks to Gormes, not directly to model providers. Any chat UI
+package is only a rendering layer over `GatewayNavivoxChannel` state.
 
-### 1.2 AI Agent Chat Interfaces
+## 2. Adopt
 
-| Project | Stars | Relevance | Key Takeaways |
-|---------|-------|-----------|---------------|
-| **flutter/ai** (Flutter AI Toolkit) | 252 | ⭐⭐⭐⭐ | Official Flutter AI chat, streaming, voice input, pluggable LLM. |
-| **dartantic_chat** | - | ⭐⭐⭐ | Fork of flutter/ai, multi-provider, tool calling, voice, drag-drop. |
-| **flutter_gen_ai_chat_ui** | - | ⭐⭐⭐ | Modern streaming text animations, markdown, result renderer registry. |
-| **flutter_ai_agent_tool** | - | ⭐⭐⭐ | Complete agent toolkit: streaming, memory, tools, pre-built UI. |
-| **dart_agent_core** | 15 | ⭐⭐⭐⭐ | Agent framework with streaming events, tool use, controller hooks. |
+### 2.1 Chat Framework
 
-### 1.3 Flutter Templates & Architecture
+Adopt a full chat framework when these requirements are all active:
 
-| Project | Stars | Key Takeaways |
-|---------|-------|---------------|
-| **momshaddinury/flutter_template** | 128 | Clean Arch + Riverpod + go_router. Best Go template reference. |
-| **AhmedLSayed9/deliverzler** | 715 | DDD + Riverpod + GoRouter. Code-gen variant is closest to our stack. |
-| **wednesday-solutions/flutter_template** | 399 | Riverpod + Drift + Freezed + testing. Enterprise-grade template. |
-| **Gradoid/scalable_flutter_app_starter** | 180 | flutter_bloc + go_router. Good separation-of-concerns patterns. |
-| **cevheri/flutter-bloc-advanced** | - | Feature-first clean arch, responsive shell, role-based routing. |
+- Streaming assistant text.
+- Custom tool call message rendering.
+- Voice message bubbles.
+- System/control messages.
+- Mobile and desktop layout coverage.
 
-### 1.4 Admin/Config UIs
+The package must allow:
 
-| Project | Stars | Key Takeaways |
-|---------|-------|---------------|
-| **abuanwar072/flutter-responsive-admin-panel** | 7,090 | Dashboard layout, charts, tables, responsive design patterns. |
-| **FlutterFlareLine/FlareLine** | 149 | Modern admin with localization, auth, firebase. |
-| **libsFlutter/flutter_adminpanel** | New | Universal adapter system, resource-based CRUD, schema-driven forms. |
-| **serverpod_admin_dashboard** | - | Full customization with builder pattern. Schema-driven CRUD from API. |
+- External ownership of message state.
+- Custom message types.
+- Incremental updates for streaming text.
+- Stable keys for message replacement.
+- Accessible message actions.
 
-### 1.5 Telegram Clones (UI Reference)
+### 2.2 Text Streaming Renderer
 
-| Project | Stars | Notes |
-|---------|-------|-------|
-| **babakcode/flutter_chat** | 45 | Telegram-like chat app. Material 3 branch. |
-| **codingcafe1/telegram** | 53 | Firebase + Telegram UI clone. |
-| **Yogabayu/clone_telegram_flutter** | 11 | Pure UI clone. Clean code. |
-| **dima-xd/nullgram** | 3 | Custom Telegram client from scratch in Flutter. Ambitious. |
-| **team113/messenger** | 31 | Production messenger, 40 contributors, 76 releases. |
+Use a streaming text renderer for `assistant_delta` events only after the
+channel tests prove one assistant message is updated per request. The renderer
+should not create a new bubble for each delta.
 
-## 2. Which Projects to Adopt, Inspire From, or Skip
+## 3. Inspire From
 
-### 2.1 Adopt (Direct Dependency)
+### 3.1 Chat Bubble Packages
 
-| Package | Why | Navivox Integration |
-|---------|-----|-------------------|
-| **flyerhq/flutter_chat_ui** v2 | Best chat SDK. Backend-agnostic → works with Navivox protocol. Streaming text messages via `flyer_chat_text_stream_message`. Custom message types via `Builders`. | Use as the core chat UI widget. Register custom `ToolCallMessage` type for tool call cards. Use `ChatController` → bridge to Navivox channel events. |
-| **flyerhq/flyer_chat_text_stream_message** | Fade-in animated streaming text with markdown. Exactly what we need for `chat.update` events. | Register as message type for streaming assistant responses. |
+Useful patterns:
 
-**Why not others:**
-- `flutter_chatview`: Too opinionated about backend (firebase), more complex API
-- `chat_bubbles`: Widget-level only, we need a full chat framework
-- `modern_chat_bubbles`: Nice designs but not a framework
+- Group consecutive messages from the same author.
+- Keep tool cards as separate blocks.
+- Support compact timestamps.
+- Support swipe or long-press actions where platform-appropriate.
+- Keep voice messages visually distinct from plain text.
 
-### 2.2 Inspire From (Design Patterns, No Direct Dep)
+### 3.2 AI Chat Interfaces
 
-**Chat Bubbles Package (prahack):**
-- Voice message waveform visualization (`waveformData` + scrub interaction) → Our `VoiceRecordButton`
-- Swipe-to-reply/delete on message bubbles (`SwipeableBubble`) → Navivox swipe actions
-- Message grouping by consecutive sender with tails (`BubbleGroupBuilder`) → Navivox chat grouping
-- Typing indicator animations (`TypingIndicator`, `TypingIndicatorWave`) → Navivox typing state
+Useful patterns:
 
-**MOUKZ/chat_package:**
-- Press-and-hold audio recording with slide-to-cancel → Our voice input UX
-- Wave animation style for recording state (`WaveAnimationStyle`) → Our mic UI
-- Recording button with smooth mic/send icon transition → Our composer mic button
+- Event streams drive UI state.
+- Tool calls are separate renderer types.
+- Artifacts open in dedicated viewers.
+- Approval controls are explicit and stateful.
+- Errors include recovery actions.
 
-**Tealseed-Lab/simple_chat:**
-- ViewFactory pattern for custom message cell registration → Our tool call card registration
-- Force new block for different message types → Our tool call separation from text
-- Loading indicator message type → Our streaming indicator
+### 3.3 Admin Interfaces
 
-**flutter_gen_ai_chat_ui:**
-- Result Renderer Registry pattern → Navivox artifact/tool result rendering
-- Streaming text with word-by-word animations → Our `chat.update` rendering
-- Example questions / welcome message → Navivox first-run chat suggestions
+Useful patterns:
 
-**dart_agent_core:**
-- `runStream()` yielding typed events → Our Navivox channel event stream
-- Controller hooks (before/after tool call) → Our tool approval flow
-- Loop detection for tool calls → Navivox progress tracking
+- Schema-driven forms.
+- Field-level validation.
+- Redacted secret status.
+- Diff preview before apply.
+- Confirmation for risky changes.
 
-**deliverzler (AhmedLSayed9):**
-- Riverpod code-gen + GoRouter + Freezed architecture
-- Feature-based folder structure with presentation/domain/infrastructure
-- DDD layered architecture adapted for Riverpod
+## 4. Skip Or Defer
 
-**flutter_template (momshaddinury):**
-- Clean Architecture with Riverpod + go_router + retrofit
-- Feature-based organization
-- Theme system with Figma semantic tokens → Our design tokens
+Do not adopt packages that:
 
-**flutter_template (wednesday-solutions):**
-- Connector pattern (separate data-fetching widgets from UI widgets)
-- Riverpod + Drift + Freezed combo (matches our stack exactly)
-- Golden tests, E2E tests, CI/CD setup
+- Own model/provider orchestration in the Flutter app.
+- Require a hosted chat backend.
+- Make tool calls plain transcript text.
+- Force a single mobile-only layout.
+- Add broad persistence before the product has retention rules.
+- Require telephony concepts before the first local agent turn works.
 
-**serverpod_admin_dashboard:**
-- Custom builder pattern for full UI replacement
-- Schema-driven CRUD from API → Our config schema → form generation
-- Role-based access control at UI level → Our pairing role gates
+## 5. Message Types
 
-### 2.3 Skip (Not Suitable)
+### 5.1 Text Message
 
-- **Flutter AI Toolkit** / **dartantic_chat**: Tied to Firebase/LLM providers. Navivox talks to Gormes, not directly to LLMs.
-- **flutter_ai_agent_tool**: Agent orchestration happens on Gormes server, not in Flutter app.
-- **Telegram clones**: UI reference only. Their architecture (Firebase, hardcoded users) doesn't match Navivox's SSH+protocol model.
-- **abuanwar072 admin panel**: Too generic. Navivox needs schema-driven config forms, not static dashboards.
+Fields:
 
-## 3. Key Chat UI Patterns to Implement
+- `id`
+- `session_id`
+- `request_id`
+- `author`
+- `text`
+- `is_final`
+- `created_at`
+- `updated_at`
 
-### 3.1 Message Bubble System
+Rendering:
 
-Adopt Flyer Chat's approach but extend:
+- User messages align to the trailing side.
+- Assistant messages align to the leading side.
+- Streaming assistant text updates in place.
+- Markdown is allowed after sanitization.
 
-```
-┌─────────────────────────────────────────┐
-│ [Avatar]  Agent Name                     │
-│           ┌──────────────────────┐       │
-│           │ Hello! How can I help│       │
-│           │ you today?           │       │
-│           └──────────────────────┘       │
-│           12:30 PM  ✓✓                   │
-│                                          │
-│           ┌──────────────────────────────┤
-│           │ Here's the analysis:         │
-│           │ ```json                      │
-│           │ {"status": "ok"}             │
-│           │ ```                          │
-│           └──────────────────────────────┤
-│           12:31 PM                        │
-│                                          │
-│ ┌────────────────────────────────────┐   │
-│ │ 🔧 find_files            Running  │   │
-│ │ Scanning: /home/user/project       │   │
-│ │ ████████░░░░░░░░ 60%              │   │
-│ │ [Approve]          [Deny]         │   │
-│ └────────────────────────────────────┘   │
-│           12:31 PM                        │
-│                                          │
-│ ┌─────────────────────────────┐          │
-│ │         My message       ✓✓ │          │
-│ └─────────────────────────────┘          │
-│                             12:32 PM      │
-└─────────────────────────────────────────┘
+### 5.2 ToolCallCard
+
+Fields:
+
+- `tool_call_id`
+- `tool_name`
+- `status`
+- `summary`
+- `input_preview`
+- `output_preview`
+- `artifacts`
+- `requires_approval`
+- `redaction_level`
+
+Rendering:
+
+```text
++-- execute_command ----------------------------+
+| Status: running                                |
+| Summary: checking system status                |
+|                                                |
+| [Inputs] [Output] [Artifacts]                  |
++------------------------------------------------+
 ```
 
-**Message Types:**
-1. `TextMessage` — Standard text with markdown (use Flyer Chat)
-2. `StreamingTextMessage` — Streaming text with cursor (use Flyer Chat)
-3. `VoiceMessage` — Waveform + play button + transcript
-4. `ToolCallCard` — Tool name, status, progress, approval, artifacts
-5. `SystemMessage` — "Agent switched to mineru", "Connected to server"
-6. `ErrorMessage` — Redacted errors with recovery actions
+Rules:
 
-**Bubble Grouping:**
-- Consecutive messages from same sender → group, only last shows tail
-- Tool call cards always start new block (never grouped with text)
-- Voice messages always start new block
-- Time gap > 5 min → new block even if same sender
+- Tool cards always start a new block.
+- Sensitive fields are redacted by default.
+- Approval buttons render only when the event contract supports them.
+- Raw JSON is behind a debug action, never the default UI.
 
-### 3.2 Message Composer
+### 5.3 Voice Message Bubble
 
-```
-┌──────────────────────────────────────────────┐
-│ 📎  [Text input area with placeholder]  🎤  ▶ │
-└──────────────────────────────────────────────┘
+Fields:
+
+- `voice_run_id`
+- `session_id`
+- `transcript`
+- `transcript_source`
+- `confidence`
+- `duration_ms`
+- `capture_status`
+- `playback_status`
+
+Rendering:
+
+- Shows transcript first.
+- Shows waveform/playback when audio exists.
+- Shows capture/transcription error as recoverable state.
+- Allows transcript edit before send for device-captured turns.
+
+### 5.4 System Message
+
+Use for:
+
+- Connected/disconnected status.
+- Agent switch confirmation.
+- Config apply result.
+- Voice mode state.
+- Safe errors.
+
+System messages should be short and actionable.
+
+## 6. Composer
+
+Default composer:
+
+```text
++------------------------------------------------+
+| [+] Type a message...                  [mic] > |
++------------------------------------------------+
 ```
 
 States:
-- **Default**: Paperclip (attachment), text field, mic, send (when text non-empty)
-- **Recording**: Wave animation replaces mic icon, slide-to-cancel behavior
-- **Voice active**: Continuous voice mode indicator below composer
-- **Disabled**: "Connecting..." / "No agent selected" placeholder
 
-### 3.3 Tool Call Cards
+- Default: text field, attachment/future action, mic, send.
+- Recording: transcript preview, cancel, send transcript.
+- Connecting: disabled send with reconnect status.
+- Unauthorized: token action.
+- Offline: retry action.
 
-```
-┌─────────────────────────────────────────────┐
-│ 🔧 Tool Name                         Status │
-│ Selected Agent: mineru          Workspace   │
-│ ─────────────────────────────────────────── │
-│ Preview: "Searching for files..."           │
-│                                             │
-│ ████████████░░░░░░░░ 60%                    │
-│ Elapsed: 2.3s                               │
-│ Risk: 🟡 Medium  ⚠️ Mutating                │
-│                                             │
-│ [⏸ Stop]  [Approve]  [Deny]                │
-│ ─────────────────────────────────────────── │
-│ Artifacts:                                  │
-│ 📄 search_results.json (23KB)  [View]       │
-│ 🖼️ screenshot.png (1.2MB)      [View]       │
-└─────────────────────────────────────────────┘
-```
+The composer must keep text fallback available even when voice capture fails.
 
-States:
-- `started` — Tool name, preview, start time
-- `progress` — Progress bar/indicator, elapsed time, summary updates
-- `completed` — Result summary, artifacts, green checkmark
-- `failed` — Redacted error, retry option
-- `cancelled` — Stopped by user, dimmed
-- `blocked` — Needs approval, prominent Approve/Deny buttons
-- `pending_approval` — Lock icon, approval prompt
+## 7. Tool Event Mapping
 
-### 3.4 Voice Control Bar
+| Gateway Event | UI Result |
+|---------------|-----------|
+| `tool_call_started` | Create or update a running `ToolCallCard`. |
+| `tool_call_finished` | Mark card completed/failed and attach safe summary. |
+| `error` with tool context | Mark card failed when a tool id is present. |
+| Future approval request | Add approve/deny controls to the card. |
 
-```
-┌─────────────────────────────────────────────┐
-│ 🎤 NAVI Listening...                    ⏹   │
-│ Partial: "switch agent min..."              │
-│ ▓▓▓▓▓▓▓░░░░░░░░░░░ -12dB                   │
-│ [Text Fallback]                             │
-└─────────────────────────────────────────────┘
-```
+## 8. Voice Event Mapping
 
-States:
-- **Idle**: Hidden
-- **Listening (no wake word)**: Waveform, VU meter, "Listening..."
-- **Wake word detected**: "NAVI" highlight, confidence indicator
-- **Command recognized**: Parsed command shown ("Switching to agent mineru")
-- **Processing**: Spinner, "Processing..."
-- **Speaking**: Agent voice indicator, volume visualization
+Current gateway behavior can send a device transcript as text. Voice UI should
+therefore start as a transcript capture and confirmation flow.
 
-### 3.5 Agent Switcher (Overlay)
+Future voice events should map to:
 
-```
-┌──────────────────────────────────────┐
-│ Select Agent                    ✕    │
-│──────────────────────────────────────│
-│ ● mineru (default)      🟢 online    │
-│   /home/xel/gormes-agent             │
-│   Voice: ElevenLabs - Adam           │
-│──────────────────────────────────────│
-│ ○ builder                🟢 online   │
-│   /home/xel/projects/build           │
-│   Voice: OpenAI - Nova               │
-│──────────────────────────────────────│
-│ ○ archived-agent         ⚫ offline  │
-│──────────────────────────────────────│
-│ [+ Create New Agent]                 │
-└──────────────────────────────────────┘
+- Voice run created.
+- Capture started/stopped.
+- Transcript partial/final.
+- Server STT complete.
+- TTS audio ready.
+- Playback started/stopped.
+- Voice error.
+
+## 9. Agent UI Patterns
+
+The seed flow should feel like creating a draft, not filling a large form first.
+
+```text
+Seed: [ screen inbound leads ]
+      [Generate Draft]
+
+Draft:
+- Name
+- Goal
+- Instructions
+- Tools
+- Voice
+- Safety
 ```
 
-### 3.6 Config Diff Viewer
+The operator can edit every generated section before apply.
 
-```
-┌──────────────────────────────────────┐
-│ Review Changes                  ✕    │
-│──────────────────────────────────────│
-│ 🔴 Hermes                          │
-│   model: gpt-4 → gpt-4-turbo       │
-│                                      │
-│ 🔴 Telegram (SENSITIVE)             │
-│   bot_token: [NOT SET] → [SET]      │
-│                                      │
-│ 🟡 Runtime                          │
-│   max_tool_iterations: 10 → 20      │
-│                                      │
-│ Warnings:                            │
-│ ⚠️ Model change requires restart    │
-│ ⚠️ Token change affects all users   │
-│                                      │
-│ [Cancel]              [Apply All]    │
-└──────────────────────────────────────┘
-```
+## 10. Config UI Patterns
 
-### 3.7 Secret Editor (Biometric-Gated)
+Config forms are generated from server schema.
 
-```
-┌──────────────────────────────────────┐
-│ 🔐 Unlock Secret Editor              │
-│──────────────────────────────────────│
-│ Authenticate to manage secrets       │
-│                                      │
-│ [🔒 Touch ID / Face ID / PIN]        │
-└──────────────────────────────────────┘
+Required components:
 
-After unlock:
-┌──────────────────────────────────────┐
-│ Secrets                        ✕    │
-│──────────────────────────────────────│
-│ Telegram Bot Token                   │
-│ Status: 🔴 Configured [REDACTED]     │
-│ Source: env (GORMES_TELEGRAM_TOKEN)  │
-│ [Rotate] [Delete]                    │
-│──────────────────────────────────────│
-│ Provider API Key                     │
-│ Status: 🔴 Configured [REDACTED]     │
-│ Source: SecretRef (1Password)        │
-│ [Set New] [Delete] [Test Connection] │
-│──────────────────────────────────────│
-│ Gateway Proxy Key                    │
-│ Status: 🟢 Not Configured            │
-│ [Set]                                │
-└──────────────────────────────────────┘
-```
+- Section list.
+- Typed field renderer.
+- Secret status indicator.
+- Diff viewer.
+- Validation result panel.
+- Confirmation sheet.
+- Apply result banner.
 
-## 4. Responsive Layout Patterns
+Risk states:
 
-### 4.1 Mobile Chat Layout
+- Local exposure: normal.
+- VPN exposure: show interface evidence.
+- Public exposure: require explicit confirmation.
+- Provider or model change: show reconnect/restart impact.
+- Secret change: write-only confirmation.
 
-```
-┌──────────────────────┐
-│ Server: my-server    │  ← Server switcher (tap)
-│ Agent: mineru  ▼     │  ← Agent pill (tap for switcher)
-├──────────────────────┤
-│                      │
-│  [Message list]      │
-│                      │
-│                      │
-├──────────────────────┤
-│ [Composer + Mic]     │
-├──────────────────────┤
-│ Chats │ Srv │ Config │  ← Bottom nav (primary 3)
-└──────────────────────┘
-```
+## 11. Layout Patterns
 
-### 4.2 Desktop Chat Layout
+Mobile:
 
-```
-┌──────┬──────────────────────────────────────┐
-│      │ Server: my-server  Agent: mineru ▼   │
-│ Nav  ├──────────────────────────────────────┤
-│      │                                      │
-│ 💬   │  ┌─[Thread List]──┬─[Chat Area]──┐   │
-│ 🖥️   │  │ Thread 1      │ Messages...   │   │
-│ 🤖   │  │ Thread 2 ●    │               │   │
-│ ⚙️   │  │ Thread 3      │ Tool card...  │   │
-│ 🔑   │  │               │               │   │
-│ ⌨️   │  │               │               │   │
-│      │  │               ├───────────────┤   │
-│      │  │               │ [Composer]    │   │
-│      │  └───────────────┴───────────────┘   │
-├──────┴──────────────────────────────────────┤
-│ Status: Connected  |  Gormes v1.2.3  |  🔒  │
-└─────────────────────────────────────────────┘
-```
+- Bottom navigation.
+- Full-width chat.
+- Sheets for agent/server switchers.
+- Voice panel from bottom.
+- Tool card details as bottom sheet.
 
-### 4.3 Desktop Config Layout
+Desktop:
 
-```
-┌──────┬──────────────────────────────────────┐
-│      │ Config: my-server              [✕]   │
-│ Nav  ├──────────┬───────────────────────────┤
-│      │ Sections │ Form Area                  │
-│      │          │                            │
-│      │ Overview │ Provider: [OpenAI ▼]      │
-│      │ Provider │ Model: [gpt-4-turbo ▼]    │
-│      │ Channels │ Endpoint: [api.openai...]  │
-│      │ Agents   │ API Key: [REDACTED] [Set] │
-│      │ Tools    │                            │
-│      │ Voice    │ [Review Changes] [Apply]  │
-│      │ Runtime  │                            │
-│      │ Browser  │                            │
-│      │ Security │                            │
-│      │ Secrets  │                            │
-│      │ Advanced │                            │
-└──────┴──────────┴───────────────────────────┘
-```
+- Left rail.
+- Persistent top bar.
+- Status bar.
+- Optional split detail panel for tool/config details.
+- Keyboard-first composer.
 
-## 5. Design Tokens (Inspired by Research)
+## 12. Accessibility Requirements
 
-### 5.1 Typography
+- Icon buttons have text labels or tooltips.
+- Status is not color-only.
+- Tool cards are keyboard expandable.
+- Voice transcripts are editable before send.
+- Secret fields announce redacted state.
+- Error banners include a primary recovery action.
 
-| Token | Size | Weight | Use |
-|-------|------|--------|-----|
-| `displayLarge` | 32 | 700 | Server name in header |
-| `headlineMedium` | 24 | 600 | Section titles |
-| `titleMedium` | 16 | 500 | Message sender name, agent name |
-| `bodyLarge` | 16 | 400 | Message text |
-| `bodyMedium` | 14 | 400 | Timestamps, status, metadata |
-| `labelLarge` | 14 | 500 | Button text, input labels |
-| `labelMedium` | 12 | 500 | Status badges, tool call status |
-| `codeStyle` | 13 | 400 | Monospace for code blocks |
+## 13. Acceptance For Replacing The Simple Adapter
 
-### 5.2 Color System
-
-```
-Primary:      Navivox Blue (#2563EB)
-On Primary:   White (#FFFFFF)
-Secondary:    Slate (#64748B)
-Surface:      Light (#F8FAFC) / Dark (#0F172A)
-Error:        Red (#EF4444)
-Warning:      Amber (#F59E0B)
-Success:      Green (#22C55E)
-Tool Call:    Purple (#7C3AED)
-Voice Active: Cyan (#06B6D4)
-Server Online:Green (#22C55E)
-Server Offline:Gray (#94A3B8)
-```
-
-### 5.3 Spacing
-
-| Token | Value | Use |
-|-------|-------|-----|
-| `xxs` | 4 | Icon-text gap |
-| `xs` | 8 | Within bubbles |
-| `sm` | 12 | Between grouped messages |
-| `md` | 16 | Standard padding |
-| `lg` | 24 | Section spacing |
-| `xl` | 32 | Large section breaks |
-
-### 5.4 Border Radius
-
-| Token | Value | Use |
-|-------|-------|-----|
-| `bubble` | 16 | Message bubbles |
-| `card` | 12 | Tool call cards, config cards |
-| `input` | 24 | Composer (pill-shaped) |
-| `button` | 8 | Standard buttons |
-
-## 6. Animation Patterns
-
-### 6.1 Message Animations
-
-- **New message (not current user)**: Slide up + fade in, 300ms
-- **New message (current user)**: Slide up from right, 250ms
-- **Streaming text**: Word-by-word fade in, 30ms per word (from `flutter_gen_ai_chat_ui`)
-- **Tool call card appear**: Expand from collapsed, 200ms
-- **Tool call progress update**: Smooth progress bar transition
-- **Message delete**: Fade out + shrink, 200ms
-
-### 6.2 Voice Animations
-
-- **Mic button idle → recording**: Scale + color shift, 200ms
-- **Recording waveform**: Animated bars (from `chat_package` WaveAnimationStyle)
-- **Wake word detected**: Pulse glow on NAVI chip
-- **Speaking**: Equalizer animation on agent avatar/speaker icon
-
-### 6.3 Navigation Animations
-
-- **Tab switch**: Crossfade (from `deliverzler`)
-- **Push detail**: Slide right → left
-- **Bottom sheet**: Slide up
-- **Dialog**: Scale from center
-
-## 7. Accessibility Requirements
-
-- All interactive elements have `Semantics` labels
-- Message bubbles announce: sender, time, content preview
-- Tool call cards announce: tool name, status, risk
-- Voice button announces current recording state
-- Config form fields have proper labels + error announcements
-- Minimum touch target 48x48dp for all interactive elements
-- Support screen reader navigation order
-- High contrast mode support via theme variants
-
-## 8. Key Decision: Build vs Adopt Chat UI
-
-**Decision: Adopt `flyerhq/flutter_chat_ui` v2 as foundation, extend with custom message types.**
-
-Rationale:
-- **Saves months** of chat UI development (message grouping, animations, scroll, input bar, theming)
-- **Backend-agnostic** — works with our custom Navivox protocol over SSH
-- **Modular** — we only use what we need, swap out pieces
-- **2,200+ stars, 80 contributors** — community-validated, actively maintained
-- **v2 has streaming text** (`flyer_chat_text_stream_message`) — exactly our `chat.update` use case
-- **Custom message types** via `Builders` — we register `ToolCallMessage`, `VoiceMessage`, etc.
-
-What we build custom:
-- **Tool call cards** — custom `ChatMessage` subtype with progress, approval, artifacts
-- **Voice message bubbles** — waveform visualization, playback speed
-- **Agent switcher** — bottom sheet overlay
-- **Server context bar** — server selector + agent pill in top bar
-- **Config forms** — schema-driven from `config.schema` response
-- **Secret editor** — biometric-gated write-only UI
-- **Terminal** — separate view using xterm.dart (not part of chat)
-- **First-run wizard** — multi-step setup flow
+- Existing setup-to-chat tests still pass.
+- Streaming text updates one assistant bubble.
+- `ToolCallCard` has widget tests for running, completed, failed, and redacted
+  states.
+- Voice bubble has text-only and transcript-confirmation tests.
+- Mobile and desktop layouts have snapshot or widget coverage.
+- The first turn still works without telephony setup.
