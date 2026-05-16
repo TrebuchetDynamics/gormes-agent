@@ -31,10 +31,10 @@ func TestPhase5DocsTrackExecuteCodeCloseout(t *testing.T) {
 		}
 	}
 
-	docsProgress, err := os.ReadFile("content/building-gormes/architecture_plan/progress.json")
-	if err != nil {
-		t.Fatalf("read canonical progress.json: %v", err)
-	}
+	// Canonical backlog is read via internal/progress.Load (canonicalProgressBytes)
+	// so this gate stays green whether the canonical path is a monolithic file
+	// or a module-keyed split directory (module-split umbrella C5/C5c).
+	docsProgress := canonicalProgressBytes(t, canonicalProgressPath)
 	for _, want := range []string{
 		`"5": {`,
 		`"5.K": {`,

@@ -61781,12 +61781,12 @@
             {
               "name": "Backlog split C5c: migrate webpages/docs raw progress.json readers to internal/progress.Load",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "webpages/docs Go tests currently os.ReadFile the canonical backlog and JSON-parse it as a single monolith: webpages/docs/phase5_docs_test.go:34 `os.ReadFile(\"content/building-gormes/architecture_plan/progress.json\")` and webpages/docs/upstream_coverage_test.go:973 `os.ReadFile(filepath.Join(\"content\",\"building-gormes\",\"architecture_plan\",\"progress.json\"))`; webpages/docs/docs_test.go's content-walk must be audited for the same path. These run under `go test ./webpages/docs` — a gate on every commit/CI — and would fail the instant the canonical path becomes a module-keyed split DIRECTORY (C5). Convert each raw read to internal/progress.Load (or a tiny split-aware test helper that calls progress.Load then re-marshals through the stable marshaller) so the gate stays green whether the canonical path is a monolithic file OR a module-keyed split directory. Preserve every existing assertion; do not weaken. Also assert explicitly that the served/dist progress.json (.github/workflows/deploy-gormes-docs.yml:47 `test -f dist/building-gormes/architecture_plan/progress.json`) is a generated Hugo mirror — NOT the canonical — and is therefore unaffected by the flip. Owned Gormes infra; prerequisite for C5.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -61831,7 +61831,7 @@
               "done_signal": [
                 "No raw monolith parse of the canonical path under webpages/docs; the `go test ./webpages/docs` gate is split-directory-safe; dist mirror documented unaffected."
               ],
-              "note": "Module-split umbrella prerequisite for C5. Authored 2026-05-16 planner pass from the C5-not-executable raw-reader audit (the `go test ./webpages/docs` gate would go red repo-wide the moment the canonical path becomes a directory). Builder-ready: blocked_by C1+C5b (both SHIPPED). Builder chain: gormes-tdd-slice."
+              "note": "SHIPPED 2026-05-16 see git log — webpages/docs/progress_canonical_test.go adds split-aware canonicalProgressBytes (progress.Load→SaveProgress(temp)→ReadFile) + a both-layouts test; phase5_docs_test.go:34 + upstream_coverage_test.go requireBuilderReadyProgressRow repointed off raw os.ReadFile of the canonical; docs_test.go single-canonical test strengthened with a progress.Load round-trip. Audit conclusion: docs_test.go collectContentDocs WalkDir (d.IsDir→nil, ext!=.md→nil) + os.Stat already exclude split member files — no change needed there; the slim legacy go:embed mirror is a separate single file, untouched. Write-scope correction: added new file webpages/docs/progress_canonical_test.go (ROW A/B/C1..C5b precedent)."
             },
             {
               "name": "Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json",
