@@ -109,6 +109,8 @@ func sectionForCheck(name string) string {
 		return SectionSkillsHub
 	case "Goncho config":
 		return SectionMemoryProvider
+	case "Profiles":
+		return SectionProfiles
 	default:
 		return SectionGormesRuntime
 	}

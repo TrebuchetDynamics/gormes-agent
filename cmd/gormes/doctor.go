@@ -304,6 +304,10 @@ func buildDoctorCmd() *cobra.Command {
 				Offline:         offline,
 			}))
 			reporter.Add(doctorGonchoConfig(cfg))
+			// Pure local FS over the Gormes profile seam — identical under
+			// --offline. Auto-groups under the ◆ Profiles header via
+			// sectionForCheck.
+			reporter.Add(doctorProfilesStatus())
 
 			runtimeStatus := gateway.RuntimeStatus{}
 			if snapshot, err := gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath()).ReadRuntimeStatusSnapshot(context.Background()); err == nil && !snapshot.Missing {
@@ -440,6 +444,50 @@ func doctorTargetReadinessFromPlan(plan cli.FirstRunPlan) *doctorTargetReadiness
 // happened, e.g., `go run` or `go build` without the Makefile/CI flags),
 // the summary labels the binary as a "source build" rather than showing
 // a bare `commit=unknown` — the sentinel value is accurate but cryptic.
+// doctorProfilesStatus renders the ◆ Profiles section content from the real
+// Gormes profile seam (defaultProfileCommandSeams) as the source of truth —
+// never a hardcoded ~/.gormes/profiles glob. Pure local FS: ListKnownProfiles
+// reads the on-disk layout, RootExists/HasManifest stat the resolved root, so
+// it is identical under --offline (no network). Owned divergence: there is no
+// per-profile gateway_running / model[:30] / wrapper-alias fabrication — Gormes
+// profiles are ~/.gormes/profiles/<name> subdirs with an optional distribution
+// manifest + an active marker only.
+func doctorProfilesStatus() doctor.CheckResult {
+	seams := defaultProfileCommandSeams()
+	inv := doctor.DoctorProfileInventory{}
+	if seams.ListKnownProfiles != nil {
+		if known, err := seams.ListKnownProfiles(); err == nil {
+			inv.Known = known
+		}
+	}
+	if seams.ReadActiveProfileName != nil {
+		if active, err := seams.ReadActiveProfileName(); err == nil {
+			inv.Active = active
+		}
+	}
+	if seams.ResolveProfileRoot != nil {
+		inv.RootExists = func(name string) bool {
+			root, err := seams.ResolveProfileRoot(name)
+			if err != nil || strings.TrimSpace(root) == "" {
+				return false
+			}
+			info, err := os.Stat(root)
+			return err == nil && info.IsDir()
+		}
+		if seams.ReadDistributionManifest != nil {
+			inv.HasManifest = func(name string) bool {
+				root, err := seams.ResolveProfileRoot(name)
+				if err != nil || strings.TrimSpace(root) == "" {
+					return false
+				}
+				_, ok, err := seams.ReadDistributionManifest(root)
+				return err == nil && ok
+			}
+		}
+	}
+	return doctor.CheckProfiles(inv)
+}
+
 func doctorBuildIdentityStatus() doctor.CheckResult {
 	dirty := resolveGitDirty()
 	short := resolveGitCommit()
