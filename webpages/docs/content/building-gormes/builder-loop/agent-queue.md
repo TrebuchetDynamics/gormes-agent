@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. gormes doctor ◆ Security Advisories section content
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `large`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Add `◆ Security Advisories` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:350). Upstream uses hermes_cli.security_advisories (detect_compromised / filter_unacked / full_remediation_text / get_acked_ids) to scan for compromised dependencies and surface unacked advisories with remediation + ack state. Gormes has no Go advisory dataset/ack-state subsystem — this row is the LARGEST child and carries its own dependency: design + port a Gormes-owned advisory source + ack-state store (internal/security or similar), THEN a doctor check that emits CheckResult{Name:"Security Advisories"} as the first section. Owned divergence: Gormes-owned advisory data + `~/.gormes` ack store, never the Python advisory DB. Likely needs gormes-interface-designer for the advisory-store boundary before TDD.
-- Trust class: -
-- Ready when: ◆-section grouping shipped; a Gormes advisory-store interface is designed (gormes-interface-designer) and the advisory data source decided.
-- Not ready when: Attempted as a doctor-only slice without the advisory dataset + ack-state subsystem; or embeds/depends on the Python advisory DB.
-- Degraded mode: No advisory data available / fetch disabled (--offline) → SKIP 'advisory scan skipped' rather than WARN; ack store missing → treat all as unacked, never panic.
-- Fixture: `internal/security/advisories_test.go`
-- Write scope: `internal/security/advisories.go`, `internal/security/advisories_test.go`, `internal/doctor/doctor_security_advisories.go`, `internal/doctor/doctor_security_advisories_test.go`, `internal/doctor/doctor_section.go`, `cmd/gormes/doctor.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/security ./internal/doctor ./cmd/gormes -run 'Advisor\|Doctor' -count=1`, `go test ./cmd/gormes -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Fixtures prove a Gormes-owned advisory+ack subsystem and the ◆ Security Advisories doctor section (unacked listing + remediation + --offline SKIP), no Python advisory-DB dependency — citing hermes 55c9f3206 doctor.py:350 + security_advisories.py.
-- Acceptance: A Gormes-owned advisory + ack-state subsystem exists with tests; `gormes doctor` renders `◆ Security Advisories` first, listing unacked advisories with Gormes-owned remediation, --offline → clean SKIP., No dependency on Hermes' Python advisory DB; ack store under ~/.gormes.
-- Source refs: ../hermes-agent/hermes_cli/doctor.py@55c9f3206:350:◆ Security Advisories, ../hermes-agent/hermes_cli/security_advisories.py@55c9f3206 (detect_compromised/filter_unacked/full_remediation_text/get_acked_ids — port reference), Gormes has no equivalent — new internal/security advisory + ack-state subsystem required (owned)
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Agentic-porting-kit public repo scaffold
+## 1. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
