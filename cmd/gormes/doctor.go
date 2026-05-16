@@ -56,11 +56,10 @@ func (r *doctorReporter) Add(c doctor.CheckResult) {
 	if c.Status == doctor.StatusFail {
 		r.failed = true
 	}
+	// Human mode no longer streams each check flat at Add() time: checks are
+	// accumulated and rendered grouped under `◆ <Section>` headers in
+	// Finalize (upstream hermes-doctor parity). JSON mode is unaffected.
 	r.collected = append(r.collected, c)
-	if r.asJSON {
-		return
-	}
-	fmt.Fprint(r.w, c.Format())
 }
 
 // doctorReportJSON is the wire shape for `gormes doctor --json`.
@@ -85,6 +84,8 @@ type doctorTargetReadinessJSON struct {
 
 func (r *doctorReporter) Finalize() error {
 	if !r.asJSON {
+		fmt.Fprint(r.w, doctor.RenderDoctorHeader("Gormes Doctor"))
+		fmt.Fprint(r.w, doctor.RenderSectionedReport(r.collected))
 		issues := doctor.CollectDoctorIssues(r.collected)
 		fmt.Fprint(r.w, doctor.RenderDoctorIssuesSummary(issues))
 		if r.fix {
@@ -197,6 +198,12 @@ func buildDoctorCmd() *cobra.Command {
 			asJSON, _ := cmd.Flags().GetBool("json")
 			fix, _ := cmd.Flags().GetBool("fix")
 			reporter := &doctorReporter{w: out, asJSON: asJSON, fix: fix}
+			exitCode := 0
+			markFailure := func(code int) {
+				if code > exitCode {
+					exitCode = code
+				}
+			}
 			// Defer Finalize so JSON output renders even on early-return
 			// failure paths. Errors from finalize are best-effort logged.
 			defer func() {
@@ -237,7 +244,7 @@ func buildDoctorCmd() *cobra.Command {
 			secretRuntimeResult := doctorSecretRuntimeStatus(secretSnapshot, secretActivationErr)
 			reporter.Add(secretRuntimeResult)
 			if secretRuntimeResult.Status == doctor.StatusFail {
-				return newExitCodeError(2, fmt.Errorf("doctor: secret runtime failed"))
+				markFailure(2)
 			}
 
 			if !offline {
@@ -245,31 +252,28 @@ func buildDoctorCmd() *cobra.Command {
 				if doctorProviderHealthUsesAuthReadiness(cfg) {
 					if !configuredProviderAuthPresent(cfg) {
 						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("auth missing (%s)", doctorProviderHealthTarget(cfg))})
-						fmt.Fprintf(errOut,
-							"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
-						return newExitCodeError(1, fmt.Errorf("doctor: provider auth missing"))
+						markFailure(1)
+					} else {
+						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("auth-ready (%s)", doctorProviderHealthTarget(cfg))})
 					}
-					reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("auth-ready (%s)", doctorProviderHealthTarget(cfg))})
 				} else {
 					c, err := newProviderHTTPClient(cfg, providerName)
 					if err != nil {
 						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
 						reporter.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: redactedErr})
-						fmt.Fprintf(errOut,
-							"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
-						return newExitCodeError(1, fmt.Errorf("doctor: provider setup failed: %s", redactedErr))
+						markFailure(1)
+					} else {
+						ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+						defer cancel()
+						if err := c.Health(ctx); err != nil {
+							target := doctorProviderHealthTarget(cfg)
+							redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+							reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("NOT reachable (%s): %s", target, redactedErr)})
+							markFailure(1)
+						} else {
+							reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("reachable (%s)", doctorProviderHealthTarget(cfg))})
+						}
 					}
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-					defer cancel()
-					if err := c.Health(ctx); err != nil {
-						target := doctorProviderHealthTarget(cfg)
-						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("NOT reachable (%s): %s", target, redactedErr)})
-						fmt.Fprintf(errOut,
-							"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
-						return newExitCodeError(1, fmt.Errorf("doctor: provider unreachable"))
-					}
-					reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("reachable (%s)", doctorProviderHealthTarget(cfg))})
 				}
 			} else {
 				reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusSkip, Summary: "skipped (--offline)"})
@@ -306,7 +310,7 @@ func buildDoctorCmd() *cobra.Command {
 					} else if err := doctorNewTelegramClient(cfg.Telegram.BotToken); err != nil {
 						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Telegram.BotToken)
 						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusFail, Summary: redactedErr})
-						return newExitCodeError(2, fmt.Errorf("doctor: telegram client init failed: %s", redactedErr))
+						markFailure(2)
 					} else {
 						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram)})
 					}
@@ -320,7 +324,7 @@ func buildDoctorCmd() *cobra.Command {
 					} else if err := doctorNewDiscordSession(cfg.Discord.Token); err != nil {
 						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Discord.Token)
 						reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusFail, Summary: redactedErr})
-						return newExitCodeError(2, fmt.Errorf("doctor: discord session init failed: %s", redactedErr))
+						markFailure(2)
 					} else {
 						reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusPass, Summary: "allowed_channel_id=" + cfg.Discord.AllowedChannelID})
 					}
@@ -330,7 +334,13 @@ func buildDoctorCmd() *cobra.Command {
 			}
 
 			if result.Status == doctor.StatusFail {
-				return newExitCodeError(2, fmt.Errorf("doctor: toolbox check failed"))
+				markFailure(2)
+			}
+			if exitCode != 0 {
+				return newExitCodeError(exitCode, fmt.Errorf("doctor: checks failed"))
+			}
+			if reporter.failed {
+				return newExitCodeError(1, fmt.Errorf("doctor: checks failed"))
 			}
 			return nil
 		},
