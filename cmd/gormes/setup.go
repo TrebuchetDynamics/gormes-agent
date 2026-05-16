@@ -1644,22 +1644,69 @@ func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams)
 		return fmt.Errorf("resolve profile %q: %w", selected, err)
 	}
 
+	profileConfigPath := filepath.Join(root, "config.toml")
+
 	wsInput, err := promptString(cmd, "Workspace directories (comma-separated, blank to keep current): ", "")
 	if err != nil {
 		return err
 	}
 	if strings.TrimSpace(wsInput) == "" {
 		fmt.Fprintf(out, "No workspace change for profile %q.\n", selected)
-		return nil
+	} else {
+		if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.workspaces", wsInput); err != nil {
+			return fmt.Errorf("persist workspaces for profile %q: %w", selected, err)
+		}
+		fmt.Fprintf(out, "Set %d workspace(s) for profile %q in %s.\n",
+			len(parseSetupWorkspaceList(wsInput)), selected, profileConfigPath)
 	}
 
-	profileConfigPath := filepath.Join(root, "config.toml")
-	if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.workspaces", wsInput); err != nil {
-		return fmt.Errorf("persist workspaces for profile %q: %w", selected, err)
+	chInput, err := promptString(cmd, "Messaging channels (comma-separated: telegram,whatsapp,discord,slack — blank to keep): ", "")
+	if err != nil {
+		return err
 	}
-	fmt.Fprintf(out, "Set %d workspace(s) for profile %q in %s.\n",
-		len(parseSetupWorkspaceList(wsInput)), selected, profileConfigPath)
+	if strings.TrimSpace(chInput) == "" {
+		fmt.Fprintf(out, "No channel change for profile %q.\n", selected)
+		return nil
+	}
+	validChannels, unknownChannels := parseSetupChannelList(chInput)
+	for _, u := range unknownChannels {
+		fmt.Fprintf(out, "Skipping unknown channel %q (known: telegram, whatsapp, discord, slack).\n", u)
+	}
+	if len(validChannels) == 0 {
+		fmt.Fprintf(out, "No valid channels for profile %q.\n", selected)
+		return nil
+	}
+	if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.channels", strings.Join(validChannels, ",")); err != nil {
+		return fmt.Errorf("persist channels for profile %q: %w", selected, err)
+	}
+	fmt.Fprintf(out, "Set %d channel(s) for profile %q in %s.\n", len(validChannels), selected, profileConfigPath)
 	return nil
+}
+
+// knownSetupChannels is the Gormes-owned messaging-channel set the profiles
+// section accepts. Per-channel credential/token/QR/whatsapp-pairing setup is
+// intentionally out of scope here — this records WHICH channels a profile
+// uses, not their credentials.
+var knownSetupChannels = map[string]struct{}{
+	"telegram": {},
+	"whatsapp": {},
+	"discord":  {},
+	"slack":    {},
+}
+
+// parseSetupChannelList splits comma-separated channel input (reusing the
+// workspace-list splitter for symmetry) into validated known channels
+// (lowercased) and unknown tokens that are skipped, never persisted.
+func parseSetupChannelList(value string) (valid, unknown []string) {
+	for _, part := range parseSetupWorkspaceList(value) {
+		c := strings.ToLower(part)
+		if _, ok := knownSetupChannels[c]; ok {
+			valid = append(valid, c)
+		} else {
+			unknown = append(unknown, part)
+		}
+	}
+	return valid, unknown
 }
 
 // parseSetupWorkspaceList splits the comma-separated workspace input the same

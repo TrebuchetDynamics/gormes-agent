@@ -1126,7 +1126,7 @@ classification and row-backed implementation queue.
 - [x] gormes setup <section> boxed header + completion footer (UX parity)
 - [ ] gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
 - [x] gormes setup profiles — section scaffold + per-profile workspace list
-- [ ] gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
+- [x] gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
 - [ ] gormes setup profiles — all profiles navivox-accessible by default
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard

@@ -48354,47 +48354,53 @@
             },
             {
               "name": "gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)",
-              "status": "planned",
-              "priority": "P3",
-              "contract": "Child 2/3 of the setup-profiles umbrella (specified, NOT yet builder-ready — refine after child 1 scaffold ships). Extend `gormes setup profiles` so a selected profile can have MANY messaging channels (telegram, whatsapp, discord, slack). Persist per-profile channel config into the SELECTED profile's own config.toml via the internal/config/writer.go round-trip, REUSING the existing channel config shapes (internal/config TelegramCfg/DiscordCfg/SlackCfg + Bindings []AgentBindingCfg + flexibleStringList; whatsapp via the existing gateway whatsapp setup seam RunWhatsAppSetup / internal/gateway/channel_setup.go) — do NOT invent a new per-profile channel schema and do NOT reimplement channel setup; reuse runSetupBindingsSection/runSetupGatewaySection logic where possible. OWNED DIVERGENCE: Hermes has no per-profile multi-channel concept (owned). Gormes-owned wording, hermetic, list fields as TOML arrays. Refinement TODO before builder-ready: confirm the exact per-profile channel/binding config shape (Bindings vs per-channel cfg vs [[agents.list]] channels) and whether whatsapp can be configured headlessly in a hermetic test; decide reuse boundary with runSetupBindingsSection.",
-              "contract_status": "draft",
-              "slice_size": "medium",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Child 2/3 of the setup-profiles umbrella. BUILDER-READY (refinement TODOs RESOLVED 2026-05-16; child 1 SHIPPED commit fb23ff105). Extend runSetupProfilesInteractive (cmd/gormes/setup.go) so AFTER the shipped per-profile workspace-list step, for the SELECTED profile, prompt for a comma-separated list of messaging channels; validate each against the known set {telegram,whatsapp,discord,slack} (skip/reject unknown with a Gormes-owned message — never fabricate a channel); persist the validated list as a TOML ARRAY into the SELECTED profile's OWN config.toml (default profile → config.GormesHome()/config.toml; named → pseams.ResolveProfileRoot(name)/config.toml) via config.WriteTOMLValue(path, \"agents.defaults.channels\", input) — the SAME real internal/config round-trip child 1 used for agents.defaults.workspaces; blank input KEEPS the existing list (no destructive clear); round-trips back via config.Load into cfg.Agents.Defaults.Channels. Add AgentDefaultsCfg.Channels []string (internal/config/agents.go, toml `channels`) and an `agents.defaults.channels` coerce case in internal/config/writer.go coerceTOMLValue → parseEnvCSV string array — EXACTLY SYMMETRIC with the shipped Workspaces field + agents.defaults.workspaces case (do NOT invent a different schema). REUSE BOUNDARY (decided this pass): runSetupBindingsSection is ADVISORY-ONLY (prints `[[bindings]]` guidance + 'Or open your editor', no persistence) so it is NOT reused for persistence; child 2 extends the child-1 interactive flow and uses the same config.WriteTOMLValue round-trip. OWNED DIVERGENCE: Hermes has no per-profile multi-channel concept; agents.defaults.channels is WHICH channels the profile uses, distinct from [[bindings]] routing and per-channel credential cfg (TelegramCfg/DiscordCfg/SlackCfg tokens, whatsapp QR/session via `gormes whatsapp` / internal/gateway/channel_setup.go) — per-channel credential/token/QR/whatsapp-pairing setup is OUT OF SCOPE and MUST NOT be reimplemented or faked here. Non-interactive/no-TTY unchanged (errSetupRequiresTTY, NO false `Profiles configuration complete!`); --offline-safe (pure local FS); hermetic temp GORMES_HOME; Gormes-owned wording (never ~/.hermes/hermes/wrapper); Goncho.Workspace untouched. OUT OF SCOPE: child 3 (navivox-default). SHIPPED 2026-05-16 (gormes-tdd-slice).",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "tools",
-              "degraded_mode": "No TTY → errSetupRequiresTTY, no false footer. A channel that requires network/credentials to validate is recorded to config without a live check under --offline (config-only, like the doctor --offline channel rule). whatsapp unsupported headlessly → surfaced, not faked.",
+              "degraded_mode": "No TTY / non-interactive → errSetupRequiresTTY, NO false completion footer (same shipped child-1 chrome rule). Unknown channel name → skipped with a Gormes-owned 'unknown channel' notice, never persisted or fabricated. Blank channel input → keep the existing agents.defaults.channels list (no destructive clear). Per-channel credentials/tokens/whatsapp-pairing are NOT prompted here (out of scope) — only the channel-name list is recorded, so the step is fully hermetic and identical under --offline.",
               "fixture": "cmd/gormes/setup_profiles_test.go",
               "source_refs": [
-                "cmd/gormes/setup.go:615 runSetupBindingsSection / :1726 runSetupGatewaySection (channel + whatsapp/navivox wiring to reuse)",
-                "internal/config/config.go TelegramCfg/DiscordCfg/SlackCfg + Bindings []AgentBindingCfg + flexibleStringList; internal/config/writer.go round-trip",
-                "internal/gateway/channel_setup.go; whatsapp setup seam (RunWhatsAppSetup)",
+                "cmd/gormes/setup.go runSetupProfilesInteractive (shipped child 1 — extend after the workspace-list step) ; runSetupBindingsSection ~:1678 (ADVISORY-ONLY, no persistence — NOT reused for persistence) ; :1954 known-channel list []string{telegram,discord,slack,whatsapp,navivox}",
+                "internal/config/agents.go AgentDefaultsCfg (Workspaces []string precedent — add symmetric Channels []string)",
+                "internal/config/writer.go coerceTOMLValue (shipped `agents.defaults.workspaces`/`.skills` case ~:609 — add symmetric `agents.defaults.channels`)",
+                "internal/gateway/channel_setup.go:43 whatsapp `gormes whatsapp --plan` (per-channel credential/QR setup — OUT OF SCOPE, do not reimplement/fake)",
                 "../hermes-agent/hermes_cli/setup.py@55c9f3206 (no per-profile channels — owned-divergence reference)"
               ],
               "ready_when": [
-                "Child 1 (section scaffold + per-profile workspace list) shipped; the per-profile channel config shape confirmed and the runSetupBindingsSection reuse boundary decided (refine this row first)."
+                "Child 1 (section scaffold + per-profile workspace list) SHIPPED (commit fb23ff105) — done.",
+                "Per-profile channel shape DECIDED (2026-05-16 gormes-planner): symmetric AgentDefaultsCfg.Channels []string + agents.defaults.channels coerce case, parallel to the shipped Workspaces field.",
+                "runSetupBindingsSection reuse boundary DECIDED: it is advisory-only (no persistence helper) so NOT reused for persistence; reuse the child-1 flow + config.WriteTOMLValue round-trip.",
+                "WhatsApp hermetic question RESOLVED: no WhatsAppCfg; per-channel credential/QR is out of scope; recording the channel-name string is hermetic."
               ],
               "not_ready_when": [
-                "Built before child 1; reimplements channel setup instead of reusing the existing channel/binding seams; invents a new per-profile channel schema; writes channel config to the default home when a named profile was selected; fabricates a whatsapp headless flow."
+                "Reimplements or fakes per-channel credential/token/QR or whatsapp-pairing setup; invents a schema other than the symmetric AgentDefaultsCfg.Channels list; writes channels to the default-home config when a named profile was selected; persists unknown/unvalidated channel names; emits a false `Profiles configuration complete!` on no-TTY/cancel; prints ~/.hermes/hermes/wrapper wording; conflates Goncho.Workspace."
               ],
-              "blocked_by": [
-                "gormes setup profiles — section scaffold + per-profile workspace list"
-              ],
+              "blocked_by": [],
               "acceptance": [
-                "A selected profile can be configured with multiple channels (telegram/whatsapp/discord/slack) persisted as TOML arrays into that profile's own config.toml via the config round-trip, reusing the existing channel/binding config + setup seams; Gormes-owned, hermetic, no Hermes wording; survives config.Load round-trip."
+                "internal/config/agents.go AgentDefaultsCfg gains Channels []string (toml `channels`) and internal/config/writer.go coerceTOMLValue gains an `agents.defaults.channels` → string-array case (symmetric with the shipped workspaces), round-tripping via config.Load into cfg.Agents.Defaults.Channels.",
+                "`gormes setup profiles` channels step validates each entry against {telegram,whatsapp,discord,slack} and persists the validated list as a TOML array into the SELECTED profile's own config.toml (default → ~/.gormes/config.toml; named → ~/.gormes/profiles/<name>/config.toml) via the real config.WriteTOMLValue round-trip; blank input keeps the existing list.",
+                "Reuses the shipped child-1 interactive flow + config round-trip; NO reimplemented per-channel credential/whatsapp setup; runSetupBindingsSection not used for persistence.",
+                "Gormes-owned wording (no ~/.hermes/hermes/wrapper); non-interactive/no-TTY → errSetupRequiresTTY with no false footer; hermetic temp GORMES_HOME; `go test ./cmd/gormes -run 'Setup|Profile' -count=1`, `go test ./internal/config -count=1`, `go test ./cmd/gormes -count=1` green."
               ],
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/setup_profiles_test.go",
+                "internal/config/agents.go",
                 "internal/config/writer.go",
-                "internal/config/writer_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./cmd/gormes -run 'Setup|Profile' -count=1",
+                "go test ./internal/config -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Fixtures prove per-profile multi-channel config persists into the selected profile's own config.toml via a real round-trip, reusing existing channel seams — owned, hermetic, no Hermes wording."
+                "Fixtures prove the per-profile channels step validates against {telegram,whatsapp,discord,slack} and persists agents.defaults.channels as a TOML array into the SELECTED profile's own config.toml via a real config.Load round-trip (default vs named target), reusing child 1's flow with no reimplemented channel-credential setup — Gormes-owned, hermetic, no Hermes wording."
               ],
               "provenance": {
                 "origin_type": "owned",
@@ -48403,7 +48409,7 @@
                 ],
                 "note": "skill_origin: 2026-05-16 user request -> gormes-planner. Child 2/3 of the setup-profiles umbrella. Specified; refine to builder-ready after child 1 ships."
               },
-              "note": "Child 2/3 (specified, refine after child 1). Depends on the setup-profiles section scaffold. Before builder-ready: confirm per-profile channel/binding config shape + runSetupBindingsSection reuse boundary + hermetic whatsapp feasibility. Recommended chain: gormes-planner refine -> gormes-tdd-slice."
+              "note": "Child 2/3 of the 'gormes setup profiles ...' umbrella. SHIPPED 2026-05-16 (gormes-tdd-slice), 4 tracer-bullet RED→GREEN. internal/config/agents.go: AgentDefaultsCfg.Channels []string (toml `channels`, symmetric with the shipped Workspaces). internal/config/writer.go: coerceTOMLValue `agents.defaults.channels` folded into the existing workspaces/skills string-array case (parseEnvCSV → TOML array). cmd/gormes/setup.go runSetupProfilesInteractive: restructured the workspace block so it no longer early-returns (blank → notice, else persist), then a channels step for the SAME selected profile + SAME profileConfigPath — promptString 'Messaging channels (comma-separated: telegram,whatsapp,discord,slack — blank to keep)', parseSetupChannelList (reuses parseSetupWorkspaceList splitter; validates lowercased against knownSetupChannels {telegram,whatsapp,discord,slack}; unknowns skipped with `Skipping unknown channel %q (known: ...)` and never persisted), blank keeps existing, ≥1 valid → config.WriteTOMLValue(profileConfigPath,'agents.defaults.channels',join) + `Set N channel(s) ...`. Default profile → ~/.gormes/config.toml; named → ~/.gormes/profiles/<name>/config.toml (proven not to leak into default home). No per-channel credential/token/QR/whatsapp-pairing (out of scope, not faked). Tests cmd/gormes/setup_profiles_test.go: TestAgentDefaultsChannelsConfigRoundTrip, TestSetupProfilesPersistsChannelListForDefaultProfile, TestSetupProfilesNamedProfileChannelsWriteOwnConfig, TestSetupProfilesSkipsUnknownChannels (4 new); the 5 shipped child-1 tests stay green after a legitimate in-scope fixture update (their stdin sequences gained the extra blank channels line — the interactive flow gained a step). Gates: go test ./cmd/gormes -run 'Setup|Profile' -count=1 ok; go test ./internal/config -count=1 ok; go test ./cmd/gormes -count=1 ok (12.5s); go run ./cmd/progress validate (9 phases); git diff --check clean. Owned divergence honored: Hermes has no per-profile channels; Gormes-owned wording; symmetric schema (no invention); runSetupBindingsSection NOT reused for persistence; Goncho.Workspace untouched. Child 3/3 (navivox-default) now unblocked — refine via gormes-planner then gormes-tdd-slice. tdd-slice does not commit."
             },
             {
               "name": "gormes setup profiles — all profiles navivox-accessible by default",

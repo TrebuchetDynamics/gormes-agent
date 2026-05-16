@@ -606,9 +606,10 @@ func coerceTOMLValue(section string, fields []string, value string) (any, error)
 		return value, nil
 	case "navivox.allow_origins", "navivox.allowed_tailnet_identities":
 		return parseEnvCSV(value), nil
-	case "agents.defaults.workspaces", "agents.defaults.skills":
-		// Gormes-owned per-profile multi-workspace list (and the existing
-		// agents.defaults.skills list): comma-separated input -> TOML array.
+	case "agents.defaults.workspaces", "agents.defaults.skills", "agents.defaults.channels":
+		// Gormes-owned per-profile multi-workspace list, the existing
+		// agents.defaults.skills list, and the per-profile channels list:
+		// comma-separated input -> TOML array.
 		return parseEnvCSV(value), nil
 	default:
 		if (section == "discord" || section == "slack") && len(fields) > 0 && fields[len(fields)-1] == "allowed_channel_id" {
