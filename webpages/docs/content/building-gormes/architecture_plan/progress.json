@@ -61626,12 +61626,12 @@
             {
               "name": "Backlog split C5a: optional per-row module key + deterministic derivation + backfill",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "C1's split is keyed by PHASE (index.json keys = phase IDs). A true per-MODULE physical split needs a deterministic module(row) mapping, but rows carry no module tag — only the coarse optional execution_owner enum {docs,gateway,memory,provider,tools,skills,orchestrator,tui,goncho}, which is too coarse for the agreed fine module set (profiles/doctor/tts/stt/navivox/learning_loop/kanban have no dedicated owner). Add an OPTIONAL `module` string field to the Item schema (json:\"module,omitempty\"), a deterministic Module(it, phaseID, subphaseID) derivation that defaults from execution_owner + phase/subphase when `module` is absent (mapping recorded in the umbrella's agreed taxonomy), and a one-time validator-neutral, marshal-stable backfill — mirroring the additive ROW B/C1 pattern (must NOT change `go run ./cmd/progress validate` semantics, the row-contract schema requiredness, row identity, or stable marshal ordering; fully git-reversible). This is the prerequisite that lets per-module physical files exist; until it ships the C1 phase-keyed split is the canonical physical layout. Owned Gormes infra.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -61662,7 +61662,6 @@
                 "internal/progress/progress.go",
                 "internal/progress/module.go",
                 "internal/progress/module_test.go",
-                "internal/progressctl/progressctl.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -61674,7 +61673,7 @@
               "done_signal": [
                 "Optional module key + deterministic derivation + validator-neutral backfill shipped; validate/marshal/identity unchanged; prerequisite for per-module physical files satisfied."
               ],
-              "note": "Module-split umbrella child C5a (prerequisite for C5). Builder-ready (only blocker C1 SHIPPED); independent of C2/C3 — pure schema-additive like ROW B/C1. Recommended chain: gormes-tdd-slice. Keep backfill a separate explicit action, not auto-run by write/validate."
+              "note": "SHIPPED 2026-05-16 see git log — optional Item.Module (omitempty/byte-neutral) + deterministic progress.Module() (explicit > execution_owner→taxonomy > unclassified) + idempotent validator-neutral BackfillModules (internal/progress/module.go). No progressctl subcommand (no consumer until C5)."
             },
             {
               "name": "Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout",
