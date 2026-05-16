@@ -46,6 +46,52 @@ func FormatToolProgressPlainMode(f kernel.RenderFrame, mode string) string {
 	return truncate(formatToolTraceBlockPlainMode(f.SoulEvents, mode))
 }
 
+// FormatToolProgressEvents extracts bounded structured tool progress for
+// first-party channels. Unlike text progress, summaries deliberately avoid raw
+// tool arguments so URLs, command lines, and credentials cannot become chat
+// prose.
+func FormatToolProgressEvents(f kernel.RenderFrame, mode, requestID string) []ToolProgressEvent {
+	mode = normalizeGatewayToolProgressMode(mode)
+	if mode == "off" {
+		return nil
+	}
+	status := toolProgressStatusForPhase(f.Phase)
+	events := make([]ToolProgressEvent, 0, len(f.SoulEvents))
+	var lastTool string
+	var sawTool bool
+	var lastRaw string
+	for _, event := range f.SoulEvents {
+		raw := strings.TrimSpace(event.Text)
+		if !strings.HasPrefix(raw, "tool") {
+			continue
+		}
+		if tooltrace.FormatPlain(raw) == "" {
+			continue
+		}
+		name := toolTraceName(raw)
+		if !isKnownToolTraceName(name) {
+			name = "tool_progress"
+		}
+		if mode == "new" && sawTool && name == lastTool {
+			continue
+		}
+		if raw == lastRaw {
+			continue
+		}
+		lastTool = name
+		lastRaw = raw
+		sawTool = true
+		index := len(events) + 1
+		events = append(events, ToolProgressEvent{
+			ID:       stableToolProgressID(requestID, name, index),
+			ToolName: name,
+			Status:   status,
+			Summary:  toolProgressSummary(name, status),
+		})
+	}
+	return events
+}
+
 // FormatFinalPlain returns the final assistant text from render history.
 func FormatFinalPlain(f kernel.RenderFrame) string {
 	return FormatFinalPlainText(FinalAssistantText(f))
@@ -690,6 +736,65 @@ func toolTraceName(text string) string {
 		return strings.TrimSpace(name)
 	}
 	return payload
+}
+
+func toolProgressStatusForPhase(phase kernel.Phase) ToolProgressStatus {
+	switch phase {
+	case kernel.PhaseIdle:
+		return ToolProgressFinished
+	case kernel.PhaseFailed, kernel.PhaseCancelling:
+		return ToolProgressFailed
+	default:
+		return ToolProgressStarted
+	}
+}
+
+func toolProgressSummary(name string, status ToolProgressStatus) string {
+	switch status {
+	case ToolProgressFinished:
+		return name + " finished"
+	case ToolProgressFailed:
+		return name + " failed"
+	default:
+		return name + " started"
+	}
+}
+
+func stableToolProgressID(requestID, toolName string, index int) string {
+	requestID = slugToolProgressIDPart(requestID)
+	if requestID == "" {
+		requestID = "turn"
+	}
+	toolName = slugToolProgressIDPart(toolName)
+	if toolName == "" {
+		toolName = "tool"
+	}
+	return fmt.Sprintf("%s-%s-%d", requestID, toolName, index)
+}
+
+func slugToolProgressIDPart(raw string) string {
+	raw = strings.TrimSpace(raw)
+	var b strings.Builder
+	for _, r := range raw {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '_' || r == '-':
+			b.WriteRune(r)
+		default:
+			if b.Len() > 0 {
+				b.WriteByte('-')
+			}
+		}
+		if b.Len() >= 80 {
+			break
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }
 
 func normalizeGatewayToolProgressMode(mode string) string {

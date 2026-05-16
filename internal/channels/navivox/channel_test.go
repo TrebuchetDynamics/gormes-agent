@@ -327,6 +327,53 @@ func TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket(t *testing.T) {
 	}
 }
 
+func TestNavivoxSendToolProgressStreamsStructuredToolEvent(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-tool", SessionID: "s-tool"}); err != nil {
+		t.Fatal(err)
+	}
+	var subscribed ServerEvent
+	if err := conn.ReadJSON(&subscribed); err != nil {
+		t.Fatal(err)
+	}
+	if subscribed.Type != "session_started" || subscribed.RequestID != "req-tool" || subscribed.SessionID != "s-tool" {
+		t.Fatalf("session_started = %+v", subscribed)
+	}
+
+	msgID, err := ch.SendToolProgress(context.Background(), "s-tool", gateway.ToolProgressEvent{
+		ID:       "call-browser",
+		ToolName: "browser_navigate",
+		Status:   gateway.ToolProgressStarted,
+		Summary:  "browser_navigate started with redacted input",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msgID != "call-browser" {
+		t.Fatalf("SendToolProgress msgID = %q, want call-browser", msgID)
+	}
+
+	var event ServerEvent
+	if err := conn.ReadJSON(&event); err != nil {
+		t.Fatal(err)
+	}
+	if event.Type != "tool_call_started" || event.RequestID != "req-tool" || event.SessionID != "s-tool" {
+		t.Fatalf("tool event envelope = %+v", event)
+	}
+	if event.ToolCallID != "call-browser" || event.ToolName != "browser_navigate" || event.Status != "started" {
+		t.Fatalf("tool event fields = %+v", event)
+	}
+	if event.Message != "browser_navigate started with redacted input" {
+		t.Fatalf("tool event summary = %q", event.Message)
+	}
+}
+
 func newTestChannel(t *testing.T) *Channel {
 	t.Helper()
 	ch, err := NewChannel(config.NavivoxCfg{

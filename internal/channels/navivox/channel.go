@@ -189,6 +189,32 @@ func (c *Channel) SendPlaceholder(ctx context.Context, chatID string) (string, e
 	return msgID, ctx.Err()
 }
 
+func (c *Channel) SendToolProgress(ctx context.Context, chatID string, progress gateway.ToolProgressEvent) (string, error) {
+	toolCallID := strings.TrimSpace(progress.ID)
+	if toolCallID == "" {
+		toolCallID = c.newID()
+	}
+	status := strings.TrimSpace(string(progress.Status))
+	if status == "" {
+		status = string(gateway.ToolProgressStarted)
+	}
+	eventType := "tool_call_started"
+	switch gateway.ToolProgressStatus(status) {
+	case gateway.ToolProgressFinished, gateway.ToolProgressFailed:
+		eventType = "tool_call_finished"
+	}
+	c.broadcast(chatID, ServerEvent{
+		Type:       eventType,
+		SessionID:  chatID,
+		ToolName:   safeNavivoxToolName(progress.ToolName),
+		ToolCallID: toolCallID,
+		Status:     status,
+		Message:    safeNavivoxToolSummary(progress.Summary),
+		Metadata:   safeNavivoxToolMetadata(progress.Metadata),
+	})
+	return toolCallID, ctx.Err()
+}
+
 func (c *Channel) EditMessage(ctx context.Context, chatID, msgID, text string) error {
 	return c.edit(chatID, msgID, text, false)
 }
@@ -689,6 +715,74 @@ func safeNavivoxError(err error) string {
 		return ne.message
 	}
 	return "Runtime error"
+}
+
+func safeNavivoxToolName(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "tool_progress"
+	}
+	var b strings.Builder
+	for _, r := range raw {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '_' || r == '-' || r == '.' || r == ':':
+			b.WriteRune(r)
+		}
+		if b.Len() >= 64 {
+			break
+		}
+	}
+	if b.Len() == 0 {
+		return "tool_progress"
+	}
+	return b.String()
+}
+
+func safeNavivoxToolSummary(raw string) string {
+	raw = strings.Join(strings.Fields(strings.TrimSpace(raw)), " ")
+	if raw == "" {
+		return "Tool progress"
+	}
+	runes := []rune(raw)
+	if len(runes) > 240 {
+		return string(runes[:237]) + "..."
+	}
+	return raw
+}
+
+func safeNavivoxToolMetadata(raw map[string]any) map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(raw))
+	for key, value := range raw {
+		safeKey := safeNavivoxToolName(key)
+		if safeKey == "tool_progress" && strings.TrimSpace(key) != "tool_progress" {
+			continue
+		}
+		switch typed := value.(type) {
+		case string:
+			out[safeKey] = safeNavivoxToolSummary(typed)
+		case bool:
+			out[safeKey] = typed
+		case int:
+			out[safeKey] = typed
+		case int64:
+			out[safeKey] = typed
+		case float64:
+			out[safeKey] = typed
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func writeNavivoxJSON(w http.ResponseWriter, status int, body any) {

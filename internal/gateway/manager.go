@@ -1534,7 +1534,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		return
 	}
 	m.maybeSendTypingAction(ctx, ch, f.Phase, chatID, threadID)
-	m.dispatchToolProgress(ctx, ch, platform, chatID, threadID, f)
+	m.dispatchToolProgress(ctx, ch, platform, chatID, threadID, msgID, f)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
 		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID, threadID) {
@@ -1623,7 +1623,33 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	}
 }
 
-func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform, chatID, threadID string, f kernel.RenderFrame) {
+func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform, chatID, threadID, requestID string, f kernel.RenderFrame) {
+	if sender, ok := ch.(ToolProgressSender); ok {
+		events := FormatToolProgressEvents(f, m.toolProgressMode(platform), requestID)
+		if len(events) == 0 {
+			return
+		}
+		fingerprint := toolProgressEventsFingerprint(events)
+		m.toolProgressMu.Lock()
+		sameTarget := m.toolProgressPlat == platform && m.toolProgressChatID == chatID
+		if sameTarget && m.toolProgressText == fingerprint {
+			m.toolProgressMu.Unlock()
+			return
+		}
+		m.toolProgressMu.Unlock()
+
+		for _, event := range events {
+			_, _ = sender.SendToolProgress(ctx, chatID, event)
+		}
+		m.toolProgressMu.Lock()
+		m.toolProgressPlat = platform
+		m.toolProgressChatID = chatID
+		m.toolProgressMsgID = events[len(events)-1].ID
+		m.toolProgressText = fingerprint
+		m.toolProgressMu.Unlock()
+		return
+	}
+
 	if _, ok := ch.(MessageEditor); !ok {
 		return
 	}
@@ -2245,6 +2271,24 @@ func (m *Manager) clearToolProgress() {
 	m.toolProgressChatID = ""
 	m.toolProgressPlat = ""
 	m.toolProgressMu.Unlock()
+}
+
+func toolProgressEventsFingerprint(events []ToolProgressEvent) string {
+	if len(events) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, event := range events {
+		b.WriteString(event.ID)
+		b.WriteByte('|')
+		b.WriteString(event.ToolName)
+		b.WriteByte('|')
+		b.WriteString(string(event.Status))
+		b.WriteByte('|')
+		b.WriteString(event.Summary)
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 func (m *Manager) maybeSendVerboseHint(ctx context.Context, ch Channel, platform, chatID string, f kernel.RenderFrame) {

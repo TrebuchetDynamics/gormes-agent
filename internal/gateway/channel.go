@@ -90,6 +90,33 @@ type PlaceholderCapable interface {
 	SendPlaceholder(ctx context.Context, chatID string) (msgID string, err error)
 }
 
+// ToolProgressStatus is the channel-neutral lifecycle state for structured
+// tool progress. Text-only channels can ignore it; first-party channels such
+// as Navivox can render it as native UI instead of assistant prose.
+type ToolProgressStatus string
+
+const (
+	ToolProgressStarted  ToolProgressStatus = "started"
+	ToolProgressFinished ToolProgressStatus = "finished"
+	ToolProgressFailed   ToolProgressStatus = "failed"
+)
+
+// ToolProgressEvent carries redacted, bounded tool-progress evidence. It must
+// never include raw tool arguments, stdout, credentials, or full logs.
+type ToolProgressEvent struct {
+	ID       string
+	ToolName string
+	Status   ToolProgressStatus
+	Summary  string
+	Metadata map[string]any
+}
+
+// ToolProgressSender is implemented by channels that can render structured
+// tool progress as native UI objects instead of sending plain text logs.
+type ToolProgressSender interface {
+	SendToolProgress(ctx context.Context, chatID string, progress ToolProgressEvent) (msgID string, err error)
+}
+
 // ReplyPlaceholderCapable is implemented by editable channels that can create
 // their initial streaming placeholder as a native reply to the inbound message.
 type ReplyPlaceholderCapable interface {
