@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -52,6 +53,24 @@ type updateCommandSeams struct {
 	// successful binary publish. Override in tests to avoid touching live
 	// runtime/service state.
 	GatewayRestartFor func() cli.UpdateGatewayRestartRunner
+	// DetectInstallKind classifies the active installation without mutating
+	// binaries or source checkouts. It routes release installs through the
+	// release planner for --check and all installs through the planner for
+	// --dry-run.
+	DetectInstallKind func() cli.UpdateInstallKind
+	// RuntimePlatform returns GOOS/GOARCH for release asset planning.
+	RuntimePlatform func() (string, string)
+	// LoadReleaseMetadata resolves the target release for release-planner
+	// check/dry-run modes.
+	LoadReleaseMetadata func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error)
+	// BuildReleasePlan is the pure planner seam used by tests to pin command
+	// behavior independently from release metadata IO.
+	BuildReleasePlan func(cli.UpdateReleasePlanOptions) cli.UpdateReleasePlan
+	// RunReleaseBinaryUpdate applies a verified release artifact to the
+	// managed and published binary paths for release installs.
+	RunReleaseBinaryUpdate func(context.Context, cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport
+	// RunReleaseRollback restores a prior release binary snapshot.
+	RunReleaseRollback func(context.Context, cli.UpdateReleaseRollbackOptions) cli.UpdateReleaseBinaryReport
 }
 
 func newUpdateCommand() *cobra.Command {
@@ -68,6 +87,10 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	var noBackup bool
 	var skipWeb bool
 	var asJSON bool
+	var dryRun bool
+	var channel string
+	var force bool
+	var rollbackSnapshot string
 
 	if seams.CheckoutDir == nil {
 		seams.CheckoutDir = resolveManagedCheckoutDir
@@ -96,6 +119,24 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	if seams.GatewayRestartFor == nil {
 		seams.GatewayRestartFor = defaultUpdateGatewayRestartFor
 	}
+	if seams.DetectInstallKind == nil {
+		seams.DetectInstallKind = detectUpdateInstallKind
+	}
+	if seams.RuntimePlatform == nil {
+		seams.RuntimePlatform = func() (string, string) { return runtime.GOOS, runtime.GOARCH }
+	}
+	if seams.LoadReleaseMetadata == nil {
+		seams.LoadReleaseMetadata = defaultLoadReleaseMetadata
+	}
+	if seams.BuildReleasePlan == nil {
+		seams.BuildReleasePlan = cli.BuildUpdateReleasePlan
+	}
+	if seams.RunReleaseBinaryUpdate == nil {
+		seams.RunReleaseBinaryUpdate = cli.RunUpdateReleaseBinaryUpdate
+	}
+	if seams.RunReleaseRollback == nil {
+		seams.RunReleaseRollback = cli.RunUpdateReleaseRollback
+	}
 
 	cmd := &cobra.Command{
 		Use:          "update",
@@ -121,6 +162,52 @@ a ` + "`◆ update_rollback_hint`" + ` line spelling out the restore command abo
 so the recovery path is visible inline.
 `,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if rollbackSnapshot != "" {
+				snapshotRoot, err := resolveUpdateReleaseSnapshotRoot()
+				if err != nil {
+					return err
+				}
+				report := seams.RunReleaseRollback(cmd.Context(), cli.UpdateReleaseRollbackOptions{
+					SnapshotID:   rollbackSnapshot,
+					SnapshotRoot: snapshotRoot,
+				})
+				if asJSON {
+					if err := printUpdateReleaseBinaryReportJSON(cmd, "update_rollback", report); err != nil {
+						return err
+					}
+				} else {
+					printUpdateReleaseBinaryReport(cmd, "update_rollback", report)
+				}
+				if report.Failed {
+					return newExitCodeError(1, fmt.Errorf("gormes update rollback failed"))
+				}
+				return nil
+			}
+			installKind := seams.DetectInstallKind()
+			if dryRun || (checkOnly && installKind == cli.UpdateInstallKindRelease) {
+				return runUpdateReleasePlannerMode(cmd, updateReleasePlannerModeOptions{
+					Action:               updateReleasePlannerAction(dryRun),
+					InstallKind:          installKind,
+					Channel:              cli.UpdateReleaseChannel(channel),
+					AsJSON:               asJSON,
+					RuntimePlatform:      seams.RuntimePlatform,
+					LoadReleaseMetadata:  seams.LoadReleaseMetadata,
+					BuildReleasePlan:     seams.BuildReleasePlan,
+					SnapshotPathResolver: resolvePlannedUpdateSnapshotPath,
+				})
+			}
+			if installKind == cli.UpdateInstallKindRelease {
+				return runUpdateReleaseBinaryMode(cmd, updateReleaseBinaryModeOptions{
+					Channel:              cli.UpdateReleaseChannel(channel),
+					AsJSON:               asJSON,
+					Force:                force,
+					RuntimePlatform:      seams.RuntimePlatform,
+					LoadReleaseMetadata:  seams.LoadReleaseMetadata,
+					BuildReleasePlan:     seams.BuildReleasePlan,
+					RunReleaseUpdate:     seams.RunReleaseBinaryUpdate,
+					SnapshotPathResolver: resolvePlannedUpdateSnapshotPath,
+				})
+			}
 			checkoutDir, err := seams.CheckoutDir()
 			if err != nil {
 				return err
@@ -192,7 +279,483 @@ so the recovery path is visible inline.
 	cmd.Flags().BoolVar(&noBackup, "no-backup", false, "force-skip the pre-update backup; beats --backup and config opt-in")
 	cmd.Flags().BoolVar(&skipWeb, "skip-web", false, "skip the web UI rebuild step after pulling source")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a machine-readable JSON report instead of the human-readable progress UX (suitable for CI/cron consumers)")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "plan the update path without mutating binaries, assets, services, config, sessions, memory, git checkouts, logs, or ledgers")
+	cmd.Flags().StringVar(&channel, "channel", string(cli.UpdateReleaseChannelStable), "update channel for planner mode: stable or development")
+	cmd.Flags().BoolVar(&force, "force", false, "allow supported release-update policy overrides; integrity, provenance, platform, and smoke-test failures are never bypassed")
+	cmd.Flags().StringVar(&rollbackSnapshot, "rollback", "", "restore a previous release binary snapshot by snapshot id")
 	return cmd
+}
+
+type updateReleasePlannerModeOptions struct {
+	Action               string
+	InstallKind          cli.UpdateInstallKind
+	Channel              cli.UpdateReleaseChannel
+	AsJSON               bool
+	RuntimePlatform      func() (string, string)
+	LoadReleaseMetadata  func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error)
+	BuildReleasePlan     func(cli.UpdateReleasePlanOptions) cli.UpdateReleasePlan
+	SnapshotPathResolver func() (string, error)
+}
+
+func updateReleasePlannerAction(dryRun bool) string {
+	if dryRun {
+		return "update_dry_run"
+	}
+	return "update_check"
+}
+
+func runUpdateReleasePlannerMode(cmd *cobra.Command, opts updateReleasePlannerModeOptions) error {
+	plan, channelBlocker := buildUpdateReleaseCommandPlan(cmd.Context(), updateReleaseCommandPlanOptions{
+		InstallKind:          opts.InstallKind,
+		Channel:              opts.Channel,
+		RuntimePlatform:      opts.RuntimePlatform,
+		LoadReleaseMetadata:  opts.LoadReleaseMetadata,
+		BuildReleasePlan:     opts.BuildReleasePlan,
+		SnapshotPathResolver: opts.SnapshotPathResolver,
+	})
+	if channelBlocker != nil {
+		plan.Blockers = append([]cli.UpdateReleaseBlocker{*channelBlocker}, plan.Blockers...)
+	}
+	failed := len(plan.Blockers) > 0
+	if opts.AsJSON {
+		if err := printUpdateReleasePlanJSON(cmd, opts.Action, plan, failed); err != nil {
+			return err
+		}
+	} else {
+		printUpdateReleasePlan(cmd, opts.Action, plan, failed)
+	}
+	if failed {
+		return newExitCodeError(1, fmt.Errorf("gormes update planner blocked"))
+	}
+	if opts.Action == "update_check" && plan.UpdateAvailable {
+		return newExitCodeError(10, fmt.Errorf("gormes update available"))
+	}
+	return nil
+}
+
+type updateReleaseCommandPlanOptions struct {
+	InstallKind          cli.UpdateInstallKind
+	Channel              cli.UpdateReleaseChannel
+	RuntimePlatform      func() (string, string)
+	LoadReleaseMetadata  func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error)
+	BuildReleasePlan     func(cli.UpdateReleasePlanOptions) cli.UpdateReleasePlan
+	SnapshotPathResolver func() (string, error)
+}
+
+func buildUpdateReleaseCommandPlan(ctx context.Context, opts updateReleaseCommandPlanOptions) (cli.UpdateReleasePlan, *cli.UpdateReleaseBlocker) {
+	channel, channelBlocker := normalizeUpdateReleaseChannel(opts.Channel)
+	target, metadataErr := cli.UpdateReleaseMetadata{}, error(nil)
+	if channel == cli.UpdateReleaseChannelStable && opts.LoadReleaseMetadata != nil {
+		target, metadataErr = opts.LoadReleaseMetadata(ctx, channel)
+	}
+	goos, goarch := runtime.GOOS, runtime.GOARCH
+	if opts.RuntimePlatform != nil {
+		goos, goarch = opts.RuntimePlatform()
+	}
+	snapshotPath := ""
+	if opts.SnapshotPathResolver != nil {
+		path, err := opts.SnapshotPathResolver()
+		if err != nil {
+			metadataErr = err
+		} else {
+			snapshotPath = path
+		}
+	}
+	buildPlan := opts.BuildReleasePlan
+	if buildPlan == nil {
+		buildPlan = cli.BuildUpdateReleasePlan
+	}
+	plan := buildPlan(cli.UpdateReleasePlanOptions{
+		InstallKind:   opts.InstallKind,
+		Channel:       channel,
+		Current:       cli.UpdateBuildIdentity{Version: Version, GitCommit: resolveGitCommit()},
+		Target:        target,
+		MetadataError: metadataErr,
+		GOOS:          goos,
+		GOARCH:        goarch,
+		SnapshotPath:  snapshotPath,
+	})
+	return plan, channelBlocker
+}
+
+type updateReleaseBinaryModeOptions struct {
+	Channel              cli.UpdateReleaseChannel
+	AsJSON               bool
+	Force                bool
+	RuntimePlatform      func() (string, string)
+	LoadReleaseMetadata  func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error)
+	BuildReleasePlan     func(cli.UpdateReleasePlanOptions) cli.UpdateReleasePlan
+	RunReleaseUpdate     func(context.Context, cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport
+	SnapshotPathResolver func() (string, error)
+}
+
+func runUpdateReleaseBinaryMode(cmd *cobra.Command, opts updateReleaseBinaryModeOptions) error {
+	plan, channelBlocker := buildUpdateReleaseCommandPlan(cmd.Context(), updateReleaseCommandPlanOptions{
+		InstallKind:          cli.UpdateInstallKindRelease,
+		Channel:              opts.Channel,
+		RuntimePlatform:      opts.RuntimePlatform,
+		LoadReleaseMetadata:  opts.LoadReleaseMetadata,
+		BuildReleasePlan:     opts.BuildReleasePlan,
+		SnapshotPathResolver: opts.SnapshotPathResolver,
+	})
+	if channelBlocker != nil {
+		plan.Blockers = append([]cli.UpdateReleaseBlocker{*channelBlocker}, plan.Blockers...)
+	}
+	if len(plan.Blockers) > 0 {
+		if opts.AsJSON {
+			if err := printUpdateReleasePlanJSON(cmd, "update_release_binary", plan, true); err != nil {
+				return err
+			}
+		} else {
+			printUpdateReleasePlan(cmd, "update_release_binary", plan, true)
+		}
+		return newExitCodeError(1, fmt.Errorf("gormes release update blocked"))
+	}
+	if !plan.UpdateAvailable {
+		report := cli.UpdateReleaseBinaryReport{
+			PreviousVersion: Version,
+			NewVersion:      Version,
+			Evidence: []cli.UpdateEvidence{{
+				Kind:   cli.UpdateEvidenceCheckCurrent,
+				Detail: fmt.Sprintf("already current at %s", Version),
+			}},
+		}
+		if opts.AsJSON {
+			if err := printUpdateReleaseBinaryReportJSON(cmd, "update_release_binary", report); err != nil {
+				return err
+			}
+		} else {
+			printUpdateReleaseBinaryReport(cmd, "update_release_binary", report)
+		}
+		return nil
+	}
+	managedBin, err := resolveManagedBinaryPath()
+	if err != nil {
+		return err
+	}
+	publishedBin, err := resolvePublishedBinaryPath()
+	if err != nil {
+		return err
+	}
+	runUpdate := opts.RunReleaseUpdate
+	if runUpdate == nil {
+		runUpdate = cli.RunUpdateReleaseBinaryUpdate
+	}
+	report := runUpdate(cmd.Context(), cli.UpdateReleaseBinaryOptions{
+		Plan:             plan,
+		ManagedBinPath:   managedBin,
+		PublishedBinPath: publishedBin,
+		Force:            opts.Force,
+	})
+	if opts.AsJSON {
+		if err := printUpdateReleaseBinaryReportJSON(cmd, "update_release_binary", report); err != nil {
+			return err
+		}
+	} else {
+		printUpdateReleaseBinaryReport(cmd, "update_release_binary", report)
+	}
+	if report.Failed {
+		return newExitCodeError(1, fmt.Errorf("gormes release update failed"))
+	}
+	return nil
+}
+
+func normalizeUpdateReleaseChannel(channel cli.UpdateReleaseChannel) (cli.UpdateReleaseChannel, *cli.UpdateReleaseBlocker) {
+	raw := strings.ToLower(strings.TrimSpace(string(channel)))
+	switch raw {
+	case "", string(cli.UpdateReleaseChannelStable):
+		return cli.UpdateReleaseChannelStable, nil
+	case "dev", string(cli.UpdateReleaseChannelDevelopment):
+		return cli.UpdateReleaseChannelDevelopment, nil
+	default:
+		return cli.UpdateReleaseChannel(raw), &cli.UpdateReleaseBlocker{
+			Kind:   cli.UpdateReleaseBlockerUnsupportedInstallState,
+			Detail: fmt.Sprintf("unsupported update channel %q; use stable or development", channel),
+		}
+	}
+}
+
+type updateReleasePlanReportJSON struct {
+	Build  buildProvenanceJSON   `json:"build"`
+	Action string                `json:"action"`
+	Failed bool                  `json:"failed"`
+	Plan   cli.UpdateReleasePlan `json:"plan"`
+}
+
+type updateReleaseBinaryReportJSON struct {
+	Build            buildProvenanceJSON  `json:"build"`
+	Action           string               `json:"action"`
+	Failed           bool                 `json:"failed"`
+	SnapshotID       string               `json:"snapshot_id,omitempty"`
+	SnapshotPath     string               `json:"snapshot_path,omitempty"`
+	PreviousVersion  string               `json:"previous_version,omitempty"`
+	NewVersion       string               `json:"new_version,omitempty"`
+	ManagedBinPath   string               `json:"managed_bin_path,omitempty"`
+	PublishedBinPath string               `json:"published_bin_path,omitempty"`
+	Evidence         []updateEvidenceJSON `json:"evidence,omitempty"`
+	OperatorRecovery string               `json:"operator_recovery,omitempty"`
+}
+
+func printUpdateReleasePlanJSON(cmd *cobra.Command, action string, plan cli.UpdateReleasePlan, failed bool) error {
+	body, err := json.MarshalIndent(updateReleasePlanReportJSON{
+		Build:  newBuildProvenance(),
+		Action: action,
+		Failed: failed,
+		Plan:   plan,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return nil
+}
+
+func printUpdateReleaseBinaryReportJSON(cmd *cobra.Command, action string, report cli.UpdateReleaseBinaryReport) error {
+	evidence := make([]updateEvidenceJSON, 0, len(report.Evidence))
+	for _, ev := range report.Evidence {
+		evidence = append(evidence, updateEvidenceJSON{Kind: string(ev.Kind), Detail: ev.Detail})
+	}
+	body, err := json.MarshalIndent(updateReleaseBinaryReportJSON{
+		Build:            newBuildProvenance(),
+		Action:           action,
+		Failed:           report.Failed,
+		SnapshotID:       report.SnapshotID,
+		SnapshotPath:     report.SnapshotPath,
+		PreviousVersion:  report.PreviousVersion,
+		NewVersion:       report.NewVersion,
+		ManagedBinPath:   report.ManagedBinPath,
+		PublishedBinPath: report.PublishedBinPath,
+		Evidence:         evidence,
+		OperatorRecovery: report.OperatorRecovery,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return nil
+}
+
+func printUpdateReleasePlan(cmd *cobra.Command, action string, plan cli.UpdateReleasePlan, failed bool) {
+	out := cmd.OutOrStdout()
+	bannerText := "⚕ Planning Gormes Agent update..."
+	successText := "✓ Update dry-run complete"
+	if action == "update_check" {
+		bannerText = "⚕ Checking Gormes Agent..."
+		successText = "✓ Update check complete"
+	}
+	fmt.Fprintln(out, cli.Bold(out, bannerText))
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "install kind:"), plan.InstallKind)
+	fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "source:"), plan.Source)
+	fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "channel:"), plan.Channel)
+	fmt.Fprintf(out, "%s %s (%s)\n", cli.Dim(out, "current:"), plan.Current.Version, plan.Current.GitCommit)
+	if plan.Target.Version != "" || plan.Target.GitCommit != "" {
+		fmt.Fprintf(out, "%s %s (%s)\n", cli.Dim(out, "target:"), plan.Target.Version, plan.Target.GitCommit)
+	}
+	if plan.ArtifactName != "" {
+		fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "artifact:"), plan.ArtifactName)
+	}
+	if plan.SnapshotPath != "" {
+		fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "snapshot:"), plan.SnapshotPath)
+	}
+	if len(plan.Components) > 0 {
+		parts := make([]string, 0, len(plan.Components))
+		for _, component := range plan.Components {
+			parts = append(parts, string(component))
+		}
+		fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "components:"), strings.Join(parts, ", "))
+	}
+	if plan.UpdateAvailable {
+		fmt.Fprintf(out, "%s yes\n", cli.Dim(out, "update available:"))
+	} else {
+		fmt.Fprintf(out, "%s no\n", cli.Dim(out, "update available:"))
+	}
+	for _, blocker := range plan.Blockers {
+		detail := strings.TrimSpace(blocker.Detail)
+		if detail == "" {
+			fmt.Fprintf(out, "◆ %s\n", blocker.Kind)
+			continue
+		}
+		fmt.Fprintf(out, "◆ %s\t%s\n", blocker.Kind, detail)
+	}
+	fmt.Fprintln(out)
+	if failed {
+		fmt.Fprintln(out, cli.Bold(out, "✗ Update planner blocked"))
+		return
+	}
+	fmt.Fprintln(out, cli.Green(out, cli.Bold(out, successText)))
+}
+
+func printUpdateReleaseBinaryReport(cmd *cobra.Command, action string, report cli.UpdateReleaseBinaryReport) {
+	out := cmd.OutOrStdout()
+	bannerText := "⚕ Updating Gormes release binary..."
+	successText := "✓ Release binary update complete"
+	if action == "update_rollback" {
+		bannerText = "⚕ Rolling back Gormes release binary..."
+		successText = "✓ Release binary rollback complete"
+	}
+	fmt.Fprintln(out, cli.Bold(out, bannerText))
+	fmt.Fprintln(out)
+	if report.PreviousVersion != "" || report.NewVersion != "" {
+		fmt.Fprintf(out, "%s %s -> %s\n", cli.Dim(out, "version:"), report.PreviousVersion, report.NewVersion)
+	}
+	if report.SnapshotID != "" {
+		fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "snapshot:"), report.SnapshotID)
+	}
+	if report.SnapshotPath != "" {
+		fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "snapshot path:"), report.SnapshotPath)
+	}
+	if report.ManagedBinPath != "" {
+		fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "managed binary:"), report.ManagedBinPath)
+	}
+	if report.PublishedBinPath != "" {
+		fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "published binary:"), report.PublishedBinPath)
+	}
+	for _, evidence := range report.Evidence {
+		glyph, color := updateGlyphAndColor(out, evidence.Kind)
+		kind := color(out, string(evidence.Kind))
+		detail := strings.TrimSpace(evidence.Detail)
+		if detail == "" {
+			fmt.Fprintf(out, "%s %s\n", glyph, kind)
+			continue
+		}
+		fmt.Fprintf(out, "%s %s\t%s\n", glyph, kind, detail)
+	}
+	fmt.Fprintln(out)
+	if report.Failed {
+		fmt.Fprintln(out, cli.Bold(out, "✗ Release binary update failed"))
+	} else {
+		fmt.Fprintln(out, cli.Green(out, cli.Bold(out, successText)))
+	}
+	if report.OperatorRecovery != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), report.OperatorRecovery)
+	}
+}
+
+func defaultLoadReleaseMetadata(ctx context.Context, channel cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error) {
+	if channel != cli.UpdateReleaseChannelStable {
+		return cli.UpdateReleaseMetadata{}, nil
+	}
+	apiURL := strings.TrimSpace(os.Getenv("GORMES_RELEASES_API_URL"))
+	if apiURL == "" {
+		apiURL = "https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return cli.UpdateReleaseMetadata{}, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return cli.UpdateReleaseMetadata{}, fmt.Errorf("fetch latest release metadata: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return cli.UpdateReleaseMetadata{}, fmt.Errorf("fetch latest release metadata: HTTP %s", resp.Status)
+	}
+	var body struct {
+		TagName         string `json:"tag_name"`
+		TargetCommitish string `json:"target_commitish"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
+		return cli.UpdateReleaseMetadata{}, fmt.Errorf("decode latest release metadata: %w", err)
+	}
+	version := strings.TrimPrefix(strings.TrimSpace(body.TagName), "v")
+	if version == "" {
+		return cli.UpdateReleaseMetadata{}, fmt.Errorf("latest release metadata missing tag_name")
+	}
+	return cli.UpdateReleaseMetadata{
+		Version:   version,
+		Tag:       strings.TrimSpace(body.TagName),
+		GitCommit: strings.TrimSpace(body.TargetCommitish),
+	}, nil
+}
+
+func resolvePlannedUpdateSnapshotPath() (string, error) {
+	root, err := resolveUpdateReleaseSnapshotRoot()
+	if err != nil {
+		return "", err
+	}
+	name := time.Now().UTC().Format("20060102-150405") + "-pre-update"
+	return filepath.Join(root, name), nil
+}
+
+func resolveUpdateReleaseSnapshotRoot() (string, error) {
+	home, err := resolveManagedInstallHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "snapshots"), nil
+}
+
+func detectUpdateInstallKind() cli.UpdateInstallKind {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("GORMES_INSTALL_METHOD"))) {
+	case "release", "binary-fetch", "github_release", "github-releases":
+		return cli.UpdateInstallKindRelease
+	case "source", "source-build", "managed_source", "managed-source":
+		return cli.UpdateInstallKindManagedSource
+	}
+	managedBin, managedBinErr := resolveManagedBinaryPath()
+	if managedBinErr == nil {
+		if exe, err := os.Executable(); err == nil && sameUpdatePath(exe, managedBin) {
+			return cli.UpdateInstallKindRelease
+		}
+	}
+	publishedBin, publishedBinErr := resolvePublishedBinaryPath()
+	if publishedBinErr == nil {
+		if exe, err := os.Executable(); err == nil && sameUpdatePath(exe, publishedBin) {
+			return cli.UpdateInstallKindRelease
+		}
+	}
+	checkoutDir, checkoutErr := resolveManagedCheckoutDir()
+	if checkoutErr == nil && isGitWorktreeDir(checkoutDir) {
+		return cli.UpdateInstallKindManagedSource
+	}
+	if cwd, err := os.Getwd(); err == nil && isGormesSourceCheckout(cwd) {
+		return cli.UpdateInstallKindUnmanagedSource
+	}
+	return cli.UpdateInstallKindUnknown
+}
+
+func isGormesSourceCheckout(dir string) bool {
+	if !isGitWorktreeDir(dir) {
+		return false
+	}
+	body, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(body), "module github.com/TrebuchetDynamics/gormes-agent")
+}
+
+func isGitWorktreeDir(dir string) bool {
+	if strings.TrimSpace(dir) == "" {
+		return false
+	}
+	if stat, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+		return stat.IsDir() || stat.Mode().IsRegular()
+	}
+	return false
+}
+
+func sameUpdatePath(left, right string) bool {
+	left = cleanUpdatePath(left)
+	right = cleanUpdatePath(right)
+	return left != "" && right != "" && left == right
+}
+
+func cleanUpdatePath(path string) string {
+	if strings.TrimSpace(path) == "" {
+		return ""
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	return filepath.Clean(path)
 }
 
 func attachUpdateLogMirror(cmd *cobra.Command, report *cli.UpdateReport) func() {
