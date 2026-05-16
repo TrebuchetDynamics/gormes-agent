@@ -491,8 +491,8 @@ func TestSetupModelSectionDelegatesToPicker(t *testing.T) {
 	if fake.modelPickerCalls != 1 {
 		t.Fatalf("model picker calls = %d, want 1", fake.modelPickerCalls)
 	}
-	if !strings.Contains(stdout, "Setup section: model") {
-		t.Fatalf("stdout missing model-section evidence:\n%s", stdout)
+	if !strings.Contains(stdout, "Gormes Setup — Model") {
+		t.Fatalf("stdout missing boxed model-section header:\n%s", stdout)
 	}
 }
 
@@ -576,7 +576,7 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Setup section: provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "API key:  stored (redacted)", "Test it:  gormes chat"} {
+	for _, want := range []string{"Gormes Setup — Provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "API key:  stored (redacted)", "Test it:  gormes chat"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
@@ -32,6 +34,30 @@ var setupReadPassword = term.ReadPassword
 var setupInputIsTerminal = stdinIsTerminal
 
 var setupSections = []string{"provider", "model", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "tools"}
+
+// setupSectionLabels is the Gormes-owned section→label map for the boxed
+// `│ Gormes Setup — <Label> │` per-section header (parity with hermes
+// setup.py@55c9f3206:3199 `│ ⚕ Hermes Setup — {label} │`). Labels are
+// Gormes-owned wording; some sections (provider/workspace/bindings) have no
+// 1:1 Hermes equivalent — this map is the documented owned divergence.
+var setupSectionLabels = map[string]string{
+	"provider":  "Provider",
+	"model":     "Model",
+	"agent":     "Agent Settings",
+	"workspace": "Workspace",
+	"bindings":  "Channel Bindings",
+	"tts":       "Text-to-Speech",
+	"terminal":  "Terminal Backend",
+	"gateway":   "Messaging Gateway",
+	"tools":     "Tools",
+}
+
+func setupSectionLabel(section string) string {
+	if label, ok := setupSectionLabels[section]; ok {
+		return label
+	}
+	return section
+}
 
 const (
 	providerOpenAI    = "openai"
@@ -525,7 +551,55 @@ func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInt
 	}
 }
 
+// runSetupSection wraps `gormes setup <section>` with the same boxed chrome
+// the full wizard and upstream `hermes setup <section>` use: a
+// `│ Gormes Setup — <Label> │` header (the shared 59-wide box, reused from
+// internal/doctor.RenderDoctorHeader — not a third chrome variant) before
+// the section runs, and a uniform `<Label> configuration complete!` footer
+// only on success. An unknown section keeps the existing unsupported
+// behavior with no box. Section prompts/logic are unchanged.
 func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string, nonInteractive bool) error {
+	if _, known := setupSectionLabels[section]; !known {
+		return setupSectionUnsupported(cmd, section)
+	}
+	label := setupSectionLabel(section)
+	out := cmd.OutOrStdout()
+	cli.ClearScreen(out)
+	fmt.Fprint(out, doctor.RenderDoctorHeader("Gormes Setup — "+label))
+
+	// Tee section output so the success-only footer can be suppressed when a
+	// section cleanly cancels (returns nil but prints its own cancel line),
+	// without changing any section's prompts or logic.
+	var captured bytes.Buffer
+	cmd.SetOut(io.MultiWriter(out, &captured))
+	err := dispatchSetupSection(cmd, seams, section, nonInteractive)
+	cmd.SetOut(out)
+
+	if err == nil && !setupSectionOutputCancelled(captured.String()) {
+		fmt.Fprintf(out, "\n%s configuration complete!\n", label)
+	}
+	return err
+}
+
+// setupSectionOutputCancelled reports whether a section that returned nil
+// actually ended in a clean user cancellation (so the success footer must
+// be suppressed). It matches the distinctive terminal cancel sentinels the
+// sections print — not loose "cancel" prompt text — so interactive menus
+// like "3. Cancel" / "q to cancel" do not produce false negatives.
+func setupSectionOutputCancelled(out string) bool {
+	for _, sentinel := range []string{
+		"Setup cancelled.",
+		"setup canceled; no files were written.",
+		"Setup canceled.",
+	} {
+		if strings.Contains(out, sentinel) {
+			return true
+		}
+	}
+	return false
+}
+
+func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string, nonInteractive bool) error {
 	switch section {
 	case "provider":
 		return runSetupProviderSection(cmd, seams, nonInteractive)
@@ -610,7 +684,11 @@ func printSetupActionMenu(cmd *cobra.Command, title string, options []setupMenuO
 
 func promptSetupAction(cmd *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
 	if stdin, ok := cmd.InOrStdin().(*os.File); ok && term.IsTerminal(int(stdin.Fd())) {
-		selected, err := runBubbleTeaPick(cmd.Context(), stdin, cmd.OutOrStdout(), setupActionPromptTitle(options), setupActionPickerChoices(options), string(options[defaultOption].Action))
+		stepOptions := []setupwizard.StepOption{}
+		if setupActionPromptTitle(options) == "How would you like to set up Gormes?" {
+			stepOptions = append(stepOptions, setupwizard.WithRadioChoices())
+		}
+		selected, err := runBubbleTeaPickWithOptions(cmd.Context(), stdin, cmd.OutOrStdout(), setupActionPromptTitle(options), setupActionPickerChoices(options), string(options[defaultOption].Action), stepOptions...)
 		if err == nil {
 			if selected == "" {
 				return setupActionExit, nil
@@ -1205,9 +1283,6 @@ func launchSetupChat(cmd *cobra.Command) error {
 }
 
 func runSetupProviderSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	out := cmd.OutOrStdout()
-	cli.ClearScreen(out)
-	cli.PrintHeader(out, "Setup section: provider")
 	if nonInteractive {
 		return setupProviderNonInteractive(cmd)
 	}
@@ -1541,9 +1616,6 @@ func runSetupBindingsSection(cmd *cobra.Command, seams setupCommandSeams, nonInt
 }
 
 func runSetupModelSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	out := cmd.OutOrStdout()
-	cli.ClearScreen(out)
-	cli.PrintHeader(out, "Setup section: model")
 	if nonInteractive {
 		current, err := seams.LoadCurrentModel()
 		if err != nil {
