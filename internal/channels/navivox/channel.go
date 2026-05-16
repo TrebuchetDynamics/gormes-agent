@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,11 @@ import (
 )
 
 const PlatformName = "navivox"
+
+const (
+	navivoxWebSocketProtocol            = "gormes.navivox.v1"
+	navivoxWebSocketTokenProtocolPrefix = "gormes.navivox.token."
+)
 
 // vpnHostLister is the seam tests override to inject deterministic VPN
 // host enumeration into NewChannel; production callers use the real CLIs.
@@ -322,6 +328,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			return
 		}
 		upgrader := websocket.Upgrader{
+			Subprotocols: []string{navivoxWebSocketProtocol},
 			CheckOrigin: func(req *http.Request) bool {
 				return c.originAllowed(req.Header.Get("Origin"))
 			},
@@ -569,6 +576,9 @@ func (c *Channel) authenticate(r *http.Request) (string, bool) {
 		if token == "" {
 			token = strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token"))
 		}
+		if token == "" {
+			token = webSocketProtocolToken(r)
+		}
 		if token == "" || c.cfg.Token == "" {
 			return "", false
 		}
@@ -587,6 +597,21 @@ func bearerToken(r *http.Request) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+}
+
+func webSocketProtocolToken(r *http.Request) string {
+	for _, protocol := range websocket.Subprotocols(r) {
+		if !strings.HasPrefix(protocol, navivoxWebSocketTokenProtocolPrefix) {
+			continue
+		}
+		encoded := strings.TrimPrefix(protocol, navivoxWebSocketTokenProtocolPrefix)
+		decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+		if err != nil {
+			return ""
+		}
+		return string(decoded)
+	}
+	return ""
 }
 
 func firstHeader(r *http.Request, names ...string) string {

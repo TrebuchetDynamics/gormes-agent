@@ -2,6 +2,7 @@ package navivox
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -80,6 +81,69 @@ func TestNavivoxHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent(t *testing
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for gateway event")
+	}
+}
+
+func TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/navivox/stream"
+	dialer := websocket.Dialer{
+		Subprotocols: []string{
+			navivoxWebSocketProtocol,
+			navivoxWebSocketTokenProtocolPrefix + base64.RawURLEncoding.EncodeToString([]byte("nvbx_test_token")),
+		},
+	}
+	conn, resp, err := dialer.Dial(wsURL, nil)
+	if err != nil {
+		if resp != nil {
+			t.Fatalf("websocket dial status=%d err=%v", resp.StatusCode, err)
+		}
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if conn.Subprotocol() != navivoxWebSocketProtocol {
+		t.Fatalf("selected websocket subprotocol = %q, want %q", conn.Subprotocol(), navivoxWebSocketProtocol)
+	}
+
+	if err := conn.WriteJSON(ClientMessage{Type: "ping", RequestID: "req-browser"}); err != nil {
+		t.Fatal(err)
+	}
+	var pong ServerEvent
+	if err := conn.ReadJSON(&pong); err != nil {
+		t.Fatal(err)
+	}
+	if pong.Type != "pong" || pong.RequestID != "req-browser" {
+		t.Fatalf("pong = %+v, want browser-authenticated pong", pong)
+	}
+}
+
+func TestNavivoxWebSocketAuthRejectsBadBrowserSubprotocolToken(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/v1/navivox/stream"
+	dialer := websocket.Dialer{
+		Subprotocols: []string{
+			navivoxWebSocketProtocol,
+			navivoxWebSocketTokenProtocolPrefix + base64.RawURLEncoding.EncodeToString([]byte("wrong")),
+		},
+	}
+	conn, resp, err := dialer.Dial(wsURL, nil)
+	if err == nil {
+		conn.Close()
+		t.Fatal("websocket dial with bad subprotocol token succeeded, want 401")
+	}
+	if resp == nil || resp.StatusCode != http.StatusUnauthorized {
+		if resp == nil {
+			t.Fatalf("websocket dial response = nil err=%v, want 401", err)
+		}
+		t.Fatalf("websocket dial status=%d err=%v, want 401", resp.StatusCode, err)
 	}
 }
 
