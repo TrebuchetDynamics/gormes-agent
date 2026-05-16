@@ -167,6 +167,37 @@ func Split(stdout io.Writer, root, destDir string) error {
 	return err
 }
 
+// Emit writes the merged canonical backlog as stable JSON to stdout. It is a
+// pure, read-only, non-default action: it loads through loadValidProgress
+// (canonicalSource + internal/progress.Load, dual-layout transparent) and
+// never mutates the canonical. It is the split-safe seam gormes-* skill
+// discovery pipes through instead of jq-ing the canonical path directly —
+// `go run ./cmd/progress emit | jq ...` keeps working byte-identically
+// whether the canonical is a monolithic file or a (phase- or module-keyed)
+// split directory. Bytes are produced by the shipped stable encoder
+// (progress.SaveProgress) so emit stays faithful to the on-disk monolith.
+func Emit(stdout io.Writer, root string) error {
+	p, err := loadValidProgress(root)
+	if err != nil {
+		return err
+	}
+	tmpDir, err := os.MkdirTemp("", "progress-emit-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+	tmp := filepath.Join(tmpDir, "progress.json")
+	if err := progress.SaveProgress(tmp, p); err != nil {
+		return err
+	}
+	raw, err := os.ReadFile(tmp)
+	if err != nil {
+		return err
+	}
+	_, err = stdout.Write(raw)
+	return err
+}
+
 type marker struct {
 	pathOf func(pathSet) string
 	kind   string

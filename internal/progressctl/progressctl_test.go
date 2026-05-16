@@ -347,6 +347,73 @@ func validateJSON(t *testing.T, root string) []byte {
 	return buf.Bytes()
 }
 
+func seedSplitModule(t *testing.T, root string, p *progress.Progress) {
+	t.Helper()
+	splitDir := progressPaths(root).progressSplitDir
+	if err := os.MkdirAll(filepath.Dir(splitDir), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := progress.WriteSplitBy(splitDir, p, "module"); err != nil {
+		t.Fatalf("seed module-keyed split: %v", err)
+	}
+}
+
+func emitBytes(t *testing.T, root string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := Emit(&buf, root); err != nil {
+		t.Fatalf("Emit(%s): %v", root, err)
+	}
+	return buf.Bytes()
+}
+
+// `progress emit` is the pure read-only split-safe seam gormes-* skill
+// discovery pipes through (module-split umbrella C5d). Its stdout must be the
+// byte-identical merged canonical backlog whether the canonical is a
+// monolithic file, a phase-keyed split directory, or a module-keyed split
+// directory — so the skill jq pipelines survive the operator-gated C5 flip.
+func TestEmitIsSplitDirectorySafeAndCanonical(t *testing.T) {
+	p := c2Fixture()
+
+	monoRoot := t.TempDir()
+	seedMonolith(t, monoRoot, p)
+
+	splitPhaseRoot := t.TempDir()
+	seedSplitOnly(t, splitPhaseRoot, p) // phase-keyed split dir, no monolith
+
+	splitModRoot := t.TempDir()
+	seedSplitModule(t, splitModRoot, p) // module-keyed split dir, no monolith
+
+	b0 := emitBytes(t, monoRoot)
+	b1 := emitBytes(t, splitPhaseRoot)
+	b2 := emitBytes(t, splitModRoot)
+
+	if !bytes.Equal(b0, b1) {
+		t.Fatalf("emit must be byte-identical for monolith vs phase-split:\n mono=%s\n split=%s", b0, b1)
+	}
+	if !bytes.Equal(b0, b2) {
+		t.Fatalf("emit must be byte-identical for monolith vs module-split:\n mono=%s\n split=%s", b0, b2)
+	}
+
+	// Emit is byte-faithful to the canonical on-disk monolith bytes.
+	wantMono, err := os.ReadFile(progressPaths(monoRoot).progressJSON)
+	if err != nil {
+		t.Fatalf("read seeded monolith: %v", err)
+	}
+	if !bytes.Equal(b0, wantMono) {
+		t.Fatalf("emit must equal the canonical monolith bytes:\n emit=%s\n file=%s", b0, wantMono)
+	}
+
+	// Emit stdout is valid JSON that round-trips to the same backlog.
+	var got progress.Progress
+	if err := json.Unmarshal(b0, &got); err != nil {
+		t.Fatalf("emit output is not valid JSON: %v", err)
+	}
+	if !reflect.DeepEqual(&got, p) {
+		t.Fatalf("emit output did not round-trip to the fixture backlog:\n got=%#v\n want=%#v", &got, p)
+	}
+}
+
 // (1) A root backed ONLY by a split layout generates byte-identical output
 // to a root backed only by the monolith.
 func TestProgressctlResolvesSplitLayoutForGenerators(t *testing.T) {
