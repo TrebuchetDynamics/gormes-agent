@@ -48,6 +48,7 @@ var knownProviderEndpoints = map[string]string{
 	providerGroq:      "https://api.groq.com/openai/v1",
 	providerOllama:    "http://localhost:11434/v1",
 	"openai-codex":    "https://chatgpt.com/backend-api/codex",
+	"openrouter":      openRouterBaseURL,
 	"opencode":        "https://opencode.ai/zen/v1",
 	"opencode-go":     "https://opencode.ai/zen/go/v1",
 }
@@ -59,6 +60,7 @@ var knownProviderModels = map[string]string{
 	providerGroq:      "llama-3.3-70b-versatile",
 	providerOllama:    "llama3",
 	"openai-codex":    "gpt-5.2",
+	"openrouter":      "moonshotai/kimi-k2.6",
 	"opencode":        "gpt-5.2",
 	"opencode-go":     "gpt-5.2",
 }
@@ -417,7 +419,6 @@ func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bo
 
 	options := setupTopLevelOptions()
 	defaultOption := 0
-	printSetupTopLevelMenu(cmd, options, defaultOption)
 	action, err := seams.ChooseSetupAction(cmd, options, defaultOption)
 	if err != nil {
 		return err
@@ -501,20 +502,8 @@ func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInt
 	options := firstRunSetupOptions(seams)
 	out := cmd.OutOrStdout()
 	cli.ClearScreen(out)
-	cli.PrintHeader(out, "How would you like to set up Gormes?")
+	printSetupWizardHeader(cmd)
 	fmt.Fprintln(out, cli.Dim(out, "  No existing Gormes configuration was found."))
-	fmt.Fprintln(out)
-	for i, option := range options {
-		var prefix, label string
-		if i == 0 {
-			prefix = " " + cli.BrightCyan(out, "→") + " " + cli.BrightCyan(out, "(●)")
-			label = cli.Bold(out, option.Label)
-		} else {
-			prefix = "   " + cli.Dim(out, "(○)")
-			label = option.Label
-		}
-		fmt.Fprintf(out, "%s %s\n", prefix, label)
-	}
 	fmt.Fprintln(out)
 	action, err := seams.ChooseSetupAction(cmd, options, 0)
 	if err != nil {
@@ -580,10 +569,30 @@ func setupTopLevelOptions() []setupMenuOption {
 }
 
 func printSetupTopLevelMenu(cmd *cobra.Command, options []setupMenuOption, defaultOption int) {
+	printSetupActionMenu(cmd, setupActionPromptTitle(options), options, defaultOption)
+}
+
+func setupActionPromptTitle(options []setupMenuOption) string {
+	if len(options) >= 2 && options[0].Action == setupActionQuick && options[1].Action == setupActionFull {
+		onlyFirstRunActions := true
+		for _, option := range options[2:] {
+			switch option.Action {
+			case setupActionMigrateHermes, setupActionMigrateOpenClaw:
+			default:
+				onlyFirstRunActions = false
+			}
+		}
+		if onlyFirstRunActions {
+			return "How would you like to set up Gormes?"
+		}
+	}
+	return "What would you like to do?"
+}
+
+func printSetupActionMenu(cmd *cobra.Command, title string, options []setupMenuOption, defaultOption int) {
 	out := cmd.OutOrStdout()
 	cli.ClearScreen(out)
-	cli.PrintHeader(out, "What would you like to do?")
-	fmt.Fprintln(out, cli.Dim(out, "  Use ↑/↓ arrows to navigate, Enter to select, or type a number."))
+	cli.PrintHeader(out, title)
 	fmt.Fprintln(out)
 	for i, option := range options {
 		var prefix, label string
@@ -601,7 +610,7 @@ func printSetupTopLevelMenu(cmd *cobra.Command, options []setupMenuOption, defau
 
 func promptSetupAction(cmd *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
 	if stdin, ok := cmd.InOrStdin().(*os.File); ok && term.IsTerminal(int(stdin.Fd())) {
-		selected, err := runBubbleTeaPick(cmd.Context(), stdin, cmd.OutOrStdout(), "What would you like to do?", setupActionPickerChoices(options), string(options[defaultOption].Action))
+		selected, err := runBubbleTeaPick(cmd.Context(), stdin, cmd.OutOrStdout(), setupActionPromptTitle(options), setupActionPickerChoices(options), string(options[defaultOption].Action))
 		if err == nil {
 			if selected == "" {
 				return setupActionExit, nil
@@ -1221,27 +1230,36 @@ func setupProviderNonInteractive(cmd *cobra.Command) error {
 
 func setupProviderInteractive(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "\nSelect a provider or enter a custom endpoint:")
-	fmt.Fprintln(out)
-	for _, p := range []string{providerOpenAI, providerAnthropic, providerDeepSeek, "openai-codex", "opencode", providerGroq, providerOllama} {
-		fmt.Fprintf(out, "  %-12s %s\n", p, knownProviderEndpoints[p])
-	}
-	fmt.Fprintln(out, "  custom       enter your own endpoint URL")
-	fmt.Fprintln(out)
-
-	provider, err := promptString(cmd, "Provider [openai]: ", "openai")
+	current, _ := loadSetupProviderCurrent()
+	entries, defaultIndex := cli.HermesProviderCatalogMenu(current.Provider)
+	idx, err := promptSetupProviderChoice(cmd, entries, defaultIndex)
 	if err != nil {
+		if errors.Is(err, cli.ErrModelPickerCancelled) {
+			fmt.Fprintln(out, "No change.")
+			return nil
+		}
 		return err
 	}
-	provider = strings.ToLower(strings.TrimSpace(provider))
-	if provider == "" {
-		provider = providerOpenAI
+	if idx < 0 || idx >= len(entries) || entries[idx].ID == cli.ProviderCatalogLeaveUnchanged {
+		fmt.Fprintln(out, "No change.")
+		return nil
+	}
+	if entries[idx].ID == cli.ProviderCatalogAuxConfig {
+		fmt.Fprintln(out, "Auxiliary model setup is not available in the Go wizard yet.")
+		return nil
 	}
 
+	provider := setupCanonicalProviderID(entries[idx].ID)
 	var endpoint string
-	if ep, ok := knownProviderEndpoints[provider]; ok {
-		endpoint = ep
+	if provider == "custom" {
+		endpoint, err = promptString(cmd, "Endpoint URL: ", "")
+		if err != nil {
+			return err
+		}
 	} else {
+		endpoint = setupProviderEndpointDefault(provider)
+	}
+	if endpoint == "" {
 		endpoint, err = promptString(cmd, "Endpoint URL: ", "")
 		if err != nil {
 			return err
@@ -1259,16 +1277,76 @@ func setupProviderInteractive(cmd *cobra.Command) error {
 		return fmt.Errorf("API key is required; get one from your provider's dashboard")
 	}
 
-	defaultModel := knownProviderModels[provider]
-	if defaultModel == "" {
-		defaultModel = ""
-	}
-	model, err := promptString(cmd, fmt.Sprintf("Model [%s]: ", defaultModel), defaultModel)
+	defaultModel := setupProviderModelDefault(current, provider)
+	model, err := promptModelChoiceWithOptions(cmd.InOrStdin(), out, provider, defaultModel, defaultModelPickerSuggestionSet(provider).Models, modelChoicePromptOptions{
+		Context:         cmd.Context(),
+		SuggestionLimit: modelChoiceSuggestionLimitUnlimited,
+	})
 	if err != nil {
+		if errors.Is(err, cli.ErrModelPickerCancelled) {
+			fmt.Fprintln(out, "No change.")
+			return nil
+		}
 		return err
 	}
+	model = hermes.NormalizeProviderModelID(provider, model)
 
 	return writeProviderConfig(cmd, provider, endpoint, apiKey, model)
+}
+
+func loadSetupProviderCurrent() (cli.ProviderModel, error) {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return cli.ProviderModel{}, err
+	}
+	return cli.ProviderModel{Provider: cfg.Hermes.Provider, Model: cfg.Hermes.Model}, nil
+}
+
+func setupCanonicalProviderID(provider string) string {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	if provider == "custom-endpoint" {
+		return "custom"
+	}
+	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+		return strings.TrimSpace(entry.ID)
+	}
+	return provider
+}
+
+func setupProviderEndpointDefault(provider string) string {
+	provider = setupCanonicalProviderID(provider)
+	if endpoint := providerBaseURL(provider, ""); strings.TrimSpace(endpoint) != "" {
+		return strings.TrimRight(strings.TrimSpace(endpoint), "/")
+	}
+	if endpoint := knownProviderEndpoints[provider]; strings.TrimSpace(endpoint) != "" {
+		return strings.TrimRight(strings.TrimSpace(endpoint), "/")
+	}
+	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+		if endpoint := providerBaseURL(entry.ID, ""); strings.TrimSpace(endpoint) != "" {
+			return strings.TrimRight(strings.TrimSpace(endpoint), "/")
+		}
+		if endpoint := knownProviderEndpoints[entry.ID]; strings.TrimSpace(endpoint) != "" {
+			return strings.TrimRight(strings.TrimSpace(endpoint), "/")
+		}
+		if endpoint := strings.TrimSpace(entry.BaseURLOverride); endpoint != "" {
+			return strings.TrimRight(endpoint, "/")
+		}
+	}
+	return ""
+}
+
+func setupProviderModelDefault(current cli.ProviderModel, provider string) string {
+	provider = setupCanonicalProviderID(provider)
+	if strings.EqualFold(setupCanonicalProviderID(current.Provider), provider) && strings.TrimSpace(current.Model) != "" {
+		return strings.TrimSpace(current.Model)
+	}
+	if resolved := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{}); strings.TrimSpace(resolved.Model) != "" {
+		return strings.TrimSpace(resolved.Model)
+	}
+	if model := knownProviderModels[provider]; strings.TrimSpace(model) != "" {
+		return strings.TrimSpace(model)
+	}
+	return ""
 }
 
 func writeProviderConfig(cmd *cobra.Command, provider, endpoint, apiKey, model string) error {

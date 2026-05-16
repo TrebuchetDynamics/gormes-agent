@@ -16,8 +16,8 @@ import (
 
 func firstRunSetupOptions(seams setupCommandSeams) []setupMenuOption {
 	options := []setupMenuOption{
-		{Action: setupActionQuick, Label: "Quick setup - provider, model, and messaging"},
-		{Action: setupActionFull, Label: "Full setup - configure everything"},
+		{Action: setupActionQuick, Label: "Quick setup — provider, model & messaging (recommended)"},
+		{Action: setupActionFull, Label: "Full setup — configure everything"},
 	}
 	if strings.TrimSpace(seams.DetectHermesMigrationSource()) != "" {
 		options = append(options, setupMenuOption{Action: setupActionMigrateHermes, Label: "Migrate Hermes"})

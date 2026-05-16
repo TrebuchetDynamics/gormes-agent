@@ -211,9 +211,7 @@ func TestSetupNoSectionFreshInstallShowsQuickFullChoice(t *testing.T) {
 	}
 	for _, want := range []string{
 		"No existing Gormes configuration was found.",
-		"How would you like to set up Gormes?",
-		"Quick setup - provider, model, and messaging",
-		"Full setup - configure everything",
+		"Gormes Agent Setup Wizard",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -221,6 +219,9 @@ func TestSetupNoSectionFreshInstallShowsQuickFullChoice(t *testing.T) {
 	}
 	if len(captured) != 2 || captured[0].Action != setupActionQuick || captured[1].Action != setupActionFull {
 		t.Fatalf("captured menu = %#v, want Quick/Full menu", captured)
+	}
+	if captured[0].Label != "Quick setup — provider, model & messaging (recommended)" || captured[1].Label != "Full setup — configure everything" {
+		t.Fatalf("captured labels = %#v, want Hermes-style Quick/Full wording", captured)
 	}
 	if _, err := os.Stat(config.ConfigPath()); !os.IsNotExist(err) {
 		t.Fatalf("exit-only setup mutated config path %s: %v", config.ConfigPath(), err)
@@ -608,20 +609,40 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 
 func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	home := t.TempDir()
-	secret := "sk-groq-secret-7890"
+	secret := "sk-openrouter-secret-7890"
 	t.Setenv("GORMES_HOME", home)
+	if err := config.WriteTOMLValue(config.ConfigPath(), "hermes.provider", "openrouter"); err != nil {
+		t.Fatalf("seed provider: %v", err)
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "hermes.model", "moonshotai/kimi-k2.6"); err != nil {
+		t.Fatalf("seed model: %v", err)
+	}
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "groq\n"+secret+"\n\n", "provider")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "\n"+secret+"\n\n", "provider")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Provider: groq", "Endpoint: https://api.groq.com/openai/v1", "Model:    llama-3.3-70b-versatile", "API key:  stored (redacted)"} {
+	for _, want := range []string{
+		"Select provider:",
+		"OpenRouter (100+ models, pay-per-use)  ← currently active",
+		"Select model for openrouter:",
+		"1. anthropic/claude-opus-4.7",
+		"4. moonshotai/kimi-k2.6",
+		"31. inclusionai/ring-2.6-1t:free",
+		"Provider: openrouter",
+		"Endpoint: https://openrouter.ai/api/v1",
+		"Model:    moonshotai/kimi-k2.6",
+		"API key:  stored (redacted)",
+	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, leaked := range []string{secret, "sk-g***7890", "sk-g", "7890"} {
+	if strings.Contains(stdout, "Provider [openai]") {
+		t.Fatalf("setup provider used stale free-text provider prompt:\n%s", stdout)
+	}
+	for _, leaked := range []string{secret, "sk-o***7890", "sk-openrouter", "7890"} {
 		if strings.Contains(stdout+stderr, leaked) {
 			t.Fatalf("setup output leaked API key material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
 		}
@@ -630,7 +651,7 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
-	for _, want := range []string{`provider = 'groq'`, `endpoint = 'https://api.groq.com/openai/v1'`, `model = 'llama-3.3-70b-versatile'`} {
+	for _, want := range []string{`provider = 'openrouter'`, `endpoint = 'https://openrouter.ai/api/v1'`, `model = 'moonshotai/kimi-k2.6'`} {
 		if !strings.Contains(string(configBody), want) {
 			t.Fatalf("config missing %q:\n%s", want, string(configBody))
 		}
