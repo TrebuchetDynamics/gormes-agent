@@ -8,6 +8,27 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.13] - 2026-05-16
+
+Date alias: `v2026.5.16`.
+
+> **Native update flow hardening, module-split backlog infrastructure, and Navivox channel polish.**
+
+### Added
+- Native `gormes update` release-binary, release-assets, release-plan, service-coordination, and skill update-sync paths for Hermes-style operator upgrades without Python.
+- Module-keyed progress backlog infrastructure behind the existing `internal/progress.Load` and `SaveProgress` contracts, including split-preserving writes, `progress emit`, completed-note compaction, and split-safe docs/fleet/skill readers.
+- Navivox connect-and-talk refinements: profile contacts, gateway channel routing, Chrome e2e coverage, and structured tool-progress updates for native clients.
+- Doctor and setup coverage for profiles, directory structure, skills hub, auth providers, security advisories, profile workspaces, and channel lists.
+
+### Changed
+- Release validation now mirrors the CI engineering-blog dependency install/test gate before tag publication.
+- Progress-backed docs and landing mirrors were refreshed around the single-logical-backlog split plan; the destructive C5 flip remains blocked on explicit quiet-fleet operator approval.
+- Setup wizard, model picker, provider defaults, and TUI error/readiness copy were tightened for operator-facing flows.
+
+### Fixed
+- Termux and gateway install/runtime paths, including notification bridging and release-publish behavior that avoids the v0.2.12 Termux noexec symlink regression.
+- Doctor `--fix` wording, setup model-picker wiring, update release-plan handling, and CI path coverage for slim progress mirrors.
+
 ## [0.2.12] - 2026-05-15
 
 Date alias: `v2026.5.15`.
