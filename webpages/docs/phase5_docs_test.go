@@ -45,17 +45,17 @@ func TestPhase5DocsTrackExecuteCodeCloseout(t *testing.T) {
 		}
 	}
 
-	siteProgress, err := os.ReadFile("../landing/src/data/progress.json")
+	siteProgress, err := os.ReadFile("../landing/legacy/go-renderer/internal/site/data/progress.json")
 	if err != nil {
-		t.Fatalf("read site progress copy: %v", err)
+		t.Fatalf("read slim legacy site progress copy: %v", err)
 	}
 	for _, want := range []string{
-		`"name": "Sandboxed exec"`,
+		`"5.K": {`,
+		`"name": "Code Execution"`,
 		`"status": "complete"`,
-		"`execute_code`",
 	} {
 		if !strings.Contains(string(siteProgress), want) {
-			t.Fatalf("site progress copy is missing %q", want)
+			t.Fatalf("slim legacy site progress copy is missing %q", want)
 		}
 	}
 }

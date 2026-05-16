@@ -27,13 +27,13 @@ roadmap invention.
   states.
 - `webpages/landing/public/static/` - favicon, social-card, and landing visual
   assets.
-- `webpages/landing/scripts/sync-assets.mjs` - canonical installer/progress/static
+- `webpages/landing/scripts/sync-assets.mjs` - canonical installer/static
   asset mirror used before dev/build.
 - `webpages/landing/tests/home.spec.mjs` - Playwright homepage expectations.
-- `webpages/landing/src/data/progress.json` - roadmap mirror generated from the
-  canonical progress file.
+- `webpages/landing/legacy/go-renderer/internal/site/data/progress.json` - slim
+  generated roadmap mirror used by the legacy Go renderer embed.
 - `webpages/landing/legacy/go-renderer/` - deprecated former Go-rendered site;
-  reference/rollback only.
+  still owns the slim progress embed until that renderer is removed.
 - `benchmarks.json` and `webpages/docs/content/building-gormes/architecture_plan/progress.json` - canonical proof inputs.
 
 ## Workflow
