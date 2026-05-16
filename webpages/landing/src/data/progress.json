@@ -44463,6 +44463,74 @@
               }
             },
             {
+              "name": "Gormes setup model step uses the dynamic provider-tracked model picker",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "The `gormes setup` Inference Provider section must present, for the operator's selected/active provider, the same dynamic per-provider callable-model list the `gormes model` and gateway/native-TUI `/model` pickers already use (internal/hermes.ListPickerProviders), instead of the legacy bare free-text prompt with at most five static suggestions. Two coupled defects: (1) the model prompt provider must equal the provider just selected/active in the section — the transcript witness shows Active provider \"OpenAI Codex\" but the prompt reads \"Model for openrouter [gpt-5.5]\", because runSetupInferenceProviderSection does not carry the chosen/active provider into runSetupActiveProviderModelPicker (it resolves to the provider-catalog default, openrouter); (2) cmd/gormes/model.go:promptModelChoice is fed defaultModelCatalogSuggestions(provider) = hermes.ProviderModelCatalogSuggestions(provider, nil) — the nil disables the live/dynamic catalog, so the operator never sees the provider's actual model set. The fix wires the existing ListPickerProviders-backed picker (the port already consumed by internal/gateway/model_picker.go and internal/tui/slash_model.go) into the setup model step with provider continuity, while preserving q/cancel, Enter-keeps-current, and `gormes setup model --non-interactive` default behavior. This supersedes the deliberately-static promptModelChoice seam introduced by the completed row at progress.json:19063; it must not fork a second picker or change the already-complete gateway/`gormes model`/TUI picker behavior.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "degraded_mode": "If the dynamic per-provider catalog is unavailable (offline, no creds, empty provider list), the setup model step falls back to the current static suggestions + free-text entry rather than blocking setup, and reports the degraded source instead of silently showing the wrong provider. Non-interactive setup keeps its existing default-without-prompt behavior.",
+              "fixture": "cmd/gormes/setup_model_picker_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/setup.py@6784c8079:789:setup_model_provider (delegates to select_provider_and_model for provider selection + model picking)",
+                "../hermes-agent/hermes_cli/main.py@6784c8079:select_provider_and_model",
+                "../hermes-agent/hermes_cli/model_switch.py@6784c8079:1720:list_picker_providers (per-provider callable-model list; OpenRouter live-filtered; empty providers dropped)",
+                "../hermes-agent/hermes_cli/setup.py@6784c8079:3122:SETUP_SECTIONS / 3132:run_setup_wizard",
+                "cmd/gormes/setup.go:751:runSetupInferenceProviderSection (provider not carried to model step)",
+                "cmd/gormes/setup.go:1020:runSetupActiveProviderModelPicker (provider := current.Provider; calls promptModelChoice with static suggestions)",
+                "cmd/gormes/model.go:173:promptModelChoice / cmd/gormes/model.go:169:defaultModelCatalogSuggestions (passes nil → no live catalog)",
+                "internal/hermes/picker_providers.go:24:ListPickerProviders / :7:PickerProvider (existing dynamic picker port)",
+                "internal/gateway/model_picker.go, internal/tui/slash_model.go (existing consumers — reuse, do not fork)",
+                "docs/content/building-gormes/architecture_plan/progress.json:19063 (the static promptModelChoice seam this supersedes)",
+                "Completed prerequisites: 2.B.5 Gateway /model interactive provider/model picker; 4.D Model catalog cache + preferred-provider live merge; 5.O Gormes model interactive provider/model picker; 5.Q Native TUI /model slash command binding"
+              ],
+              "ready_when": [
+                "ListPickerProviders + model-catalog infra are complete on main (rows 2.B.5, 4.D, 5.O, 5.Q).",
+                "Tests can drive the setup model step with a fake/injected provider+catalog (no live provider network) and assert the listed models and the prompt's provider string."
+              ],
+              "not_ready_when": [
+                "The slice forks a second model-picker implementation instead of reusing internal/hermes.ListPickerProviders.",
+                "It changes the already-complete gateway `/model`, `gormes model`, or native-TUI picker behavior.",
+                "`gormes setup model --non-interactive` stops producing defaults without prompts, or q/cancel and Enter-keeps-current regress.",
+                "The model prompt still shows a provider different from the selected/active provider."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "In `gormes setup`, after selecting/confirming a provider, the model step lists that provider's ListPickerProviders model set (not the ≤5 static nil-catalog suggestions).",
+                "The model prompt's provider equals the selected/active provider (no \"Model for openrouter\" when the active provider is OpenAI Codex / openai-codex).",
+                "q / cancel aborts with no change; empty input keeps the current model; a chosen model persists via the existing config write path.",
+                "`gormes setup model --non-interactive` still resolves a default model without prompting.",
+                "Gateway `/model`, `gormes model`, and native-TUI pickers are unchanged (regression-fenced)."
+              ],
+              "write_scope": [
+                "cmd/gormes/setup.go",
+                "cmd/gormes/model.go",
+                "cmd/gormes/setup_model_picker_test.go",
+                "internal/hermes/picker_providers.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestSetupModelPicker|TestSetup.*Provider|TestRunSetupActiveProviderModelPicker' -count=1",
+                "go test ./cmd/gormes ./internal/cli ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Setup fixtures prove the model step lists the active provider's ListPickerProviders models, the prompt provider matches the selected/active provider, q/cancel + keep-current + non-interactive defaults are preserved, and the gateway/`gormes model`/TUI pickers are unchanged; source evidence cites Hermes 6784c8079 setup_model_provider/list_picker_providers."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:6784c8079 hermes_cli/setup.py:setup_model_provider/select_provider_and_model",
+                  "hermes:6784c8079 hermes_cli/model_switch.py:list_picker_providers",
+                  "hermes:6784c8079 hermes_cli/setup.py:SETUP_SECTIONS/run_setup_wizard"
+                ],
+                "note": "skill_origin: 2026-05-15 gormes-hermes-parity sweep (gormes setup provider/model UX) -> gormes-planner. Transcript witness: Active provider 'OpenAI Codex' / Current model 'gpt-5.5' then 'Model for openrouter [gpt-5.5] (or q to cancel):'. Local ../hermes-agent submodule aac6d97a1 is 48 behind upstream main 6784c8079 which carries the current setup_model_provider/list_picker_providers contract; classify against 6784c8079."
+              },
+              "note": "Planner pass 2026-05-15 (gormes-hermes-parity -> gormes-planner): dedicated Phase 5.O row. Gormes already ships the dynamic picker port (internal/hermes.ListPickerProviders) for gateway/`gormes model`/TUI; this row only wires it into the `gormes setup` model step and fixes provider continuity, superseding the static promptModelChoice seam from progress.json:19063. Recommended chain: gormes-tdd-slice (with gormes-provider-parity if the live-catalog seam needs provider-auth wiring). If the slice lands and the submodule is bumped to 6784c8079 for the contract, stage it per the parity-driven change-set rule."
+            },
+            {
               "name": "Hermes setup entry-mode and reset semantics",
               "priority": "P0",
               "status": "complete",
