@@ -7,6 +7,7 @@ on:
       - 'webpages/landing/**'
       - 'benchmarks.json'
       - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json/**'
       - 'scripts/install.ps1'
       - 'scripts/install.cmd'
       - 'cmd/gormes/version.go'

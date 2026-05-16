@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json/**'
       - 'webpages/landing/legacy/go-renderer/internal/site/data/progress.json'
       - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
@@ -14,6 +15,7 @@ on:
     branches: [main, development]
     paths:
       - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json/**'
       - 'webpages/landing/legacy/go-renderer/internal/site/data/progress.json'
       - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
