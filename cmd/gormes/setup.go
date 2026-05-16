@@ -33,7 +33,7 @@ var errSetupRequiresTTY = errors.New("setup_requires_tty")
 var setupReadPassword = term.ReadPassword
 var setupInputIsTerminal = stdinIsTerminal
 
-var setupSections = []string{"provider", "model", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "tools"}
+var setupSections = []string{"provider", "model", "agent", "workspace", "profiles", "bindings", "tts", "terminal", "gateway", "tools"}
 
 // setupSectionLabels is the Gormes-owned section→label map for the boxed
 // `│ Gormes Setup — <Label> │` per-section header (parity with hermes
@@ -45,6 +45,7 @@ var setupSectionLabels = map[string]string{
 	"model":     "Model",
 	"agent":     "Agent Settings",
 	"workspace": "Workspace",
+	"profiles":  "Profiles",
 	"bindings":  "Channel Bindings",
 	"tts":       "Text-to-Speech",
 	"terminal":  "Terminal Backend",
@@ -612,6 +613,8 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 		return runSetupAgentSettingsSection(cmd, nonInteractive)
 	case "workspace":
 		return runSetupAgentSection(cmd, section, seams, nonInteractive)
+	case "profiles":
+		return runSetupProfilesSection(cmd, seams, nonInteractive)
 	case "bindings":
 		return runSetupBindingsSection(cmd, seams, nonInteractive)
 	case "tts":
@@ -1558,6 +1561,118 @@ func runSetupAgentSection(cmd *cobra.Command, section string, seams setupCommand
 	fmt.Fprintln(out, "  model = \"claude-sonnet-4-20250514\"")
 	fmt.Fprintln(out)
 	return nil
+}
+
+// runSetupProfilesSection is the Gormes-owned `gormes setup profiles` section
+// (owned divergence: Hermes has no setup profiles section — Hermes profiles
+// are separate ~/.hermes-<name> homes via hermes_cli/profiles.py, never a
+// setup section). It reuses the profile command seams
+// (defaultProfileCommandSeams) for enumeration/creation and the real
+// internal/config TOML round-trip (config.WriteTOMLValue) to persist a
+// per-profile workspace LIST into the SELECTED profile's own config.toml.
+// Interactive only — non-interactive/no-TTY returns errSetupRequiresTTY so
+// the shipped chrome suppresses any false completion footer.
+func runSetupProfilesSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
+	if nonInteractive || !seams.IsTTY() {
+		return errSetupRequiresTTY
+	}
+	return runSetupProfilesInteractive(cmd, defaultProfileCommandSeams())
+}
+
+func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams) error {
+	out := cmd.OutOrStdout()
+	known, err := pseams.ListKnownProfiles()
+	if err != nil {
+		return fmt.Errorf("list profiles: %w", err)
+	}
+	active := "default"
+	if pseams.ReadActiveProfileName != nil {
+		if a, aerr := pseams.ReadActiveProfileName(); aerr == nil && strings.TrimSpace(a) != "" {
+			active = strings.TrimSpace(a)
+		}
+	}
+	listProfiles := func(names []string) {
+		fmt.Fprintln(out, "\nKnown profiles:")
+		for _, name := range names {
+			marker := ""
+			if name == active {
+				marker = " (active)"
+			}
+			fmt.Fprintf(out, "  - %s%s\n", name, marker)
+		}
+	}
+
+	fmt.Fprintln(out, "\nManage Gormes profiles and their workspaces.")
+	listProfiles(known)
+
+	newName, err := promptString(cmd, "\nCreate a new profile? Enter a name (blank to skip): ", "")
+	if err != nil {
+		return err
+	}
+	if newName = strings.TrimSpace(newName); newName != "" {
+		if pseams.ValidateProfileName != nil {
+			if verr := pseams.ValidateProfileName(newName); verr != nil {
+				return fmt.Errorf("invalid profile name %q: %w", newName, verr)
+			}
+		}
+		if pseams.CreateProfile == nil {
+			return fmt.Errorf("profile creation seam unavailable")
+		}
+		if _, cerr := pseams.CreateProfile(newName, false); cerr != nil {
+			return fmt.Errorf("create profile %q: %w", newName, cerr)
+		}
+		fmt.Fprintf(out, "Created profile %q (~/.gormes/profiles/%s).\n", newName, newName)
+		if refreshed, rerr := pseams.ListKnownProfiles(); rerr == nil {
+			known = refreshed
+		}
+		listProfiles(known)
+	}
+
+	selected, err := promptString(cmd, fmt.Sprintf("\nSelect a profile to set workspaces for [%s]: ", active), active)
+	if err != nil {
+		return err
+	}
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		selected = active
+	}
+	if pseams.ResolveProfileRoot == nil {
+		return fmt.Errorf("profile root seam unavailable")
+	}
+	root, err := pseams.ResolveProfileRoot(selected)
+	if err != nil {
+		return fmt.Errorf("resolve profile %q: %w", selected, err)
+	}
+
+	wsInput, err := promptString(cmd, "Workspace directories (comma-separated, blank to keep current): ", "")
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(wsInput) == "" {
+		fmt.Fprintf(out, "No workspace change for profile %q.\n", selected)
+		return nil
+	}
+
+	profileConfigPath := filepath.Join(root, "config.toml")
+	if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.workspaces", wsInput); err != nil {
+		return fmt.Errorf("persist workspaces for profile %q: %w", selected, err)
+	}
+	fmt.Fprintf(out, "Set %d workspace(s) for profile %q in %s.\n",
+		len(parseSetupWorkspaceList(wsInput)), selected, profileConfigPath)
+	return nil
+}
+
+// parseSetupWorkspaceList splits the comma-separated workspace input the same
+// way the internal/config writer coerces agents.defaults.workspaces, so the
+// confirmation count matches what is persisted.
+func parseSetupWorkspaceList(value string) []string {
+	out := make([]string, 0)
+	for _, part := range strings.Split(value, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func runSetupBindingsSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
