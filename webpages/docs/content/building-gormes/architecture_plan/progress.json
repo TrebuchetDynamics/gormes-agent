@@ -61460,7 +61460,7 @@
               "done_signal": [
                 "Backlog is per-module; agents/tools load only the relevant module; single logical backlog + internal/progress.Load contract preserved; all consumers migrated; AGENTS.md/skills updated."
               ],
-              "note": "AGREED MODULE TAXONOMY (2026-05-16 planner pass, user list reconciled with gormes-hermes-parity Source Buckets in references/behavior-atoms.md; the user's fine names fold into these canonical modules): (1) commands — CLI command-tree/aliases; (2) setup-config-install — setup/config/install/migration + doctor + profiles; (3) gateway-channels — gateway + channels + navivox; (4) tools — tools/schemas incl. tts/stt voice tools; (5) providers-auth — providers/auth/model-routing; (6) tui — terminal UX; (7) memory-sessions-skills — memory/sessions/skills/plugins (goncho as sub-bucket); (8) orchestrator — plannerloop/builderloop + learning_loop + kanban; (9) docs — docs/examples/progress-tooling. LAYOUT DECISION: C1 ships a PHASE-keyed split (index.json keys = phase IDs) — that is the canonical PHYSICAL layout now and already loads only one phase's working set. A true per-MODULE physical split needs a deterministic module(row) mapping; rows have NO module tag and execution_owner {docs,gateway,memory,provider,tools,skills,orchestrator,tui,goncho} is too coarse for the fine modules above, so child C5a adds an optional `module` row key + deterministic execution_owner+phase default + validator-neutral backfill as the prerequisite for per-module member files (C5). Until C5a+C5 ship, 'module' is a logical view over the phase-keyed split. DAG: C1(SHIPPED)→C2→C3→C4; C1→C5a; {C2,C3,C4,C5a}→C5. Builder-ready now: C2 and C5a (only blocker C1 shipped). C3 after C2; C4 after C2+C3; C5 batched (one module/slice, smallest=docs/progress-tooling first) after C2+C3+C4+C5a. Single logical backlog preserved throughout (physically multiple files, all access via internal/progress.Load — never hand-parse member files). ROW A + ROW B + C1 already SHIPPED. Recommended chain: gormes-tdd-slice for C2 then C5a, then C3, then gormes-builder for C4, then C5 batches."
+              "note": "AGREED MODULE TAXONOMY (2026-05-16 planner pass, user list reconciled with gormes-hermes-parity Source Buckets in references/behavior-atoms.md; the user's fine names fold into these canonical modules): (1) commands — CLI command-tree/aliases; (2) setup-config-install — setup/config/install/migration + doctor + profiles; (3) gateway-channels — gateway + channels + navivox; (4) tools — tools/schemas incl. tts/stt voice tools; (5) providers-auth — providers/auth/model-routing; (6) tui — terminal UX; (7) memory-sessions-skills — memory/sessions/skills/plugins (goncho as sub-bucket); (8) orchestrator — plannerloop/builderloop + learning_loop + kanban; (9) docs — docs/examples/progress-tooling. LAYOUT DECISION: C1 ships a PHASE-keyed split (index.json keys = phase IDs) — that is the canonical PHYSICAL layout now and already loads only one phase's working set. A true per-MODULE physical split needs a deterministic module(row) mapping; rows have NO module tag and execution_owner {docs,gateway,memory,provider,tools,skills,orchestrator,tui,goncho} is too coarse for the fine modules above, so child C5a adds an optional `module` row key + deterministic execution_owner+phase default + validator-neutral backfill as the prerequisite for per-module member files (C5). Until C5a+C5 ship, 'module' is a logical view over the phase-keyed split. DAG: C1(SHIPPED)→C2→C3→C4; C1→C5a; {C2,C3,C4,C5a}→C5. Builder-ready now: C2 and C5a (only blocker C1 shipped). C3 after C2; C4 after C2+C3; C5 batched (one module/slice, smallest=docs/progress-tooling first) after C2+C3+C4+C5a. Single logical backlog preserved throughout (physically multiple files, all access via internal/progress.Load — never hand-parse member files). ROW A + ROW B + C1 already SHIPPED. Recommended chain: gormes-tdd-slice for C2 then C5a, then C3, then gormes-builder for C4, then C5 batches. C5 RESOLUTION (2026-05-16, after C1/C2/C3/C4/C5a all SHIPPED): the deferred phase-vs-module physical-key question is resolved to MODULE-KEYED (option b) — the user explicitly asked for per-MODULE working sets and phases are delivery-stage groupings, not subsystems, so a phase-keyed split would not deliver the ask. Smallest safe sequence: child C5b (builder-ready) generalizes the split layout to support a `keyBy: phase|module` mode — splitIndex records the keying + member list, WriteSplit/loadSplit honor it, Merge stays keying-agnostic (reconstructs the identical Progress regardless), all BEHIND the existing internal/progress.Load/SaveProgress API with NO on-disk flip (pure additive, mirrors C1/C5a; Load/canonicalSource/isSplitLayout unchanged because they only detect a split *directory* — keying is internal to index.json). Then C5 remains the operator-gated batched-FLIP parent: depends on C5b, one module-batch per slice, first = docs/progress-tooling (smallest, dogfoods), each flip one atomic git-reversible commit in a quiet fleet moment. 'module' stops being only-logical once C5b lands; physical per-module files arrive per C5 batch."
             },
             {
               "name": "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
@@ -61724,6 +61724,62 @@
               "note": "SHIPPED 2026-05-16 see git log — AGENTS.md + 4 skills (planner/builder/hermes-parity/skill-manager) state single LOGICAL backlog via internal/progress.Load (monolith-or-split transparent, never hand-parse, monolith-on-disk-today/split-pending-C5). Write-scope correction: gormes-tdd-slice not edited (no backlog-contract block to amend)."
             },
             {
+              "name": "Backlog split C5b: module-keyed split layout behind the existing API",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "Resolve the umbrella's deferred phase-vs-module physical-key decision (RESOLVED: module-keyed — see umbrella note C5 RESOLUTION) by generalizing the C1 split layout to support a keyBy mode (phase | module) BEHIND the existing internal/progress.Load/SaveProgress API, with NO on-disk flip (pure additive, mirrors the C1/C5a additive precedent). Today internal/progress/split.go keys the split by phase: splitIndex={Meta, Phases []string} + phases/<id>.json. Generalize so the on-disk index records the keying mode + member list and members can be grouped by progress.Module(it,phaseID,subphaseID) (the C5a field/derivation). CRITICAL design content: a module-keyed member file holds rows from MULTIPLE phases/subphases, so the member format MUST retain each row's (phaseID, subphaseID) identity so Merge reconstructs the byte-identical monolithic *Progress (rows reassembled into their real phases/subphases, NOT into a synthetic module phase). Phase-keyed layout (C1) MUST keep working byte-identically (default/back-compat — existing C1/C2/C3 tests stay green). internal/progress.Load, progressctl.canonicalSource, and health.go isSplitLayout are UNCHANGED — they only detect a split *directory*; the keying is internal to index.json so dual-layout transparency, the `progress split` command, and lossless Merge all still hold. No on-disk canonical flip in this slice; the monolith stays canonical. Owned Gormes infra.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "If a split layout's declared keying is unknown/malformed, Load returns ErrMalformedSplit (never a silently partial or mis-keyed backlog); the phase-keyed and monolith paths keep working unchanged.",
+              "fixture": "internal/progress/split_test.go",
+              "source_refs": [
+                "internal/progress/split.go Split/Merge/WriteSplit/loadSplit/splitIndex/ErrMalformedSplit (C1 substrate to generalize)",
+                "internal/progress/module.go Module()/BackfillModules + internal/progress/progress.go Item.Module (C5a key)",
+                "internal/progress/progress.go Load + internal/progressctl/progressctl.go canonicalSource + internal/progress/health.go isSplitLayout/SaveProgress (must stay keying-agnostic)",
+                "internal/progress/progress_marshal.go (stable marshal — byte-stable round-trip basis) ; internal/progress/preservation_test.go ; the umbrella note C5 RESOLUTION + agreed module taxonomy"
+              ],
+              "ready_when": [
+                "C1 (Split/Merge/WriteSplit) and C5a (Module/BackfillModules) shipped; the umbrella C5 RESOLUTION (module-keyed) is recorded; the byte-stable Split/Merge round-trip is the proven template."
+              ],
+              "not_ready_when": [
+                "Any on-disk canonical flip happens in this slice (C5b is additive only — the flip is C5); the phase-keyed C1 format stops round-tripping byte-identically; module-keyed Merge is not byte-stable or loses a row's real phase/subphase placement; internal/progress.Load/SaveProgress public signatures change; progressctl.canonicalSource/health.go isSplitLayout need keying-specific logic; a consumer/generator regresses; the monolith stops being canonical.",
+                "Built as a big-bang that also migrates real rows."
+              ],
+              "blocked_by": [
+                "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
+                "Backlog split C5a: optional per-row module key + deterministic derivation + backfill"
+              ],
+              "acceptance": [
+                "internal/progress split layout supports keyBy phase (default, byte-identical to C1) and module; WriteSplit(module) groups rows by progress.Module and the index records the keying + member list.",
+                "Merge(load(module-keyed split)) is byte-stable through SaveProgress and reconstructs the identical monolithic *Progress with every row in its real phase/subphase (test asserts merge(split-by-module(canonical)) byte-identical to the stable-marshalled canonical, for a multi-phase/multi-module fixture).",
+                "Phase-keyed split + monolith paths unchanged (existing internal/progress + internal/progressctl tests green); internal/progress.Load/SaveProgress signatures unchanged; `go test ./... -count=1` + `go run ./cmd/progress validate` green; malformed/unknown keying → ErrMalformedSplit.",
+                "No real row moved on disk; the monolithic progress.json remains the canonical on-disk form (C5b does not flip)."
+              ],
+              "write_scope": [
+                "internal/progress/split.go",
+                "internal/progress/split_test.go",
+                "cmd/progress/main.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/progress ./internal/progressctl -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Module-keyed split round-trips byte-identically behind the unchanged Load/SaveProgress API; phase-keyed + monolith unchanged; no on-disk flip; consumers/generators green."
+              ],
+              "note": "Module-split umbrella child C5b (the C5-RESOLUTION prerequisite). Builder-ready: only blockers C1+C5a are SHIPPED; independent of C2/C3/C4 (additive, no flip, no consumer change). Smallest safe step toward the user's per-module ask. Recommended chain: gormes-tdd-slice. The actual operator-gated per-module on-disk flip stays in the C5 parent (blocked_by this row). Keep the monolith canonical until C5 batches."
+            },
+            {
               "name": "Backlog split C5: per-module-batch on-disk row migration",
               "priority": "P2",
               "status": "planned",
@@ -61745,16 +61801,17 @@
                 "the umbrella row's agreed module taxonomy"
               ],
               "ready_when": [
-                "C2 + C3 + C4 + C5a all shipped; the target module batch is selected; the C1 Split/Merge round-trip is proven byte-stable for that batch."
+                "C2 + C3 + C4 + C5a + C5b all shipped (C5b provides the module-keyed split layout this flip writes); the target module batch is selected; the module-keyed Split/Merge round-trip is proven byte-stable for that batch; the operator has chosen a quiet fleet moment for the atomic flip commit."
               ],
               "not_ready_when": [
-                "Built as a big-bang rewrite (more than one module batch in one slice); any row migrated lossily or with non-byte-stable Merge; internal/progress.Load public contract broken; a consumer/generator left reading a now-missing monolith; docs/landing generators silently diverged; AGENTS.md/skills not yet updated (C4); the C5a module key not yet shipped."
+                "Built as a big-bang rewrite (more than one module batch in one slice); any row migrated lossily or with non-byte-stable Merge; internal/progress.Load public contract broken; a consumer/generator left reading a now-missing monolith; docs/landing generators silently diverged; AGENTS.md/skills not yet updated (C4); the C5a module key or C5b module-keyed split layout not yet shipped; the flip is not a single atomic git-reversible commit."
               ],
               "blocked_by": [
                 "Backlog split C2: docs/landing generators read the split layout",
                 "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout",
                 "Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout",
-                "Backlog split C5a: optional per-row module key + deterministic derivation + backfill"
+                "Backlog split C5a: optional per-row module key + deterministic derivation + backfill",
+                "Backlog split C5b: module-keyed split layout behind the existing API"
               ],
               "acceptance": [
                 "Per-module member files exist for migrated batches; each batch was a lossless byte-stable Split→Merge round-trip (test proves merge(split(canonical)) byte-identical before/after the move).",
@@ -61774,7 +61831,7 @@
               "done_signal": [
                 "Rows physically per-module via lossless byte-stable batched migration; all consumers/generators green; single logical backlog + internal/progress.Load contract preserved."
               ],
-              "note": "Module-split umbrella child C5 (specified batched-migration parent). NOT builder-ready until C2+C3+C4+C5a ship. First concrete batch = the `docs`/progress-tooling subsystem (smallest, lowest-traffic, dogfoods the split); that batch becomes a builder-ready child once C5a+C4 land. One module batch per slice — never big-bang."
+              "note": "Module-split umbrella child C5 (specified batched-migration PARENT — the operator-gated on-disk flip). RESOLVED module-keyed (umbrella note C5 RESOLUTION). NOT builder-ready: needs C5b (module-keyed split layout) shipped AND an operator decision to flip. C1/C2/C3/C4/C5a all SHIPPED; C5b is the builder-ready prerequisite next. First concrete flip batch = the `docs`/progress-tooling subsystem (smallest, lowest-traffic, dogfoods), one module/slice, each flip a single atomic git-reversible commit in a quiet fleet moment — never big-bang. The planner does not flip; the operator chooses when."
             }
           ]
         },

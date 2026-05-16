@@ -1446,6 +1446,7 @@ classification and row-backed implementation queue.
 - [x] Backlog split C3: migrate remaining backlog consumers and the write path to the split layout
 - [x] Backlog split C5a: optional per-row module key + deterministic derivation + backfill
 - [x] Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout
+- [ ] Backlog split C5b: module-keyed split layout behind the existing API
 - [ ] Backlog split C5: per-module-batch on-disk row migration
 
 ### 8.G — Community & External Contributions ✅
