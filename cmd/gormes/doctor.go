@@ -32,6 +32,7 @@ import (
 func newDoctorCommand() *cobra.Command {
 	cmd := buildDoctorCmd()
 	cmd.Flags().Bool("offline", false, "skip the provider health check and validate local runtime checks")
+	cmd.Flags().Bool("fix", false, "auto-remediate the source-backed fixable issues (config schema migrate), then re-report fixed vs still-manual")
 	cmd.Flags().Bool("json", false, "emit a machine-readable {checks: [...]} JSON document (suitable for fleet-health monitoring)")
 	cmd.Flags().String("target", "", "report first-run readiness for a setup target (terminal, telegram, whatsapp, discord, slack, navivox)")
 	return cmd
@@ -44,6 +45,8 @@ func newDoctorCommand() *cobra.Command {
 type doctorReporter struct {
 	w         io.Writer
 	asJSON    bool
+	fix       bool
+	fixApply  func(class string) doctor.DoctorFixOutcome
 	collected []doctor.CheckResult
 	failed    bool
 	target    *doctorTargetReadinessJSON
@@ -53,8 +56,8 @@ func (r *doctorReporter) Add(c doctor.CheckResult) {
 	if c.Status == doctor.StatusFail {
 		r.failed = true
 	}
+	r.collected = append(r.collected, c)
 	if r.asJSON {
-		r.collected = append(r.collected, c)
 		return
 	}
 	fmt.Fprint(r.w, c.Format())
@@ -82,6 +85,16 @@ type doctorTargetReadinessJSON struct {
 
 func (r *doctorReporter) Finalize() error {
 	if !r.asJSON {
+		issues := doctor.CollectDoctorIssues(r.collected)
+		fmt.Fprint(r.w, doctor.RenderDoctorIssuesSummary(issues))
+		if r.fix {
+			apply := r.fixApply
+			if apply == nil {
+				apply = doctorApplyFix
+			}
+			outcomes := doctor.RunDoctorFix(apply)
+			fmt.Fprint(r.w, doctor.RenderDoctorFixReport(outcomes, residualManualIssues(issues)))
+		}
 		return nil
 	}
 	checks := r.collected
@@ -111,6 +124,59 @@ var doctorNewDiscordSession = func(token string) error {
 	return err
 }
 
+// doctorApplyFix performs the real, source-backed remediation for one
+// auto-fixable class. The config-version class is migrated through the
+// existing config.MigrateConfigFile seam — a pure local file op, so it
+// runs identically with or without `--offline` (no network remediation).
+// Wording is Gormes-owned (`gormes config migrate`, never `hermes`).
+func doctorApplyFix(class string) doctor.DoctorFixOutcome {
+	switch class {
+	case doctor.FixClassConfigVersion:
+		res, err := config.MigrateConfigFile(config.ConfigPath())
+		if err != nil {
+			return doctor.DoctorFixOutcome{
+				Class:  class,
+				Name:   "config schema",
+				Detail: fmt.Sprintf("%v; fix manually with `gormes config migrate`", err),
+			}
+		}
+		if res.Wrote {
+			return doctor.DoctorFixOutcome{
+				Class:  class,
+				Name:   "config schema",
+				Fixed:  true,
+				Detail: fmt.Sprintf("migrated _config_version v%d→v%d", res.FromVersion, res.ToVersion),
+			}
+		}
+		return doctor.DoctorFixOutcome{
+			Class:     class,
+			Name:      "config schema",
+			AlreadyOK: true,
+			Detail:    fmt.Sprintf("_config_version v%d", res.ToVersion),
+		}
+	}
+	return doctor.DoctorFixOutcome{Class: class, Name: class, AlreadyOK: true}
+}
+
+// residualManualIssues are the collected WARN/FAILs that `--fix` does not
+// auto-remediate (non-fixable, or a fixable class not in the auto-fix
+// registry such as the guided published-symlink repair). They are
+// reported as still-manual rather than silently dropped.
+func residualManualIssues(issues []doctor.DoctorIssue) []doctor.DoctorIssue {
+	auto := make(map[string]bool)
+	for _, c := range doctor.AutoFixableClasses() {
+		auto[c] = true
+	}
+	manual := make([]doctor.DoctorIssue, 0, len(issues))
+	for _, is := range issues {
+		if auto[is.Class] {
+			continue
+		}
+		manual = append(manual, is)
+	}
+	return manual
+}
+
 func buildDoctorCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:           "doctor",
@@ -121,7 +187,8 @@ func buildDoctorCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			errOut := cmd.ErrOrStderr()
 			asJSON, _ := cmd.Flags().GetBool("json")
-			reporter := &doctorReporter{w: out, asJSON: asJSON}
+			fix, _ := cmd.Flags().GetBool("fix")
+			reporter := &doctorReporter{w: out, asJSON: asJSON, fix: fix}
 			// Defer Finalize so JSON output renders even on early-return
 			// failure paths. Errors from finalize are best-effort logged.
 			defer func() {
