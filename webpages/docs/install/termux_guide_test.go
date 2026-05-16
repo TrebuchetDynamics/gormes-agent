@@ -46,6 +46,36 @@ func TestLinuxMacInstallGuideDocumentsTermuxReleaseFirstPath(t *testing.T) {
 	}
 }
 
+func TestLinuxMacInstallGuideDocumentsTermuxRemoteExecutionBoundary(t *testing.T) {
+	guide := readRepoFileTermuxGuide(t, "webpages/docs/content/install/linux-macos.md")
+	readme := readRepoFileTermuxGuide(t, "README.md")
+
+	for _, want := range []string{
+		"phone is the Gormes controller",
+		"remote host is the heavy executor",
+		"ssh workstation",
+		"tmux new -A -s gormes-build",
+		"GORMES_REMOTE_HOST",
+		"remote browser automation",
+		"GPU/local model inference",
+		"Docker builds",
+		"large `go test ./...` runs",
+		"do not add a new top-level `gormes run` command",
+		"gormes chat -q",
+		"gormes gateway",
+	} {
+		if !strings.Contains(guide, want) {
+			t.Fatalf("Termux remote execution guide missing %q", want)
+		}
+	}
+	if strings.Contains(guide, "local Termux Docker daemon") {
+		t.Fatalf("Termux guide must not imply Docker runs locally on Android")
+	}
+	if !strings.Contains(readme, "Termux can be the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds") {
+		t.Fatalf("README missing Termux remote-execution positioning")
+	}
+}
+
 func readRepoFileTermuxGuide(t *testing.T, rel string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
