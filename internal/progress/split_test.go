@@ -131,3 +131,121 @@ func TestLoadMalformedSplitReturnsTypedError(t *testing.T) {
 		t.Fatalf("monolithic Load must still work: %v", err)
 	}
 }
+
+// assertStillSplit fails unless dir is a directory carrying the split index
+// (i.e. the write preserved the split layout instead of collapsing it into a
+// single monolithic file).
+func assertStillSplit(t *testing.T, dir string) {
+	t.Helper()
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		t.Fatalf("split layout collapsed: %q is not a directory (err=%v)", dir, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "index.json")); err != nil {
+		t.Fatalf("split index missing after write: %v", err)
+	}
+}
+
+// (C3.1) SaveProgress against a split-layout directory round-trips back into
+// the split layout — it never collapses the split into a monolithic file,
+// and the result is byte-stable through the canonical marshaller.
+func TestSaveProgressPreservesSplitLayout(t *testing.T) {
+	splitDir := filepath.Join(t.TempDir(), "split")
+	if err := WriteSplit(splitDir, splitFixture()); err != nil {
+		t.Fatalf("WriteSplit: %v", err)
+	}
+
+	mutated := splitFixture()
+	mutated.Phases["1"].Subphases["1.A"].Items[0].Note = "C3 mutation"
+
+	if err := SaveProgress(splitDir, mutated); err != nil {
+		t.Fatalf("SaveProgress(splitDir): %v", err)
+	}
+	assertStillSplit(t, splitDir)
+
+	got, err := Load(splitDir)
+	if err != nil {
+		t.Fatalf("Load(splitDir) after save: %v", err)
+	}
+	if got.Phases["1"].Subphases["1.A"].Items[0].Note != "C3 mutation" {
+		t.Fatalf("mutation not persisted into the split layout, got %q",
+			got.Phases["1"].Subphases["1.A"].Items[0].Note)
+	}
+	if a, b := saveBytes(t, got), saveBytes(t, mutated); !reflect.DeepEqual(a, b) {
+		t.Fatalf("split-preserving save must be byte-stable through the canonical marshaller (%d vs %d bytes)", len(a), len(b))
+	}
+}
+
+// (C3.2) The builderloop write path (ApplyHealthUpdates) preserves the split
+// layout for both the normal SaveProgress branch and the single-empty-health
+// raw-splice branch (which must not byte-splice a directory).
+func TestApplyHealthUpdatesPreservesSplitLayout(t *testing.T) {
+	t.Run("normal health mutation", func(t *testing.T) {
+		splitDir := filepath.Join(t.TempDir(), "split")
+		if err := WriteSplit(splitDir, splitFixture()); err != nil {
+			t.Fatalf("WriteSplit: %v", err)
+		}
+		err := ApplyHealthUpdates(splitDir, []HealthUpdate{{
+			PhaseID: "1", SubphaseID: "1.A", ItemName: "a1",
+			Mutate: func(h *RowHealth) { h.AttemptCount = 3; h.ConsecutiveFailures = 2 },
+		}})
+		if err != nil {
+			t.Fatalf("ApplyHealthUpdates(splitDir): %v", err)
+		}
+		assertStillSplit(t, splitDir)
+		got, err := Load(splitDir)
+		if err != nil {
+			t.Fatalf("Load after ApplyHealthUpdates: %v", err)
+		}
+		h := got.Phases["1"].Subphases["1.A"].Items[0].Health
+		if h == nil || h.AttemptCount != 3 || h.ConsecutiveFailures != 2 {
+			t.Fatalf("health update not persisted into split layout: %+v", h)
+		}
+	})
+
+	t.Run("single empty-health update (raw-splice branch)", func(t *testing.T) {
+		splitDir := filepath.Join(t.TempDir(), "split")
+		if err := WriteSplit(splitDir, splitFixture()); err != nil {
+			t.Fatalf("WriteSplit: %v", err)
+		}
+		// A single update whose Mutate leaves Health zero-valued triggers
+		// the insertEmptyHealthBlock raw-byte-splice path in the monolith
+		// case; on a split layout it must fall back to the typed write.
+		err := ApplyHealthUpdates(splitDir, []HealthUpdate{{
+			PhaseID: "1", SubphaseID: "1.A", ItemName: "a1",
+			Mutate: func(h *RowHealth) {},
+		}})
+		if err != nil {
+			t.Fatalf("ApplyHealthUpdates empty-health(splitDir): %v", err)
+		}
+		assertStillSplit(t, splitDir)
+		got, err := Load(splitDir)
+		if err != nil {
+			t.Fatalf("Load after empty-health update: %v", err)
+		}
+		if got.Phases["1"].Subphases["1.A"].Items[0].Health == nil {
+			t.Fatal("empty health block must be present after split-layout update")
+		}
+	})
+}
+
+// (C3.3) The monolithic path is byte-for-byte unchanged: a regular file stays
+// a regular file and a fresh (non-existent) path still creates a monolith.
+func TestSaveProgressMonolithDefaultUnchanged(t *testing.T) {
+	p := splitFixture()
+	fresh := filepath.Join(t.TempDir(), "progress.json")
+	if err := SaveProgress(fresh, p); err != nil {
+		t.Fatalf("SaveProgress(fresh file): %v", err)
+	}
+	fi, err := os.Stat(fresh)
+	if err != nil || fi.IsDir() {
+		t.Fatalf("fresh path must be a monolithic regular file, got dir=%v err=%v", fi != nil && fi.IsDir(), err)
+	}
+	got, err := Load(fresh)
+	if err != nil {
+		t.Fatalf("Load monolith: %v", err)
+	}
+	if !reflect.DeepEqual(saveBytes(t, got), saveBytes(t, p)) {
+		t.Fatal("monolithic SaveProgress behavior must be byte-for-byte unchanged")
+	}
+}
