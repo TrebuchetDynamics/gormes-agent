@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navivox/core/channel/navivox_channel.dart';
 import 'package:navivox/core/channel/navivox_channel_provider.dart';
+import 'package:navivox/features/chat/screens/chat_screen.dart';
 import 'package:navivox/router/app_router.dart';
 
 import '../../support/test_navivox_channel.dart';
@@ -143,6 +144,31 @@ void main() {
     expect(find.text('Profile details'), findsOneWidget);
     expect(find.text('Mineru Builder\nmineru'), findsOneWidget);
     expect(find.text('Edit profile'), findsOneWidget);
+  });
+
+  testWidgets('deep-linked chat route selects the profile scope', (
+    tester,
+  ) async {
+    final channel = TestNavivoxChannel()
+      ..seedServers(_servers, activeServerId: 'local')
+      ..seedProfileContacts(_contacts);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [navivoxChannelProvider.overrideWithValue(channel)],
+        child: const MaterialApp(
+          home: ChatScreen(serverId: 'office', profileId: 'support'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(channel.selectedProfileScope, (
+      serverId: 'office',
+      profileId: 'support',
+    ));
+    expect(find.text('Support Triage'), findsOneWidget);
+    expect(find.byKey(const ValueKey('chat-active-profile')), findsOneWidget);
   });
 }
 
