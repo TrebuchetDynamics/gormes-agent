@@ -47,6 +47,9 @@ const (
 	UpdateReleaseComponentSnapshot       UpdateReleaseComponent = "snapshot"
 	UpdateReleaseComponentBinary         UpdateReleaseComponent = "binary"
 	UpdateReleaseComponentChecksum       UpdateReleaseComponent = "checksum"
+	UpdateReleaseComponentManifest       UpdateReleaseComponent = "manifest"
+	UpdateReleaseComponentAssets         UpdateReleaseComponent = "assets"
+	UpdateReleaseComponentSkills         UpdateReleaseComponent = "skills"
 	UpdateReleaseComponentSourceCheckout UpdateReleaseComponent = "source_checkout"
 )
 
@@ -120,6 +123,9 @@ func BuildUpdateReleasePlan(opts UpdateReleasePlanOptions) UpdateReleasePlan {
 			UpdateReleaseComponentSnapshot,
 			UpdateReleaseComponentBinary,
 			UpdateReleaseComponentChecksum,
+			UpdateReleaseComponentManifest,
+			UpdateReleaseComponentAssets,
+			UpdateReleaseComponentSkills,
 		)
 	case UpdateInstallKindManagedSource:
 		plan.Components = append(plan.Components, UpdateReleaseComponentSourceCheckout)
