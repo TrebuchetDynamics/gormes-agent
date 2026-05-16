@@ -61313,12 +61313,12 @@
             {
               "name": "Stop git-tracking duplicate landing progress mirrors (build-time generate)",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
-              "contract": "The canonical backlog webpages/docs/content/building-gormes/architecture_plan/progress.json (5.2 MB) is duplicated VERBATIM into two git-tracked landing mirrors, so every progress edit is a ~3-file multi-MB diff (~10.4 MB pure duplication tracked). Make both mirrors build-time generated, not committed. CONFIRMED generation today: (1) webpages/landing/src/data/progress.json is COPIED by webpages/landing/scripts/sync-assets.mjs:101-103 from the canonical file; (2) webpages/landing/legacy/go-renderer/internal/site/data/progress.json is consumed via `//go:embed data/progress.json` in webpages/landing/legacy/go-renderer/internal/site/progress.go:13 (so it MUST exist as a file in that package dir at `go build`/`go test` time — cannot simply gitignore without a regenerate-before-build step or repointing the embed). Approach: (a) add both mirror paths to .gitignore and `git rm --cached` them; (b) ensure `go run ./cmd/progress write` (and/or sync-assets.mjs) regenerates BOTH from the canonical file; (c) handle the go:embed constraint so `go test ./webpages/... -count=1` and the landing build still pass from a clean checkout — either repoint the embed at a generated path produced before compilation, or have the test/build harness regenerate the embedded file first (the row's builder must pick the smallest safe option and document it). Do NOT change the canonical file format or the rendered site output. Owned Gormes infra cleanup (not Hermes parity).",
-              "contract_status": "draft",
+              "contract": "The canonical backlog webpages/docs/content/building-gormes/architecture_plan/progress.json (5.2 MB) is duplicated VERBATIM into two git-tracked landing mirrors, so every progress edit is a ~3-file multi-MB diff (~10.4 MB pure duplication tracked). Make both mirrors build-time generated, not committed. CONFIRMED generation today: (1) webpages/landing/src/data/progress.json is COPIED by webpages/landing/scripts/sync-assets.mjs:101-103 from the canonical file; (2) webpages/landing/legacy/go-renderer/internal/site/data/progress.json is consumed via `//go:embed data/progress.json` in webpages/landing/legacy/go-renderer/internal/site/progress.go:13 (so it MUST exist as a file in that package dir at `go build`/`go test` time — cannot simply gitignore without a regenerate-before-build step or repointing the embed). Approach: (a) add both mirror paths to .gitignore and `git rm --cached` them; (b) ensure `go run ./cmd/progress write` (and/or sync-assets.mjs) regenerates BOTH from the canonical file; (c) handle the go:embed constraint so `go test ./webpages/... -count=1` and the landing build still pass from a clean checkout — either repoint the embed at a generated path produced before compilation, or have the test/build harness regenerate the embedded file first (the row's builder must pick the smallest safe option and document it). Do NOT change the canonical file format or the rendered site output. Owned Gormes infra cleanup (not Hermes parity). SHIPPED 2026-05-16 (gormes-tdd-slice): src mirror was DEAD (no Astro consumer) → removed from progressctl + sync-assets.mjs, untracked via webpages/landing/.gitignore (negation→explicit ignore, benchmarks.json preserved); legacy go:embed mirror kept but written SLIM (135 KB status/name-only via slimProgress, 5.2 MB→135 KB, ~38×) so go:embed stays clean-build-valid and rendered output is byte-equivalent.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -61365,17 +61365,17 @@
               "done_signal": [
                 "Mirrors untracked + build-time generated; clean-checkout build/tests green; progress edits no longer triple-diff; site output byte-unchanged."
               ],
-              "note": "Quick win #1 from the 2026-05-16 backlog-efficiency assessment (5.2 MB ×3 tracked, 98% archival). Land BEFORE the module-split umbrella (shrinks per-edit churn, makes the split diff smaller/safer). Sibling quick win: 'Compact completed-row shipped-evidence notes ...'. Recommended chain: gormes-tdd-slice. Central risk: the go:embed in webpages/landing/legacy/go-renderer/internal/site/progress.go:13 — the builder must keep a clean checkout buildable."
+              "note": "Quick win #1 — SHIPPED 2026-05-16 (gormes-tdd-slice). Recon revealed two different problems needing two different safe fixes: (a) webpages/landing/src/data/progress.json was DEAD — no Astro/JS consumer imports it (only marketing string literals mention 'progress.json'); (b) the legacy go-renderer mirror is consumed via //go:embed and only ever reads phase/subphase names + derived statuses + Stats (never per-item prose). Fix: internal/progressctl/progressctl.go — progressPaths drops the src verbatim mirror (siteProgress=nil) and adds siteProgressSlim (the legacy embed); Write() now calls writeSlimProgress(slimProgress(p), legacyEmbed) which marshals a status/name-only reduced Progress (DerivedStatus/Stats provably identical) → 5.2 MB → 138,776 B (~38× smaller, go:embed stays clean-build-valid). webpages/landing/scripts/sync-assets.mjs: removed the src/data/progress.json copy pair. webpages/landing/.gitignore: replaced the `!src/data/progress.json` force-include negation with an explicit `src/data/progress.json` ignore placed after `!src/data/` (last-match wins) — benchmarks.json still tracked. git rm --cached the dead src mirror (now untracked + ignored). Tests: internal/progressctl/progressctl_test.go — replaced the stale TestProgressPathsMirrorSiteProgressToTrackedDataFiles with TestProgressPathsDropDeadSrcMirrorAndSlimLegacyEmbed + TestSlimProgressPreservesRenderInputsButDropsProse (Stats/DerivedStatus/names preserved, prose dropped, smaller). Write-scope corrections (recorded, tdd-slice precedent): the copier lived in internal/progressctl/progressctl.go (+ _test), not cmd/progress/main.go as the row assumed; and the operative ignore was the nested webpages/landing/.gitignore negation, not root .gitignore. Gates: go test ./internal/progressctl ./internal/progress -count=1 ok; go-renderer www.gormes.ai/internal/site ok (phase count + N/M-shipped regex unchanged); go test ./webpages/docs ./webpages/... -count=1 ok; clean-checkout sim (rm slim embed → cmd/progress write regenerates 138,776 B → go-renderer builds) ok; go run ./cmd/progress validate (9 phases); git diff --check clean. Net: per-progress-edit diff drops from ~3×5.2 MB to canonical + a ~135 KB slim mirror; ~10.3 MB tracked duplication eliminated. tdd-slice does not commit. Next in chain: ROW B (compact completed-row notes), then C1."
             },
             {
               "name": "Compact completed-row shipped-evidence notes to a one-line pointer",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "1001 of 1020 progress rows are status=complete and carry long multi-paragraph SHIPPED-evidence `note` prose that is redundant with git history (the commit holds the detail). Add a Gormes-owned compaction that rewrites a COMPLETED row's verbose `note` to a one-line pointer `SHIPPED <YYYY-MM-DD> <shortSHA|see git log> — <one-line behavior>`, PRESERVING name/status/contract_status/provenance/acceptance/contract/source_refs/write_scope (only the prose `note` is compacted — nothing else is lost; not_ready_when must forbid touching any other field). Prefer extending cmd/progress (e.g. a `go run ./cmd/progress compact` maintenance subcommand) over a new binary; the compaction must be idempotent, must NOT change `go run ./cmd/progress validate` semantics or the progress-row contract schema, and must be fully reversible by git. Scope decision: SHIP the compaction helper + an ONGOING rule (future completions write a one-line note) and a GUARDED opt-in one-time sweep of existing complete rows (the bulk sweep is a large mechanical diff — keep it a separate explicit invocation, not automatic, so it can land as its own commit). Materially reduces byte size without losing provenance (git still holds full evidence). Owned Gormes infra.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -61407,7 +61407,8 @@
                 "cmd/progress/main.go",
                 "internal/progress/compact.go",
                 "internal/progress/compact_test.go",
-                "internal/progress/progress.go",
+                "internal/progressctl/progressctl.go",
+                "internal/progressctl/progressctl_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -61419,7 +61420,7 @@
               "done_signal": [
                 "Completed-row notes compact to a one-line pointer with all other fields preserved; validate/tests green; size materially reduced; reversible by git."
               ],
-              "note": "Quick win #3 from the 2026-05-16 backlog-efficiency assessment. Independent of quick-win #1; both should land BEFORE the module-split umbrella (smaller file + less churn = safer split). Recommended chain: gormes-tdd-slice. Keep the one-time bulk sweep a separate explicit commit."
+              "note": "SHIPPED 2026-05-16 see git log — CompactCompletedNotes + `progress compact` (internal/progress/compact.go, internal/progressctl.Compact; not auto-run by write/validate). Idempotent; only completed-row notes rewritten; gates green."
             },
             {
               "name": "Module-split the progress backlog (per-subsystem files, parity-aligned)",
@@ -62351,11 +62352,13 @@
           ],
           "unblocks": [
             "Navivox connect-and-talk first screen",
-            "Navivox natural-language agent seed flow",
+            "Navivox profile contact summary API",
+            "Navivox natural-language profile seed flow",
+            "Navivox continuous voice command mode",
             "Navivox structured tool event cards",
             "Navivox safe config admin over HTTP",
             "Navivox voice run records",
-            "Navivox per-agent BYO voice profiles"
+            "Navivox per-profile BYO voice profiles"
           ],
           "acceptance": [
             "`rg -n 'serve --stdio|navivox pair|setup-host|dartssh2|NVOX|SSH stdio|fake-server' flutter-navivox docs/content/cli docs/content/building-gormes` returns only historical/deleted mentions that are explicitly labeled as removed.",
@@ -62433,7 +62436,9 @@
             "Navivox HTTP/WS documentation refresh"
           ],
           "unblocks": [
-            "Navivox natural-language agent seed flow",
+            "Navivox profile contact summary API",
+            "Navivox natural-language profile seed flow",
+            "Navivox continuous voice command mode",
             "Navivox structured tool event cards",
             "Navivox safe config admin over HTTP",
             "Navivox voice run records"
@@ -62471,10 +62476,167 @@
           }
         },
         {
+          "name": "Navivox profile contact summary API",
+          "priority": "P1",
+          "status": "planned",
+          "contract": "Expose a safe server-authoritative Navivox profile contact read model before visual chat polish. Gormes returns one contact per `server_id + profile_id`, where the profile is an isolated Gormes home/config/secrets/sessions/memory/skills/runtime state, not a live OpenClaw-style multi-agent router. Provide an HTTP snapshot plus WebSocket updates with display name, deterministic avatar seed, sanitized latest preview, health, compact workspace-root counts, attention badges, mic availability, and active-turn state. Flutter renders/caches this summary but keeps local-only metadata such as pins, aliases, command word, calibration, and trusted-server state out of the API. No raw workspace paths, secrets, tokens, config documents, or session payloads appear in contact rows.",
+          "contract_status": "fixture_ready",
+          "slice_size": "medium",
+          "execution_owner": "gateway",
+          "trust_class": [
+            "operator",
+            "gateway",
+            "system"
+          ],
+          "degraded_mode": "If profile contact updates cannot stream, Navivox keeps the last HTTP snapshot visible with a stale/reconnecting badge and refreshes on reconnect; offline or unauthorized profiles remain visible with disabled send/mic affordances and recovery actions.",
+          "fixture": "internal/channels/navivox/profile_contacts_test.go",
+          "source_refs": [
+            "cmd/gormes/profile.go",
+            "cmd/gormes/setup.go:runSetupProfilesInteractive",
+            "cmd/gormes/doctor_profiles_test.go",
+            "internal/cli/profile_root.go",
+            "internal/doctor/doctor_profiles.go",
+            "internal/channels/navivox/channel.go:handleStatus",
+            "flutter-navivox/navivox-ui-design.md:2.2",
+            "flutter-navivox/navivox-chat-ui-research.md:3.1"
+          ],
+          "ready_when": [
+            "`Navivox connect-and-talk first screen` has landed so the app has an authenticated HTTP/WS gateway and a live chat fixture.",
+            "Existing Gormes profile commands and doctor profile checks remain the source evidence for profile roots and health.",
+            "The UI docs classify profile contacts as `server + profile_id`, not as dynamic agents or Telegram accounts."
+          ],
+          "not_ready_when": [
+            "The slice exposes raw profile home paths, workspace root paths, static tokens, provider secrets, raw config documents, or raw session payloads in contact summaries.",
+            "The slice makes Flutter infer profile contacts from unrelated raw endpoints instead of a dedicated summary contract.",
+            "The slice treats pinned contacts, local aliases, command-word calibration, or server trust as server-authoritative profile state.",
+            "The slice adds TDLib, MTProto, Firebase, telephony, campaigns, scheduling, retries, or human handoff."
+          ],
+          "blocked_by": [
+            "Navivox connect-and-talk first screen"
+          ],
+          "unblocks": [
+            "Navivox Telegram-inspired chat polish",
+            "Navivox natural-language profile seed flow",
+            "Navivox continuous voice command mode"
+          ],
+          "acceptance": [
+            "HTTP snapshot returns a bounded list of profile contacts with server_id, profile_id, display_name, avatar_seed, latest_preview/kind/timestamp, health, workspace_root_count, workspace_roots_ok/warning/error, attention_badges, mic_available, and active_turn_state.",
+            "WebSocket updates can change health, latest preview, attention badges, mic availability, and active-turn state for one contact without replacing unrelated contacts.",
+            "Latest preview is server-sanitized and redacted; tool JSON, secrets, raw logs, raw config, and raw paths are absent from JSON and Flutter row widgets.",
+            "Flutter contact-list tests render a flat profile list with server chips, deterministic avatars, attention badges, workspace counts, disabled offline/unauthorized mic affordances, and local pin ordering that does not affect server data."
+          ],
+          "write_scope": [
+            "internal/channels/navivox/channel.go",
+            "internal/channels/navivox/profile_contacts_test.go",
+            "internal/doctor/doctor_profiles.go",
+            "cmd/gormes/profile.go",
+            "flutter-navivox/app/lib/core/gateway/navivox_gateway_protocol.dart",
+            "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+            "flutter-navivox/app/lib/features/chat/",
+            "flutter-navivox/app/lib/features/servers/",
+            "flutter-navivox/app/test/core/channel/gateway_navivox_channel_test.dart",
+            "flutter-navivox/app/test/features/chat/profile_contact_list_test.dart",
+            "flutter-navivox/navivox-ui-design.md",
+            "flutter-navivox/navivox-chat-ui-research.md",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "go test ./internal/channels/navivox ./internal/doctor ./cmd/gormes -run 'Test.*Navivox.*Contact|Test.*Profile|TestDoctorProfiles' -count=1",
+            "sh -c 'cd flutter-navivox/app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat/profile_contact_list_test.dart'",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "Navivox can load and update a flat, safe profile-contact list from Gormes without leaking secrets or raw paths, and visual chat polish has a stable contact model to build on."
+          ],
+          "provenance": {
+            "origin_type": "gormes",
+            "owned_since": "2026-05-16",
+            "note": "Decision from 2026-05-16 grill pass: profile contacts are `server + profile_id`; Gormes profiles are isolated homes, while pins, aliases, command word, calibration, and server trust are local Navivox metadata."
+          }
+        },
+        {
+          "name": "Navivox continuous voice command mode",
+          "priority": "P1",
+          "status": "planned",
+          "contract": "Implement the first continuous voice mode as a local Navivox app mode pointed at one active trusted `server + profile` contact. The row mic starts device STT when mic permission and per-server local trust exist; transcripts auto-send as voice-marked user bubbles with a short visible `Sending...` grace window. The command word defaults to `navi`, is locally configurable and optionally calibrated, is recognized only at utterance start while voice mode is open, and drives local commands before text reaches Gormes: direct `navi <profile>`, `navi cancel`, `navi stop`, `navi settings`, `navi help`, plus a five-second command mode when the word is spoken alone. `navi cancel` follows the voice-turn lifecycle: discard before server commit, request cancel/stop when supported after commit, and never claim side effects were undone.",
+          "contract_status": "fixture_ready",
+          "slice_size": "medium",
+          "execution_owner": "gateway",
+          "trust_class": [
+            "operator",
+            "gateway",
+            "system"
+          ],
+          "degraded_mode": "When device STT, mic permission, server trust, or gateway cancellation is unavailable, typed chat remains usable; mic affordances show disabled reasons, command mode stays local, and post-commit cancellation degrades to stopped/cannot-undo evidence instead of deleting history.",
+          "fixture": "flutter-navivox/app/test/features/voice/continuous_voice_command_mode_test.dart",
+          "source_refs": [
+            "flutter-navivox/navivox-ui-design.md:2.5",
+            "flutter-navivox/navivox-chat-ui-research.md:9",
+            "internal/channels/navivox/channel.go:handleTurn",
+            "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+            "flutter-navivox/app/lib/features/chat/"
+          ],
+          "ready_when": [
+            "`Navivox profile contact summary API` has landed so voice mode has a stable active `server + profile` contact and mic availability.",
+            "`Navivox connect-and-talk first screen` has landed so text turns over HTTP/WS are proven.",
+            "Local Settings can store app-only voice settings without changing server profile config."
+          ],
+          "not_ready_when": [
+            "The slice implements always-listening background wake-word detection.",
+            "The slice sends recognized local command utterances to Gormes as chat content.",
+            "The slice lets voice commands approve tools, edit workspace roots, or mutate profile/server config.",
+            "The slice silently deletes or rewrites a turn after Gormes has committed it.",
+            "The slice requires BYO STT/TTS providers, telephony, TDLib, MTProto, Firebase, campaigns, scheduling, retries, or human handoff."
+          ],
+          "blocked_by": [
+            "Navivox profile contact summary API",
+            "Navivox connect-and-talk first screen"
+          ],
+          "unblocks": [
+            "Navivox voice run records"
+          ],
+          "acceptance": [
+            "Row mic starts global continuous voice only for trusted healthy servers; offline, unauthorized, untrusted, or globally disabled voice states show disabled reasons and leave typed chat unaffected.",
+            "Device STT creates voice-marked user bubbles, auto-sends after a visible grace window, and supports cancelling before server commit without creating Gormes history.",
+            "Local command tests cover command word alone entering command mode, direct profile switching by exact unique match, duplicate disambiguation, `navi cancel`, `navi stop`, `navi settings`, `navi help`, timeout discard, and disabled voice switching.",
+            "Typed `navi <profile>` is recognized only on chat composer submit; search/settings/config fields treat the same text as ordinary input.",
+            "After server commit, cancel/stop leaves visible cancelled/stopped/cannot-undo state and never hides that a tool side effect may have started."
+          ],
+          "write_scope": [
+            "flutter-navivox/app/lib/features/chat/",
+            "flutter-navivox/app/lib/features/settings/",
+            "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+            "flutter-navivox/app/lib/core/gateway/navivox_gateway_protocol.dart",
+            "flutter-navivox/app/test/features/voice/continuous_voice_command_mode_test.dart",
+            "flutter-navivox/app/test/features/chat/",
+            "flutter-navivox/app/test/features/settings/",
+            "internal/channels/navivox/channel.go",
+            "internal/channels/navivox/channel_test.go",
+            "flutter-navivox/navivox-ui-design.md",
+            "flutter-navivox/navivox-chat-ui-research.md",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "sh -c 'cd flutter-navivox/app && flutter test test/features/voice/continuous_voice_command_mode_test.dart test/features/chat test/features/settings'",
+            "go test ./internal/channels/navivox -run 'Test.*Navivox.*Turn|Test.*Cancel|Test.*Stop' -count=1",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "A trusted profile contact can be opened in continuous voice, local command-word commands route deterministically inside Navivox, auto-sent voice turns have a real cancellation lifecycle, and typed chat remains available."
+          ],
+          "provenance": {
+            "origin_type": "gormes",
+            "owned_since": "2026-05-16",
+            "note": "Decision from 2026-05-16 grill pass: command word defaults to navi but is local/customizable; calibration is local/resettable; voice switching is global app setting; no always-listening mode or voice approvals in first version."
+          }
+        },
+        {
           "name": "Navivox Telegram-inspired chat polish",
           "priority": "P1",
           "status": "planned",
-          "contract": "After the connect-and-talk loop works, make Navivox feel like a polished Telegram-inspired operator client without changing the Gormes HTTP/WS backend. Add a chat list with avatar/agent, last-message preview, timestamp, gateway health, and attention badges; render the chat screen with grouped Telegram-style bubbles, compact timestamps, local send/queued/streaming/done/error ticks, a pinned redacted gateway status banner, and an always-reachable composer; use Telegram-like draggable sheets for agent/server/action/tool detail flows. Evaluate `v_chat_bubbles` as the bubble renderer (`VBubbleStyle.telegram`, `VCustomBubble` for ToolCallCard, performance config for long transcripts) but fall back to local widgets if the package fails accessibility, theming, performance, or dependency review. This row is visual/interaction polish only: no TDLib, MTProto, Firebase chat backend, Telegram login, telephony, campaigns, or call-center scope.",
+          "contract": "After the connect-and-talk loop and profile contact summary API work, make Navivox feel like a polished Telegram-inspired operator client without changing the Gormes HTTP/WS backend. Render a flat profile-contact list with deterministic avatar, display name, small server label, sanitized latest preview, timestamp, health, attention badges, workspace counts, and mic availability; render the profile chat screen with grouped Telegram-style bubbles, compact timestamps, local send/queued/streaming/done/error ticks, a pinned redacted server/profile/trust banner, always-reachable composer, and a global continuous-voice bar when active. Use Telegram-like draggable sheets for profile/server/action/tool detail flows. Evaluate `v_chat_bubbles` as the bubble renderer (`VBubbleStyle.telegram`, `VCustomBubble` for ToolCallCard, performance config for long transcripts) but fall back to local widgets if the package fails accessibility, theming, performance, or dependency review. This row is visual/interaction polish only: no TDLib, MTProto, Firebase chat backend, Telegram login, telephony, campaigns, or call-center scope.",
           "contract_status": "fixture_ready",
           "slice_size": "medium",
           "execution_owner": "gateway",
@@ -62495,6 +62657,7 @@
           ],
           "ready_when": [
             "`Navivox connect-and-talk first screen` has landed and provides a live chat fixture.",
+            "`Navivox profile contact summary API` has landed so the list uses server-authoritative profile contacts, not mocks.",
             "The UI docs classify Telegram/TDLib references as rendering/lifecycle inspiration only, not backend dependencies.",
             "The package/dependency review for `v_chat_bubbles` can be performed without blocking text chat."
           ],
@@ -62505,14 +62668,15 @@
             "The slice introduces telephony, campaigns, scheduling, retries, or human handoff."
           ],
           "blocked_by": [
-            "Navivox connect-and-talk first screen"
+            "Navivox connect-and-talk first screen",
+            "Navivox profile contact summary API"
           ],
           "acceptance": [
-            "Chat list previews show avatar/agent, last message, timestamp, health/auth status, and attention badges for tool/voice/error states.",
+            "Chat list previews show profile avatar, display name, server label, sanitized latest preview, timestamp, health/auth status, attention badges, workspace counts, and mic availability.",
             "Chat bubbles are grouped by author and time gap, have compact timestamps and local delivery-state ticks, and update one assistant bubble during streaming.",
             "ToolCallCard remains a structured custom bubble or local widget with redaction, status, and expandable details; tool output is not rendered as assistant prose.",
-            "Agent/server/action/tool detail panels use `DraggableScrollableSheet` or a tested desktop side-panel equivalent.",
-            "Mobile uses Material 3 `NavigationBar`; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage.",
+            "Profile/server/action/tool detail panels use `DraggableScrollableSheet` or a tested desktop side-panel equivalent.",
+            "Mobile uses Material 3 `NavigationBar` with Chats, Servers, and Settings; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage.",
             "A package gate documents whether `v_chat_bubbles` was adopted or rejected, including accessibility, theming, performance, license, and dependency findings."
           ],
           "write_scope": [
@@ -62541,10 +62705,10 @@
           }
         },
         {
-          "name": "Navivox natural-language agent seed flow",
+          "name": "Navivox natural-language profile seed flow",
           "priority": "P1",
           "status": "planned",
-          "contract": "Add a Navivox and CLI/API agent creation path that accepts a short natural-language seed such as `screen inbound leads` or `triage support calls`, creates an editable Gormes agent/profile draft, and pre-populates safe defaults for persona, workspace, tool policy, voice profile, and language policy. The generation may use a provider when configured, but must degrade to deterministic templates when no provider is available so first-run remains usable.",
+          "contract": "Add a Navivox and CLI/API profile creation path that accepts a short natural-language seed such as `screen inbound leads`, `triage support calls`, or `work on mineru repo`, creates an editable Gormes profile draft, and pre-populates safe defaults for profile_id, display_name, instructions, provider/model setup, tool policy, voice profile metadata, and workspace root labels/purposes. The generation may use a provider when configured, but must degrade to deterministic templates when no provider is available so first-run remains usable. Workspace paths are never granted silently; the operator must explicitly enter or confirm each path and Gormes validates/canonicalizes it server-side.",
           "contract_status": "fixture_ready",
           "slice_size": "medium",
           "execution_owner": "orchestrator",
@@ -62553,61 +62717,65 @@
             "gateway",
             "system"
           ],
-          "degraded_mode": "Without a model/provider, seed creation uses a deterministic local template and marks generation_source=template; invalid or risky seeds are rejected with redacted typed evidence and do not mutate config or dynamic-agent state.",
-          "fixture": "cmd/gormes/agent_seed_test.go",
+          "degraded_mode": "Without a model/provider, seed creation uses a deterministic local template and marks generation_source=template; invalid or risky seeds are rejected with redacted typed evidence and do not mutate profile config or workspace roots.",
+          "fixture": "cmd/gormes/profile_seed_test.go",
           "source_refs": [
-            "cmd/gormes/agent.go:newAgentSpawnCommand",
-            "internal/goncho/dynamic_agents.go:CreateAgentOptions",
-            "internal/config/agents.go:AgentCfg",
-            "cmd/gormes/gateway_agent_templates.go:ensureGatewayAgentTemplates",
-            "flutter-navivox/app/lib/features/agents/screens/agents_screen.dart",
+            "cmd/gormes/profile.go",
+            "internal/cli/profile_create.go",
+            "cmd/gormes/setup.go:runSetupProfilesInteractive",
+            "internal/cli/profile_root.go",
+            "flutter-navivox/navivox-ui-design.md:2.8",
+            "flutter-navivox/navivox-chat-ui-research.md:10",
             "https://docs.dograh.com/core-concepts/workflows-and-agents"
           ],
           "ready_when": [
-            "`Navivox connect-and-talk first screen` has landed so newly seeded agents can be tested immediately.",
-            "Dynamic agent spawn/list/inspect/bind remains green and must not be replaced.",
+            "`Navivox profile contact summary API` has landed so newly seeded profiles can appear as contacts immediately.",
+            "Existing `gormes profile` create/list/show/use behavior remains green and must not be replaced.",
             "The design preserves Gormes' server-authoritative config model; the Flutter app requests creation and renders/edit drafts, it does not write TOML."
           ],
           "not_ready_when": [
-            "The slice creates a Dograh-style workflow graph engine instead of a Gormes agent/profile draft.",
+            "The slice creates a Dograh-style workflow graph engine or OpenClaw-style live multi-agent router instead of a Gormes profile draft.",
             "The slice writes raw provider output directly to config without validation.",
+            "The slice grants workspace paths inferred from the seed without explicit operator confirmation.",
             "The slice adds campaigns, bulk outbound calls, telephony transfer, or call-center scheduling."
           ],
           "blocked_by": [
-            "Navivox connect-and-talk first screen"
+            "Navivox profile contact summary API"
           ],
           "unblocks": [
-            "Navivox per-agent BYO voice profiles"
+            "Navivox per-profile BYO voice profiles"
           ],
           "acceptance": [
-            "`gormes agent seed \"screen inbound leads\" --json --dry-run` returns a redacted draft with id/name/persona/workspace/tool_policy/voice_profile/language_policy and no filesystem mutation.",
-            "`gormes agent seed \"screen inbound leads\" --apply --json` creates a dynamic agent or static agent draft without shadowing configured agent IDs.",
-            "Navivox Agents screen exposes Create from seed, renders the generated editable fields, and can select the new agent for the active chat session.",
+            "`gormes profile seed \"work on mineru repo\" --json --dry-run` returns a redacted draft with profile_id, display_name, instructions, provider_model_state, workspace_root_suggestions, tool_policy, voice_profile_metadata, and generation_source without filesystem mutation.",
+            "`gormes profile seed \"work on mineru repo\" --apply --json` creates or updates only the selected profile home after validation, without shadowing existing profile ids or granting unconfirmed workspace paths.",
+            "Navivox profile creation exposes Create from seed, renders editable fields, requires explicit workspace path entry/confirmation, and shows the new profile as a contact when applied.",
             "Provider-backed generation passes through validation and records generation_source=model; provider-unconfigured path records generation_source=template."
           ],
           "write_scope": [
-            "cmd/gormes/agent.go",
-            "cmd/gormes/agent_seed_test.go",
-            "internal/agentseed/",
-            "internal/goncho/dynamic_agents.go",
-            "internal/goncho/dynamic_agents_test.go",
-            "internal/config/agents.go",
-            "internal/config/agents_test.go",
+            "cmd/gormes/profile.go",
+            "cmd/gormes/profile_seed_test.go",
+            "internal/profileseed/",
+            "internal/cli/profile_create.go",
+            "internal/cli/profile_create_test.go",
+            "cmd/gormes/setup.go",
+            "cmd/gormes/setup_profiles_test.go",
             "internal/channels/navivox/channel.go",
             "internal/channels/navivox/channel_test.go",
-            "flutter-navivox/app/lib/features/agents/",
-            "flutter-navivox/app/test/features/agents/",
+            "flutter-navivox/app/lib/features/chat/",
+            "flutter-navivox/app/lib/features/profiles/",
+            "flutter-navivox/app/test/features/chat/",
+            "flutter-navivox/app/test/features/profiles/",
             "docs/content/building-gormes/architecture_plan/progress.json"
           ],
           "test_commands": [
-            "go test ./cmd/gormes -run 'TestAgentSeed|TestAgentSpawn' -count=1",
-            "go test ./internal/agentseed ./internal/goncho ./internal/config -run 'Test.*Agent.*Seed|Test.*DynamicAgent' -count=1",
-            "sh -c 'cd flutter-navivox/app && flutter test test/features/agents'",
+            "go test ./cmd/gormes -run 'TestProfileSeed|TestProfileCreate|TestSetupProfiles' -count=1",
+            "go test ./internal/profileseed ./internal/cli -run 'Test.*Profile.*Seed|Test.*Profile.*Create' -count=1",
+            "sh -c 'cd flutter-navivox/app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart'",
             "go run ./cmd/progress validate",
             "git diff --check"
           ],
           "done_signal": [
-            "A short use-case seed can create a validated editable Gormes agent draft, select it in Navivox, and send the first chat turn against it without telephony."
+            "A short use-case seed can create a validated editable Gormes profile draft, show it as a Navivox contact, and send the first chat turn against it without telephony or unconfirmed workspace access."
           ],
           "provenance": {
             "origin_type": "gormes",
@@ -62649,7 +62817,8 @@
             "The slice buries tool progress in assistant text instead of distinct message objects."
           ],
           "blocked_by": [
-            "Navivox connect-and-talk first screen"
+            "Navivox connect-and-talk first screen",
+            "Navivox continuous voice command mode"
           ],
           "acceptance": [
             "A Go gateway fixture emits tool start/update/finish/failure events through Navivox as `tool_call_started`, `tool_call_updated`, and `tool_call_finished` with stable ids and redacted metadata.",
@@ -62725,7 +62894,7 @@
             "Navivox connect-and-talk first screen"
           ],
           "unblocks": [
-            "Navivox per-agent BYO voice profiles"
+            "Navivox per-profile BYO voice profiles"
           ],
           "acceptance": [
             "HTTP or WS handlers expose config.schema, redacted config.get, config.diff, config.validate, config.apply, and config.reload/pending_restart results with authenticated requests only.",
@@ -62785,6 +62954,7 @@
           ],
           "ready_when": [
             "`Navivox connect-and-talk first screen` has landed and produces session ids for normal turns.",
+            "`Navivox continuous voice command mode` has landed or its cancellation lifecycle contract is explicit.",
             "`Navivox structured tool event cards` is at least planned so tool timeline data has a typed event shape.",
             "The row uses existing session/store/apiserver surfaces where possible instead of creating a side database."
           ],
@@ -62797,7 +62967,7 @@
             "Navivox connect-and-talk first screen"
           ],
           "unblocks": [
-            "Navivox per-agent BYO voice profiles"
+            "Navivox per-profile BYO voice profiles"
           ],
           "acceptance": [
             "A fake Navivox text turn produces a durable run record with transcript, status, timestamps, session id, and provider usage when available.",
@@ -62834,10 +63004,10 @@
           }
         },
         {
-          "name": "Navivox per-agent BYO voice profiles",
+          "name": "Navivox per-profile BYO voice profiles",
           "priority": "P1",
           "status": "planned",
-          "contract": "Add per-agent voice profiles that let operators choose STT/TTS providers, voice id, language policy, fallback voice, and safe provider credentials through Gormes config/admin surfaces. Navivox renders the profile on agent create/edit and sends voice turns using the selected profile; Gormes resolves BYO STT/TTS providers from existing provider matrices and write-only secret references.",
+          "contract": "Add per-profile voice metadata that lets operators choose STT/TTS providers, voice id, language policy, fallback voice, and safe provider credentials through Gormes config/admin surfaces. Navivox renders voice metadata on profile create/edit and sends voice turns using the active profile; Gormes resolves BYO STT/TTS providers from existing provider matrices and write-only secret references. Local microphone behavior, command word, calibration, auto-send, aliases, and pins remain Navivox app settings, not server profile config.",
           "contract_status": "fixture_ready",
           "slice_size": "medium",
           "execution_owner": "provider",
@@ -62847,60 +63017,63 @@
             "system"
           ],
           "degraded_mode": "When a requested STT/TTS provider is unavailable, Gormes records provider_unavailable evidence, falls back according to the profile policy, and keeps text chat usable; secrets remain redacted/write-only.",
-          "fixture": "internal/config/agent_voice_profile_test.go",
+          "fixture": "internal/config/profile_voice_profile_test.go",
           "source_refs": [
-            "internal/config/agents.go:AgentCfg",
+            "cmd/gormes/profile.go",
+            "internal/cli/profile_root.go",
             "internal/config/config.go:STTCfg",
             "internal/config/config.go:VoiceCfg",
             "internal/tools/tts_providers.go:BuiltinTTSProviderNames",
             "internal/tools/transcription_providers.go",
             "cmd/gormes/registry_audio.go",
             "flutter-navivox/navivox-decision-record.md:120",
-            "flutter-navivox/app/lib/features/agents/screens/agents_screen.dart"
+            "flutter-navivox/navivox-ui-design.md:2.8"
           ],
           "ready_when": [
-            "`Navivox natural-language agent seed flow` has landed so agents have editable draft/profile data.",
+            "`Navivox natural-language profile seed flow` has landed so profiles have editable draft metadata.",
             "`Navivox safe config admin over HTTP` has landed so provider/secret changes use server-side validation and write-only secrets.",
             "`Navivox voice run records` has landed or is in progress so STT/TTS evidence can be audited."
           ],
           "not_ready_when": [
-            "The slice stores provider API keys directly in agent profile structs or Flutter state.",
+            "The slice stores provider API keys directly in profile metadata or Flutter state.",
             "The slice hardcodes one vendor voice path instead of reusing existing STT/TTS provider matrices.",
-            "The slice makes voice mandatory for text chat or first-run connect-and-talk."
+            "The slice makes voice mandatory for text chat or first-run connect-and-talk.",
+            "The slice stores local command word, calibration, pins, aliases, or trusted-server state in server profile config."
           ],
           "blocked_by": [
-            "Navivox natural-language agent seed flow",
+            "Navivox natural-language profile seed flow",
             "Navivox safe config admin over HTTP",
             "Navivox voice run records"
           ],
           "acceptance": [
-            "Agent config/dynamic draft supports a voice_profile with stt_provider, tts_provider, voice_id, language_policy, fallback_voice, and credential status refs.",
+            "Profile metadata supports a voice_profile with stt_provider, tts_provider, voice_id, language_policy, fallback_voice, and credential status refs.",
             "Validation rejects unknown providers and accepts configured local/cloud providers using the existing TTS/STT provider matrices.",
-            "Navivox agent create/edit UI can set and display voice profile fields without reading secret values.",
+            "Navivox profile create/edit UI can set and display voice profile fields without reading secret values.",
             "A fake voice turn proves Gormes resolves the selected profile and records fallback evidence when the primary provider is unavailable."
           ],
           "write_scope": [
-            "internal/config/agents.go",
-            "internal/config/agent_voice_profile_test.go",
+            "cmd/gormes/profile.go",
+            "internal/cli/profile_root.go",
+            "internal/config/profile_voice_profile_test.go",
             "internal/tools/tts_providers.go",
             "internal/tools/transcription_providers.go",
             "cmd/gormes/registry_audio.go",
             "internal/channels/navivox/channel.go",
             "internal/channels/navivox/channel_test.go",
-            "flutter-navivox/app/lib/features/agents/",
+            "flutter-navivox/app/lib/features/profiles/",
             "flutter-navivox/app/lib/features/config/",
-            "flutter-navivox/app/test/features/agents/",
+            "flutter-navivox/app/test/features/profiles/",
             "flutter-navivox/app/test/features/config/",
             "docs/content/building-gormes/architecture_plan/progress.json"
           ],
           "test_commands": [
             "go test ./internal/config ./internal/tools ./cmd/gormes ./internal/channels/navivox -run 'Test.*VoiceProfile|Test.*TTS|Test.*Transcription|Test.*Navivox.*Voice' -count=1",
-            "sh -c 'cd flutter-navivox/app && flutter test test/features/agents test/features/config test/features/voice'",
+            "sh -c 'cd flutter-navivox/app && flutter test test/features/profiles test/features/config test/features/voice'",
             "go run ./cmd/progress validate",
             "git diff --check"
           ],
           "done_signal": [
-            "Each Navivox/Gormes agent can carry a safe editable BYO STT/TTS voice profile, voice turns resolve through it, and text chat remains usable when voice providers degrade."
+            "Each Navivox/Gormes profile can carry safe editable BYO STT/TTS voice metadata, voice turns resolve through it, local app voice settings stay local, and text chat remains usable when voice providers degrade."
           ],
           "provenance": {
             "origin_type": "gormes",

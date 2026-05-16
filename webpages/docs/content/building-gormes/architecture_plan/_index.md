@@ -1438,8 +1438,8 @@ classification and row-backed implementation queue.
 ### 8.F — Cost Discipline & Loop Economics 🔨
 
 - [x] Loop $/iteration cost metric in status file
-- [ ] Stop git-tracking duplicate landing progress mirrors (build-time generate)
-- [ ] Compact completed-row shipped-evidence notes to a one-line pointer
+- [x] Stop git-tracking duplicate landing progress mirrors (build-time generate)
+- [x] Compact completed-row shipped-evidence notes to a one-line pointer
 - [ ] Module-split the progress backlog (per-subsystem files, parity-aligned)
 - [ ] Backlog split C1: lossless multi-file loader/writer behind the single-file API
 
@@ -1481,12 +1481,14 @@ classification and row-backed implementation queue.
 
 - [x] Navivox HTTP/WS documentation refresh
 - [ ] Navivox connect-and-talk first screen
+- [ ] Navivox profile contact summary API
+- [ ] Navivox continuous voice command mode
 - [ ] Navivox Telegram-inspired chat polish
-- [ ] Navivox natural-language agent seed flow
+- [ ] Navivox natural-language profile seed flow
 - [ ] Navivox structured tool event cards
 - [ ] Navivox safe config admin over HTTP
 - [ ] Navivox voice run records
-- [ ] Navivox per-agent BYO voice profiles
+- [ ] Navivox per-profile BYO voice profiles
 
 ### 9.G — External Issue Radar Regression Guards ✅
 
