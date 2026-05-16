@@ -101,23 +101,28 @@ type Item struct {
 	Status   Status `json:"status"`
 	// Optional contract metadata turns roadmap rows into executable architecture
 	// requirements without forcing every historical item to be rewritten at once.
-	Contract       string           `json:"contract,omitempty"`
-	ContractStatus ContractStatus   `json:"contract_status,omitempty"`
-	SliceSize      SliceSize        `json:"slice_size,omitempty"`
-	ExecutionOwner ExecutionOwner   `json:"execution_owner,omitempty"`
-	TrustClass     []string         `json:"trust_class,omitempty"`
-	DegradedMode   string           `json:"degraded_mode,omitempty"`
-	Fixture        string           `json:"fixture,omitempty"`
-	SourceRefs     []string         `json:"source_refs,omitempty"`
-	ReadyWhen      []string         `json:"ready_when,omitempty"`
-	NotReadyWhen   []string         `json:"not_ready_when,omitempty"`
-	BlockedBy      []string         `json:"blocked_by,omitempty"`
-	Unblocks       []string         `json:"unblocks,omitempty"`
-	Acceptance     []string         `json:"acceptance,omitempty"`
-	Note           string           `json:"note,omitempty"`
-	Blocker        *BlockerMetadata `json:"blocker,omitempty"`
-	WriteScope     []string         `json:"write_scope,omitempty"`
-	TestCommands   []string         `json:"test_commands,omitempty"`
+	Contract       string         `json:"contract,omitempty"`
+	ContractStatus ContractStatus `json:"contract_status,omitempty"`
+	SliceSize      SliceSize      `json:"slice_size,omitempty"`
+	ExecutionOwner ExecutionOwner `json:"execution_owner,omitempty"`
+	// Module is the optional per-row subsystem bucket for the module-split
+	// backlog layout. Empty by default (omitempty → byte-neutral); when
+	// unset, progress.Module() derives a deterministic default from
+	// ExecutionOwner. Owned by the planner; backfilled explicitly.
+	Module       string           `json:"module,omitempty"`
+	TrustClass   []string         `json:"trust_class,omitempty"`
+	DegradedMode string           `json:"degraded_mode,omitempty"`
+	Fixture      string           `json:"fixture,omitempty"`
+	SourceRefs   []string         `json:"source_refs,omitempty"`
+	ReadyWhen    []string         `json:"ready_when,omitempty"`
+	NotReadyWhen []string         `json:"not_ready_when,omitempty"`
+	BlockedBy    []string         `json:"blocked_by,omitempty"`
+	Unblocks     []string         `json:"unblocks,omitempty"`
+	Acceptance   []string         `json:"acceptance,omitempty"`
+	Note         string           `json:"note,omitempty"`
+	Blocker      *BlockerMetadata `json:"blocker,omitempty"`
+	WriteScope   []string         `json:"write_scope,omitempty"`
+	TestCommands []string         `json:"test_commands,omitempty"`
 	// NoTestRequiredReason is an explicit planner-owned exception for rows
 	// whose work is documentation-only or otherwise cannot be proven by a
 	// focused row-local command. Builder selection treats rows without
