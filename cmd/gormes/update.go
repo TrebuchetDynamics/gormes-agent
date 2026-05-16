@@ -69,6 +69,16 @@ type updateCommandSeams struct {
 	// RunReleaseBinaryUpdate applies a verified release artifact to the
 	// managed and published binary paths for release installs.
 	RunReleaseBinaryUpdate func(context.Context, cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport
+	// LoadReleaseAssetManifest loads the verified release manifest and
+	// payload root used for release-installed asset and skill sync.
+	LoadReleaseAssetManifest func(context.Context, cli.UpdateReleasePlan) (cli.UpdateReleaseManifest, string, error)
+	// ReleaseAssetRoot resolves the release-installed static asset root.
+	ReleaseAssetRoot func() (string, error)
+	// ReleaseSkillProfiles returns every profile that should receive bundled
+	// skill updates for release installs.
+	ReleaseSkillProfiles func() ([]skills.SkillProfileRoot, error)
+	// RunReleaseAssetSkillSync applies verified release assets and skills.
+	RunReleaseAssetSkillSync func(context.Context, cli.UpdateReleaseAssetSkillSyncOptions) cli.UpdateReleaseAssetSkillSyncReport
 	// RunReleaseRollback restores a prior release binary snapshot.
 	RunReleaseRollback func(context.Context, cli.UpdateReleaseRollbackOptions) cli.UpdateReleaseBinaryReport
 }
@@ -133,6 +143,18 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	}
 	if seams.RunReleaseBinaryUpdate == nil {
 		seams.RunReleaseBinaryUpdate = cli.RunUpdateReleaseBinaryUpdate
+	}
+	if seams.LoadReleaseAssetManifest == nil {
+		seams.LoadReleaseAssetManifest = defaultLoadReleaseAssetManifest
+	}
+	if seams.ReleaseAssetRoot == nil {
+		seams.ReleaseAssetRoot = resolveReleaseAssetRoot
+	}
+	if seams.ReleaseSkillProfiles == nil {
+		seams.ReleaseSkillProfiles = defaultSkillSyncProfiles
+	}
+	if seams.RunReleaseAssetSkillSync == nil {
+		seams.RunReleaseAssetSkillSync = cli.RunUpdateReleaseAssetSkillSync
 	}
 	if seams.RunReleaseRollback == nil {
 		seams.RunReleaseRollback = cli.RunUpdateReleaseRollback
@@ -205,6 +227,10 @@ so the recovery path is visible inline.
 					LoadReleaseMetadata:  seams.LoadReleaseMetadata,
 					BuildReleasePlan:     seams.BuildReleasePlan,
 					RunReleaseUpdate:     seams.RunReleaseBinaryUpdate,
+					LoadAssetManifest:    seams.LoadReleaseAssetManifest,
+					ReleaseAssetRoot:     seams.ReleaseAssetRoot,
+					ReleaseSkillProfiles: seams.ReleaseSkillProfiles,
+					RunAssetSkillSync:    seams.RunReleaseAssetSkillSync,
 					SnapshotPathResolver: resolvePlannedUpdateSnapshotPath,
 				})
 			}
@@ -386,6 +412,10 @@ type updateReleaseBinaryModeOptions struct {
 	LoadReleaseMetadata  func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error)
 	BuildReleasePlan     func(cli.UpdateReleasePlanOptions) cli.UpdateReleasePlan
 	RunReleaseUpdate     func(context.Context, cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport
+	LoadAssetManifest    func(context.Context, cli.UpdateReleasePlan) (cli.UpdateReleaseManifest, string, error)
+	ReleaseAssetRoot     func() (string, error)
+	ReleaseSkillProfiles func() ([]skills.SkillProfileRoot, error)
+	RunAssetSkillSync    func(context.Context, cli.UpdateReleaseAssetSkillSyncOptions) cli.UpdateReleaseAssetSkillSyncReport
 	SnapshotPathResolver func() (string, error)
 }
 
@@ -420,12 +450,16 @@ func runUpdateReleaseBinaryMode(cmd *cobra.Command, opts updateReleaseBinaryMode
 				Detail: fmt.Sprintf("already current at %s", Version),
 			}},
 		}
+		report = runUpdateReleaseAssetSkillSyncForBinaryReport(cmd.Context(), plan, report, opts)
 		if opts.AsJSON {
 			if err := printUpdateReleaseBinaryReportJSON(cmd, "update_release_binary", report); err != nil {
 				return err
 			}
 		} else {
 			printUpdateReleaseBinaryReport(cmd, "update_release_binary", report)
+		}
+		if report.Failed {
+			return newExitCodeError(1, fmt.Errorf("gormes release update failed"))
 		}
 		return nil
 	}
@@ -447,6 +481,9 @@ func runUpdateReleaseBinaryMode(cmd *cobra.Command, opts updateReleaseBinaryMode
 		PublishedBinPath: publishedBin,
 		Force:            opts.Force,
 	})
+	if !report.Failed {
+		report = runUpdateReleaseAssetSkillSyncForBinaryReport(cmd.Context(), plan, report, opts)
+	}
 	if opts.AsJSON {
 		if err := printUpdateReleaseBinaryReportJSON(cmd, "update_release_binary", report); err != nil {
 			return err
@@ -458,6 +495,61 @@ func runUpdateReleaseBinaryMode(cmd *cobra.Command, opts updateReleaseBinaryMode
 		return newExitCodeError(1, fmt.Errorf("gormes release update failed"))
 	}
 	return nil
+}
+
+func runUpdateReleaseAssetSkillSyncForBinaryReport(ctx context.Context, plan cli.UpdateReleasePlan, report cli.UpdateReleaseBinaryReport, opts updateReleaseBinaryModeOptions) cli.UpdateReleaseBinaryReport {
+	if opts.LoadAssetManifest == nil || opts.RunAssetSkillSync == nil {
+		return report
+	}
+	manifest, payloadRoot, err := opts.LoadAssetManifest(ctx, plan)
+	if err != nil {
+		report.Failed = true
+		report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceReleaseManifestFailed, Detail: err.Error()})
+		return report
+	}
+	if len(manifest.Assets) == 0 && len(manifest.Skills) == 0 {
+		return report
+	}
+	assetRoot := ""
+	if opts.ReleaseAssetRoot != nil {
+		var err error
+		assetRoot, err = opts.ReleaseAssetRoot()
+		if err != nil {
+			report.Failed = true
+			report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceReleaseAssetSyncFailed, Detail: err.Error()})
+			return report
+		}
+	}
+	var profiles []skills.SkillProfileRoot
+	if opts.ReleaseSkillProfiles != nil {
+		var err error
+		profiles, err = opts.ReleaseSkillProfiles()
+		if err != nil {
+			report.Failed = true
+			report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceReleaseSkillSyncFailed, Detail: err.Error()})
+			return report
+		}
+	}
+	snapshotPath := plan.SnapshotPath
+	if snapshotPath != "" {
+		snapshotPath = filepath.Join(snapshotPath, "assets-skills")
+	}
+	syncReport := opts.RunAssetSkillSync(ctx, cli.UpdateReleaseAssetSkillSyncOptions{
+		Plan:          plan,
+		Manifest:      manifest,
+		PayloadRoot:   payloadRoot,
+		AssetRoot:     assetRoot,
+		SnapshotPath:  snapshotPath,
+		SkillProfiles: profiles,
+	})
+	report.Evidence = append(report.Evidence, syncReport.Evidence...)
+	if syncReport.Failed {
+		report.Failed = true
+		if syncReport.SnapshotPath != "" {
+			report.OperatorRecovery = "asset/skill rollback may be needed from " + syncReport.SnapshotPath
+		}
+	}
+	return report
 }
 
 func normalizeUpdateReleaseChannel(channel cli.UpdateReleaseChannel) (cli.UpdateReleaseChannel, *cli.UpdateReleaseBlocker) {
@@ -670,6 +762,46 @@ func defaultLoadReleaseMetadata(ctx context.Context, channel cli.UpdateReleaseCh
 		Tag:       strings.TrimSpace(body.TagName),
 		GitCommit: strings.TrimSpace(body.TargetCommitish),
 	}, nil
+}
+
+func defaultLoadReleaseAssetManifest(ctx context.Context, plan cli.UpdateReleasePlan) (cli.UpdateReleaseManifest, string, error) {
+	payloadRoot := strings.TrimSpace(os.Getenv("GORMES_RELEASE_PAYLOAD_ROOT"))
+	if payloadRoot == "" {
+		home, err := resolveManagedInstallHome()
+		if err != nil {
+			return cli.UpdateReleaseManifest{}, "", err
+		}
+		version := strings.TrimPrefix(strings.TrimSpace(plan.Target.Version), "v")
+		if version == "" {
+			version = "current"
+		}
+		payloadRoot = filepath.Join(home, "release-payloads", version)
+	}
+	manifestPath := strings.TrimSpace(os.Getenv("GORMES_RELEASE_MANIFEST_PATH"))
+	if manifestPath == "" {
+		manifestPath = filepath.Join(payloadRoot, "gormes-release-manifest.json")
+	}
+	file, err := os.Open(manifestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return cli.UpdateReleaseManifest{SchemaVersion: 1}, payloadRoot, nil
+		}
+		return cli.UpdateReleaseManifest{}, payloadRoot, err
+	}
+	defer file.Close()
+	var manifest cli.UpdateReleaseManifest
+	if err := json.NewDecoder(io.LimitReader(file, 8<<20)).Decode(&manifest); err != nil {
+		return cli.UpdateReleaseManifest{}, payloadRoot, fmt.Errorf("decode release manifest: %w", err)
+	}
+	return manifest, payloadRoot, nil
+}
+
+func resolveReleaseAssetRoot() (string, error) {
+	home, err := resolveManagedInstallHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "assets"), nil
 }
 
 func resolvePlannedUpdateSnapshotPath() (string, error) {
