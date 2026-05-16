@@ -111,6 +111,8 @@ func sectionForCheck(name string) string {
 		return SectionMemoryProvider
 	case "Profiles":
 		return SectionProfiles
+	case "Security Advisories":
+		return SectionSecurityAdvisories
 	default:
 		return SectionGormesRuntime
 	}

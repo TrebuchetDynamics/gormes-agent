@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
 // `gormes doctor --offline` must render the ◆ Profiles section from the real
@@ -53,6 +55,13 @@ func TestDoctorCommandEnumeratesNamedProfile(t *testing.T) {
 	if err := os.MkdirAll(profileDir, 0o755); err != nil {
 		t.Fatalf("create named profile dir: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(profileDir, "config.toml"), []byte("[hermes]\nprovider = 'nous'\nmodel = 'moonshotai/kimi-k2.6'\n"), 0o600); err != nil {
+		t.Fatalf("write profile config: %v", err)
+	}
+	status := gateway.NewRuntimeStatusStore(filepath.Join(profileDir, "gateway_state.json"))
+	if err := status.UpdateRuntimeStatus(context.Background(), gateway.RuntimeStatusUpdate{GatewayState: gateway.GatewayStateRunning}); err != nil {
+		t.Fatalf("write profile gateway state: %v", err)
+	}
 
 	cmd := newRootCommand()
 	var stdout, stderr bytes.Buffer
@@ -65,11 +74,17 @@ func TestDoctorCommandEnumeratesNamedProfile(t *testing.T) {
 	if !strings.Contains(out, "◆ Profiles") {
 		t.Fatalf("doctor must render the ◆ Profiles section:\n%s", out)
 	}
-	if !strings.Contains(out, "1 profile(s) found") {
+	if !strings.Contains(out, "2 profile(s) found") {
 		t.Fatalf("named profile must produce a computed count summary:\n%s", out)
 	}
 	if !strings.Contains(out, "work") {
 		t.Fatalf("the named profile must be enumerated by name:\n%s", out)
+	}
+	if !strings.Contains(out, "provider=nous") || !strings.Contains(out, "model=moonshotai/kimi-k2.6") {
+		t.Fatalf("named profile must show effective local provider/model:\n%s", out)
+	}
+	if !strings.Contains(out, "gateway=recorded running") {
+		t.Fatalf("named profile must show recorded gateway state:\n%s", out)
 	}
 	if strings.Contains(out, "~/.hermes") || strings.Contains(out, "wrapper") {
 		t.Fatalf("Profiles leaked Hermes-owned wording:\n%s", out)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -21,8 +22,12 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/security"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/pelletier/go-toml/v2"
+	"gopkg.in/yaml.v3"
 )
 
 // newDoctorCommand returns a fresh doctor command. Constructor pattern
@@ -35,6 +40,7 @@ func newDoctorCommand() *cobra.Command {
 	cmd.Flags().Bool("fix", false, "auto-remediate the source-backed fixable issues (config schema migrate), then re-report fixed vs still-manual")
 	cmd.Flags().Bool("json", false, "emit a machine-readable {checks: [...]} JSON document (suitable for fleet-health monitoring)")
 	cmd.Flags().String("target", "", "report first-run readiness for a setup target (terminal, telegram, whatsapp, discord, slack, navivox)")
+	cmd.Flags().String("ack", "", "acknowledge (dismiss) a security advisory by id; the ack is recorded under ~/.gormes and survives restart")
 	return cmd
 }
 
@@ -213,6 +219,13 @@ func buildDoctorCmd() *cobra.Command {
 			}()
 
 			reporter.Add(doctorBuildIdentityStatus())
+
+			// ◆ Security Advisories renders FIRST (most urgent). Pure local
+			// FS over the Gormes-owned catalog + ~/.gormes ack store, so it
+			// is identical under --offline. --ack <id> persists a dismissal
+			// here before the section is rendered.
+			ackID, _ := cmd.Flags().GetString("ack")
+			reporter.Add(doctorSecurityAdvisoriesStatus(strings.TrimSpace(ackID)))
 
 			cfg, err := config.Load(nil)
 			if err != nil {
@@ -432,26 +445,58 @@ func doctorTargetReadinessFromPlan(plan cli.FirstRunPlan) *doctorTargetReadiness
 	}
 }
 
-// doctorBuildIdentityStatus reports the running binary's identity as
-// the first doctor check. PASS when the binary was built from a clean
-// source tree (the default release CI invariant); WARN when the
-// `-X main.GitDirty=true` ldflag was injected, signalling the binary
-// includes uncommitted local changes. Operators reading doctor output
-// must know they are NOT running a clean release artifact, otherwise
-// stale or unreviewed local work silently rides into production.
-//
-// When GitCommit is the literal default "unknown" (no ldflags injection
-// happened, e.g., `go run` or `go build` without the Makefile/CI flags),
-// the summary labels the binary as a "source build" rather than showing
-// a bare `commit=unknown` — the sentinel value is accurate but cryptic.
+// doctorSecurityAdvisoriesStatus renders the ◆ Security Advisories section
+// from the Gormes-owned advisory catalog + the ~/.gormes ack store. Owned
+// divergence: Gormes is a single Go binary with no Python venv, so the
+// detector seam (security.NoInstalledPackages) reports nothing installed and
+// the section is the faithful clean PASS "No active security advisories"
+// (Hermes' "silent otherwise"), never a fabricated importlib/pip scan. Pure
+// local FS — identical under --offline. A non-empty ackID is persisted to the
+// ~/.gormes ack store before the section renders, and a Gormes-owned
+// confirmation item is appended.
+func doctorSecurityAdvisoriesStatus(ackID string) doctor.CheckResult {
+	store := security.NewAckStore(config.GormesHome())
+
+	var ackConfirm string
+	if id := strings.TrimSpace(ackID); id != "" {
+		if err := store.Ack(id); err != nil {
+			ackConfirm = fmt.Sprintf("could not record ack for %q: %v", id, err)
+		} else {
+			ackConfirm = fmt.Sprintf("acknowledged %s (recorded under ~/.gormes)", id)
+		}
+	}
+
+	acked, _ := store.AckedIDs()
+	hits := security.DetectCompromised(security.DefaultCatalog(), security.NoInstalledPackages)
+	views := make([]doctor.DoctorAdvisoryView, 0, len(hits))
+	for _, h := range hits {
+		_, isAcked := acked[h.Advisory.ID]
+		views = append(views, doctor.DoctorAdvisoryView{
+			ID:          h.Advisory.ID,
+			Title:       h.Advisory.Title,
+			Package:     h.Package,
+			Version:     h.InstalledVersion,
+			Remediation: security.FullRemediationText(h),
+			Acked:       isAcked,
+		})
+	}
+
+	res := doctor.CheckSecurityAdvisories(doctor.DoctorSecurityAdvisoryInventory{Hits: views})
+	if ackConfirm != "" {
+		res.Items = append(res.Items, doctor.ItemInfo{
+			Name:   "ack",
+			Status: doctor.StatusPass,
+			Note:   ackConfirm,
+		})
+	}
+	return res
+}
+
 // doctorProfilesStatus renders the ◆ Profiles section content from the real
-// Gormes profile seam (defaultProfileCommandSeams) as the source of truth —
-// never a hardcoded ~/.gormes/profiles glob. Pure local FS: ListKnownProfiles
-// reads the on-disk layout, RootExists/HasManifest stat the resolved root, so
-// it is identical under --offline (no network). Owned divergence: there is no
-// per-profile gateway_running / model[:30] / wrapper-alias fabrication — Gormes
-// profiles are ~/.gormes/profiles/<name> subdirs with an optional distribution
-// manifest + an active marker only.
+// Gormes profile seam (defaultProfileCommandSeams) as the source of truth.
+// Pure local FS: it reads each profile's own config files and recorded
+// gateway_state.json without env/flag overlays or live PID/process probes.
+// Owned divergence: no Hermes shell-wrapper alias or orphan-alias checks.
 func doctorProfilesStatus() doctor.CheckResult {
 	seams := defaultProfileCommandSeams()
 	inv := doctor.DoctorProfileInventory{}
@@ -466,28 +511,124 @@ func doctorProfilesStatus() doctor.CheckResult {
 		}
 	}
 	if seams.ResolveProfileRoot != nil {
-		inv.RootExists = func(name string) bool {
+		rootFor := func(name string) (string, bool) {
 			root, err := seams.ResolveProfileRoot(name)
 			if err != nil || strings.TrimSpace(root) == "" {
+				return "", false
+			}
+			return root, true
+		}
+		inv.RootExists = func(name string) bool {
+			root, ok := rootFor(name)
+			if !ok {
 				return false
 			}
 			info, err := os.Stat(root)
 			return err == nil && info.IsDir()
 		}
+		inv.Config = func(name string) doctor.DoctorProfileConfig {
+			root, ok := rootFor(name)
+			if !ok {
+				return doctor.DoctorProfileConfig{Error: "profile_root_unresolved"}
+			}
+			return doctorProfileConfigSummary(root)
+		}
+		inv.Gateway = func(name string) doctor.DoctorProfileGateway {
+			root, ok := rootFor(name)
+			if !ok {
+				return doctor.DoctorProfileGateway{Error: "profile_root_unresolved"}
+			}
+			return doctorProfileGatewaySummary(root)
+		}
 		if seams.ReadDistributionManifest != nil {
-			inv.HasManifest = func(name string) bool {
-				root, err := seams.ResolveProfileRoot(name)
-				if err != nil || strings.TrimSpace(root) == "" {
-					return false
+			inv.Distribution = func(name string) doctor.DoctorProfileDistribution {
+				root, ok := rootFor(name)
+				if !ok {
+					return doctor.DoctorProfileDistribution{Error: "profile_root_unresolved"}
 				}
-				_, ok, err := seams.ReadDistributionManifest(root)
-				return err == nil && ok
+				manifest, present, err := seams.ReadDistributionManifest(root)
+				if err != nil {
+					return doctor.DoctorProfileDistribution{Present: present, Error: "profile_distribution_invalid"}
+				}
+				if !present {
+					return doctor.DoctorProfileDistribution{}
+				}
+				return doctor.DoctorProfileDistribution{Present: true, Summary: manifest.Summary()}
 			}
 		}
 	}
 	return doctor.CheckProfiles(inv)
 }
 
+func doctorProfileConfigSummary(root string) doctor.DoctorProfileConfig {
+	cfg := config.Config{Hermes: config.HermesCfg{Model: "hermes-agent"}}
+	path := filepath.Join(root, "config.toml")
+	data, err := os.ReadFile(path)
+	if err == nil {
+		if err := toml.NewDecoder(bytes.NewReader(data)).EnableUnmarshalerInterface().Decode(&cfg); err != nil {
+			return doctor.DoctorProfileConfig{Present: true, Error: "config_toml_decode_failed"}
+		}
+		provider, model := doctorEffectiveProfileProviderModel(cfg.Hermes)
+		return doctor.DoctorProfileConfig{Present: true, Provider: provider, Model: model}
+	}
+	if !os.IsNotExist(err) {
+		return doctor.DoctorProfileConfig{Error: "config_toml_read_failed"}
+	}
+
+	path = filepath.Join(root, "config.yaml")
+	data, err = os.ReadFile(path)
+	if err == nil {
+		if err := yaml.NewDecoder(bytes.NewReader(data)).Decode(&cfg); err != nil {
+			return doctor.DoctorProfileConfig{Present: true, Error: "config_yaml_decode_failed"}
+		}
+		provider, model := doctorEffectiveProfileProviderModel(cfg.Hermes)
+		return doctor.DoctorProfileConfig{Present: true, Provider: provider, Model: model}
+	}
+	if !os.IsNotExist(err) {
+		return doctor.DoctorProfileConfig{Error: "config_yaml_read_failed"}
+	}
+	return doctor.DoctorProfileConfig{}
+}
+
+func doctorEffectiveProfileProviderModel(h config.HermesCfg) (string, string) {
+	provider := strings.TrimSpace(h.Provider)
+	model := strings.TrimSpace(h.Model)
+	if provider == "" && strings.EqualFold(model, "hermes-agent") {
+		model = ""
+	}
+	if provider != "" && (model == "" || strings.EqualFold(model, "hermes-agent")) {
+		resolved := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{})
+		if strings.TrimSpace(resolved.Model) != "" {
+			provider = strings.TrimSpace(resolved.Provider)
+			model = strings.TrimSpace(resolved.Model)
+		}
+	}
+	return provider, model
+}
+
+func doctorProfileGatewaySummary(root string) doctor.DoctorProfileGateway {
+	snapshot, err := gateway.NewRuntimeStatusStore(filepath.Join(root, "gateway_state.json")).ReadRuntimeStatusSnapshot(context.Background())
+	if err != nil {
+		return doctor.DoctorProfileGateway{Error: "gateway_state_unreadable"}
+	}
+	if snapshot.Missing {
+		return doctor.DoctorProfileGateway{}
+	}
+	return doctor.DoctorProfileGateway{Present: true, State: string(snapshot.Status.GatewayState)}
+}
+
+// doctorBuildIdentityStatus reports the running binary's identity as
+// the first doctor check. PASS when the binary was built from a clean
+// source tree (the default release CI invariant); WARN when the
+// `-X main.GitDirty=true` ldflag was injected, signalling the binary
+// includes uncommitted local changes. Operators reading doctor output
+// must know they are NOT running a clean release artifact, otherwise
+// stale or unreviewed local work silently rides into production.
+//
+// When GitCommit is the literal default "unknown" (no ldflags injection
+// happened, e.g., `go run` or `go build` without the Makefile/CI flags),
+// the summary labels the binary as a "source build" rather than showing
+// a bare `commit=unknown` — the sentinel value is accurate but cryptic.
 func doctorBuildIdentityStatus() doctor.CheckResult {
 	dirty := resolveGitDirty()
 	short := resolveGitCommit()
