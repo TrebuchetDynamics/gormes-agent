@@ -96,7 +96,7 @@ jobs:
 
       - name: Test Navivox Chrome e2e
         working-directory: flutter-navivox/app
-        run: flutter test --platform chrome test/e2e/connect_and_talk_web_e2e_test.dart
+        run: flutter test --platform chrome test/e2e
 
       - name: Build Navivox web
         working-directory: flutter-navivox/app

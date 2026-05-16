@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:navivox/core/channel/navivox_channel.dart';
+import 'package:navivox/core/protocol/navivox_event.dart';
 
 /// A minimal in-memory [NavivoxChannel] for widget tests. Records calls into
 /// public fields and surfaces a mutable [NavivoxChannelState] so tests can
@@ -15,6 +16,7 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   NavivoxChannelState _state;
   final StreamController<NavivoxApprovalRequest> _approvals =
       StreamController<NavivoxApprovalRequest>.broadcast();
+  int _messageCounter = 0;
 
   final List<String> sentTexts = [];
   final List<({String text, String? serverId, String? profileId})>
@@ -81,13 +83,28 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
 
   @override
   void sendText(String text) {
-    sentTexts.add(text);
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+
+    sentTexts.add(trimmed);
     final active = _state.activeProfileContact;
     sentTextCalls.add((
-      text: text,
+      text: trimmed,
       serverId: active?.serverId,
       profileId: active?.profileId,
     ));
+    state = _state.copyWith(
+      messages: [
+        ..._state.messages,
+        NavivoxChatMessage(
+          id: 'test-user-${++_messageCounter}',
+          author: NavivoxMessageAuthor.user,
+          kind: NavivoxMessageKind.text,
+          createdAt: DateTime.utc(2026, 5, 16, 12, 0, _messageCounter),
+          text: trimmed,
+        ),
+      ],
+    );
   }
 
   @override
