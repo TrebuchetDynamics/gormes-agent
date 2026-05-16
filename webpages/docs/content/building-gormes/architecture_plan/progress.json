@@ -61452,7 +61452,7 @@
               ],
               "blocked_by": [],
               "acceptance": [
-                "All children shipped: (C1) lossless multi-file loader/writer behind the existing single-file API; (C2) docs/landing generators on the split layout; (C3) cmd/progress + plannerloop + builderloop + status migrated; (C4) AGENTS.md + gormes-* skills source-order updated to the module layout; (C5+) per-module-batch row migration. Single logical backlog preserved; validate/tests green throughout."
+                "All children shipped: (C1, SHIPPED) lossless multi-file loader/writer behind the existing single-file API; (C2) docs/landing generators read the split layout; (C3) remaining consumers + the write path migrated; (C5a) optional per-row module key + deterministic derivation + backfill (prerequisite for per-module physical files); (C4) AGENTS.md + gormes-* skills source-order updated to the split/module layout; (C5+) per-module-batch on-disk row migration. Single logical backlog preserved; validate/tests green throughout."
               ],
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -61460,7 +61460,7 @@
               "done_signal": [
                 "Backlog is per-module; agents/tools load only the relevant module; single logical backlog + internal/progress.Load contract preserved; all consumers migrated; AGENTS.md/skills updated."
               ],
-              "note": "User explicitly requested a per-module split (tools/profiles/tts/stt/provider/tui/doctor/channels/navivox/memory/learning_loop/kanban/...) aligned to gormes-hermes-parity subsystems. Child C1 is tracked as the next sibling row in this subphase and is the only builder-ready child (safe back-compat loader shim, no row movement). C2+ (generators, consumer migration, AGENTS.md/skills wording, per-module-batch migration) are specified in this contract and must be planner-refined before building. ROW A + ROW B land first. Recommended chain: gormes-tdd-slice for C1 after A+B."
+              "note": "AGREED MODULE TAXONOMY (2026-05-16 planner pass, user list reconciled with gormes-hermes-parity Source Buckets in references/behavior-atoms.md; the user's fine names fold into these canonical modules): (1) commands — CLI command-tree/aliases; (2) setup-config-install — setup/config/install/migration + doctor + profiles; (3) gateway-channels — gateway + channels + navivox; (4) tools — tools/schemas incl. tts/stt voice tools; (5) providers-auth — providers/auth/model-routing; (6) tui — terminal UX; (7) memory-sessions-skills — memory/sessions/skills/plugins (goncho as sub-bucket); (8) orchestrator — plannerloop/builderloop + learning_loop + kanban; (9) docs — docs/examples/progress-tooling. LAYOUT DECISION: C1 ships a PHASE-keyed split (index.json keys = phase IDs) — that is the canonical PHYSICAL layout now and already loads only one phase's working set. A true per-MODULE physical split needs a deterministic module(row) mapping; rows have NO module tag and execution_owner {docs,gateway,memory,provider,tools,skills,orchestrator,tui,goncho} is too coarse for the fine modules above, so child C5a adds an optional `module` row key + deterministic execution_owner+phase default + validator-neutral backfill as the prerequisite for per-module member files (C5). Until C5a+C5 ship, 'module' is a logical view over the phase-keyed split. DAG: C1(SHIPPED)→C2→C3→C4; C1→C5a; {C2,C3,C4,C5a}→C5. Builder-ready now: C2 and C5a (only blocker C1 shipped). C3 after C2; C4 after C2+C3; C5 batched (one module/slice, smallest=docs/progress-tooling first) after C2+C3+C4+C5a. Single logical backlog preserved throughout (physically multiple files, all access via internal/progress.Load — never hand-parse member files). ROW A + ROW B + C1 already SHIPPED. Recommended chain: gormes-tdd-slice for C2 then C5a, then C3, then gormes-builder for C4, then C5 batches."
             },
             {
               "name": "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
@@ -61516,6 +61516,270 @@
                 "Lossless split↔merge round-trip + dual-layout Load proven by tests; zero behavior/consumer change; monolith still canonical until a later child flips it."
               ],
               "note": "SHIPPED 2026-05-16 see git log — internal/progress Split/Merge/WriteSplit/ErrMalformedSplit + dual-layout Load(dir); read-only `progress split <dir>` (progressctl.Split, not auto-run by validate/write/compact). Byte-stable round-trip incl. live 4.7MB canonical; merge/flip deferred to C2+."
+            },
+            {
+              "name": "Backlog split C2: docs/landing generators read the split layout",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "Make the docs/landing generators source the canonical backlog through C1's dual-layout Load so they work identically whether the backlog is the monolithic progress.json OR a split directory. Today internal/progressctl.Write/Validate/Compact call progress.Load(progressPaths(root).progressJSON) (a fixed FILE path); add split-layout resolution (when a split directory exists at the canonical location, or an opt-in path, load it via the C1 transparent Load) and prove every generated artifact — the building-gormes markered docs (_index.md, agent-queue.md, next-slices.md, blocked-slices.md, contract-readiness.md, umbrella-cleanup.md, progress-schema.md), the slim go:embed legacy mirror, and the validate JSON — is BYTE-IDENTICAL regardless of which physical layout backs the source. No row is moved and the monolith stays the default; this is purely teaching the generators to read either layout. Owned Gormes infra.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "If the split layout is absent or malformed, generators fall back to the monolithic progress.json unchanged (C1 ErrMalformedSplit surfaces; never emit a partially-generated doc set).",
+              "fixture": "internal/progressctl/progressctl_test.go",
+              "source_refs": [
+                "internal/progress/split.go Split/Merge/WriteSplit/ErrMalformedSplit + internal/progress/progress.go Load (C1 dual-layout substrate, SHIPPED eb2bf6cd1)",
+                "internal/progressctl/progressctl.go Write/Validate/Compact + progressPaths + writeSlimProgress/slimProgress",
+                "internal/progress/progress_marshal.go (stable marshal — byte-identity basis)",
+                "webpages/landing/legacy/go-renderer/internal/site (go:embed slim mirror consumer)"
+              ],
+              "ready_when": [
+                "C1 (dual-layout Load + Split/Merge/WriteSplit) is shipped; the generator entrypoints in internal/progressctl are understood."
+              ],
+              "not_ready_when": [
+                "Built as a big-bang rewrite; any real row is moved; internal/progress.Load's public file-path contract changes; generated docs/slim-mirror diverge byte-for-byte between the monolith and split sources; a consumer is left reading a now-missing monolith."
+              ],
+              "blocked_by": [
+                "Backlog split C1: lossless multi-file loader/writer behind the single-file API"
+              ],
+              "acceptance": [
+                "internal/progressctl Write/Validate/Compact resolve the canonical backlog via the C1 dual-layout Load (monolith file OR split dir) with the monolith remaining the default.",
+                "Every generated artifact (markered building-gormes docs + slim go:embed legacy mirror + validate JSON) is byte-identical whether sourced from the monolith or the split layout (test asserts byte equality on a fixture in both layouts).",
+                "No row moved; `go test ./internal/progress ./internal/progressctl -count=1` + `go test ./webpages/docs -count=1` + go-renderer `./...` green; `go run ./cmd/progress validate` output identical for both layouts."
+              ],
+              "write_scope": [
+                "internal/progressctl/progressctl.go",
+                "internal/progressctl/progressctl_test.go",
+                "internal/progress/progress.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/progress ./internal/progressctl -count=1",
+                "go test ./webpages/docs -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Generators read either layout; all generated artifacts byte-identical across layouts; monolith still default; zero row movement."
+              ],
+              "note": "Module-split umbrella child C2. Builder-ready (only blocker C1 is SHIPPED). Smallest next step. Recommended chain: gormes-tdd-slice. Keep the monolith canonical; this only makes generators layout-agnostic."
+            },
+            {
+              "name": "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "Make every remaining backlog consumer AND the write-back path split-layout-safe without changing internal/progress.Load/SaveProgress public signatures. Readers (cmd/progress validate/write/compact, cmd/gormes/status.go, internal/architectureplanneragent) are already transparent via C1's dual-layout Load — verify and add coverage. The meaty part is the WRITE path: internal/builderloop/health_writer.go and internal/plannerloop persist via progress.SaveProgress, which writes a single monolithic file; when the canonical source is a split layout a SaveProgress-equivalent must round-trip back into the split layout (reuse C1 WriteSplit/Split) so health/verdict/status writes do not silently collapse the split into a monolith. Add a split-aware save (e.g. SaveProgress detects the existing layout, or a SaveSplit sibling the writers call) proven by a write→reload round-trip that preserves the split. No row moved; monolith remains default. Owned Gormes infra.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "If the layout cannot be determined, fall back to monolithic SaveProgress (never write a partial split; never leave the backlog half-monolith half-split).",
+              "fixture": "internal/progress/split_test.go",
+              "source_refs": [
+                "internal/progress/split.go (Split/WriteSplit) + internal/progress/health.go SaveProgress/atomicWrite + internal/progress/progress.go Load (C1 substrate)",
+                "internal/builderloop/health_writer.go ; internal/plannerloop ; cmd/gormes/status.go ; internal/architectureplanneragent ; cmd/progress/main.go",
+                "internal/progress/preservation_test.go (existing SaveProgress round-trip pattern to mirror)"
+              ],
+              "ready_when": [
+                "C1 shipped and C2 (generators layout-agnostic) shipped so the read side is proven before the write side flips."
+              ],
+              "not_ready_when": [
+                "Built as a big-bang rewrite; any real row is moved; internal/progress.Load/SaveProgress public signatures change; a writer collapses a split layout back into a monolith; a consumer is left reading a now-missing monolith; write path is not proven by a split-preserving round-trip test."
+              ],
+              "blocked_by": [
+                "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
+                "Backlog split C2: docs/landing generators read the split layout"
+              ],
+              "acceptance": [
+                "Every reader (cmd/progress validate/write/compact, cmd/gormes status, internal/architectureplanneragent) works against a split layout via C1 Load, with a regression test in at least one consumer package.",
+                "A split-aware save path round-trips: writing via the builderloop/plannerloop write path against a split layout reloads byte-identically and the layout stays split (not collapsed to a monolith).",
+                "internal/progress.Load/SaveProgress public signatures unchanged; `go test ./... -count=1` green; `go run ./cmd/progress validate` identical for both layouts."
+              ],
+              "write_scope": [
+                "internal/progress/split.go",
+                "internal/progress/split_test.go",
+                "internal/progress/health.go",
+                "internal/builderloop/health_writer.go",
+                "internal/plannerloop",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "All readers + the write path are split-safe via a split-preserving round-trip; public Load/SaveProgress contract intact; monolith still default; zero row movement."
+              ],
+              "note": "Module-split umbrella child C3. Builder-ready after C2. The write path (health/verdict round-trip) is the real risk — prove it with a split-preserving SaveProgress round-trip. Recommended chain: gormes-tdd-slice."
+            },
+            {
+              "name": "Backlog split C5a: optional per-row module key + deterministic derivation + backfill",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "C1's split is keyed by PHASE (index.json keys = phase IDs). A true per-MODULE physical split needs a deterministic module(row) mapping, but rows carry no module tag — only the coarse optional execution_owner enum {docs,gateway,memory,provider,tools,skills,orchestrator,tui,goncho}, which is too coarse for the agreed fine module set (profiles/doctor/tts/stt/navivox/learning_loop/kanban have no dedicated owner). Add an OPTIONAL `module` string field to the Item schema (json:\"module,omitempty\"), a deterministic Module(it, phaseID, subphaseID) derivation that defaults from execution_owner + phase/subphase when `module` is absent (mapping recorded in the umbrella's agreed taxonomy), and a one-time validator-neutral, marshal-stable backfill — mirroring the additive ROW B/C1 pattern (must NOT change `go run ./cmd/progress validate` semantics, the row-contract schema requiredness, row identity, or stable marshal ordering; fully git-reversible). This is the prerequisite that lets per-module physical files exist; until it ships the C1 phase-keyed split is the canonical physical layout. Owned Gormes infra.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "If `module` is absent or unrecognised, Module() returns the deterministic default from execution_owner/phase (never an error, never a silently mis-bucketed row).",
+              "fixture": "internal/progress/module_test.go",
+              "source_refs": [
+                "internal/progress/progress.go Item struct + ExecutionOwner enum ; internal/progress/progress_marshal.go (stable order) ; internal/progress/validate.go (validator-neutral check)",
+                "internal/progress/split.go (C1 substrate the module key will later key WriteSplit by)",
+                "docs/development-skills/gormes-hermes-parity/references/behavior-atoms.md Source Buckets (agreed taxonomy) ; the umbrella row's recorded module set"
+              ],
+              "ready_when": [
+                "C1 shipped; the agreed module taxonomy is recorded in the umbrella; the additive ROW B/C1 schema-extension pattern is the template."
+              ],
+              "not_ready_when": [
+                "The new field changes validate semantics or row-contract requiredness; marshal ordering/stability changes; row identity changes; backfill runs implicitly inside validate/write/compact rather than as its own explicit action; derivation is non-deterministic."
+              ],
+              "blocked_by": [
+                "Backlog split C1: lossless multi-file loader/writer behind the single-file API"
+              ],
+              "acceptance": [
+                "Item gains an optional `module` field; Module(it,phase,subphase) is deterministic and defaults from execution_owner+phase when absent; unit tests cover the mapping for the agreed module set.",
+                "`go run ./cmd/progress validate` semantics, row-contract requiredness, row identity and stable marshal output are unchanged for rows without `module` (byte-diff shows only added `module` values where backfilled, nothing else).",
+                "`go test ./internal/progress -count=1` + `go test ./webpages/docs -count=1` green; fully reversible via git."
+              ],
+              "write_scope": [
+                "internal/progress/progress.go",
+                "internal/progress/module.go",
+                "internal/progress/module_test.go",
+                "internal/progressctl/progressctl.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/progress ./internal/progressctl -count=1",
+                "go test ./webpages/docs -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Optional module key + deterministic derivation + validator-neutral backfill shipped; validate/marshal/identity unchanged; prerequisite for per-module physical files satisfied."
+              ],
+              "note": "Module-split umbrella child C5a (prerequisite for C5). Builder-ready (only blocker C1 SHIPPED); independent of C2/C3 — pure schema-additive like ROW B/C1. Recommended chain: gormes-tdd-slice. Keep backfill a separate explicit action, not auto-run by write/validate."
+            },
+            {
+              "name": "Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "Update AGENTS.md (the 'progress.json is the only backlog' rule and Shared Progress Representation section, ~lines 6/89/96/100) and every gormes-* skill's Source Order / progress-contract wording to describe the split (and, post-C5, per-module) on-disk layout while EXPLICITLY preserving the single LOGICAL backlog contract: physically multiple files, one logical backlog, all agents/tools still go through internal/progress.Load (never hand-parse member files). Doc/skill-only; no runtime code. Must keep the symlinked skill loader views (.agents/.claude/.codex) consistent with the canonical docs/development-skills sources. Owned Gormes infra.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "If wording is ambiguous about logical-vs-physical, keep the stricter 'single logical backlog via internal/progress.Load' statement so no agent starts hand-parsing member files.",
+              "fixture": "no runtime fixture (doc/skill copy change); skill-shape validated by quick_validate.py",
+              "source_refs": [
+                "AGENTS.md (progress-contract lines ~6/89/96/100, Shared Progress Representation)",
+                "docs/development-skills/gormes-planner/SKILL.md + gormes-builder + gormes-tdd-slice + gormes-hermes-parity + gormes-skill-manager Source Order sections",
+                "internal/progress/split.go + progress.go Load (the API the wording must point at)"
+              ],
+              "ready_when": [
+                "C2 + C3 shipped so the documented layout matches what generators/consumers actually do."
+              ],
+              "not_ready_when": [
+                "Wording changes before C2/C3 make the split real; AGENTS.md/skills point at the old monolith only; the single-logical-backlog contract is weakened; symlinked skill views diverge from canonical sources; runtime code is touched."
+              ],
+              "blocked_by": [
+                "Backlog split C2: docs/landing generators read the split layout",
+                "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout"
+              ],
+              "acceptance": [
+                "AGENTS.md + every gormes-* skill Source Order describes the split/module layout AND restates the single-logical-backlog-via-internal/progress.Load contract.",
+                "Symlinked .agents/.claude/.codex skill views resolve to the updated canonical docs/development-skills sources (quick_validate.py + find -L check green).",
+                "`go run ./cmd/progress validate` + `go test ./webpages/docs -count=1` green; git diff --check clean."
+              ],
+              "write_scope": [
+                "AGENTS.md",
+                "docs/development-skills",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go run ./cmd/progress validate",
+                "go test ./webpages/docs -count=1",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "AGENTS.md + skills describe the split/module layout while preserving the single logical backlog; skill views consistent; gates green."
+              ],
+              "note": "Module-split umbrella child C4. Builder-ready after C2+C3 (document reality, not intent). Recommended chain: gormes-builder (doc/skill copy). Preserve the AGENTS.md single-logical-backlog contract."
+            },
+            {
+              "name": "Backlog split C5: per-module-batch on-disk row migration",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The actual on-disk flip: physically relocate rows into per-module member files using the C1 Split/Merge/WriteSplit round-trip keyed by the C5a `module` field, ONE safe module-batch per builder slice (NOT a big-bang rewrite). Each batch: pick one agreed module (start with the smallest/lowest-traffic — the `docs`/progress-tooling subsystem itself, dogfooding the split), move only that module's rows into its member file via a lossless Split→edit→Merge that is byte-stable through the stable marshaller, leave every other module and all consumers/generators (made layout-agnostic by C2/C3) working, and keep `go run ./cmd/progress validate` + full tests green. The single logical backlog is preserved (one logical backlog, physically per-module files, all access via internal/progress.Load). This row is the specified batched-migration parent; each concrete module batch is a child slice authored builder-ready only after C5a + C4 land and that batch's module is selected. Owned Gormes infra.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "If a batch cannot be moved losslessly (Merge not byte-stable, or a consumer would be orphaned), abort that batch and leave the layout unchanged — never a partial/lossy migration.",
+              "fixture": "internal/progress/split_test.go (round-trip basis) + per-batch fixture authored with each batch child",
+              "source_refs": [
+                "internal/progress/split.go Split/Merge/WriteSplit (C1) + the C5a module key + C2/C3 layout-agnostic generators/consumers",
+                "internal/progress/progress_marshal.go (byte-stable round-trip basis) ; internal/progress/preservation_test.go",
+                "the umbrella row's agreed module taxonomy"
+              ],
+              "ready_when": [
+                "C2 + C3 + C4 + C5a all shipped; the target module batch is selected; the C1 Split/Merge round-trip is proven byte-stable for that batch."
+              ],
+              "not_ready_when": [
+                "Built as a big-bang rewrite (more than one module batch in one slice); any row migrated lossily or with non-byte-stable Merge; internal/progress.Load public contract broken; a consumer/generator left reading a now-missing monolith; docs/landing generators silently diverged; AGENTS.md/skills not yet updated (C4); the C5a module key not yet shipped."
+              ],
+              "blocked_by": [
+                "Backlog split C2: docs/landing generators read the split layout",
+                "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout",
+                "Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout",
+                "Backlog split C5a: optional per-row module key + deterministic derivation + backfill"
+              ],
+              "acceptance": [
+                "Per-module member files exist for migrated batches; each batch was a lossless byte-stable Split→Merge round-trip (test proves merge(split(canonical)) byte-identical before/after the move).",
+                "All consumers/generators keep working against the post-migration layout; `go test ./... -count=1` + `go run ./cmd/progress validate` green after each batch; single logical backlog preserved.",
+                "Migration is incremental (one module batch per slice), git-reversible, and never leaves the backlog half-monolith/half-split in a committed state."
+              ],
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan (progress.json and/or the split member files)",
+                "internal/progress/split_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Rows physically per-module via lossless byte-stable batched migration; all consumers/generators green; single logical backlog + internal/progress.Load contract preserved."
+              ],
+              "note": "Module-split umbrella child C5 (specified batched-migration parent). NOT builder-ready until C2+C3+C4+C5a ship. First concrete batch = the `docs`/progress-tooling subsystem (smallest, lowest-traffic, dogfoods the split); that batch becomes a builder-ready child once C5a+C4 land. One module batch per slice — never big-bang."
             }
           ]
         },
