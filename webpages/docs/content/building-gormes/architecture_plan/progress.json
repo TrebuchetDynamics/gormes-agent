@@ -61572,12 +61572,12 @@
             {
               "name": "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "Make every remaining backlog consumer AND the write-back path split-layout-safe without changing internal/progress.Load/SaveProgress public signatures. Readers (cmd/progress validate/write/compact, cmd/gormes/status.go, internal/architectureplanneragent) are already transparent via C1's dual-layout Load — verify and add coverage. The meaty part is the WRITE path: internal/builderloop/health_writer.go and internal/plannerloop persist via progress.SaveProgress, which writes a single monolithic file; when the canonical source is a split layout a SaveProgress-equivalent must round-trip back into the split layout (reuse C1 WriteSplit/Split) so health/verdict/status writes do not silently collapse the split into a monolith. Add a split-aware save (e.g. SaveProgress detects the existing layout, or a SaveSplit sibling the writers call) proven by a write→reload round-trip that preserves the split. No row moved; monolith remains default. Owned Gormes infra.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -61606,11 +61606,8 @@
                 "internal/progress.Load/SaveProgress public signatures unchanged; `go test ./... -count=1` green; `go run ./cmd/progress validate` identical for both layouts."
               ],
               "write_scope": [
-                "internal/progress/split.go",
-                "internal/progress/split_test.go",
                 "internal/progress/health.go",
-                "internal/builderloop/health_writer.go",
-                "internal/plannerloop",
+                "internal/progress/split_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -61621,7 +61618,7 @@
               "done_signal": [
                 "All readers + the write path are split-safe via a split-preserving round-trip; public Load/SaveProgress contract intact; monolith still default; zero row movement."
               ],
-              "note": "Module-split umbrella child C3. Builder-ready after C2. The write path (health/verdict round-trip) is the real risk — prove it with a split-preserving SaveProgress round-trip. Recommended chain: gormes-tdd-slice."
+              "note": "SHIPPED 2026-05-16 see git log — SaveProgress+isSplitLayout dir-dispatch→WriteSplit (inverse of C1 Load); ApplyHealthUpdates raw-splice gated to monolith, split→typed write. plannerloop/builderloop split-preserving transparently. Write-scope reduction: only health.go (+test)."
             },
             {
               "name": "Backlog split C5a: optional per-row module key + deterministic derivation + backfill",
