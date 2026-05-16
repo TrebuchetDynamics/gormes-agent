@@ -61675,12 +61675,12 @@
             {
               "name": "Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "Update AGENTS.md (the 'progress.json is the only backlog' rule and Shared Progress Representation section, ~lines 6/89/96/100) and every gormes-* skill's Source Order / progress-contract wording to describe the split (and, post-C5, per-module) on-disk layout while EXPLICITLY preserving the single LOGICAL backlog contract: physically multiple files, one logical backlog, all agents/tools still go through internal/progress.Load (never hand-parse member files). Doc/skill-only; no runtime code. Must keep the symlinked skill loader views (.agents/.claude/.codex) consistent with the canonical docs/development-skills sources. Owned Gormes infra.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -61721,7 +61721,7 @@
               "done_signal": [
                 "AGENTS.md + skills describe the split/module layout while preserving the single logical backlog; skill views consistent; gates green."
               ],
-              "note": "Module-split umbrella child C4. Builder-ready after C2+C3 (document reality, not intent). Recommended chain: gormes-builder (doc/skill copy). Preserve the AGENTS.md single-logical-backlog contract."
+              "note": "SHIPPED 2026-05-16 see git log — AGENTS.md + 4 skills (planner/builder/hermes-parity/skill-manager) state single LOGICAL backlog via internal/progress.Load (monolith-or-split transparent, never hand-parse, monolith-on-disk-today/split-pending-C5). Write-scope correction: gormes-tdd-slice not edited (no backlog-contract block to amend)."
             },
             {
               "name": "Backlog split C5: per-module-batch on-disk row migration",

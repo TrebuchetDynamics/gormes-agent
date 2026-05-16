@@ -191,8 +191,10 @@ on its own without parity evidence; record the upstream sha in
 7. Choose the feedback loop before claiming coverage or handing off.
 8. Route to the smallest subskill chain. One behavior atom should become one
    vertical implementation slice.
-9. Record implementation intent only in `progress.json`; do not create side
-   queues.
+9. Record implementation intent only in `progress.json` — the single logical
+   backlog, accessed via `internal/progress.Load`/`cmd/progress` (monolithic
+   file or split/per-module layout, transparently; never hand-parse members).
+   Do not create side queues.
 
 ## Guardrails
 

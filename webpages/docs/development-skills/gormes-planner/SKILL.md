@@ -34,7 +34,7 @@ If the task might instead be parity audit, implementation, TDD, interface design
 ## Source Order
 
 1. Read `AGENTS.md` and preserve the skill-driven progress contract.
-2. Treat `docs/content/building-gormes/architecture_plan/progress.json` as the only backlog.
+2. Treat `docs/content/building-gormes/architecture_plan/progress.json` as the only backlog — a single *logical* backlog accessed via `internal/progress.Load`/`SaveProgress` or `cmd/progress`, which transparently handle either the monolithic file or a split/per-module directory layout (one logical backlog, physically one or many files; the on-disk form is the monolith today, split-capable). Never hand-parse member files.
 3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map.
 4. Treat `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
 5. Treat `docs/development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
