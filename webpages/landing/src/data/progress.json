@@ -47465,7 +47465,7 @@
               "name": "Gormes update bundled assets and skills sync",
               "status": "planned",
               "priority": "P1",
-              "contract": "After release binary update is safe, `gormes update` must sync release-bundled assets and bundled skills from a release manifest without clobbering user state. The release manifest names web/TUI/static assets, bundled skill versions, removed-from-manifest skills, and checksums. Update installs new bundled skills, replaces only unmodified bundled skills, preserves user-modified bundled skills with conflict/new-copy reporting, removes only unmodified removed skills, keeps user-modified removed skills as orphaned, and includes assets/skills in snapshots and rollback. User config, credentials, sessions, memory databases, and operator-created files are never rewritten by this slice.",
+              "contract": "After release binary update is safe, release-installed `gormes update` must read a verified release manifest and apply only manifest-enumerated bundled assets and bundled skills. The manifest is part of the trusted release chain: strict schema, path, digest, and duplicate-entry validation must complete before mutation; local web builds and runtime directory scans are not authoritative for release installs. Update snapshots every file it may mutate, updates all known profiles with digest-based three-way bundled skill sync, preserves user-modified active skills, writes deterministic conflict copies for new bundled versions, removes only unmodified removed-from-manifest bundled skills, marks modified removed skills as orphaned, records a release install ledger/report, and supports rollback of update-mutated files with post-update-edit conflict preservation. User config, credentials, sessions, memory databases, operator-created files, service drain/restart behavior, and public component-selection flags are out of scope for this slice.",
               "contract_status": "draft",
               "slice_size": "large",
               "execution_owner": "tools",
@@ -47492,6 +47492,8 @@
                 "The slice rewrites config.toml, credentials, sessions, memory DBs, user-created skills, or operator files.",
                 "User-modified bundled skills are overwritten instead of preserved and reported.",
                 "Removed-from-manifest bundled skills are deleted even when user-modified.",
+                "The slice infers release-owned payloads by scanning arbitrary runtime directories instead of the verified manifest.",
+                "The slice runs local Node/web builds for release installs.",
                 "The slice adds service drain/restart behavior; service coordination is the next row."
               ],
               "blocked_by": [
@@ -47501,11 +47503,13 @@
                 "Gormes update managed service drain and restart"
               ],
               "acceptance": [
-                "Release manifest verification covers bundled asset and bundled skill checksums before install.",
+                "Release manifest verification rejects unknown schema versions, path traversal, absolute paths, duplicate entries, symlinks, unsupported digest algorithms, and checksum mismatches before install.",
+                "A release-installed update applies only manifest-enumerated assets/skills and does not run local web builds or scan arbitrary bundled directories as authority.",
                 "New, updated, unchanged, user-modified-kept, conflict-copy, removed, orphaned, and failed skill counts are reported per profile.",
-                "Unmodified bundled assets/skills update; user-modified bundled skills are preserved with `.new` or conflict-copy output; user-created skills are untouched.",
+                "Unmodified bundled assets/skills update; user-modified bundled skills are preserved active with deterministic conflict-copy output; user-created skills are untouched.",
                 "Removed-from-manifest skills are removed only when unmodified and reported as orphaned when user-modified.",
-                "Asset/skill sync participates in snapshot and rollback, with tests proving rollback restores the prior bundled state."
+                "Asset/skill sync participates in snapshot, install ledger/report, and rollback, with tests proving rollback restores only update-mutated files and preserves post-update user edits.",
+                "`gormes update --check` remains non-mutating and can report asset/skill drift even when the binary version is current."
               ],
               "write_scope": [
                 "cmd/gormes/update.go",
@@ -61548,9 +61552,9 @@
         {
           "name": "Navivox HTTP/WS documentation refresh",
           "priority": "P0",
-          "status": "planned",
+          "status": "complete",
           "contract": "Refresh the stale Navivox planning docs so every operator and builder surface describes the current HTTP/WebSocket gateway channel, not the deleted SSH stdio transport. The pass updates the decision record, PRD, architecture, routes, testing plan, and generated CLI/docs references to say that `gormes navivox connect-info`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream` are the supported path; `gormes navivox serve|pair|setup-host`, NVOX binary frames, dartssh2, SSH keys, and fake-server mode are historical/deleted only.",
-          "contract_status": "fixture_ready",
+          "contract_status": "validated",
           "slice_size": "small",
           "execution_owner": "docs",
           "trust_class": [
@@ -61564,9 +61568,16 @@
             "CHANGELOG.md:31",
             "CHANGELOG.md:67",
             "docs/content/cli/navivox.md",
-            "flutter-navivox/navivox-decision-record.md:63",
-            "flutter-navivox/navivox-prd.md:75",
-            "flutter-navivox/navivox-architecture.md:431",
+            "flutter-navivox/navivox-decision-record.md:86",
+            "flutter-navivox/navivox-prd.md:15",
+            "flutter-navivox/navivox-architecture.md:94",
+            "flutter-navivox/navivox-routes.md:43",
+            "flutter-navivox/navivox-testing-plan.md:154",
+            "flutter-navivox/navivox-library-research.md:34",
+            "flutter-navivox/navivox-ui-design.md:48",
+            "flutter-navivox/navivox-data-model.md:14",
+            "flutter-navivox/navivox-chat-ui-research.md:8",
+            "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:151",
             "https://github.com/dograh-hq/dograh#your-first-voice-bot"
           ],
           "ready_when": [
@@ -61599,7 +61610,12 @@
             "flutter-navivox/navivox-architecture.md",
             "flutter-navivox/navivox-routes.md",
             "flutter-navivox/navivox-testing-plan.md",
+            "flutter-navivox/navivox-library-research.md",
+            "flutter-navivox/navivox-ui-design.md",
+            "flutter-navivox/navivox-data-model.md",
+            "flutter-navivox/navivox-chat-ui-research.md",
             "docs/content/cli/navivox.md",
+            "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
             "docs/content/building-gormes/architecture_plan/progress.json"
           ],
           "test_commands": [
@@ -61614,7 +61630,8 @@
             "origin_type": "gormes",
             "owned_since": "2026-05-16",
             "note": "Dograh lesson: make the first useful voice-agent proof a local web call without telephony setup. Gormes translation: Navivox connect-and-talk over the existing HTTP/WS gateway, not Dograh's Docker/Python stack."
-          }
+          },
+          "note": "Complete 2026-05-16: refreshed the Navivox decision record, PRD, architecture, route, testing, library, UI, data-model, chat-UI research, CLI, and Hermes/Honcho feature-map docs around the current HTTP/WebSocket gateway. Current docs now name `gormes navivox connect-info`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream`; the Dograh-inspired activation principle is connect-and-talk without telephony setup; tool calls stay structured UI objects; config admin stays schema-driven/redacted/server-authoritative; stale transport terms remain only in historical progress/generated evidence or deleted-code comments."
         },
         {
           "name": "Navivox connect-and-talk first screen",

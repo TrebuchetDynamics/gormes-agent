@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/110 subphases shipped · 10 in progress · 2 planned
+**Overall:** 98/110 subphases shipped · 11 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -1464,9 +1464,9 @@ classification and row-backed implementation queue.
 - [x] Navivox HTTP gateway mandatory-VPN bind
 - [x] Navivox HTTP gateway connect-info command
 
-### 9.F — Navivox Operator Activation ⏳
+### 9.F — Navivox Operator Activation 🔨
 
-- [ ] Navivox HTTP/WS documentation refresh
+- [x] Navivox HTTP/WS documentation refresh
 - [ ] Navivox connect-and-talk first screen
 - [ ] Navivox natural-language agent seed flow
 - [ ] Navivox structured tool event cards
