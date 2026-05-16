@@ -39,6 +39,14 @@ api_key = "sk-doctor-fix-test"
 	if !strings.Contains(out, "✓ Fixed: config schema") {
 		t.Fatalf("doctor --fix must report the config-version remediation as Fixed:\n%s", out)
 	}
+	// Clarity: stamping a missing key is described as "stamped ... (was
+	// unset)", never the confusing no-op-looking "v1→v1" form.
+	if !strings.Contains(out, "stamped _config_version=1 (was unset)") {
+		t.Fatalf("unset-stamp remediation must read 'stamped _config_version=1 (was unset)', got:\n%s", out)
+	}
+	if strings.Contains(out, "v1→v1") {
+		t.Fatalf("unset-stamp must not render the confusing no-op-looking 'v1→v1' detail:\n%s", out)
+	}
 	if !strings.Contains(out, "skipped (--offline)") {
 		t.Fatalf("doctor --offline --fix must still SKIP the provider health network check:\n%s", out)
 	}
