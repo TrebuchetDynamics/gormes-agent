@@ -249,3 +249,104 @@ func TestSaveProgressMonolithDefaultUnchanged(t *testing.T) {
 		t.Fatal("monolithic SaveProgress behavior must be byte-for-byte unchanged")
 	}
 }
+
+// moduleKeyedFixture spans multiple phases and modules, includes a
+// status-only subphase (pure skeleton, no items) and a subphase whose
+// items map to two different modules, so a lossless module-keyed
+// round-trip must reconstruct every row in its real phase/subphase.
+func moduleKeyedFixture() *Progress {
+	return &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{
+			"1": {Name: "P1", Deliverable: "d1", Subphases: map[string]Subphase{
+				"1.A": {Name: "A", Items: []Item{
+					{Name: "tui-row", Status: StatusComplete, ExecutionOwner: ExecutionOwnerTui},
+					{Name: "tools-row", Status: StatusPlanned, ExecutionOwner: ExecutionOwnerTools, Priority: "P2"},
+				}},
+				"1.B": {Name: "B status-only", Status: StatusComplete},
+			}},
+			"10": {Name: "P10", Deliverable: "d10", DependencyNote: "after 9", Subphases: map[string]Subphase{
+				"10.A": {Name: "Tenth", Items: []Item{
+					{Name: "docs-row", Status: StatusComplete, ExecutionOwner: ExecutionOwnerDocs},
+					{Name: "prov-row", Status: StatusInProgress, ExecutionOwner: ExecutionOwnerProvider, Contract: "c", ContractStatus: "draft"},
+				}},
+			}},
+			"2": {Name: "P2", Deliverable: "d2", Subphases: map[string]Subphase{
+				"2.A": {Name: "Alpha", Items: []Item{
+					{Name: "explicit-mod", Status: StatusPlanned, Module: "custom-bucket"},
+				}},
+			}},
+		},
+	}
+}
+
+// (C5b.1) A module-keyed split round-trips byte-identically through the
+// stable marshaller and reconstructs every row in its real phase/subphase.
+func TestModuleKeyedSplitRoundTripIsLossless(t *testing.T) {
+	p := moduleKeyedFixture()
+	dir := filepath.Join(t.TempDir(), "msplit")
+	if err := WriteSplitBy(dir, p, splitKeyByModule); err != nil {
+		t.Fatalf("WriteSplitBy(module): %v", err)
+	}
+	// On-disk shape: index records module keying, members under modules/.
+	if _, err := os.Stat(filepath.Join(dir, "index.json")); err != nil {
+		t.Fatalf("index.json missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, splitModulesDir)); err != nil {
+		t.Fatalf("modules/ dir missing: %v", err)
+	}
+
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load(module-keyed dir): %v", err)
+	}
+	if !reflect.DeepEqual(got, p) {
+		t.Fatalf("Load(module split) must deep-equal original:\n got=%+v\nwant=%+v", got, p)
+	}
+	if a, b := saveBytes(t, got), saveBytes(t, p); !reflect.DeepEqual(a, b) {
+		t.Fatalf("module-keyed split must be byte-stable through SaveProgress (%d vs %d bytes)", len(a), len(b))
+	}
+}
+
+// (C5b.3) Phase-keyed (C1) stays the default and byte-identical; an unknown
+// keyBy is a typed error.
+func TestSplitKeyByBackCompatAndUnknown(t *testing.T) {
+	p := moduleKeyedFixture()
+
+	// Default WriteSplit == explicit phase keying, byte-identical.
+	d1 := filepath.Join(t.TempDir(), "a")
+	d2 := filepath.Join(t.TempDir(), "b")
+	if err := WriteSplit(d1, p); err != nil {
+		t.Fatalf("WriteSplit default: %v", err)
+	}
+	if err := WriteSplitBy(d2, p, splitKeyByPhase); err != nil {
+		t.Fatalf("WriteSplitBy(phase): %v", err)
+	}
+	i1, _ := os.ReadFile(filepath.Join(d1, "index.json"))
+	i2, _ := os.ReadFile(filepath.Join(d2, "index.json"))
+	if !reflect.DeepEqual(i1, i2) {
+		t.Fatal("default WriteSplit must be byte-identical to explicit phase keying (C1 back-compat)")
+	}
+	g1, err := Load(d1)
+	if err != nil {
+		t.Fatalf("Load phase split: %v", err)
+	}
+	if !reflect.DeepEqual(saveBytes(t, g1), saveBytes(t, p)) {
+		t.Fatal("phase-keyed round-trip must stay byte-stable")
+	}
+
+	// Unknown keyBy on disk -> ErrMalformedSplit.
+	bad := filepath.Join(t.TempDir(), "bad")
+	if err := WriteSplitBy(bad, p, splitKeyByModule); err != nil {
+		t.Fatalf("seed module split: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bad, "index.json"),
+		[]byte(`{"meta":{"version":"2.0"},"key_by":"galaxy"}`+"\n"), 0o644); err != nil {
+		t.Fatalf("rewrite index: %v", err)
+	}
+	if _, err := Load(bad); err == nil {
+		t.Fatal("unknown key_by must error")
+	} else if !errors.Is(err, ErrMalformedSplit) {
+		t.Fatalf("unknown key_by must be ErrMalformedSplit, got %v", err)
+	}
+}
