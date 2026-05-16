@@ -48061,28 +48061,40 @@
             },
             {
               "name": "gormes doctor ◆ Profiles section content",
-              "status": "planned",
-              "priority": "P3",
-              "contract": "Add `◆ Profiles` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:1768): per-profile gateway-running + model summary. Gormes' profile model differs from Hermes' — this row first needs the active Gormes profile inventory contract identified (owned divergence) before TDD; emit one CheckResult{Name:\"Profiles\"} listing each Gormes profile with its gateway state + resolved model, Gormes-owned wording/paths. Out of scope until the Gormes profile contract is mapped.",
-              "contract_status": "draft",
-              "slice_size": "medium",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Add Gormes-owned `◆ Profiles` diagnostic content to `gormes doctor` (parity intent: hermes_cli/doctor.py@55c9f3206:1768 ◆ Profiles), now CONTRACT-MAPPED, now SHIPPED. Add a new internal/doctor check emitting ONE CheckResult{Name:\"Profiles\"} with ItemInfo (PASS/WARN only): a summary item `N profile(s) found (active: <name|default>)`; one item per profile from the Gormes profile seam (cmd/gormes/profile.go profileCommandSeams.ListKnownProfiles() + ReadActiveProfileName() + ResolveProfileRoot + ReadDistributionManifest, or the underlying cli.* funcs — reuse as source of truth, do NOT hardcode a ~/.gormes/profiles glob if a seam exists) showing the profile name, an active marker for the active profile, whether its resolved root exists (missing → WARN), and whether a cli.ProfileDistributionManifest is present (absent → NON-actionable PASS note 'no distribution manifest', NEVER WARN — mirrors the shipped Directory-Structure not-yet-created rule so it cannot inflate the computed `Found N issue(s)` count); zero known / default-only → a single clean PASS item 'default profile only'. Wire via reporter.Add in cmd/gormes/doctor.go so it groups under the existing ◆ Profiles header, and add `case \"Profiles\": return SectionProfiles` to internal/doctor/doctor_section.go sectionForCheck (write-scope-correction precedent: the Directory Structure child added its own sectionForCheck case). Pure local FS — no network, identical under `--offline`; hermetic via temp GORMES_HOME. OWNED DIVERGENCE (must be honored, not ported): Gormes profiles are `~/.gormes/profiles/<name>` subdirs with a distribution manifest + an active marker — NOT Hermes' separate `~/.hermes-<name>` homes, NOT shell-wrapper aliases / `_get_wrapper_dir`, NOT orphan-alias detection, and Gormes has a single gateway runtime (gateway.pid/state in the active home) so there is NO faithful per-named-profile `gateway_running` signal — the check MUST NOT fabricate gateway-running, wrapper-alias, orphan, or per-profile `model[:30]` data Gormes does not own; omit rather than invent. Gormes-owned wording only (`~/.gormes/profiles`, `gormes profile create`, `gormes profile list`) — never `~/.hermes-<name>`/`hermes`/wrapper-alias. Do NOT add other section content (Security Advisories is the remaining sibling) or change existing checks/the full wizard.",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "tools",
-              "degraded_mode": "No profiles configured → single PASS item 'default profile only'; unresolved profile → WARN, never panic.",
+              "degraded_mode": "If the profile-list seam is unavailable or errors, emit a single WARN item with a typed reason (no panic, no fabricated profile list). A profile whose root cannot be resolved → WARN for that item only. Default-only / zero named profiles → one clean PASS 'default profile only' (NOT a WARN — Gormes always has a usable default). Manifest-absent is a non-actionable PASS note, never WARN.",
               "fixture": "internal/doctor/doctor_profiles_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:1768:◆ Profiles (per-profile gateway + model)",
-                "../hermes-agent/hermes_cli/profiles.py@55c9f3206 (Hermes profile model — owned-divergence reference)",
-                "Gormes profile/config seams (internal/config profile handling) — identify active contract before TDD"
+                "../hermes-agent/hermes_cli/doctor.py@55c9f3206:1768:◆ Profiles (named-only filter, per-profile gateway/model/alias — parity intent + owned-divergence reference)",
+                "../hermes-agent/hermes_cli/profiles.py@55c9f3206 list_profiles/ProfileInfo/_get_wrapper_dir (Hermes profile model — what NOT to port)",
+                "cmd/gormes/profile.go profileCommandSeams{ListKnownProfiles,ReadActiveProfileName,ResolveProfileRoot,ReadDistributionManifest}, runProfileListCommand, defaultProfileCommandSeams; config.GormesHome()+\"profiles\" (profile.go:762) — Gormes-owned profile source of truth",
+                "internal/cli profile_distribution.go ProfileDistributionManifest / ResolveProfileRootFunc",
+                "internal/doctor/doctor_directory.go (shipped sibling — pattern to mirror: CheckResult+ItemInfo, reuse manifest seam, non-actionable PASS, hermetic temp home)",
+                "internal/doctor/doctor_section.go sectionForCheck (add the \"Profiles\" → SectionProfiles case) ; doctor.go Status PASS/WARN/SKIP only (no INFO)"
               ],
               "ready_when": [
-                "◆-section grouping shipped; the Gormes profile inventory contract is identified (owned divergence vs Hermes profiles.py)."
+                "Gormes profile contract MAPPED (gormes-hermes-parity 2026-05-16): ListKnownProfiles/ReadActiveProfileName/ResolveProfileRoot/ReadDistributionManifest seams exist; profiles at ~/.gormes/profiles/<name>.",
+                "◆-section grouping + the Directory-Structure section-content pattern shipped (mirror it).",
+                "Tests can drive the check with a temp GORMES_HOME (no profiles, default-only, and ≥1 named profile w/ and w/o manifest) and a cobra-driven `gormes doctor --offline` asserting the ◆ Profiles section renders."
               ],
               "not_ready_when": [
-                "Implemented before the Gormes profile contract is mapped, or copies Hermes profile semantics blindly."
+                "The check fabricates Hermes-only data Gormes does not own: per-profile gateway_running, shell-wrapper aliases, orphan-alias detection, or per-profile model[:30].",
+                "Manifest-absent or default-only is emitted as WARN/FAIL (would inflate Found-N).",
+                "Hardcodes a ~/.gormes/profiles filesystem glob instead of reusing the profile seam, or prints ~/.hermes-<name>/hermes/wrapper wording.",
+                "Adds a new Status enum value, or changes existing checks / the full wizard / other sections."
               ],
               "blocked_by": [],
               "acceptance": [
-                "`gormes doctor` renders `◆ Profiles` with each Gormes profile's gateway state + model in Gormes-owned wording; no-profile case is a clean PASS."
+                "`gormes doctor --offline` (cobra, temp GORMES_HOME) renders a `◆ Profiles` section with a `[PASS|WARN] Profiles:` line and a summary item `N profile(s) found (active: <name|default>)`.",
+                "Default-only / zero named profiles → a single clean PASS item 'default profile only' (no WARN); ≥1 named profile → one item each with name + active marker + root-exists (missing → WARN) + manifest-present (absent → non-actionable PASS note, NOT counted in `Found N issue(s)`).",
+                "No fabricated gateway_running / wrapper-alias / orphan / model[:30]; profile data comes from the Gormes profile seam; wording is Gormes-owned (no ~/.hermes-<name>/hermes/wrapper).",
+                "`--offline` identical (pure FS); existing checks, Found-N summary, --fix, and other sections unchanged.",
+                "go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1 and go test ./cmd/gormes -count=1 green."
               ],
               "write_scope": [
                 "internal/doctor/doctor_profiles.go",
@@ -48099,16 +48111,17 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Fixtures prove the ◆ Profiles per-profile gateway+model summary with Gormes-owned profile semantics — citing hermes 55c9f3206 doctor.py:1768; preceded by a Gormes profile-contract mapping pass."
+                "Fixtures prove the ◆ Profiles section: summary line + active marker, default-only clean PASS, per-named-profile root/manifest items with manifest-absent non-actionable (not in Found-N), NO fabricated Hermes gateway/alias/orphan/model data, Gormes-owned wording, --offline FS-only, existing surfaces unchanged — reusing the cmd/gormes/profile.go seam and citing hermes 55c9f3206 doctor.py:1768 as owned-divergence reference."
               ],
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
-                  "hermes:55c9f3206 hermes_cli/doctor.py:1768 ◆ Profiles"
+                  "hermes:55c9f3206 hermes_cli/doctor.py:1768 ◆ Profiles (parity intent + owned-divergence reference)",
+                  "hermes:55c9f3206 hermes_cli/profiles.py list_profiles/ProfileInfo (what NOT to port)"
                 ],
-                "note": "skill_origin: 2026-05-16 gormes-hermes-parity deferred doctor section-content sweep -> gormes-planner. Child 4/5. Owned-divergence-heavy: map Gormes profile contract first."
+                "note": "skill_origin: 2026-05-16 gormes-hermes-parity deferred doctor section-content sweep -> gormes-planner. Child 4/5. Contract MAPPED this pass: Gormes profile model = ~/.gormes/profiles/<name> + ListKnownProfiles/active/distribution-manifest seam; Hermes per-profile gateway_running/wrapper-alias/orphan/model is owned divergence (do NOT port)."
               },
-              "note": "Child 4/5 of the doctor section-content umbrella split. Lower priority: needs the Gormes profile inventory contract identified before TDD."
+              "note": "Child 4/5 of the doctor section-content umbrella split. SHIPPED 2026-05-15 (gormes-tdd-slice). internal/doctor/doctor_profiles.go: DoctorProfileInventory{Known,Active,RootExists,HasManifest} + CheckProfiles emitting ONE CheckResult{Name:\"Profiles\"} — default-only → clean PASS 'default profile only'; named profiles → 'N profile(s) found (active: <name>)' summary item + per-profile PASS/WARN items with active marker; root-missing → WARN that item only (section→WARN, IS in CollectDoctorIssues); manifest-absent → non-actionable PASS note 'no distribution manifest' (NOT in CollectDoctorIssues — proven by TestCheckProfilesRootMissingWarnsButManifestAbsentIsNonActionable). No fabricated gateway_running/wrapper-alias/orphan/model[:30]. internal/doctor/doctor_section.go gained `case \"Profiles\": return SectionProfiles`. cmd/gormes/doctor.go doctorProfilesStatus() builds the inventory from defaultProfileCommandSeams() (ListKnownProfiles/ReadActiveProfileName + ResolveProfileRoot+os.Stat for RootExists + ReadDistributionManifest for HasManifest) and reporter.Add wires it under ◆ Profiles. Tests: internal/doctor/doctor_profiles_test.go (3 behaviors), cmd/gormes/doctor_profiles_test.go (cobra `gormes doctor --offline` default-only + named, Gormes-owned wording, no ~/.hermes/wrapper). Gates green: go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1; go test ./cmd/gormes -count=1. Owned divergence honored: Gormes ~/.gormes/profiles seam, no Hermes profiles.py port. Remaining sibling: Security Advisories (P3, needs an owned advisory subsystem — gormes-interface-designer first)."
             },
             {
               "name": "gormes doctor ◆ Security Advisories section content",

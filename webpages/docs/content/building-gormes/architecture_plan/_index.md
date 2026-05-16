@@ -1121,7 +1121,7 @@ classification and row-backed implementation queue.
 - [x] gormes doctor ◆ Directory Structure section content
 - [x] gormes doctor ◆ Skills Hub section content
 - [x] gormes doctor ◆ Auth Providers section content
-- [ ] gormes doctor ◆ Profiles section content
+- [x] gormes doctor ◆ Profiles section content
 - [ ] gormes doctor ◆ Security Advisories section content
 - [x] gormes setup <section> boxed header + completion footer (UX parity)
 - [x] Custom provider model-switch credential preservation

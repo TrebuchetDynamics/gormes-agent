@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. gormes doctor ◆ Profiles section content
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Add `◆ Profiles` diagnostic content to `gormes doctor` (parity with hermes_cli/doctor.py@55c9f3206:1768): per-profile gateway-running + model summary. Gormes' profile model differs from Hermes' — this row first needs the active Gormes profile inventory contract identified (owned divergence) before TDD; emit one CheckResult{Name:"Profiles"} listing each Gormes profile with its gateway state + resolved model, Gormes-owned wording/paths. Out of scope until the Gormes profile contract is mapped.
-- Trust class: -
-- Ready when: ◆-section grouping shipped; the Gormes profile inventory contract is identified (owned divergence vs Hermes profiles.py).
-- Not ready when: Implemented before the Gormes profile contract is mapped, or copies Hermes profile semantics blindly.
-- Degraded mode: No profiles configured → single PASS item 'default profile only'; unresolved profile → WARN, never panic.
-- Fixture: `internal/doctor/doctor_profiles_test.go`
-- Write scope: `internal/doctor/doctor_profiles.go`, `internal/doctor/doctor_profiles_test.go`, `internal/doctor/doctor_section.go`, `cmd/gormes/doctor.go`, `cmd/gormes/doctor_profiles_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/doctor ./cmd/gormes -run 'Doctor' -count=1`, `go test ./cmd/gormes -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Fixtures prove the ◆ Profiles per-profile gateway+model summary with Gormes-owned profile semantics — citing hermes 55c9f3206 doctor.py:1768; preceded by a Gormes profile-contract mapping pass.
-- Acceptance: `gormes doctor` renders `◆ Profiles` with each Gormes profile's gateway state + model in Gormes-owned wording; no-profile case is a clean PASS.
-- Source refs: ../hermes-agent/hermes_cli/doctor.py@55c9f3206:1768:◆ Profiles (per-profile gateway + model), ../hermes-agent/hermes_cli/profiles.py@55c9f3206 (Hermes profile model — owned-divergence reference), Gormes profile/config seams (internal/config profile handling) — identify active contract before TDD
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. gormes doctor ◆ Security Advisories section content
+## 1. gormes doctor ◆ Security Advisories section content
 
 - Phase: 5 / 5.O
 - Owner: `tools`
@@ -67,7 +47,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/doctor.py@55c9f3206:350:◆ Security Advisories, ../hermes-agent/hermes_cli/security_advisories.py@55c9f3206 (detect_compromised/filter_unacked/full_remediation_text/get_acked_ids — port reference), Gormes has no equivalent — new internal/security advisory + ack-state subsystem required (owned)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Agentic-porting-kit public repo scaffold
+## 2. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
