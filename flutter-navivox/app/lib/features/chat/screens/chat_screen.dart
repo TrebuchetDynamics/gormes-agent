@@ -142,7 +142,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
     final exists = channel.state.profileContacts.any(
-      (contact) => contact.serverId == serverId && contact.profileId == profileId,
+      (contact) =>
+          contact.serverId == serverId && contact.profileId == profileId,
     );
     if (!exists) return;
 
