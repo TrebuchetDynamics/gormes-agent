@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navivox/core/channel/navivox_channel_provider.dart';
 import 'package:navivox/router/app_router.dart';
-
-import '../../../integration_test/support/connect_and_talk_channel.dart';
+import 'package:navivox/testing/connect_and_talk_channel.dart';
 
 void main() {
   testWidgets('connect-info lands on chat and sends a text turn', (

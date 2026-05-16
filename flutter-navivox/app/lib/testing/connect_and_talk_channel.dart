@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:navivox/core/channel/gateway_navivox_channel.dart';
-import 'package:navivox/core/channel/navivox_channel.dart';
-import 'package:navivox/core/gateway/navivox_gateway_protocol.dart';
-import 'package:navivox/core/protocol/navivox_event.dart';
+import '../core/channel/gateway_navivox_channel.dart';
+import '../core/channel/navivox_channel.dart';
+import '../core/gateway/navivox_gateway_protocol.dart';
+import '../core/protocol/navivox_event.dart';
 
 class ConnectAndTalkChannel extends GatewayNavivoxChannel {
   NavivoxChannelState _state = const NavivoxChannelState();

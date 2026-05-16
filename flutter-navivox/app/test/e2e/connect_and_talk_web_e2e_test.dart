@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:navivox/core/channel/navivox_channel_provider.dart';
 import 'package:navivox/router/app_router.dart';
 import 'package:navivox/testing/connect_and_talk_channel.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  testWidgets('web e2e connects from setup and sends the first text turn', (
+  testWidgets('web browser e2e connects from setup and sends first text turn', (
     tester,
   ) async {
     final channel = ConnectAndTalkChannel();
@@ -18,7 +15,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [navivoxChannelProvider.overrideWithValue(channel)],
-        child: const _E2EApp(),
+        child: const _WebE2EApp(),
       ),
     );
     await tester.pumpAndSettle();
@@ -70,8 +67,8 @@ Finder _caseInsensitiveText(String needle) {
   });
 }
 
-class _E2EApp extends ConsumerWidget {
-  const _E2EApp();
+class _WebE2EApp extends ConsumerWidget {
+  const _WebE2EApp();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

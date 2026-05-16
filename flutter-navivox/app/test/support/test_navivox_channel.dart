@@ -8,8 +8,9 @@ import 'package:navivox/core/channel/navivox_channel.dart';
 /// public fields and surfaces a mutable [NavivoxChannelState] so tests can
 /// seed servers/agents/messages without touching the wire layer.
 class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
-  TestNavivoxChannel({NavivoxChannelState initial = const NavivoxChannelState()})
-    : _state = initial;
+  TestNavivoxChannel({
+    NavivoxChannelState initial = const NavivoxChannelState(),
+  }) : _state = initial;
 
   NavivoxChannelState _state;
   final StreamController<NavivoxApprovalRequest> _approvals =
@@ -74,12 +75,14 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     required Duration duration,
     required double confidence,
   }) {
-    sentVoiceCalls.add(SentVoiceCall(
-      audio: audio,
-      transcript: transcript,
-      duration: duration,
-      confidence: confidence,
-    ));
+    sentVoiceCalls.add(
+      SentVoiceCall(
+        audio: audio,
+        transcript: transcript,
+        duration: duration,
+        confidence: confidence,
+      ),
+    );
   }
 
   @override
