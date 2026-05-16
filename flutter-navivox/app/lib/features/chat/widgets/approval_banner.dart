@@ -57,8 +57,10 @@ class _ApprovalBannerState extends State<ApprovalBanner> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Approval requested',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Approval requested',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
             Text(pending.prompt),
             if (_riskLabel(pending.risk) != null)

@@ -18,30 +18,36 @@ const _seedServers = [
 
 void main() {
   testWidgets(
-      'chat AppBar omits the active-agent indicator when no agent is selected',
-      (tester) async {
-    final channel = TestNavivoxChannel()
-      ..seedServers(_seedServers, activeServerId: 'srv1')
-      ..seedAgents(_seedAgents);
+    'chat AppBar omits the active-agent indicator when no agent is selected',
+    (tester) async {
+      final channel = TestNavivoxChannel()
+        ..seedServers(_seedServers, activeServerId: 'srv1')
+        ..seedAgents(_seedAgents);
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [navivoxChannelProvider.overrideWithValue(channel)],
-      child: const MaterialApp(home: ChatScreen()),
-    ));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [navivoxChannelProvider.overrideWithValue(channel)],
+          child: const MaterialApp(home: ChatScreen()),
+        ),
+      );
 
-    expect(find.byKey(const ValueKey('chat-active-agent')), findsNothing);
-  });
+      expect(find.byKey(const ValueKey('chat-active-agent')), findsNothing);
+    },
+  );
 
-  testWidgets('chat AppBar shows the selected agent name as an indicator',
-      (tester) async {
+  testWidgets('chat AppBar shows the selected agent name as an indicator', (
+    tester,
+  ) async {
     final channel = TestNavivoxChannel()
       ..seedServers(_seedServers, activeServerId: 'srv1')
       ..seedAgents(_seedAgents, selectedAgentId: 'arch');
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [navivoxChannelProvider.overrideWithValue(channel)],
-      child: const MaterialApp(home: ChatScreen()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [navivoxChannelProvider.overrideWithValue(channel)],
+        child: const MaterialApp(home: ChatScreen()),
+      ),
+    );
 
     final indicator = find.byKey(const ValueKey('chat-active-agent'));
     expect(indicator, findsOneWidget);

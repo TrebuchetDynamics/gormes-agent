@@ -21,10 +21,10 @@ class VoiceCaptureSession {
     required SpeechRecognizer recognizer,
     required DateTime startedAt,
     required DateTime Function() clock,
-  })  : _recorder = recorder,
-        _recognizer = recognizer,
-        _startedAt = startedAt,
-        _clock = clock;
+  }) : _recorder = recorder,
+       _recognizer = recognizer,
+       _startedAt = startedAt,
+       _clock = clock;
 
   final AudioRecorder _recorder;
   final SpeechRecognizer _recognizer;
@@ -70,10 +70,14 @@ class VoiceCaptureSession {
     _active = false;
     try {
       await _recorder.cancel();
-    } catch (_) {/* swallow */}
+    } catch (_) {
+      /* swallow */
+    }
     try {
       await _recognizer.cancel();
-    } catch (_) {/* swallow */}
+    } catch (_) {
+      /* swallow */
+    }
   }
 }
 
@@ -82,9 +86,9 @@ class RecordVoiceCaptureService implements VoiceCaptureService {
     required AudioRecorder recorder,
     required SpeechRecognizer recognizer,
     DateTime Function()? clock,
-  })  : _recorder = recorder,
-        _recognizer = recognizer,
-        _clock = clock ?? DateTime.now;
+  }) : _recorder = recorder,
+       _recognizer = recognizer,
+       _clock = clock ?? DateTime.now;
 
   final AudioRecorder _recorder;
   final SpeechRecognizer _recognizer;

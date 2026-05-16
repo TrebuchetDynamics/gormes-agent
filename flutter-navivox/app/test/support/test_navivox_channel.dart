@@ -17,11 +17,14 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
       StreamController<NavivoxApprovalRequest>.broadcast();
 
   final List<String> sentTexts = [];
+  final List<({String text, String? serverId, String? profileId})>
+  sentTextCalls = [];
   final List<SentVoiceCall> sentVoiceCalls = [];
   final List<({String approvalId, bool approved})> approvalResponses = [];
   final List<({String field, Object? value})> configSetCalls = [];
   final List<({String name, String secret})> configSecretSetCalls = [];
   String? lastSelectedAgentId;
+  ({String serverId, String profileId})? selectedProfileScope;
   int agentListRequests = 0;
 
   @override
@@ -46,6 +49,17 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     );
   }
 
+  void seedProfileContacts(
+    List<NavivoxProfileContact> contacts, {
+    String? selectedKey,
+  }) {
+    state = _state.copyWith(
+      profileContacts: contacts,
+      selectedProfileContactKey:
+          selectedKey ?? _state.selectedProfileContactKey,
+    );
+  }
+
   void emitApprovalRequest(NavivoxApprovalRequest request) {
     _approvals.add(request);
   }
@@ -66,7 +80,15 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   Stream<NavivoxApprovalRequest> get approvalRequests => _approvals.stream;
 
   @override
-  void sendText(String text) => sentTexts.add(text);
+  void sendText(String text) {
+    sentTexts.add(text);
+    final active = _state.activeProfileContact;
+    sentTextCalls.add((
+      text: text,
+      serverId: active?.serverId,
+      profileId: active?.profileId,
+    ));
+  }
 
   @override
   void sendVoice({
@@ -97,6 +119,18 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   void selectAgent(String agentId) {
     lastSelectedAgentId = agentId;
     state = _state.copyWith(selectedAgentId: agentId);
+  }
+
+  @override
+  void selectProfileContact({
+    required String serverId,
+    required String profileId,
+  }) {
+    selectedProfileScope = (serverId: serverId, profileId: profileId);
+    state = _state.copyWith(
+      activeServerId: serverId,
+      selectedProfileContactKey: '$serverId::$profileId',
+    );
   }
 
   @override

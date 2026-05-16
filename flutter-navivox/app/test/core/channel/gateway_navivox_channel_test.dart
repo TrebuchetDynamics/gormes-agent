@@ -46,6 +46,33 @@ void main() {
     expect(messages.where((m) => m.text == 'hello from gateway'), hasLength(1));
   });
 
+  test('selected profile scope is included in gateway turn metadata', () async {
+    final server = await _FakeGatewayServer.start();
+    addTearDown(server.close);
+
+    final channel = GatewayNavivoxChannel();
+    addTearDown(channel.dispose);
+
+    await channel.connect(
+      NavivoxGatewayConfig.fromBaseUrl(
+        server.baseUrl,
+        token: _FakeGatewayServer.token,
+      ),
+    );
+    channel.selectProfileContact(
+      serverId: 'navivox-gateway',
+      profileId: 'default',
+    );
+
+    channel.sendText('hello scoped gateway');
+
+    final sent = await server.nextClientMessage;
+    final metadata = Map<String, Object?>.from(sent['metadata'] as Map);
+    expect(metadata['server_id'], 'navivox-gateway');
+    expect(metadata['profile_id'], 'default');
+    expect(metadata['client'], 'navivox');
+  });
+
   test(
     'voice transcript renders locally and submits as a gateway turn',
     () async {

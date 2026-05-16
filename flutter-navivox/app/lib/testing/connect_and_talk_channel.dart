@@ -21,7 +21,20 @@ class ConnectAndTalkChannel extends GatewayNavivoxChannel {
       name: 'Gormes Gateway',
       status: 'Gateway online - 127.0.0.1:8765',
     );
-    _state = _state.copyWith(servers: [server], activeServerId: server.id);
+    const profile = NavivoxProfileContact(
+      serverId: 'navivox-gateway',
+      profileId: 'default',
+      displayName: 'Default profile',
+      serverLabel: 'Gormes Gateway',
+      health: NavivoxProfileHealth.online,
+      latestPreview: 'Gateway online',
+      micAvailable: true,
+    );
+    _state = _state.copyWith(
+      servers: [server],
+      activeServerId: server.id,
+      profileContacts: [profile],
+    );
     notifyListeners();
   }
 
@@ -49,6 +62,18 @@ class ConnectAndTalkChannel extends GatewayNavivoxChannel {
           text: 'hello from gateway',
         ),
       ],
+    );
+    notifyListeners();
+  }
+
+  @override
+  void selectProfileContact({
+    required String serverId,
+    required String profileId,
+  }) {
+    _state = _state.copyWith(
+      activeServerId: serverId,
+      selectedProfileContactKey: '$serverId::$profileId',
     );
     notifyListeners();
   }

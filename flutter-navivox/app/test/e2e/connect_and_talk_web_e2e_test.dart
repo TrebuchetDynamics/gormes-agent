@@ -43,6 +43,10 @@ void main() {
     expect(channel.connectedConfig?.token, 'nvbx_test_token');
     expect(find.text('Gormes Gateway'), findsOneWidget);
     expect(find.textContaining('Gateway online'), findsOneWidget);
+    expect(find.text('Default profile'), findsOneWidget);
+
+    await tester.tap(find.text('Default profile'));
+    await tester.pumpAndSettle();
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Message Gormes'),

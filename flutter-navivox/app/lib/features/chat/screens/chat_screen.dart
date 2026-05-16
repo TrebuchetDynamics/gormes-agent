@@ -15,7 +15,10 @@ final chatVoiceCaptureServiceProvider = Provider<VoiceCaptureService?>(
 );
 
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({this.serverId, this.profileId, super.key});
+
+  final String? serverId;
+  final String? profileId;
 
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
@@ -42,9 +45,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       channel.addListener(_onChannelChanged);
       _subscribed = channel;
     }
+    _syncRouteProfile(channel);
 
     final state = channel.state;
     final server = state.activeServer;
+    final activeProfile = state.activeProfileContact;
     final voiceService = ref.watch(chatVoiceCaptureServiceProvider);
     final selectedAgent = state.selectedAgentId == null
         ? null
@@ -54,11 +59,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const BackButton(),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(server?.name ?? 'Chats'),
-            if (server != null)
+            Text(activeProfile?.displayName ?? server?.name ?? 'Chats'),
+            if (activeProfile != null)
+              Text(
+                '${activeProfile.serverLabel} • ${_profileHealthLabel(activeProfile.health)}',
+                style: Theme.of(context).textTheme.labelMedium,
+              )
+            else if (server != null)
               Text(
                 server.status,
                 style: Theme.of(context).textTheme.labelMedium,
@@ -66,6 +77,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
         actions: [
+          if (activeProfile != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Center(
+                child: Chip(
+                  key: const ValueKey('chat-active-profile'),
+                  avatar: const Icon(Icons.person, size: 16),
+                  label: Text(activeProfile.serverLabel),
+                ),
+              ),
+            ),
           if (selectedAgent != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -98,5 +120,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ],
       ),
     );
+  }
+
+  String _profileHealthLabel(NavivoxProfileHealth health) {
+    return switch (health) {
+      NavivoxProfileHealth.online => 'online',
+      NavivoxProfileHealth.offline => 'offline',
+      NavivoxProfileHealth.needsAuth => 'auth required',
+      NavivoxProfileHealth.warning => 'warning',
+    };
+  }
+
+  void _syncRouteProfile(NavivoxChannel channel) {
+    final serverId = widget.serverId;
+    final profileId = widget.profileId;
+    if (serverId == null || profileId == null) return;
+
+    final key = '$serverId::$profileId';
+    if (channel.state.selectedProfileContactKey == key &&
+        channel.state.activeServerId == serverId) {
+      return;
+    }
+    final exists = channel.state.profileContacts.any(
+      (contact) => contact.serverId == serverId && contact.profileId == profileId,
+    );
+    if (!exists) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (channel.state.selectedProfileContactKey == key &&
+          channel.state.activeServerId == serverId) {
+        return;
+      }
+      channel.selectProfileContact(serverId: serverId, profileId: profileId);
+    });
   }
 }

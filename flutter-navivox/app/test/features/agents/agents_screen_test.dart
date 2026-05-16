@@ -14,38 +14,44 @@ const _seedAgents = [
 
 void main() {
   testWidgets(
-      'shows empty-state and Refresh button when no agents are known yet',
-      (tester) async {
-    final channel = TestNavivoxChannel();
+    'shows empty-state and Refresh button when no agents are known yet',
+    (tester) async {
+      final channel = TestNavivoxChannel();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [navivoxChannelProvider.overrideWithValue(channel)],
-      child: const MaterialApp(home: AgentsScreen()),
-    ));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [navivoxChannelProvider.overrideWithValue(channel)],
+          child: const MaterialApp(home: AgentsScreen()),
+        ),
+      );
 
-    expect(find.text('No agents loaded'), findsOneWidget);
-    expect(find.text('Refresh'), findsOneWidget);
+      expect(find.text('No agents loaded'), findsOneWidget);
+      expect(find.text('Refresh'), findsOneWidget);
 
-    // The screen calls requestAgentList(); our test mock records that and
-    // we simulate the server response by seeding agents directly.
-    await tester.tap(find.text('Refresh'));
-    channel.seedAgents(_seedAgents);
-    await tester.pump();
+      // The screen calls requestAgentList(); our test mock records that and
+      // we simulate the server response by seeding agents directly.
+      await tester.tap(find.text('Refresh'));
+      channel.seedAgents(_seedAgents);
+      await tester.pump();
 
-    expect(channel.agentListRequests, greaterThanOrEqualTo(1));
-    expect(channel.state.agents, hasLength(2));
-    expect(find.text('Default'), findsOneWidget);
-    expect(find.text('Architect'), findsOneWidget);
-  });
+      expect(channel.agentListRequests, greaterThanOrEqualTo(1));
+      expect(channel.state.agents, hasLength(2));
+      expect(find.text('Default'), findsOneWidget);
+      expect(find.text('Architect'), findsOneWidget);
+    },
+  );
 
-  testWidgets('tapping an agent tile selects it through the channel',
-      (tester) async {
+  testWidgets('tapping an agent tile selects it through the channel', (
+    tester,
+  ) async {
     final channel = TestNavivoxChannel()..seedAgents(_seedAgents);
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [navivoxChannelProvider.overrideWithValue(channel)],
-      child: const MaterialApp(home: AgentsScreen()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [navivoxChannelProvider.overrideWithValue(channel)],
+        child: const MaterialApp(home: AgentsScreen()),
+      ),
+    );
 
     expect(find.text('Default'), findsOneWidget);
     expect(find.byIcon(Icons.check), findsNothing);
