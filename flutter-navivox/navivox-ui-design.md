@@ -22,29 +22,62 @@ Source: current HTTP/WebSocket gateway plan, PRD, and app shell
    and token-required state are shown without leaking secrets.
 8. **Dense, adaptive layout**: mobile uses bottom navigation; desktop uses a
    left rail and status bar.
+9. **Telegram-inspired, Gormes-owned**: borrow fast scanning, grouped bubbles,
+   status ticks, action sheets, and compact navigation from Telegram-like apps,
+   but keep Navivox focused on Gormes agents, tools, voice transcripts, and safe
+   config.
 
 ## 2. Primary Screens
 
-### 2.1 Setup Screen
+### 2.1 Chat List
 
 ```text
 +------------------------------------------------+
-| Navivox                                        |
+| Navivox                              [search]  |
++------------------------------------------------+
+| Local Gormes                         OK   9:41 |
+| default agent: Server is healthy.              |
+| tools idle                                     |
+|                                                |
+| Lead screen                         auth   9:22 |
+| Waiting for token.                             |
+| connect-info needed                            |
+|                                                |
+| Support triage                    offline Tue  |
+| Gateway unavailable.                           |
+| Retry from connect-info                        |
++------------------------------------------------+
+| Chats      Agents      Config      Servers     |
++------------------------------------------------+
+```
+
+Chat list rows use:
+
+- Agent or gateway avatar.
+- Display name.
+- Last user/assistant/tool/voice preview.
+- Time.
+- Gateway status badge.
+- Unread/attention count for tool approvals or failed voice runs.
+
+### 2.2 Setup Screen
+
+```text
++------------------------------------------------+
 | Connect to Gormes                              |
 +------------------------------------------------+
-| Base URL                                       |
+| Paste connect-info                             |
 | [ http://127.0.0.1:8765                  ]     |
 |                                                |
 | Token                                          |
 | [ ************************************** ]     |
 |                                                |
-| Health:  not checked                           |
-| Status:  not checked                           |
-| Stream:  not connected                         |
+| healthz     not checked                        |
+| status      not checked                        |
+| stream      not connected                      |
 |                                                |
-| [Connect]                                      |
+| [Connect and talk]                             |
 +------------------------------------------------+
-| Host command                                   |
 | gormes navivox connect-info                    |
 +------------------------------------------------+
 ```
@@ -57,15 +90,18 @@ States:
 - Exposure blocked: show server-side exposure guidance.
 - Connected: navigate to chat.
 
-### 2.2 Chat Screen
+### 2.3 Chat Screen
 
 ```text
 +------------------------------------------------+
-| Gormes Gateway             default agent   OK  |
+| < Local Gormes             default agent   OK  |
 +------------------------------------------------+
-| Today                                          |
+| Pinned: connected locally, token redacted       |
+|                                                |
+| Today                                      v   |
 |                                                |
 |                         Check server status    |
+|                                      9:41  sent |
 |                                                |
 | Agent                                          |
 | Checking now...                                |
@@ -79,7 +115,7 @@ States:
 | Agent                                          |
 | Server is healthy.                             |
 +------------------------------------------------+
-| [+] Type a message...                  [mic] > |
+| [+]  Message Navivox...              [mic]  >  |
 +------------------------------------------------+
 ```
 
@@ -93,8 +129,12 @@ Key UI elements:
 - Streaming assistant text updates in place.
 - `ToolCallCard` appears inline with status and expandable details.
 - Voice button can submit a transcript through the current turn path.
+- Long press opens a message action sheet: copy, retry, inspect event, reveal
+  redacted fields when authorized.
+- The plus button opens the action tray for agent seed, tool approvals, config
+  edits, and future attachments.
 
-### 2.3 Voice Active
+### 2.4 Voice Active
 
 ```text
 +------------------------------------------------+
@@ -117,7 +157,31 @@ Voice rules:
 - Audio upload and playback state appear only after voice run records exist.
 - Text fallback is always available.
 
-### 2.4 Servers Screen
+### 2.5 Action Sheet
+
+Use `DraggableScrollableSheet` for Telegram-like panels.
+
+```text
++------------------------------------------------+
+| Actions                                        |
++------------------------------------------------+
+| Agent seed                                     |
+| Tool approvals                                 |
+| Voice transcript                               |
+| Config change                                  |
+| Gateway details                                |
+| Future file attach                             |
++------------------------------------------------+
+```
+
+Sheet rules:
+
+- Snap between compact, half, and full height.
+- Use the provided scroll controller so dragging and scrolling coordinate.
+- Desktop gets a visible drag handle or side panel equivalent.
+- Tokens and secret values never appear in sheet titles or route URLs.
+
+### 2.6 Servers Screen
 
 ```text
 +------------------------------------------------+
@@ -148,7 +212,7 @@ Server detail shows:
 - Last stream error.
 - Redacted local credential status.
 
-### 2.5 Agents Screen
+### 2.7 Agents Screen
 
 ```text
 +------------------------------------------------+
@@ -179,7 +243,7 @@ Agent creation starts with a short phrase and produces an editable draft:
 - STT/TTS provider/profile preferences.
 - Safety and escalation notes.
 
-### 2.6 Agent Editor
+### 2.8 Agent Editor
 
 ```text
 +------------------------------------------------+
@@ -207,7 +271,7 @@ Agent creation starts with a short phrase and produces an editable draft:
 +------------------------------------------------+
 ```
 
-### 2.7 Config Overview
+### 2.9 Config Overview
 
 ```text
 +------------------------------------------------+
@@ -228,7 +292,7 @@ Agent creation starts with a short phrase and produces an editable draft:
 +------------------------------------------------+
 ```
 
-### 2.8 Config Section
+### 2.10 Config Section
 
 ```text
 +------------------------------------------------+
@@ -257,7 +321,7 @@ Config rules:
 - Server validation errors map to fields.
 - Public exposure requires an explicit confirmation dialog.
 
-### 2.9 Tool Call Card
+### 2.11 Tool Call Card
 
 ```text
 +-- execute_command ----------------------------+
@@ -282,7 +346,7 @@ Tool card states:
 Sensitive inputs and outputs are redacted by default with an explicit reveal
 gate when the server allows it.
 
-### 2.10 Settings Screen
+### 2.12 Settings Screen
 
 ```text
 +------------------------------------------------+
@@ -354,6 +418,12 @@ VoiceProfilePicker
 ServerCard
 GatewayStatusPanel
 ReachabilityBadge
+
+// Telegram-inspired surfaces
+ChatPreviewTile
+GatewayAvatar
+MessageActionSheet
+NavivoxBubbleScope
 ```
 
 ## 4. Status And Error States
@@ -375,7 +445,7 @@ secret-shaped values.
 
 Mobile:
 
-- Bottom navigation.
+- Material 3 `NavigationBar`.
 - Single-column chat.
 - Sheets for server and agent switching.
 - Voice controls as bottom panel.
@@ -414,3 +484,4 @@ Defer:
 - Call routing.
 - Human handoff.
 - Generic server administration surfaces.
+- Telegram network clients, TDLib/MTProto, and Firebase chat backends.
