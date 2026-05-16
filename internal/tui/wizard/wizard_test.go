@@ -80,6 +80,41 @@ func TestWizardChassis_PickerStepSupportsTmuxFriendlyKeys(t *testing.T) {
 	}
 }
 
+func TestWizardChassis_RadioPickerMatchesHermesSetupShape(t *testing.T) {
+	m := newModel([]Step{
+		Pick("mode", "How would you like to set up Gormes?", []Choice{
+			{ID: "quick", Label: "Quick setup — provider, model & messaging (recommended)"},
+			{ID: "full", Label: "Full setup — configure everything"},
+		}, WithDefaultChoice("quick"), WithRadioChoices()),
+	})
+
+	view := m.View()
+	for _, want := range []string{
+		"How would you like to set up Gormes?",
+		"→ (●) Quick setup — provider, model & messaging (recommended)",
+		"(○) Full setup — configure everything",
+		"↑↓ navigate  ENTER/SPACE select  ESC cancel",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("radio picker view missing %q:\n%s", want, view)
+		}
+	}
+	for _, forbidden := range []string{"Gormes setup 1/1", "1. Quick setup", "1-9 select"} {
+		if strings.Contains(view, forbidden) {
+			t.Fatalf("radio picker should match Hermes-style first-run prompt and omit %q:\n%s", forbidden, view)
+		}
+	}
+}
+
+func TestWizardChassis_SingleStepPickerOmitsProgressLine(t *testing.T) {
+	m := newModel([]Step{
+		Pick("provider", "Provider", []Choice{{ID: "openai", Label: "OpenAI"}}),
+	})
+	if view := m.View(); strings.Contains(view, "Gormes setup 1/1") {
+		t.Fatalf("single-step picker should omit progress line:\n%s", view)
+	}
+}
+
 func TestWizardChassis_ConfirmStepHonorsKeybindings(t *testing.T) {
 	tests := []struct {
 		name string

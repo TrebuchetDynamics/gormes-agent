@@ -31,7 +31,15 @@ type Step struct {
 	hasValue         bool
 	defaultChoiceID  string
 	defaultChoiceIDs []string
+	pickDisplay      pickDisplay
 }
+
+type pickDisplay string
+
+const (
+	pickDisplayNumbered pickDisplay = ""
+	pickDisplayRadio    pickDisplay = "radio"
+)
 
 // Answer is the typed result for one step.
 type Answer struct {
@@ -132,6 +140,15 @@ func WithChoiceValues(choiceIDs ...string) StepOption {
 func WithDefaultChoice(choiceID string) StepOption {
 	return func(step *Step) {
 		step.defaultChoiceID = choiceID
+	}
+}
+
+// WithRadioChoices renders a single-select picker as radio rows. This matches
+// the Hermes setup first-run mode prompt while preserving numbered pickers for
+// long provider/model lists.
+func WithRadioChoices() StepOption {
+	return func(step *Step) {
+		step.pickDisplay = pickDisplayRadio
 	}
 }
 

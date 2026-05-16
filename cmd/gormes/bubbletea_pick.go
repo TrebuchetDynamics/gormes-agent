@@ -16,11 +16,15 @@ type tuiPickChoice struct {
 }
 
 func runBubbleTeaPick(ctx context.Context, stdin *os.File, out io.Writer, prompt string, choices []tuiPickChoice, defaultID string) (string, error) {
+	return runBubbleTeaPickWithOptions(ctx, stdin, out, prompt, choices, defaultID)
+}
+
+func runBubbleTeaPickWithOptions(ctx context.Context, stdin *os.File, out io.Writer, prompt string, choices []tuiPickChoice, defaultID string, extraOptions ...setupwizard.StepOption) (string, error) {
 	wizardChoices := make([]setupwizard.Choice, len(choices))
 	for i, choice := range choices {
 		wizardChoices[i] = setupwizard.Choice{ID: choice.ID, Label: choice.Label}
 	}
-	stepOptions := []setupwizard.StepOption{}
+	stepOptions := append([]setupwizard.StepOption(nil), extraOptions...)
 	if strings.TrimSpace(defaultID) != "" {
 		stepOptions = append(stepOptions, setupwizard.WithDefaultChoice(defaultID))
 	}
