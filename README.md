@@ -29,7 +29,7 @@ Gormes is not a micro-agent. It keeps the broad Hermes agent architecture and ma
 |---|---|
 | Runtime shape | One Go binary for CLI, TUI, provider turns, tools, skills, memory, sessions, dashboard, and gateways |
 | Install proof | `gormes doctor --offline` and `gormes --offline` run before any provider token is needed |
-| Measured footprint | Linux build ~45.3 MB; offline doctor peak RSS ~25.1 MB (`benchmarks.json`, 2026-05-15) |
+| Measured footprint | Linux build ~45.8 MB; offline doctor peak RSS ~25.6 MB (`benchmarks.json`, 2026-05-16) |
 | Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
 | Stable channels | Telegram, Discord, and Slack through one gateway process |
 | Project posture | Scout release: useful today, with full Hermes parity, voice/TTS, signing, and package-manager lanes still hardening |
@@ -208,9 +208,9 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the p
 
 ## Status
 
-Latest public release: [v0.2.11](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.11).
+Latest public release: [v0.2.12](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.12).
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~45.3 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10). Offline doctor peaks at ~25.1 MB RSS (`benchmarks.json`, 2026-05-15).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~45.8 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10). Offline doctor peaks at ~25.6 MB RSS (`benchmarks.json`, 2026-05-16).
 
 <details>
 <summary>Roadmap phase rollup</summary>

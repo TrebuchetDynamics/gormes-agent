@@ -228,6 +228,8 @@ func TestUpdateReadmeSyncsRuntimeRSSBenchmarkSummary(t *testing.T) {
 	}
 	readme := filepath.Join(root, "README.md")
 	original := strings.Join([]string{
+		"| Measured footprint | Linux build ~28.0 MB; offline doctor peak RSS ~99.9 MB (`benchmarks.json`, 2026-05-01) |",
+		"",
 		"## Status",
 		"",
 		"The current Linux build measures ~28.0 MB (`benchmarks.json`). WASI Whisper tiny.en has not been benchmarked yet. Offline doctor peaks at ~99.9 MB RSS (`benchmarks.json`, 2026-05-01).",
@@ -246,6 +248,7 @@ func TestUpdateReadmeSyncsRuntimeRSSBenchmarkSummary(t *testing.T) {
 	got := string(raw)
 	wants := []string{
 		"The current Linux build measures ~42.2 MB (`benchmarks.json`).",
+		"| Measured footprint | Linux build ~42.2 MB; offline doctor peak RSS ~18.7 MB (`benchmarks.json`, 2026-05-15) |",
 		"WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).",
 		"Offline doctor peaks at ~18.7 MB RSS (`benchmarks.json`, 2026-05-15).",
 	}

@@ -66,9 +66,8 @@ func UpdateReadme(opts ReadmeOptions) error {
 	}
 	content := string(readme)
 
-	re := regexp.MustCompile(`~[0-9.]+ MB`)
 	if sizeMB, err := benchmarkSizeMB(data.Binary.SizeMB); err == nil && sizeMB != "" {
-		content = re.ReplaceAllString(content, "~"+sizeMB+" MB")
+		content = updateBinarySizeSummaries(content, sizeMB)
 	}
 
 	if testCount, err := intVal(data.Code.TestCount); err == nil && testCount > 0 {
@@ -101,8 +100,27 @@ func UpdateReadme(opts ReadmeOptions) error {
 	if summary := runtimeBenchmarkSummary(data.Runtime.OfflineDoctor.Status, data.Runtime.OfflineDoctor.LastMeasured, data.Runtime.OfflineDoctor.PeakRSSMB); summary != "" {
 		content = updateRuntimeBenchmarkSummary(content, summary)
 	}
+	if summary := runtimeFootprintSummary(data.Runtime.OfflineDoctor.Status, data.Runtime.OfflineDoctor.LastMeasured, data.Runtime.OfflineDoctor.PeakRSSMB); summary != "" {
+		content = updateRuntimeFootprintSummary(content, summary)
+	}
 
 	return os.WriteFile(readmePath, []byte(content), 0o644)
+}
+
+func updateBinarySizeSummaries(content, sizeMB string) string {
+	replacements := []struct {
+		re   *regexp.Regexp
+		repl string
+	}{
+		{regexp.MustCompile(`(Binary size: )~[0-9.]+ MB`), "${1}~" + sizeMB + " MB"},
+		{regexp.MustCompile(`(Linux build )~[0-9.]+ MB`), "${1}~" + sizeMB + " MB"},
+		{regexp.MustCompile(`(current Linux build measures )~[0-9.]+ MB`), "${1}~" + sizeMB + " MB"},
+		{regexp.MustCompile(`(Linux build at )~[0-9.]+ MB`), "${1}~" + sizeMB + " MB"},
+	}
+	for _, replacement := range replacements {
+		content = replacement.re.ReplaceAllString(content, replacement.repl)
+	}
+	return content
 }
 
 type releaseMetadata struct {
@@ -206,6 +224,17 @@ func runtimeBenchmarkSummary(status, measured string, peakRaw json.RawMessage) s
 	return fmt.Sprintf("Offline doctor peaks at ~%s MB RSS (`benchmarks.json`, %s).", formatBenchmarkFloat(peak), measured)
 }
 
+func runtimeFootprintSummary(status, measured string, peakRaw json.RawMessage) string {
+	if status != "measured" || measured == "" {
+		return ""
+	}
+	peak, err := benchmarkFloat(peakRaw)
+	if err != nil || peak <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("offline doctor peak RSS ~%s MB (`benchmarks.json`, %s)", formatBenchmarkFloat(peak), measured)
+}
+
 func updateRuntimeBenchmarkSummary(content string, summary string) string {
 	stale := regexp.MustCompile(`Offline doctor peaks at ~[0-9.]+ MB RSS \(` + "`" + `benchmarks\.json` + "`" + `, [0-9-]+\)\.`)
 	if stale.MatchString(content) {
@@ -217,6 +246,11 @@ func updateRuntimeBenchmarkSummary(content string, summary string) string {
 	}
 	statusLine := regexp.MustCompile(`(The current Linux build measures ~[0-9.]+ MB \(` + "`" + `benchmarks\.json` + "`" + `\)\.)`)
 	return statusLine.ReplaceAllString(content, "${1} "+summary)
+}
+
+func updateRuntimeFootprintSummary(content string, summary string) string {
+	stale := regexp.MustCompile(`offline doctor peak RSS ~[0-9.]+ MB \(` + "`" + `benchmarks\.json` + "`" + `, [0-9-]+\)`)
+	return stale.ReplaceAllString(content, summary)
 }
 
 func benchmarkSizeMB(raw json.RawMessage) (string, error) {
