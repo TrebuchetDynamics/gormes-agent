@@ -3,6 +3,7 @@ package progressctl
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -289,6 +290,144 @@ func TestSplitSubcommandIsLosslessAndPure(t *testing.T) {
 	mb, _ := os.ReadFile(b)
 	if !bytes.Equal(sb, mb) {
 		t.Fatal("split-layout model must serialise byte-identically to the monolith")
+	}
+}
+
+// Backlog split C2 (2026-05-16): the docs/landing generators resolve the
+// canonical backlog through C1's dual-layout Load — they work identically
+// whether the source is the monolithic progress.json or a split directory,
+// the monolith stays the default, and a malformed split surfaces a typed
+// error rather than a half-generated doc set.
+
+func c2Fixture() *progress.Progress {
+	return &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"1": {Name: "P1", Deliverable: "d1", Subphases: map[string]progress.Subphase{
+				"1.A": {Name: "A", Items: []progress.Item{
+					{Name: "r1", Status: progress.StatusComplete},
+					{Name: "r2", Status: progress.StatusPlanned, Priority: "P2"},
+				}},
+			}},
+			"10": {Name: "P10", Deliverable: "d10", Subphases: map[string]progress.Subphase{
+				"10.A": {Name: "A", Status: progress.StatusPlanned},
+			}},
+		},
+	}
+}
+
+func seedMonolith(t *testing.T, root string, p *progress.Progress) {
+	t.Helper()
+	mono := progressPaths(root).progressJSON
+	if err := os.MkdirAll(filepath.Dir(mono), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := progress.SaveProgress(mono, p); err != nil {
+		t.Fatalf("seed monolith: %v", err)
+	}
+}
+
+func seedSplitOnly(t *testing.T, root string, p *progress.Progress) {
+	t.Helper()
+	splitDir := progressPaths(root).progressSplitDir
+	if err := os.MkdirAll(filepath.Dir(splitDir), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := progress.WriteSplit(splitDir, p); err != nil {
+		t.Fatalf("seed split: %v", err)
+	}
+}
+
+func validateJSON(t *testing.T, root string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := Validate(&buf, root, "json"); err != nil {
+		t.Fatalf("Validate(%s): %v", root, err)
+	}
+	return buf.Bytes()
+}
+
+// (1) A root backed ONLY by a split layout generates byte-identical output
+// to a root backed only by the monolith.
+func TestProgressctlResolvesSplitLayoutForGenerators(t *testing.T) {
+	p := c2Fixture()
+
+	monoRoot := t.TempDir()
+	seedMonolith(t, monoRoot, p)
+
+	splitRoot := t.TempDir()
+	seedSplitOnly(t, splitRoot, p) // no monolithic progress.json at all
+
+	if got, want := validateJSON(t, splitRoot), validateJSON(t, monoRoot); !bytes.Equal(got, want) {
+		t.Fatalf("split-backed validate JSON must equal monolith-backed:\n split=%s\n mono=%s", got, want)
+	}
+
+	// The loaded model itself must be byte-identical through SaveProgress,
+	// which transitively guarantees every generator (pure fn of the model).
+	mp, err := loadValidProgress(monoRoot)
+	if err != nil {
+		t.Fatalf("loadValidProgress mono: %v", err)
+	}
+	sp, err := loadValidProgress(splitRoot)
+	if err != nil {
+		t.Fatalf("loadValidProgress split: %v", err)
+	}
+	a := filepath.Join(t.TempDir(), "a.json")
+	b := filepath.Join(t.TempDir(), "b.json")
+	if err := progress.SaveProgress(a, mp); err != nil {
+		t.Fatal(err)
+	}
+	if err := progress.SaveProgress(b, sp); err != nil {
+		t.Fatal(err)
+	}
+	ab, _ := os.ReadFile(a)
+	bb, _ := os.ReadFile(b)
+	if !bytes.Equal(ab, bb) {
+		t.Fatal("split-resolved model must serialise byte-identically to the monolith")
+	}
+}
+
+// (2) The monolith remains the default; the split layout is opt-in
+// auto-detected only when its directory is present.
+func TestProgressctlMonolithRemainsDefault(t *testing.T) {
+	p := c2Fixture()
+	root := t.TempDir()
+	seedMonolith(t, root, p)
+
+	if got := canonicalSource(root); got != progressPaths(root).progressJSON {
+		t.Fatalf("with no split dir, canonicalSource must be the monolith file, got %q", got)
+	}
+	// Introduce a split layout → it now wins (opt-in auto-detect).
+	seedSplitOnly(t, root, p)
+	if got := canonicalSource(root); got != progressPaths(root).progressSplitDir {
+		t.Fatalf("with a split dir present, canonicalSource must be the split dir, got %q", got)
+	}
+	if _, err := loadValidProgress(root); err != nil {
+		t.Fatalf("loadValidProgress with split present must still succeed: %v", err)
+	}
+}
+
+// (3) A malformed split layout surfaces ErrMalformedSplit (never a
+// half-generated doc set); a monolith-only root is unaffected.
+func TestProgressctlMalformedSplitSurfacesTypedError(t *testing.T) {
+	p := c2Fixture()
+
+	badRoot := t.TempDir()
+	seedSplitOnly(t, badRoot, p)
+	if err := os.Remove(filepath.Join(progressPaths(badRoot).progressSplitDir, "index.json")); err != nil {
+		t.Fatalf("corrupt split: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := Validate(&buf, badRoot, "json"); err == nil {
+		t.Fatal("Validate against a malformed split layout must error, got nil")
+	} else if !errors.Is(err, progress.ErrMalformedSplit) {
+		t.Fatalf("error must be progress.ErrMalformedSplit, got %v", err)
+	}
+
+	okRoot := t.TempDir()
+	seedMonolith(t, okRoot, p)
+	if err := Validate(io.Discard, okRoot, "json"); err != nil {
+		t.Fatalf("monolith-only root must still validate: %v", err)
 	}
 }
 
