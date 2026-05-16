@@ -81,6 +81,17 @@ type updateCommandSeams struct {
 	RunReleaseAssetSkillSync func(context.Context, cli.UpdateReleaseAssetSkillSyncOptions) cli.UpdateReleaseAssetSkillSyncReport
 	// RunReleaseRollback restores a prior release binary snapshot.
 	RunReleaseRollback func(context.Context, cli.UpdateReleaseRollbackOptions) cli.UpdateReleaseBinaryReport
+	// RunReleaseServiceCoordination wraps release update mutations with the
+	// global update lock and managed-service drain/stop/restart choreography.
+	RunReleaseServiceCoordination func(context.Context, cli.UpdateServiceCoordinationOptions) cli.UpdateReleaseBinaryReport
+	// ReleaseUpdateLock returns the global lock used for release mutations.
+	ReleaseUpdateLock func() cli.UpdateLock
+	// ReleaseManagedServices returns managed services that should be stopped
+	// before mutating a release install and restarted afterward.
+	ReleaseManagedServices func() []cli.UpdateManagedService
+	// ReleaseUnmanagedSessions returns active unmanaged sessions that should
+	// block release mutation unless --force is set.
+	ReleaseUnmanagedSessions func(context.Context) []cli.UpdateUnmanagedSession
 }
 
 func newUpdateCommand() *cobra.Command {
@@ -159,6 +170,18 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	if seams.RunReleaseRollback == nil {
 		seams.RunReleaseRollback = cli.RunUpdateReleaseRollback
 	}
+	if seams.RunReleaseServiceCoordination == nil {
+		seams.RunReleaseServiceCoordination = cli.RunUpdateServiceCoordination
+	}
+	if seams.ReleaseUpdateLock == nil {
+		seams.ReleaseUpdateLock = defaultReleaseUpdateLock
+	}
+	if seams.ReleaseManagedServices == nil {
+		seams.ReleaseManagedServices = defaultReleaseManagedServices
+	}
+	if seams.ReleaseUnmanagedSessions == nil {
+		seams.ReleaseUnmanagedSessions = defaultReleaseUnmanagedSessions
+	}
 
 	cmd := &cobra.Command{
 		Use:          "update",
@@ -189,9 +212,17 @@ so the recovery path is visible inline.
 				if err != nil {
 					return err
 				}
-				report := seams.RunReleaseRollback(cmd.Context(), cli.UpdateReleaseRollbackOptions{
-					SnapshotID:   rollbackSnapshot,
-					SnapshotRoot: snapshotRoot,
+				report := runUpdateReleaseWithServiceCoordination(cmd.Context(), updateReleaseBinaryModeOptions{
+					Force:                    force,
+					RunServiceCoordination:   seams.RunReleaseServiceCoordination,
+					ReleaseUpdateLock:        seams.ReleaseUpdateLock,
+					ReleaseManagedServices:   seams.ReleaseManagedServices,
+					ReleaseUnmanagedSessions: seams.ReleaseUnmanagedSessions,
+				}, func(ctx context.Context) cli.UpdateReleaseBinaryReport {
+					return seams.RunReleaseRollback(ctx, cli.UpdateReleaseRollbackOptions{
+						SnapshotID:   rollbackSnapshot,
+						SnapshotRoot: snapshotRoot,
+					})
 				})
 				if asJSON {
 					if err := printUpdateReleaseBinaryReportJSON(cmd, "update_rollback", report); err != nil {
@@ -220,18 +251,22 @@ so the recovery path is visible inline.
 			}
 			if installKind == cli.UpdateInstallKindRelease {
 				return runUpdateReleaseBinaryMode(cmd, updateReleaseBinaryModeOptions{
-					Channel:              cli.UpdateReleaseChannel(channel),
-					AsJSON:               asJSON,
-					Force:                force,
-					RuntimePlatform:      seams.RuntimePlatform,
-					LoadReleaseMetadata:  seams.LoadReleaseMetadata,
-					BuildReleasePlan:     seams.BuildReleasePlan,
-					RunReleaseUpdate:     seams.RunReleaseBinaryUpdate,
-					LoadAssetManifest:    seams.LoadReleaseAssetManifest,
-					ReleaseAssetRoot:     seams.ReleaseAssetRoot,
-					ReleaseSkillProfiles: seams.ReleaseSkillProfiles,
-					RunAssetSkillSync:    seams.RunReleaseAssetSkillSync,
-					SnapshotPathResolver: resolvePlannedUpdateSnapshotPath,
+					Channel:                  cli.UpdateReleaseChannel(channel),
+					AsJSON:                   asJSON,
+					Force:                    force,
+					RuntimePlatform:          seams.RuntimePlatform,
+					LoadReleaseMetadata:      seams.LoadReleaseMetadata,
+					BuildReleasePlan:         seams.BuildReleasePlan,
+					RunReleaseUpdate:         seams.RunReleaseBinaryUpdate,
+					LoadAssetManifest:        seams.LoadReleaseAssetManifest,
+					ReleaseAssetRoot:         seams.ReleaseAssetRoot,
+					ReleaseSkillProfiles:     seams.ReleaseSkillProfiles,
+					RunAssetSkillSync:        seams.RunReleaseAssetSkillSync,
+					RunServiceCoordination:   seams.RunReleaseServiceCoordination,
+					ReleaseUpdateLock:        seams.ReleaseUpdateLock,
+					ReleaseManagedServices:   seams.ReleaseManagedServices,
+					ReleaseUnmanagedSessions: seams.ReleaseUnmanagedSessions,
+					SnapshotPathResolver:     resolvePlannedUpdateSnapshotPath,
 				})
 			}
 			checkoutDir, err := seams.CheckoutDir()
@@ -405,18 +440,22 @@ func buildUpdateReleaseCommandPlan(ctx context.Context, opts updateReleaseComman
 }
 
 type updateReleaseBinaryModeOptions struct {
-	Channel              cli.UpdateReleaseChannel
-	AsJSON               bool
-	Force                bool
-	RuntimePlatform      func() (string, string)
-	LoadReleaseMetadata  func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error)
-	BuildReleasePlan     func(cli.UpdateReleasePlanOptions) cli.UpdateReleasePlan
-	RunReleaseUpdate     func(context.Context, cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport
-	LoadAssetManifest    func(context.Context, cli.UpdateReleasePlan) (cli.UpdateReleaseManifest, string, error)
-	ReleaseAssetRoot     func() (string, error)
-	ReleaseSkillProfiles func() ([]skills.SkillProfileRoot, error)
-	RunAssetSkillSync    func(context.Context, cli.UpdateReleaseAssetSkillSyncOptions) cli.UpdateReleaseAssetSkillSyncReport
-	SnapshotPathResolver func() (string, error)
+	Channel                  cli.UpdateReleaseChannel
+	AsJSON                   bool
+	Force                    bool
+	RuntimePlatform          func() (string, string)
+	LoadReleaseMetadata      func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error)
+	BuildReleasePlan         func(cli.UpdateReleasePlanOptions) cli.UpdateReleasePlan
+	RunReleaseUpdate         func(context.Context, cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport
+	LoadAssetManifest        func(context.Context, cli.UpdateReleasePlan) (cli.UpdateReleaseManifest, string, error)
+	ReleaseAssetRoot         func() (string, error)
+	ReleaseSkillProfiles     func() ([]skills.SkillProfileRoot, error)
+	RunAssetSkillSync        func(context.Context, cli.UpdateReleaseAssetSkillSyncOptions) cli.UpdateReleaseAssetSkillSyncReport
+	RunServiceCoordination   func(context.Context, cli.UpdateServiceCoordinationOptions) cli.UpdateReleaseBinaryReport
+	ReleaseUpdateLock        func() cli.UpdateLock
+	ReleaseManagedServices   func() []cli.UpdateManagedService
+	ReleaseUnmanagedSessions func(context.Context) []cli.UpdateUnmanagedSession
+	SnapshotPathResolver     func() (string, error)
 }
 
 func runUpdateReleaseBinaryMode(cmd *cobra.Command, opts updateReleaseBinaryModeOptions) error {
@@ -442,15 +481,20 @@ func runUpdateReleaseBinaryMode(cmd *cobra.Command, opts updateReleaseBinaryMode
 		return newExitCodeError(1, fmt.Errorf("gormes release update blocked"))
 	}
 	if !plan.UpdateAvailable {
-		report := cli.UpdateReleaseBinaryReport{
-			PreviousVersion: Version,
-			NewVersion:      Version,
-			Evidence: []cli.UpdateEvidence{{
-				Kind:   cli.UpdateEvidenceCheckCurrent,
-				Detail: fmt.Sprintf("already current at %s", Version),
-			}},
+		report := runUpdateReleaseWithServiceCoordination(cmd.Context(), opts, func(ctx context.Context) cli.UpdateReleaseBinaryReport {
+			report := cli.UpdateReleaseBinaryReport{
+				PreviousVersion: Version,
+				NewVersion:      Version,
+				Evidence: []cli.UpdateEvidence{{
+					Kind:   cli.UpdateEvidenceCheckCurrent,
+					Detail: fmt.Sprintf("already current at %s", Version),
+				}},
+			}
+			return runUpdateReleaseAssetSkillSyncForBinaryReport(ctx, plan, report, opts)
+		})
+		if updateReleaseReportHasMutationEvidence(report) {
+			appendUpdateReleaseLedgerEvidence(&report)
 		}
-		report = runUpdateReleaseAssetSkillSyncForBinaryReport(cmd.Context(), plan, report, opts)
 		if opts.AsJSON {
 			if err := printUpdateReleaseBinaryReportJSON(cmd, "update_release_binary", report); err != nil {
 				return err
@@ -475,15 +519,19 @@ func runUpdateReleaseBinaryMode(cmd *cobra.Command, opts updateReleaseBinaryMode
 	if runUpdate == nil {
 		runUpdate = cli.RunUpdateReleaseBinaryUpdate
 	}
-	report := runUpdate(cmd.Context(), cli.UpdateReleaseBinaryOptions{
-		Plan:             plan,
-		ManagedBinPath:   managedBin,
-		PublishedBinPath: publishedBin,
-		Force:            opts.Force,
+	report := runUpdateReleaseWithServiceCoordination(cmd.Context(), opts, func(ctx context.Context) cli.UpdateReleaseBinaryReport {
+		report := runUpdate(ctx, cli.UpdateReleaseBinaryOptions{
+			Plan:             plan,
+			ManagedBinPath:   managedBin,
+			PublishedBinPath: publishedBin,
+			Force:            opts.Force,
+		})
+		if !report.Failed {
+			report = runUpdateReleaseAssetSkillSyncForBinaryReport(ctx, plan, report, opts)
+		}
+		return report
 	})
-	if !report.Failed {
-		report = runUpdateReleaseAssetSkillSyncForBinaryReport(cmd.Context(), plan, report, opts)
-	}
+	appendUpdateReleaseLedgerEvidence(&report)
 	if opts.AsJSON {
 		if err := printUpdateReleaseBinaryReportJSON(cmd, "update_release_binary", report); err != nil {
 			return err
@@ -495,6 +543,38 @@ func runUpdateReleaseBinaryMode(cmd *cobra.Command, opts updateReleaseBinaryMode
 		return newExitCodeError(1, fmt.Errorf("gormes release update failed"))
 	}
 	return nil
+}
+
+const (
+	defaultUpdateReleaseServiceDrainTimeout  = 75 * time.Second
+	defaultUpdateReleaseServiceHealthTimeout = 30 * time.Second
+)
+
+func runUpdateReleaseWithServiceCoordination(ctx context.Context, opts updateReleaseBinaryModeOptions, mutation func(context.Context) cli.UpdateReleaseBinaryReport) cli.UpdateReleaseBinaryReport {
+	if opts.RunServiceCoordination == nil {
+		return mutation(ctx)
+	}
+	var lock cli.UpdateLock
+	if opts.ReleaseUpdateLock != nil {
+		lock = opts.ReleaseUpdateLock()
+	}
+	var services []cli.UpdateManagedService
+	if opts.ReleaseManagedServices != nil {
+		services = opts.ReleaseManagedServices()
+	}
+	var unmanaged []cli.UpdateUnmanagedSession
+	if opts.ReleaseUnmanagedSessions != nil {
+		unmanaged = opts.ReleaseUnmanagedSessions(ctx)
+	}
+	return opts.RunServiceCoordination(ctx, cli.UpdateServiceCoordinationOptions{
+		Lock:              lock,
+		Services:          services,
+		UnmanagedSessions: unmanaged,
+		Force:             opts.Force,
+		DrainTimeout:      defaultUpdateReleaseServiceDrainTimeout,
+		HealthTimeout:     defaultUpdateReleaseServiceHealthTimeout,
+		Mutation:          mutation,
+	})
 }
 
 func runUpdateReleaseAssetSkillSyncForBinaryReport(ctx context.Context, plan cli.UpdateReleasePlan, report cli.UpdateReleaseBinaryReport, opts updateReleaseBinaryModeOptions) cli.UpdateReleaseBinaryReport {
@@ -550,6 +630,27 @@ func runUpdateReleaseAssetSkillSyncForBinaryReport(ctx context.Context, plan cli
 		}
 	}
 	return report
+}
+
+func updateReleaseReportHasMutationEvidence(report cli.UpdateReleaseBinaryReport) bool {
+	for _, ev := range report.Evidence {
+		switch ev.Kind {
+		case cli.UpdateEvidenceReleaseSwapCompleted,
+			cli.UpdateEvidenceReleaseAssetSyncCompleted,
+			cli.UpdateEvidenceReleaseSkillSyncCompleted:
+			return true
+		}
+	}
+	return false
+}
+
+func appendUpdateReleaseLedgerEvidence(report *cli.UpdateReleaseBinaryReport) {
+	path, err := appendUpdateReleaseLedger(*report)
+	if err != nil {
+		report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceLedgerUnavailable, Detail: err.Error()})
+		return
+	}
+	report.Evidence = append(report.Evidence, cli.UpdateEvidence{Kind: cli.UpdateEvidenceLedgerAppended, Detail: path})
 }
 
 func normalizeUpdateReleaseChannel(channel cli.UpdateReleaseChannel) (cli.UpdateReleaseChannel, *cli.UpdateReleaseBlocker) {
@@ -821,6 +922,182 @@ func resolveUpdateReleaseSnapshotRoot() (string, error) {
 	return filepath.Join(home, "snapshots"), nil
 }
 
+func defaultReleaseUpdateLock() cli.UpdateLock {
+	home, err := resolveManagedInstallHome()
+	if err != nil {
+		return cli.NewFileUpdateLock(filepath.Join(os.TempDir(), "gormes-update.lock"), fmt.Sprintf("pid=%d", os.Getpid()))
+	}
+	return cli.NewFileUpdateLock(filepath.Join(home, "update.lock"), fmt.Sprintf("pid=%d", os.Getpid()))
+}
+
+func defaultReleaseManagedServices() []cli.UpdateManagedService {
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+	if _, err := exec.LookPath("systemctl"); err != nil {
+		return nil
+	}
+	if _, err := os.Stat(defaultReleaseGatewayServiceUnitPath()); err != nil {
+		return nil
+	}
+	return []cli.UpdateManagedService{systemdUpdateManagedService{
+		name:    defaultGatewayServiceName,
+		manager: systemdUpdateServiceManager{},
+	}}
+}
+
+func defaultReleaseUnmanagedSessions(ctx context.Context) []cli.UpdateUnmanagedSession {
+	snapshot, err := readUpdateGatewayRuntimeSnapshot(ctx)
+	if err != nil || !snapshot.Validation.Live || snapshot.Status.ActiveAgents <= 0 {
+		return nil
+	}
+	if defaultReleaseGatewayServiceRunning(ctx) {
+		return nil
+	}
+	return []cli.UpdateUnmanagedSession{{
+		PID:     snapshot.Validation.PID,
+		Command: snapshot.Validation.Command,
+		Detail:  fmt.Sprintf("live gateway has active_agents=%d outside the managed service", snapshot.Status.ActiveAgents),
+	}}
+}
+
+func defaultReleaseGatewayServiceRunning(ctx context.Context) bool {
+	services := defaultReleaseManagedServices()
+	if len(services) == 0 {
+		return false
+	}
+	running, err := services[0].UpdateServiceRunning(ctx)
+	return err == nil && running
+}
+
+func defaultReleaseGatewayServiceUnitPath() string {
+	configHome := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME"))
+	if configHome == "" {
+		if dir, err := os.UserConfigDir(); err == nil {
+			configHome = dir
+		}
+	}
+	if configHome == "" {
+		return ""
+	}
+	return filepath.Join(configHome, "systemd", "user", defaultGatewayServiceName)
+}
+
+type systemdUpdateServiceManager struct{}
+
+func (systemdUpdateServiceManager) Stop(ctx context.Context, service string) error {
+	command := exec.CommandContext(ctx, "systemctl", "--user", "stop", service)
+	out, err := command.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("systemctl --user stop %s: %w: %s", service, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func (systemdUpdateServiceManager) Start(ctx context.Context, service string) error {
+	command := exec.CommandContext(ctx, "systemctl", "--user", "start", service)
+	out, err := command.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("systemctl --user start %s: %w: %s", service, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func (systemdUpdateServiceManager) ServiceActiveStatus(service string) (cli.ServiceActiveStatusCheck, error) {
+	command := exec.Command("systemctl", "--user", "is-active", service)
+	out, err := command.CombinedOutput()
+	raw := strings.TrimSpace(string(out))
+	status := parseSystemdGatewayActiveStatus(raw)
+	check := cli.ServiceActiveStatusCheck{Status: status, Raw: raw}
+	if err != nil && status == cli.ServiceActiveStatusUnknown {
+		check.Unavailable = true
+		check.Detail = err.Error()
+	}
+	return check, nil
+}
+
+type systemdUpdateManagedService struct {
+	name    string
+	manager systemdUpdateServiceManager
+}
+
+func (s systemdUpdateManagedService) UpdateServiceName() string {
+	if strings.TrimSpace(s.name) == "" {
+		return defaultGatewayServiceName
+	}
+	return s.name
+}
+
+func (s systemdUpdateManagedService) UpdateServiceRunning(context.Context) (bool, error) {
+	check, err := s.manager.ServiceActiveStatus(s.UpdateServiceName())
+	if err != nil {
+		return false, err
+	}
+	if check.Unavailable {
+		detail := strings.TrimSpace(check.Detail)
+		if detail == "" {
+			detail = "service manager unavailable"
+		}
+		return false, fmt.Errorf("%s status unavailable: %s", s.UpdateServiceName(), detail)
+	}
+	switch check.Status {
+	case cli.ServiceActiveStatusActive, cli.ServiceActiveStatusActivating:
+		return true, nil
+	case cli.ServiceActiveStatusInactive, cli.ServiceActiveStatusFailed, cli.ServiceActiveStatusUnknown:
+		return false, nil
+	default:
+		return false, nil
+	}
+}
+
+func (s systemdUpdateManagedService) DrainUpdateService(ctx context.Context, timeout time.Duration) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	started := time.Now()
+	for {
+		snapshot, err := readUpdateGatewayRuntimeSnapshot(ctx)
+		if err != nil || !snapshot.Validation.Live || snapshot.Status.ActiveAgents == 0 {
+			return nil
+		}
+		if timeout <= 0 || time.Since(started) >= timeout {
+			return fmt.Errorf("%s still has active_agents=%d after drain timeout %s", s.UpdateServiceName(), snapshot.Status.ActiveAgents, timeout)
+		}
+		wait := 500 * time.Millisecond
+		if remaining := timeout - time.Since(started); remaining < wait {
+			wait = remaining
+		}
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func (s systemdUpdateManagedService) StopUpdateService(ctx context.Context) error {
+	return s.manager.Stop(ctx, s.UpdateServiceName())
+}
+
+func (s systemdUpdateManagedService) StartUpdateService(ctx context.Context) error {
+	return s.manager.Start(ctx, s.UpdateServiceName())
+}
+
+func (s systemdUpdateManagedService) HealthCheckUpdateService(_ context.Context, timeout time.Duration) error {
+	poll := cli.PollServiceRestartActive(cli.ServiceRestartPollOptions{
+		Service:      s.UpdateServiceName(),
+		Runner:       s.manager,
+		BaseTimeout:  timeout,
+		PollInterval: gatewayRestartPollInterval,
+	})
+	if poll.Outcome != cli.ServiceRestartPollRestarted {
+		return fmt.Errorf("service did not become active after update restart (outcome=%s)", poll.Outcome)
+	}
+	return nil
+}
+
 func detectUpdateInstallKind() cli.UpdateInstallKind {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("GORMES_INSTALL_METHOD"))) {
 	case "release", "binary-fetch", "github_release", "github-releases":
@@ -930,6 +1207,21 @@ type updateLedgerEvent struct {
 	Evidence       []updateEvidenceJSON `json:"evidence,omitempty"`
 }
 
+type updateReleaseLedgerEvent struct {
+	Event            string               `json:"event"`
+	Timestamp        string               `json:"timestamp"`
+	Build            buildProvenanceJSON  `json:"build"`
+	Failed           bool                 `json:"failed"`
+	SnapshotID       string               `json:"snapshot_id,omitempty"`
+	SnapshotPath     string               `json:"snapshot_path,omitempty"`
+	PreviousVersion  string               `json:"previous_version,omitempty"`
+	NewVersion       string               `json:"new_version,omitempty"`
+	ManagedBinPath   string               `json:"managed_bin_path,omitempty"`
+	PublishedBinPath string               `json:"published_bin_path,omitempty"`
+	Evidence         []updateEvidenceJSON `json:"evidence,omitempty"`
+	OperatorRecovery string               `json:"operator_recovery,omitempty"`
+}
+
 func appendUpdateLedger(report cli.UpdateReport, restartGateway string) (string, error) {
 	path, err := resolveUpdateLedgerPath()
 	if err != nil {
@@ -947,6 +1239,49 @@ func appendUpdateLedger(report cli.UpdateReport, restartGateway string) (string,
 		Failed:         report.Failed,
 		RestartGateway: restartGateway,
 		Evidence:       make([]updateEvidenceJSON, 0, len(report.Evidence)),
+	}
+	for _, evidence := range report.Evidence {
+		event.Evidence = append(event.Evidence, updateEvidenceJSON{Kind: string(evidence.Kind), Detail: evidence.Detail})
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return "", err
+	}
+	if _, err := file.Write(append(body, '\n')); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if err := file.Close(); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func appendUpdateReleaseLedger(report cli.UpdateReleaseBinaryReport) (string, error) {
+	path, err := resolveUpdateLedgerPath()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	event := updateReleaseLedgerEvent{
+		Event:            "release_update",
+		Timestamp:        time.Now().UTC().Format(time.RFC3339),
+		Build:            newBuildProvenance(),
+		Failed:           report.Failed,
+		SnapshotID:       report.SnapshotID,
+		SnapshotPath:     report.SnapshotPath,
+		PreviousVersion:  report.PreviousVersion,
+		NewVersion:       report.NewVersion,
+		ManagedBinPath:   report.ManagedBinPath,
+		PublishedBinPath: report.PublishedBinPath,
+		Evidence:         make([]updateEvidenceJSON, 0, len(report.Evidence)),
+		OperatorRecovery: report.OperatorRecovery,
 	}
 	for _, evidence := range report.Evidence {
 		event.Evidence = append(event.Evidence, updateEvidenceJSON{Kind: string(evidence.Kind), Detail: evidence.Detail})
