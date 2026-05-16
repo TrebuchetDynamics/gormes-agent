@@ -13,6 +13,7 @@ import (
 func TestUpdateReleaseServiceCoordinationWrapsBinaryMutation(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	t.Setenv("GORMES_INSTALL_HOME", t.TempDir())
+	targetVersion := nextPatchVersionForTest(t)
 	events := []string{}
 	service := fakeUpdateCommandManagedService{name: "gormes-gateway.service"}
 	command := newUpdateCommandWithSeams(updateCommandSeams{
@@ -23,7 +24,7 @@ func TestUpdateReleaseServiceCoordinationWrapsBinaryMutation(t *testing.T) {
 			return "linux", "amd64"
 		},
 		LoadReleaseMetadata: func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error) {
-			return cli.UpdateReleaseMetadata{Version: "0.2.13", Tag: "v0.2.13", GitCommit: "abc1234"}, nil
+			return nextPatchReleaseMetadataForTest(t, "abc1234"), nil
 		},
 		ReleaseUpdateLock: func() cli.UpdateLock {
 			return fakeUpdateCommandLock{}
@@ -41,7 +42,7 @@ func TestUpdateReleaseServiceCoordinationWrapsBinaryMutation(t *testing.T) {
 		RunReleaseBinaryUpdate: func(context.Context, cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport {
 			events = append(events, "mutation")
 			return cli.UpdateReleaseBinaryReport{
-				NewVersion: "0.2.13",
+				NewVersion: targetVersion,
 				Evidence: []cli.UpdateEvidence{{
 					Kind:   cli.UpdateEvidenceReleaseSwapCompleted,
 					Detail: "binary swapped",
@@ -87,7 +88,7 @@ func TestUpdateReleaseServiceCoordinationReceivesForcePolicy(t *testing.T) {
 			return "linux", "amd64"
 		},
 		LoadReleaseMetadata: func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error) {
-			return cli.UpdateReleaseMetadata{Version: "0.2.13", Tag: "v0.2.13", GitCommit: "abc1234"}, nil
+			return nextPatchReleaseMetadataForTest(t, "abc1234"), nil
 		},
 		ReleaseUnmanagedSessions: func(context.Context) []cli.UpdateUnmanagedSession {
 			return []cli.UpdateUnmanagedSession{{PID: 42, Detail: "manual gateway active_agents=1"}}

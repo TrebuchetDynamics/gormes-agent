@@ -12,6 +12,7 @@ import (
 func TestUpdateReleaseBinaryCommandUsesReleaseUpdaterForReleaseInstall(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	t.Setenv("GORMES_INSTALL_HOME", t.TempDir())
+	targetVersion := nextPatchVersionForTest(t)
 	updateCalled := false
 	lifecycleCalled := false
 	command := newUpdateCommandWithSeams(updateCommandSeams{
@@ -22,11 +23,11 @@ func TestUpdateReleaseBinaryCommandUsesReleaseUpdaterForReleaseInstall(t *testin
 			return "linux", "amd64"
 		},
 		LoadReleaseMetadata: func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error) {
-			return cli.UpdateReleaseMetadata{Version: "0.2.13", Tag: "v0.2.13", GitCommit: "abc1234"}, nil
+			return nextPatchReleaseMetadataForTest(t, "abc1234"), nil
 		},
 		RunReleaseBinaryUpdate: func(_ context.Context, opts cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport {
 			updateCalled = true
-			if opts.Plan.Source != cli.UpdateSourceGitHubRelease || opts.Plan.ArtifactName != "gormes-0.2.13-linux-amd64.tar.gz" {
+			if opts.Plan.Source != cli.UpdateSourceGitHubRelease || opts.Plan.ArtifactName != nextPatchReleaseArtifactForTest(t, "linux", "amd64") {
 				t.Fatalf("release plan = %+v, want GitHub release linux-amd64 artifact", opts.Plan)
 			}
 			if opts.ManagedBinPath == "" || opts.PublishedBinPath == "" {
@@ -36,7 +37,7 @@ func TestUpdateReleaseBinaryCommandUsesReleaseUpdaterForReleaseInstall(t *testin
 				SnapshotID:       "snap-1",
 				SnapshotPath:     "/tmp/snap-1",
 				PreviousVersion:  Version,
-				NewVersion:       "0.2.13",
+				NewVersion:       targetVersion,
 				ManagedBinPath:   opts.ManagedBinPath,
 				PublishedBinPath: opts.PublishedBinPath,
 				Evidence: []cli.UpdateEvidence{
@@ -65,7 +66,7 @@ func TestUpdateReleaseBinaryCommandUsesReleaseUpdaterForReleaseInstall(t *testin
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("stdout must be valid JSON: %v\n%s", err, stdout)
 	}
-	if got.Action != "update_release_binary" || got.SnapshotID != "snap-1" || got.NewVersion != "0.2.13" {
+	if got.Action != "update_release_binary" || got.SnapshotID != "snap-1" || got.NewVersion != targetVersion {
 		t.Fatalf("json = %+v, want release binary report", got)
 	}
 }

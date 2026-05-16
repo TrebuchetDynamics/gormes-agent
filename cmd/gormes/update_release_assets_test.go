@@ -13,6 +13,7 @@ import (
 func TestUpdateReleaseAssetsCommandRunsAssetSkillSyncAfterBinaryUpdate(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	t.Setenv("GORMES_INSTALL_HOME", t.TempDir())
+	targetVersion := nextPatchVersionForTest(t)
 	syncCalled := false
 	command := newUpdateCommandWithSeams(updateCommandSeams{
 		DetectInstallKind: func() cli.UpdateInstallKind {
@@ -22,14 +23,14 @@ func TestUpdateReleaseAssetsCommandRunsAssetSkillSyncAfterBinaryUpdate(t *testin
 			return "linux", "amd64"
 		},
 		LoadReleaseMetadata: func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error) {
-			return cli.UpdateReleaseMetadata{Version: "0.2.13", Tag: "v0.2.13", GitCommit: "abc1234"}, nil
+			return nextPatchReleaseMetadataForTest(t, "abc1234"), nil
 		},
 		RunReleaseBinaryUpdate: func(_ context.Context, opts cli.UpdateReleaseBinaryOptions) cli.UpdateReleaseBinaryReport {
 			return cli.UpdateReleaseBinaryReport{
 				SnapshotID:      "snap-1",
 				SnapshotPath:    opts.Plan.SnapshotPath,
 				PreviousVersion: Version,
-				NewVersion:      "0.2.13",
+				NewVersion:      targetVersion,
 				Evidence: []cli.UpdateEvidence{{
 					Kind:   cli.UpdateEvidenceReleaseSwapCompleted,
 					Detail: "binary swapped",
@@ -37,8 +38,8 @@ func TestUpdateReleaseAssetsCommandRunsAssetSkillSyncAfterBinaryUpdate(t *testin
 			}
 		},
 		LoadReleaseAssetManifest: func(_ context.Context, plan cli.UpdateReleasePlan) (cli.UpdateReleaseManifest, string, error) {
-			if plan.Target.Version != "0.2.13" {
-				t.Fatalf("manifest plan target = %+v, want 0.2.13", plan.Target)
+			if plan.Target.Version != targetVersion {
+				t.Fatalf("manifest plan target = %+v, want %s", plan.Target, targetVersion)
 			}
 			return cli.UpdateReleaseManifest{
 				SchemaVersion: 1,

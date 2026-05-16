@@ -16,6 +16,7 @@ func TestUpdateCommandReleaseDryRunPrintsPlanWithoutLifecycleMutation(t *testing
 	setupOneshotFlagTestEnv(t)
 	installHome := t.TempDir()
 	t.Setenv("GORMES_INSTALL_HOME", installHome)
+	targetVersion := nextPatchVersionForTest(t)
 
 	lifecycleCalled := false
 	checkoutDirCalled := false
@@ -31,7 +32,7 @@ func TestUpdateCommandReleaseDryRunPrintsPlanWithoutLifecycleMutation(t *testing
 			return "linux", "amd64"
 		},
 		LoadReleaseMetadata: func(context.Context, cli.UpdateReleaseChannel) (cli.UpdateReleaseMetadata, error) {
-			return cli.UpdateReleaseMetadata{Version: "0.2.13", Tag: "v0.2.13", GitCommit: "newsha"}, nil
+			return nextPatchReleaseMetadataForTest(t, "newsha"), nil
 		},
 		RunLifecycle: func(context.Context, cli.UpdateLifecycleOptions) cli.UpdateReport {
 			lifecycleCalled = true
@@ -82,10 +83,10 @@ func TestUpdateCommandReleaseDryRunPrintsPlanWithoutLifecycleMutation(t *testing
 	if got.Plan.Source != "github_release" || got.Plan.InstallKind != "release" || got.Plan.Channel != "stable" {
 		t.Fatalf("plan route = source %q kind %q channel %q, want release stable GitHub plan", got.Plan.Source, got.Plan.InstallKind, got.Plan.Channel)
 	}
-	if got.Plan.Current.Version != Version || got.Plan.Target.Version != "0.2.13" || got.Plan.Target.GitCommit != "newsha" {
+	if got.Plan.Current.Version != Version || got.Plan.Target.Version != targetVersion || got.Plan.Target.GitCommit != "newsha" {
 		t.Fatalf("plan identity = current %q target %+v, want running build -> release metadata", got.Plan.Current.Version, got.Plan.Target)
 	}
-	if got.Plan.ArtifactName != "gormes-0.2.13-linux-amd64.tar.gz" {
+	if got.Plan.ArtifactName != nextPatchReleaseArtifactForTest(t, "linux", "amd64") {
 		t.Fatalf("artifact = %q, want linux-amd64 release archive", got.Plan.ArtifactName)
 	}
 	if !strings.Contains(got.Plan.SnapshotPath, "snapshots") {
