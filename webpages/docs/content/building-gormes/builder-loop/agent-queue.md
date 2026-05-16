@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Termux storage and path safety audit
-
-- Phase: 1 / 5.X
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Audit and test Gormes path selection under synthetic Termux env so config, dotenv secrets, sessions, gateway state, SQLite/Goncho, browser temp dirs, and generated files land only under configured GORMES_HOME/XDG/HOME locations while install publication remains $PREFIX/bin/gormes. No runtime code may hardcode desktop workspace paths such as /home/xel or workspace-mineru.
-- Trust class: operator, system
-- Ready when: Termux runtime doctor check is complete., Existing config path helpers can be tested with temp HOME/XDG/GORMES_HOME and synthetic PREFIX., Tests use temp dirs only and never inspect the developer's live ~/.gormes or Termux state.
-- Not ready when: Tests depend on /data/data/com.termux existing on the host., Any command writes outside temp HOME/XDG/GORMES_HOME or the synthetic $PREFIX/bin install target., The implementation hardcodes workspace-mineru, /home/xel, or desktop-only paths.
-- Degraded mode: If an Android path is unavailable, commands must return typed path/readiness warnings instead of writing into unexpected shared storage or desktop-only paths.
-- Fixture: `internal/config Termux path fixtures plus cmd/gormes doctor/config/goncho smoke fixtures`
-- Write scope: `internal/config/`, `internal/store/`, `internal/goncho/`, `cmd/gormes/`, `internal/installtest/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/config ./cmd/gormes -run 'Termux\|GatewayRuntimeStatusPath\|ConfigPath\|Goncho' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Synthetic Termux path fixtures prove runtime state stays under configured homes and never hardcodes desktop checkout paths.
-- Acceptance: Synthetic Termux tests prove ConfigPath, EnvPath, GatewayRuntimeStatusPath, memory DB paths, and Goncho DB paths stay under temp HOME/XDG/GORMES_HOME., Doctor/config smoke fixtures under synthetic Termux do not create files outside the allowed roots., Install dry-run remains the only path that targets $PREFIX/bin/gormes., No Termux runtime path code depends on root permissions or shared Android storage.
-- Source refs: internal/config/config.go, internal/store/, internal/goncho/, cmd/gormes/goncho.go, cmd/gormes/doctor.go, install.sh
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Termux gateway foreground tmux lifecycle
+## 1. Termux gateway foreground tmux lifecycle
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -67,7 +47,7 @@ selection.
 - Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Termux notification bridge via termux-api
+## 2. Termux notification bridge via termux-api
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -87,7 +67,7 @@ selection.
 - Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Termux real-device smoke evidence
+## 3. Termux real-device smoke evidence
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -108,7 +88,7 @@ selection.
 - Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Termux remote execution guidance
+## 4. Termux remote execution guidance
 
 - Phase: 1 / 5.X
 - Owner: `docs`
@@ -128,7 +108,7 @@ selection.
 - Source refs: cmd/gormes/doctor.go, internal/doctor/termux.go, internal/tools/, webpages/docs/content/install/linux-macos.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Agentic-porting-kit public repo scaffold
+## 5. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

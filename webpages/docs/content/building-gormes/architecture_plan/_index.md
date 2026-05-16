@@ -157,7 +157,7 @@ classification and row-backed implementation queue.
 - [ ] Gormes Termux Runtime Compatibility
 - [x] Termux runtime doctor check
 - [x] Termux install and release smoke guide
-- [ ] Termux storage and path safety audit
+- [x] Termux storage and path safety audit
 - [ ] Termux gateway foreground tmux lifecycle
 - [ ] Termux notification bridge via termux-api
 - [ ] Termux real-device smoke evidence

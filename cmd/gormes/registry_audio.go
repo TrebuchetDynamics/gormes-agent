@@ -4,7 +4,6 @@ package main
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -23,16 +22,13 @@ func registerAudioTools(reg *tools.Registry, cfg config.Config) {
 		provider = configured
 	}
 	reg.MustRegister(tools.NewTextToSpeechTool(tools.NewTTSRunner(tools.TTSConfig{
-		OutputDir:      filepath.Join(config.GormesHome(), "cache", "audio"),
+		OutputDir:      defaultAudioCacheDir(),
 		Provider:       provider,
 		ProviderConfig: cfg.TTS,
 	}, ttsProviders)))
 
 	// Register STT transcription tool with local whisper as default.
-	transcriptionCacheDir := filepath.Join(config.GormesHome(), "cache", "whisper")
-	if override := os.Getenv("GORMES_STT_CACHE_DIR"); override != "" {
-		transcriptionCacheDir = override
-	}
+	transcriptionCacheDir := defaultTranscriptionCacheDir()
 	sttProviders := map[string]tools.TranscriptionProvider{}
 	sttProviders["local"] = tools.NewLocalSTTProvider(transcriptionCacheDir)
 	tools.RegisterTranscriptionProviders(sttProviders, tools.TranscriptionProviderConfig{

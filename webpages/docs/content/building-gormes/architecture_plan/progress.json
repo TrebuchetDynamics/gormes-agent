@@ -1634,9 +1634,9 @@
             {
               "name": "Termux storage and path safety audit",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Audit and test Gormes path selection under synthetic Termux env so config, dotenv secrets, sessions, gateway state, SQLite/Goncho, browser temp dirs, and generated files land only under configured GORMES_HOME/XDG/HOME locations while install publication remains $PREFIX/bin/gormes. No runtime code may hardcode desktop workspace paths such as /home/xel or workspace-mineru.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -1644,13 +1644,15 @@
                 "system"
               ],
               "degraded_mode": "If an Android path is unavailable, commands must return typed path/readiness warnings instead of writing into unexpected shared storage or desktop-only paths.",
-              "fixture": "internal/config Termux path fixtures plus cmd/gormes doctor/config/goncho smoke fixtures",
+              "fixture": "internal/config Termux path fixtures, cmd/gormes doctor/config/goncho/registry path smoke fixtures, and internal/installtest Termux dry-run publication fixture",
               "source_refs": [
                 "internal/config/config.go",
                 "internal/store/",
                 "internal/goncho/",
                 "cmd/gormes/goncho.go",
                 "cmd/gormes/doctor.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_audio.go",
                 "install.sh"
               ],
               "ready_when": [
@@ -1679,6 +1681,7 @@
               ],
               "test_commands": [
                 "go test ./internal/config ./cmd/gormes -run 'Termux|GatewayRuntimeStatusPath|ConfigPath|Goncho' -count=1",
+                "go test ./internal/installtest -run Termux -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
@@ -1688,6 +1691,19 @@
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned portability guard for Android path semantics."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/config/termux_path_test.go: synthetic Termux fixtures pin config, dotenv, session, memory, gateway, skills, hooks, audit, and delegation paths under configured GORMES_HOME or HOME/.gormes while excluding the Termux install prefix.",
+                  "cmd/gormes/termux_path_safety_test.go: command smoke coverage runs config path/env-path/set, doctor --offline --json, and goncho doctor --json under synthetic TERMUX_VERSION/PREFIX/HOME/XDG/GORMES_HOME without touching live ~/.gormes or /data/data/com.termux.",
+                  "cmd/gormes/registry_paths.go: browser artifact, web auth, memory tool, audio cache, and whisper cache defaults are centralized so registry-generated files stay under config.GormesHome().",
+                  "internal/installtest/termux_path_safety_test.go: install.sh --dry-run proves $PREFIX/bin/gormes is the publication target for Termux while managed runtime state remains under the configured install home."
+                ],
+                "tests": [
+                  "go test ./internal/config ./cmd/gormes -run 'Termux|GatewayRuntimeStatusPath|ConfigPath|Goncho' -count=1",
+                  "go test ./internal/installtest -run Termux -count=1"
+                ],
+                "note": "Completed 2026-05-15 as a portability guardrail. The initial failures were fixture-root mistakes caused by this host's temp directory living under /home/xel; the corrected fixtures now use /tmp roots and prove product outputs do not contain desktop checkout markers or write outside the synthetic roots."
               }
             },
             {
