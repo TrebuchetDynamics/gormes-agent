@@ -61726,12 +61726,12 @@
             {
               "name": "Backlog split C5b: module-keyed split layout behind the existing API",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "Resolve the umbrella's deferred phase-vs-module physical-key decision (RESOLVED: module-keyed — see umbrella note C5 RESOLUTION) by generalizing the C1 split layout to support a keyBy mode (phase | module) BEHIND the existing internal/progress.Load/SaveProgress API, with NO on-disk flip (pure additive, mirrors the C1/C5a additive precedent). Today internal/progress/split.go keys the split by phase: splitIndex={Meta, Phases []string} + phases/<id>.json. Generalize so the on-disk index records the keying mode + member list and members can be grouped by progress.Module(it,phaseID,subphaseID) (the C5a field/derivation). CRITICAL design content: a module-keyed member file holds rows from MULTIPLE phases/subphases, so the member format MUST retain each row's (phaseID, subphaseID) identity so Merge reconstructs the byte-identical monolithic *Progress (rows reassembled into their real phases/subphases, NOT into a synthetic module phase). Phase-keyed layout (C1) MUST keep working byte-identically (default/back-compat — existing C1/C2/C3 tests stay green). internal/progress.Load, progressctl.canonicalSource, and health.go isSplitLayout are UNCHANGED — they only detect a split *directory*; the keying is internal to index.json so dual-layout transparency, the `progress split` command, and lossless Merge all still hold. No on-disk canonical flip in this slice; the monolith stays canonical. Owned Gormes infra.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -61765,7 +61765,6 @@
               "write_scope": [
                 "internal/progress/split.go",
                 "internal/progress/split_test.go",
-                "cmd/progress/main.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -61777,7 +61776,7 @@
               "done_signal": [
                 "Module-keyed split round-trips byte-identically behind the unchanged Load/SaveProgress API; phase-keyed + monolith unchanged; no on-disk flip; consumers/generators green."
               ],
-              "note": "Module-split umbrella child C5b (the C5-RESOLUTION prerequisite). Builder-ready: only blockers C1+C5a are SHIPPED; independent of C2/C3/C4 (additive, no flip, no consumer change). Smallest safe step toward the user's per-module ask. Recommended chain: gormes-tdd-slice. The actual operator-gated per-module on-disk flip stays in the C5 parent (blocked_by this row). Keep the monolith canonical until C5 batches."
+              "note": "SHIPPED 2026-05-16 see git log — split.go: splitIndex+key_by/skeleton/modules (omitempty→phase byte-identical to C1, default); WriteSplitBy(phase|module), modules/<m>.json by progress.Module + skeleton → loadSplitByModule/Merge byte-stable; unknown key_by→ErrMalformedSplit; Load/canonicalSource/isSplitLayout untouched. No cmd/progress flag (no consumer until C5)."
             },
             {
               "name": "Backlog split C5: per-module-batch on-disk row migration",
