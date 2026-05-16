@@ -62400,9 +62400,9 @@
         {
           "name": "Navivox connect-and-talk first screen",
           "priority": "P0",
-          "status": "planned",
+          "status": "complete",
           "contract": "Make the first useful Navivox screen a connected chat/voice test surface: after the operator pastes or scans `gormes navivox connect-info`, the app connects to the HTTP/WS gateway, shows gateway readiness, opens chat as the primary surface, and lets the operator send text or a device-transcribed voice turn to Gormes without configuring telephony. The slice should prove the Dograh-style Web Call insight through a local fake HTTP gateway and one real `internal/channels/navivox` fixture.",
-          "contract_status": "fixture_ready",
+          "contract_status": "validated",
           "slice_size": "medium",
           "execution_owner": "gateway",
           "trust_class": [
@@ -62433,9 +62433,6 @@
             "The slice adds telephony, phone-number setup, campaigns, scheduling, or human handoff.",
             "The slice depends on fake-server mode instead of a fixture HTTP/WS gateway.",
             "The slice prints or stores the static token outside the existing token field and secure input flow."
-          ],
-          "blocked_by": [
-            "Navivox HTTP/WS documentation refresh"
           ],
           "unblocks": [
             "Navivox profile contact summary API",
@@ -62475,7 +62472,8 @@
           "provenance": {
             "origin_type": "gormes",
             "owned_since": "2026-05-16"
-          }
+          },
+          "note": "Complete 2026-05-16: Navivox now starts from a connect-and-talk setup screen using `gormes navivox connect-info`, opens the gateway chat surface after base URL plus token entry, sends text turns, renders device-transcribed voice turns as local voice bubbles, and keeps disconnected failures bounded with connect-info guidance and no token leak. Backend coverage proves authenticated HTTP turns queue normal gateway submits and subscribed WebSockets receive assistant lifecycle events without telephony setup."
         },
         {
           "name": "Navivox profile contact summary API",

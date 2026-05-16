@@ -1480,7 +1480,7 @@ classification and row-backed implementation queue.
 ### 9.F — Navivox Operator Activation 🔨
 
 - [x] Navivox HTTP/WS documentation refresh
-- [ ] Navivox connect-and-talk first screen
+- [x] Navivox connect-and-talk first screen
 - [ ] Navivox profile contact summary API
 - [ ] Navivox continuous voice command mode
 - [ ] Navivox Telegram-inspired chat polish
