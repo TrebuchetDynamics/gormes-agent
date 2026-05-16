@@ -15,7 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
 )
 
-func TestStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
+func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)
 	server := httptest.NewServer(ch.Handler(inbox))
@@ -40,7 +40,7 @@ func TestStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	}
 }
 
-func TestHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent(t *testing.T) {
+func TestNavivoxHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)
 	server := httptest.NewServer(ch.Handler(inbox))
@@ -114,7 +114,7 @@ func TestWebSocketPingAndMalformedJSONReturnTypedEvents(t *testing.T) {
 	}
 }
 
-func TestWebSocketStartTurnStreamsGatewayResponses(t *testing.T) {
+func TestNavivoxWebSocketStartTurnStreamsGatewayResponses(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)
 	server := httptest.NewServer(ch.Handler(inbox))
@@ -182,6 +182,83 @@ func TestWebSocketStartTurnStreamsGatewayResponses(t *testing.T) {
 		t.Fatal(err)
 	}
 	if done.Type != "done" || done.SessionID != "s-2" {
+		t.Fatalf("done = %+v", done)
+	}
+}
+
+func TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-http", SessionID: "s-http"}); err != nil {
+		t.Fatal(err)
+	}
+	var subscribed ServerEvent
+	if err := conn.ReadJSON(&subscribed); err != nil {
+		t.Fatal(err)
+	}
+	if subscribed.Type != "session_started" || subscribed.RequestID != "req-http" || subscribed.SessionID != "s-http" {
+		t.Fatalf("session_started = %+v", subscribed)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/turn", strings.NewReader(`{"request_id":"req-http","session_id":"s-http","text":"posted turn"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("authorized turn status = %d, want 202", resp.StatusCode)
+	}
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventSubmit || ev.ChatID != "s-http" || ev.Text != "posted turn" {
+			t.Fatalf("gateway event = %+v, want HTTP submit for s-http", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for HTTP gateway event")
+	}
+
+	msgID, err := ch.SendPlaceholder(context.Background(), "s-http")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ch.EditMessage(context.Background(), "s-http", msgID, "hello"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ch.EditMessageFinal(context.Background(), "s-http", msgID, "hello posted turn", true); err != nil {
+		t.Fatal(err)
+	}
+
+	var delta ServerEvent
+	if err := conn.ReadJSON(&delta); err != nil {
+		t.Fatal(err)
+	}
+	if delta.Type != "assistant_delta" || delta.RequestID != "req-http" || delta.Text != "hello" {
+		t.Fatalf("delta = %+v", delta)
+	}
+	var final ServerEvent
+	if err := conn.ReadJSON(&final); err != nil {
+		t.Fatal(err)
+	}
+	if final.Type != "assistant_message" || final.RequestID != "req-http" || final.Text != "hello posted turn" {
+		t.Fatalf("assistant_message = %+v", final)
+	}
+	var done ServerEvent
+	if err := conn.ReadJSON(&done); err != nil {
+		t.Fatal(err)
+	}
+	if done.Type != "done" || done.SessionID != "s-http" {
 		t.Fatalf("done = %+v", done)
 	}
 }

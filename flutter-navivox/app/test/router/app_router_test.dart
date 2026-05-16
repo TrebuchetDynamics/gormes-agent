@@ -8,8 +8,8 @@ void main() {
     await tester.pumpWidget(const NavivoxApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Set up Navivox'), findsOneWidget);
-    expect(find.text('Connect to Gormes gateway'), findsOneWidget);
+    expect(find.text('Connect to Gormes'), findsOneWidget);
+    expect(find.text('Connect and talk'), findsOneWidget);
   });
 
   // Deferred: a successful chat path through the HTTP gateway needs a

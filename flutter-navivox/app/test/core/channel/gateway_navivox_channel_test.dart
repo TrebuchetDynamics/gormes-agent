@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navivox/core/channel/gateway_navivox_channel.dart';
 import 'package:navivox/core/gateway/navivox_gateway_protocol.dart';
+import 'package:navivox/core/protocol/navivox_event.dart';
 
 void main() {
   test('connects to gateway and streams a chat turn', () async {
@@ -43,6 +45,47 @@ void main() {
     expect(messages.where((m) => m.text == 'hello gateway'), hasLength(1));
     expect(messages.where((m) => m.text == 'hello from gateway'), hasLength(1));
   });
+
+  test(
+    'voice transcript renders locally and submits as a gateway turn',
+    () async {
+      final server = await _FakeGatewayServer.start();
+      addTearDown(server.close);
+
+      final channel = GatewayNavivoxChannel();
+      addTearDown(channel.dispose);
+
+      await channel.connect(
+        NavivoxGatewayConfig.fromBaseUrl(
+          server.baseUrl,
+          token: _FakeGatewayServer.token,
+        ),
+      );
+
+      channel.sendVoice(
+        audio: Uint8List.fromList([1, 2, 3]),
+        transcript: 'hello by voice',
+        duration: const Duration(milliseconds: 1200),
+        confidence: 0.91,
+      );
+
+      final sent = await server.nextClientMessage;
+      expect(sent['type'], 'start_turn');
+      expect(sent['text'], 'hello by voice');
+
+      final voiceMessages = channel.state.messages
+          .where((message) => message.kind == NavivoxMessageKind.voice)
+          .toList();
+      expect(voiceMessages, hasLength(1));
+      expect(voiceMessages.single.author, NavivoxMessageAuthor.user);
+      expect(voiceMessages.single.voice?.transcript, 'hello by voice');
+      expect(
+        voiceMessages.single.voice?.duration,
+        const Duration(milliseconds: 1200),
+      );
+      expect(voiceMessages.single.voice?.confidence, 0.91);
+    },
+  );
 }
 
 class _FakeGatewayServer {

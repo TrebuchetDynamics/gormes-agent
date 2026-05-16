@@ -102,11 +102,41 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     required Duration duration,
     required double confidence,
   }) {
-    if (transcript.trim().isEmpty) {
+    final trimmed = transcript.trim();
+    if (trimmed.isEmpty) {
       _appendSystemMessage('Voice transcript is empty.');
       return;
     }
-    sendText(transcript);
+
+    final socket = _socket;
+    if (socket == null) {
+      _appendSystemMessage('Gateway is not connected.');
+      return;
+    }
+
+    final requestId = _uuid.v4();
+    _appendMessage(
+      NavivoxChatMessage(
+        id: requestId,
+        author: NavivoxMessageAuthor.user,
+        kind: NavivoxMessageKind.voice,
+        createdAt: _clock(),
+        voice: NavivoxVoiceMessage(
+          duration: duration,
+          transcript: trimmed,
+          confidence: confidence,
+        ),
+      ),
+    );
+    socket.add(
+      jsonEncode(
+        NavivoxGatewayMessage.startTurn(
+          requestId: requestId,
+          sessionId: _activeSessionId,
+          text: trimmed,
+        ).body,
+      ),
+    );
   }
 
   @override
