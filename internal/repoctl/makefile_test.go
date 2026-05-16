@@ -36,3 +36,14 @@ func TestMakefileUsesFocusedProgressAndRepoHelpers(t *testing.T) {
 		}
 	}
 }
+
+func TestMakefileVersionExtractorMatchesGoVarDeclaration(t *testing.T) {
+	raw, err := os.ReadFile("../../Makefile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	makefile := string(raw)
+	if !strings.Contains(makefile, "(var[[:space:]]+)?Version") {
+		t.Fatalf("Makefile VERSION extractor must match `var Version = ...`; got:\n%s", makefile)
+	}
+}

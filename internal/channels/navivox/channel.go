@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,11 @@ import (
 )
 
 const PlatformName = "navivox"
+
+const (
+	navivoxWebSocketProtocol            = "gormes.navivox.v1"
+	navivoxWebSocketTokenProtocolPrefix = "gormes.navivox.token."
+)
 
 // vpnHostLister is the seam tests override to inject deterministic VPN
 // host enumeration into NewChannel; production callers use the real CLIs.
@@ -183,6 +189,32 @@ func (c *Channel) SendPlaceholder(ctx context.Context, chatID string) (string, e
 	return msgID, ctx.Err()
 }
 
+func (c *Channel) SendToolProgress(ctx context.Context, chatID string, progress gateway.ToolProgressEvent) (string, error) {
+	toolCallID := strings.TrimSpace(progress.ID)
+	if toolCallID == "" {
+		toolCallID = c.newID()
+	}
+	status := strings.TrimSpace(string(progress.Status))
+	if status == "" {
+		status = string(gateway.ToolProgressStarted)
+	}
+	eventType := "tool_call_started"
+	switch gateway.ToolProgressStatus(status) {
+	case gateway.ToolProgressFinished, gateway.ToolProgressFailed:
+		eventType = "tool_call_finished"
+	}
+	c.broadcast(chatID, ServerEvent{
+		Type:       eventType,
+		SessionID:  chatID,
+		ToolName:   safeNavivoxToolName(progress.ToolName),
+		ToolCallID: toolCallID,
+		Status:     status,
+		Message:    safeNavivoxToolSummary(progress.Summary),
+		Metadata:   safeNavivoxToolMetadata(progress.Metadata),
+	})
+	return toolCallID, ctx.Err()
+}
+
 func (c *Channel) EditMessage(ctx context.Context, chatID, msgID, text string) error {
 	return c.edit(chatID, msgID, text, false)
 }
@@ -322,6 +354,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			return
 		}
 		upgrader := websocket.Upgrader{
+			Subprotocols: []string{navivoxWebSocketProtocol},
 			CheckOrigin: func(req *http.Request) bool {
 				return c.originAllowed(req.Header.Get("Origin"))
 			},
@@ -569,6 +602,9 @@ func (c *Channel) authenticate(r *http.Request) (string, bool) {
 		if token == "" {
 			token = strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token"))
 		}
+		if token == "" {
+			token = webSocketProtocolToken(r)
+		}
 		if token == "" || c.cfg.Token == "" {
 			return "", false
 		}
@@ -587,6 +623,21 @@ func bearerToken(r *http.Request) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+}
+
+func webSocketProtocolToken(r *http.Request) string {
+	for _, protocol := range websocket.Subprotocols(r) {
+		if !strings.HasPrefix(protocol, navivoxWebSocketTokenProtocolPrefix) {
+			continue
+		}
+		encoded := strings.TrimPrefix(protocol, navivoxWebSocketTokenProtocolPrefix)
+		decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+		if err != nil {
+			return ""
+		}
+		return string(decoded)
+	}
+	return ""
 }
 
 func firstHeader(r *http.Request, names ...string) string {
@@ -664,6 +715,74 @@ func safeNavivoxError(err error) string {
 		return ne.message
 	}
 	return "Runtime error"
+}
+
+func safeNavivoxToolName(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "tool_progress"
+	}
+	var b strings.Builder
+	for _, r := range raw {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '_' || r == '-' || r == '.' || r == ':':
+			b.WriteRune(r)
+		}
+		if b.Len() >= 64 {
+			break
+		}
+	}
+	if b.Len() == 0 {
+		return "tool_progress"
+	}
+	return b.String()
+}
+
+func safeNavivoxToolSummary(raw string) string {
+	raw = strings.Join(strings.Fields(strings.TrimSpace(raw)), " ")
+	if raw == "" {
+		return "Tool progress"
+	}
+	runes := []rune(raw)
+	if len(runes) > 240 {
+		return string(runes[:237]) + "..."
+	}
+	return raw
+}
+
+func safeNavivoxToolMetadata(raw map[string]any) map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(raw))
+	for key, value := range raw {
+		safeKey := safeNavivoxToolName(key)
+		if safeKey == "tool_progress" && strings.TrimSpace(key) != "tool_progress" {
+			continue
+		}
+		switch typed := value.(type) {
+		case string:
+			out[safeKey] = safeNavivoxToolSummary(typed)
+		case bool:
+			out[safeKey] = typed
+		case int:
+			out[safeKey] = typed
+		case int64:
+			out[safeKey] = typed
+		case float64:
+			out[safeKey] = typed
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func writeNavivoxJSON(w http.ResponseWriter, status int, body any) {

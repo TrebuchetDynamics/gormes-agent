@@ -1,376 +1,274 @@
 # Navivox Testing Plan
 
 Status: planning draft
-Source: derived from navivox-prd.md §18
+Updated: 2026-05-16
 
-## 1. Testing Pyramid
+## 1. Strategy
 
+Navivox tests should protect the connect-and-talk loop first:
+
+1. Configure a gateway base URL and token.
+2. Prove `/healthz` and `/v1/navivox/status`.
+3. Open `/v1/navivox/stream`.
+4. Send a text or transcript turn.
+5. Render assistant events and tool events.
+
+Tests should not depend on telephony, public networking, or privileged host
+setup.
+
+## 2. Test Pyramid
+
+```text
+            +----------------+
+            |      E2E       |  5-10%: full setup to first turn
+            +----------------+
+         +----------------------+
+         |     Integration      | 20-30%: fixture gateway and Go handler
+         +----------------------+
+      +----------------------------+
+      |       Widget Tests         | 30-40%: setup/chat/config/agents
+      +----------------------------+
+   +----------------------------------+
+   |            Unit Tests            | 40-50%: protocol, state, validation
+   +----------------------------------+
 ```
-           ┌──────────┐
-           │   E2E    │  5-10% — Full flows with fake server
-           │  Tests   │
-          ┌┴──────────┴┐
-          │ Integration │  15-20% — Widget + service integration
-          │   Tests     │
-         ┌┴─────────────┴┐
-         │   Unit Tests   │  70-75% — Protocol, models, logic
-         └────────────────┘
-```
 
-## 2. Unit Tests
+## 3. Flutter Unit Tests
 
-### 2.1 Protocol Codecs
+### 3.1 Gateway Config
 
-**File**: `test/core/protocol/codec_test.dart`
+**File**: `test/core/gateway/navivox_gateway_protocol_test.dart`
 
-| Test | Description | Input | Expected |
-|------|-------------|-------|----------|
-| Encode/decode hello frame | Round-trip handshake | HelloEvent with device info | Identical decoded frame |
-| Encode chat submit | User text message | ChatSubmitEvent(text: "hello") | Correct header + text payload |
-| Encode voice submit | Audio + transcript | VoiceSubmitEvent with PCM bytes | Correct binary payload + metadata |
-| Payload length mismatch | Header says 120 bytes, payload has 119 | Corrupt frame | Throws PayloadLengthMismatchError |
-| Frame size limit exceeded | Reject oversized frames | 10MB payload | Throws FrameSizeExceededError |
-| Version mismatch | Server sends newer prelude version | v3 frame, client v1 | Throws UnsupportedProtocolVersion before reading event body |
-| Hello advertised versions | v1 hello payload includes supported_versions | JSON payload | server.status reports selected v1 |
-| Corrupt magic bytes | Random data | [0x00, 0x00...] | Throws InvalidFrameError before JSON parse |
-| Empty payload | Frame with no body | Header only, empty payload | Decodes with empty data list |
-| Concurrent frames | Multiple frames in buffer | 3 frames back-to-back | Each decoded separately |
-| UTF-8 text in header | Non-ASCII metadata | Japanese agent name in metadata | Correct round-trip |
-| Binary payload integrity | Large binary blob | 1MB random bytes | Byte-for-byte match |
+| Test | Input | Expected |
+|------|-------|----------|
+| Health URL | `http://127.0.0.1:8765` | `/healthz` |
+| Status URL | Base URL with path | Path replaced with `/v1/navivox/status` |
+| Stream URL | `http://host:8765` | `ws://host:8765/v1/navivox/stream` |
+| Secure stream URL | `https://host` | `wss://host/v1/navivox/stream` |
+| Bearer header | token present | `Authorization: Bearer <token>` |
+| Empty token | blank token | no auth header |
 
-### 2.2 Termius Import
+### 3.2 Gateway Client
 
-**File**: `test/data/imports/termius_importer_test.dart`
+**File**: `test/core/gateway/navivox_gateway_client_test.dart`
 
-| Test | Description | Expected |
-|------|-------------|----------|
-| Parse valid Termius JSON | Full export: 3 hosts, 2 keys, 1 group | 3 servers, 2 identities, correct mappings |
-| Reject password-only identity | Identity with no private_key | Rejected with clear reason |
-| Skip empty hostname | Host with empty hostname field | Skipped, warning logged |
-| Handle missing optional fields | Host without tags/group/known_host | Fills defaults, doesn't crash |
-| Deduplicate by Termius ID | Import same file twice | No duplicates, updated timestamps |
-| Parse encrypted key metadata | Identity with passphrase set | Marked isEncrypted=true |
-| Parse port forwarding | Host with port_forwarding array | Stored in import_metadata |
-| Handle malformed JSON | Random text, not JSON | Returns ImportError with message |
-| Handle empty export | Valid JSON, no hosts | Returns empty result, no error |
-| Map group folder hierarchy | Groups with parent references | Flat groups with parent reference metadata |
-| Extract known_hosts fingerprint | known_host field present | SHA256 fingerprint computed and stored |
+| Test | Setup | Expected |
+|------|-------|----------|
+| Health decodes object | JSON object body | Map returned |
+| Status rejects array | JSON array body | Format error |
+| HTTP error | 401 body | safe exception |
+| Decode event | event JSON string | typed event |
+| Bad wire event | non-map payload | typed `error` event |
+| Backoff clamps | attempt greater than max | bounded delay |
 
-### 2.3 Key Management
+### 3.3 Gateway Channel
 
-**File**: `test/core/ssh/key_manager_test.dart`
+**File**: `test/core/channel/gateway_navivox_channel_test.dart`
 
-| Test | Description | Expected |
-|------|-------------|----------|
-| Generate Ed25519 key pair | newKeyPair() | Valid key pair, 32-byte private |
-| Verify generated key with ssh-keygen | Write to temp file, run ssh-keygen -y | Public key matches |
-| Import OpenSSH Ed25519 private key | PEM format | Parsed by dartssh2 SSHKeyPair.fromPem |
-| Import encrypted key with passphrase | PEM + passphrase | Decrypts successfully |
-| Import encrypted key with wrong passphrase | PEM + wrong passphrase | Throws PassphraseError |
-| Import RSA key | PEM RSA format | Parsed, key type detected as RSA |
-| Import ECDSA key | PEM ECDSA format | Parsed, key type detected as ECDSA |
-| Generate public key string | From key pair | OpenSSH format pubkey string |
-| Compute fingerprint | From public key bytes | Correct SHA256:BASE64 format |
-| Reject password-only identity | No key material | Rejected with message |
+| Test | Setup | Expected |
+|------|-------|----------|
+| Connect | status succeeds, stream opens | server entry added |
+| Send text | connected socket | `start_turn` message sent |
+| Empty text | whitespace | no message sent |
+| Disconnected send | no socket | system message shown |
+| Session started | event with session id | active session set |
+| Assistant delta | two deltas | one growing assistant message |
+| Assistant message | final event | assistant message replaced/finalized |
+| Tool started | tool event | `ToolCallCard` message created |
+| Tool finished | finish event | card status updates |
+| Error event | error message | system message shown |
 
-### 2.4 Host Key Verification
-
-**File**: `test/core/ssh/host_key_pinner_test.dart`
-
-| Test | Description | Expected |
-|------|-------------|----------|
-| First connection (unknown host) | No pinned key for hostname | Returns 'unknown' with fingerprint for pinning |
-| Known host with matching key | Fingerprint matches pinned | Returns 'trusted' |
-| Known host with changed key | Different fingerprint | Returns 'changed' with old/new fingerprints |
-| Pinning a new host key | User accepts | Stores fingerprint, marks pinned |
-| Re-trust after warning | User accepts change | Updates fingerprint, unpins old |
-| Revoke host trust | User manually revokes | Marks trust_status 'revoked' |
-
-### 2.5 Local Command Parsing
-
-**File**: `test/features/voice/wake_word_detector_test.dart`
-
-| Test | Description | Expected |
-|------|-------------|----------|
-| Detect "NAVI" wake word | Text: "NAVI what's the weather" | wakeWordDetected=true |
-| Detect "NAVI switch agent X" | Text: "NAVI switch agent mineru" | command=switch_agent, target=mineru |
-| Ignore without wake word | Text: "what's the weather" | wakeWordDetected=false |
-| Case insensitive | Text: "navi SWITCH AGENT mineru" | Parses correctly |
-| Noise between wake and command | Text: "NAVI um please switch agent mineru" | Extracts "switch agent mineru" |
-| Multiple commands | Text: "NAVI switch agent mineru and deploy" | Takes first command |
-| Non-command after wake | Text: "NAVI hello" | wakeWordDetected=true, no command |
-| Configurable wake word | Change wake word to "ASSISTANT" | Detects new wake word |
-
-### 2.6 Config Diff Logic
-
-**File**: `test/features/config/config_diff_test.dart`
-
-| Test | Description | Expected |
-|------|-------------|----------|
-| Simple field change | model: gpt-4 → gpt-4-turbo | One change, not sensitive |
-| Secret field change | telegram.bot_token: set | Change marked isSecret=true |
-| No changes | Empty diff | isValid=true, no changes |
-| Invalid value | port: "notanumber" | isValid=false, error message |
-| Multiple section changes | hermes + telegram changes | Changes grouped by section |
-| Enum validation | voice provider: "invalid" | Error: not in enum values |
-
-## 3. Widget Tests
-
-### 3.1 Chat Screen
-
-**File**: `test/features/chat/widgets/message_bubble_test.dart`
-
-| Test | Description |
-|------|-------------|
-| Renders user message | Blue/right-aligned bubble |
-| Renders assistant message | Gray/left-aligned bubble |
-| Renders markdown content | Bold, code blocks, links |
-| Renders streaming indicator | Pulsing cursor during chat.update |
-| Renders final state | No cursor after chat.final |
-| Renders voice message | Play button, waveform, duration |
-| Renders deleted message | "This message was deleted" placeholder |
-| Accessibility labels | Semantic labels on all interactive elements |
-
-**File**: `test/features/chat/widgets/tool_call_card_test.dart`
-
-| Test | Description |
-|------|-------------|
-| Renders tool name and status | Started/progress/completed badges |
-| Renders elapsed time | Duration since started |
-| Renders risk level badge | Color-coded: low/medium/high |
-| Expand/collapse details | Tap to show/hide logs |
-| Renders approval buttons | Approve/Deny when pending |
-| Handles approval tap | Calls onApprove/onDeny callback |
-| Renders error state | Red error with redacted message |
-| Renders artifact links | List of artifact refs |
-| Renders mutating indicator | Warning icon for mutating tools |
-| Accessibility | Tool name, status, risk level announced |
-
-### 3.2 Config Forms
-
-**File**: `test/features/config/widgets/config_form_test.dart`
-
-| Test | Description |
-|------|-------------|
-| Renders string field | Text input, label, placeholder |
-| Renders integer field | Number input, min/max validation |
-| Renders boolean field | Toggle switch |
-| Renders enum field | Dropdown/segmented control |
-| Renders secret field | Status indicator + "Set Token" button |
-| Shows validation errors | Red border + error text for invalid input |
-| Shows sensitive field warning | Orange border for sensitive fields |
-| Disables fields for Viewer role | Read-only display |
-| Renders object/array field | Expandable nested fields |
-
-### 3.3 Secret Editor
-
-**File**: `test/features/config/widgets/secret_editor_test.dart`
-
-| Test | Description |
-|------|-------------|
-| Biometric gate on open | local_auth prompt before showing |
-| Shows current status | "Set [REDACTED]" or "Not configured" |
-| Set new secret | Text field + confirm button |
-| Rotate secret | Shows old status + new value field |
-| Delete secret | Confirmation dialog with warning |
-| Shows provider info | "Source: SecretRef (1Password)" |
-| Test connection button | Available for provider API keys |
-
-### 3.4 Navigation
+### 3.4 Router
 
 **File**: `test/router/app_router_test.dart`
 
-| Test | Description |
-|------|-------------|
-| First run redirects to setup | No servers → /setup |
-| Authenticated redirects to chats | Has servers → /chats |
-| Viewer can't access config | Viewer role → redirect from /config |
-| Admin can access config | Admin role → /config loads |
-| Deep link chat | navivox://chat/server1/thread1 → chat screen |
-| Unknown route | /foobar → 404 screen |
-| Back navigation | Chat → pop → chats list |
+| Test | Setup | Expected |
+|------|-------|----------|
+| Fresh app | no gateway server | redirects to `/setup` |
+| Connected app | server exists | `/chats` renders |
+| Setup after connect | server exists and path `/setup` | redirects to `/chats` |
+| Unknown path | invalid path | route-not-found screen |
 
-## 4. Integration Tests
+## 4. Flutter Widget Tests
 
-### 4.1 Navivox Channel
+### 4.1 Setup Screen
 
-**File**: `test/core/channel/navivox_channel_test.dart`
+| Test | Expected |
+|------|----------|
+| Shows base URL input | Operator can paste `connect-info` URL. |
+| Shows token input when needed | Token value is obscured and not copied into route data. |
+| Health failure | Error explains gateway is unavailable. |
+| Unauthorized status | Error asks for token or server auth check. |
+| Successful connect | Navigates to chat. |
 
-Uses a fake Navivox server (Dart process) that echoes frames.
+### 4.2 Chat Screen
 
-| Test | Description |
-|------|-------------|
-| Hello handshake | Send hello, receive server.status |
-| Text chat round trip | chat.submit → chat.message + chat.final |
-| Streaming response | chat.submit → multiple chat.update → chat.final |
-| Voice submit | voice.submit with audio + transcript → voice.transcript + voice.audio |
-| Error handling | Server sends error frame → channel emits error |
-| Reconnect | Drop connection, reconnect, resume |
-| Protocol version compatibility | v1 hello succeeds; unsupported prelude version fails before event handling |
-| Ping/pong | ping → pong within timeout |
-| Agent list | agent.list → parsed agent list |
+| Test | Expected |
+|------|----------|
+| Empty state | Composer is visible and focused. |
+| User sends text | User bubble appears immediately. |
+| Assistant streaming | Deltas render without duplicate bubbles. |
+| Tool event | Structured card appears. |
+| Voice transcript | Transcript is sent through text turn path. |
+| Connection loss | Messages stay visible and reconnect state appears. |
 
-### 4.2 Host Pairing CLI
+### 4.3 Agents Screen
 
-**File**: `cmd/gormes/navivox_test.go`
+| Test | Expected |
+|------|----------|
+| Seed input | Short natural-language seed accepted. |
+| Draft generated | Agent/profile/tool/voice sections displayed. |
+| Edit draft | Fields remain editable before apply. |
+| Apply disabled | Missing server role or validation blocks apply. |
 
-| Test | Description |
-|------|-------------|
-| Pairing QR descriptor | `gormes navivox pair --host 100.77.1.2 --port 2222 --user ada --device-name pixel-lab --qr=false` prints host details, pairing code, Tailscale recommendation, and fallback `navivox://pair` URI |
-| Pending pairing persistence | Same command with isolated `GORMES_HOME` records one pending `navivox` pairing in the gateway pairing store |
-| Credential safety | Pairing output contains no sudo password prompt, private key marker, or shell credential |
-| Host setup plan | `gormes navivox setup-host --plan` lists Tailscale install/up, OpenSSH server enablement, and prompt-only sudo handling without mutating the host |
-| Host setup apply | Injected Linux fixtures for Ubuntu and Fedora prove `--apply --yes` previews commands, runs sudo via stdin only, enables OpenSSH/Tailscale SSH, and never prints the sudo password |
-| Unsupported host setup | Unsupported OS/package-manager fixtures print actionable no-change guidance and run no commands |
+### 4.4 Config Screen
 
-### 4.3 SSH Session
+| Test | Expected |
+|------|----------|
+| Schema loads | Sections and fields render from server schema. |
+| Secret field | Redacted status, set/rotate/delete actions. |
+| Diff preview | Non-secret before/after values shown. |
+| Validation error | Field-level server error shown. |
+| Risk confirmation | Exposure/provider changes require confirmation. |
 
-**File**: `test/core/ssh/ssh_session_test.dart`
+## 5. Go Tests
 
-Requires a real SSH server (Docker container or test server).
+### 5.1 Connect Info CLI
 
-| Test | Description |
-|------|-------------|
-| Connect with Ed25519 key | Generated key → successful auth |
-| Connect with imported key | Termius-exported key → successful auth |
-| Host key verification | First connect → fingerprint shown |
-| Host key mismatch | Changed server key → blocked |
-| Gormes probe | Execute 'which gormes' → detects/not detects |
-| navivox serve start | Execute 'gormes navivox serve --stdio' |
-| Encrypted key with passphrase | Prompt for passphrase, decrypt, connect |
+**Package**: `cmd/gormes`
 
-### 4.4 Drift Database
+| Test | Expected |
+|------|----------|
+| Disabled channel | Non-zero error points to `[navivox].enabled`. |
+| Local mode JSON | Loopback base URL and health URL emitted. |
+| Token redaction | Token value absent from text and JSON output. |
+| VPN modes | VPN interfaces listed with host source. |
+| Text output | Human-readable base URLs and health URLs. |
 
-**File**: `test/data/database/app_database_test.dart`
+### 5.2 Channel Handler
 
-| Test | Description |
-|------|-------------|
-| Create and read server | Insert, query by ID |
-| Watch servers stream | Insert → stream emits update |
-| Cascade delete | Delete server → related messages, agents, keys deleted |
-| Migration from v1 to v2 | Bump schemaVersion, verify migration |
-| Concurrent reads/writes | Multiple simultaneous operations |
-| Server deduplication | Insert duplicate hostname+port → constraint error or dedup |
+**Package**: `internal/channels/navivox`
 
-## 5. End-to-End Tests
+| Test | Expected |
+|------|----------|
+| `/healthz` | Returns status ok without auth. |
+| `/v1/navivox/status` | Requires auth and reports channel status. |
+| `/v1/navivox/sessions` | Lists sessions. |
+| `/v1/navivox/turn` | Enqueues `gateway.EventSubmit`. |
+| Stream ping | Returns `pong`. |
+| Stream start turn | Creates or uses session and sends `session_started`. |
+| Stream cancel | Enqueues `gateway.EventCancel`. |
+| Unauthorized | Safe JSON error. |
+| Bad JSON | Safe JSON error. |
+| Origin policy | Allows configured origins and rejects unknown origins. |
 
-### 5.1 Critical Path Tests
+### 5.3 Config Validation
 
-| # | Test | Steps | Success Criteria |
-|---|------|-------|-----------------|
-| E1 | Fresh app to text chat | 1. Import Termius file<br>2. Select generated key<br>3. Connect + verify host<br>4. Pair device<br>5. Select agent<br>6. Send "hello" | "hello" response received, displayed in chat |
-| E2 | Password SSH rejected | Try to add server with password auth | UI blocks it, clear reason shown |
-| E3 | Voice capture + submit | 1. Open chat<br>2. Press mic<br>3. Speak "NAVI what's the weather"<br>4. Release mic | Audio captured, transcript sent, response received |
-| E4 | "NAVI switch agent" | 1. Say "NAVI switch agent mineru"<br>2. Wait for switch | Agent switched, UI updates to show "mineru" |
-| E5 | Config change provider/model | 1. Navigate to Config > Provider<br>2. Change model to "gpt-4-turbo"<br>3. Review diff<br>4. Apply | Config updated, no errors |
-| E6 | Set Telegram bot token | 1. Config > Channels > Telegram<br>2. Tap "Set Token"<br>3. Enter token<br>4. Confirm | Token set, status shows "[REDACTED]", token not readable |
-| E7 | Tool call UI | 1. Send message that triggers tool<br>2. Wait for tool_call_started<br>3. Observe progress<br>4. Approve if needed | Tool card shows all states, approval works |
-| E8 | Host key change blocked | 1. Connect to known server<br>2. Server key changes (simulated)<br>3. Try to connect | Connection blocked, fingerprint diff shown |
-| E9 | Secret never leaked | 1. Set various secrets<br>2. Check app logs<br>3. Check config output<br>4. Check error messages | No secret values visible in any output |
+**Package**: `internal/config`
 
-### 5.2 Platform Smoke Tests
+| Test | Expected |
+|------|----------|
+| Disabled default | Navivox disabled and local by default. |
+| Token-required auth | Missing token rejected. |
+| Local exposure | Requires loopback bind. |
+| VPN exposure | Requires matching active VPN interface. |
+| Public exposure | Requires explicit confirmation. |
+| Token secret | Secret env name and redaction classification are correct. |
 
-| Platform | Tests |
-|----------|-------|
-| Android | E1, E3, E4, E5, E8 |
-| iOS | E1, E3, E4, E5, E8 |
-| Linux | E1, E2, E5, E6, E8 |
-| Windows | E1, E2, E5, E8 |
+## 6. Integration Tests
 
-### 5.3 Test Infrastructure
+### 6.1 Flutter With Fixture Gateway
 
-**Fake Navivox Server**: A simple Dart program that:
-- Listens on stdio for framed protocol messages
-- Returns hardcoded responses for known events
-- Simulates streaming, errors, protocol mismatches
-- Can be started as a subprocess from tests
+The fixture gateway should be an HTTP/WebSocket process or in-process test
+server that implements the current endpoint contract.
 
-```dart
-// test/helpers/fake_navivox_server.dart
-class FakeNavivoxServer {
-  Future<void> start() async {
-    // Spawn process that reads stdin for frames, writes responses to stdout
-  }
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| First connect | Enter base URL and token | Health/status pass; chat opens. |
+| First turn | Send "hello" | User bubble, assistant stream, done state. |
+| Unauthorized | Wrong token | Setup stays open with safe error. |
+| Tool card | Emit tool start/finish events | Card appears and updates. |
+| Reconnect | Close stream then reopen | State shows reconnect and recovers. |
 
-  void respondTo(String eventType, dynamic response) { ... }
-  void simulateDisconnect() { ... }
-  void simulateError(int code, String message) { ... }
-  Future<void> stop() async;
-}
-```
+### 6.2 Flutter With Real Go Handler
 
-**Test SSH Server**: Docker container running sshd with known keys:
-```dockerfile
-FROM alpine:latest
-RUN apk add openssh
-RUN ssh-keygen -A
-COPY test_keys/authorized_keys /root/.ssh/authorized_keys
-EXPOSE 22
-CMD ["/usr/sbin/sshd", "-D"]
-```
+Use the Go Navivox handler in a test fixture for one narrow smoke:
 
-## 6. Gormes Tests (Server Side)
+1. Start handler with static token config and in-memory inbox.
+2. Launch Flutter test against the handler base URL.
+3. Connect from setup.
+4. Send one turn.
+5. Assert the Go inbox receives a `navivox` submit event.
 
-These tests live in the Gormes repo, but the contract must be verified:
+## 7. End-To-End Scenarios
 
-| Test | Description |
-|------|-------------|
-| `navivox serve --stdio` starts | Binary starts, outputs hello frame |
-| Gateway inbound mapping | chat.submit maps to InboundEvent correctly |
-| Selected agent routes | agent_id in event routes to correct agent |
-| Typed tool events | Tool lifecycle emits proper typed events |
-| Config schema complete | All supported sections in config.schema |
-| Config atomic write | Invalid config doesn't partially apply |
-| Secret write safe | config.secret.set writes, config.get redacts |
-| Reload/rollback | Apply with restart → status pending_restart |
-| Pairing role gates | Operator can't call config.set |
+| ID | Scenario | Expected |
+|----|----------|----------|
+| E1 | Fresh app to first text turn | Operator reaches chat and receives streamed assistant output. |
+| E2 | No telephony configured | First turn still works. |
+| E3 | Token missing | Safe unauthorized state with no token leak. |
+| E4 | Gateway offline | Recovery action points to host/gateway status. |
+| E5 | Public exposure not confirmed | Server refuses unsafe config before app connects. |
+| E6 | Tool call event | Tool card renders as structured UI. |
+| E7 | Agent seed draft | Seed creates editable draft, not an auto-applied agent. |
+| E8 | Config secret edit | Secret value is write-only and redacted after apply. |
 
-## 7. Test Commands
+### 7.1 Web E2E Gate
+
+Navivox must keep the connect-and-talk loop working in Chrome, not only in
+hosted Flutter widget tests. The required browser smoke is:
 
 ```bash
-# Unit tests only
-flutter test test/unit/
-
-# Widget tests
-flutter test test/widget/
-
-# Integration tests
-flutter test test/integration/
-
-# All tests
-flutter test
-
-# With coverage
-flutter test --coverage
-genhtml coverage/lcov.info -o coverage/html
-
-# Specific test file
-flutter test test/core/protocol/codec_test.dart
-
-# Integration tests with fake server
-dart run test/helpers/fake_navivox_server.dart &
-flutter test test/integration/
-kill %1
+cd flutter-navivox/app
+flutter test --platform chrome test/e2e/connect_and_talk_web_e2e_test.dart
+flutter build web --no-web-resources-cdn
 ```
 
-## 8. CI Test Matrix
+Flutter's `integration_test` web runner remains available for environments
+with matching ChromeDriver/WebDriver configured:
 
-| Platform | Flutter Channel | Test Suite |
-|----------|----------------|------------|
-| ubuntu-latest | stable | unit + widget + integration |
-| ubuntu-latest | beta | unit + widget |
-| macos-latest | stable | unit + widget |
-| windows-latest | stable | unit + widget |
+```bash
+cd flutter-navivox/app
+flutter drive --driver=test_driver/integration_test.dart \
+  --target=integration_test/connect_and_talk_e2e_test.dart -d chrome
+```
 
-## 9. Test Data
+## 8. Fixtures
 
-- `test/fixtures/termius_export_valid.json` — Valid Termius export with 3 hosts, 2 keys
-- `test/fixtures/termius_export_password_only.json` — Export with password-only identity
-- `test/fixtures/termius_export_minimal.json` — Minimal export (1 host, no key)
-- `test/fixtures/ssh_keys/ed25519_test` — Test Ed25519 private key (for test SSH server)
-- `test/fixtures/ssh_keys/ed25519_test.pub` — Corresponding public key
-- `test/fixtures/ssh_keys/ed25519_encrypted` — Encrypted Ed25519 key (passphrase: "test")
-- `test/fixtures/ssh_keys/rsa_test` — Test RSA private key
-- `test/fixtures/config_schema_v1.json` — Sample config schema response
-- `test/fixtures/chat_messages.json` — Sample chat message history
-- `test/fixtures/tool_calls.json` — Sample tool call events
+Recommended fixtures:
+
+- `test/fixtures/navivox/status_ok.json`
+- `test/fixtures/navivox/status_unauthorized.json`
+- `test/fixtures/navivox/session_started.json`
+- `test/fixtures/navivox/assistant_delta.json`
+- `test/fixtures/navivox/assistant_message.json`
+- `test/fixtures/navivox/tool_call_started.json`
+- `test/fixtures/navivox/tool_call_finished.json`
+- `test/fixtures/navivox/error.json`
+- `test/fixtures/config/navivox_schema.json`
+- `test/fixtures/agents/seed_lead_screening.json`
+
+Fixtures must not contain real tokens, transcripts from real users, provider
+keys, or private tool output.
+
+## 9. CI Commands
+
+```bash
+go test ./cmd/gormes -run NavivoxConnectInfo -count=1
+go test ./internal/channels/navivox -count=1
+go test ./internal/config -run Navivox -count=1
+cd flutter-navivox/app && flutter test
+cd flutter-navivox/app && flutter test --platform chrome test/e2e/connect_and_talk_web_e2e_test.dart
+cd flutter-navivox/app && flutter build web --no-web-resources-cdn
+```
+
+Docs-only rows should also run:
+
+```bash
+go run ./cmd/progress validate
+git diff --check
+```
+
+The stale-transport grep in the relevant progress row is expected to return
+only explicitly historical or deleted mentions in progress evidence, generated
+queue text, or comments that describe removed code.

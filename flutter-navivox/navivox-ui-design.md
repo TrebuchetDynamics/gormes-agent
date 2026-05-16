@@ -1,421 +1,455 @@
 # Navivox UI Design Guide
 
 Status: planning draft
-Source: PRD requirements + open-source chat UI analysis + admin panel patterns
+Updated: 2026-05-16
+Source: current HTTP/WebSocket gateway plan, PRD, and app shell
 
 ## 1. Design Principles
 
-1. **Chat-first, not landing-page-first** — The first meaningful screen is always chat.
-2. **Work-focused, not marketing** — Config and admin screens favor density over whitespace.
-3. **Dense Telegram-style, not airy iMessage-style** — Information density matters for operator workflows.
-4. **Tool calls are first-class UI** — Not hidden behind raw logs or JSON dumps.
-5. **Secrets are invisible by design** — Write-only fields, status indicators, no read-back.
-6. **Recovery over stack traces** — Every error state maps to a user action.
-7. **Adaptive, not responsive** — Different layouts for mobile (bottom nav) vs desktop (left rail + split views).
-8. **Dark mode by default** — Terminal operators prefer dark themes. Light mode available.
+1. **Connect and talk first**: the first useful path is base URL, token, health
+   check, stream, chat.
+2. **Work-focused, not marketing**: no landing page before the operator can talk
+   to a Gormes profile.
+3. **Tool calls are first-class UI**: use structured cards, not transcript log
+   dumps.
+4. **Secrets are invisible by design**: write-only fields, redacted status, no
+   read-back.
+5. **Server-authoritative config**: the app edits drafts; Gormes validates and
+   applies.
+6. **Voice is an input mode, not a setup blocker**: text turn fallback always
+   works.
+7. **Trust boundaries stay visible**: connected host, auth mode, exposure mode,
+   and token-required state are shown without leaking secrets.
+8. **Dense, adaptive layout**: mobile uses bottom navigation; desktop uses a
+   left rail and status bar.
+9. **Telegram-inspired, Gormes-owned**: borrow fast scanning, grouped bubbles,
+   status ticks, action sheets, and compact navigation from Telegram-like apps,
+   but keep Navivox focused on Gormes profiles, tools, voice transcripts, and
+   safe config.
+10. **Profiles are contacts**: the chat list represents `server + profile_id`
+    contacts. A profile is an isolated Gormes home, not a live concurrent agent
+    router.
+11. **Local voice commands stay local**: the command word, calibration, aliases,
+    pins, server trust, and voice switching are Navivox app settings; Gormes
+    remains authoritative for profile/config/workspace state.
 
-## 2. Screen Designs
+## 2. Primary Screens
 
-### 2.1 Chat Screen (Primary)
+### 2.1 Launch Routing
 
-```
-┌──────────────────────────────────────────────┐
-│ ☰ my-server                    mineru ▼  🟢  │
-├──────────────────────────────────────────────┤
-│                                              │
-│  ┌── Today ──────────────────────────────┐   │
-│  │                                        │   │
-│  │  ┌──────────────────────────┐          │   │
-│  │  │ Hello Gormes, can you    │     ✓✓   │   │
-│  │  │ check the server status? │  12:30   │   │
-│  │  └──────────────────────────┘          │   │
-│  │                                        │   │
-│  │  🤖 mineru                             │   │
-│  │  ┌──────────────────────────────┐      │   │
-│  │  │ Let me check that for you... │      │   │
-│  │  └──────────────────────────────┘      │   │
-│  │  12:30 PM                              │   │
-│  │                                        │   │
-│  │  ┌─── 🔧 execute_command ──────────┐   │   │
-│  │  │ Running: uptime            🟢   │   │   │
-│  │  │ Completed in 0.3s               │   │   │
-│  │  │ Result: 14:30:42 up 5 days...   │   │   │
-│  │  │ [Expand ▼]                      │   │   │
-│  │  └─────────────────────────────────┘   │   │
-│  │                                        │   │
-│  │  🤖 mineru                             │   │
-│  │  ┌──────────────────────────────┐      │   │
-│  │  │ Server is up 5 days, load    │      │   │
-│  │  │ average 0.15. All services   │      │   │
-│  │  │ healthy ✅                    │      │   │
-│  │  └──────────────────────────────┘      │   │
-│  │  12:31 PM                              │   │
-│  └────────────────────────────────────────┘   │
-│                                              │
-├──────────────────────────────────────────────┤
-│ 📎  Type a message...                   🎤 ▶ │
-└──────────────────────────────────────────────┘
-```
+- No saved or trusted server: open setup.
+- One healthy saved server and usable profile: open that profile chat.
+- Multiple servers, offline/auth issue, or pending attention: open the profile
+  contact list.
 
-**Key UI Elements:**
-- **Hamburger menu** (mobile): Opens server/agent list drawer
-- **Server name**: Tappable, opens server switcher dropdown
-- **Agent pill**: Shows current agent name, tappable for quick switch
-- **Green dot**: Connection status indicator
-- **Date separator**: "Today", "Yesterday", date groups
-- **User bubbles**: Right-aligned, colored, with delivery status (✓, ✓✓)
-- **Agent bubbles**: Left-aligned, with agent name header
-- **Markdown rendering**: Code blocks, bold, italic, links, lists
-- **Tool call cards**: Expandable, status-badged, inline in message flow
-- **Composer**: Paperclip, text field, mic/voice button, send button
-- **Mic button**: Toggle voice mode / press-and-hold for recording
+### 2.2 Profile Contact List
 
-### 2.2 Chat Screen — Voice Active
-
-```
-┌──────────────────────────────────────────────┐
-│ my-server                     mineru ▼  🟢   │
-├──────────────────────────────────────────────┤
-│                                              │
-│  🎤 NAVI Listening...                 ⏹      │
-│  ┌──────────────────────────────────────┐    │
-│  │ "switch agent builder and run tests" │    │
-│  └──────────────────────────────────────┘    │
-│  ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░  -18dB    🟢 High   │
-│                                              │
-│  ┌── Command Detected ──────────────────┐    │
-│  │ Switch to agent: builder             │    │
-│  │ Run: tests                           │    │
-│  │ [Execute]  [Cancel]                  │    │
-│  └──────────────────────────────────────┘    │
-│                                              │
-│  [messages continue below...]                │
-│                                              │
-├──────────────────────────────────────────────┤
-│  NAVI Command Mode  [⌨ Text]  [⏹ Stop]      │
-└──────────────────────────────────────────────┘
+```text
++------------------------------------------------+
+| Navivox                              [search]  |
++------------------------------------------------+
+| M  Mineru Builder              local  OK  9:41 |
+|    Server is healthy.                         o|
+|    2 roots                                     |
+|                                                |
+| W  Work Profile               office auth 9:22 |
+|    Waiting for token.                         o|
+|    model setup                                 |
+|                                                |
+| P  Personal                  laptop offline Tue |
+|    Gateway unavailable.                       o|
+|    retry required                              |
++------------------------------------------------+
+| Chats              Servers              Settings|
++------------------------------------------------+
+|                          [+]                   |
++------------------------------------------------+
 ```
 
-### 2.3 Servers Screen
+Chat list rows are profile contacts:
 
-```
-┌──────────────────────────────────────────────┐
-│ Servers                              [+ Add] │
-├──────────────────────────────────────────────┤
-│                                              │
-│ 🔍 Search servers...                         │
-│                                              │
-│ ┌─ Production ──────────────────────────┐    │
-│ │                                        │    │
-│ │ 🟢 gormes-prod                    ⚙️   │    │
-│ │    192.168.1.100:22 • root            │    │
-│ │    Gormes v1.2.3 • mineru active      │    │
-│ │                                        │    │
-│ │ 🟢 build-server                   ⚙️   │    │
-│ │    10.0.0.50:2222 • builder           │    │
-│ │    Gormes v1.2.1 • builder active     │    │
-│ └────────────────────────────────────────┘    │
-│                                              │
-│ ┌─ Staging ─────────────────────────────┐    │
-│ │                                        │    │
-│ │ 🟡 staging-api                     ⚙️   │    │
-│ │    staging.example.com:22 • deploy    │    │
-│ │    Generic SSH • no Gormes detected   │    │
-│ └────────────────────────────────────────┘    │
-│                                              │
-│ ┌─ Unreachable ─────────────────────────┐    │
-│ │ 🔴 old-server      Last: 3 days ago    │    │
-│ └────────────────────────────────────────┘    │
-└──────────────────────────────────────────────┘
-```
+- Stable identity: `server_id + profile_id`.
+- Deterministic generated avatar from `server_id + profile_id`.
+- Server label as a small chip.
+- Server-authoritative display name, with canonical profile id in details.
+- Sanitized latest preview from the server.
+- Timestamp.
+- Health chips for config/provider/model/memory/gateway/WS.
+- Attention count for approvals, failed tools, auth, offline server, workspace
+  issues, or active/stuck turns.
+- Compact workspace summary such as `2 roots` or `workspace issue`, never raw
+  paths.
+- Row tap opens the current/latest session for the profile.
+- Row mic opens continuous voice when the server is trusted and healthy.
+- Long press opens profile details/edit.
+- Bottom add button opens an action sheet with New profile, Add server, and
+  Import connect-info.
 
-### 2.4 Server Detail Screen
+The list is flat by default. Pinned contacts sort first locally, but pins never
+change command routing.
 
-```
-┌──────────────────────────────────────────────┐
-│ ← Server Detail                              │
-├──────────────────────────────────────────────┤
-│                                              │
-│ gormes-prod                          🟢      │
-│ ───────────────────────────────────────       │
-│                                              │
-│ 📋 Display Name    gormes-prod               │
-│ 🌐 Hostname        192.168.1.100             │
-│ 🔌 Port            22                        │
-│ 👤 Username        root                      │
-│ 🔑 SSH Key         ed25519-gormes-key        │
-│ 🔒 Host Key        SHA256:AbCd... pinned     │
-│ 🤖 Preferred Agent mineru                    │
-│                                              │
-│ ═══════════════════════════════════════       │
-│ Gormes Status                                │
-│                                              │
-│ Version            v1.2.3                    │
-│ Config Version     abc123def                 │
-│ Active Channels    telegram, navivox         │
-│ Paired Device      This device (Owner)       │
-│ Last Connected     2 minutes ago             │
-│                                              │
-│ [Connect] [Open Terminal] [Edit] [Delete]    │
-└──────────────────────────────────────────────┘
+### 2.3 Setup Screen
+
+```text
++------------------------------------------------+
+| Connect to Gormes                              |
++------------------------------------------------+
+| Paste connect-info                             |
+| [ http://127.0.0.1:8765                  ]     |
+|                                                |
+| Token                                          |
+| [ ************************************** ]     |
+|                                                |
+| healthz     not checked                        |
+| status      not checked                        |
+| stream      not connected                      |
+|                                                |
+| [Connect and talk]                             |
++------------------------------------------------+
+| gormes navivox connect-info                    |
++------------------------------------------------+
 ```
 
-### 2.5 Keys Screen
+States:
 
-```
-┌──────────────────────────────────────────────┐
-│ SSH Keys                          [+ Import] │
-│                                    [+ Generate]│
-├──────────────────────────────────────────────┤
-│                                              │
-│ ed25519-gormes-key                    🔑 ★    │
-│ Type: Ed25519                                │
-│ Fingerprint: SHA256:jK8mN...                 │
-│ Source: Generated                            │
-│ Servers: gormes-prod, build-server           │
-│                                              │
-│ ───────────────────────────────────────────── │
-│                                              │
-│ termius-imported-key                  🔑      │
-│ Type: Ed25519 (encrypted)                    │
-│ Fingerprint: SHA256:XyZ9p...                 │
-│ Source: Termius Import                       │
-│ Servers: staging-api                         │
-│                                              │
-│ ───────────────────────────────────────────── │
-│                                              │
-│ old-rsa-key                           🔑      │
-│ Type: RSA 4096-bit                           │
-│ Fingerprint: SHA256:qRsT3...                 │
-│ Source: File Import                          │
-│ Servers: (none)                              │
-└──────────────────────────────────────────────┘
-```
+- Empty: show the host command and base URL field.
+- Health failed: show gateway unavailable and retry.
+- Unauthorized: show token/auth action.
+- Exposure blocked: show server-side exposure guidance.
+- Connected: navigate to chat.
 
-### 2.6 Agent Screen
+### 2.4 Chat Screen
 
-```
-┌──────────────────────────────────────────────┐
-│ Agents                             [+ Create] │
-├──────────────────────────────────────────────┤
-│ my-server (gormes-prod)                      │
-│                                              │
-│ ● mineru (default)                   ⚙️      │
-│   /home/xel/gormes-agent                     │
-│   Model: gpt-4-turbo                         │
-│   Voice: ElevenLabs • Adam • en-US           │
-│   Tools: all allowed                         │
-│                                              │
-│ ○ builder                            ⚙️      │
-│   /home/xel/projects/build                   │
-│   Model: default                             │
-│   Voice: OpenAI • Nova • en-US               │
-│   Tools: shell, git, test                    │
-│                                              │
-│ build-server                                 │
-│                                              │
-│ ● ci-agent (default)                 ⚙️      │
-│   /opt/ci/workspace                          │
-│   Model: gpt-4-turbo                         │
-│   Tools: shell, http                         │
-└──────────────────────────────────────────────┘
+```text
++------------------------------------------------+
+| < Mineru Builder             local-gormes  OK  |
++------------------------------------------------+
+| Pinned: trusted local server, token redacted    |
+|                                                |
+| Today                                      v   |
+|                                                |
+|                         Check server status    |
+|                                      9:41  sent |
+|                                                |
+| Mineru Builder                                 |
+| Checking now...                                |
+|                                                |
+| +-- execute_command ------------------------+  |
+| | Status: running                            |  |
+| | Command: uptime                            |  |
+| | [Expand]                                   |  |
+| +---------------------------------------------+ |
+|                                                |
+| Mineru Builder                                 |
+| Server is healthy.                             |
++------------------------------------------------+
+| [+]  Message Navivox...              [mic]  >  |
++------------------------------------------------+
 ```
 
-### 2.7 Agent Editor Screen
+Key UI elements:
 
-```
-┌──────────────────────────────────────────────┐
-│ ← Edit Agent                                 │
-├──────────────────────────────────────────────┤
-│                                              │
-│ 📝 Display Name                               │
-│ ┌──────────────────────────────────────┐     │
-│ │ mineru                               │     │
-│ └──────────────────────────────────────┘     │
-│                                              │
-│ 📁 Workspace Directory                        │
-│ ┌──────────────────────────────────────┐     │
-│ │ /home/xel/gormes-agent               │     │
-│ └──────────────────────────────────────┘     │
-│ 🟢 Directory exists and is accessible         │
-│                                              │
-│ ⭐ Default Agent                    [Toggle]  │
-│                                              │
-│ 🤖 Model Override                            │
-│ [Use server default ▼]                       │
-│                                              │
-│ 🛠️ Tools                                      │
-│ Allow All                              [◉]   │
-│ Allow List                             [○]   │
-│ ┌──────────────────────────────────────┐     │
-│ │ ☑ shell                              │     │
-│ │ ☑ git                                │     │
-│ │ ☑ file_read                          │     │
-│ │ ☑ file_write                         │     │
-│ │ ☐ browser                            │     │
-│ │ ☐ http                               │     │
-│ └──────────────────────────────────────┘     │
-│                                              │
-│ 🎤 Voice                                      │
-│ Provider: [ElevenLabs ▼]                     │
-│ Voice: [Adam ▼]                              │
-│ Locale: [English (US) ▼]                     │
-│ Speed: ●────────────○ 1.0x                   │
-│                                              │
-│ 🌐 Language Policy                            │
-│ Default: [English ▼]                         │
-│ Allowed: ☑ EN ☑ ES ☐ FR ☐ DE                 │
-│ Auto-detect: [Toggle]                        │
-│                                              │
-│ [Cancel]                        [Save Agent] │
-└──────────────────────────────────────────────┘
+- Server label opens server switcher.
+- Profile pill opens profile switcher.
+- Status chip shows connected, reconnecting, offline, unauthorized, or blocked.
+- User messages are right-aligned.
+- Assistant messages are left-aligned.
+- Streaming assistant text updates in place.
+- `ToolCallCard` appears inline as a distinct execution card with status,
+  approvals, and expandable details.
+- Voice button starts continuous voice for the active profile when allowed.
+- Long press opens a message action sheet: copy, retry, inspect event, reveal
+  redacted fields when authorized.
+- The plus button opens the action tray for profile seed, tool approvals,
+  profile config, workspace roots, and future attachments.
+- Composer text that exactly matches a command-word command, such as
+  `navi mineru`, is handled locally by Navivox and is not sent to Gormes.
+
+### 2.5 Continuous Voice
+
+```text
++------------------------------------------------+
+| Voice: Mineru Builder       local-gormes   OK  |
++------------------------------------------------+
+| Listening                                      |
+| Command word: Navi                             |
+|                                                |
+| user bubble: checking server status            |
+| Sending...                               cancel |
+|                                                |
+| [command] [stop]                               |
++------------------------------------------------+
 ```
 
-### 2.8 Config Overview Screen
+Command mode:
 
-```
-┌──────────────────────────────────────────────┐
-│ Config: gormes-prod                          │
-├──────────────────────────────────────────────┤
-│                                              │
-│ Config Path: /home/xel/.gormes/config.toml   │
-│ Env Path:    /home/xel/.gormes/.env          │
-│ Version:     abc123def  |  Gormes v1.2.3     │
-│ Reload Status: ✅ Ready                      │
-│                                              │
-│ ┌─ Provider & Models ───────────────────▶ │   │
-│ │ OpenAI • gpt-4-turbo • api.openai.com    │   │
-│ │ API Key: 🔴 [REDACTED]                   │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ ┌─ Channels ────────────────────────────▶ │   │
-│ │ Telegram: 🟢 Active • 3 chats allowed     │   │
-│ │ Discord: ⚫ Not configured                │   │
-│ │ Slack: ⚫ Not configured                  │   │
-│ │ Navivox: 🟢 Active (this connection)      │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ ┌─ Agents & Bindings ──────────────────▶ │   │
-│ │ 2 agents • 0 bindings                    │   │
-│ │ Default: mineru                           │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ ┌─ Tools & Display ────────────────────▶ │   │
-│ │ Progress: fancy • Iterations: 20          │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ ┌─ Voice ─────────────────────────────▶ │   │
-│ │ TTS: ElevenLabs • Wake: NAVI              │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ ┌─ Runtime ───────────────────────────▶ │   │
-│ │ Terminal: bash • Input: 16KB max          │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ ┌─ Security ──────────────────────────▶ │   │
-│ │ Blocklist: 0 sites • Host trust: pinned   │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ ┌─ Secrets ───────────────────────────▶ │   │
-│ │ 3 configured • 0 missing                  │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ ┌─ Advanced ──────────────────────────▶ │   │
-│ │ Cron, Skills, Delegation, Goncho          │   │
-│ └──────────────────────────────────────────┘  │
-│                                              │
-│ [Redacted TOML View]  [Reload Config]        │
-└──────────────────────────────────────────────┘
+```text
++------------------------------------------------+
+| Command mode                              0:05 |
++------------------------------------------------+
+| Say a profile name, stop, cancel, settings,    |
+| or help.                                       |
++------------------------------------------------+
 ```
 
-### 2.9 Config Section Screen (e.g., Provider & Models)
+Voice rules:
 
-```
-┌──────────────────────────────────────────────┐
-│ ← Provider & Models                          │
-├──────────────────────────────────────────────┤
-│                                              │
-│ 🔌 Provider                                  │
-│ ┌──────────────────────────────────────┐     │
-│ │ OpenAI                           [▼] │     │
-│ └──────────────────────────────────────┘     │
-│                                              │
-│ 🤖 Default Model                             │
-│ ┌──────────────────────────────────────┐     │
-│ │ gpt-4-turbo                      [▼] │     │
-│ └──────────────────────────────────────┘     │
-│                                              │
-│ 🌐 Endpoint                                  │
-│ ┌──────────────────────────────────────┐     │
-│ │ https://api.openai.com/v1            │     │
-│ └──────────────────────────────────────┘     │
-│                                              │
-│ 🔑 API Key                                   │
-│ Status: 🔴 Configured [REDACTED]              │
-│ [Set New Key]  [Test Connection]  [Delete]    │
-│                                              │
-│ ───────────────────────────────────────────── │
-│ Last applied: 2 hours ago                    │
-│                                              │
-│ [Review Changes]                    [Apply]  │
-└──────────────────────────────────────────────┘
-```
+- Continuous voice is a global app mode with one active target profile.
+- Row mic starts listening immediately after mic permission and per-server
+  local trust exist.
+- Device speech-to-text streams into the active profile as a voice-marked user
+  bubble.
+- Auto-send is the default, with a short visible `Sending...` grace window.
+- The command word defaults to `navi` and can be changed locally.
+- Optional calibration asks the user to say the command word three times; reset
+  is available in Settings.
+- Command word detection only works at the beginning of an utterance and only
+  while Navivox voice mode is active.
+- Saying the command word alone enters local command mode for about five
+  seconds.
+- Direct commands also work: `navi mineru`, `navi cancel`, `navi stop`,
+  `navi settings`, `navi help`.
+- Command-mode speech is discarded on timeout and is never sent to Gormes.
+- Profile commands match the app's known flat `server + profile` contact list;
+  exact normalized unique matches switch immediately, duplicates show
+  disambiguation.
+- Voice profile switching is a global app setting. If disabled, command-word
+  profile switches are ignored and treated as normal dictation only when they
+  are not recognized as local commands.
+- `navi cancel` cancels the current cancellable voice turn. Before server
+  commit it can discard/delete; after server commit it marks cancelled/stopped
+  and never pretends tool side effects were undone.
+- `navi settings` opens local Navivox settings, not profile config.
+- Voice approvals and profile config edits by voice are deferred.
+- Audio upload and playback state appear only after voice run records exist.
+- Text fallback is always available.
 
-### 2.10 Terminal Screen
+### 2.6 Action Sheet
 
-```
-┌──────────────────────────────────────────────┐
-│ Terminal: gormes-prod              [🗗] [✕]  │
-├──────────────────────────────────────────────┤
-│                                              │
-│  Last login: Tue May  5 14:30:42 2026        │
-│  root@gormes-prod:~# uptime                  │
-│   14:30:42 up 5 days,  3:15,  0 users, ...   │
-│  root@gormes-prod:~# █                       │
-│                                              │
-│                                              │
-│                                              │
-│                                              │
-│                                              │
-│                                              │
-│ ═══════════════════════════════════════════   │
-│ ⚠️ This is a direct SSH terminal.            │
-│    Chat with agents in the Chats tab.         │
-└──────────────────────────────────────────────┘
+Use `DraggableScrollableSheet` for Telegram-like panels.
+
+```text
++------------------------------------------------+
+| Actions                                        |
++------------------------------------------------+
+| New profile                                    |
+| Tool approvals                                 |
+| Workspace roots                                |
+| Profile config                                 |
+| Gateway details                                |
+| Future file attach                             |
++------------------------------------------------+
 ```
 
-### 2.11 Settings Screen
+Sheet rules:
 
+- Snap between compact, half, and full height.
+- Use the provided scroll controller so dragging and scrolling coordinate.
+- Desktop gets a visible drag handle or side panel equivalent.
+- Tokens and secret values never appear in sheet titles or route URLs.
+
+### 2.7 Servers Screen
+
+```text
++------------------------------------------------+
+| Servers                                  [+]   |
++------------------------------------------------+
+| local-gormes                                    |
+| http://127.0.0.1:8765                           |
+| Exposure: local    Auth: token required         |
+| Health: OK         Stream: connected            |
+| [Use] [Details]                                |
+|                                                |
+| tailnet-host                                    |
+| http://100.64.1.2:8765                          |
+| Exposure: tailscale   Auth: tailnet identity    |
+| Health: offline                                |
+| [Retry] [Details]                              |
++------------------------------------------------+
 ```
-┌──────────────────────────────────────────────┐
-│ Settings                                     │
-├──────────────────────────────────────────────┤
-│                                              │
-│ 🎨 Appearance                                │
-│ Theme: [Dark ▼]                              │
-│ Font Size: ●───────○ 14pt                    │
-│ Chat Density: [Compact ▼]                    │
-│                                              │
-│ 🎤 Voice Defaults                            │
-│ Wake Word: [NAVI _____]                      │
-│ Default STT: [Auto (platform best) ▼]        │
-│ Voice Feedback: [Toggle]                     │
-│                                              │
-│ 🔒 Security                                  │
-│ App Lock: [Toggle]                           │
-│ Lock Timeout: [5 minutes ▼]                  │
-│ Clear Chat Cache on Lock: [Toggle]           │
-│                                              │
-│ 📊 Data & Storage                            │
-│ Chat Cache Size: 142 MB                       │
-│ [Clear Chat Cache]                           │
-│ [Clear All Local Data]                       │
-│                                              │
-│ ℹ️ About                                     │
-│ Navivox v1.0.0                               │
-│ Flutter 3.x • dartssh2 2.17                  │
-│ [View Licenses]                              │
-└──────────────────────────────────────────────┘
+
+Server detail shows:
+
+- Base URL.
+- Health URL.
+- Auth mode.
+- Exposure mode.
+- Token-required state.
+- Last successful status.
+- Last stream error.
+- Redacted local credential status.
+- Local trust for continuous voice.
+- Capability summary: contacts, chat, voice input, schema config.
+
+Continuous voice requires per-server local trust. The trust prompt shows safe
+server identity/exposure/auth/capability evidence only.
+
+### 2.8 Profile Editor
+
+```text
++------------------------------------------------+
+| Edit Profile                            [Save] |
++------------------------------------------------+
+| Server: local-gormes                           |
+| Profile ID: mineru                             |
+| Display Name                                  |
+| [ Mineru Builder                         ]     |
+|                                                |
+| Seed                                           |
+| [ work on mineru repo                    ]     |
+|                                                |
+| Instructions                                   |
+| [ concise coding assistant for this repo... ]  |
+|                                                |
+| Workspace Roots                                |
+| mineru repo     repo       read-write    OK    |
+| downloads       downloads  read-write    OK    |
+| [Add Root]                                     |
++------------------------------------------------+
+```
+
+Profile creation starts with a short phrase and produces an editable draft:
+
+- Server selection.
+- Canonical profile id.
+- Display name.
+- Prompt/instructions.
+- Provider/model draft, allowed to stay unset with a `model setup` attention
+  badge.
+- Tool set and permissions.
+- Voice profile defaults for future server-side TTS/STT routing.
+- Workspace root suggestions by label/purpose only; actual paths must be
+  explicitly entered or confirmed.
+- Safety and escalation notes.
+
+Workspace root fields:
+
+- `path`
+- `label`
+- `mode`: `read-only` or `read-write`
+- `purpose`: `repo`, `downloads`, `docs`, `scratch`, or `other`
+- server-returned health
+
+Workspace root rules:
+
+- Navivox sends add/remove/update requests; Gormes validates and persists.
+- Gormes canonicalizes paths server-side and rejects dangerous or broad roots
+  by policy.
+- First version uses manual path entry plus server validation.
+- Removing a root never deletes files.
+- Applying root changes is blocked or deferred while the profile has active
+  work, unless Gormes reports it is safe.
+- A profile can exist with zero roots; filesystem tools remain disabled or
+  setup-gated until roots exist.
+
+### 2.9 Config Overview
+
+```text
++------------------------------------------------+
+| Config                                  Admin  |
++------------------------------------------------+
+| Source: server schema                           |
+| Secrets: redacted                               |
+| Pending restart: no                             |
+|                                                |
+| Provider and Models                     >       |
+| Voice Providers                         >       |
+| Navivox Gateway                         >       |
+| Tools and Approvals                     >       |
+| Profiles                                >       |
+| Security                                >       |
+|                                                |
+| [Reload Schema] [Review Pending Changes]       |
++------------------------------------------------+
+```
+
+### 2.10 Config Section
+
+```text
++------------------------------------------------+
+| Navivox Gateway                         [Back] |
++------------------------------------------------+
+| Enabled                                  [x]   |
+| Bind Host                                127.0.0.1 |
+| Port                                     8765  |
+| Exposure Mode                            local |
+| Auth Mode                                static_token |
+| Token                                    configured, redacted |
+|                                                |
+| [Set Token] [Test Connection]                  |
+|                                                |
+| Diff                                           |
+| exposure_mode: local -> tailscale              |
+|                                                |
+| [Validate] [Apply]                             |
++------------------------------------------------+
+```
+
+Config rules:
+
+- Secret values never render after entry.
+- Diff shows non-secret before/after values.
+- Server validation errors map to fields.
+- Public exposure requires an explicit confirmation dialog.
+
+### 2.11 Tool Call Card
+
+```text
++-- execute_command ----------------------------+
+| Status: completed                              |
+| Duration: 0.3s                                 |
+| Summary: uptime returned load averages         |
+|                                                |
+| [Inputs] [Output] [Artifacts]                  |
++------------------------------------------------+
+```
+
+Tool card states:
+
+- queued
+- running
+- needs approval
+- approved
+- denied
+- completed
+- failed
+
+Sensitive inputs and outputs are redacted by default with an explicit reveal
+gate when the server allows it.
+
+### 2.12 Settings Screen
+
+```text
++------------------------------------------------+
+| Settings                                       |
++------------------------------------------------+
+| Appearance                                     |
+| Theme: [Dark v]                                |
+| Density: [Compact v]                           |
+|                                                |
+| Voice Defaults                                 |
+| Command Word: [Navi]                           |
+| Continuous Voice: [on]                         |
+| Voice Profile Switching: [on]                  |
+| Auto-send Grace: [1.5s]                        |
+| [Calibrate Command Word]                       |
+| [Reset Calibration]                            |
+|                                                |
+| Local Contact Preferences                      |
+| Pinned contacts                                |
+| Voice aliases                                  |
+|                                                |
+| Security                                       |
+| App Lock: [on]                                 |
+| Lock Timeout: [5 minutes v]                    |
+|                                                |
+| Data                                           |
+| [Clear Local Cache]                            |
+| [Forget This Gateway]                          |
+|                                                |
+| About                                          |
+| Navivox 0.1.0                                  |
++------------------------------------------------+
 ```
 
 ## 3. Component Library
@@ -424,406 +458,123 @@ Source: PRD requirements + open-source chat UI analysis + admin panel patterns
 
 ```dart
 // Navigation
-AppScaffold          // Adaptive shell (mobile: bottom nav, desktop: left rail)
-ConnectionStatusBar  // Bottom status bar (desktop) or top chip (mobile)
-ServerSwitcher       // Dropdown/popup for active server
-AgentPill            // Active agent indicator, tappable
-ErrorRecoverySheet   // Modal bottom sheet with error + recovery action
+AppScaffold
+ConnectionStatusBar
+ServerSwitcher
+ProfilePill
+ErrorRecoverySheet
+
+// Setup
+ConnectInfoForm
+HealthProbeStatus
+TokenField
+ExposureModeNotice
 
 // Chat
-MessageBubble        // Text message with markdown, timestamps, status
-ToolCallCard         // Expandable tool execution card
-VoiceMessageBubble   // Waveform + play + transcript
-TypingIndicator      // Animated dots for assistant thinking
-DateSeparator        // "Today" / "Yesterday" / date divider
-MessageComposer      // Text input + attach + mic + send
-VoiceControlBar      // Recording/command mode bar
+MessageBubble
+ToolCallCard
+VoiceMessageBubble
+TypingIndicator
+DateSeparator
+MessageComposer
+VoiceControlBar
+GlobalVoiceBar
+CommandModeSheet
 
 // Config
-ConfigSectionCard    // Overview card with summary + nav arrow
-ConfigFormField      // Typed form field (string/int/bool/enum/secret)
-SecretStatusIndicator // Shows only status, not value
-ConfigDiffViewer     // Before/after diff with validation
-ApplyConfirmSheet    // Sensitive change confirmation dialog
-BiometricGate        // local_auth prompt wrapper
+ConfigSectionCard
+ConfigFormField
+SecretStatusIndicator
+ConfigDiffViewer
+ApplyConfirmSheet
+LocalUnlockGate
 
-// Agents
-AgentCard            // Agent summary card
-AgentSwitcherSheet   // Bottom sheet with agent list
-WorkspaceValidator   // Directory existence/access checker
+// Profiles
+ProfileContactTile
+ProfileAvatar
+ProfileSeedInput
+ProfileDraftEditor
+WorkspaceRootsEditor
+VoiceProfilePicker
 
 // Servers
-ServerCard           // Server summary with status dot
-ServerForm           // Add/edit server form
-HostKeyVerifier      // Fingerprint display + trust button
+ServerCard
+GatewayStatusPanel
+ReachabilityBadge
 
-// Keys
-KeyCard              // Key summary with type/fingerprint/servers
-KeyImportPicker      // File picker + parse + preview
-KeyGenerateDialog    // Key type selection + passphrase
-
-// Shared
-StatusBadge          // Colored status chip
-EmptyState           // Icon + message + action for empty lists
-LoadingIndicator     // Consistent loading spinner/shimmer
-SectionHeader        // Section title with optional action
+// Telegram-inspired surfaces
+ChatPreviewTile
+MessageActionSheet
+NavivoxBubbleScope
 ```
 
-### 3.2 Design Token Map
+## 4. Status And Error States
 
-```dart
-class NavivoxTheme extends ThemeExtension<NavivoxTheme> {
-  // Message bubbles
-  final Color userBubbleColor;
-  final Color agentBubbleColor;
-  final Color toolCallCardColor;
-  final BorderRadiusGeometry bubbleRadius;
+| State | UI Treatment | Primary Action |
+|-------|--------------|----------------|
+| Gateway offline | Red status chip, setup error | Retry health check |
+| Unauthorized | Amber status chip | Enter token |
+| Exposure blocked | Red notice | Fix server config |
+| Stream disconnected | Reconnecting banner | Retry or edit connection |
+| Inbox full | Assistant/system error | Try again |
+| Tool failed | Failed tool card | Expand details |
+| Secret denied | Field error | Request admin role or unlock |
+| Workspace issue | Profile row attention badge | Open workspace roots |
+| Voice disabled | Disabled mic with reason | Enable continuous voice |
+| Server untrusted | Trust banner/sheet | Review and trust server |
 
-  // Status
-  final Color onlineColor;
-  final Color offlineColor;
-  final Color gormesDetectedColor;
-  final Color warningColor;
-  final Color errorColor;
+All error copy should point to a next action and avoid raw provider errors or
+secret-shaped values.
 
-  // Voice
-  final Color voiceActiveColor;
-  final Color wakeWordColor;
+## 5. Visual Density
 
-  // Tool calls
-  final Color riskLowColor;
-  final Color riskMediumColor;
-  final Color riskHighColor;
-  final Color approvalPendingColor;
+Mobile:
 
-  // Config
-  final Color secretFieldColor;
-  final Color sensitiveFieldColor;
-  final Color diffAddedColor;
-  final Color diffRemovedColor;
-  final Color validationErrorColor;
+- Material 3 `NavigationBar`.
+- Single-column chat.
+- Tabs: Chats, Servers, Settings.
+- Sheets for server and profile switching.
+- Voice controls as bottom panel.
 
-  // Typography
-  final TextStyle chatMessageStyle;
-  final TextStyle codeBlockStyle;
-  final TextStyle timestampStyle;
-  final TextStyle serverNameStyle;
-  final TextStyle agentNameStyle;
-}
-```
+Desktop:
 
-## 4. First-Run Wizard Design
+- Left rail.
+- Persistent top/status bars.
+- Optional split pane for config diffs and tool details.
+- Keyboard-friendly command input.
 
-The first-run journey has ten product steps from the PRD, grouped into compact
-wizard screens so users do not see ten separate route transitions. The visual
-sequence below starts with Welcome, then branches into import/manual server,
-keys, host verification, probe, pairing, agent selection/creation,
-voice/language, and finally chat.
+## 6. Accessibility
 
-### Step 1: Welcome
+- All icon buttons have labels/tooltips.
+- Status chips have text, not color alone.
+- Tool cards are keyboard expandable.
+- Voice transcript can be cancelled during the grace window.
+- Command mode has visible state, timeout, and cancel affordances.
+- Secret fields describe state without exposing values.
 
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│              🚀 Welcome to Navivox           │
-│                                              │
-│    Connect to your Gormes agent servers      │
-│    over SSH with chat, voice, and full       │
-│    configuration management.                 │
-│                                              │
-│    Let's set up your first connection.       │
-│                                              │
-│    ┌──────────────────────────────────┐      │
-│    │ 📥 Import from Termius            │      │
-│    │    Import your existing servers,  │      │
-│    │    keys, and host fingerprints    │      │
-│    └──────────────────────────────────┘      │
-│                                              │
-│    ┌──────────────────────────────────┐      │
-│    │ ➕ Add Server Manually            │      │
-│    │    Enter hostname, port, user,    │      │
-│    │    and key manually               │      │
-│    └──────────────────────────────────┘      │
-│                                              │
-│    ┌──────────────────────────────────┐      │
-│    │ 🔑 I'll add keys later            │      │
-│    │    Skip to server setup, add      │      │
-│    │    SSH keys in Settings           │      │
-│    └──────────────────────────────────┘      │
-└──────────────────────────────────────────────┘
-```
+## 7. Product Boundaries
 
-### Step 2: Import or Add Server
+Do now:
 
-**Termius Import:**
-- File picker opens for `.json` or `.termius` files
-- Parse and preview: "Found 3 hosts, 2 SSH keys, 1 group"
-- Select which to import (checkboxes)
-- Warning for password-only identities
-- Import → proceed to Step 3
+- Connect to gateway.
+- Talk to a profile contact.
+- Show structured tool activity.
+- Seed editable profiles.
+- Edit profile workspace roots through server APIs.
+- Edit server/profile config through schema-driven server APIs.
+- Support local command-word settings and continuous voice input.
+- Record voice run metadata before streaming audio complexity.
 
-**Manual Add:**
-- Hostname, Port (22 default), Username fields
-- Optional display name
-- SSH key selector (or "Add key later")
-- Save → proceed to Step 3
+Defer:
 
-### Step 3: SSH Key
-
-**Generate:**
-- Key type: Ed25519 (default), RSA, ECDSA
-- Optional passphrase
-- Generate → show public key fingerprint
-- "Copy public key to server's authorized_keys"
-
-**Import:**
-- File picker for private key
-- Parse and show type, fingerprint
-- If encrypted, prompt for passphrase
-- Save to secure storage
-
-### Step 4: Connect & Verify Host
-
-- Connect to server with selected key
-- Show connection progress
-- First time: "Host key fingerprint: SHA256:AbCdEf..."
-  - [Trust and Connect] [Cancel]
-- If Gormes probe succeeds: green check + version
-- If Gormes not found: "Generic SSH server. Terminal access only."
-  - Option to still proceed or go back
-
-### Step 5: Pair Device
-
-- If first device: "This will be the Owner device."
-- If additional: "Requesting Operator access. An Owner/Admin must approve."
-- After pairing: role assigned, token stored
-
-### Step 6: Select Agent
-
-- List existing agents from server
-- Or create new agent: name, workspace directory (existing path)
-- Validate directory exists and is accessible
-- Select agent → "Agent 'mineru' is now active"
-
-### Step 7: Voice Setup (Optional, Skip Available)
-
-- Wake word (default: NAVI)
-- Default voice provider/voice selection
-- Language preferences
-- [Test voice] button to hear sample
-- [Skip] or [Finish Setup]
-
-### Completion:
-
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│              ✅ Setup Complete!               │
-│                                              │
-│    Connected to: gormes-prod                 │
-│    Active agent: mineru                      │
-│    Voice: Ready (wake: NAVI)                 │
-│                                              │
-│    ┌──────────────────────────────────┐      │
-│    │      💬 Open Chat                │      │
-│    └──────────────────────────────────┘      │
-│                                              │
-│    Add more servers or keys in Settings.      │
-└──────────────────────────────────────────────┘
-```
-
-## 5. Icon System
-
-### 5.1 Material Icons Usage
-
-| Context | Icon | `Icons.*` |
-|---------|------|-----------|
-| Chats tab | chat_bubble | `Icons.chat_bubble_outline` |
-| Servers tab | dns/server | `Icons.dns_outlined` |
-| Agents tab | smart_toy | `Icons.smart_toy_outlined` |
-| Config tab | settings | `Icons.settings_outlined` |
-| Keys tab | key | `Icons.key` |
-| Terminal tab | terminal | `Icons.terminal` |
-| Send message | send | `Icons.send_rounded` |
-| Mic/voice | mic | `Icons.mic_none` |
-| Recording | mic + pulse | Custom animated |
-| Attach file | attach_file | `Icons.attach_file` |
-| Online status | circle | `Icons.circle` (green) |
-| Offline status | circle | `Icons.circle` (gray) |
-| Warning | warning | `Icons.warning_amber_rounded` |
-| Error | error | `Icons.error_outline` |
-| Success | check_circle | `Icons.check_circle_outline` |
-| Tool running | engineering | `Icons.engineering` |
-| Tool complete | check | `Icons.check` |
-| Tool failed | close | `Icons.close` |
-| Tool approval | lock | `Icons.lock_outline` |
-| Secret field | visibility_off | `Icons.visibility_off` |
-| Secret set | shield | `Icons.shield` |
-| Biometric | fingerprint | `Icons.fingerprint` |
-| Host key | vpn_key | `Icons.vpn_key` |
-| Gormes detected | check | `Icons.check` |
-| No Gormes | help | `Icons.help_outline` |
-| Edit | edit | `Icons.edit` |
-| Delete | delete | `Icons.delete_outline` |
-| Add | add | `Icons.add` |
-| Import | file_download | `Icons.file_download` |
-| Export | file_upload | `Icons.file_upload` |
-| Refresh | refresh | `Icons.refresh` |
-| Copy | content_copy | `Icons.content_copy` |
-| Expand | expand_more | `Icons.expand_more` |
-| Collapse | expand_less | `Icons.expand_less` |
-
-## 6. Empty States
-
-### Chats (no messages)
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│                    💬                         │
-│              No messages yet                  │
-│    Start a conversation with your agent       │
-│                                              │
-│    Try:                                       │
-│    "What's the server status?"                │
-│    "List my agents"                           │
-│    "Run the test suite"                       │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-### Servers (none)
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│                    🖥️                         │
-│              No servers yet                   │
-│    Add a Gormes agent server to get started   │
-│                                              │
-│    [Import from Termius]                      │
-│    [Add Server Manually]                      │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-### Agents (none)
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│                    🤖                         │
-│              No agents found                  │
-│    Create an agent on your Gormes server      │
-│    to start chatting                          │
-│                                              │
-│    [+ Create Agent]                           │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-### Keys (none)
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│                    🔑                         │
-│              No SSH keys yet                  │
-│    Add a key to connect to your servers       │
-│                                              │
-│    [Generate Key]                             │
-│    [Import Key]                               │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-## 7. Error States
-
-### Connection Failed
-```
-┌──────────────────────────────────────────────┐
-│ ⚠️ Connection Failed                          │
-│                                              │
-│ Could not connect to gormes-prod              │
-│ (192.168.1.100:22)                            │
-│                                              │
-│ Possible causes:                              │
-│ • Server is unreachable                       │
-│ • SSH key was rejected                        │
-│ • Host key has changed                        │
-│                                              │
-│ [Try Again]  [Edit Server]  [Open Terminal]   │
-└──────────────────────────────────────────────┘
-```
-
-### Gormes Not Found
-```
-┌──────────────────────────────────────────────┐
-│ ⚠️ Gormes Not Installed                       │
-│                                              │
-│ The server gormes-prod does not have Gormes   │
-│ installed or the 'gormes' command is not in   │
-│ the PATH.                                     │
-│                                              │
-│ You can still use this server as a generic    │
-│ SSH terminal, but chat, voice, config, and    │
-│ agent features require Gormes.                │
-│                                              │
-│ [Open Terminal]  [Installation Guide]  [Skip] │
-└──────────────────────────────────────────────┘
-```
-
-### Secret Storage Unavailable (Linux)
-```
-┌──────────────────────────────────────────────┐
-│ ⚠️ Secure Storage Not Available               │
-│                                              │
-│ Navivox requires a secret service to store    │
-│ SSH keys securely.                            │
-│                                              │
-│ On Linux, install one of:                     │
-│ • gnome-keyring (GNOME)                       │
-│ • kwalletmanager (KDE)                        │
-│                                              │
-│ Required packages:                            │
-│ • libsecret-1-0                               │
-│ • libjsoncpp1                                 │
-│                                              │
-│ [Retry]  [Dismiss]                            │
-└──────────────────────────────────────────────┘
-```
-
-## 8. Loading States
-
-### Connecting to Server
-```
-┌──────────────────────────────────────────────┐
-│ Connecting to gormes-prod...                  │
-│ ████████░░░░░░░░░░░░                          │
-│                                              │
-│ • Authenticating with SSH key...    ✅         │
-│ • Verifying host fingerprint...     🔄         │
-│ • Probing for Gormes...             ⏳         │
-│ • Starting navivox channel...       ⏳         │
-└──────────────────────────────────────────────┘
-```
-
-### Config Applying
-```
-┌──────────────────────────────────────────────┐
-│ Applying Configuration...                     │
-│                                              │
-│ • Validating changes...              ✅         │
-│ • Writing config.toml...             🔄         │
-│ • Writing secrets...                 ⏳         │
-│ • Reloading runtime...               ⏳         │
-│                                              │
-│ Please wait, this may take a moment.          │
-└──────────────────────────────────────────────┘
-```
-
-## 9. Responsive Breakpoints
-
-| Breakpoint | Width | Layout |
-|------------|-------|--------|
-| Compact | < 600dp | Single column, bottom nav, full-screen sheets |
-| Medium | 600-840dp | Two column (list + detail), side nav rail |
-| Expanded | 840-1200dp | Two column (list + detail), side nav rail |
-| Large | 1200-1600dp | Three column (nav + list + detail) |
-| Extra Large | > 1600dp | Three column with wider content area |
+- Phone numbers.
+- Outbound campaigns.
+- Retry schedulers.
+- Call routing.
+- Human handoff.
+- Generic server administration surfaces.
+- Always-listening command-word detection.
+- Voice-driven tool approvals or profile config mutations.
+- Full session picker/history as a primary navigation surface.
+- User-uploaded avatars.
+- Telegram network clients, TDLib/MTProto, and Firebase chat backends.

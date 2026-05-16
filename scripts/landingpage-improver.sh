@@ -22,6 +22,24 @@ SITE_TEMPLATES_DIR="$SITE_ROOT/internal/site/templates"
 SITE_STATIC_DIR="$SITE_ROOT/internal/site/static"
 SITE_DATA_DIR="$SITE_ROOT/internal/site/data"
 PROGRESS_JSON="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan/progress.json"
+
+# Split-safe canonical-backlog reader (module-split umbrella C5e). The
+# canonical backlog at $PROGRESS_JSON may be a monolithic file OR a
+# module-keyed split directory; `cmd/progress emit` merges either layout into
+# one JSON stream via internal/progress.Load. Never jq / require_file
+# $PROGRESS_JSON directly (jq/`[ -f ]` fail on a directory). $PROGRESS_JSON is
+# still the canonical path for prompts/display; only parse/existence checks go
+# through these helpers. With `set -Eeuo pipefail`, a failed emit aborts the
+# pipeline loudly instead of silently feeding jq an empty stream.
+progress_backlog_emit() {
+  ( cd "$REPO_ROOT" && go run ./cmd/progress emit ) \
+    || fail "could not read progress backlog via 'go run ./cmd/progress emit' (split-safe read; canonical may be a monolith file or a split directory)"
+}
+
+require_progress_backlog() {
+  progress_backlog_emit >/dev/null
+}
+
 SITE_PROGRESS_JSON="$SITE_DATA_DIR/progress.json"
 BENCHMARKS_JSON="$SITE_DATA_DIR/benchmarks.json"
 
@@ -452,7 +470,7 @@ cmd_doctor() {
   require_dir "$REPO_ROOT"
   require_dir "$SITE_ROOT"
   require_file "$SITE_CONTENT_GO"
-  require_file "$PROGRESS_JSON"
+  require_progress_backlog
   log "doctor: ok"
 }
 
@@ -476,7 +494,7 @@ cmd_run() {
   require_dir "$REPO_ROOT"
   require_dir "$SITE_ROOT"
   require_file "$SITE_CONTENT_GO"
-  require_file "$PROGRESS_JSON"
+  require_progress_backlog
 
   log "Step 2/7: collecting landing page context"
   write_context_bundle

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -20,7 +19,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   final StreamController<NavivoxApprovalRequest> _approvals =
       StreamController<NavivoxApprovalRequest>.broadcast();
 
-  WebSocket? _socket;
+  NavivoxGatewaySocket? _socket;
   StreamSubscription<NavivoxGatewayEvent>? _events;
   NavivoxChannelState _state = const NavivoxChannelState();
   String? _activeSessionId;
@@ -39,7 +38,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     final socket = await client.connectStream();
     _socket = socket;
     _events = client
-        .decodeEvents(socket)
+        .decodeEvents(socket.events)
         .listen(
           _onEvent,
           onError: (Object error) =>
@@ -51,7 +50,20 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
       name: 'Gormes Gateway',
       status: 'Gateway online - ${config.baseUri.host}:${config.baseUri.port}',
     );
-    _state = _state.copyWith(servers: [server], activeServerId: server.id);
+    final profile = NavivoxProfileContact(
+      serverId: server.id,
+      profileId: 'default',
+      displayName: 'Default profile',
+      serverLabel: server.name,
+      health: NavivoxProfileHealth.online,
+      latestPreview: 'Gateway online',
+      micAvailable: true,
+    );
+    _state = _state.copyWith(
+      servers: [server],
+      activeServerId: server.id,
+      profileContacts: [profile],
+    );
     notifyListeners();
   }
 
@@ -75,6 +87,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     }
 
     final requestId = _uuid.v4();
+    final activeProfile = _state.activeProfileContact;
     _appendMessage(
       NavivoxChatMessage(
         id: requestId,
@@ -90,6 +103,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
           requestId: requestId,
           sessionId: _activeSessionId,
           text: trimmed,
+          metadata: _turnMetadata(activeProfile),
         ).body,
       ),
     );
@@ -102,11 +116,43 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     required Duration duration,
     required double confidence,
   }) {
-    if (transcript.trim().isEmpty) {
+    final trimmed = transcript.trim();
+    if (trimmed.isEmpty) {
       _appendSystemMessage('Voice transcript is empty.');
       return;
     }
-    sendText(transcript);
+
+    final socket = _socket;
+    if (socket == null) {
+      _appendSystemMessage('Gateway is not connected.');
+      return;
+    }
+
+    final requestId = _uuid.v4();
+    final activeProfile = _state.activeProfileContact;
+    _appendMessage(
+      NavivoxChatMessage(
+        id: requestId,
+        author: NavivoxMessageAuthor.user,
+        kind: NavivoxMessageKind.voice,
+        createdAt: _clock(),
+        voice: NavivoxVoiceMessage(
+          duration: duration,
+          transcript: trimmed,
+          confidence: confidence,
+        ),
+      ),
+    );
+    socket.add(
+      jsonEncode(
+        NavivoxGatewayMessage.startTurn(
+          requestId: requestId,
+          sessionId: _activeSessionId,
+          text: trimmed,
+          metadata: _turnMetadata(activeProfile),
+        ).body,
+      ),
+    );
   }
 
   @override
@@ -124,6 +170,23 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   @override
   void selectAgent(String agentId) {
     _state = _state.copyWith(selectedAgentId: agentId);
+    notifyListeners();
+  }
+
+  @override
+  void selectProfileContact({
+    required String serverId,
+    required String profileId,
+  }) {
+    final key = '$serverId::$profileId';
+    if (_state.selectedProfileContactKey == key &&
+        _state.activeServerId == serverId) {
+      return;
+    }
+    _state = _state.copyWith(
+      selectedProfileContactKey: key,
+      activeServerId: serverId,
+    );
     notifyListeners();
   }
 
@@ -160,6 +223,8 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
         _upsertAssistantMessage(event);
       case 'tool_call_started':
         _upsertToolCall(event, 'started');
+      case 'tool_call_updated':
+        _upsertToolCall(event, event.status ?? 'updated');
       case 'tool_call_finished':
         _upsertToolCall(event, event.status ?? 'finished');
       case 'error':
@@ -228,6 +293,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     final toolCallId = event.toolCallId ?? 'tool-${_uuid.v4()}';
     final index = _state.messages.indexWhere((m) => m.id == toolCallId);
     final prior = index >= 0 ? _state.messages[index].toolCall : null;
+    final summary = event.message ?? event.text ?? prior?.summary ?? '';
     final message = NavivoxChatMessage(
       id: toolCallId,
       author: NavivoxMessageAuthor.assistant,
@@ -236,7 +302,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
       toolCall: NavivoxToolCall(
         name: event.toolName ?? prior?.name ?? 'tool',
         status: status,
-        summary: prior?.summary ?? '',
+        summary: summary,
         artifacts: prior?.artifacts ?? const [],
       ),
     );
@@ -280,5 +346,16 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     messages[index] = message;
     _state = _state.copyWith(messages: messages);
     notifyListeners();
+  }
+
+  Map<String, Object?> _turnMetadata(NavivoxProfileContact? profile) {
+    return {
+      'client': 'navivox',
+      'platform': 'flutter',
+      if (profile != null) ...{
+        'server_id': profile.serverId,
+        'profile_id': profile.profileId,
+      },
+    };
   }
 }

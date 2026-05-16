@@ -96,11 +96,14 @@ func newGatewayMutatingUnavailableCommand(name string) *cobra.Command {
 	return &cobra.Command{
 		Use:          name,
 		Short:        fmt.Sprintf("Manage gateway %s through the platform service helper", name),
-		Long:         fmt.Sprintf("On Windows, the %s subcommand uses the native Scheduled Task gateway service. On other platforms it remains unavailable; use the systemd/launchd helper exposed by internal/cli/service_restart.go to drive the live service manager.", name),
+		Long:         fmt.Sprintf("On Windows, the %s subcommand uses the native Scheduled Task gateway service. On Termux, run the foreground gateway in tmux with `gormes gateway`. On other platforms it remains unavailable; use the systemd/launchd helper exposed by internal/cli/service_restart.go to drive the live service manager.", name),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if gatewayRuntimeGOOS == "windows" {
 				return runGatewayWindowsScheduledTaskCommand(cmd, name)
+			}
+			if gatewayTermuxDetected() {
+				return newExitCodeError(gatewayMutatingUnavailableExitCode, gatewayTermuxLifecycleGuidanceError(name))
 			}
 			return newExitCodeError(gatewayMutatingUnavailableExitCode,
 				fmt.Errorf("gateway: %s is not available; use the service_restart helper", name))

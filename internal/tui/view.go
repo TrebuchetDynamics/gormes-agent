@@ -73,6 +73,12 @@ func (m Model) View() string {
 
 	// Render the active modal panel if one is present.
 	panel := m.RenderActivePanel(m.width, m.height)
+	if m.modelPicker != nil {
+		picker := *m.modelPicker
+		picker.Width = m.width
+		picker.Height = m.height
+		panel = RenderModelPicker(picker)
+	}
 
 	// Render todo panel if there are active tasks for the current session.
 	todoPanel := m.renderTodoPanel(convW)

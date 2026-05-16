@@ -35,9 +35,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
     } else if (type == 'boolean') {
       value = raw.toLowerCase() == 'true';
     }
-    ref
-        .read(navivoxChannelProvider)
-        .sendConfigSet(field: field, value: value);
+    ref.read(navivoxChannelProvider).sendConfigSet(field: field, value: value);
     setState(() => _editingField = null);
   }
 

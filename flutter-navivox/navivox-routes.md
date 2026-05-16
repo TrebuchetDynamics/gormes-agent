@@ -1,16 +1,18 @@
 # Navivox Route Design
 
 Status: planning draft
-Source: derived from navivox-prd.md
+Source: derived from navivox-prd.md and the current Flutter router
 
 ## 1. Route Architecture
 
-GoRouter with Riverpod-powered redirect guards and shell routes.
+GoRouter uses Riverpod state to decide whether the app should show setup or the
+main shell. A configured gateway connection is enough to enter the product; the
+first useful screen is chat.
 
-### 1.1 Route Constants
+### 1.1 Current Route Constants
 
 ```dart
-abstract class AppRoutes {
+abstract final class AppRoutes {
   static const setup = '/setup';
   static const chats = '/chats';
   static const chatThread = '/chats/:serverId/:threadId';
@@ -19,9 +21,6 @@ abstract class AppRoutes {
   static const agents = '/agents';
   static const agentEditor = '/agents/:id/edit';
   static const agentCreate = '/agents/create';
-  static const keys = '/keys';
-  static const keyImport = '/keys/import';
-  static const keyGenerate = '/keys/generate';
   static const config = '/config';
   static const configSection = '/config/:section';
   static const secretEditor = '/config/secrets/:key';
@@ -31,257 +30,125 @@ abstract class AppRoutes {
 }
 ```
 
-## 2. Full Route Table
+Only setup, chats, servers, agents, and config are currently mounted in the
+router. Detail routes, terminal, and settings constants remain future surfaces
+until their screens have current gateway-backed behavior.
 
-### 2.1 Setup (First Run)
+## 2. Current Route Table
 
-| Path | Screen | Guard | Notes |
-|------|--------|-------|-------|
-| `/setup` | FirstRunWizard | None (shown when no servers exist) | 10-step first-run journey grouped into wizard screens |
-| `/setup/import` | TermiusImportScreen | None | File picker + preview |
-| `/setup/manual` | ManualServerScreen | None | Direct server entry |
-| `/setup/keys` | KeyImportOrGenerateScreen | None | Import or generate Ed25519 |
-| `/setup/verify/:serverId` | HostVerificationScreen | None | Fingerprint display + pin |
-| `/setup/probe/:serverId` | GormesProbeScreen | None | Check for Gormes binary |
-| `/setup/pair/:serverId` | DevicePairingScreen | None | Role assignment |
-| `/setup/agents/:serverId` | AgentSelectOrCreateScreen | None | First agent selection |
-
-### 2.2 Main Shell (Authenticated)
-
-Shell route wraps all main screens with bottom nav (mobile) or left rail (desktop).
-
-| Tab | Path | Screen | Icon | Guard |
-|-----|------|--------|------|-------|
-| Chats | `/chats` | ChatsScreen | chat_bubble | Operator+ |
-| Servers | `/servers` | ServersScreen | dns | Operator+ |
-| Agents | `/agents` | AgentsScreen | smart_toy | Operator+ |
-| Config | `/config` | ConfigOverviewScreen | settings | Admin+ |
-| Keys | `/keys` | KeysScreen | key | Operator+ |
-| Terminal | `/terminal` | TerminalScreen | terminal | Operator+ |
-| Settings | `/settings` | SettingsScreen | tune | Operator+ |
-
-### 2.3 Detail Routes (pushed on top of shell)
+### 2.1 Setup
 
 | Path | Screen | Guard | Notes |
 |------|--------|-------|-------|
-| `/chats/:serverId/:threadId` | ChatScreen | Paired device | Main chat view |
-| `/servers/:id` | ServerDetailScreen | Operator+ | Edit server, view status |
-| `/servers/:id/gormes-probe` | GormesProbeScreen | Operator+ | Re-probe for Gormes |
-| `/agents/:id/edit` | AgentEditorScreen | Admin+ | Full agent CRUD |
-| `/agents/create/:serverId` | AgentCreateScreen | Admin+ | New agent wizard |
-| `/keys/import` | KeyImportScreen | Operator+ | File-based SSH key import |
-| `/keys/generate` | KeyGenerateScreen | Operator+ | Ed25519 key generation |
-| `/config/:section` | ConfigSectionScreen | Admin+ | Section-specific config editor |
-| `/config/secrets/:key` | SecretEditorScreen (biometric-gated) | Admin+ | Set/rotate/delete secrets |
-| `/terminal/:serverId` | TerminalSessionScreen | Operator+ | Full-screen SSH terminal |
+| `/setup` | `SetupScreen` | None | Paste or scan `gormes navivox connect-info` output, enter token when required, probe `/healthz`, and connect to the stream. |
+
+The setup screen should prefer a single "connect and talk now" path. Advanced
+server inventory, imports, and terminal workflows are not part of the first
+activation loop.
+
+### 2.2 Main Shell
+
+The shell route wraps the primary authenticated surfaces with app navigation.
+
+| Tab | Path | Screen | Guard |
+|-----|------|--------|-------|
+| Chats | `/chats` | `ChatScreen` | Connected gateway |
+| Servers | `/servers` | `ServersScreen` | Connected gateway |
+| Agents | `/agents` | `AgentsScreen` | Connected gateway |
+| Config | `/config` | `ConfigScreen` | Connected gateway; mutation controls require server role evidence |
+
+### 2.3 Planned Detail Routes
+
+| Path | Screen | Guard | Notes |
+|------|--------|-------|-------|
+| `/chats/:serverId/:threadId` | `ChatScreen` with session context | Connected gateway | Open an existing Navivox session from the local cache or server session list. |
+| `/servers/:id` | `ServerDetailScreen` | Connected gateway | Show base URL, health, exposure mode, auth mode, and redacted token status. |
+| `/agents/:id/edit` | `AgentEditorScreen` | Admin role | Edit generated agent/profile/tool/voice settings after a seed flow. |
+| `/agents/create` | `AgentCreateScreen` | Admin role | Natural-language seed such as "screen inbound leads". |
+| `/config/:section` | `ConfigSectionScreen` | Admin role | Schema-driven section editor. |
+| `/config/secrets/:key` | `SecretEditorScreen` | Admin role + local unlock | Set, rotate, delete, and test a secret without reading its value. |
+| `/settings` | `SettingsScreen` | Local app | Theme, local voice defaults, cache controls, and app lock. |
+| `/terminal` | Future terminal surface | Explicit opt-in | Deferred; not part of the connect-and-talk loop. |
 
 ## 3. Router Configuration
 
-### 3.1 Router Provider (Riverpod)
+The current provider redirects to setup until a gateway-backed server is present
+in channel state.
 
 ```dart
 final routerProvider = Provider<GoRouter>((ref) {
-  final pairingState = ref.watch(pairingStateProvider);
-  final serverCount = ref.watch(serverCountProvider);
+  final channel = ref.watch(navivoxChannelProvider);
 
   return GoRouter(
-    initialLocation: '/chats',
-    debugLogDiagnostics: kDebugMode,
-    refreshListenable: pairingState,
-
+    initialLocation: AppRoutes.chats,
+    refreshListenable: channel,
     redirect: (context, state) {
-      // First run: no servers configured
-      final hasServers = serverCount > 0;
-      final isOnSetup = state.matchedLocation.startsWith('/setup');
-      final isOnSettings = state.matchedLocation == '/settings';
+      final hasServers = channel.state.servers.isNotEmpty;
+      final isSetup = state.matchedLocation.startsWith(AppRoutes.setup);
 
-      if (!hasServers && !isOnSetup) return '/setup';
-      if (hasServers && isOnSetup) return '/chats';
-
-      return null; // no redirect
+      if (!hasServers && !isSetup) return AppRoutes.setup;
+      if (hasServers && isSetup) return AppRoutes.chats;
+      return null;
     },
-
     routes: [
-      // Setup flow (no shell)
       GoRoute(
-        path: '/setup',
-        builder: (_, __) => const FirstRunWizard(),
-        routes: [
-          GoRoute(path: 'import', builder: (_, __) => const TermiusImportScreen()),
-          GoRoute(path: 'manual', builder: (_, __) => const ManualServerScreen()),
-          GoRoute(path: 'keys', builder: (_, __) => const KeyImportOrGenerateScreen()),
-          GoRoute(path: 'verify/:serverId', builder: (_, state) =>
-            HostVerificationScreen(serverId: state.pathParameters['serverId']!)),
-          GoRoute(path: 'probe/:serverId', builder: (_, state) =>
-            GormesProbeScreen(serverId: state.pathParameters['serverId']!)),
-          GoRoute(path: 'pair/:serverId', builder: (_, state) =>
-            DevicePairingScreen(serverId: state.pathParameters['serverId']!)),
-          GoRoute(path: 'agents/:serverId', builder: (_, state) =>
-            AgentSelectOrCreateScreen(serverId: state.pathParameters['serverId']!)),
-        ],
+        path: AppRoutes.setup,
+        builder: (context, state) => const SetupScreen(),
       ),
-
-      // Main app shell
       ShellRoute(
-        builder: (context, state, child) {
-          return AdaptiveScaffold(
-            body: child,
-            currentLocation: state.matchedLocation,
-          );
-        },
+        builder: (context, state, child) =>
+            AppShell(location: state.matchedLocation, child: child),
         routes: [
-          // Chats
-          GoRoute(
-            path: '/chats',
-            builder: (_, __) => const ChatsScreen(),
-          ),
-          GoRoute(
-            path: '/chats/:serverId/:threadId',
-            builder: (_, state) => ChatScreen(
-              serverId: state.pathParameters['serverId']!,
-              threadId: state.pathParameters['threadId']!,
-            ),
-          ),
-
-          // Servers
-          GoRoute(
-            path: '/servers',
-            builder: (_, __) => const ServersScreen(),
-            routes: [
-              GoRoute(
-                path: ':id',
-                builder: (_, state) => ServerDetailScreen(
-                  id: state.pathParameters['id']!,
-                ),
-              ),
-            ],
-          ),
-
-          // Agents
-          GoRoute(
-            path: '/agents',
-            builder: (_, __) => const AgentsScreen(),
-            routes: [
-              GoRoute(
-                path: ':id/edit',
-                builder: (_, state) => AgentEditorScreen(
-                  agentId: state.pathParameters['id']!,
-                ),
-              ),
-              GoRoute(
-                path: 'create/:serverId',
-                builder: (_, state) => AgentCreateScreen(
-                  serverId: state.pathParameters['serverId']!,
-                ),
-              ),
-            ],
-          ),
-
-          // Keys
-          GoRoute(
-            path: '/keys',
-            builder: (_, __) => const KeysScreen(),
-            routes: [
-              GoRoute(path: 'import', builder: (_, __) => const KeyImportScreen()),
-              GoRoute(path: 'generate', builder: (_, __) => const KeyGenerateScreen()),
-            ],
-          ),
-
-          // Config (Admin+ only with redirect guard)
-          GoRoute(
-            path: '/config',
-            redirect: (context, state) {
-              final serverId = ref.read(activeServerIdProvider);
-              final role = ref.read(pairingRoleProvider(serverId));
-              if (role == null || (role != PairingRole.owner && role != PairingRole.admin)) {
-                return '/chats'; // redirect non-admins
-              }
-              return null;
-            },
-            builder: (_, __) => const ConfigOverviewScreen(),
-            routes: [
-              GoRoute(
-                path: ':section',
-                builder: (_, state) => ConfigSectionScreen(
-                  section: state.pathParameters['section']!,
-                ),
-              ),
-              GoRoute(
-                path: 'secrets/:key',
-                builder: (_, state) => SecretEditorScreen(
-                  configKey: state.pathParameters['key']!,
-                ),
-              ),
-            ],
-          ),
-
-          // Terminal
-          GoRoute(
-            path: '/terminal',
-            builder: (_, __) => const TerminalScreen(),
-            routes: [
-              GoRoute(
-                path: ':serverId',
-                builder: (_, state) => TerminalSessionScreen(
-                  serverId: state.pathParameters['serverId']!,
-                ),
-              ),
-            ],
-          ),
-
-          // Settings
-          GoRoute(
-            path: '/settings',
-            builder: (_, __) => const SettingsScreen(),
-          ),
+          GoRoute(path: AppRoutes.chats, builder: (_, __) => const ChatScreen()),
+          GoRoute(path: AppRoutes.servers, builder: (_, __) => const ServersScreen()),
+          GoRoute(path: AppRoutes.agents, builder: (_, __) => const AgentsScreen()),
+          GoRoute(path: AppRoutes.config, builder: (_, __) => const ConfigScreen()),
         ],
       ),
     ],
-
-    errorBuilder: (context, state) => NotFoundScreen(error: state.error),
   );
 });
 ```
 
 ## 4. Route Guards
 
-### 4.1 Role-Based Guards
+### 4.1 Connection Guard
 
 ```dart
-// Config mutation guard
-final canMutateConfigProvider = Provider.family<bool, String>((ref, serverId) {
-  final role = ref.watch(pairingRoleProvider(serverId));
-  return role == PairingRole.owner || role == PairingRole.admin;
-});
-
-// Agent mutation guard
-final canManageAgentsProvider = Provider.family<bool, String>((ref, serverId) {
-  final role = ref.watch(pairingRoleProvider(serverId));
-  return role == PairingRole.owner || role == PairingRole.admin;
-});
-
-// View-only guard
-final canViewProvider = Provider.family<bool, String>((ref, serverId) {
-  final role = ref.watch(pairingRoleProvider(serverId));
-  return role != null; // any paired role can view
+final hasGatewayProvider = Provider<bool>((ref) {
+  final channel = ref.watch(navivoxChannelProvider);
+  return channel.state.servers.isNotEmpty;
 });
 ```
 
-### 4.2 Inline Widget Guards
+Setup owns connection creation. The shell assumes a gateway exists and renders
+connection loss as recoverable UI, not a route crash.
 
-For fine-grained UI control within screens:
+### 4.2 Role Guards
+
+Role evidence comes from the server. Until the gateway exposes role metadata,
+mutation actions are disabled or shown as "not available yet".
 
 ```dart
-class ConfigGuard extends ConsumerWidget {
-  final String serverId;
-  final Widget child;
+final canMutateConfigProvider = Provider<bool>((ref) {
+  final role = ref.watch(activeServerRoleProvider);
+  return role == NavivoxRole.owner || role == NavivoxRole.admin;
+});
+```
 
-  const ConfigGuard({required this.serverId, required this.child});
+### 4.3 Inline Widget Guards
+
+Fine-grained controls use inline guards instead of hiding whole screens.
+
+```dart
+class ConfigMutationGuard extends ConsumerWidget {
+  const ConfigMutationGuard({required this.child, super.key});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final canMutate = ref.watch(canMutateConfigProvider(serverId));
-    if (!canMutate) {
+    if (!ref.watch(canMutateConfigProvider)) {
       return const ReadOnlyConfigView();
     }
     return child;
@@ -291,33 +158,32 @@ class ConfigGuard extends ConsumerWidget {
 
 ## 5. Navigation Patterns
 
-### 5.1 Server Switcher (in chat top bar)
+### 5.1 Setup To Chat
 
-Changes active server context without leaving chat:
-
-```dart
-void switchServer(BuildContext context, String newServerId) {
-  ref.read(activeServerIdProvider.notifier).state = newServerId;
-  // Chat screen rebuilds with new server context
-  // Navivox channel reconnects if needed
-}
+```text
+Paste connect-info base URL + token
+  -> GET /healthz
+  -> GET /v1/navivox/status
+  -> WS /v1/navivox/stream
+  -> Navigate to /chats
 ```
 
-### 5.2 Agent Switcher (in chat overlay)
+### 5.2 Server Switcher
 
-Bottom sheet or popup that switches agent for current thread:
+The server switcher changes the active gateway context without leaving chat.
+Switching servers reconnects the `GatewayNavivoxChannel` and refreshes status.
 
-```dart
-void switchAgent(BuildContext context, String serverId, String agentId) {
-  ref.read(selectedAgentProvider(serverId).notifier).state = agentId;
-  // Sends agent.select event over navivox channel
-  ref.read(navivoxChannelProvider(serverId)).requireValue!.selectAgent(agentId);
-}
-```
+### 5.3 Agent Switcher
 
-### 5.3 Deep Link Support
+The agent picker is a sheet/menu from chat. Agent selection updates local UI
+state immediately and sends a gateway request once agent selection is exposed by
+the channel contract.
 
-```
+### 5.4 Deep Links
+
+Deep links are local app links. They never include tokens.
+
+```text
 navivox://chat/<serverId>/<threadId>
 navivox://server/<serverId>
 navivox://config/<serverId>/<section>
@@ -325,94 +191,58 @@ navivox://config/<serverId>/<section>
 
 ## 6. Mobile Navigation Layout
 
-```
-┌─────────────────────┐
-│  App Bar (context)  │  ← Server name, agent pill, connection status
-│                     │
-│  Content Area       │
-│  (GoRouter child)   │
-│                     │
-│                     │
-│                     │
-├─────────────────────┤
-│ Chats │ Srv │ Agt │  ← Bottom Navigation Bar
-│       │     │     │
-│ Config│Keys │Term │  ← Scrollable on mobile
-└─────────────────────┘
+```text
++---------------------+
+| App Bar             |  Server name, agent pill, connection status
+|                     |
+| Content Area        |
+| (GoRouter child)    |
+|                     |
++---------------------+
+| Chats | Srv | Agt   |
+| Config              |
++---------------------+
 ```
 
 ## 7. Desktop Navigation Layout
 
-```
-┌──────┬──────────────────────────────────┐
-│      │  Top Bar                         │
-│      │  Server: my-server  Agent: mineru│
-│ Left ├──────────────────────────────────┤
-│ Rail │                                  │
-│      │  Content Area                    │
-│ 💬   │  (GoRouter child)                │
-│ 🖥️   │                                  │
-│ 🤖   │                                  │
-│ ⚙️   │                                  │
-│ 🔑   │                                  │
-│ ⌨️   │                                  │
-│ ⚡   │                                  │
-│      │                                  │
-├──────┴──────────────────────────────────┤
-│  Status Bar (connection, version, etc.) │
-└─────────────────────────────────────────┘
+```text
++------+----------------------------------+
+|      | Top Bar                          |
+| Left | Server: local  Agent: default    |
+| Rail +----------------------------------+
+|      | Content Area                     |
+| Chat | (GoRouter child)                 |
+| Srv  |                                  |
+| Agt  |                                  |
+| Cfg  |                                  |
++------+----------------------------------+
+| Status Bar: gateway, version, auth      |
++-----------------------------------------+
 ```
 
 ## 8. First-Run Flow Navigation
 
-The first-run wizard uses a `PageController` or `Stepper` widget internally, not separate routes:
+The first-run wizard uses internal step state rather than many routes:
 
-```
-Step 1: Import from Termius or add server manually
-        │
-        ▼
-Step 2: Select or generate SSH key
-        │
-        ▼
-Step 3: Connect + verify host fingerprint
-        │
-        ▼
-Step 4: Probe for Gormes
-        │
-        ▼
-Step 5: Pair device (owner for first device)
-        │
-        ▼
-Step 6: Select existing agent or create one
-        │
-        ▼
-        └──→ Navigate to /chats
+```text
+Step 1: Paste or scan connect-info
+Step 2: Enter token when required
+Step 3: Probe health and status
+Step 4: Open stream
+Step 5: Land in chat with a starter prompt
 ```
 
-The wizard can be skipped at certain steps (e.g., skip Gormes probe and use as generic SSH terminal).
+Optional later steps can help create an agent from a short natural-language
+seed, but the operator should be able to talk before completing advanced
+configuration.
 
 ## 9. Route Transition Animations
 
 | Transition | Use Case |
 |------------|----------|
-| Slide right → left | Push to detail screens |
-| Slide left → right | Pop back |
+| Slide right to left | Push to detail screens |
+| Slide left to right | Pop back |
 | Fade through | Tab switches in shell |
 | Modal bottom sheet | Agent switcher, quick actions |
-| Full-screen dialog | Secret editor, host key verification |
-
-```dart
-// Custom page builder for GoRouter transitions
-CustomTransitionPage(
-  child: child,
-  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-    return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(1.0, 0.0),
-        end: Offset.zero,
-      ).animate(animation),
-      child: child,
-    );
-  },
-);
-```
+| Full-screen dialog | Secret editor and destructive confirmations |

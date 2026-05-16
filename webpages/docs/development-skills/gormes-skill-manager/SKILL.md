@@ -224,7 +224,7 @@ new_skill_needed:
 ## Guardrails
 
 - Do not let skill management replace delivery.
-- Do not create side backlogs. Implementation intent goes into `progress.json`.
+- Do not create side backlogs. Implementation intent goes into `progress.json`, the single logical backlog accessed via `internal/progress.Load`/`cmd/progress` (monolithic file or split/per-module layout, transparently; never hand-parse member files).
 - Do not recreate deleted loop commands. Planning/building now happens through bounded skill-driven passes.
 - Use Context7 for external library/framework/API docs when required by repo instructions.
 - Preserve dirty user work.

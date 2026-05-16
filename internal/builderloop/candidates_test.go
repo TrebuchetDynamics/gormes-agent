@@ -489,12 +489,61 @@ func TestNormalizeCandidatesDeduplicatesByPhaseSubphaseAndItemName(t *testing.T)
 	}
 }
 
+func TestNormalizeCandidatesRealProgressSkipsBacklogSplitC5UntilOperatorApproval(t *testing.T) {
+	path := filepath.Join("..", "..", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	const c5Name = "Backlog split C5: single atomic operator-gated flip to the module-keyed split directory"
+	const operatorBlocker = "Operator explicit C5 quiet-fleet approval"
+
+	got, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true})
+	if err != nil {
+		t.Fatalf("NormalizeCandidates() error = %v", err)
+	}
+	for _, candidate := range got {
+		if candidate.ItemName == c5Name {
+			t.Fatalf("C5 appeared in default candidate queue; blocked_by=%v ready_when=%v", candidate.BlockedBy, candidate.ReadyWhen)
+		}
+	}
+
+	blocked, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true, IncludeBlocked: true})
+	if err != nil {
+		t.Fatalf("NormalizeCandidates(IncludeBlocked) error = %v", err)
+	}
+	var c5 Candidate
+	for _, candidate := range blocked {
+		if candidate.ItemName == c5Name {
+			c5 = candidate
+			break
+		}
+	}
+	if c5.ItemName == "" {
+		t.Fatalf("C5 missing from IncludeBlocked candidate view; want blocked row visible for audit")
+	}
+	if !candidateHasBlocker(c5, operatorBlocker) {
+		t.Fatalf("C5 blocked_by = %v, want %q", c5.BlockedBy, operatorBlocker)
+	}
+	speculative := selectSpeculativeCandidates([]Candidate{c5}, map[string]struct{}{}, func(candidate Candidate) bool {
+		return len(candidate.NotReadyWhen) == 0
+	}, 1)
+	if len(speculative) != 0 {
+		t.Fatalf("C5 selected speculatively despite operational not_ready_when; got %#v", speculative)
+	}
+}
+
 func candidateNames(candidates []Candidate) []string {
 	var names []string
 	for _, candidate := range candidates {
 		names = append(names, candidate.ItemName)
 	}
 	return names
+}
+
+func candidateHasBlocker(candidate Candidate, want string) bool {
+	for _, blocker := range candidate.BlockedBy {
+		if blocker == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestNormalizeCandidatesReturnsMalformedJSONError(t *testing.T) {

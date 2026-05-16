@@ -4,7 +4,8 @@ on:
   pull_request:
     paths:
       - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
-      - 'webpages/landing/src/data/progress.json'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json/**'
+      - 'webpages/landing/legacy/go-renderer/internal/site/data/progress.json'
       - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
       - 'webpages/landing/src/data/benchmarks.json'
@@ -14,7 +15,8 @@ on:
     branches: [main, development]
     paths:
       - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
-      - 'webpages/landing/src/data/progress.json'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json/**'
+      - 'webpages/landing/legacy/go-renderer/internal/site/data/progress.json'
       - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
       - 'webpages/landing/src/data/benchmarks.json'
@@ -56,6 +58,6 @@ jobs:
         env:
           GIT_PAGER: cat
         run: |
-          git diff --exit-code webpages/landing/src/data/progress.json
+          git diff --exit-code webpages/landing/legacy/go-renderer/internal/site/data/progress.json
           git diff --exit-code webpages/landing/src/data/benchmarks.json
           git diff --exit-code webpages/landing/src/data/release.json

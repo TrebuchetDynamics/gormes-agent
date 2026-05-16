@@ -1,822 +1,385 @@
-# Navivox PRD
+# Navivox Product Requirements
 
-Status: decision baseline accepted; implementation rows pending
-Scope: Flutter app plus Gormes `navivox` channel design
-Platforms: Android, iOS, Linux, Windows
+Status: planning draft
+Updated: 2026-05-16
+Scope: Flutter Navivox app and Gormes `navivox` HTTP/WebSocket channel
 
-Decision baseline: `navivox-decision-record.md` is canonical for current chat
-UI, Flutter stack, protocol framing, voice, config admin, and implementation
-order decisions.
+## 1. Summary
 
-## 1. Product Summary
+Navivox is the operator-facing Flutter app for talking to local or self-hosted
+Gormes agents. Its first useful screen must let the operator connect to a
+Gormes host and talk to an agent immediately, without telephony setup.
 
-Navivox is a cross-platform Flutter app for operating one or more Gormes agent
-servers over SSH. It combines a Telegram-like chat experience with a continuous
-voice mode similar to the ChatGPT mobile app. Voice is not a separate product
-mode: speech, text, tool progress, agent switching, and configuration changes all
-belong to the same chat threads and agent sessions.
+The current transport is the Gormes Navivox gateway:
 
-The app connects to remote machines with SSH keys only. It can generate and
-import keys, import Termius export files from day one, pin host keys, connect to
-multiple servers, and probe each server for Gormes. When Gormes is present, the
-app starts a structured `navivox` channel over SSH. When a server is generic
-SSH, the app still offers terminal and file-import/server-management behavior,
-but Gormes-specific chat, voice, agent, config, and tool features require the
-remote `gormes navivox serve --stdio` command.
+- `gormes navivox connect-info` prints reachable base URLs.
+- `GET /healthz` proves basic readiness.
+- `GET /v1/navivox/status` proves authenticated channel readiness.
+- `POST /v1/navivox/turn` enqueues a text turn.
+- `WS /v1/navivox/stream` streams session and assistant events.
+
+The app should feel like a voice-agent workbench, not a call-center suite. It
+should make the core local loop excellent before adding campaigns, scheduling,
+retries, circuit breakers, phone numbers, or human handoff.
 
 ## 2. Goals
 
-- Provide a polished chat-first Gormes client for Android, iPhone, Linux, and
-  Windows.
-- Use SSH key authentication only. Password login is not allowed.
-- Support multiple servers and multiple agents per server.
-- Support Termius file import on the first usable version.
-- Provide full text chat over a first-class Gormes `navivox` channel.
-- Provide continuous voice mode with local wake/control commands and remote
-  agent responses.
-- Let each agent have its own voice profile and runtime language policy.
-- Let Navivox create and edit agents, including custom workspace directories.
-- Let Navivox administer Gormes configuration, including models, providers,
-  Telegram bot tokens, channels, tools, gateway settings, secrets, and runtime
-  behavior.
-- Render Gormes tool calls as structured progress, approval, result, and
-  artifact UI instead of raw logs.
+- Connect to a Gormes Navivox gateway from a base URL and token.
+- Let the operator send a text or device-transcribed voice turn from the first
+  main screen.
+- Show gateway readiness, active session state, streaming assistant text, and
+  structured errors.
+- Create agents from short natural-language seeds such as "screen inbound
+  leads" or "triage support calls".
+- Generate editable agent, profile, tool, and voice settings from the seed.
+- Render tool activity as UI objects, especially `ToolCallCard`, not as text
+  logs inside assistant messages.
+- Make config admin easy while keeping Gormes safer than direct local file
+  edits: schema-driven, redacted, server-authoritative, and explicitly
+  confirmed.
+- Keep voice provider/profile support BYO-friendly without blocking the first
+  connect-and-talk loop.
 
-## 3. Non-Goals For V1
+## 3. Non-Goals
 
-- Password-based SSH login.
-- Termius cloud sync or account login.
-- Editing raw remote files directly from the app as the primary Gormes config
-  path.
-- Shell scraping as the main chat protocol.
-- Git clone-from-URL agent creation. V1 selects existing remote directories.
-- Running Gormes locally on the phone.
-- Treating voice as a separate session history from chat.
+- Telephony setup in the first activation loop.
+- Campaign management, retries, scheduling, circuit breakers, or human handoff.
+- Direct editing of local config files from the app.
+- Printing or storing raw server tokens in screenshots, logs, route URLs, or
+  deep links.
+- Public exposure by default.
+- A generic remote terminal or server administration app as the primary product.
 
-## 4. Primary Personas
+## 4. Personas
 
-- Operator: runs one or more Gormes agents on remote Linux machines and wants a
-  mobile-first chat and voice interface.
-- Developer: maps one agent to one repository/workspace and switches agents
-  quickly.
-- Admin: configures providers, models, tokens, tools, channels, and security
-  policy without editing TOML or dotenv files by hand.
+### 4.1 Operator
+
+Runs Gormes locally or on a trusted host, wants to talk to an agent quickly, and
+expects setup to be copy/paste simple.
+
+### 4.2 Admin
+
+Owns provider keys, agent policy, tool access, voice defaults, and config
+changes. Needs redacted evidence and explicit confirmation before risky changes.
+
+### 4.3 Builder
+
+Implements Navivox slices. Needs docs that match the current HTTP/WebSocket
+runtime so obsolete transport assumptions do not come back.
 
 ## 5. System Architecture
 
-### Client
+```text
+Flutter Navivox app
+  - SetupScreen
+  - GatewayNavivoxChannel
+  - Chat / Agents / Config / Voice UI
+        |
+        | HTTP JSON + WebSocket JSON
+        v
+Gormes Navivox channel
+  - /healthz
+  - /v1/navivox/status
+  - /v1/navivox/sessions
+  - /v1/navivox/turn
+  - /v1/navivox/stream
+        |
+        v
+Gormes gateway manager and agent runtime
+```
+
+Flutter owns local UX state, input capture, message rendering, and recovery
+flows. Gormes owns agent orchestration, sessions, model calls, tools, config,
+secrets, and provider execution.
+
+## 6. Connection And Reachability
+
+`gormes navivox connect-info` is the host-facing setup surface. It prints one
+or more base URLs plus health URLs for the configured exposure mode. It never
+prints token values.
+
+Connection flow:
+
+1. Operator enables the Navivox channel in Gormes config.
+2. Operator starts the Gormes gateway.
+3. Operator runs `gormes navivox connect-info`.
+4. App receives a base URL and token when required.
+5. App calls `/healthz`.
+6. App calls `/v1/navivox/status`.
+7. App opens `/v1/navivox/stream`.
+8. App lands in chat.
+
+Trust boundaries:
+
+- The channel is disabled by default.
+- Local mode is loopback by default.
+- VPN-class modes require active VPN interface detection and bind validation.
+- Public exposure requires explicit confirmation in server config.
+- Bearer tokens are redacted in UI, logs, and route data.
+- CORS/origin policy is server-owned.
+
+## 7. Gateway Protocol
+
+### 7.1 HTTP Endpoints
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/healthz` | No | Basic process readiness. |
+| GET | `/v1/navivox/status` | Yes | Channel readiness, auth mode, exposure mode, counts. |
+| GET | `/v1/navivox/sessions` | Yes | List known Navivox sessions. |
+| GET | `/v1/navivox/sessions/{session_id}` | Yes | Fetch one session. |
+| POST | `/v1/navivox/turn` | Yes | Enqueue a text turn and return queued status. |
+| WS | `/v1/navivox/stream` | Yes | Bidirectional client messages and server events. |
+
+### 7.2 Client Messages
+
+| Type | Required Fields | Purpose |
+|------|-----------------|---------|
+| `ping` | `request_id` | Keepalive and diagnostics. |
+| `start_turn` | `request_id`, `text` | Submit a chat turn, optionally in an existing session. |
+| `cancel_turn` | `request_id`, `session_id` | Cancel active work for a session. |
+| `subscribe_session` | `request_id`, `session_id` | Receive events for an existing session. |
+
+### 7.3 Server Events
+
+| Type | Purpose |
+|------|---------|
+| `pong` | Reply to `ping`. |
+| `session_started` | Confirms or announces the session id. |
+| `assistant_delta` | Streaming assistant text delta. |
+| `assistant_message` | Final or replaced assistant message. |
+| `tool_call_started` | Begin a structured tool card. |
+| `tool_call_updated` | Update status or bounded summary for a tool card. |
+| `tool_call_finished` | Complete a structured tool card. |
+| `error` | Safe error code/message. |
+| `done` | End of the current turn stream. |
+
+Tool events carry `tool_call_id`, `tool_name`, `status`, and a bounded
+`message` summary. Raw tool arguments, stdout, secrets, and full logs are out
+of scope for Navivox events.
+
+## 8. First Useful Screen
+
+The first post-setup screen is chat. It should show:
+
+- Gateway state: connected, reconnecting, offline, unauthorized, or blocked by
+  exposure settings.
+- Active server label and base URL host.
+- Active agent pill.
+- Text composer.
+- Voice button that can submit a local transcript as a text turn.
+- Streaming assistant messages.
+- Tool cards when tool events exist.
 
-The Flutter app owns local UX, local server inventory, local chat cache, key
-import/generation, host key trust, device STT for commands, microphone capture,
-audio playback, terminal UI, and local notifications.
+The screen must not require phone numbers, campaigns, outbound lists, or
+provider-specific voice setup before the first turn.
 
-### Transport
+## 9. Agent Seed Flow
 
-Navivox uses SSH as the only remote transport in V1. The app opens an SSH
-session and starts a non-PTY command:
+The first agent creation flow starts with a short natural-language seed:
 
-`gormes navivox serve --stdio`
+```text
+screen inbound leads
+triage support calls
+book follow-up appointments
+summarize client intake calls
+```
 
-The app and server then exchange framed structured protocol messages over
-stdin/stdout. Terminal scraping is reserved only for the generic SSH terminal
-tab.
+The server should generate an editable draft containing:
 
-### Gormes Server
-
-Gormes owns agent execution, config mutation, secret persistence, provider/model
-routing, tool execution, permissions, workspace validation, language policy,
-voice generation, and gateway/channel behavior.
+- Agent name and description.
+- Goal/instructions.
+- Intake questions or conversation policy.
+- Tool selection and tool permissions.
+- Voice profile defaults.
+- STT/TTS provider preferences when configured.
+- Safety and escalation notes.
 
-### Gormes Channel Files
+The draft is not applied silently. The operator reviews and confirms it.
 
-Planned Gormes code shape:
-
-- `cmd/gormes/navivox.go`: thin CLI entrypoint.
-- `internal/channels/navivox/channel.go`: gateway channel adapter.
-- `internal/channels/navivox/protocol.go`: framing, event types, compatibility.
-- `internal/channels/navivox/voice.go`: voice event translation.
-- `internal/channels/navivox/pairing.go`: device pairing and roles.
-- `internal/channels/navivox/config_admin.go`: typed config administration.
-
-The channel should follow the same gateway principles as Telegram, while adding
-capabilities Telegram does not need: SSH pairing, binary audio frames, config
-admin, agent admin, and structured tool-call rendering.
-
-## 6. SSH And Server Management
-
-### Authentication
-
-- SSH password login is not supported.
-- Imported password-only Termius identities are rejected with a clear reason.
-- Encrypted SSH private keys are allowed; the passphrase is only for decrypting
-  the local key and is not a remote password.
-- Generated keys should default to Ed25519.
-- Imported keys should support common OpenSSH private key formats used by
-  Termius and standard SSH tools.
-- Host key verification is mandatory. First connection displays the fingerprint;
-  later changes require explicit re-trust.
-
-### Local Key Storage
-
-- Key metadata lives in the app database.
-- Private key material lives in platform secure storage when practical.
-- If a platform secure store cannot safely store large key blobs, use an
-  encrypted local blob with the wrapping key in secure storage.
-- Linux requires a working secret service such as libsecret/GNOME Keyring/KWallet.
-  The app must surface a clear setup error when secure storage is unavailable.
-
-### Server Inventory
-
-Each server record includes:
-
-- display name
-- hostname
-- port
-- username
-- selected key identity
-- pinned host key fingerprint
-- last connection status
-- Gormes probe result
-- preferred agent
-- optional terminal profile
-- imported Termius source metadata
-
-### Termius Import
-
-V1 supports file import of Termius exports. The import should map:
-
-- hosts
-- groups/folders
-- identities
-- SSH keys
-- known hosts/fingerprints when present
-- port-forward metadata when present
-- labels/tags where present
-
-Termius account/cloud sync is out of scope for V1. Import is repeatable and
-deduplicates by host, port, username, key fingerprint, and stable Termius IDs
-when available.
-
-## 7. Navivox Protocol
-
-### Framing
-
-The protocol is framed, versioned, and binary-safe. It should not be raw newline
-JSON for audio. Accepted frame shape:
-
-- 4-byte magic: ASCII `NVOX` (`0x4e564f58`)
-- 4-byte protocol version, unsigned integer, network byte order
-- 4-byte JSON header length, unsigned integer, network byte order
-- JSON header with event type, ids, timestamps, `payload_length`, and metadata
-- optional binary payload for audio or files, exactly `payload_length` bytes
-- request/response correlation id in the header when applicable
-
-Every frame must be bounded by size limits. Large media should stream in chunks.
-Frame readers must reject bad magic, unsupported versions, invalid JSON,
-oversized lengths, and payloads whose byte count does not match
-`payload_length`.
-
-For V1, the header carries framing, routing, correlation, content type, payload
-length, and safe metadata. Non-binary event bodies are encoded as a UTF-8 JSON
-payload with `content_type: "application/json"`. Binary bodies use the payload
-bytes directly and keep codec/chunk metadata in the header. Protocol v1 is the
-only accepted prelude version for the first server slice; `hello` may advertise
-future supported versions but must be sent in a supported frame version.
-
-### Core Events
-
-- `hello`: version negotiation, device id, supported features.
-- `server.status`: Gormes version, config version, active channels.
-- `chat.submit`: user text, voice transcript, or mixed text/audio turn.
-- `chat.message`: assistant message or user echo.
-- `chat.update`: streamed assistant update.
-- `chat.final`: final assistant text for the turn.
-- `chat.delete`: message removal when the gateway supports it.
-- `typing.set`: assistant/agent typing state.
-- `voice.submit`: audio payload and device transcript metadata.
-- `voice.transcript`: server transcript updates.
-- `voice.audio`: server-generated TTS audio.
-- `agent.list`, `agent.get`, `agent.create`, `agent.update`,
-  `agent.archive`, `agent.select`: agent administration.
-- `tool.call.started`, `tool.call.progress`, `tool.call.completed`,
-  `tool.call.failed`, `tool.call.cancelled`, `tool.call.blocked`:
-  structured tool-call lifecycle.
-- `tool.approval.requested`, `tool.approval.responded`: user approval flow.
-- `tool.artifact.ready`: file, diff, screenshot, terminal output, or other
-  inspectable artifact.
-- `config.schema`, `config.get`, `config.diff`, `config.set`,
-  `config.secret.set`, `config.secret.status`, `config.validate`,
-  `config.apply`, `config.reload`, `config.rollback`: config administration.
-- `ping`, `pong`, `error`: health and error handling.
-
-### Gateway Mapping
-
-`chat.submit` maps into `gateway.InboundEvent` with:
-
-- `Platform`: `navivox`
-- `ChatID`: Navivox conversation/device thread id
-- `UserID`: paired device/user identity
-- `MsgID` or equivalent: client message id
-- agent override: selected Navivox agent for the session
-
-Slash commands should reuse the existing gateway parsing path so commands such
-as `/status`, `/new`, `/stop`, `/tts`, and `/busy` keep the same semantics.
-
-## 8. Chat Experience
-
-The first screen after setup is chat, not a landing page. Chat behaves like a
-dense Telegram-style messenger:
-
-- chronological bubbles
-- server and agent context in the top bar
-- message delivery/streaming states
-- markdown rendering for assistant text
-- inline tool-call cards
-- inline voice messages
-- text composer always visible
-- mic button always available
-- agent switcher reachable without leaving the thread
-
-Final assistant text must not include raw tool progress. Tool details live in
-structured cards and artifact sheets.
-
-## 9. Voice Experience
-
-### Unified With Chat
-
-Voice input creates normal chat turns. A voice turn may include:
-
-- audio payload
-- device transcript
-- confidence
-- locale
-- partial/final state
-- command candidate
-- wake word evidence
-
-The server may accept the device transcript, re-transcribe the audio, or ask for
-confirmation. Text and audio are both preserved as part of the same turn.
-
-### Wake And Control Model
-
-NAVI is the default assistant/wake name and is configurable.
-
-- In an active conversation, the user can speak naturally without a wake word.
-- Local control commands require NAVI by default, such as "NAVI switch agent
-  mineru".
-- When idle/backgrounded, NAVI is required before remote submission.
-- Local-only commands can run from device STT without a remote round trip when
-  confidence is high.
-
-### Local STT
-
-Device STT is used for:
-
-- wake/control command detection
-- short command testing
-- fallback transcript when the server cannot transcribe
-
-Because desktop STT support is uneven across platforms, local STT is not the
-only transcription path. The app can always send audio plus the device
-transcript to Gormes.
-
-### Voices And Language
-
-Gormes is the source of truth for agent voice profiles. The app may cache them
-for offline display and low-latency UI, but server config wins.
-
-Each agent has:
-
-- voice provider
-- voice id
-- default locale/language
-- speed
-- pitch/style
-- fallback voice
-- runtime language policy
-
-Agents can switch language at runtime. A language switch affects STT hinting,
-server prompt/runtime policy, and TTS voice selection for later responses.
-
-## 10. Agent Management
-
-Navivox can list, create, update, archive, and select agents. V1 supports adding
-an agent for an existing remote repository/workspace directory.
-
-Agent fields:
-
-- id
-- display name
-- workspace directory
-- agent directory
-- default flag
-- model override
-- skills
-- tool allow list
-- tool deny list
-- sandbox mode/scope
-- group-chat mention patterns
-- voice profile
-- language policy
-
-Agent creation validates:
-
-- directory exists
-- directory is accessible to the SSH user
-- optional repo marker exists when user expects one-agent-per-repo
-- agent id is valid and unique
-- no more than one default agent
-
-Session agent selection must be a real gateway/session field, not hidden in
-chat text or chat IDs. Recommended Gormes work: add a request-level selected
-agent id to inbound events and route in priority order:
-
-1. explicit Navivox session selection
-2. configured bindings
-3. configured default agent
-
-Changing the selected agent for a conversation does not mutate global config
-unless the user explicitly pins/saves it.
-
-## 11. Full Gormes Config UI
-
-Navivox must expose full Gormes configuration management through a typed admin
-surface. "Full access" means full safe management, not secret read-back.
-
-### Config Authority
-
-Gormes remains the config authority. The app never edits `config.toml` or `.env`
-directly. It calls the `navivox` config admin protocol, and Gormes performs:
-
-- schema-aware reads
-- validation
-- diff generation
-- atomic TOML writes
-- dotenv secret writes
-- SecretRef status checks
-- runtime reload when supported
-- rollback to the previous valid config when apply fails
-
-### Existing Gormes Config Sections To Cover
-
-The UI must cover the current top-level Gormes config surface:
-
-- `hermes`: endpoint, provider, model, API key status/reference.
-- `runtime`: tool iteration limits, terminal backend, TTS provider, compression,
-  session reset policy.
-- `gateway`: proxy URL and proxy key status.
-- `terminal`: backend and current working directory.
-- `display`: tool progress mode and per-platform display overrides.
-- `tui`: theme and mouse tracking.
-- `input`: maximum input bytes and lines.
-- `telegram`: bot token status/reference, allowed chat/user ids, mention
-  requirement, bot username, coalescing, discovery, memory and semantic options.
-- `discord`: token status/reference and channel settings.
-- `slack`: bot/app token status/reference and Socket Mode settings.
-- `yuanbao`: channel-specific settings.
-- `web`: backend and gateway usage.
-- `browser`: CDP URL.
-- `security`: website blocklist settings.
-- `secrets`: SecretRef provider defaults and configured providers.
-- `agents`: defaults and agent list.
-- `bindings`: channel/account/peer to agent routing.
-- `cron`: scheduled runtime settings.
-- `skills`: skills root and selection limits.
-- `delegation`: subagent execution controls.
-- `goncho`: memory facade, peer cards, summaries, dreams, and context limits.
-
-When Gormes adds future config sections, the server should expose them through
-the schema so the app can render a safe generic editor before a custom screen is
-built.
-
-### Config Screens
-
-Recommended UI groups:
-
-- Overview: active server, config path, env path, Gormes version, config version,
-  health, reload status.
-- Provider and Models: provider, endpoint, default model, API key status,
-  provider-specific auth state, test connection.
-- Channels: Telegram, Discord, Slack, Yuanbao, Navivox, and future channels.
-- Agents and Bindings: agent CRUD, defaults, workspace validation, routing.
-- Tools and Display: tool policy, progress mode, artifact display.
-- Voice: TTS provider, per-agent voices, language policy, wake name.
-- Runtime: max tool iterations, terminal backend, input limits, session reset.
-- Browser and Web: web backend, gateway toggle, CDP URL, browser tool readiness.
-- Security: host trust, website blocklist, dangerous tool warnings.
-- Secrets: secret status, SecretRef providers, rotate/set/delete secret actions.
-- Cron, Skills, Delegation, Goncho: advanced operational settings.
-- Advanced: redacted TOML view, schema-driven editor, diff and rollback.
-
-### Secret Handling
-
-Secrets are write-only after save.
-
-Navivox may:
-
-- show whether a secret is configured
-- show source: env, SecretRef, file provider, runtime snapshot, missing
-- set or replace a secret value
-- delete a secret value when the server supports deletion
-- configure a SecretRef target
-- test whether a SecretRef resolves
-- reload runtime secrets
-
-Navivox must not:
-
-- read a saved token value back from Gormes
-- render secret-bearing errors
-- write raw tokens into `config.toml`
-- log tokens in app analytics, crash reports, or debug logs
-
-Examples:
-
-- Telegram bot token is set through `config.secret.set` for
-  `telegram.bot_token`, stored by Gormes as `GORMES_TELEGRAM_TOKEN` or a
-  SecretRef, and shown later only as `set [REDACTED]`.
-- Provider API key is set through the same secret path for `hermes.api_key` or
-  `api_key`.
-- Gateway proxy key is managed as a secret, not as readable config text.
-
-Opening the local secret editor should require biometric/PIN unlock on platforms
-that support it. Linux falls back to the OS keyring/session security model plus
-an app-level unlock when configured.
-
-### Roles And Pairing
-
-V1 should not assume every SSH-authenticated device can mutate production
-config. Recommended role model:
-
-- Owner: first paired device, can manage roles and all config.
-- Admin: can change config, secrets, agents, tools, channels, and models.
-- Operator: can chat, switch agents, approve tool calls, view most status.
-- Viewer: read-only chat/status, no tool approval or config mutation.
-
-Pairing should create a device identity bound to the SSH user and Gormes home.
-Admin/config actions require an owner/admin role even if the SSH login
-succeeds. A single-user install can accept the first paired device as owner to
-avoid setup friction.
-
-The first host-facing UX is `gormes navivox pair`. It prints a scannable QR code
-plus a manual `navivox://pair?...` fallback containing the SSH host, port, user,
-remote stdio command, protocol version, device name, pairing code, and expiry.
-Gormes should prefer a Tailscale IPv4 address when available, because Tailscale
-SSH avoids exposing port 22 to the public internet. Privileged host preparation
-belongs in an explicit `gormes navivox setup-host` flow: `--plan` is
-non-mutating, `--apply` previews exact commands, sudo passwords are masked,
-prompt-only, and never stored.
-
-### Apply Model
-
-Config writes use a staged flow:
-
-1. App requests schema and current redacted values.
-2. User edits fields.
-3. App requests diff.
-4. Server validates.
-5. User confirms if the change is sensitive or disruptive.
-6. Server writes atomically.
-7. Server reloads the affected runtime surface when possible.
-8. Server reports applied, pending restart, or rolled back.
-
-Sensitive/disruptive changes include:
-
-- provider API keys
-- Telegram/Discord/Slack tokens
-- gateway proxy key
-- terminal backend
-- tool allow/deny policies
-- browser CDP URL
-- workspace directories
-- SecretRef providers
-- security blocklist changes
-
-## 12. Tool Calls
-
-Gormes executes tools. Navivox renders and controls them.
-
-Tool call UI requirements:
-
-- show tool name, status, selected agent, workspace, and elapsed time
-- show short progress summaries
-- group logs/artifacts behind expandable details
-- show risk level and mutation status
-- show approval prompts when Gormes requires approval
-- let the user approve, deny, or stop when permitted
-- keep tool state attached to the chat turn that caused it
-- avoid reading long logs aloud in voice mode unless asked
-
-Tool event fields should include:
-
-- turn id
-- tool call id
-- tool name
-- display name
-- icon hint
-- preview
-- status
-- timestamps
-- duration
-- agent id
-- workspace
-- risk level
-- mutating flag
-- approval requirement
-- result summary
-- artifact refs
-- redacted error
-
-V1 can initially derive some progress from existing render frames, but the PRD
-requires typed Gormes tool events as the durable contract.
-
-## 13. UI Design
-
-### Navigation
-
-Primary app sections:
-
-- Chats
-- Servers
-- Agents
-- Config
-- Keys
-- Terminal
-- Settings
-
-On mobile, use bottom navigation for the main sections and sheets for detailed
-operations. On desktop, use a left rail/sidebar and denser split views.
-
-### First Run
-
-First-run flow:
-
-1. Import Termius file or add server manually.
-2. Import or generate SSH key.
-3. Connect and verify host fingerprint.
-4. Scan or paste the `gormes navivox pair` descriptor.
-5. Probe for Gormes and start `gormes navivox serve --stdio` when available.
-6. Pair the device and assign owner/admin role.
-7. List agents.
-8. Pick existing agent or create one from a remote workspace path.
-9. Configure voice/language.
-10. Open chat.
-
-### Chat Screen
-
-Required elements:
-
-- server switcher
-- active agent pill
-- voice/listening state
-- message stream
-- tool-call cards
-- text composer
-- mic/continuous-voice control
-- attachment/audio controls
-- command suggestions for recognized local commands
-
-### Config Screen
-
-The Config tab is a work-focused admin console, not a marketing page. It should
-use forms, segmented controls, toggles, tables, validation badges, and diff
-drawers. Dangerous settings use confirmation sheets with exact before/after
-values, while secret fields show only status and replacement controls.
-
-### Terminal Screen
-
-The Terminal tab provides a normal SSH terminal for generic server work and
-debugging. It is not the Navivox chat protocol. The app must keep terminal
-sessions visually separate from agent chat to avoid implying that shell output
-is the assistant conversation.
-
-## 14. Local App Data Model
-
-Local persisted data:
-
-- servers
-- SSH identities and public key fingerprints
-- host key pins
-- imported Termius records
-- device pairing records
-- chat cache
-- message/tool-call cache
-- agent cache
-- config schema cache
-- voice profile cache
-- local settings
-
-Local caches are convenience state. Gormes remains the source of truth for
-agents, runtime config, tool policy, and voice profiles.
-
-## 15. Flutter Library Plan
-
-Current recommended package set:
-
-- Flutter SDK: Android, iOS, Linux, and Windows app framework.
-- `dartssh2`: SSH client, private key auth, SSH exec, shell, and SFTP.
-- `flutter_secure_storage`: platform secure storage for keys and secrets.
-- `local_auth`: biometric/PIN gate where supported.
-- `file_picker`: Termius export and SSH key file import.
-- `record`: microphone capture and PCM/audio streaming.
-- `speech_to_text`: local STT for mobile/macOS/web and limited desktop support;
-  use as command/test STT, not the only transcription path.
-- `just_audio`: playback for server-generated TTS/audio responses.
-- `flutter_tts`: optional local command confirmations where platform support is
-  available; not the primary Linux TTS path.
-- `riverpod`: connection/session/config state management.
-- `go_router`: app navigation and deep links.
-- `drift`: local SQLite persistence and reactive queries.
-- `sqlite3_flutter_libs`: SQLite runtime support for Flutter targets.
-- `xterm.dart`: terminal screen widget.
-- `cryptography`: Ed25519 generation and crypto primitives for key handling.
-- `permission_handler`: microphone, notification, and file permission prompts
-  where platform policy requires them.
-- `freezed`, `json_serializable`, `build_runner`: protocol/data models.
-- `path_provider`, `path`, `uuid`, `intl`: local paths, identifiers, formatting.
-
-Implementation must verify current package platform support before coding.
-Known caveats:
-
-- Linux secure storage depends on system secret service availability.
-- Local STT support is uneven on Linux/Windows, so server STT remains required.
-- Flutter TTS is not the primary cross-platform TTS solution for this product.
-- SSH key generation needs OpenSSH-compatible serialization tested against real
-  SSH servers and `ssh-keygen -y`.
-
-## 16. Security Requirements
-
-- SSH passwords are never accepted.
-- Host key pinning is mandatory.
-- Secret values are never returned after save.
-- Secret-bearing errors are redacted on both server and client.
-- Config changes are staged and validated before apply.
-- Dangerous config changes require confirmation.
-- Tool approvals are explicit and auditable.
-- Local key material is protected by secure storage or encrypted blobs.
-- App logs redact tokens, private keys, passphrases, transcripts marked private,
-  and tool outputs marked sensitive.
-- Pairing roles gate config mutation.
-
-## 17. Error Handling
-
-Important failure states:
-
-- SSH key rejected.
-- Encrypted key passphrase wrong.
-- Host key changed.
-- Secure storage unavailable.
-- Termius export partially unsupported.
-- Gormes not installed.
-- `gormes navivox serve --stdio` missing or incompatible.
-- Protocol version mismatch.
-- Gormes config validation failed.
-- SecretRef missing or unsupported.
-- Runtime reload failed but config write succeeded.
-- Tool approval timed out.
-- Audio capture permission denied.
-- Server TTS/STT unavailable.
-
-The app should present recovery actions, not stack traces. For example:
-
-- retry with another key
-- re-trust host fingerprint
-- open terminal
-- install/update Gormes
-- set missing token
-- rollback config
-- send text instead of voice
-
-## 18. Testing And Validation Plan
-
-Flutter app tests:
-
-- unit tests for protocol codecs
-- unit tests for Termius import mapping and rejection rules
-- unit tests for SSH identity metadata and host key trust decisions
-- unit tests for local command parsing
-- widget tests for chat, config forms, secret editor, and tool-call cards
-- integration tests with a fake Navivox server
-- desktop smoke tests for Linux and Windows
-- mobile smoke tests for Android and iOS
-
-Gormes tests:
-
-- `navivox` command starts stdio server without PTY assumptions
-- gateway inbound mapping preserves text command semantics
-- selected agent id routes correctly
-- typed tool events are emitted and redacted
-- config schema exposes all supported sections
-- config set validates and writes atomically
-- secret set writes dotenv/SecretRef paths without leaking values
-- reload/rollback behavior is covered
-- pairing roles gate admin operations
-
-End-to-end tests:
-
-- generated key connects to test SSH server
-- imported key connects to test SSH server
-- host key change is blocked
-- Termius export imports usable server/key records
-- text chat round trip
-- voice turn with audio plus transcript
-- local command "NAVI switch agent mineru"
-- tool approval and cancellation
-- Telegram bot token set from Navivox and not readable afterward
-- provider/model change applies or reports restart requirement
-
-## 19. Delivery Phases
-
-### Phase 0: Planning And Interface Rows
-
-- Treat the decision baseline as accepted.
-- Create builder-ready Gormes progress rows for `navivox` channel, config admin,
-  agent selection, tool events, and secret-safe config mutation.
-- Create Flutter implementation plan after the Gormes protocol/config rows are
-  defined.
-
-### Phase 1: SSH Shell
-
-- Flutter app shell.
-- Server inventory.
-- Key import/generation.
-- Host key pinning.
-- Termius file import.
-- Generic terminal.
-
-### Phase 2: Navivox Text Channel
-
-- `gormes navivox serve --stdio`.
-- Protocol handshake.
-- Text chat submit/update/final events.
-- Gateway mapping.
-- Chat UI cache.
-
-### Phase 3: Agents And Config
-
-- Agent list/select/create/update/archive.
-- Workspace validation.
-- Full Config tab with schema, redacted get, diff, validate, apply.
-- Secret-safe token/API key management.
-- Pairing roles.
-
-### Phase 4: Voice
-
-- Mic capture.
-- Device STT for commands and testing.
-- Audio plus transcript submission.
-- Server TTS playback.
-- Per-agent voices.
-- Runtime language switching.
-
-### Phase 5: Tools And Artifacts
-
-- Typed tool-call events.
-- Tool cards.
-- Approval/deny/stop controls.
-- Artifact viewers.
-
-### Phase 6: Hardening
-
-- Offline cache behavior.
-- Reconnect and resume.
-- More Termius import coverage.
-- Platform-specific installers/packages.
-- Accessibility and internationalization pass.
-
-## 20. Implementation Defaults
-
-These defaults close the remaining planning gaps unless the product owner
-changes them before implementation:
-
-- First paired device is Owner. Additional paired devices default to Operator
-  until promoted by Owner/Admin.
-- Linux uses the OS secret service for key storage. The secret editor also
-  supports an app PIN when biometric/PIN APIs are absent or unavailable.
-- V1 voice uses device transcript plus audio submission by default. Server STT
-  is used when configured. Server-generated TTS is preferred for agent voices;
-  local TTS is limited to short command confirmations.
-- Advanced raw TOML editing is not V1. V1 gets schema-driven editing, redacted
-  TOML view, diff, validation, apply, reload, and rollback.
-- SFTP file transfer UI beyond Termius/key import is not V1.
-- Config changes made during an active turn are staged. Non-disruptive changes
-  may apply immediately; model/provider/tool/runtime/channel changes apply to
-  the next turn or after explicit reload/restart confirmation.
-
-## 21. V1 Acceptance Criteria
-
-V1 is acceptable when:
-
-- A fresh app can import a Termius file, connect to a Gormes server with an SSH
-  key, verify the host, pair the device, select an agent, and send text chat.
-- Password SSH login is impossible through the UI and protocol.
-- Voice mode can capture audio, produce/test local command STT, submit audio and
-  text transcript to Gormes, and play agent audio responses.
-- "NAVI switch agent mineru" can switch the active agent when that agent exists.
-- Different agents can use different voices.
-- Agents can switch language at runtime.
-- Navivox can create/edit an agent with a custom existing workspace directory.
-- Config UI can change provider/model settings and set/rotate a Telegram bot
-  token without reading the token back.
-- Tool calls appear as structured UI with approval and result states.
-- Secrets, SSH keys, and token-shaped values do not leak into app logs, Gormes
-  logs, protocol errors, or visible config output.
+## 10. Tools As UI Objects
+
+Tool activity is product state, not log text.
+
+Rules:
+
+- `ToolCallCard` owns tool name, status, summary, inputs, outputs, artifacts,
+  and approval state.
+- Tool cards are expandable and redact sensitive fields by default.
+- Approval controls are disabled until the gateway exposes a matching approval
+  event contract.
+- Raw tool JSON can exist behind a debug affordance, never as the primary UI.
+
+## 11. Voice Runs
+
+Voice support is staged.
+
+Current loop:
+
+- Device capture or local STT may produce a transcript.
+- The transcript is sent through the current text turn path.
+
+Planned voice run record:
+
+- `voice_run_id`
+- `session_id`
+- local capture metadata
+- transcript source and confidence
+- server STT provider/profile
+- TTS provider/profile
+- playback state
+- redaction and retention policy
+
+BYO STT/TTS support should attach to agent or profile settings and remain
+editable per agent.
+
+## 12. Config Admin
+
+Config admin is server-authoritative.
+
+Required flow:
+
+```text
+schema + redacted values
+  -> local edit draft
+  -> server diff
+  -> server validation
+  -> explicit confirmation
+  -> server apply
+```
+
+Requirements:
+
+- The app never writes local config files directly.
+- Secrets are write-only and displayed as status/source evidence.
+- Dangerous changes show exact non-secret before/after values.
+- Server validation errors map to fields.
+- Applied changes report whether a restart or reconnect is required.
+
+## 13. Data Model
+
+Local app state may cache:
+
+- Gateway connection records.
+- Auth mode and redacted token status.
+- Sessions.
+- Chat messages.
+- Tool calls.
+- Voice run metadata.
+- Agent drafts and profiles.
+- Config schema and redacted config snapshots.
+
+The server remains authoritative. Local data is safe to rebuild after a cache
+clear.
+
+## 14. Library Plan
+
+Current app dependencies are intentionally small:
+
+- Flutter.
+- `flutter_riverpod`.
+- `go_router`.
+- `freezed_annotation` and `json_annotation` for future generated models.
+- `uuid`, `intl`, and `path`.
+
+Planned additions should be tied to a shipped feature:
+
+- Chat UI package when replacing the simple current chat adapter.
+- Secure storage for local tokens.
+- Local auth for secret editing unlock.
+- Microphone capture and STT packages for voice runs.
+- Audio playback for server TTS.
+
+Avoid broad persistence or platform packages until the workflow that needs them
+is in progress.
+
+## 15. Error Handling
+
+User-facing error states:
+
+- Gateway URL invalid.
+- `/healthz` unavailable.
+- Status request unauthorized.
+- Stream refused by origin policy.
+- Token required or rejected.
+- Gateway inbox full.
+- Session not found.
+- Config schema unavailable.
+- Secret mutation denied.
+- Voice capture unavailable.
+
+Error copy should include the next action and should not expose tokens or raw
+provider errors.
+
+## 16. Testing Requirements
+
+Flutter:
+
+- Unit tests for URL derivation and auth headers.
+- Unit tests for gateway event decoding.
+- Channel tests for connect, send, reconnect state, assistant deltas, final
+  messages, tool card events, and safe errors.
+- Router tests for setup-to-chat redirect behavior.
+
+Go:
+
+- `cmd/gormes` tests for `navivox connect-info`.
+- `internal/channels/navivox` tests for health/status/sessions/turn/stream.
+- Config validation tests for disabled, local, VPN, public, auth, CORS, and
+  redaction behavior.
+
+Integration:
+
+- Fixture HTTP gateway for Flutter setup/chat flows.
+- Real Go handler fixture for one connect-and-talk path.
+
+## 17. Delivery Phases
+
+### Phase 1: Documentation And Gateway Contract
+
+- Docs name the HTTP/WebSocket path.
+- CLI docs explain `connect-info`.
+- Stale remote-shell transport guidance is removed or historical-only.
+
+### Phase 2: Connect And Talk
+
+- Setup accepts base URL and token.
+- App proves health/status.
+- App opens the stream.
+- Operator sends a text or transcript turn.
+- Assistant streaming is visible.
+
+### Phase 3: Agent Seed
+
+- Operator enters a short seed.
+- Server returns editable agent/profile/tool/voice draft.
+- Confirmed draft is applied through server APIs.
+
+### Phase 4: Tool Objects
+
+- Tool events render as cards.
+- Approval and artifact states are explicit.
+
+### Phase 5: Safe Config Admin
+
+- Schema-driven editor.
+- Redacted reads.
+- Server diff/validate/apply.
+- Restart/reconnect result.
+
+### Phase 6: Voice Profiles
+
+- Voice run records.
+- BYO STT/TTS provider/profile settings.
+- Agent-specific voice defaults.
+
+## 18. Acceptance Criteria
+
+- A fresh app can paste a base URL from `gormes navivox connect-info`, connect
+  to a local gateway, and send a first turn.
+- The app never asks for telephony setup before the first turn.
+- Tool activity is represented by structured UI.
+- Config changes go through server schema, diff, validation, and apply.
+- Tokens and secret-shaped values do not leak into app logs, Gormes logs, route
+  URLs, or screenshots.
+- Public exposure is never implied as the default path.

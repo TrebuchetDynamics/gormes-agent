@@ -100,6 +100,24 @@ LOCK_STARTED_FILE="$LOCK_DIR/started_at"
 LOCK_COMMAND_FILE="$LOCK_DIR/command"
 
 PROGRESS_JSON="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan/progress.json"
+
+# Split-safe canonical-backlog reader (module-split umbrella C5e). The
+# canonical backlog at $PROGRESS_JSON may be a monolithic file OR a
+# module-keyed split directory; `cmd/progress emit` merges either layout into
+# one JSON stream via internal/progress.Load. Never jq / require_file
+# $PROGRESS_JSON directly (jq/`[ -f ]` fail on a directory). $PROGRESS_JSON is
+# still the canonical path for prompts/display; only parse/existence checks go
+# through these helpers. With `set -Eeuo pipefail`, a failed emit aborts the
+# pipeline loudly instead of silently feeding jq an empty stream.
+progress_backlog_emit() {
+  ( cd "$REPO_ROOT" && go run ./cmd/progress emit ) \
+    || fail "could not read progress backlog via 'go run ./cmd/progress emit' (split-safe read; canonical may be a monolith file or a split directory)"
+}
+
+require_progress_backlog() {
+  progress_backlog_emit >/dev/null
+}
+
 ARCH_PLAN_DIR="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan"
 ARCH_PLAN_JSON="$ARCH_PLAN_DIR/architecture_plan.json"
 CORE_SYSTEMS_DIR="$REPO_ROOT/webpages/docs/content/building-gormes/core-systems"
@@ -779,7 +797,7 @@ collect_gormes_commands_json() {
 }
 
 collect_progress_items_json() {
-  jq -c '
+  progress_backlog_emit | jq -c '
     [
       (.phases // {}) | to_entries[] as $phase
       | (($phase.value.subphases // {}) | to_entries[]) as $subphase
@@ -794,11 +812,11 @@ collect_progress_items_json() {
           note: ($item.note // "")
         }
     ]
-  ' "$PROGRESS_JSON"
+  '
 }
 
 collect_progress_summary_json() {
-  jq -c '
+  progress_backlog_emit | jq -c '
     def items:
       [
         (.phases // {}) | to_entries[] as $phase
@@ -828,7 +846,7 @@ collect_progress_summary_json() {
       items_missing_notes: (items | map(select(.note == "")) | length),
       subphases_missing_priority: (subphases | map(select(.priority == "")) | length)
     }
-  ' "$PROGRESS_JSON"
+  '
 }
 
 read_previous_state_json() {
@@ -995,7 +1013,7 @@ EOF
 }
 
 write_tasks_markdown() {
-  jq -r --arg generated "$RUN_AT_UTC" '
+  progress_backlog_emit | jq -r --arg generated "$RUN_AT_UTC" '
     def rows:
       [
         (.phases // {}) | to_entries[] as $phase
@@ -1036,7 +1054,7 @@ write_tasks_markdown() {
         end
     )
     | .[]
-  ' "$PROGRESS_JSON" > "$TASKS_MD_FILE"
+  ' > "$TASKS_MD_FILE"
 }
 
 log_context_summary() {
@@ -1291,7 +1309,7 @@ cmd_doctor() {
   fi
   require_dir "$REPO_ROOT"
   require_dir "$ARCH_PLAN_DIR"
-  require_file "$PROGRESS_JSON"
+  require_progress_backlog
   detect_upstream_hermes_dir >/dev/null
   log "doctor: ok"
 }
@@ -1323,7 +1341,7 @@ cmd_run() {
   require_cmd go
   require_dir "$REPO_ROOT"
   require_dir "$ARCH_PLAN_DIR"
-  require_file "$PROGRESS_JSON"
+  require_progress_backlog
   [[ "$PLANNER_INSTALL_SCHEDULE" == "0" || "$PLANNER_INSTALL_SCHEDULE" == "1" ]] || fail "PLANNER_INSTALL_SCHEDULE must be 0 or 1"
 
   if [[ -f "$ARCH_PLAN_JSON" ]]; then

@@ -192,7 +192,9 @@ func (m model) View() string {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Gormes setup %d/%d\n\n", m.index+1, len(m.steps))
+	if len(m.steps) > 1 {
+		fmt.Fprintf(&b, "Gormes setup %d/%d\n\n", m.index+1, len(m.steps))
+	}
 	if step.Prompt != "" {
 		b.WriteString(step.Prompt)
 		b.WriteString("\n\n")
@@ -216,7 +218,11 @@ func (m model) View() string {
 	b.WriteString("\n\n")
 	switch step.Kind {
 	case KindPick:
-		b.WriteString("Up/Down or j/k navigate  1-9 select  Enter submit  Esc/q abort")
+		if step.pickDisplay == pickDisplayRadio {
+			b.WriteString("↑↓ navigate  ENTER/SPACE select  ESC cancel")
+		} else {
+			b.WriteString("Up/Down or j/k navigate  1-9 select  Enter submit  Esc/q abort")
+		}
 	case KindChecklist:
 		b.WriteString("Up/Down or j/k navigate  SPACE toggle  ENTER confirm  ESC cancel")
 	case KindMultiLine:
@@ -300,7 +306,7 @@ func (m model) updatePick(msg tea.KeyMsg, step Step) (tea.Model, tea.Cmd) {
 		if m.pickCursor < len(step.Choices)-1 {
 			m.pickCursor++
 		}
-	case "enter":
+	case "enter", " ":
 		return m.finishStep(Answer{Kind: step.Kind, ChoiceID: step.Choices[m.pickCursor].ID})
 	}
 	return m, nil
@@ -475,6 +481,9 @@ func (m model) renderPick(step Step) string {
 	if len(step.Choices) == 0 {
 		return "(no choices)"
 	}
+	if step.pickDisplay == pickDisplayRadio {
+		return m.renderRadioPick(step)
+	}
 	var b strings.Builder
 	for i, choice := range step.Choices {
 		prefix := "  "
@@ -486,6 +495,24 @@ func (m model) renderPick(step Step) string {
 			label = choice.ID
 		}
 		fmt.Fprintf(&b, "%s%d. %s\n", prefix, i+1, label)
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func (m model) renderRadioPick(step Step) string {
+	var b strings.Builder
+	for i, choice := range step.Choices {
+		prefix := "   "
+		marker := "(○)"
+		if i == m.pickCursor {
+			prefix = " → "
+			marker = "(●)"
+		}
+		label := choice.Label
+		if label == "" {
+			label = choice.ID
+		}
+		fmt.Fprintf(&b, "%s%s %s\n", prefix, marker, label)
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

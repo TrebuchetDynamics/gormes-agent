@@ -66,7 +66,48 @@ If provider credentials are configured, run a one-turn smoke:
 gormes chat -q "hello from Termux"
 ```
 
-For long gateway sessions, run Gormes inside `tmux`. `termux-wake-lock` and Android battery-optimization settings can improve uptime, but Android can still stop background processes. Local CLI/TUI, provider calls, SQLite/Goncho, and foreground gateway work are in scope; Docker, GPU/local LLM inference, heavy browser automation, and large builds should run on a remote machine and be controlled from Termux over SSH.
+For long gateway sessions, use the foreground/tmux model:
+
+```bash
+tmux new -s gormes-gateway
+termux-wake-lock  # optional best-effort aid
+gormes gateway
+```
+
+Use `gormes gateway status` and `gormes gateway stop` from another Termux shell to inspect or stop the runtime. Android battery-optimization settings and `termux-wake-lock` can improve uptime, but Android can still stop background processes. Termux:Boot can launch your own tmux or foreground wrapper after reboot; Gormes does not install or manage Android services automatically. Local CLI/TUI, provider calls, SQLite/Goncho, and foreground gateway work are in scope; Docker, GPU/local LLM inference, heavy browser automation, and large builds should run on a remote machine and be controlled from Termux over SSH.
+
+### Termux as controller, remote host as executor
+
+For heavier work, the phone is the Gormes controller and the remote host is the heavy executor. Keep the Android side responsible for setup, short CLI/TUI turns, gateway control, notes, and operator review. Put remote browser automation, GPU/local model inference, Docker builds, and large `go test ./...` runs on a workstation or server reached over SSH.
+
+Set a shell shortcut for the host you use most:
+
+```bash
+export GORMES_REMOTE_HOST=workstation
+ssh workstation 'gormes doctor --offline'
+```
+
+Use tmux on the remote machine for long-running builds and browser sessions:
+
+```bash
+ssh -t "$GORMES_REMOTE_HOST" 'tmux new -A -s gormes-build'
+cd ~/code/gormes-agent
+go test ./...
+```
+
+Run one-off remote agent turns from Termux with the existing scripted-chat surface:
+
+```bash
+ssh "$GORMES_REMOTE_HOST" 'cd ~/code/gormes-agent && gormes chat -q "summarize the current failing tests"'
+```
+
+Run persistent remote gateways explicitly on the remote host, not as hidden Android services:
+
+```bash
+ssh -t "$GORMES_REMOTE_HOST" 'tmux new -A -s gormes-gateway "gormes gateway"'
+```
+
+The rule is simple: do not add a new top-level `gormes run` command for this workflow. Use normal shell, SSH, tmux, `gormes chat -q`, and `gormes gateway` surfaces so the same commands remain inspectable on Termux, Linux, macOS, and WSL2. If no remote host is configured, Termux remains a local CLI/TUI/gateway runtime with the heavy-workload boundaries above.
 
 ## Inspect first
 

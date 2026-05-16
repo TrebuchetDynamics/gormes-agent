@@ -29,7 +29,7 @@ Gormes is not a micro-agent. It keeps the broad Hermes agent architecture and ma
 |---|---|
 | Runtime shape | One Go binary for CLI, TUI, provider turns, tools, skills, memory, sessions, dashboard, and gateways |
 | Install proof | `gormes doctor --offline` and `gormes --offline` run before any provider token is needed |
-| Measured footprint | Linux build ~45.3 MB; offline doctor peak RSS ~25.1 MB (`benchmarks.json`, 2026-05-15) |
+| Measured footprint | Linux build ~45.8 MB; offline doctor peak RSS ~25.6 MB (`benchmarks.json`, 2026-05-16) |
 | Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
 | Stable channels | Telegram, Discord, and Slack through one gateway process |
 | Project posture | Scout release: useful today, with full Hermes parity, voice/TTS, signing, and package-manager lanes still hardening |
@@ -77,6 +77,7 @@ If `gormes chat` opens, the TUI and gateway have a model to use.
 - Developers who want a real agent runtime without Python environment drift.
 - Operators who need offline diagnostics before adding provider credentials.
 - Small servers, Termux/Android, WSL2, and locked-down Linux hosts where Docker or venv repair is friction.
+- Termux can be the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds.
 - Long-running personal or team agents that need local sessions, memory, tools, and chat gateways.
 
 Not yet for teams that require signed enterprise releases, full Hermes parity, voice/TTS parity, or broad channel parity on day one.
@@ -207,9 +208,9 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the p
 
 ## Status
 
-Latest public release: [v0.2.11](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.11).
+Latest public release: [v0.2.12](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.12).
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~45.3 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10). Offline doctor peaks at ~25.1 MB RSS (`benchmarks.json`, 2026-05-15).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~45.8 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10). Offline doctor peaks at ~25.6 MB RSS (`benchmarks.json`, 2026-05-16).
 
 <details>
 <summary>Roadmap phase rollup</summary>
@@ -217,15 +218,15 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 <!-- PROGRESS:START kind=readme-rollup -->
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 1 — The Dashboard | ✅ | 6/6 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 5/6 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 <!-- PROGRESS:END -->
 
 </details>

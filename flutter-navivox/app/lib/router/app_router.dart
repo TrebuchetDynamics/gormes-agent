@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/channel/navivox_channel_provider.dart';
 import '../features/agents/screens/agents_screen.dart';
+import '../features/chat/screens/profile_contacts_screen.dart';
 import '../features/chat/screens/chat_screen.dart';
 import '../features/config/screens/config_screen.dart';
 import '../features/servers/screens/servers_screen.dart';
@@ -40,7 +41,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: AppRoutes.chats,
-            builder: (context, state) => const ChatScreen(),
+            builder: (context, state) => const ProfileContactsScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.chatThread,
+            builder: (context, state) => ChatScreen(
+              serverId: state.pathParameters['serverId'],
+              profileId: state.pathParameters['profileId'],
+            ),
           ),
           GoRoute(
             path: AppRoutes.servers,

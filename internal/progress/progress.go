@@ -101,23 +101,28 @@ type Item struct {
 	Status   Status `json:"status"`
 	// Optional contract metadata turns roadmap rows into executable architecture
 	// requirements without forcing every historical item to be rewritten at once.
-	Contract       string           `json:"contract,omitempty"`
-	ContractStatus ContractStatus   `json:"contract_status,omitempty"`
-	SliceSize      SliceSize        `json:"slice_size,omitempty"`
-	ExecutionOwner ExecutionOwner   `json:"execution_owner,omitempty"`
-	TrustClass     []string         `json:"trust_class,omitempty"`
-	DegradedMode   string           `json:"degraded_mode,omitempty"`
-	Fixture        string           `json:"fixture,omitempty"`
-	SourceRefs     []string         `json:"source_refs,omitempty"`
-	ReadyWhen      []string         `json:"ready_when,omitempty"`
-	NotReadyWhen   []string         `json:"not_ready_when,omitempty"`
-	BlockedBy      []string         `json:"blocked_by,omitempty"`
-	Unblocks       []string         `json:"unblocks,omitempty"`
-	Acceptance     []string         `json:"acceptance,omitempty"`
-	Note           string           `json:"note,omitempty"`
-	Blocker        *BlockerMetadata `json:"blocker,omitempty"`
-	WriteScope     []string         `json:"write_scope,omitempty"`
-	TestCommands   []string         `json:"test_commands,omitempty"`
+	Contract       string         `json:"contract,omitempty"`
+	ContractStatus ContractStatus `json:"contract_status,omitempty"`
+	SliceSize      SliceSize      `json:"slice_size,omitempty"`
+	ExecutionOwner ExecutionOwner `json:"execution_owner,omitempty"`
+	// Module is the optional per-row subsystem bucket for the module-split
+	// backlog layout. Empty by default (omitempty → byte-neutral); when
+	// unset, progress.Module() derives a deterministic default from
+	// ExecutionOwner. Owned by the planner; backfilled explicitly.
+	Module       string           `json:"module,omitempty"`
+	TrustClass   []string         `json:"trust_class,omitempty"`
+	DegradedMode string           `json:"degraded_mode,omitempty"`
+	Fixture      string           `json:"fixture,omitempty"`
+	SourceRefs   []string         `json:"source_refs,omitempty"`
+	ReadyWhen    []string         `json:"ready_when,omitempty"`
+	NotReadyWhen []string         `json:"not_ready_when,omitempty"`
+	BlockedBy    []string         `json:"blocked_by,omitempty"`
+	Unblocks     []string         `json:"unblocks,omitempty"`
+	Acceptance   []string         `json:"acceptance,omitempty"`
+	Note         string           `json:"note,omitempty"`
+	Blocker      *BlockerMetadata `json:"blocker,omitempty"`
+	WriteScope   []string         `json:"write_scope,omitempty"`
+	TestCommands []string         `json:"test_commands,omitempty"`
 	// NoTestRequiredReason is an explicit planner-owned exception for rows
 	// whose work is documentation-only or otherwise cannot be proven by a
 	// focused row-local command. Builder selection treats rows without
@@ -242,8 +247,17 @@ func (ph Phase) DerivedStatus() Status {
 	}
 }
 
-// Load reads and parses progress.json from the given path.
+// Load reads and parses the backlog from the given path. It is layout
+// transparent: a regular file is parsed as the monolithic progress.json
+// (unchanged historical behavior), while a directory is parsed as a split
+// layout (index.json + phases/<id>.json) and returns the identical
+// in-memory model. No consumer passes a directory today, so the monolithic
+// path is byte-for-byte unchanged; a malformed split dir yields
+// ErrMalformedSplit rather than a silently partial backlog.
 func Load(path string) (*Progress, error) {
+	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
+		return loadSplit(path)
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("progress: read %s: %w", path, err)

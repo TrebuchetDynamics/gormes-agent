@@ -1520,7 +1520,13 @@ publish_built_binary() {
 
   tmp="${published_bin}.tmp.$$"
   rm -f "$tmp"
-  if ln -s "$build_bin" "$tmp" 2>/dev/null; then
+  # On Termux/Android a symlinked published command would resolve to a
+  # target under app-writable $HOME; Android 10+ blocks execve() there
+  # (W^X) and only $PREFIX is exec-capable, so the post-publish verify
+  # fails and rolls back (known-issues termux-publish-symlink-noexec).
+  # Publish a real copied executable into $PREFIX/bin on Termux; keep the
+  # symlink-preferred path everywhere else.
+  if ! is_termux && ln -s "$build_bin" "$tmp" 2>/dev/null; then
     :
   else
     cp "$build_bin" "$tmp" || fail "could not copy ${build_bin} to ${tmp}"

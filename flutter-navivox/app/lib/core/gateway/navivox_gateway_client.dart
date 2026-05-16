@@ -1,14 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'navivox_gateway_protocol.dart';
+import 'navivox_gateway_transport_stub.dart'
+    if (dart.library.io) 'navivox_gateway_transport_io.dart'
+    if (dart.library.html) 'navivox_gateway_transport_web.dart'
+    as transport;
+
+typedef NavivoxGatewaySocket = transport.NavivoxGatewaySocket;
 
 typedef NavivoxGatewayGet =
     Future<String> Function(Uri uri, Map<String, String> headers);
 
 typedef NavivoxGatewayWebSocketConnector =
-    Future<WebSocket> Function(Uri uri, Map<String, String> headers);
+    Future<NavivoxGatewaySocket> Function(Uri uri, Map<String, String> headers);
 
 class NavivoxGatewayClient {
   NavivoxGatewayClient({
@@ -25,7 +30,7 @@ class NavivoxGatewayClient {
   Future<Map<String, Object?>> health() => _getJson(config.healthUri);
   Future<Map<String, Object?>> status() => _getJson(config.statusUri);
 
-  Future<WebSocket> connectStream() {
+  Future<NavivoxGatewaySocket> connectStream() {
     return _connectWebSocket(config.streamUri, config.headers);
   }
 
@@ -57,32 +62,14 @@ class NavivoxGatewayClient {
     return Map<String, Object?>.from(decoded);
   }
 
-  static Future<String> _defaultGet(
-    Uri uri,
-    Map<String, String> headers,
-  ) async {
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(uri);
-      headers.forEach(request.headers.set);
-      final response = await request.close();
-      final body = await utf8.decoder.bind(response).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'Navivox gateway returned HTTP ${response.statusCode}',
-          uri: uri,
-        );
-      }
-      return body;
-    } finally {
-      client.close();
-    }
+  static Future<String> _defaultGet(Uri uri, Map<String, String> headers) {
+    return transport.defaultGet(uri, headers);
   }
 
-  static Future<WebSocket> _defaultConnectWebSocket(
+  static Future<NavivoxGatewaySocket> _defaultConnectWebSocket(
     Uri uri,
     Map<String, String> headers,
   ) {
-    return WebSocket.connect(uri.toString(), headers: headers);
+    return transport.defaultConnectWebSocket(uri, headers);
   }
 }

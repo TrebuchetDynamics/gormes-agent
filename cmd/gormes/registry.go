@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"path/filepath"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -59,7 +58,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		Browser: tools.BrowserHarnessToolsConfig{
 			Env: browserCDPEnv(cfg),
 			Budget: tools.ToolResultBudgetConfig{
-				OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),
+				OutputDir:       defaultBrowserArtifactDir(),
 				TextBudgetBytes: 8 * 1024,
 				PreviewBytes:    1024,
 			},
@@ -68,7 +67,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 			Backend:             cfg.Web.Backend,
 			UseGateway:          cfg.Web.UseGateway,
 			ManagedToolsEnabled: true,
-			AuthStorePath:       filepath.Join(config.GormesHome(), "auth.json"),
+			AuthStorePath:       defaultWebAuthStorePath(),
 		},
 		Policy: tools.WebWebsitePolicy{
 			Enabled:           cfg.Security.WebsiteBlocklist.Enabled,
@@ -89,7 +88,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	registerVideoAnalyzeTool(reg, cfg)
 	reg.MustRegister(tools.NewVisionAnalyzeTool())
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
-		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
+		MemoryDir: defaultMemoryToolDir(),
 	}))
 	reg.MustRegister(sessionsearchtool.NewSessionSearchTool(sessionsearchtool.SessionSearchToolConfig{
 		DB:       o.searchDB,
@@ -110,7 +109,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
 		Env: browserCDPEnv(cfg),
 		Budget: tools.ToolResultBudgetConfig{
-			OutputDir:       filepath.Join(filepath.Dir(config.ToolAuditLogPath()), "browser-artifacts"),
+			OutputDir:       defaultBrowserArtifactDir(),
 			TextBudgetBytes: 8 * 1024,
 			PreviewBytes:    1024,
 		},

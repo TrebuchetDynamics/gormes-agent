@@ -17,6 +17,24 @@ LOCK_STARTED_FILE="$LOCK_DIR/started_at"
 LOCK_COMMAND_FILE="$LOCK_DIR/command"
 
 PROGRESS_JSON="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan/progress.json"
+
+# Split-safe canonical-backlog reader (module-split umbrella C5e). The
+# canonical backlog at $PROGRESS_JSON may be a monolithic file OR a
+# module-keyed split directory; `cmd/progress emit` merges either layout into
+# one JSON stream via internal/progress.Load. Never jq / require_file
+# $PROGRESS_JSON directly (jq/`[ -f ]` fail on a directory). $PROGRESS_JSON is
+# still the canonical path for prompts/display; only parse/existence checks go
+# through these helpers. With `set -Eeuo pipefail`, a failed emit aborts the
+# pipeline loudly instead of silently feeding jq an empty stream.
+progress_backlog_emit() {
+  ( cd "$REPO_ROOT" && go run ./cmd/progress emit ) \
+    || fail "could not read progress backlog via 'go run ./cmd/progress emit' (split-safe read; canonical may be a monolith file or a split directory)"
+}
+
+require_progress_backlog() {
+  progress_backlog_emit >/dev/null
+}
+
 ARCH_PLAN_DIR="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan"
 CORE_DOCS_DIR="$REPO_ROOT/webpages/docs/content/building-gormes/core-systems"
 SITE_ROOT="$REPO_ROOT/webpages/landing"
@@ -230,7 +248,7 @@ collect_site_content_json() {
 }
 
 collect_progress_summary_json() {
-  jq -c '
+  progress_backlog_emit | jq -c '
     [
       (.phases // {}) | to_entries[] as $phase
       | (($phase.value.subphases // {}) | to_entries[]) as $subphase
@@ -248,7 +266,7 @@ collect_progress_summary_json() {
         complete_items: ($items | map(select(.status == "complete")) | length),
         items_missing_notes: ($items | map(select(.note == "")) | length)
       }
-  ' "$PROGRESS_JSON"
+  '
 }
 
 write_context_bundle() {
@@ -488,7 +506,7 @@ cmd_doctor() {
   require_dir "$ARCH_PLAN_DIR"
   require_dir "$CORE_DOCS_DIR"
   require_dir "$SITE_ROOT"
-  require_file "$PROGRESS_JSON"
+  require_progress_backlog
   require_file "$SITE_PROGRESS_JSON"
   log "doctor: ok"
 }
@@ -513,7 +531,7 @@ cmd_run() {
   require_dir "$ARCH_PLAN_DIR"
   require_dir "$CORE_DOCS_DIR"
   require_dir "$SITE_ROOT"
-  require_file "$PROGRESS_JSON"
+  require_progress_backlog
   require_file "$SITE_PROGRESS_JSON"
 
   log "Step 2/7: collecting documentation context"

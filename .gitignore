@@ -6,6 +6,7 @@ bin/
 /gormes
 /builder-loop
 /planner-loop
+/progress
 
 # ── Go binaries for other platforms ──────────────────
 *.exe

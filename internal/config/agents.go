@@ -18,9 +18,20 @@ type AgentsCfg struct {
 }
 
 type AgentDefaultsCfg struct {
-	Workspace string   `toml:"workspace" yaml:"workspace"`
-	AgentDir  string   `toml:"agent_dir" yaml:"agent_dir"`
-	Skills    []string `toml:"skills" yaml:"skills"`
+	Workspace string `toml:"workspace" yaml:"workspace"`
+	// Workspaces is the Gormes-owned per-profile list of additional workspace
+	// directories the agent may access (set via `gormes setup profiles`).
+	// Workspace stays the single primary path for backward compatibility;
+	// Workspaces is the multi-workspace list. TOML array, round-tripped.
+	Workspaces []string `toml:"workspaces" yaml:"workspaces"`
+	// Channels is the Gormes-owned per-profile list of messaging channels the
+	// profile uses (telegram/whatsapp/discord/slack), set via
+	// `gormes setup profiles`. It records WHICH channels the profile uses —
+	// distinct from [[bindings]] routing and per-channel credential cfg. TOML
+	// array, round-tripped (symmetric with Workspaces).
+	Channels []string `toml:"channels" yaml:"channels"`
+	AgentDir string   `toml:"agent_dir" yaml:"agent_dir"`
+	Skills   []string `toml:"skills" yaml:"skills"`
 }
 
 type AgentCfg struct {

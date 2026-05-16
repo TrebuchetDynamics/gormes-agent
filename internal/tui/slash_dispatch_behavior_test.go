@@ -74,7 +74,6 @@ func TestHermesSlashDispatchBehavior_QuitExitsLocally(t *testing.T) {
 
 func TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit(t *testing.T) {
 	for _, input := range []string{
-		"/model gpt-5.2",
 		"/provider openrouter",
 		"/skills",
 		"/details tools",

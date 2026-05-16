@@ -1060,6 +1060,10 @@ func defaultTUIProgramFactory(model tea.Model, options ...tea.ProgramOption) tui
 	return tea.NewProgram(model, options...)
 }
 
+func tuiKernelLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
 // welcomeStartupSeed returns the operator-facing release version and the
 // agent tool count used to seed the session-aware welcome panel. internal/tui
 // cannot import main.Version and the tool count is absent from
@@ -1210,7 +1214,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		ToolAudit:         toolAudit,
-	}, c, store.NewNoop(), tm, slog.Default())
+	}, c, store.NewNoop(), tm, tuiKernelLogger())
 
 	go k.Run(rootCtx)
 
@@ -1254,11 +1258,15 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		KanbanSlash: func(input string) (string, error) {
 			return runTUIKanbanSlashCommand(rootCtx, input)
 		},
-		OfflineSmoke:     offline,
-		StartupNotice:    startupNotice,
-		WelcomeVersion:   welcomeVersion,
-		WelcomeToolCount: welcomeToolCount,
-		WelcomeToolsets:  welcomeToolsets,
+		SetSessionModelFunc: k.SetSessionModel,
+		ModelPickerCatalog:  tui.DefaultModelPickerCatalog,
+		ModelProvider:       providerName,
+		ModelName:           modelName,
+		OfflineSmoke:        offline,
+		StartupNotice:       startupNotice,
+		WelcomeVersion:      welcomeVersion,
+		WelcomeToolCount:    welcomeToolCount,
+		WelcomeToolsets:     welcomeToolsets,
 	})
 	// Hermes' current Ink TUI runs in an alternate screen by default. The
 	// Bubble Tea port mirrors that for the full-screen dashboard so repeated

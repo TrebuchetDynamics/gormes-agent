@@ -43,13 +43,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Set up Navivox',
+                    'Connect to Gormes',
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Connect to the native Gormes gateway over HTTP/WebSocket, '
-                    'or use fake local protocol state for UI development.',
+                    'Paste the base URL and token from '
+                    '`gormes navivox connect-info` to open chat immediately.',
                   ),
                   const SizedBox(height: 24),
                   TextField(
@@ -78,11 +78,15 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.hub),
-                    label: const Text('Connect to Gormes gateway'),
+                    label: const Text('Connect and talk'),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 8),
                     Text(_error!, style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Run `gormes navivox connect-info` on the host and retry.',
+                    ),
                   ],
                 ],
               ),

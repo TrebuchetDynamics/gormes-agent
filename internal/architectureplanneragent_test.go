@@ -208,10 +208,13 @@ esac
 
 	writePlannerTestFile(t, filepath.Join(binDir, "go"), []byte(`#!/usr/bin/env bash
 set -euo pipefail
-log_file="${GO_LOG:?}"
-printf '%q ' "$@" >> "$log_file"
-printf '\n' >> "$log_file"
+log_file="${GO_LOG:-}"
+if [[ -n "$log_file" ]]; then
+  printf '%q ' "$@" >> "$log_file"
+  printf '\n' >> "$log_file"
+fi
 case "$*" in
+  "run ./cmd/progress emit") cat webpages/docs/content/building-gormes/architecture_plan/progress.json ;;
   "run ./cmd/progress write") echo "progress: _index.md regenerated" ;;
   "run ./cmd/progress validate") echo "progress: validated 2 phases" ;;
   "test ./internal/progress -count=1") echo "ok github.com/example/internal/progress 0.001s" ;;
@@ -390,6 +393,7 @@ exit 0
 	}
 	goLog := string(goLogData)
 	for _, want := range []string{
+		"run ./cmd/progress emit",
 		"run ./cmd/progress write",
 		"run ./cmd/progress validate",
 		"test ./internal/progress -count=1",
@@ -521,10 +525,13 @@ printf '{"type":"thread.started","thread_id":"thread-docs-123"}\n'
 
 	writePlannerTestFile(t, filepath.Join(binDir, "go"), []byte(`#!/usr/bin/env bash
 set -euo pipefail
-log_file="${GO_LOG:?}"
-printf '%q ' "$@" >> "$log_file"
-printf '\n' >> "$log_file"
+log_file="${GO_LOG:-}"
+if [[ -n "$log_file" ]]; then
+  printf '%q ' "$@" >> "$log_file"
+  printf '\n' >> "$log_file"
+fi
 case "$*" in
+  "run ./cmd/progress emit") cat webpages/docs/content/building-gormes/architecture_plan/progress.json ;;
   "run ./cmd/progress write") echo "progress: _index.md regenerated" ;;
   "run ./cmd/progress validate") echo "progress: validated 2 phases" ;;
   "test ./internal/progress -count=1") echo "ok github.com/example/internal/progress 0.001s" ;;
@@ -609,6 +616,7 @@ esac
 	}
 	goLog := string(goLogData)
 	for _, want := range []string{
+		"run ./cmd/progress emit",
 		"run ./cmd/progress write",
 		"run ./cmd/progress validate",
 		"test ./internal/progress -count=1",

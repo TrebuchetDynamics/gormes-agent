@@ -1,710 +1,372 @@
 # Navivox Architecture
 
 Status: planning draft
-Source: derived from navivox-prd.md
+Updated: 2026-05-16
 
 ## 1. High-Level Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     Flutter App (Client)                      │
-│  ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │
-│  │   UI    │ │  Riverpod │ │  Drift   │ │ fl_secure_store  │ │
-│  │ Widgets │ │  State    │ │  SQLite  │ │   (keys/auth)    │ │
-│  └────┬────┘ └────┬─────┘ └────┬─────┘ └────────┬─────────┘ │
-│       │            │            │                 │           │
-│  ┌────┴────────────┴────────────┴─────────────────┴─────────┐ │
-│  │                    Service Layer                          │ │
-│  │  SSHSession  NavivoxChannel  VoiceEngine  ConfigAdmin     │ │
-│  │  KeyManager  ServerRepo     AgentRepo    TermiusImport    │ │
-│  └────────────────────────┬─────────────────────────────────┘ │
-│                           │ SSH (dartssh2)                    │
-└───────────────────────────┼──────────────────────────────────┘
-                            │
-                    ┌───────┴────────┐
-                    │  Remote Server  │
-                    │  Gormes Agent   │
-                    │  navivox serve  │
-                    │  --stdio        │
-                    └────────────────┘
+```text
++---------------------------------------------------------------+
+| Flutter Navivox app                                           |
+|                                                               |
+|  SetupScreen  ChatScreen  AgentsScreen  ConfigScreen  Voice   |
+|       |           |            |             |           |     |
+|       +-----------+------------+-------------+-----------+     |
+|                           Riverpod state                      |
+|                                 |                             |
+|                       GatewayNavivoxChannel                   |
+|                                 |                             |
+|                       NavivoxGatewayClient                    |
++---------------------------------+-----------------------------+
+                                  |
+                                  | HTTP JSON + WebSocket JSON
+                                  v
++---------------------------------------------------------------+
+| Gormes Navivox channel                                        |
+|                                                               |
+|  /healthz                                                     |
+|  /v1/navivox/status                                           |
+|  /v1/navivox/sessions                                         |
+|  /v1/navivox/turn                                             |
+|  /v1/navivox/stream                                           |
+|                                                               |
+|  Auth, CORS, exposure validation, sessions, gateway fanout     |
++---------------------------------+-----------------------------+
+                                  |
+                                  v
++---------------------------------------------------------------+
+| Gormes gateway manager and agent runtime                      |
++---------------------------------------------------------------+
 ```
 
-## 2. Component Tree
+The app is a first-party operator client. The server owns runtime behavior;
+Flutter owns interaction, rendering, and local recovery state.
 
-### 2.1 Package Structure
+## 2. Current Package Layout
 
-```
+```text
 lib/
-├── main.dart                          # App entry, ProviderScope, GoRouter
-├── app.dart                           # MaterialApp.router wrapper
-├── router/
-│   ├── app_router.dart                # GoRouter config, redirects, shell routes
-│   └── routes.dart                    # Route path constants and enums
-├── core/
-│   ├── ssh/
-│   │   ├── ssh_session.dart           # SSHClient wrapper, connect/reconnect
-│   │   ├── key_manager.dart           # Key gen/import/decrypt/storage
-│   │   └── host_key_pinner.dart       # Host fingerprint verification
-│   ├── protocol/
-│   │   ├── frame.dart                 # Navivox protocol framing
-│   │   ├── codec.dart                 # Encode/decode frames
-│   │   └── events.dart                # All protocol event types (freezed)
-│   ├── channel/
-│   │   ├── navivox_channel.dart       # Channel over SSH stdio
-│   │   └── channel_state.dart         # Connection state machine
-│   ├── crypto/
-│   │   └── ed25519_keys.dart          # Key generation helpers
-│   └── platform/
-│       └── secure_storage.dart        # Secure storage abstraction
-├── data/
-│   ├── database/
-│   │   ├── app_database.dart          # Drift database definition
-│   │   ├── tables/
-│   │   │   ├── servers_table.dart
-│   │   │   ├── identities_table.dart
-│   │   │   ├── host_keys_table.dart
-│   │   │   ├── agents_table.dart
-│   │   │   ├── messages_table.dart
-│   │   │   ├── tool_calls_table.dart
-│   │   │   └── settings_table.dart
-│   │   └── daos/
-│   │       ├── server_dao.dart
-│   │       ├── identity_dao.dart
-│   │       ├── agent_dao.dart
-│   │       └── chat_dao.dart
-│   ├── repositories/
-│   │   ├── server_repository.dart
-│   │   ├── identity_repository.dart
-│   │   ├── agent_repository.dart
-│   │   ├── chat_repository.dart
-│   │   └── config_repository.dart
-│   └── imports/
-│       ├── termius_importer.dart      # Termius JSON/export parser
-│       └── termius_mapper.dart        # Map Termius fields to Navivox models
-├── features/
-│   ├── servers/
-│   │   ├── providers/
-│   │   │   └── servers_provider.dart
-│   │   ├── screens/
-│   │   │   ├── servers_screen.dart
-│   │   │   └── server_detail_screen.dart
-│   │   └── widgets/
-│   │       ├── server_card.dart
-│   │       └── server_form.dart
-│   ├── keys/
-│   │   ├── providers/
-│   │   │   └── keys_provider.dart
-│   │   ├── screens/
-│   │   │   ├── keys_screen.dart
-│   │   │   └── key_import_screen.dart
-│   │   └── widgets/
-│   │       ├── key_card.dart
-│   │       └── key_generation_dialog.dart
-│   ├── chat/
-│   │   ├── providers/
-│   │   │   ├── chat_provider.dart
-│   │   │   ├── channel_provider.dart
-│   │   │   └── message_stream_provider.dart
-│   │   ├── screens/
-│   │   │   └── chat_screen.dart
-│   │   └── widgets/
-│   │       ├── message_bubble.dart
-│   │       ├── message_composer.dart
-│   │       ├── tool_call_card.dart
-│   │       ├── agent_switcher.dart
-│   │       ├── voice_control_bar.dart
-│   │       └── typing_indicator.dart
-│   ├── voice/
-│   │   ├── providers/
-│   │   │   ├── voice_provider.dart
-│   │   │   └── stt_provider.dart
-│   │   ├── services/
-│   │   │   ├── mic_capture_service.dart
-│   │   │   ├── local_stt_service.dart
-│   │   │   └── wake_word_detector.dart
-│   │   └── widgets/
-│   │       ├── voice_record_button.dart
-│   │       ├── voice_waveform.dart
-│   │       └── language_selector.dart
-│   ├── agents/
-│   │   ├── providers/
-│   │   │   └── agents_provider.dart
-│   │   ├── screens/
-│   │   │   ├── agents_screen.dart
-│   │   │   └── agent_editor_screen.dart
-│   │   └── widgets/
-│   │       ├── agent_card.dart
-│   │       └── workspace_validator.dart
-│   ├── config/
-│   │   ├── providers/
-│   │   │   ├── config_schema_provider.dart
-│   │   │   ├── config_values_provider.dart
-│   │   │   └── config_diff_provider.dart
-│   │   ├── screens/
-│   │   │   ├── config_overview_screen.dart
-│   │   │   ├── config_section_screen.dart
-│   │   │   └── secret_editor_screen.dart
-│   │   └── widgets/
-│   │       ├── config_form_field.dart
-│   │       ├── secret_status_indicator.dart
-│   │       ├── config_diff_viewer.dart
-│   │       └── apply_confirm_sheet.dart
-│   ├── terminal/
-│   │   ├── providers/
-│   │   │   └── terminal_provider.dart
-│   │   └── screens/
-│   │       └── terminal_screen.dart
-│   └── settings/
-│       ├── providers/
-│       │   └── settings_provider.dart
-│       └── screens/
-│           └── settings_screen.dart
-└── shared/
-    ├── theme/
-    │   ├── app_theme.dart
-    │   └── colors.dart
-    ├── widgets/
-    │   ├── app_scaffold.dart
-    │   ├── connection_status_bar.dart
-    │   └── error_recovery_sheet.dart
-    └── utils/
-        ├── log_redactor.dart           # Redact secrets from logs
-        └── platform_check.dart
+  app.dart
+  main.dart
+  core/
+    channel/
+      gateway_navivox_channel.dart
+      navivox_channel.dart
+      navivox_channel_provider.dart
+    gateway/
+      navivox_gateway_client.dart
+      navivox_gateway_protocol.dart
+    protocol/
+      navivox_event.dart
+  features/
+    agents/
+      screens/agents_screen.dart
+    chat/
+      screens/chat_screen.dart
+      widgets/approval_banner.dart
+      widgets/simple_chat_adapter.dart
+    config/
+      screens/config_screen.dart
+    servers/
+      screens/setup_screen.dart
+      screens/servers_screen.dart
+    voice/
+      services/audio_recorder.dart
+      services/record_voice_capture_service.dart
+      services/speech_recognizer.dart
+      services/voice_capture_service.dart
+      widgets/voice_morph_surface.dart
+  router/
+    app_router.dart
+    app_routes.dart
+  shared/
+    widgets/app_shell.dart
 ```
 
-### 2.2 Top-Level Widget Tree
+Near-term additions should follow the same feature-first shape.
 
-```
-MaterialApp.router
-├── GoRouter
-│   ├── ShellRoute (BottomNavBar)
-│   │   ├── ChatsScreen        # /chats
-│   │   ├── ServersScreen      # /servers
-│   │   ├── AgentsScreen       # /agents
-│   │   ├── ConfigScreen       # /config
-│   │   ├── KeysScreen         # /keys
-│   │   ├── TerminalScreen     # /terminal
-│   │   └── SettingsScreen     # /settings
-│   ├── ChatScreen             # /chats/:serverId/:threadId
-│   ├── ServerDetailScreen     # /servers/:id
-│   ├── AgentEditorScreen      # /agents/:id/edit
-│   ├── KeyImportScreen        # /keys/import
-│   ├── ConfigSectionScreen    # /config/:section
-│   ├── SecretEditorScreen     # /config/secrets/:key
-│   └── FirstRunWizard         # /setup
-└── FirstRunWizard (shown when no servers configured)
-    ├── Step 1: TermiusImport / ManualServer
-    ├── Step 2: KeyImportOrGenerate
-    ├── Step 3: HostVerification
-    ├── Step 4: GormesProbe
-    ├── Step 5: DevicePairing
-    └── Step 6: AgentSelect/Create
-```
+## 3. Core Responsibilities
 
-## 3. State Management Architecture (Riverpod)
+### 3.1 Gateway Client
 
-### 3.1 Provider Layers
+`NavivoxGatewayConfig` owns URL derivation:
 
-```
-┌─────────────────────────────────────────┐
-│             UI Layer (Widgets)           │
-│  ConsumerWidget / ConsumerStatefulWidget │
-└──────────────────┬──────────────────────┘
-                   │ watch/read
-┌──────────────────┴──────────────────────┐
-│          Presentation Providers          │
-│  chatStateProvider, configFormProvider   │
-│  voiceStateProvider, navigationProvider  │
-└──────────────────┬──────────────────────┘
-                   │ watch/read
-┌──────────────────┴──────────────────────┐
-│           Service Providers              │
-│  sshSessionProvider(serverId)            │
-│  navivoxChannelProvider(serverId)        │
-│  voiceEngineProvider                     │
-│  configAdminProvider(serverId)           │
-└──────────────────┬──────────────────────┘
-                   │ watch/read
-┌──────────────────┴──────────────────────┐
-│         Repository Providers             │
-│  serverRepoProvider, agentRepoProvider   │
-│  chatRepoProvider, configRepoProvider    │
-│  identityRepoProvider                    │
-└──────────────────┬──────────────────────┘
-                   │ watch/read
-┌──────────────────┴──────────────────────┐
-│          Database Provider               │
-│  appDatabaseProvider (Drift singleton)   │
-└─────────────────────────────────────────┘
-```
+- `healthUri` -> `/healthz`
+- `statusUri` -> `/v1/navivox/status`
+- `sessionsUri` -> `/v1/navivox/sessions`
+- `turnUri` -> `/v1/navivox/turn`
+- `streamUri` -> `/v1/navivox/stream` with `http` mapped to `ws` and `https`
+  mapped to `wss`
 
-### 3.2 Key Providers
+It also owns bearer auth header creation. Tokens remain in memory or secure
+local storage once that feature is added; they are never embedded in route
+paths.
 
-```dart
-// Core infrastructure
-final appDatabaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
+### 3.2 Gateway Channel
 
-// Server connection (scoped per server)
-final sshSessionProvider = AsyncNotifierProvider.family<SSHSessionNotifier, SSHSession?, String>(
-  SSHSessionNotifier.new,
-);
+`GatewayNavivoxChannel` adapts gateway events into UI state:
 
-// Navivox channel (scoped per server)
-final navivoxChannelProvider = AsyncNotifierProvider.family<NavivoxChannelNotifier, NavivoxChannel?, String>(
-  NavivoxChannelNotifier.new,
-);
+- Connects after a successful status probe.
+- Opens the WebSocket stream.
+- Sends `start_turn` messages.
+- Tracks the active session.
+- Appends user, assistant, system, and tool messages.
+- Converts `tool_call_started` and `tool_call_finished` into structured tool
+  message state.
 
-// Active chat messages (streamed from channel)
-final chatMessagesProvider = StreamProvider.family<List<ChatMessage>, String>(
-  (ref, threadId) => ref.watch(navivoxChannelProvider(threadId)).requireValue!.messages,
-);
+### 3.3 Server Channel
 
-// Currently selected agent
-final selectedAgentProvider = StateProvider.family<String?, String>(
-  (ref, serverId) => ref.watch(agentRepoProvider).getDefaultAgentId(serverId),
-);
+`internal/channels/navivox.Channel` exposes:
 
-// Config schema (cached from server, refreshed on connect)
-final configSchemaProvider = AsyncNotifierProvider.family<ConfigSchemaNotifier, ConfigSchema, String>(
-  ConfigSchemaNotifier.new,
-);
+- `Handler(inbox)` for HTTP tests and gateway mounting.
+- `Run(ctx, inbox)` for serving the configured channel.
+- Gateway `Send`, `SendPlaceholder`, `EditMessage`, and `EditMessageFinal`
+  methods for assistant output fanout.
 
-// Voice state
-final voiceStateProvider = StateNotifierProvider<VoiceStateNotifier, VoiceState>(
-  VoiceStateNotifier.new,
-);
+The server validates Navivox config at startup and fails closed when exposure or
+auth settings are unsafe.
 
-// Auth guard state
-final pairingRoleProvider = StateProvider.family<PairingRole?, String>(
-  (ref, serverId) => PairingRole.operator, // default until paired
-);
-```
-
-### 3.3 Cross-Cutting State
-
-- **ConnectionState**: Tracks SSH connection lifecycle per server (disconnected → connecting → connected → paired → ready). Drives UI state across all screens for that server.
-- **AuthGate**: `pairingRoleProvider` gates config/agent mutation. Used by route redirect and UI visibility.
-- **LocalCache**: Drift database holds local copies. `StreamProvider`s from Drift `watch()` queries auto-update UI.
-
-## 4. Data Flow
-
-### 4.1 Chat Message Flow
-
-```
-User types message
-      │
-      ▼
-MessageComposer → chatProvider.sendMessage(text)
-      │
-      ▼
-NavivoxChannelProvider.send(ChatSubmitEvent)
-      │
-      ▼
-Protocol Codec encodes frame
-      │
-      ▼
-SSHSession writes to stdin (dartssh2 shell session)
-      │
-      ▼
-─────── SSH tunnel ───────
-      │
-      ▼
-Gormes navivox serve --stdio receives frame
-      │
-      ▼
-Gateway → Agent processing → Tool calls
-      │
-      ▼
-Events stream back: chat.update, tool.call.started, chat.final
-      │
-      ▼
-SSHSession stdout → Protocol Codec decodes frames
-      │
-      ▼
-NavivoxChannelProvider emits typed events to stream
-      │
-      ▼
-chatMessagesProvider updates (StreamProvider)
-      │
-      ▼
-ChatScreen rebuilds with new messages and tool cards
-```
-
-### 4.2 Config Mutation Flow
-
-```
-User edits config field in ConfigSectionScreen
-      │
-      ▼
-ConfigFormProvider accumulates changes locally
-      │
-      ▼
-User taps "Review Changes"
-      │
-      ▼
-ConfigDiffProvider requests config.diff from server
-      │
-      ▼
-Server returns diff with validation errors/warnings
-      │
-      ▼
-ConfigDiffViewer shows before/after, errors, sensitivity
-      │
-      ▼
-User confirms → ApplyConfirmSheet (if sensitive)
-      │
-      ▼
-ConfigAdminProvider sends config.apply with diff
-      │
-      ▼
-Server validates, writes atomically, reloads
-      │
-      ▼
-Server returns: applied | pending_restart | rolled_back
-      │
-      ▼
-ConfigSchemaProvider refreshes (new schema state)
-```
-
-### 4.3 Voice Flow
-
-```
-User presses mic button or says wake word "NAVI"
-      │
-      ▼
-VoiceStateNotifier → listening state
-      │
-      ▼
-MicCaptureService starts record stream (PCM 16-bit, 16kHz mono)
-      │
-      ├── Local STT (speech_to_text) runs for wake/command detection
-      │   └── If "NAVI switch agent mineru" → agent switch locally
-      │
-      └── Audio chunks streamed to NavivoxChannelProvider
-            │
-            ▼
-          voice.submit frame with audio + device transcript
-            │
-            ▼
-          Server processes: STT → Agent → TTS
-            │
-            ▼
-          voice.audio frames streamed back (binary chunks)
-            │
-            ▼
-          AudioPlayer (just_audio) plays back TTS audio
-            │
-            ▼
-          chat.update frames with final text transcripts
-```
-
-### 4.4 Termius Import Flow
-
-```
-User selects Termius export file (file_picker)
-      │
-      ▼
-TermiusImporter parses JSON/CSV format
-      │
-      ▼
-Mapper extracts: hosts, groups, identities, keys, fingerprints
-      │
-      ▼
-Deduplication against existing server/identity records
-      │
-      ▼
-User reviews import preview (diff screen)
-      │
-      ▼
-User confirms → ServerRepo.batchInsert(servers)
-                 IdentityRepo.importKeys(identities)
-      │
-      ▼
-Host key pinning prompts for new hosts on first connect
-```
-
-## 5. SSH Session Lifecycle
-
-The preferred first-run path starts on the Gormes host:
+## 4. Connection Lifecycle
 
 ```text
-operator runs `gormes navivox pair`
-      │
-      ├── prints QR code for `navivox://pair?...`
-      └── prints fallback URI with host, port, user, command, protocol, code
+Operator runs gormes navivox connect-info
+        |
+        v
+Flutter receives base URL and optional token
+        |
+        v
+GET /healthz
+        |
+        v
+GET /v1/navivox/status
+        |
+        v
+Open WS /v1/navivox/stream
+        |
+        v
+Create local server entry and navigate to chat
+        |
+        v
+Send start_turn over stream or POST /v1/navivox/turn
+        |
+        v
+Gormes gateway processes the turn
+        |
+        v
+assistant_delta / assistant_message / tool_call_* / done
 ```
 
-The Flutter app scans or pastes that descriptor before opening SSH. Gormes
-prefers Tailscale IPv4 in the descriptor when available; if host setup is not
-ready, `gormes navivox setup-host --plan` explains the Tailscale/OpenSSH steps
-without mutating the host, and `--apply` previews exact privileged commands
-before asking for the prompt-only sudo password.
+Reconnect behavior:
 
-```
-createSession(serverId, keyIdentity)
-      │
-      ▼
-SSHSocket.connect(host, port) via dartssh2
-      │
-      ▼
-SSHClient(identities: [keyPair])
-      │
-      ▼
-Host key verification
-      ├── Known host → compare pinned fingerprint → match?
-      │   ├── Match → proceed
-      │   └── Mismatch → ERROR: Host key changed (block + user action)
-      └── New host → show fingerprint → user pins → proceed
-      │
-      ▼
-client.execute('which gormes') → Gormes probe
-      ├── Found → client.execute('gormes navivox serve --stdio')
-      └── Not found → mark as generic SSH (terminal-only)
-      │
-      ▼
-NavivoxChannel: send hello frame → receive server.status
-      │
-      ▼
-Device pairing (if first time) → role assignment
-      │
-      ▼
-Ready state → chat, config, agents available
-```
+- The client uses bounded exponential backoff.
+- UI keeps existing messages visible while reconnecting.
+- A lost stream is visible as connection state, not as deleted chat history.
 
-## 6. Protocol Model (Freezed)
+## 5. HTTP Turn Flow
 
-Frames are binary-safe and use the accepted prelude:
+`POST /v1/navivox/turn` accepts:
 
-```text
-4 bytes  magic          ASCII "NVOX" (0x4e564f58)
-4 bytes  version        uint32, network byte order
-4 bytes  header_length  uint32, network byte order
-N bytes  JSON header    UTF-8 object with payload_length
-M bytes  payload        optional binary bytes
-```
-
-The decoder reads exactly `payload_length` bytes after the JSON header and
-rejects malformed magic, unsupported versions, invalid JSON, oversized lengths,
-and payload-size mismatches.
-
-The header is for framing, routing, correlation, content type, and safe metadata.
-Non-binary event bodies are JSON payload bytes with
-`content_type: "application/json"`; binary voice/file events put bytes in the
-payload and codec/chunk metadata in the header. Protocol v1 is the only accepted
-prelude version in the first server slice.
-
-### 6.1 NavivoxFrame
-
-```dart
-@freezed
-class NavivoxFrame with _$NavivoxFrame {
-  const factory NavivoxFrame({
-    required int version,           // protocol version
-    required String messageId,      // unique per frame
-    String? correlationId,          // links request/response
-    required DateTime timestamp,
-    required NavivoxEventType type,
-    @Default(0) int payloadLength,  // must match payload.length
-    String? contentType,            // e.g. application/json or audio/ogg
-    Map<String, dynamic>? metadata, // JSON header
-    @Default([]) List<int> payload, // optional binary (audio/files)
-  }) = _NavivoxFrame;
-
-  factory NavivoxFrame.fromJson(Map<String, dynamic> json) =>
-      _$NavivoxFrameFromJson(json);
-}
-```
-
-### 6.2 EventType (sealed union)
-
-```dart
-@freezed
-sealed class NavivoxEvent with _$NavivoxEvent {
-  // Handshake
-  const factory NavivoxEvent.hello({required DeviceInfo device}) = HelloEvent;
-  const factory NavivoxEvent.serverStatus({required ServerInfo info}) = ServerStatusEvent;
-
-  // Chat
-  const factory NavivoxEvent.chatSubmit({required String text, String? voiceTranscript}) = ChatSubmitEvent;
-  const factory NavivoxEvent.chatMessage({required String messageId, required String text, required String role}) = ChatMessageEvent;
-  const factory NavivoxEvent.chatUpdate({required String messageId, required String delta}) = ChatUpdateEvent;
-  const factory NavivoxEvent.chatFinal({required String messageId, required String text}) = ChatFinalEvent;
-
-  // Voice
-  const factory NavivoxEvent.voiceSubmit({required List<int> audio, String? transcript, double? confidence}) = VoiceSubmitEvent;
-  const factory NavivoxEvent.voiceTranscript({required String transcript, required bool isFinal}) = VoiceTranscriptEvent;
-  const factory NavivoxEvent.voiceAudio({required List<int> audio, required String format}) = VoiceAudioEvent;
-
-  // Agents
-  const factory NavivoxEvent.agentList({required List<AgentInfo> agents}) = AgentListEvent;
-  const factory NavivoxEvent.agentSelect({required String agentId}) = AgentSelectEvent;
-  // ... more agent events
-
-  // Tools
-  const factory NavivoxEvent.toolCallStarted({required ToolCallInfo info}) = ToolCallStartedEvent;
-  const factory NavivoxEvent.toolCallProgress({required String callId, required String summary}) = ToolCallProgressEvent;
-  const factory NavivoxEvent.toolCallCompleted({required ToolCallResult result}) = ToolCallCompletedEvent;
-  const factory NavivoxEvent.toolApprovalRequested({required String callId, required String toolName}) = ToolApprovalRequestedEvent;
-
-  // Config
-  const factory NavivoxEvent.configSchema({required ConfigSchema schema}) = ConfigSchemaEvent;
-  const factory NavivoxEvent.configGet({required Map<String, dynamic> config}) = ConfigGetEvent;
-  const factory NavivoxEvent.configDiff({required DiffResult diff}) = ConfigDiffEvent;
-  const factory NavivoxEvent.configApplyResult({required ApplyResult result}) = ConfigApplyResultEvent;
-
-  // Health
-  const factory NavivoxEvent.ping() = PingEvent;
-  const factory NavivoxEvent.pong() = PongEvent;
-  const factory NavivoxEvent.error({required int code, required String message}) = ErrorEvent;
-}
-```
-
-## 7. Cross-Platform Strategy
-
-### 7.1 Platform-Specific Considerations
-
-| Concern | Android | iOS | Linux | Windows |
-|---------|---------|-----|-------|---------|
-| Secure storage | flutter_secure_storage (KeyStore) | flutter_secure_storage (Keychain) | libsecret (gnome-keyring/kwallet) | flutter_secure_storage (DPAPI) |
-| Biometric/PIN | local_auth (fingerprint/face/PIN) | local_auth (Face ID/Touch ID) | App-level PIN fallback | local_auth (Windows Hello) |
-| Mic capture | record (AudioRecord) | record (AVFoundation) | record (parecord+pactl+ffmpeg) | record (MediaFoundation) |
-| Local STT | speech_to_text (Google/on-device) | speech_to_text (SFSpeechRecognizer) | Vosk (offline) | speech_to_text (WinRT) |
-| Audio playback | just_audio (MediaPlayer) | just_audio (AVPlayer) | just_audio (GStreamer) | just_audio (MediaFoundation) |
-| File picker | file_picker (SAF) | file_picker (UIDocumentPicker) | file_picker (GTK) | file_picker (Win32) |
-| SSH client | dartssh2 (pure Dart) | dartssh2 (pure Dart) | dartssh2 (pure Dart) | dartssh2 (pure Dart) |
-| Terminal | xterm.dart | xterm.dart | xterm.dart | xterm.dart |
-
-### 7.2 Linux Caveats
-
-- `flutter_secure_storage` requires `libsecret-1-0`, `libjsoncpp1`, and a running secret service (gnome-keyring or kwalletmanager)
-- `record` package requires `parecord`, `pactl`, and `ffmpeg` system packages
-- Local STT on Linux uses Vosk (offline) - requires model download and is not as accurate as platform STT
-- No biometric support on most Linux distros; app-level PIN is the fallback
-- App must surface clear errors when dependencies are missing
-
-## 8. Security Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│              Security Boundaries                 │
-│                                                  │
-│  ┌──────────────┐    ┌──────────────────────┐   │
-│  │ Secure Store │    │  Encrypted Blob      │   │
-│  │ (Keychain/   │◄───│  (large keys, Linux  │   │
-│  │  KeyStore/   │    │   when needed)       │   │
-│  │  libsecret)  │    └──────────────────────┘   │
-│  └──────┬───────┘                                │
-│         │ private keys never leave secure store  │
-│  ┌──────┴───────┐                                │
-│  │  Key Manager │  loads into memory only for   │
-│  │  (in-memory) │  active SSH session            │
-│  └──────┬───────┘                                │
-│         │                                        │
-│  ┌──────┴───────┐    ┌──────────────────────┐   │
-│  │ Auth Gate    │    │  Log Redactor         │   │
-│  │ (biometric/  │    │  (strips secrets from │   │
-│  │  PIN unlock) │    │   all log output)     │   │
-│  └──────────────┘    └──────────────────────┘   │
-│                                                  │
-│  ┌──────────────────────────────────────────┐   │
-│  │  Navivox Protocol Layer                   │   │
-│  │  - Secret values never in protocol errors │   │
-│  │  - config.secret.set sends value only     │   │
-│  │  - config.get returns [REDACTED] only     │   │
-│  │  - Tool outputs marked sensitive redacted │   │
-│  └──────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────┘
-```
-
-### 8.1 Data Classification
-
-| Data Class | Storage | Access Control | Logging |
-|------------|---------|---------------|---------|
-| SSH private keys | Secure storage / encrypted blob | Biometric/PIN gate | NEVER logged |
-| SSH passphrases | Memory only during decrypt | User prompt per session | NEVER logged |
-| Host key fingerprints | Drift SQLite | App-level | OK to log |
-| Chat messages | Drift SQLite (cache) | App-level | Redact if marked private |
-| Agent config | Drift SQLite (cache) | Per pairing role | OK |
-| Server config (non-secret) | Drift SQLite (cache) | Per pairing role | OK |
-| Secret values (tokens, keys) | Never stored locally | Biometric/PIN to edit | NEVER logged |
-| Tool output (sensitive) | Memory only | Per pairing role | Redacted |
-
-## 9. Desktop vs Mobile Layout Strategy
-
-### 9.1 Mobile (< 600dp width)
-- Bottom navigation bar for primary sections
-- Full-screen sheets for detail/edit operations
-- Single-column chat layout
-- FAB for quick actions (new chat, voice)
-
-### 9.2 Desktop/Tablet (>= 600dp width)
-- Left rail/sidebar for navigation
-- Master-detail split view
-- Side panel for config editors
-- Multi-column chat (thread list + chat area)
-- Keyboard shortcuts for power users
-
-### 9.3 Adaptive Widgets
-
-```dart
-// Use LayoutBuilder or MediaQuery to switch layouts
-class AdaptiveScaffold extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 600;
-    return isDesktop ? DesktopLayout() : MobileLayout();
+```json
+{
+  "request_id": "client-generated-id",
+  "session_id": "optional-existing-session",
+  "text": "hello",
+  "metadata": {
+    "client": "navivox",
+    "platform": "flutter"
   }
 }
 ```
 
-## 10. Error Recovery Architecture
+Successful response:
 
-All error states map to recovery actions, not stack traces:
-
-```
-Error Type ──────────► Recovery Action
-─────────────────────────────────────────
-SSH key rejected    → Key selector sheet
-Wrong passphrase    → Passphrase retry dialog
-Host key changed    → Fingerprint review + re-trust
-Secure store fail   → System deps checklist
-Gormes not found    → Install guide / open terminal
-Protocol mismatch   → Version info + update prompt
-Config write fail   → Rollback offer + retry
-Tool approval timeout → Retry / cancel options
-Mic permission deny  → Settings link + text fallback
-TTS/STT unavailable  → Text-only fallback
+```json
+{
+  "request_id": "client-generated-id",
+  "session_id": "navivox-session-id",
+  "status": "queued"
+}
 ```
 
-All error surfaces use a shared `ErrorRecoverySheet` widget that presents the error, a human-readable message, and a recovery action button.
+The WebSocket path uses the same message semantics for `start_turn`.
 
-## 11. Build and Code Generation
+## 6. Event Model
 
+Server events are JSON objects:
+
+```json
+{
+  "type": "assistant_delta",
+  "request_id": "client-generated-id",
+  "session_id": "navivox-session-id",
+  "text": "partial text"
+}
 ```
-# Code generation pipeline
-dart run build_runner build --delete-conflicting-outputs
 
-# Generates:
-# - *.freezed.dart  (immutable data classes, unions)
-# - *.g.dart        (JSON serialization)
-# - *.drift.dart    (database tables, DAOs)
-# - *.g.dart        (Riverpod providers if using @riverpod)
+Known event types:
+
+- `pong`
+- `session_started`
+- `assistant_delta`
+- `assistant_message`
+- `tool_call_started`
+- `tool_call_finished`
+- `error`
+- `done`
+
+Unknown events are ignored until the app has a renderer for them.
+
+## 7. Chat And Tool Rendering
+
+The chat layer receives typed channel state, not wire payloads.
+
+Message kinds:
+
+- User text.
+- Assistant text.
+- System status.
+- Tool call card.
+- Voice message bubble.
+
+Tool cards own:
+
+- tool name
+- tool call id
+- status
+- summary
+- artifacts
+- approval state
+- redacted details
+
+This keeps tool output inspectable without turning the transcript into a log
+dump.
+
+## 8. Agent Seed Architecture
+
+The seed flow is a server operation. Flutter submits a short phrase and renders
+the returned draft:
+
+```text
+seed text
+  -> server generator
+  -> agent draft
+  -> editable sections
+  -> validate
+  -> apply
 ```
 
-`build.yaml` configuration:
-```yaml
-targets:
-  $default:
-    builders:
-      freezed:
-        options:
-          runs_before:
-            - json_serializable
-      json_serializable:
-        options:
-          include_if_null: false
-          explicit_to_json: true
-      drift_dev:
-        options:
-          generate_connectivity: true
+Draft sections:
+
+- Agent profile.
+- Prompt/instructions.
+- Tool access.
+- Voice defaults.
+- STT/TTS provider preferences.
+- Safety/escalation policy.
+
+No generated draft is applied without operator confirmation.
+
+## 9. Config Admin Architecture
+
+```text
+schema + redacted values
+  -> local form model
+  -> diff request
+  -> validation request
+  -> confirmation
+  -> apply request
+  -> reload/reconnect result
 ```
+
+Rules:
+
+- Server schema controls fields, types, validation, and secret metadata.
+- Secret values are write-only.
+- UI displays redacted status and source evidence.
+- Changes that affect gateway exposure require explicit confirmation.
+
+## 10. Voice Architecture
+
+Current behavior can submit a device transcript as a text turn.
+
+Planned voice flow:
+
+```text
+record audio
+  -> local transcript when available
+  -> voice run record
+  -> server STT/profile
+  -> agent turn
+  -> server TTS/profile
+  -> playback event
+```
+
+Voice run records let the UI show capture, transcript, provider, playback, and
+error state as durable objects.
+
+## 11. Router Architecture
+
+Current router:
+
+- Starts at `/chats`.
+- Redirects to `/setup` when no gateway-backed server exists.
+- Redirects away from `/setup` once a gateway-backed server exists.
+- Mounts setup plus shell tabs for chat, servers, agents, and config.
+
+Detail routes should be added only when their screens can work against the
+current gateway contract.
+
+## 12. Trust Boundaries
+
+Sensitive data handling:
+
+| Data | Location | Policy |
+|------|----------|--------|
+| Bearer token | Memory or secure local storage | Redacted in UI/logs; never in routes. |
+| Gateway base URL | Local app state | Safe to show. |
+| Chat text | Local cache and server session | Redact when marked private. |
+| Tool output | Server event and UI card | Redact sensitive fields by default. |
+| Config secrets | Server only | Write-only from app. |
+| Voice audio | Future voice run storage | Retention and redaction policy required before persistence. |
+
+Exposure handling:
+
+- Disabled by default.
+- Loopback for local mode.
+- VPN validation for VPN-class modes.
+- Explicit confirmation for public exposure.
+- Tokens are never printed by `connect-info`.
+
+## 13. Platform Notes
+
+| Area | Android | iOS | Linux | Windows | macOS |
+|------|---------|-----|-------|---------|-------|
+| HTTP/WebSocket client | Dart IO | Dart IO | Dart IO | Dart IO | Dart IO |
+| Secure token storage | Platform secure storage | Keychain | Secret service | DPAPI | Keychain |
+| Local unlock | Biometric/PIN | Biometric/PIN | App PIN fallback | Windows Hello/PIN | Touch ID/PIN |
+| Voice capture | Platform mic | Platform mic | System mic deps | System mic | Platform mic |
+| Local STT | Platform service | Platform service | Optional fallback | Optional fallback | Platform service |
+
+Platform support should degrade to text-only chat when voice features are not
+available.
+
+## 14. Test Architecture
+
+Unit tests:
+
+- URL derivation and auth headers.
+- Gateway event decode.
+- Channel state transitions.
+- Router redirects.
+- Tool card state.
+- Config form validation.
+
+Integration tests:
+
+- Fixture HTTP gateway for Flutter setup and chat.
+- In-process Go handler for `/healthz`, status, turn, and stream.
+
+Acceptance smoke:
+
+- Operator can connect from `connect-info`, open chat, submit one turn, and see
+  streamed assistant output without telephony setup.

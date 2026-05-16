@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 )
@@ -205,6 +206,14 @@ func TestProgressJsonHasSingleCanonicalDocsCopy(t *testing.T) {
 	canonical := filepath.Join(docsContentRoot, "building-gormes", "architecture_plan", "progress.json")
 	if _, err := os.Stat(canonical); err != nil {
 		t.Fatalf("canonical progress.json missing: %v", err)
+	}
+	// "Single canonical" means loadable as the one logical backlog regardless
+	// of on-disk layout: internal/progress.Load handles a monolithic file or a
+	// module-keyed split directory transparently (module-split umbrella C5/C5c).
+	if prog, err := progress.Load(canonical); err != nil {
+		t.Fatalf("canonical progress.json not loadable as the logical backlog: %v", err)
+	} else if prog == nil || len(prog.Phases) == 0 {
+		t.Fatalf("canonical progress.json loaded empty: prog=%v", prog)
 	}
 
 	duplicate := filepath.Join("data", "progress.json")

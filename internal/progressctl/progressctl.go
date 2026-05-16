@@ -97,10 +97,105 @@ func Write(stdout io.Writer, root string) error {
 			errs = append(errs, err)
 		}
 	}
+	if paths.siteProgressSlim != "" {
+		if err := writeSlimProgress(p, paths.siteProgressSlim); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	if len(errs) == 0 {
 		fmt.Fprintln(stdout, "progress: site progress data refreshed")
 	}
 	return joinErrors(stdout, errs)
+}
+
+// Compact rewrites every completed row's verbose shipped-evidence note to a
+// one-line "SHIPPED <date> see git log — <summary>" pointer and writes the
+// canonical progress.json back through the same stable marshaller Write uses,
+// so only `note` strings change in the diff. It is deliberately a standalone
+// maintenance action: Write and Validate never invoke it, keeping doc
+// regeneration and schema validation pure. It is idempotent and fully
+// reversible via git.
+func Compact(stdout io.Writer, root string) error {
+	p, err := loadValidProgress(root)
+	if err != nil {
+		return err
+	}
+	n := progress.CompactCompletedNotes(p)
+	if n == 0 {
+		_, err = fmt.Fprintln(stdout, "progress: notes already compact (no changes)")
+		return err
+	}
+	// Compact reads layout-agnostically (C2) but its write-back targets the
+	// monolithic file. Collapsing an active split layout into the monolith is
+	// the split-aware write path owned by C3; refuse rather than silently
+	// diverging the two layouts.
+	if canonicalSource(root) != progressPaths(root).progressJSON {
+		return fmt.Errorf("progress: compact on a split layout is deferred to backlog-split C3 (split-aware write path); not collapsing the split into the monolith")
+	}
+	path := progressPaths(root).progressJSON
+	if err := progress.SaveProgress(path, p); err != nil {
+		return err
+	}
+	if err := progress.Validate(p); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "progress: compacted %d completed-row note(s)\n", n)
+	return err
+}
+
+// Split writes the canonical backlog to destDir as a split layout
+// (index.json + phases/<id>.json) without touching the canonical
+// progress.json. It is a standalone, explicit, read-only-against-canonical
+// maintenance action: Validate, Write, and Compact never invoke it, and it
+// moves no rows. internal/progress.Load already reads such a directory back
+// into the identical model (dual-layout transparency), so this is the
+// operator entry point for the module-split umbrella's later children. The
+// inverse write-back ("flip the on-disk layout") is intentionally deferred
+// to a later child so this shim stays non-behavior-changing.
+func Split(stdout io.Writer, root, destDir string) error {
+	if destDir == "" {
+		return fmt.Errorf("progress: split requires a destination directory")
+	}
+	p, err := loadValidProgress(root)
+	if err != nil {
+		return err
+	}
+	if err := progress.WriteSplit(destDir, p); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "progress: split %d phases into %s\n", len(p.Phases), destDir)
+	return err
+}
+
+// Emit writes the merged canonical backlog as stable JSON to stdout. It is a
+// pure, read-only, non-default action: it loads through loadValidProgress
+// (canonicalSource + internal/progress.Load, dual-layout transparent) and
+// never mutates the canonical. It is the split-safe seam gormes-* skill
+// discovery pipes through instead of jq-ing the canonical path directly —
+// `go run ./cmd/progress emit | jq ...` keeps working byte-identically
+// whether the canonical is a monolithic file or a (phase- or module-keyed)
+// split directory. Bytes are produced by the shipped stable encoder
+// (progress.SaveProgress) so emit stays faithful to the on-disk monolith.
+func Emit(stdout io.Writer, root string) error {
+	p, err := loadValidProgress(root)
+	if err != nil {
+		return err
+	}
+	tmpDir, err := os.MkdirTemp("", "progress-emit-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+	tmp := filepath.Join(tmpDir, "progress.json")
+	if err := progress.SaveProgress(tmp, p); err != nil {
+		return err
+	}
+	raw, err := os.ReadFile(tmp)
+	if err != nil {
+		return err
+	}
+	_, err = stdout.Write(raw)
+	return err
 }
 
 type marker struct {
@@ -112,6 +207,7 @@ type marker struct {
 
 type pathSet struct {
 	progressJSON       string
+	progressSplitDir   string
 	readme             string
 	docsIndex          string
 	contractReadiness  string
@@ -122,6 +218,7 @@ type pathSet struct {
 	umbrellaCleanup    string
 	progressSchema     string
 	siteProgress       []string
+	siteProgressSlim   string
 }
 
 func progressPaths(root string) pathSet {
@@ -129,6 +226,7 @@ func progressPaths(root string) pathSet {
 	builderLoopDir := filepath.Join(buildingGormes, "builder-loop")
 	return pathSet{
 		progressJSON:       filepath.Join(buildingGormes, "architecture_plan", "progress.json"),
+		progressSplitDir:   filepath.Join(buildingGormes, "architecture_plan", "progress.split"),
 		readme:             filepath.Join(root, "README.md"),
 		docsIndex:          filepath.Join(buildingGormes, "architecture_plan", "_index.md"),
 		contractReadiness:  filepath.Join(buildingGormes, "contract-readiness.md"),
@@ -138,15 +236,38 @@ func progressPaths(root string) pathSet {
 		blockedSlices:      filepath.Join(builderLoopDir, "blocked-slices.md"),
 		umbrellaCleanup:    filepath.Join(builderLoopDir, "umbrella-cleanup.md"),
 		progressSchema:     filepath.Join(builderLoopDir, "progress-schema.md"),
-		siteProgress: []string{
-			filepath.Join(root, "webpages", "landing", "src", "data", "progress.json"),
-			filepath.Join(root, "webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
-		},
+		// Verbatim site mirrors: now empty. The dead
+		// webpages/landing/src/data/progress.json mirror had no consumer
+		// (nothing in the Astro site imports it) and is no longer
+		// generated or tracked. Backlog-efficiency #1, 2026-05-16.
+		siteProgress: nil,
+		// The legacy go-renderer go:embed mirror MUST exist at build time
+		// (//go:embed data/progress.json). It is regenerated SLIM
+		// (phase/subphase names + statuses only — everything the renderer
+		// reads, none of the per-item prose) so it stays a valid embed
+		// without duplicating the 5.2 MB archive on every progress edit.
+		siteProgressSlim: filepath.Join(root, "webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
 	}
 }
 
+// canonicalSource resolves which on-disk layout backs the canonical backlog:
+// the split directory when it is present (opt-in, auto-detected), otherwise
+// the monolithic progress.json. Because the split directory does not exist by
+// default, the monolithic path — and therefore every generator's behavior —
+// is byte-for-byte unchanged until an operator materializes the split layout.
+// internal/progress.Load already accepts either a file or a directory (C1),
+// so callers stay layout-agnostic and a malformed split surfaces
+// progress.ErrMalformedSplit instead of a half-generated doc set.
+func canonicalSource(root string) string {
+	paths := progressPaths(root)
+	if fi, err := os.Stat(paths.progressSplitDir); err == nil && fi.IsDir() {
+		return paths.progressSplitDir
+	}
+	return paths.progressJSON
+}
+
 func loadValidProgress(root string) (*progress.Progress, error) {
-	p, err := progress.Load(progressPaths(root).progressJSON)
+	p, err := progress.Load(canonicalSource(root))
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +288,62 @@ func rewriteMarker(path, kind, body string) error {
 	}
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
+// slimProgress returns a reduced copy of p containing exactly what the
+// landing renderer reads — phase/subphase names, deliverable, dependency
+// note, subphase priority/status/drift, and per-item Status — and nothing
+// else. All per-item prose (name, contract, notes, acceptance, source refs,
+// write scope, ...) is dropped. DerivedStatus and Stats are byte-for-byte
+// equivalent because they only depend on the preserved fields.
+func slimProgress(p *progress.Progress) *progress.Progress {
+	if p == nil {
+		return nil
+	}
+	out := &progress.Progress{Meta: p.Meta, Phases: make(map[string]progress.Phase, len(p.Phases))}
+	for pk, ph := range p.Phases {
+		sps := make(map[string]progress.Subphase, len(ph.Subphases))
+		for sk, sp := range ph.Subphases {
+			var items []progress.Item
+			if len(sp.Items) > 0 {
+				items = make([]progress.Item, 0, len(sp.Items))
+				for _, it := range sp.Items {
+					items = append(items, progress.Item{Status: it.Status})
+				}
+			}
+			sps[sk] = progress.Subphase{
+				Name:       sp.Name,
+				Priority:   sp.Priority,
+				Items:      items,
+				Status:     sp.Status,
+				DriftState: sp.DriftState,
+			}
+		}
+		out.Phases[pk] = progress.Phase{
+			Name:           ph.Name,
+			Deliverable:    ph.Deliverable,
+			DependencyNote: ph.DependencyNote,
+			Subphases:      sps,
+		}
+	}
+	return out
+}
+
+// writeSlimProgress marshals slimProgress(p) to dst. The legacy go-renderer
+// go:embed's this path, so it must always exist and be valid JSON, but it is
+// now KB (status/name only) instead of a 5.2 MB verbatim archive copy.
+func writeSlimProgress(p *progress.Progress, dst string) error {
+	b, err := json.MarshalIndent(slimProgress(p), "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal slim progress: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", filepath.Dir(dst), err)
+	}
+	if err := os.WriteFile(dst, append(b, '\n'), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", dst, err)
 	}
 	return nil
 }

@@ -435,7 +435,7 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 		"../landing/src/data/landing.js",
 		"../landing/src/pages/index.astro",
 		"../landing/src/styles/global.css",
-		"../landing/src/data/progress.json",
+		"../landing/legacy/go-renderer/internal/site/data/progress.json",
 		"../landing/legacy/go-renderer/internal/site/content.go",
 		"../landing/legacy/go-renderer/internal/site/assets.go",
 		"../landing/tests/home.spec.mjs",

@@ -86,7 +86,13 @@ gormes-skill-manager -> gormes-planner / gormes-builder / gormes-tdd-slice
 ```
 
 The rule is simple: planning edits roadmap rows and docs; building implements
-one row with tests; both use `progress.json` as the only backlog. Skills
+one row with tests; both use `progress.json` as the only backlog. "The only
+backlog" is a single *logical* backlog accessed through `internal/progress`
+(`Load`/`SaveProgress`) and `cmd/progress` — never by hand-parsing files. The
+loader transparently supports either the single monolithic `progress.json`
+*or* a split/per-module directory layout; the canonical on-disk form today is
+the monolith, and the split layout, while fully supported by the tooling, is
+not yet materialized (pending the module-split umbrella's final child). Skills
 replace the deleted autonomous loop executables.
 
 ### Shared Progress Representation
@@ -94,8 +100,13 @@ replace the deleted autonomous loop executables.
 All planner and builder skills talk through these files. **Do not bypass them.**
 
 - `docs/content/building-gormes/architecture_plan/progress.json` — canonical
-  prioritized trajectory. Planner skills write; builder skills read to select
-  one row. Schema lives at `internal/progress/`; rendered surfaces live under
+  prioritized trajectory and single logical backlog. Planner skills write;
+  builder skills read to select one row. Always go through
+  `internal/progress.Load`/`SaveProgress` (or `cmd/progress`), which
+  transparently read and write **either** this monolithic file **or** a
+  split/per-module directory layout (one logical backlog, physically one or
+  many files); never hand-parse member files. Schema lives at
+  `internal/progress/`; rendered surfaces live under
   `docs/content/building-gormes/`.
 - `cmd/progress` — focused command for validating `progress.json` and
   regenerating progress-driven docs.

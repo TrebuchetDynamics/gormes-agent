@@ -176,7 +176,12 @@ func ApplyHealthUpdates(path string, updates []HealthUpdate) error {
 			insertEmptyHealth = &copy
 		}
 	}
-	if insertEmptyHealth != nil {
+	// The raw-byte-splice optimization preserves exact monolith formatting
+	// when inserting an empty "health": {} block. It cannot operate on a
+	// split-layout directory; there the typed write through SaveProgress
+	// (which dispatches to WriteSplit) is the correct equivalent — prog
+	// already carries the freshly-allocated empty Health pointer.
+	if insertEmptyHealth != nil && !isSplitLayout(path) {
 		return insertEmptyHealthBlock(path, insertEmptyHealth.ItemName)
 	}
 
@@ -270,7 +275,19 @@ func matchingJSONBrace(body []byte, start int) (int, error) {
 // HTML escaping is disabled so user-authored content with `<`, `>`, or `&`
 // (common in notes that quote command syntax or markdown) round-trips
 // verbatim instead of being mangled into `<` / `>` / `&`.
+// isSplitLayout reports whether path is an existing split-layout directory.
+// It is the exact inverse of Load's directory dispatch, so a write targeting
+// a path Load would read as a split layout round-trips back into that split
+// layout instead of collapsing it into a monolithic file.
+func isSplitLayout(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
+}
+
 func SaveProgress(path string, prog *Progress) error {
+	if isSplitLayout(path) {
+		return WriteSplit(path, prog)
+	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)

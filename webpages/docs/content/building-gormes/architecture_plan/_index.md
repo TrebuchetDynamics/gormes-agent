@@ -91,23 +91,23 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/109 subphases shipped · 10 in progress · 1 planned
+**Overall:** 99/110 subphases shipped · 10 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 1 — The Dashboard | ✅ | 6/6 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 5/6 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
 
-## Phase 1 — The Dashboard 🔨
+## Phase 1 — The Dashboard ✅
 
 *Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary*
 
@@ -152,28 +152,28 @@ classification and row-backed implementation queue.
 - [x] Admin TUI: Safe command execution from the Commands tab
 - [x] Admin TUI: Searchable Commands palette
 
-### 5.X — Termux Runtime Compatibility 🔨
+### 5.X — Termux Runtime Compatibility ✅
 
-- [ ] Gormes Termux Runtime Compatibility
+- [x] Gormes Termux Runtime Compatibility
 - [x] Termux runtime doctor check
 - [x] Termux install and release smoke guide
-- [ ] Termux storage and path safety audit
-- [ ] Termux gateway foreground tmux lifecycle
-- [ ] Termux notification bridge via termux-api
-- [ ] Termux real-device smoke evidence
-- [ ] Termux remote execution guidance
+- [x] Termux storage and path safety audit
+- [x] Termux gateway foreground tmux lifecycle
+- [x] Termux notification bridge via termux-api
+- [x] Termux real-device smoke evidence
+- [x] Termux remote execution guidance
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
-### 2.A — Tool Registry 🔨
+### 2.A — Tool Registry ✅
 
 - [x] In-process Go tool registry
 - [x] Streamed tool_calls accumulation
 - [x] Kernel tool loop
 - [x] Doctor verification
-- [ ] Coding-agent delegation tooling (codex/claude-code/opencode)
+- [x] Coding-agent delegation tooling (codex/claude-code/opencode)
 - [x] Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
 
 ### 2.B.1 — Telegram Scout ✅
@@ -1022,7 +1022,7 @@ classification and row-backed implementation queue.
 - [x] Navivox host setup apply with transient sudo
 - [x] Gateway auto-resume on restart
 
-### 5.O — Hermes CLI Parity ✅
+### 5.O — Hermes CLI Parity 🔨
 
 - [x] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
@@ -1067,6 +1067,7 @@ classification and row-backed implementation queue.
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
 - [x] Gormes setup full-wizard shell and branded summary
+- [x] Gormes setup model step uses the dynamic provider-tracked model picker
 - [x] Hermes setup entry-mode and reset semantics
 - [x] Gormes setup tools checklist command binding
 - [x] Gormes setup gateway platform checklist command binding
@@ -1109,7 +1110,24 @@ classification and row-backed implementation queue.
 - [x] Hermes sessions CLI MRU browse/delete ergonomics
 - [x] Backup/update opt-in and exclusion policy
 - [x] Self-update command lifecycle safety
+- [x] Gormes update release planner and dry-run contract
+- [x] Gormes update verified binary swap and rollback
+- [x] Gormes update bundled assets and skills sync
+- [x] Gormes update managed service drain and restart
 - [x] doctorCustomEndpointReadiness check function
+- [x] gormes doctor actionable issues summary and --fix auto-remediation
+- [x] gormes doctor ◆ Section grouping + upstream section ordering (UX parity)
+- [x] gormes doctor section-content parity (Security Advisories / Directory Structure / Skills Hub / Auth Providers / Profiles)
+- [x] gormes doctor ◆ Directory Structure section content
+- [x] gormes doctor ◆ Skills Hub section content
+- [x] gormes doctor ◆ Auth Providers section content
+- [x] gormes doctor ◆ Profiles section content
+- [x] gormes doctor ◆ Security Advisories section content
+- [x] gormes setup <section> boxed header + completion footer (UX parity)
+- [ ] gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
+- [x] gormes setup profiles — section scaffold + per-profile workspace list
+- [x] gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
+- [ ] gormes setup profiles — all profiles navivox-accessible by default
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
 - [x] CLI log redactor for known secret shapes
@@ -1138,6 +1156,7 @@ classification and row-backed implementation queue.
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
 - [x] Install isolation: skip system service install when sandbox bin dir is set
 - [x] Install: prefer pre-built release binary over source build by default
+- [x] Install: Termux publishes a real $PREFIX/bin binary, not an $HOME-targeting symlink
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
@@ -1192,7 +1211,7 @@ classification and row-backed implementation queue.
 - [x] API server cron admin mutating endpoints
 - [x] API server legacy jobs routes + default toolset
 - [x] Provider client lazy-init for TUI cold-start budget
-- [ ] Native TUI /model slash command binding over the existing model picker
+- [x] Native TUI /model slash command binding over the existing model picker
 - [x] Kernel in-session model-switch seam for the native TUI
 - [ ] Kernel cross-provider client swap for in-session model switch
 - [ ] Native TUI slash handler-port coverage
@@ -1416,9 +1435,22 @@ classification and row-backed implementation queue.
 - [x] Agentic-porting-kit extraction spec
 - [ ] Agentic-porting-kit public repo scaffold
 
-### 8.F — Cost Discipline & Loop Economics ✅
+### 8.F — Cost Discipline & Loop Economics 🔨
 
 - [x] Loop $/iteration cost metric in status file
+- [x] Stop git-tracking duplicate landing progress mirrors (build-time generate)
+- [x] Compact completed-row shipped-evidence notes to a one-line pointer
+- [ ] Module-split the progress backlog (per-subsystem files, parity-aligned)
+- [x] Backlog split C1: lossless multi-file loader/writer behind the single-file API
+- [x] Backlog split C2: docs/landing generators read the split layout
+- [x] Backlog split C3: migrate remaining backlog consumers and the write path to the split layout
+- [x] Backlog split C5a: optional per-row module key + deterministic derivation + backfill
+- [x] Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout
+- [x] Backlog split C5b: module-keyed split layout behind the existing API
+- [x] Backlog split C5c: migrate webpages/docs raw progress.json readers to internal/progress.Load
+- [x] Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json
+- [x] Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe
+- [ ] Backlog split C5: single atomic operator-gated flip to the module-keyed split directory
 
 ### 8.G — Community & External Contributions ✅
 
@@ -1454,14 +1486,27 @@ classification and row-backed implementation queue.
 - [x] Navivox HTTP gateway mandatory-VPN bind
 - [x] Navivox HTTP gateway connect-info command
 
-### 9.F — External Issue Radar Regression Guards 🔨
+### 9.F — Navivox Operator Activation 🔨
+
+- [x] Navivox HTTP/WS documentation refresh
+- [x] Navivox connect-and-talk first screen
+- [ ] Navivox profile contact summary API
+- [ ] Navivox continuous voice command mode
+- [ ] Navivox Telegram-inspired chat polish
+- [ ] Navivox natural-language profile seed flow
+- [ ] Navivox structured tool event cards
+- [ ] Navivox safe config admin over HTTP
+- [ ] Navivox voice run records
+- [ ] Navivox per-profile BYO voice profiles
+
+### 9.G — External Issue Radar Regression Guards ✅
 
 - [x] PicoClaw-derived channel media and identity regression matrix
 - [x] PicoClaw-derived session ledger read-model regression matrix
 - [x] PicoClaw-derived provider stream and auth regression matrix
 - [x] PicoClaw-derived tool path safety regression pack
 - [x] MCP Streamable HTTP session lifecycle compatibility
-- [ ] Dynamic agent identity inheritance regression matrix
+- [x] Dynamic agent identity inheritance regression matrix
 
 <!-- PROGRESS:END -->
 

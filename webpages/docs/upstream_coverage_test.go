@@ -970,13 +970,12 @@ func hasOnlyBroadNestedEvidence(evidence []string) bool {
 func requireBuilderReadyProgressRow(t *testing.T, rowName string) {
 	t.Helper()
 
-	raw, err := os.ReadFile(filepath.Join("content", "building-gormes", "architecture_plan", "progress.json"))
-	if err != nil {
-		t.Fatalf("read progress.json: %v", err)
-	}
+	// Canonical backlog is read via internal/progress.Load (canonicalProgressBytes)
+	// so this row-readiness check stays green whether the canonical path is a
+	// monolithic file or a module-keyed split directory (module-split C5/C5c).
 	var data any
-	if err := json.Unmarshal(raw, &data); err != nil {
-		t.Fatalf("decode progress.json: %v", err)
+	if err := json.Unmarshal(canonicalProgressBytes(t, canonicalProgressPath), &data); err != nil {
+		t.Fatalf("decode canonical progress.json: %v", err)
 	}
 	row, ok := findProgressRowByName(data, rowName)
 	if !ok {

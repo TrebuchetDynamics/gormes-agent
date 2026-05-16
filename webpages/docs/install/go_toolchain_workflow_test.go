@@ -15,7 +15,7 @@ func TestGitHubActionsUseGoModToolchain(t *testing.T) {
 	}
 
 	workflows := map[string]int{
-		".github/workflows/ci.yml":                1,
+		".github/workflows/ci.yml":                2,
 		".github/workflows/deploy-gormes-www.yml": 1,
 		".github/workflows/release-prep.yml":      1,
 		".github/workflows/release.yml":           2,

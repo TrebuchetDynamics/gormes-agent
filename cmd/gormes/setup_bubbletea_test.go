@@ -42,6 +42,24 @@ func TestSetupProviderChoiceUsesBubbleTeaPickerForTTY(t *testing.T) {
 	}
 }
 
+func TestModelChoiceUsesBubbleTeaPickerForTTY(t *testing.T) {
+	raw, err := os.ReadFile("model.go")
+	if err != nil {
+		t.Fatalf("read model.go: %v", err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"runBubbleTeaPick(ctx, stdin, out, \"Select model for \"+provider",
+		"modelPickerChoices(models)",
+		"defaultModelChoiceID(models, current)",
+		"promptModelChoiceText(in, out, provider, current, models)",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("model choice missing Bubble Tea routing marker %q", want)
+		}
+	}
+}
+
 func TestSetupProviderPickerChoicesUseStableIndices(t *testing.T) {
 	choices := setupProviderPickerChoices([]cli.ProviderMenuEntry{
 		{ID: "nous", Label: "Nous Portal"},

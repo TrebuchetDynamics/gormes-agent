@@ -142,6 +142,46 @@ witness.
   left the production `~/.config/systemd/user/gormes-gateway.service`
   sha256 byte-identical.
 
+### [termux-publish-symlink-noexec] Termux published command symlinks into exec-blocked `$HOME`, verify fails, rolls back
+
+- **First seen**: 2026-05-15 against the published `v0.2.12` release
+  `install.sh` (latest-release `binary-fetch`), on a real Termux/Android
+  device. Witness: operator transcript (binary-fetch android-arm64,
+  SHA-256 verified, extracted to `~/.gormes/bin/gormes`, then
+  `✗ published command verification failed for
+  /data/data/com.termux/files/usr/bin/gormes; rolled back`).
+- **Surface touched**: `/data/data/com.termux/files/usr/bin/gormes`
+  (`$PREFIX/bin`, the PATH-published command) — left **absent** after
+  rollback, so a fresh Termux user has no working `gormes`.
+- **Environment**: Termux on Android (API 29+), `is_termux` true,
+  `pick_bin_dir` → `$PREFIX/bin`, `managed_bin_dir` → `$HOME/.gormes/bin`.
+- **Root cause**: `install.sh:publish_built_binary` prefers
+  `ln -s "$build_bin" "$tmp"` (install.sh:1523). On Termux `ln -s`
+  succeeds, so `$PREFIX/bin/gormes` becomes a **symlink to
+  `$HOME/.gormes/bin/gormes`**. The post-publish verify
+  `"$published_bin" version` (install.sh:1530) execs the symlink, which
+  the kernel resolves+execs at the target path under
+  `/data/data/com.termux/files/home` (app-private writable storage).
+  Android 10+ blocks `execve()` of files in app-writable data dirs
+  (W^X); Termux only makes `$PREFIX` exec-capable. The exec is denied,
+  `version` fails, and the rollback removes the published command.
+- **Not a build defect**: the android-arm64 asset is a
+  `CGO_ENABLED=0 GOOS=android` static Go binary (`release.yml:95-96,148`);
+  it runs fine when executed from an exec-permitted path such as
+  `$PREFIX/bin`. The defect is install.sh placing a `$HOME`-targeting
+  symlink instead of a real executable in `$PREFIX/bin`.
+- **Reproduction (source-backed; needs a real Termux device to run)**:
+  `curl …/releases/latest/download/install.sh | sh` on Termux/Android
+  arm64 with no pre-existing `$PREFIX/bin/gormes`.
+- **Status**: `fixed-in-development` for the next release. `install.sh`
+  now skips the symlink path when `is_termux` is true and copies the real
+  binary into `$PREFIX/bin` before running the existing published-command
+  verification. Non-Termux hosts keep the symlink-preferred behavior.
+- **Regression fence**:
+  `internal/installtest/termux_publish_test.go` covers forced-Termux
+  publication as a regular non-`$HOME` file and covers the unchanged
+  non-Termux symlink path.
+
 ---
 
 ## Mitigated Issues

@@ -143,10 +143,12 @@ func TestSetupEntryMode_FreshInstallPromptsQuickVsFull(t *testing.T) {
 		t.Run(strings.Join(args, "_"), func(t *testing.T) {
 			chooserCalls := 0
 			fullCalls := 0
+			var captured []setupMenuOption
 			fake := &setupCommandFakeSeams{isTTY: true, freshInstall: true}
 			seams := fake.seams()
 			seams.ChooseSetupAction = func(_ *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
 				chooserCalls++
+				captured = append([]setupMenuOption(nil), options...)
 				if defaultOption != 0 || len(options) != 2 || options[0].Action != setupActionQuick || options[1].Action != setupActionFull {
 					t.Fatalf("fresh-install options=%#v default=%d, want quick/full default quick", options, defaultOption)
 				}
@@ -164,10 +166,13 @@ func TestSetupEntryMode_FreshInstallPromptsQuickVsFull(t *testing.T) {
 			if chooserCalls != 1 || fullCalls != 0 {
 				t.Fatalf("chooserCalls=%d fullCalls=%d, want chooser=1 full=0", chooserCalls, fullCalls)
 			}
-			for _, want := range []string{"No existing Gormes configuration was found.", "Quick setup - provider, model, and messaging", "Full setup - configure everything"} {
+			for _, want := range []string{"No existing Gormes configuration was found.", "Gormes Agent Setup Wizard"} {
 				if !strings.Contains(stdout, want) {
 					t.Fatalf("stdout missing %q:\n%s", want, stdout)
 				}
+			}
+			if captured[0].Label != "Quick setup — provider, model & messaging (recommended)" || captured[1].Label != "Full setup — configure everything" {
+				t.Fatalf("fresh-install labels = %#v, want Hermes-style Quick/Full wording", captured)
 			}
 		})
 	}
@@ -402,9 +407,20 @@ func TestSetupFirstRunRouterShowsConditionalMigrations(t *testing.T) {
 			t.Fatalf("option %d action=%s, want %s (options=%#v)", i, captured[i].Action, want, captured)
 		}
 	}
-	for _, want := range []string{"Migrate Hermes", "Migrate OpenClaw"} {
+	for _, want := range []string{"No existing Gormes configuration was found.", "Gormes Agent Setup Wizard"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, want := range []setupAction{setupActionMigrateHermes, setupActionMigrateOpenClaw} {
+		found := false
+		for _, option := range captured {
+			if option.Action == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("captured options missing %s: %#v", want, captured)
 		}
 	}
 }

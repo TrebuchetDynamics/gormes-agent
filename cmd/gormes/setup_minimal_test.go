@@ -211,9 +211,7 @@ func TestSetupNoSectionFreshInstallShowsQuickFullChoice(t *testing.T) {
 	}
 	for _, want := range []string{
 		"No existing Gormes configuration was found.",
-		"How would you like to set up Gormes?",
-		"Quick setup - provider, model, and messaging",
-		"Full setup - configure everything",
+		"Gormes Agent Setup Wizard",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -221,6 +219,9 @@ func TestSetupNoSectionFreshInstallShowsQuickFullChoice(t *testing.T) {
 	}
 	if len(captured) != 2 || captured[0].Action != setupActionQuick || captured[1].Action != setupActionFull {
 		t.Fatalf("captured menu = %#v, want Quick/Full menu", captured)
+	}
+	if captured[0].Label != "Quick setup — provider, model & messaging (recommended)" || captured[1].Label != "Full setup — configure everything" {
+		t.Fatalf("captured labels = %#v, want Hermes-style Quick/Full wording", captured)
 	}
 	if _, err := os.Stat(config.ConfigPath()); !os.IsNotExist(err) {
 		t.Fatalf("exit-only setup mutated config path %s: %v", config.ConfigPath(), err)
@@ -406,6 +407,46 @@ func TestSetupFullWizardReauthenticateRunsAuthBeforeModelPicker(t *testing.T) {
 	}
 }
 
+func TestSetupFullWizardSwitchingProviderUsesSelectedProviderDefaultModel(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{
+		isTTY: true,
+		current: cli.ProviderModel{
+			Provider: "openai-codex",
+			Model:    "gpt-5.5",
+		},
+	}
+	fake.chooseSetupProvider = func(_ *cobra.Command, entries []cli.ProviderMenuEntry, _ int) (int, error) {
+		for i, entry := range entries {
+			if entry.ID == "openrouter" {
+				return i, nil
+			}
+		}
+		t.Fatalf("provider menu missing openrouter: %#v", entries)
+		return -1, nil
+	}
+	seams := fake.seams()
+	seams.RunActiveProviderModelPicker = func(_ *cobra.Command, current cli.ProviderModel) error {
+		if current.Provider != "openrouter" {
+			t.Fatalf("active model picker provider = %q, want openrouter", current.Provider)
+		}
+		if current.Model != "moonshotai/kimi-k2.6" {
+			t.Fatalf("active model picker model seed = %q, want OpenRouter default moonshotai/kimi-k2.6", current.Model)
+		}
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, seams, strings.Repeat("\n", 12)+"n\n")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Selected provider: OpenRouter") {
+		t.Fatalf("stdout missing selected-provider confirmation:\n%s", stdout)
+	}
+}
+
 func TestSetupActiveProviderModelPickerSkipsProviderList(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -426,10 +467,13 @@ func TestSetupActiveProviderModelPickerSkipsProviderList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runSetupActiveProviderModelPicker() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
 	}
-	for _, want := range []string{"Suggested models for openai-codex:", "Model for openai-codex [gpt-5.5]", "model selection saved: provider=openai-codex model=gpt-5.5"} {
+	for _, want := range []string{"Select model for openai-codex:", "1. gpt-5.5", "Choice [1-8] (1), custom model, or q to cancel:", "model selection saved: provider=openai-codex model=gpt-5.5"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
 		}
+	}
+	if strings.Contains(stdout.String(), "Suggested models for openai-codex:") {
+		t.Fatalf("stdout still uses comma-separated model suggestions:\n%s", stdout.String())
 	}
 	for _, forbidden := range []string{"Choose a provider", "github-models (api_key)", "openai-codex (oauth_external)"} {
 		if strings.Contains(stdout.String(), forbidden) {
@@ -447,8 +491,8 @@ func TestSetupModelSectionDelegatesToPicker(t *testing.T) {
 	if fake.modelPickerCalls != 1 {
 		t.Fatalf("model picker calls = %d, want 1", fake.modelPickerCalls)
 	}
-	if !strings.Contains(stdout, "Setup section: model") {
-		t.Fatalf("stdout missing model-section evidence:\n%s", stdout)
+	if !strings.Contains(stdout, "Gormes Setup — Model") {
+		t.Fatalf("stdout missing boxed model-section header:\n%s", stdout)
 	}
 }
 
@@ -532,7 +576,7 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Setup section: provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "API key:  stored (redacted)", "Test it:  gormes chat"} {
+	for _, want := range []string{"Gormes Setup — Provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "API key:  stored (redacted)", "Test it:  gormes chat"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -565,20 +609,40 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 
 func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	home := t.TempDir()
-	secret := "sk-groq-secret-7890"
+	secret := "sk-openrouter-secret-7890"
 	t.Setenv("GORMES_HOME", home)
+	if err := config.WriteTOMLValue(config.ConfigPath(), "hermes.provider", "openrouter"); err != nil {
+		t.Fatalf("seed provider: %v", err)
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "hermes.model", "moonshotai/kimi-k2.6"); err != nil {
+		t.Fatalf("seed model: %v", err)
+	}
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "groq\n"+secret+"\n\n", "provider")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "\n"+secret+"\n\n", "provider")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Provider: groq", "Endpoint: https://api.groq.com/openai/v1", "Model:    llama-3.3-70b-versatile", "API key:  stored (redacted)"} {
+	for _, want := range []string{
+		"Select provider:",
+		"OpenRouter (100+ models, pay-per-use)  ← currently active",
+		"Select model for openrouter:",
+		"1. anthropic/claude-opus-4.7",
+		"4. moonshotai/kimi-k2.6",
+		"31. inclusionai/ring-2.6-1t:free",
+		"Provider: openrouter",
+		"Endpoint: https://openrouter.ai/api/v1",
+		"Model:    moonshotai/kimi-k2.6",
+		"API key:  stored (redacted)",
+	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, leaked := range []string{secret, "sk-g***7890", "sk-g", "7890"} {
+	if strings.Contains(stdout, "Provider [openai]") {
+		t.Fatalf("setup provider used stale free-text provider prompt:\n%s", stdout)
+	}
+	for _, leaked := range []string{secret, "sk-o***7890", "sk-openrouter", "7890"} {
 		if strings.Contains(stdout+stderr, leaked) {
 			t.Fatalf("setup output leaked API key material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
 		}
@@ -587,7 +651,7 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
-	for _, want := range []string{`provider = 'groq'`, `endpoint = 'https://api.groq.com/openai/v1'`, `model = 'llama-3.3-70b-versatile'`} {
+	for _, want := range []string{`provider = 'openrouter'`, `endpoint = 'https://openrouter.ai/api/v1'`, `model = 'moonshotai/kimi-k2.6'`} {
 		if !strings.Contains(string(configBody), want) {
 			t.Fatalf("config missing %q:\n%s", want, string(configBody))
 		}
@@ -748,11 +812,20 @@ func TestSetupAgentSettingsInteractivePersistsRuntimeConfig(t *testing.T) {
 	t.Setenv("GORMES_HOME", home)
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "200\nverbose\n0.75\ndaily\n", "agent")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "200\n4\n0.75\ndaily\n", "agent")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Max iterations set to 200", "Tool progress set to: verbose", "Compression threshold set to 0.75", "Session reset policy set to: daily"} {
+	for _, want := range []string{
+		"Max iterations set to 200",
+		"Select tool progress mode:",
+		"3. all",
+		"4. verbose",
+		"Choice [1-4] (3), or q to cancel:",
+		"Tool progress set to: verbose",
+		"Compression threshold set to 0.75",
+		"Session reset policy set to: daily",
+	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -777,6 +850,42 @@ func TestSetupAgentSettingsInteractivePersistsRuntimeConfig(t *testing.T) {
 	}
 	if got := configuredMaxToolIterations(cfg); got != 200 {
 		t.Fatalf("configuredMaxToolIterations = %d, want 200", got)
+	}
+}
+
+func TestSetupAgentSettingsToolProgressRejectsNonOption(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "200\nhi\n0.75\ndaily\n", "agent")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Select tool progress mode:",
+		"Choice [1-4] (3), or q to cancel:",
+		"Unknown tool progress mode \"hi\"; keeping all",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{
+		"Tool progress set to: hi",
+		"tool_progress = 'hi'",
+		"setup_agent_value_ignored: tool_progress",
+	} {
+		if strings.Contains(stdout+stderr, forbidden) {
+			t.Fatalf("output contains forbidden %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	body, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if strings.Contains(string(body), "tool_progress = 'hi'") {
+		t.Fatalf("config persisted invalid tool_progress:\n%s", string(body))
 	}
 }
 

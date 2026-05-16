@@ -71,6 +71,10 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 	if validationLine := renderRuntimeValidationLine(runtimeSnapshot.Validation); validationLine != "" {
 		output += validationLine + "\n"
 	}
+	if gatewayTermuxDetected() {
+		output += gatewayTermuxLifecycleGuidanceLine + "\n"
+		output += gatewayTermuxNotificationStatusLine()
+	}
 	_, err = fmt.Fprint(cmd.OutOrStdout(), output)
 	return err
 }
