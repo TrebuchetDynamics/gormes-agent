@@ -16,6 +16,19 @@ func TestListPickerProvidersCarriesModelLists(t *testing.T) {
 		t.Fatalf("openai-codex models missing gpt-5.2-codex: %#v", openAICodex.Models)
 	}
 
+	openRouter, ok := findPickerProviderForTest(providers, "openrouter")
+	if !ok {
+		t.Fatalf("ListPickerProviders() missing openrouter provider")
+	}
+	if len(openRouter.Models) < 20 {
+		t.Fatalf("openrouter models = %d, want full curated fallback list: %#v", len(openRouter.Models), openRouter.Models)
+	}
+	for _, want := range []string{"anthropic/claude-opus-4.7", "moonshotai/kimi-k2.6", "openai/gpt-5.5", "tencent/hy3-preview:free"} {
+		if !containsPickerModelForTest(openRouter.Models, want) {
+			t.Fatalf("openrouter models missing %s: %#v", want, openRouter.Models)
+		}
+	}
+
 	opencodeGo, ok := findPickerProviderForTest(providers, "opencode-go")
 	if !ok {
 		t.Fatalf("ListPickerProviders() missing opencode-go provider")

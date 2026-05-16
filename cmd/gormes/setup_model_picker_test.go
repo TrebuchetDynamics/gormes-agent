@@ -55,6 +55,38 @@ func TestSetupModelPickerUsesActiveProviderPickerModelSet(t *testing.T) {
 	}
 }
 
+func TestSetupModelPickerUsesOpenRouterFullModelSet(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	cmd := &cobra.Command{}
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetIn(strings.NewReader("\n"))
+
+	err := runSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "openrouter", Model: "moonshotai/kimi-k2.6"})
+	if err != nil {
+		t.Fatalf("runSetupActiveProviderModelPicker() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	for _, want := range []string{
+		"Select model for openrouter:",
+		"1. anthropic/claude-opus-4.7",
+		"4. moonshotai/kimi-k2.6",
+		"8. openai/gpt-5.5",
+		"31. inclusionai/ring-2.6-1t:free",
+		"Choice [1-31] (4), custom model, or q to cancel:",
+		"model selection saved: provider=openrouter model=moonshotai/kimi-k2.6",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+		}
+	}
+	if strings.Contains(stdout.String(), "Model for openrouter [gpt-5.5]") {
+		t.Fatalf("stdout used stale free-text OpenRouter prompt:\n%s", stdout.String())
+	}
+}
+
 func TestSetupModelPickerCancelDoesNotPersist(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

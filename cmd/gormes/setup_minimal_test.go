@@ -406,6 +406,46 @@ func TestSetupFullWizardReauthenticateRunsAuthBeforeModelPicker(t *testing.T) {
 	}
 }
 
+func TestSetupFullWizardSwitchingProviderUsesSelectedProviderDefaultModel(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{
+		isTTY: true,
+		current: cli.ProviderModel{
+			Provider: "openai-codex",
+			Model:    "gpt-5.5",
+		},
+	}
+	fake.chooseSetupProvider = func(_ *cobra.Command, entries []cli.ProviderMenuEntry, _ int) (int, error) {
+		for i, entry := range entries {
+			if entry.ID == "openrouter" {
+				return i, nil
+			}
+		}
+		t.Fatalf("provider menu missing openrouter: %#v", entries)
+		return -1, nil
+	}
+	seams := fake.seams()
+	seams.RunActiveProviderModelPicker = func(_ *cobra.Command, current cli.ProviderModel) error {
+		if current.Provider != "openrouter" {
+			t.Fatalf("active model picker provider = %q, want openrouter", current.Provider)
+		}
+		if current.Model != "moonshotai/kimi-k2.6" {
+			t.Fatalf("active model picker model seed = %q, want OpenRouter default moonshotai/kimi-k2.6", current.Model)
+		}
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, seams, strings.Repeat("\n", 12)+"n\n")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Selected provider: OpenRouter") {
+		t.Fatalf("stdout missing selected-provider confirmation:\n%s", stdout)
+	}
+}
+
 func TestSetupActiveProviderModelPickerSkipsProviderList(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

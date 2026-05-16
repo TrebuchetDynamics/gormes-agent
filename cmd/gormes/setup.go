@@ -946,14 +946,26 @@ func runSetupSelectedProviderFlow(cmd *cobra.Command, seams setupCommandSeams, c
 	if provider == "" {
 		return cli.ErrSelectorNoMatch
 	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Selected provider: %s\n", setupProviderDisplayLabel(provider))
 	if provider == config.CodexOAuthProvider {
 		return runSetupOpenAICodexProviderFlow(cmd, seams, current)
 	}
-	if err := seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: provider, Model: current.Model}); err != nil {
+	if err := seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: provider, Model: setupModelSeedForProvider(current, provider)}); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Provider auth was not changed. If credentials are missing, run: gormes auth add %s\n", provider)
 	return nil
+}
+
+func setupModelSeedForProvider(current cli.ProviderModel, provider string) string {
+	provider = strings.TrimSpace(provider)
+	if strings.EqualFold(strings.TrimSpace(current.Provider), provider) && strings.TrimSpace(current.Model) != "" {
+		return strings.TrimSpace(current.Model)
+	}
+	if resolved := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{}); strings.TrimSpace(resolved.Model) != "" {
+		return strings.TrimSpace(resolved.Model)
+	}
+	return strings.TrimSpace(current.Model)
 }
 
 func runSetupOpenAICodexProviderFlow(cmd *cobra.Command, seams setupCommandSeams, current cli.ProviderModel) error {
@@ -986,7 +998,7 @@ func runSetupOpenAICodexProviderFlow(cmd *cobra.Command, seams setupCommandSeams
 			return err
 		}
 	}
-	return seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: config.CodexOAuthProvider, Model: current.Model})
+	return seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: config.CodexOAuthProvider, Model: setupModelSeedForProvider(current, config.CodexOAuthProvider)})
 }
 
 func promptSetupProviderCredentialAction(cmd *cobra.Command, _ setupProviderCredentialPrompt) (setupProviderCredentialAction, error) {
@@ -1081,6 +1093,8 @@ func setupProviderDisplayLabel(provider string) string {
 		return "Anthropic"
 	case config.NousOAuthProvider:
 		return "Nous"
+	case "openrouter":
+		return "OpenRouter"
 	case "google-gemini-cli":
 		return "Google Gemini CLI"
 	case "qwen-oauth":
