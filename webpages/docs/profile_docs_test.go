@@ -12,7 +12,10 @@ func TestProfileDocsDisambiguateGormesRuntimeAndUpstreamHermes(t *testing.T) {
 		"A Gormes profile is a Gormes home root.",
 		"Current Gormes profiles are not enforced workspaces or filesystem sandboxes.",
 		"`agents.defaults.workspaces` is empty, the default project workspace is the\noperator home",
-		"changing `cwd` is not enough\nto make a shell a sandbox",
+		"model-facing tools do not get\nblanket project access to the whole profile root",
+		"identity files such as `SOUL.md` and `IDENTITY.md`, plus\nthe active profile's `skills/` directory",
+		"`.env`, `auth.json`, session databases, memory databases, logs, and sibling\nprofiles",
+		"changing `cwd` is\nnot enough to make a shell a sandbox",
 		"profile-local subprocess `HOME` is tracked",
 		"## Runtime-ready subcommands",
 		"## Compatibility aliases",
@@ -30,6 +33,9 @@ func TestProfileDocsDisambiguateGormesRuntimeAndUpstreamHermes(t *testing.T) {
 		"gormes setup profiles",
 		"`agents.defaults.workspaces` plus `agents.defaults.channels`",
 		"empty `agents.defaults.workspaces` list as the operator\n   home",
+		"model-facing\n   profile edits are limited to explicit profile-owned content",
+		"such as `SOUL.md` and `IDENTITY.md`, plus the active profile's `skills/`\n   directory",
+		"Profile files are still broad state",
 		"Workspace list does not restrict access yet",
 		"Current Gormes profile roots do not yet provide Hermes-style profile-local subprocess `HOME`",
 		"migrate into a separate profile home",
@@ -69,12 +75,14 @@ func TestSetupAndConfigDocsDescribeProfileWorkspaceListPolicy(t *testing.T) {
 		"`gormes setup profiles` writes `agents.defaults.workspaces`",
 		"runtime workspace allow-list enforcement is row-backed",
 		"an empty list means the operator home is the default project workspace",
+		"model-facing profile\nedits are limited to explicit profile-owned content such as `SOUL.md`,\n`IDENTITY.md`, and `skills/`",
 	})
 
 	config := readDoc(t, "content/configure/config-file.md")
 	assertContainsAll(t, "content/configure/config-file.md", config, []string{
 		"| `agents.defaults.workspaces` | Per-profile project workspace list persisted by `gormes setup profiles`.",
 		"empty list means operator home; non-empty list is the project read/write allow-list",
+		"model-facing profile edits are limited to explicit profile-owned content such as `SOUL.md`, `IDENTITY.md`, and `skills/`",
 		"| `agents.defaults.channels` | Per-profile messaging-channel list persisted by `gormes setup profiles`",
 		"Per-agent primary workspace path. This is different from Goncho's memory workspace id.",
 	})
@@ -92,6 +100,8 @@ func TestSetupAndConfigDocsDescribeProfileWorkspaceListPolicy(t *testing.T) {
 	assertContainsAll(t, "content/building-gormes/builder-loop/next-slices.md", nextSlices, []string{
 		"preserving Hermes-compatible profile state separation",
 		"profile-scoped workers",
+		"model-facing tools must not treat the whole profile root as a project workspace",
+		"explicit profile-owned content: identity files (`SOUL.md`, `IDENTITY.md` when present) and the active profile `skills/` directory",
 	})
 	if strings.Contains(nextSlices, "preserving Hermes-compatible profile isolation") ||
 		strings.Contains(nextSlices, "isolated profile workers") {

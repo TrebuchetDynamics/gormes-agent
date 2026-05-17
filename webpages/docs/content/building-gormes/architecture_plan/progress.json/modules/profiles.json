@@ -943,7 +943,7 @@
       "name": "Profile workspace allow-list enforcement policy",
       "priority": "P1",
       "status": "planned",
-      "contract": "Make `agents.defaults.workspaces` the Gormes-owned profile workspace allow-list, not just setup metadata. With an empty list, the default project workspace is the operator home. With a non-empty list, model-facing project read/write access is restricted to the normalized listed roots. The active profile root (`GORMES_HOME`) and profile-local `home/` remain allowed profile-state roots, while sibling profiles and arbitrary operator-home paths are denied. File tools, local/project execute_code, and coding-agent delegation must share one resolver. Local terminal must use a tested sandbox-capable backend for allow-listed roots or fail closed; merely setting cwd is not accepted as confinement.",
+      "contract": "Make `agents.defaults.workspaces` the Gormes-owned profile workspace allow-list, not just setup metadata. With an empty list, the default project workspace is the operator home. With a non-empty list, model-facing project read/write access is restricted to the normalized listed roots. Runtime internals may access the active profile root (`GORMES_HOME`) for config, auth, sessions, memory, skills, logs, cron, and gateway state, but model-facing tools must not treat the whole profile root as a project workspace. Model-facing profile edits are limited to explicit profile-owned content: identity files (`SOUL.md`, `IDENTITY.md` when present) and the active profile `skills/` directory. Profile-local `home/` is subprocess HOME/runtime state, not a broad project workspace. Sibling profiles, arbitrary operator-home paths, `.env`, `auth.json`, session/memory databases, logs, and other runtime state are denied as project paths. File tools, local/project execute_code, and coding-agent delegation must share one resolver. Local terminal must use a tested sandbox-capable backend for allow-listed roots or fail closed; merely setting cwd is not accepted as confinement.",
       "contract_status": "fixture_ready",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -952,12 +952,13 @@
         "operator",
         "system"
       ],
-      "degraded_mode": "If `agents.defaults.workspaces` is empty, the project workspace policy defaults to the operator home for compatibility. If the list is non-empty and the local terminal backend cannot provide real confinement, terminal commands fail closed with `profile_workspace_scope_violation` instead of pretending cwd is a sandbox; path-aware tools still enforce the allow-list.",
-      "fixture": "Temp GORMES_HOME with a named profile containing `agents.defaults.workspaces = [\"<project1>\", \"<project2>\"]`, plus sibling-profile and outside-root fixtures.",
+      "degraded_mode": "If `agents.defaults.workspaces` is empty, the project workspace policy defaults to the operator home for compatibility. If the list is non-empty and the local terminal backend cannot provide real confinement, terminal commands fail closed with `profile_workspace_scope_violation` instead of pretending cwd is a sandbox; path-aware tools still enforce the project allow-list plus explicit profile-owned editable content.",
+      "fixture": "Temp GORMES_HOME with a named profile containing `agents.defaults.workspaces = [\"<project1>\", \"<project2>\"]`, plus active-profile SOUL.md/IDENTITY.md/skills fixtures, profile secret/runtime-state fixtures, sibling-profile fixtures, and outside-root fixtures.",
       "source_refs": [
         "internal/config/agents.go:AgentDefaultsCfg.Workspaces",
         "cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces",
         "cmd/gormes/registry.go:buildDefaultRegistry registers file, execute_code, terminal tools",
+        "internal/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files",
         "internal/tools/filesystem_scope.go:NewFilesystemScope",
         "internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase",
         "internal/tools/terminal_tool.go:TerminalTool.Execute / terminalWorkdir",
@@ -974,18 +975,19 @@
         "The change only updates docs/setup text and leaves runtime tools unconstrained.",
         "The change claims local terminal is sandboxed only because its cwd starts inside an allowed root.",
         "The resolver allows `..`, symlink, deleted-cwd, or prefix-sibling escapes; grants sibling profile roots; or silently falls back to unrestricted operator home when a non-empty workspace list is invalid.",
-        "The active profile root is treated as an unrestricted project read/write workspace without a clear profile-state/secret handling policy.",
+        "The active profile root is treated as an unrestricted model-facing project workspace instead of a runtime-owned state root with a narrow editable-content allow-list.",
         "The row is merged into `Profile-local subprocess HOME parity`; subprocess HOME and workspace access policy are separate behaviors."
       ],
       "acceptance": [
         "With no configured workspace list, the profile workspace policy resolves the operator home as the default project read/write root while preserving explicit `agents.defaults.workspace`, `terminal.cwd`, or per-agent workspace overrides where those are intentionally configured.",
         "With `agents.defaults.workspaces = [project1, project2]`, read/write/edit/search/code paths inside either project succeed and paths outside both roots fail with stable `profile_workspace_scope_violation` evidence.",
-        "The active profile root and its profile-local `home/` directory are allowed as profile-state roots; a sibling profile root and unrelated operator-home paths are denied under a non-empty list.",
+        "Runtime internals keep access to the active profile root for profile state, while model-facing file/edit/search/code access is limited to configured project roots plus explicit profile-owned editable content: `SOUL.md`, `IDENTITY.md` when present, and `skills/**`.",
+        "Profile secrets and runtime state (`.env`, `auth.json`, session/memory databases, logs, gateway state, sibling profiles, and arbitrary operator-home paths) are denied as model-facing project paths under a non-empty workspace list.",
         "File tools, execute_code local/project mode, and coding-agent workspace resolution use the same normalized root list and produce matching pass/fail decisions for absolute, relative, symlink, and prefix-sibling paths.",
         "Terminal commands under a non-empty allow-list either run through a tested confinement backend rooted in the allow-list or return a typed fail-closed result before spawning a local shell; tests prove cwd-only confinement is rejected.",
-        "Docs state the distinction between current shipped behavior and the planned Gormes-owned allow-list sandbox policy, including the operator-home default and active-profile-root allowance."
+        "Docs state the distinction between current shipped behavior and the planned Gormes-owned allow-list sandbox policy, including the operator-home default, Hermes' non-sandbox upstream behavior, runtime-owned profile state, and the narrow model-facing profile-owned editable content allowance."
       ],
-      "note": "Planner pass 2026-05-17 after operator clarification: the intended Gormes-owned semantics are `agents.defaults.workspaces` as an enforced project allow-list. Empty list means default project workspace is the operator home; non-empty list means read/write project work is confined to those roots. The active profile root remains available for profile state. This intentionally diverges from upstream Hermes, whose docs say profiles do not sandbox filesystem access. Do not conflate this row with Hermes profile-local subprocess HOME parity.",
+      "note": "Planner pass 2026-05-17 after operator clarification and Hermes source audit: the intended Gormes-owned semantics are `agents.defaults.workspaces` as an enforced project allow-list. Empty list means default project workspace is the operator home; non-empty list means read/write project work is confined to those roots. Runtime internals may use the active profile root for state, but model-facing tools get only narrow profile-owned editable content (`SOUL.md`, `IDENTITY.md`, `skills/`) rather than blanket profile-root access. This intentionally diverges from upstream Hermes, whose docs say profiles do not sandbox filesystem access and whose profile distribution model separates editable identity/skills from user-owned secrets/runtime state. Do not conflate this row with Hermes profile-local subprocess HOME parity.",
       "write_scope": [
         "internal/config/agents.go",
         "internal/config/agents_test.go",

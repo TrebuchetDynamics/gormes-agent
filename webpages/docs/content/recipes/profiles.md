@@ -49,8 +49,12 @@ difficulty: "S"
    are not enforced filesystem sandboxes, and selecting one does not change the
    project working directory for shell tools. The planned Gormes workspace
    policy treats an empty `agents.defaults.workspaces` list as the operator
-   home, and a non-empty list as the project read/write allow-list while still
-   allowing the active profile root for profile state.
+   home, and a non-empty list as the project read/write allow-list. Runtime
+   internals still own the active profile root for state, but model-facing
+   profile edits are limited to explicit profile-owned content: identity files
+   such as `SOUL.md` and `IDENTITY.md`, plus the active profile's `skills/`
+   directory. Secrets, sessions, memory databases, logs, and sibling profiles
+   are not project workspaces.
 
 6. **Open chat under a specific profile without switching**
    ```bash
@@ -78,6 +82,10 @@ root: .../client-acme
 - **Workspace list does not restrict access yet** → `gormes setup profiles`
   persists `agents.defaults.workspaces` today, but runtime enforcement is still
   row-backed. Until that slice ships, do not treat the list as a sandbox.
+- **Profile files are still broad state** → Editing profile identity and skills
+  is intended, but the planned allow-list does not make the whole profile root
+  a model-facing workspace. Keep secrets and runtime state out of normal file
+  tool workflows.
 
 ## See also
 

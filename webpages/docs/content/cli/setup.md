@@ -29,8 +29,11 @@ positional argument, or run `gormes setup` to walk the full wizard.
 profile's own `config.toml`. Today that list is persisted profile metadata; the
 runtime workspace allow-list enforcement is row-backed. When that policy ships,
 an empty list means the operator home is the default project workspace, while a
-non-empty list restricts project read/write work to those roots and still
-allows the active profile root for profile state.
+non-empty list restricts project read/write work to those roots. Runtime
+internals still use the active profile root for state, but model-facing profile
+edits are limited to explicit profile-owned content such as `SOUL.md`,
+`IDENTITY.md`, and `skills/`; secrets and runtime databases are not project
+workspaces.
 
 ## Synopsis
 
