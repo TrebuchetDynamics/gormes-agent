@@ -1613,6 +1613,9 @@ func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams)
 			active = strings.TrimSpace(a)
 		}
 	}
+	if handled, err := maybeRunSetupProfilesTUI(cmd, pseams, known, active); handled || err != nil {
+		return err
+	}
 	listProfiles := func(names []string) {
 		fmt.Fprintln(out, "\nKnown profiles:")
 		for _, name := range names {
