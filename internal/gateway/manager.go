@@ -254,22 +254,23 @@ type Manager struct {
 	mu       sync.Mutex
 	channels map[string]Channel
 
-	turnMu           sync.Mutex
-	turnPlatform     string
-	turnChatID       string
-	turnMsgID        string
-	turnSessionKey   string
-	turnSessionID    string
-	turnSource       SessionSource
-	turnCancelled    bool
-	turnFrameSeen    bool
-	turnLastUserText string // captures the last inbound submit text for auto-title
-	turnKernel       KernelSubmitter
-	turnReplySent    bool // tracks first reply for ReplyMode "first"
-	kernelSessionKey string
-	shuttingDown     bool
-	followUps        []InboundEvent
-	lastUsageFrame   kernel.RenderFrame
+	turnMu             sync.Mutex
+	turnPlatform       string
+	turnChatID         string
+	turnMsgID          string
+	turnSessionKey     string
+	turnSessionID      string
+	turnSource         SessionSource
+	turnCancelled      bool
+	turnFrameSeen      bool
+	turnLastUserText   string // captures the last inbound submit text for auto-title
+	turnAudioRequested bool
+	turnKernel         KernelSubmitter
+	turnReplySent      bool // tracks first reply for ReplyMode "first"
+	kernelSessionKey   string
+	shuttingDown       bool
+	followUps          []InboundEvent
+	lastUsageFrame     kernel.RenderFrame
 
 	reasoningMu    sync.Mutex
 	reasoningState map[string]SessionReasoningState
@@ -1513,8 +1514,10 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	msgID := m.turnMsgID
 	threadID := strings.TrimSpace(m.turnSource.ThreadID)
 	replyToMsgID := m.replyTargetForTurn(msgID)
+	sessionKey := m.turnSessionKey
 	sessionID := m.turnSessionID
 	lastUserText := m.turnLastUserText
+	audioRequested := m.turnAudioRequested
 	cancelled := m.turnCancelled
 	staleInitialIdle := platform != "" && chatID != "" && !m.turnFrameSeen && isStartupIdleFrame(f)
 	if !staleInitialIdle && platform != "" && chatID != "" {
@@ -1537,7 +1540,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	m.dispatchToolProgress(ctx, ch, platform, chatID, threadID, msgID, f)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
-		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID, threadID) {
+		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID, threadID, sessionKey, audioRequested) {
 			m.completeProcessingReaction(ctx, ch, processingOutcomeForFrame(f.Phase, cancelled))
 			if f.Phase == kernel.PhaseIdle {
 				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
@@ -1558,7 +1561,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 
 	switch f.Phase {
 	case kernel.PhaseIdle:
-		finalPages, media := m.formatFinalDeliveryPages(platform, f)
+		finalPages, media := m.formatFinalDeliveryPagesForTurn(ctx, platform, f, sessionKey, audioRequested)
 		if *co != nil {
 			(*co).flushImmediateFinal(ctx, finalPages[0], true)
 			(*coCancel)()
@@ -1695,10 +1698,10 @@ func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform
 	m.toolProgressMu.Unlock()
 }
 
-func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID, threadID string) bool {
+func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID, threadID, sessionKey string, audioRequested bool) bool {
 	switch f.Phase {
 	case kernel.PhaseIdle:
-		finalPages, media := m.formatFinalDeliveryPages(ch.Name(), f)
+		finalPages, media := m.formatFinalDeliveryPagesForTurn(ctx, ch.Name(), f, sessionKey, audioRequested)
 		m.sendFinalPages(ctx, ch, chatID, threadID, replyToMsgID, finalPages)
 		m.deliverMedia(ctx, ch, chatID, replyToMsgID, threadID, media)
 		return true
@@ -2169,6 +2172,7 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnCancelled = false
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
+	m.turnAudioRequested = false
 	m.turnKernel = nil
 	m.turnReplySent = false
 	m.resetToolProgress()
@@ -2186,6 +2190,7 @@ func (m *Manager) clearTurn() {
 	m.turnCancelled = false
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
+	m.turnAudioRequested = false
 	m.turnKernel = nil
 	m.resetToolProgress()
 }
@@ -2194,6 +2199,12 @@ func (m *Manager) setTurnLastUserText(text string) {
 	m.turnMu.Lock()
 	defer m.turnMu.Unlock()
 	m.turnLastUserText = text
+}
+
+func (m *Manager) setTurnAudioRequested(requested bool) {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	m.turnAudioRequested = requested
 }
 
 func (m *Manager) hasActiveTurn() bool {
@@ -2500,6 +2511,7 @@ func (m *Manager) popNextFollowUpAsActive() (InboundEvent, bool) {
 	m.turnSource = SessionSource{}
 	m.turnCancelled = false
 	m.turnFrameSeen = false
+	m.turnAudioRequested = false
 	m.resetToolProgress()
 	return next, true
 }
@@ -2832,6 +2844,8 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	}
 	m.setPinnedTurnSession(sessionKey, resolved.SessionID, source)
 	m.setTurnLastUserText(ev.Text)
+	audioRequested := inboundRequestsAudioReply(ev)
+	m.setTurnAudioRequested(audioRequested)
 	sessionBlock := BuildSessionContextPrompt(SessionContext{
 		Source:                source,
 		Agent:                 route.SessionContext(),
@@ -2844,6 +2858,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
+	sessionBlock = appendAudioDeliveryGuidance(sessionBlock, audioRequested || m.getTTSConfig(sessionKey).Enabled)
 	sessionBlock = prependChannelPromptBlock(sessionBlock, ev.ChannelPrompt)
 	seams := m.liveTurnPromptSeamsForAgent(route)
 	sessionContext, _, _ := assembleLiveTurnPrompt(seams, submitText, resolved.SessionID, sessionBlock)

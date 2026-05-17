@@ -88,6 +88,10 @@ func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEv
 	switch strings.ToLower(args[1]) {
 	case "on":
 		cfg.Enabled = true
+		if cfg.Engine == TTSEngineDisabled {
+			cfg.Engine = TTSEngineEdge
+			cfg.Voice = defaultVoiceForEngine(cfg.Engine)
+		}
 		m.setTTSConfig(ev.ChatKey(), cfg)
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "TTS enabled")
 	case "off":
