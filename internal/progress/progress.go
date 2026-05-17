@@ -148,6 +148,11 @@ type Item struct {
 	// origin_type="gormes" for rows with no upstream analog (see Phase D of
 	// docs/superpowers/plans/2026-04-25-planner-divergence-awareness.md).
 	Provenance *Provenance `json:"provenance,omitempty"`
+	// Extra preserves historical row evidence fields that are not yet promoted
+	// into the typed schema. This prevents layout rewrites from silently
+	// dropping operator proof blocks while the planner gradually normalizes
+	// older rows.
+	Extra map[string]json.RawMessage `json:"-"`
 }
 
 // BlockerMetadata records the fleet-standard blocker protocol directly on a
@@ -177,7 +182,8 @@ type Subphase struct {
 	// DriftState is subphase-level convergence state owned by the planner.
 	// Autoloop preserves it via typed-struct round-trip (see Phase D of
 	// docs/superpowers/plans/2026-04-25-planner-divergence-awareness.md).
-	DriftState *DriftState `json:"drift_state,omitempty"`
+	DriftState *DriftState                `json:"drift_state,omitempty"`
+	Extra      map[string]json.RawMessage `json:"-"`
 }
 
 type Phase struct {

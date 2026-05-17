@@ -1,0 +1,1057 @@
+[
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 9,
+    "item": {
+      "name": "Builder-loop self-improvement vs user-feature ratio metric",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "TDD packet for a missing pure helper; create exactly two files and do not parse the live ledger. STEP 1: cd into the repo root and run `ls internal/builderloop/ship_ratio*.go` — both files must be absent before the worker writes them. STEP 2: write internal/builderloop/ship_ratio_test.go in package builderloop with two top-level test functions. TestClassifySubphase uses a t.Run-driven table with named subtests bare_1c, path_1c, bare_5o, path_5o, control_plane_prefix, user_feature_4a, user_feature_4h, user_feature_6a, user_feature_7b, blank_input, whitespace_only, and unknown_99x; each asserts ClassifySubphase returns the expected RowKind. TestComputeShipRatio uses a fixed time anchor `now := time.Date(2026,4,26,18,0,0,0,time.UTC)` and a 24h window; subtests inclusive_window_start, future_event_excluded, per_kind_counts, and zero_events_returns_zero_total. STEP 3: write internal/builderloop/ship_ratio.go exposing type RowKind string with constants RowKindSelfImprovement=\"self_improvement\", RowKindUserFeature=\"user_feature\", RowKindUnclassified=\"unclassified\"; type ShippedRowEvent struct{SubphaseID string; ShippedAt time.Time}; type ShipRatio struct{SelfImprovement int; UserFeature int; Unclassified int; Total int}; func ClassifySubphase(subphaseID string) RowKind; and func ComputeShipRatio(events []ShippedRowEvent, window time.Duration, now time.Time) ShipRatio. ClassifySubphase trims spaces, splits on \"/\" and inspects the second segment if the first is a phase number (\"1\",\"4\",\"5\",\"6\",\"7\"), and treats bare \"1.C\", \"5.O\", and any string with prefix \"control-plane/\" as RowKindSelfImprovement. \"4.A\", \"4.H\", \"6.*\", \"7.*\" map to RowKindUserFeature; everything else (including blank input) returns RowKindUnclassified. ComputeShipRatio is a pure aggregator over the provided slice. STEP 4: no file I/O, no ledger parsing, no record_run_health emission, no goroutines, no live clock; imports only `strings` and `time` plus `testing` in the test file.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "When the ship_ratio cannot be computed (insufficient history, classification ambiguous), record_run_health carries ship_ratio=null and reports ship_ratio_evidence with the reason instead of fabricating zero.",
+      "fixture": "internal/builderloop/ship_ratio_test.go (new file)::TestClassifySubphase+TestComputeShipRatio/no-ledger-parser",
+      "source_refs": [
+        "internal/builderloop/run.go",
+        "internal/builderloop/health_writer.go",
+        "internal/progress/health.go",
+        "internal/builderloop/ledger.go"
+      ],
+      "ready_when": [
+        "record_run_health is the canonical health signal already (commit 2653a7b6 etc.) and runs.jsonl carries shipped row evidence.",
+        "A subphase classifier mapping (1.C, control-plane/*, and 5.O → self_improvement; 4.*, 6.*, and 7.* → user_feature; blank/unknown → unclassified) can live in a small in-package table for now.",
+        "internal/builderloop/ship_ratio.go and ship_ratio_test.go are absent on main; the worker's first edit is the focused failing test file.",
+        "The dependency on PR-intake idle backoff is already satisfied on main; only Watchdog dead-process vs slow-progress separation remains a live prerequisite."
+      ],
+      "not_ready_when": [
+        "The slice changes ship-detection or ledger-write semantics — only adds a derived counter.",
+        "The slice depends on a yet-unbuilt classifier service or external store.",
+        "The worker needs to read .codex/builder-loop/state/runs.jsonl or change record_run_health to make the tests pass."
+      ],
+      "blocked_by": [
+        "Watchdog dead-process vs slow-progress separation"
+      ],
+      "acceptance": [
+        "TestClassifySubphase/bare_1c, path_1c, control_plane_prefix, bare_5o, path_5o all return RowKindSelfImprovement (covers '1.C', '1/1.C/Watchdog dead-process vs slow-progress separation', 'control-plane/backend', '5.O', '5/5.O/CLI log snapshot reader').",
+        "TestClassifySubphase/user_feature_4a, user_feature_4h, user_feature_6a, user_feature_7b return RowKindUserFeature (covers '4.A', '4.H', '6.A', '7.B').",
+        "TestClassifySubphase/blank_input, whitespace_only, unknown_99x all return RowKindUnclassified.",
+        "TestComputeShipRatio/inclusive_window_start: an event with ShippedAt=now-window exactly is INCLUDED in the count.",
+        "TestComputeShipRatio/future_event_excluded: an event with ShippedAt=now+1*time.Hour is EXCLUDED from the count.",
+        "TestComputeShipRatio/per_kind_counts returns SelfImprovement, UserFeature, Unclassified counts plus Total = SelfImprovement+UserFeature+Unclassified.",
+        "TestComputeShipRatio/zero_events_returns_zero_total returns ShipRatio{} with all zero counts.",
+        "Helper is a pure function — caller injects the events slice and the clock; the test file imports only `strings`, `testing`, and `time`."
+      ],
+      "note": "Reshape #6 (2026-04-26T19:00:00Z): added explicit STEP 1–4 numbering, named the fixed time anchor, exact subtest names, and an extra zero-events guard subtest so the spec_hash differs from the prior no_progress reshape. Workers must add the helper + test files directly and must not touch run.go, health_writer.go, or any ledger writer.",
+      "write_scope": [
+        "internal/builderloop/ship_ratio.go",
+        "internal/builderloop/ship_ratio_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/builderloop -run '^(TestClassifySubphase|TestComputeShipRatio)$' -count=1",
+        "go test ./internal/builderloop -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/builderloop/ship_ratio_test.go fixtures prove classifier coverage of self_improvement/user_feature/unclassified plus windowed aggregation with no record_run_health writes."
+      ],
+      "planner_verdict": {
+        "reason": "Row landed on main: internal/builderloop/ship_ratio.go and ship_ratio_test.go both exist with the ClassifySubphase/ComputeShipRatio helpers, status=complete, contract_status=validated. Prior needs_human verdicts were caused by codexu backend stalls (Reading additional input from stdin), not contract issues. Cleared 2026-04-27T14:50:00Z by Gormes Architecture Planner Loop after on-disk evidence verified.",
+        "reshape_count": 9,
+        "last_reshape": "2026-04-26T19:00:00Z",
+        "last_outcome": "unstuck"
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-04-26T17:47:44Z",
+        "note": "Surfaces the self-improvement vs user-feature skew observed in the overnight 2026-04-26 post-mortem (9 ships, almost all on the loop itself)."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 0,
+    "item": {
+      "name": "Loop $/iteration cost metric in status file",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "The autonomous builder loop records a cost-per-iteration estimate in its status file (loop-health.env or a sibling file), broken down by backend (codexu vs opencode/<model>), accumulated daily and monthly. For opencode, use the JSONL event stream's `cost` and `tokens` fields per run; for codexu, use a documented fallback estimate. A `--cost-report` subcommand on the loop wrapper prints the rolling 7-day and 30-day spend.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without cost telemetry, the operating principle \"$/feature shipped\" cannot be enforced; the loop runs at indefinite cost.",
+      "fixture": "internal/loopcost/cost_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/success-plan.md",
+        "scripts/gormes-builder-loop.sh",
+        "scripts/gormes-builder-cron.sh"
+      ],
+      "ready_when": [
+        "The runner script captures opencode JSONL output to a per-run file (already true: $LOG_DIR/$RUN_ID.opencode.jsonl).",
+        "Per-run cost is extractable from the JSONL via a simple jq aggregation."
+      ],
+      "not_ready_when": [
+        "Cost is reported as a fake or placeholder number when JSONL data is unavailable; degraded mode must surface unknown_cost evidence instead.",
+        "The metric is a wallclock proxy (\"runtime seconds\") rather than a real spend estimate."
+      ],
+      "unblocks": [
+        "Monthly cost review checklist",
+        "Engineering writeup #1: autonomous Hermes-porting loop"
+      ],
+      "acceptance": [
+        "TestLoopCost_AggregatesOpencodeJSONL parses a captured opencode JSONL fixture and produces a per-run cost summary.",
+        "TestLoopCost_DailyRollup combines per-run summaries into a 24-hour rolling spend.",
+        "TestLoopCost_MissingDataIsUnknown returns unknown_cost evidence rather than zero when JSONL is absent.",
+        "The loop wrapper's `--cost-report` (or equivalent) subcommand prints the 7-day and 30-day rollups in <100 ms."
+      ],
+      "note": "Complete: internal/loopcost package provides ParseRunCost, ParseJSONLCosts, DailyRollup, and WindowRollup with full TDD coverage (11 test cases including missing-cost sentinel, cost-as-string, multi-line JSONL, empty-line skipping, and empty-input handling). The loop wrapper's --cost-report subcommand scans $LOG_DIR/*.opencode.jsonl via jq, computes 7-day and 30-day rolling spend, and prints a one-line summary. Fixture-tested aggregation returns UnknownCost (-1) sentinel rather than false zero when cost data is missing. Source: success-plan.md 30-day action sprint item #5.",
+      "write_scope": [
+        "internal/loopcost/cost.go",
+        "internal/loopcost/cost_test.go",
+        "scripts/gormes-builder-loop.sh",
+        "scripts/gormes-builder-cron.sh",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/loopcost -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Cost rollups appear in loop-health.env; --cost-report subcommand prints rollups; fixture-tested aggregation handles missing data without lying."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 2,
+    "item": {
+      "name": "Compact completed-row shipped-evidence notes to a one-line pointer",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "1001 of 1020 progress rows are status=complete and carry long multi-paragraph SHIPPED-evidence `note` prose that is redundant with git history (the commit holds the detail). Add a Gormes-owned compaction that rewrites a COMPLETED row's verbose `note` to a one-line pointer `SHIPPED <YYYY-MM-DD> <shortSHA|see git log> — <one-line behavior>`, PRESERVING name/status/contract_status/provenance/acceptance/contract/source_refs/write_scope (only the prose `note` is compacted — nothing else is lost; not_ready_when must forbid touching any other field). Prefer extending cmd/progress (e.g. a `go run ./cmd/progress compact` maintenance subcommand) over a new binary; the compaction must be idempotent, must NOT change `go run ./cmd/progress validate` semantics or the progress-row contract schema, and must be fully reversible by git. Scope decision: SHIP the compaction helper + an ONGOING rule (future completions write a one-line note) and a GUARDED opt-in one-time sweep of existing complete rows (the bulk sweep is a large mechanical diff — keep it a separate explicit invocation, not automatic, so it can land as its own commit). Materially reduces byte size without losing provenance (git still holds full evidence). Owned Gormes infra.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If a completed row's note cannot be safely parsed for a one-line summary, leave it unchanged (never lossily truncate mid-sentence or drop a non-note field).",
+      "fixture": "internal/progress/compact_test.go",
+      "source_refs": [
+        "cmd/progress/main.go (validate/write entrypoint to extend with compact)",
+        "internal/progress/progress.go Load/marshal ; internal/progress/progress_marshal.go (stable key order)",
+        "internal/progress/validate_test.go ; references/progress-row-contract.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "ready_when": [
+        "The progress-row contract schema + marshal stable-ordering are understood (internal/progress/progress_marshal.go); a completed row's other fields are provably untouched by the compaction."
+      ],
+      "not_ready_when": [
+        "Compaction edits any field other than `note`, drops contract/acceptance/provenance, changes validate semantics or row identity, or is not reversible by git.",
+        "The one-time bulk sweep runs automatically/implicitly rather than as a separate explicit guarded invocation."
+      ],
+      "acceptance": [
+        "A `cmd/progress` compaction (subcommand or documented helper) rewrites only completed-row `note` fields to the one-line `SHIPPED <date> <sha|see git log> — <summary>` form, idempotently.",
+        "All non-note fields are byte-identical after compaction (test asserts field-level preservation); `go run ./cmd/progress validate` and `go test ./internal/progress -count=1` + `go test ./webpages/docs -count=1` stay green.",
+        "An opt-in one-time sweep materially reduces progress.json size; git history still contains the full pre-compaction evidence.",
+        "Future completions follow the one-line-note rule (documented in references/progress-row-contract.md / the gormes-* skills)."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — CompactCompletedNotes + `progress compact` (internal/progress/compact.go, internal/progressctl.Compact; not auto-run by write/validate). Idempotent; only completed-row notes rewritten; gates green.",
+      "write_scope": [
+        "cmd/progress/main.go",
+        "internal/progress/compact.go",
+        "internal/progress/compact_test.go",
+        "internal/progressctl/progressctl.go",
+        "internal/progressctl/progressctl_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress -count=1",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Completed-row notes compact to a one-line pointer with all other fields preserved; validate/tests green; size materially reduced; reversible by git."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 3,
+    "item": {
+      "name": "Module-split the progress backlog (per-subsystem files, parity-aligned)",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Umbrella (user-requested 2026-05-16, grill-corrected). Split the canonical backlog into a feature-module layout so agents and humans work against small, navigable feature files while preserving one logical backlog behind internal/progress.Load. The physical module names are the plain feature areas approved in the grill session: browser, builder, channels, cli, config, cross-cutting, doctor, docs, fleet, gateway, goncho, install, kanban, landing, learning-loop, memory, navivox, planner, profiles, progress, providers, release, runtime, sessions, skills, stt, tools, tts, tui. `execution_owner` remains work ownership; `module` becomes the physical home. The previous broad buckets (commands, setup-config-install, gateway-channels, providers-auth, memory-sessions-skills, orchestrator) are transitional only and must not be valid final C5 modules.",
+      "contract_status": "validated",
+      "slice_size": "umbrella",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "source_refs": [
+        "internal/progress/progress.go:245 Load (public contract to preserve) ; internal/progress/progress_marshal.go (stable marshal)",
+        "cmd/progress/main.go ; internal/plannerloop ; internal/builderloop/health_writer.go ; cmd/gormes/status.go ; internal/architectureplanneragent",
+        "docs/development-skills/gormes-hermes-parity/references/domain-language.md + behavior-atoms.md (canonical subsystem taxonomy to align module names)",
+        "AGENTS.md progress-contract (lines 89/96/100) ; the gormes-* skills' Source Order sections"
+      ],
+      "ready_when": [
+        "ROW A + ROW B + C1 through C5e shipped; the remaining work is taxonomy correction, explicit row assignment, module views, and the final operator-gated flip.",
+        "The approved feature-module taxonomy is recorded in this umbrella and implemented by the C5f/C5g/C5h/C5i children before C5."
+      ],
+      "not_ready_when": [
+        "Built as a big-bang rewrite; rows migrated lossily; internal/progress.Load public contract broken; a consumer left reading a now-missing monolith; docs/landing generators silently diverged; AGENTS.md/skills not updated to the split layout."
+      ],
+      "acceptance": [
+        "All split-prep children are shipped: C1-C5e plus C5f (feature enum + validation), C5g (explicit per-row module backfill + audit), C5h (module-scoped progress commands), and C5i (generated per-module docs).",
+        "The final C5 flip materializes modules/<feature>.json files using the approved feature taxonomy; zero rows are missing modules, zero rows use broad transitional module names, and the single logical backlog is preserved through internal/progress.Load."
+      ],
+      "note": "SHIPPED 2026-05-17 — umbrella closed by C5f/C5g/C5h/C5i plus the operator-gated C5 physical flip. The canonical backlog now lives at docs/content/building-gormes/architecture_plan/progress.json as a feature-module-keyed split directory using the approved fine taxonomy (browser, builder, channels, cli, config, cross-cutting, doctor, docs, fleet, gateway, goncho, install, kanban, landing, learning-loop, memory, navivox, planner, profiles, progress, providers, release, runtime, sessions, skills, stt, tools, tts, tui). Broad transitional buckets were never materialized.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "no_test_required": "umbrella inventory parent; child rows carry the tests",
+      "done_signal": [
+        "Backlog is per-module; agents/tools load only the relevant module; single logical backlog + internal/progress.Load contract preserved; all consumers migrated; AGENTS.md/skills updated."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 4,
+    "item": {
+      "name": "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Child 1 of the module-split umbrella — the smallest NON-behavior-changing first step. In internal/progress, add the ability to load AND write a split layout (a directory of per-module files, or index + per-module files) BEHIND the existing single-file public API: internal/progress.Load(path) (progress.go:245) must transparently accept EITHER the monolithic progress.json OR the split layout and return the identical in-memory model; add a round-trip pair (e.g. `go run ./cmd/progress split` / `... merge`, or internal Split()/Merge()) that is BYTE-STABLE through the existing stable marshal (internal/progress/progress_marshal.go) — merge(split(x)) == x and validate output identical. Do NOT move any real rows, do NOT change any consumer (cmd/progress, plannerloop, builderloop, status, docs/landing generators), do NOT change validate semantics. This is purely a back-compat shim + a lossless round-trip proven by tests, so a later child can flip the on-disk layout with zero behavior change. Owned Gormes infra.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If a split layout is malformed/partial, Load must return a typed error (never a silently partial backlog) and the monolithic path must keep working unchanged.",
+      "fixture": "internal/progress/split_test.go",
+      "source_refs": [
+        "internal/progress/progress.go:245 Load (public API to keep stable)",
+        "internal/progress/progress_marshal.go (stable key/order marshal — round-trip basis)",
+        "internal/progress/validate_test.go ; internal/progress/preservation_test.go (existing round-trip/preservation patterns to mirror)",
+        "cmd/progress/main.go (where a split/merge subcommand would attach)"
+      ],
+      "ready_when": [
+        "Stable marshal + Load contract understood; existing preservation_test.go round-trip pattern is the template."
+      ],
+      "not_ready_when": [
+        "Moves real rows or changes any consumer; Load's public signature/behavior for the monolithic file changes; merge(split(x)) is not byte-stable; validate output differs between layouts."
+      ],
+      "acceptance": [
+        "internal/progress.Load transparently reads both the monolithic file and the split layout into an identical model (test with a fixture in both layouts).",
+        "Split()+Merge() (or `cmd/progress split`/`merge`) round-trips byte-stably: merge(split(canonical)) is byte-identical to the stable-marshalled canonical, and `go run ./cmd/progress validate` output is identical for both layouts.",
+        "No consumer and no real row is changed; monolithic path behavior is unchanged; `go test ./internal/progress -count=1` + `go test ./webpages/docs -count=1` green.",
+        "Malformed split layout → typed error, monolith still works."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — internal/progress Split/Merge/WriteSplit/ErrMalformedSplit + dual-layout Load(dir); read-only `progress split <dir>` (progressctl.Split, not auto-run by validate/write/compact). Byte-stable round-trip incl. live 4.7MB canonical; merge/flip deferred to C2+.",
+      "write_scope": [
+        "internal/progress/split.go",
+        "internal/progress/split_test.go",
+        "internal/progress/progress.go",
+        "cmd/progress/main.go",
+        "internal/progressctl/progressctl.go",
+        "internal/progressctl/progressctl_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress -count=1",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Lossless split↔merge round-trip + dual-layout Load proven by tests; zero behavior/consumer change; monolith still canonical until a later child flips it."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 6,
+    "item": {
+      "name": "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Make every remaining backlog consumer AND the write-back path split-layout-safe without changing internal/progress.Load/SaveProgress public signatures. Readers (cmd/progress validate/write/compact, cmd/gormes/status.go, internal/architectureplanneragent) are already transparent via C1's dual-layout Load — verify and add coverage. The meaty part is the WRITE path: internal/builderloop/health_writer.go and internal/plannerloop persist via progress.SaveProgress, which writes a single monolithic file; when the canonical source is a split layout a SaveProgress-equivalent must round-trip back into the split layout (reuse C1 WriteSplit/Split) so health/verdict/status writes do not silently collapse the split into a monolith. Add a split-aware save (e.g. SaveProgress detects the existing layout, or a SaveSplit sibling the writers call) proven by a write→reload round-trip that preserves the split. No row moved; monolith remains default. Owned Gormes infra.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If the layout cannot be determined, fall back to monolithic SaveProgress (never write a partial split; never leave the backlog half-monolith half-split).",
+      "fixture": "internal/progress/split_test.go",
+      "source_refs": [
+        "internal/progress/split.go (Split/WriteSplit) + internal/progress/health.go SaveProgress/atomicWrite + internal/progress/progress.go Load (C1 substrate)",
+        "internal/builderloop/health_writer.go ; internal/plannerloop ; cmd/gormes/status.go ; internal/architectureplanneragent ; cmd/progress/main.go",
+        "internal/progress/preservation_test.go (existing SaveProgress round-trip pattern to mirror)"
+      ],
+      "ready_when": [
+        "C1 shipped and C2 (generators layout-agnostic) shipped so the read side is proven before the write side flips."
+      ],
+      "not_ready_when": [
+        "Built as a big-bang rewrite; any real row is moved; internal/progress.Load/SaveProgress public signatures change; a writer collapses a split layout back into a monolith; a consumer is left reading a now-missing monolith; write path is not proven by a split-preserving round-trip test."
+      ],
+      "blocked_by": [
+        "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
+        "Backlog split C2: docs/landing generators read the split layout"
+      ],
+      "acceptance": [
+        "Every reader (cmd/progress validate/write/compact, cmd/gormes status, internal/architectureplanneragent) works against a split layout via C1 Load, with a regression test in at least one consumer package.",
+        "A split-aware save path round-trips: writing via the builderloop/plannerloop write path against a split layout reloads byte-identically and the layout stays split (not collapsed to a monolith).",
+        "internal/progress.Load/SaveProgress public signatures unchanged; `go test ./... -count=1` green; `go run ./cmd/progress validate` identical for both layouts."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — SaveProgress+isSplitLayout dir-dispatch→WriteSplit (inverse of C1 Load); ApplyHealthUpdates raw-splice gated to monolith, split→typed write. plannerloop/builderloop split-preserving transparently. Write-scope reduction: only health.go (+test).",
+      "write_scope": [
+        "internal/progress/health.go",
+        "internal/progress/split_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "All readers + the write path are split-safe via a split-preserving round-trip; public Load/SaveProgress contract intact; monolith still default; zero row movement."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 7,
+    "item": {
+      "name": "Backlog split C5a: optional per-row module key + deterministic derivation + backfill",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "C1's split is keyed by PHASE (index.json keys = phase IDs). A true per-MODULE physical split needs a deterministic module(row) mapping, but rows carry no module tag — only the coarse optional execution_owner enum {docs,gateway,memory,provider,tools,skills,orchestrator,tui,goncho}, which is too coarse for the agreed fine module set (profiles/doctor/tts/stt/navivox/learning_loop/kanban have no dedicated owner). Add an OPTIONAL `module` string field to the Item schema (json:\"module,omitempty\"), a deterministic Module(it, phaseID, subphaseID) derivation that defaults from execution_owner + phase/subphase when `module` is absent (mapping recorded in the umbrella's agreed taxonomy), and a one-time validator-neutral, marshal-stable backfill — mirroring the additive ROW B/C1 pattern (must NOT change `go run ./cmd/progress validate` semantics, the row-contract schema requiredness, row identity, or stable marshal ordering; fully git-reversible). This is the prerequisite that lets per-module physical files exist; until it ships the C1 phase-keyed split is the canonical physical layout. Owned Gormes infra.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If `module` is absent or unrecognised, Module() returns the deterministic default from execution_owner/phase (never an error, never a silently mis-bucketed row).",
+      "fixture": "internal/progress/module_test.go",
+      "source_refs": [
+        "internal/progress/progress.go Item struct + ExecutionOwner enum ; internal/progress/progress_marshal.go (stable order) ; internal/progress/validate.go (validator-neutral check)",
+        "internal/progress/split.go (C1 substrate the module key will later key WriteSplit by)",
+        "docs/development-skills/gormes-hermes-parity/references/behavior-atoms.md Source Buckets (agreed taxonomy) ; the umbrella row's recorded module set"
+      ],
+      "ready_when": [
+        "C1 shipped; the agreed module taxonomy is recorded in the umbrella; the additive ROW B/C1 schema-extension pattern is the template."
+      ],
+      "not_ready_when": [
+        "The new field changes validate semantics or row-contract requiredness; marshal ordering/stability changes; row identity changes; backfill runs implicitly inside validate/write/compact rather than as its own explicit action; derivation is non-deterministic."
+      ],
+      "blocked_by": [
+        "Backlog split C1: lossless multi-file loader/writer behind the single-file API"
+      ],
+      "acceptance": [
+        "Item gains an optional `module` field; Module(it,phase,subphase) is deterministic and defaults from execution_owner+phase when absent; unit tests cover the mapping for the agreed module set.",
+        "`go run ./cmd/progress validate` semantics, row-contract requiredness, row identity and stable marshal output are unchanged for rows without `module` (byte-diff shows only added `module` values where backfilled, nothing else).",
+        "`go test ./internal/progress -count=1` + `go test ./webpages/docs -count=1` green; fully reversible via git."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — optional Item.Module (omitempty/byte-neutral) + deterministic progress.Module() (explicit > execution_owner→taxonomy > unclassified) + idempotent validator-neutral BackfillModules (internal/progress/module.go). No progressctl subcommand (no consumer until C5).",
+      "write_scope": [
+        "internal/progress/progress.go",
+        "internal/progress/module.go",
+        "internal/progress/module_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress ./internal/progressctl -count=1",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Optional module key + deterministic derivation + validator-neutral backfill shipped; validate/marshal/identity unchanged; prerequisite for per-module physical files satisfied."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 8,
+    "item": {
+      "name": "Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Update AGENTS.md (the 'progress.json is the only backlog' rule and Shared Progress Representation section, ~lines 6/89/96/100) and every gormes-* skill's Source Order / progress-contract wording to describe the split (and, post-C5, per-module) on-disk layout while EXPLICITLY preserving the single LOGICAL backlog contract: physically multiple files, one logical backlog, all agents/tools still go through internal/progress.Load (never hand-parse member files). Doc/skill-only; no runtime code. Must keep the symlinked skill loader views (.agents/.claude/.codex) consistent with the canonical docs/development-skills sources. Owned Gormes infra.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If wording is ambiguous about logical-vs-physical, keep the stricter 'single logical backlog via internal/progress.Load' statement so no agent starts hand-parsing member files.",
+      "fixture": "no runtime fixture (doc/skill copy change); skill-shape validated by quick_validate.py",
+      "source_refs": [
+        "AGENTS.md (progress-contract lines ~6/89/96/100, Shared Progress Representation)",
+        "docs/development-skills/gormes-planner/SKILL.md + gormes-builder + gormes-tdd-slice + gormes-hermes-parity + gormes-skill-manager Source Order sections",
+        "internal/progress/split.go + progress.go Load (the API the wording must point at)"
+      ],
+      "ready_when": [
+        "C2 + C3 shipped so the documented layout matches what generators/consumers actually do."
+      ],
+      "not_ready_when": [
+        "Wording changes before C2/C3 make the split real; AGENTS.md/skills point at the old monolith only; the single-logical-backlog contract is weakened; symlinked skill views diverge from canonical sources; runtime code is touched."
+      ],
+      "blocked_by": [
+        "Backlog split C2: docs/landing generators read the split layout",
+        "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout"
+      ],
+      "acceptance": [
+        "AGENTS.md + every gormes-* skill Source Order describes the split/module layout AND restates the single-logical-backlog-via-internal/progress.Load contract.",
+        "Symlinked .agents/.claude/.codex skill views resolve to the updated canonical docs/development-skills sources (quick_validate.py + find -L check green).",
+        "`go run ./cmd/progress validate` + `go test ./webpages/docs -count=1` green; git diff --check clean."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — AGENTS.md + 4 skills (planner/builder/hermes-parity/skill-manager) state single LOGICAL backlog via internal/progress.Load (monolith-or-split transparent, never hand-parse, monolith-on-disk-today/split-pending-C5). Write-scope correction: gormes-tdd-slice not edited (no backlog-contract block to amend).",
+      "write_scope": [
+        "AGENTS.md",
+        "docs/development-skills",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress validate",
+        "go test ./webpages/docs -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "AGENTS.md + skills describe the split/module layout while preserving the single logical backlog; skill views consistent; gates green."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 9,
+    "item": {
+      "name": "Backlog split C5b: module-keyed split layout behind the existing API",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Resolve the umbrella's deferred phase-vs-module physical-key decision (RESOLVED: module-keyed — see umbrella note C5 RESOLUTION) by generalizing the C1 split layout to support a keyBy mode (phase | module) BEHIND the existing internal/progress.Load/SaveProgress API, with NO on-disk flip (pure additive, mirrors the C1/C5a additive precedent). Today internal/progress/split.go keys the split by phase: splitIndex={Meta, Phases []string} + phases/<id>.json. Generalize so the on-disk index records the keying mode + member list and members can be grouped by progress.Module(it,phaseID,subphaseID) (the C5a field/derivation). CRITICAL design content: a module-keyed member file holds rows from MULTIPLE phases/subphases, so the member format MUST retain each row's (phaseID, subphaseID) identity so Merge reconstructs the byte-identical monolithic *Progress (rows reassembled into their real phases/subphases, NOT into a synthetic module phase). Phase-keyed layout (C1) MUST keep working byte-identically (default/back-compat — existing C1/C2/C3 tests stay green). internal/progress.Load, progressctl.canonicalSource, and health.go isSplitLayout are UNCHANGED — they only detect a split *directory*; the keying is internal to index.json so dual-layout transparency, the `progress split` command, and lossless Merge all still hold. No on-disk canonical flip in this slice; the monolith stays canonical. Owned Gormes infra.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If a split layout's declared keying is unknown/malformed, Load returns ErrMalformedSplit (never a silently partial or mis-keyed backlog); the phase-keyed and monolith paths keep working unchanged.",
+      "fixture": "internal/progress/split_test.go",
+      "source_refs": [
+        "internal/progress/split.go Split/Merge/WriteSplit/loadSplit/splitIndex/ErrMalformedSplit (C1 substrate to generalize)",
+        "internal/progress/module.go Module()/BackfillModules + internal/progress/progress.go Item.Module (C5a key)",
+        "internal/progress/progress.go Load + internal/progressctl/progressctl.go canonicalSource + internal/progress/health.go isSplitLayout/SaveProgress (must stay keying-agnostic)",
+        "internal/progress/progress_marshal.go (stable marshal — byte-stable round-trip basis) ; internal/progress/preservation_test.go ; the umbrella note C5 RESOLUTION + agreed module taxonomy"
+      ],
+      "ready_when": [
+        "C1 (Split/Merge/WriteSplit) and C5a (Module/BackfillModules) shipped; the umbrella C5 RESOLUTION (module-keyed) is recorded; the byte-stable Split/Merge round-trip is the proven template."
+      ],
+      "not_ready_when": [
+        "Any on-disk canonical flip happens in this slice (C5b is additive only — the flip is C5); the phase-keyed C1 format stops round-tripping byte-identically; module-keyed Merge is not byte-stable or loses a row's real phase/subphase placement; internal/progress.Load/SaveProgress public signatures change; progressctl.canonicalSource/health.go isSplitLayout need keying-specific logic; a consumer/generator regresses; the monolith stops being canonical.",
+        "Built as a big-bang that also migrates real rows."
+      ],
+      "blocked_by": [
+        "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
+        "Backlog split C5a: optional per-row module key + deterministic derivation + backfill"
+      ],
+      "acceptance": [
+        "internal/progress split layout supports keyBy phase (default, byte-identical to C1) and module; WriteSplit(module) groups rows by progress.Module and the index records the keying + member list.",
+        "Merge(load(module-keyed split)) is byte-stable through SaveProgress and reconstructs the identical monolithic *Progress with every row in its real phase/subphase (test asserts merge(split-by-module(canonical)) byte-identical to the stable-marshalled canonical, for a multi-phase/multi-module fixture).",
+        "Phase-keyed split + monolith paths unchanged (existing internal/progress + internal/progressctl tests green); internal/progress.Load/SaveProgress signatures unchanged; `go test ./... -count=1` + `go run ./cmd/progress validate` green; malformed/unknown keying → ErrMalformedSplit.",
+        "No real row moved on disk; the monolithic progress.json remains the canonical on-disk form (C5b does not flip)."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — split.go: splitIndex+key_by/skeleton/modules (omitempty→phase byte-identical to C1, default); WriteSplitBy(phase|module), modules/<m>.json by progress.Module + skeleton → loadSplitByModule/Merge byte-stable; unknown key_by→ErrMalformedSplit; Load/canonicalSource/isSplitLayout untouched. No cmd/progress flag (no consumer until C5).",
+      "write_scope": [
+        "internal/progress/split.go",
+        "internal/progress/split_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress ./internal/progressctl -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Module-keyed split round-trips byte-identically behind the unchanged Load/SaveProgress API; phase-keyed + monolith unchanged; no on-disk flip; consumers/generators green."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 10,
+    "item": {
+      "name": "Backlog split C5c: migrate webpages/docs raw progress.json readers to internal/progress.Load",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "webpages/docs Go tests currently os.ReadFile the canonical backlog and JSON-parse it as a single monolith: webpages/docs/phase5_docs_test.go:34 `os.ReadFile(\"content/building-gormes/architecture_plan/progress.json\")` and webpages/docs/upstream_coverage_test.go:973 `os.ReadFile(filepath.Join(\"content\",\"building-gormes\",\"architecture_plan\",\"progress.json\"))`; webpages/docs/docs_test.go's content-walk must be audited for the same path. These run under `go test ./webpages/docs` — a gate on every commit/CI — and would fail the instant the canonical path becomes a module-keyed split DIRECTORY (C5). Convert each raw read to internal/progress.Load (or a tiny split-aware test helper that calls progress.Load then re-marshals through the stable marshaller) so the gate stays green whether the canonical path is a monolithic file OR a module-keyed split directory. Preserve every existing assertion; do not weaken. Also assert explicitly that the served/dist progress.json (.github/workflows/deploy-gormes-docs.yml:47 `test -f dist/building-gormes/architecture_plan/progress.json`) is a generated Hugo mirror — NOT the canonical — and is therefore unaffected by the flip. Owned Gormes infra; prerequisite for C5.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If a webpages/docs test genuinely needs raw bytes rather than the parsed model, it must obtain them via progress.Load + stable re-marshal, never by assuming a single on-disk file.",
+      "fixture": "webpages/docs/phase5_docs_test.go ; webpages/docs/upstream_coverage_test.go ; webpages/docs/docs_test.go ; internal/progress.Load dual-layout (C1) + WriteSplitBy module-keyed (C5b) as the in-test split-directory fixture seam.",
+      "source_refs": [
+        "webpages/docs/phase5_docs_test.go:34 (raw os.ReadFile of the canonical path)",
+        "webpages/docs/upstream_coverage_test.go:973 (raw os.ReadFile of the canonical path)",
+        "webpages/docs/docs_test.go content-walk (audit for the canonical path)",
+        "internal/progress/progress.go Load os.Stat IsDir dispatch (C1) ; internal/progress/split.go WriteSplitBy/loadSplitByModule (C5b)",
+        ".github/workflows/deploy-gormes-docs.yml:47 (generated dist artifact, documented unaffected)"
+      ],
+      "ready_when": [
+        "C1 + C5b shipped (both done); a module-keyed split-directory fixture can be constructed in-test via internal/progress.WriteSplitBy to prove each migrated test passes against BOTH a monolith file and a split directory."
+      ],
+      "not_ready_when": [
+        "Any webpages/docs test still os.ReadFile-parses the canonical path as a monolith; the migration weakens or drops an existing assertion; `go test ./webpages/docs -count=1` not green against BOTH a monolith fixture and a module-keyed split-directory fixture; the dist-artifact reasoning is left undocumented."
+      ],
+      "blocked_by": [
+        "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
+        "Backlog split C5b: module-keyed split layout behind the existing API"
+      ],
+      "acceptance": [
+        "Every webpages/docs raw reader of the canonical path goes through internal/progress.Load (or a Load-backed helper); no os.ReadFile+json.Unmarshal of the canonical path remains under webpages/docs.",
+        "`go test ./webpages/docs -count=1` is green with the canonical as a monolith AND green with it as a module-keyed split directory.",
+        "The deploy-gormes-docs.yml dist `test -f` path is documented as the generated mirror (unaffected by the canonical flip)."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — webpages/docs/progress_canonical_test.go adds split-aware canonicalProgressBytes (progress.Load→SaveProgress(temp)→ReadFile) + a both-layouts test; phase5_docs_test.go:34 + upstream_coverage_test.go requireBuilderReadyProgressRow repointed off raw os.ReadFile of the canonical; docs_test.go single-canonical test strengthened with a progress.Load round-trip. Audit conclusion: docs_test.go collectContentDocs WalkDir (d.IsDir→nil, ext!=.md→nil) + os.Stat already exclude split member files — no change needed there; the slim legacy go:embed mirror is a separate single file, untouched. Write-scope correction: added new file webpages/docs/progress_canonical_test.go (ROW A/B/C1..C5b precedent).",
+      "write_scope": [
+        "webpages/docs/phase5_docs_test.go",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/docs_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -count=1",
+        "go test ./internal/progress -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "No raw monolith parse of the canonical path under webpages/docs; the `go test ./webpages/docs` gate is split-directory-safe; dist mirror documented unaffected."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 11,
+    "item": {
+      "name": "Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "The gormes-planner, gormes-builder, and gormes-provider-parity SKILL.md discovery snippets run `jq ... docs/content/building-gormes/architecture_plan/progress.json` directly against the canonical backlog. `jq` on a directory fails, so every future planner/builder/provider-parity pass — and the autonomous fleet that drives them — breaks the moment the canonical path becomes a module-keyed split DIRECTORY (C5). Replace the raw-jq discovery snippets with a split-safe equivalent: prefer `go run ./cmd/progress` (a read-only list/emit) or `jq` over `go run ./cmd/progress`'s merged emit, so discovery returns the same row inventory whether the canonical is a monolithic file or a split directory. Canonical skill sources are docs/development-skills/<name>/SKILL.md; .agents/.claude/.codex are symlink loader views (auto-resolve) and the webpages/docs/development-skills copies regenerate. If `cmd/progress` lacks a discovery-shaped read-only emit, this row MAY add a pure, non-default read-only subcommand (mirror the ROW B/C1 separate-explicit-action precedent) — record any cmd/progress write-scope addition in the row note. Owned Gormes infra; prerequisite for C5.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If `cmd/progress` cannot emit the needed shape, the skill snippet must `go run ./cmd/progress` to a temp merged monolith and jq THAT — never jq the canonical path directly.",
+      "fixture": "docs/development-skills/{gormes-planner,gormes-builder,gormes-provider-parity}/SKILL.md ; quick_validate + `find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md` symlink-shape gate.",
+      "source_refs": [
+        "docs/development-skills/gormes-planner/SKILL.md (jq discovery snippet)",
+        "docs/development-skills/gormes-builder/SKILL.md (jq discovery snippet)",
+        "docs/development-skills/gormes-provider-parity/SKILL.md (jq discovery snippet)",
+        "cmd/progress/main.go ; internal/progress.Load (C1) / module-keyed split (C5b)"
+      ],
+      "ready_when": [
+        "C1 + C5b shipped (both done); the replacement discovery command returns the same row inventory against a monolith file and a module-keyed split directory."
+      ],
+      "not_ready_when": [
+        "Any gormes-* SKILL.md still jq's the canonical path directly; the replacement command is not split-safe; quick_validate or the symlink-shape gate fails; any new cmd/progress subcommand is default-on, impure, or mutates state."
+      ],
+      "blocked_by": [
+        "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
+        "Backlog split C5b: module-keyed split layout behind the existing API"
+      ],
+      "acceptance": [
+        "No gormes-* canonical SKILL.md jq's the canonical path raw; each documents the split-safe discovery command.",
+        "quick_validate passes for each edited skill; `find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort` still resolves the symlink views to the edited canonical sources.",
+        "Any added cmd/progress subcommand is pure, read-only, non-default; its write-scope addition is recorded in the row note."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — added pure read-only non-default `progress emit` (cmd/progress/main.go + progressctl.Emit: loadValidProgress→SaveProgress(temp)→stdout, byte-identical canonical for monolith/phase-split/module-split, never mutates canonical); gormes-planner:91 + gormes-builder:80 jq snippets repointed to `go run ./cmd/progress emit | jq …` (exact pipelines preserved). Write-scope corrections: gormes-provider-parity:45 is prose with NO jq snippet — untouched (source_refs over-assumed 3 jq snippets, only planner+builder had them); the emit impl lives in internal/progressctl/progressctl.go + progressctl_test.go (within the row's cmd/progress intent — the thin main.go just dispatches). Audit: zero raw jq of the canonical path remains in any gormes-* skill; symlink views (.agents/.claude/.codex) resolve to the edited canonical sources.",
+      "write_scope": [
+        "docs/development-skills (gormes-planner, gormes-builder, gormes-provider-parity SKILL.md)",
+        "cmd/progress/main.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/gormes-planner",
+        "find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "gormes-* skill discovery is split-directory-safe; no raw jq of the canonical path in any gormes-* skill; symlink views resolve."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 12,
+    "item": {
+      "name": "Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Two non-Go consumer classes still assume the canonical backlog is a single file and would break when C5 makes it a module-keyed split DIRECTORY (the canonical is ONE file, reachable as both docs/... via the docs→webpages/docs symlink and webpages/docs/...). (1) Fleet/cron shell scripts that `jq \"$PROGRESS_JSON\"` and `require_file \"$PROGRESS_JSON\"`: scripts/gormes-architecture-planner-tasks-manager.sh (797,831,1039,1294,1326), scripts/documentation-improver.sh (251,491,516), scripts/landingpage-improver.sh (455,479) — `[ -f dir ]` and `jq dir` both fail, breaking the autonomous fleet's TASKS.md / docs / landing generation. (2) GitHub Actions path-trigger globs `paths: webpages/docs/content/building-gormes/architecture_plan/progress.json` in .github/workflows/www-mirror-sync.yml (6,16) and .github/workflows/deploy-gormes-www.yml (9) — a glob ending in `/progress.json` does NOT match changed member files `progress.json/index.json` or `progress.json/modules/*.json`, so deploy + mirror-sync would SILENTLY stop firing on backlog changes (a silent pipeline break, worse than a loud test failure). Make both split-safe: shell scripts read the backlog via `go run ./cmd/progress` (emit/merge to a temp monolith) and gate existence with a split-aware check instead of raw `jq`/`require_file -f`; CI globs add `…/progress.json/**` while keeping the file glob for back-compat. deploy-gormes-docs.yml:47 `test -f dist/.../progress.json` is the generated Hugo artifact (not the canonical) — out of scope, note it explicitly as verified-unaffected. Owned Gormes infra; prerequisite for C5.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If `cmd/progress` cannot emit a merged monolith for a script, the script must fail loudly with a split-aware message — never silently jq an empty or directory path.",
+      "fixture": "scripts/gormes-architecture-planner-tasks-manager.sh ; scripts/documentation-improver.sh ; scripts/landingpage-improver.sh ; .github/workflows/www-mirror-sync.yml ; .github/workflows/deploy-gormes-www.yml ; internal/buildscripts_test.go / scripts orchestrator bats harness if they cover these scripts.",
+      "source_refs": [
+        "scripts/gormes-architecture-planner-tasks-manager.sh:797,831,1039,1294,1326 (jq + require_file on $PROGRESS_JSON)",
+        "scripts/documentation-improver.sh:251,491,516 ; scripts/landingpage-improver.sh:455,479",
+        ".github/workflows/www-mirror-sync.yml:6,16 ; .github/workflows/deploy-gormes-www.yml:9 (paths: trigger globs)",
+        "cmd/progress/main.go ; internal/progress.Load (C1) / module-keyed split (C5b) ; .github/workflows/deploy-gormes-docs.yml:47 (generated artifact, unaffected)"
+      ],
+      "ready_when": [
+        "C1 + C5b shipped (both done); each migrated script proven to produce identical output against a monolith file and a module-keyed split directory; the CI globs reviewed/dry-run-proven to match member-file changes."
+      ],
+      "not_ready_when": [
+        "Any fleet script still `jq`/`require_file -f`'s the canonical path raw; any backlog-triggered workflow whose `paths:` no longer matches member-file changes; a script silently succeeds on a directory with empty output; behavior differs between monolith and split-directory inputs."
+      ],
+      "blocked_by": [
+        "Backlog split C1: lossless multi-file loader/writer behind the single-file API",
+        "Backlog split C5b: module-keyed split layout behind the existing API"
+      ],
+      "acceptance": [
+        "The three fleet scripts read the backlog via cmd/progress (split-safe) and gate existence split-aware; documented evidence that each yields identical output for monolith vs split-directory input.",
+        "www-mirror-sync.yml + deploy-gormes-www.yml `paths:` include `…/progress.json/**` (file glob kept for back-compat); deploy-gormes-docs.yml:47 documented as the generated artifact (unaffected).",
+        "`go run ./cmd/progress validate` + `git diff --check` green; any script test harness covering these scripts green."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — each of the 3 fleet scripts (gormes-architecture-planner-tasks-manager.sh, documentation-improver.sh, landingpage-improver.sh) gained progress_backlog_emit()/require_progress_backlog() (go run ./cmd/progress emit, fail-loud under set -Eeuo pipefail, no temp files/traps); raw jq sites repointed to `progress_backlog_emit | jq …` and require_file \"$PROGRESS_JSON\" → require_progress_backlog; $PROGRESS_JSON kept canonical for prompt/display only. www-mirror-sync.yml + deploy-gormes-www.yml paths: gained the `architecture_plan/progress.json/**` sibling glob (file glob kept for back-compat). Write-scope additions: new internal/buildscripts_split_safe_test.go (TestBuildScriptsBacklogReadersAreSplitDirectorySafe, the row's `go test ./internal -run BuildScripts` gate). Notes: landingpage-improver had NO raw jq (require_file-only); deploy-gormes-docs.yml:47 `test -f dist/.../progress.json` is the generated Hugo artifact (NOT the canonical) — verified unaffected, intentionally untouched. ALL non-Go raw readers of the canonical path are now eliminated repo-wide.",
+      "write_scope": [
+        "scripts/gormes-architecture-planner-tasks-manager.sh",
+        "scripts/documentation-improver.sh",
+        "scripts/landingpage-improver.sh",
+        ".github/workflows/www-mirror-sync.yml",
+        ".github/workflows/deploy-gormes-www.yml",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress validate",
+        "go test ./internal -run BuildScripts -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "No non-Go raw consumer assumes a single-file canonical; fleet shell scripts + CI path triggers are split-directory-safe."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 13,
+    "item": {
+      "name": "Backlog split C5f: replace coarse module buckets with the approved feature taxonomy",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Replace the current broad module constants with the approved fine feature taxonomy and make module names a closed enum for validation. The final allowed modules are: browser, builder, channels, cli, config, cross-cutting, doctor, docs, fleet, gateway, goncho, install, kanban, landing, learning-loop, memory, navivox, planner, profiles, progress, providers, release, runtime, sessions, skills, stt, tools, tts, tui. Old values such as commands, setup-config-install, gateway-channels, providers-auth, memory-sessions-skills, and orchestrator are migration inputs only, not valid final modules. Keep progress.Module as a compatibility fallback, but C5 must use explicit valid modules rather than owner-derived coarse buckets.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "Before C5, old module values may be recognized only by migration/audit tooling; after validation hardening they must fail with a row location and allowed-module list.",
+      "fixture": "internal/progress/module.go ; internal/progress/module_test.go ; internal/progress/validate.go",
+      "source_refs": [
+        "internal/progress/module.go current broad taxonomy",
+        "internal/progress/progress.go Item.Module",
+        "internal/progress/validate.go row validation",
+        "2026-05-16 grill decisions recorded in the module-split umbrella note"
+      ],
+      "ready_when": [
+        "The operator approved the fine feature taxonomy and rejected the broad buckets as final physical files.",
+        "C1-C5e are shipped, so this slice can focus only on taxonomy/validation without touching the canonical on-disk layout."
+      ],
+      "not_ready_when": [
+        "The implementation keeps broad buckets as valid final module names; module remains free-form; unknown modules do not fail validation; C5 can proceed with missing/unclassified modules."
+      ],
+      "blocked_by": [
+        "Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe"
+      ],
+      "acceptance": [
+        "AllowedModules or equivalent exposes the approved feature taxonomy in stable alphabetical order; validation rejects unknown modules with phase/subphase/row context and the allowed list.",
+        "Tests cover explicit module precedence, compatibility fallback, old-name rejection, and the approved names including providers/channels/tts/stt/kanban/navivox/profiles/release/cross-cutting.",
+        "No physical split is performed; monolithic canonical path remains unchanged."
+      ],
+      "note": "SHIPPED 2026-05-16 — internal/progress/module.go now exposes the approved fine feature taxonomy through AllowedModules/ValidModule (browser, builder, channels, cli, config, cross-cutting, doctor, docs, fleet, gateway, goncho, install, kanban, landing, learning-loop, memory, navivox, planner, profiles, progress, providers, release, runtime, sessions, skills, stt, tools, tts, tui). Owner-derived Module fallback now returns approved feature modules only; unclassified remains a compatibility fallback, not a valid explicit module. progress.Validate rejects explicit unknown/old module values such as providers-auth/provider with phase/subphase/item context and the allowed list. Tests: TestAllowedModulesFeatureTaxonomy, TestModuleDeterministicDerivation, TestValidate_AcceptsApprovedExplicitModules, TestValidate_RejectsUnknownModuleWithAllowedList.",
+      "write_scope": [
+        "internal/progress/module.go",
+        "internal/progress/module_test.go",
+        "internal/progress/validate.go",
+        "internal/progress/validate_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress -run 'TestModule|TestValidate' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Feature-module enum and validation are in place; broad buckets are migration-only; C5 cannot accept unknown or obsolete module names."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 14,
+    "item": {
+      "name": "Backlog split C5g: explicitly classify every row into a valid feature module",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Backfill an explicit `module` field on every backlog row using the C5f feature taxonomy, with an automated first pass and a planner-audited correction pass. The migration may change only Item.Module. It must map old broad buckets to feature modules by row content, not by blind one-to-one rename: gateway-channels becomes channels, gateway, tts, stt, navivox, or browser as appropriate; memory-sessions-skills becomes memory, sessions, or skills; orchestrator becomes planner, builder, progress, fleet, kanban, or learning-loop. C5 remains blocked until every row has a valid explicit module and no row is unclassified.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If a row is too vague to classify, leave it out of the backfill and fail the audit; a planner must sharpen that row instead of guessing.",
+      "fixture": "docs/content/building-gormes/architecture_plan/module-assignment-audit.md ; docs/content/building-gormes/architecture_plan/progress.json",
+      "source_refs": [
+        "internal/progress/module.go approved taxonomy from C5f",
+        "docs/content/building-gormes/architecture_plan/progress.json current rows",
+        "cmd/progress emit split-safe merged view",
+        "module-split umbrella grill decision: unclassified blocks C5; cross-cutting is real but audited"
+      ],
+      "ready_when": [
+        "C5f shipped and validation knows the approved feature-module enum.",
+        "The classifier inputs are limited to row name, contract, execution_owner, write_scope, source_refs, phase/subphase, and existing module; no other row content may be rewritten."
+      ],
+      "not_ready_when": [
+        "The migration rewrites names/contracts/notes/statuses; rows remain missing/unclassified; old broad module names remain; cross-cutting grows without explicit audit justification."
+      ],
+      "blocked_by": [
+        "Backlog split C5f: replace coarse module buckets with the approved feature taxonomy"
+      ],
+      "acceptance": [
+        "Every row in the canonical backlog has an explicit valid module from the C5f enum; zero rows are missing, invalid, or unclassified.",
+        "The migration diff changes only `module` fields plus the generated audit report; no row names, contracts, statuses, notes, priorities, source refs, or test commands are rewritten.",
+        "The audit report lists counts per module, old-to-new mappings, manually reviewed ambiguous rows, and any cross-cutting justifications."
+      ],
+      "note": "SHIPPED 2026-05-16 — added deterministic module assignment/audit support in internal/progress/module_assignment.go, then classified every canonical row into an explicit valid C5f feature module. The migration set 1033 previously-empty row modules and preserved the 6 explicit split-planning modules; zero rows are missing, invalid, or unclassified. Published docs/content/building-gormes/architecture_plan/module-assignment-audit.md with counts per module, old broad-bucket mapping, manual review notes, and cross-cutting review (none). No physical split was performed.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/module-assignment-audit.md",
+        "internal/progress",
+        "cmd/progress"
+      ],
+      "test_commands": [
+        "go test ./internal/progress ./internal/progressctl -run Module -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "All rows carry explicit valid feature modules; module-assignment audit is published; C5 no longer depends on owner-derived coarse fallback."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 15,
+    "item": {
+      "name": "Backlog split C5h: add module-scoped progress commands for planner and builder selection",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Expose module filters as views over the single logical backlog, starting with one-module selection. Add a read-only progress command surface such as `go run ./cmd/progress list --module providers` that returns the same row inventory from a monolithic file or a module-keyed split directory. Planner and builder skills should name the module boundary before row selection; module filters must never create independent queues.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If multi-module filtering is not ready, support exactly one module and fail clearly on comma-separated input; never silently broaden to the whole backlog.",
+      "fixture": "cmd/progress list --module providers ; docs/development-skills/gormes-{planner,builder,tdd-slice}/SKILL.md",
+      "source_refs": [
+        "cmd/progress/main.go current command surface",
+        "internal/progressctl/progressctl.go split-safe Emit/Validate patterns",
+        "docs/development-skills/gormes-planner/SKILL.md Source Order",
+        "docs/development-skills/gormes-builder/SKILL.md row selection guidance"
+      ],
+      "ready_when": [
+        "C5f shipped so the command can validate module names against the closed enum.",
+        "C5g shipped or has a fixture backlog with explicit modules for command tests."
+      ],
+      "not_ready_when": [
+        "Command output differs between monolith and split inputs; unknown modules are accepted; planner/builder skills describe module filters as separate backlogs."
+      ],
+      "blocked_by": [
+        "Backlog split C5f: replace coarse module buckets with the approved feature taxonomy"
+      ],
+      "acceptance": [
+        "`cmd/progress` has a pure read-only module-filtered listing surface; output makes the selected module scope explicit.",
+        "Tests prove identical module-filtered output from monolith and module-keyed split fixtures.",
+        "gormes-planner and gormes-builder source-order guidance tells agents to name the module scope and use module filters as views over the single backlog."
+      ],
+      "note": "SHIPPED 2026-05-16 — added `progress list --module <feature>` as a read-only one-module backlog view wired through internal/progressctl.List. Tests prove identical scoped output from monolith and module-keyed split fixtures, rejection of comma-separated and unknown modules, and command-level provider scoping. Updated planner/builder skills to name the module boundary and treat filters as views over the single logical backlog, not side queues.",
+      "write_scope": [
+        "cmd/progress/main.go",
+        "cmd/progress/main_test.go",
+        "internal/progressctl/progressctl.go",
+        "internal/progressctl/progressctl_test.go",
+        "docs/development-skills/gormes-planner/SKILL.md",
+        "docs/development-skills/gormes-builder/SKILL.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progressctl ./cmd/progress -run Module -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Planner/builder agents can select rows by module through a split-safe read-only command without creating side queues."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 16,
+    "item": {
+      "name": "Backlog split C5i: render per-module roadmap pages before the physical split",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Generate per-module roadmap pages from the single logical backlog before C5 flips the on-disk layout. Keep the unified roadmap canonical, but add module pages grouped by original phase/subphase with compact priority/status counts. The pages must expose each row's module in normal review so misfiled rows are visible before the physical split.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If generated module pages would duplicate too much content, render compact row summaries with links back to the unified roadmap; do not create hand-authored side backlog files.",
+      "fixture": "docs/content/building-gormes/modules/ ; internal/progress/render.go",
+      "source_refs": [
+        "internal/progress/render.go current building-gormes renderers",
+        "internal/progressctl/progressctl.go Write generated-doc flow",
+        "docs/content/building-gormes/architecture_plan/progress.json Item.Module fields from C5g",
+        "module-split umbrella grill decision: unified roadmap plus generated per-module pages"
+      ],
+      "ready_when": [
+        "C5f shipped so the page set has stable module names.",
+        "C5g shipped or a fixture backlog with explicit modules is available for render tests."
+      ],
+      "not_ready_when": [
+        "Pages are hand-authored; rows are flattened without phase/subphase context; generated docs become a second backlog; module labels are hidden from unified docs."
+      ],
+      "blocked_by": [
+        "Backlog split C5f: replace coarse module buckets with the approved feature taxonomy",
+        "Backlog split C5g: explicitly classify every row into a valid feature module"
+      ],
+      "acceptance": [
+        "`progress write` renders per-module roadmap pages from internal/progress.Load without requiring the physical split.",
+        "Module pages group rows by original phase/subphase and include compact counts by priority/status.",
+        "Unified docs expose each row's module compactly; docs tests prove rendering is stable."
+      ],
+      "note": "SHIPPED 2026-05-16 — added generated module roadmap renderers and wired `progress write` to publish `docs/content/building-gormes/modules/` pages from the single logical backlog. The module index and one page per allowed feature module include phase/subphase grouping, status counts, priority counts, and explicit module labels; the unified architecture checklist now shows each row's module tag inline. Tests cover renderer stability plus identical generated provider pages from monolith and module-keyed split fixtures.",
+      "write_scope": [
+        "internal/progress/render.go",
+        "internal/progress/render_test.go",
+        "internal/progressctl/progressctl.go",
+        "internal/progressctl/progressctl_test.go",
+        "docs/content/building-gormes",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress ./internal/progressctl -run 'Render|Module' -count=1",
+        "go run ./cmd/progress write",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Generated per-module roadmap pages exist before C5; the unified roadmap remains canonical; module assignment quality is reviewable."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 17,
+    "item": {
+      "name": "Backlog split C5: single atomic operator-gated flip to the module-keyed split directory",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "The actual on-disk flip, ONE single atomic operator-gated commit. Replace the single canonical FILE docs/content/building-gormes/architecture_plan/progress.json with a feature-module-keyed split DIRECTORY at that exact path. The physical member files must use the approved feature taxonomy from C5f, not the earlier broad transitional buckets. Every backlog consumer stays transparent via internal/progress.Load/SaveProgress; the format remains atomic-all-modules (index.json skeleton + every modules/<feature>.json together reconstruct the whole backlog). The flip is allowed only after explicit valid modules are backfilled/audited, module-scoped views and docs exist, byte-identity is proven, and the operator records a quiet fleet signoff checklist.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If any raw (non-progress.Load) reader of the canonical path remains (C5c/C5d/C5e not all shipped), or the fleet is mid-commit, or merge(materialized split) is not byte-identical to the pre-flip monolith — abort. Never commit a half-monolith/half-split, lossy, or orphaned-reader state.",
+      "fixture": "internal/progress/split_test.go module-keyed byte-stable round-trip (C5b) is the format basis; the flip itself is verified by merge(Load(dir)) == pre-flip monolith bytes + the full repo/docs/skill/fleet/CI gates green.",
+      "source_refs": [
+        "internal/progress/split.go WriteSplitBy(module)/loadSplitByModule/Merge (C5b) + Load os.Stat IsDir dispatch (C1) + SaveProgress/isSplitLayout (C3) + internal/progressctl.canonicalSource (C2)",
+        "internal/progress/progress_marshal.go (byte-stable round-trip basis) ; internal/progress/preservation_test.go",
+        "the umbrella row's grill-corrected feature taxonomy + C5 RESOLUTION + C5 EXECUTABILITY CORRECTION notes",
+        "the C5c (webpages/docs Go readers), C5d (gormes-* skill jq), and C5e (non-Go fleet scripts + CI globs) raw-reader migrations"
+      ],
+      "ready_when": [
+        "C2 + C3 + C4 + C5a + C5b + C5c + C5d + C5e + C5f + C5g + C5h + C5i all shipped.",
+        "A focused repo-wide audit (`rg -n \"architecture_plan/progress\\.json\"` across .github cmd internal scripts webpages docs) shows zero orphaned raw readers of the canonical path.",
+        "`go run ./cmd/progress validate` proves zero missing modules, zero invalid modules, and zero unclassified rows; the module-assignment audit report is reviewed.",
+        "The operator has chosen and explicitly recorded a quiet fleet moment and manual signoff checklist: validate green, relevant tests green, split/merge byte identity proven, per-module docs generated, no raw readers, and worktree reviewed for unrelated changes."
+      ],
+      "not_ready_when": [
+        "Any raw reader of the canonical path remains; any row has missing/invalid/unclassified module; broad transitional module files such as providers-auth.json or gateway-channels.json would be produced; merge(Load(dir)) is not byte-identical to the pre-flip monolith; the fleet is auto-committing; the flip is not a single atomic git-reversible commit."
+      ],
+      "blocked_by": [
+        "Backlog split C2: docs/landing generators read the split layout",
+        "Backlog split C3: migrate remaining backlog consumers and the write path to the split layout",
+        "Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout",
+        "Backlog split C5a: optional per-row module key + deterministic derivation + backfill",
+        "Backlog split C5b: module-keyed split layout behind the existing API",
+        "Backlog split C5c: migrate webpages/docs raw progress.json readers to internal/progress.Load",
+        "Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json",
+        "Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe",
+        "Backlog split C5f: replace coarse module buckets with the approved feature taxonomy",
+        "Backlog split C5g: explicitly classify every row into a valid feature module",
+        "Backlog split C5h: add module-scoped progress commands for planner and builder selection",
+        "Backlog split C5i: render per-module roadmap pages before the physical split",
+        "Operator explicit C5 quiet-fleet approval"
+      ],
+      "acceptance": [
+        "The canonical path is a feature-module-keyed split directory (index.json skeleton + modules/<feature>.json) and merge(internal/progress.Load(dir)) is byte-identical to the pre-flip monolith.",
+        "Physical files use only approved feature module names; no unclassified file and no broad transitional bucket files exist.",
+        "All consumers/generators/tests/skills/fleet scripts/CI keep working: `go test ./... -count=1`, `go test ./webpages/docs -count=1`, `go run ./cmd/progress validate` green; module-scoped progress commands and generated module docs work against the split.",
+        "The flip is one atomic git-reversible commit; the single logical backlog is preserved; no half-monolith/half-split committed state ever exists."
+      ],
+      "note": "SHIPPED 2026-05-17 — operator quiet-fleet approval recorded from LGTM on the gated C5 recommendation; canonical docs/content/building-gormes/architecture_plan/progress.json is now the module-keyed split directory (index.json + modules/<feature>.json). Added row/subphase/health raw-field preservation so historical evidence/completed_at/upstream_refs/source fields are not dropped by typed Load/Save or module split. Pre-flip raw monolith and typed emit are semantically identical under jq -S; post-flip `go run ./cmd/progress emit` is byte-identical to pre-flip canonical emit. Physical files use only approved module names, no phases/ dir, no unclassified or broad transitional buckets. Also converted the docs Astro postbuild progress artifact from raw file copy to `cmd/progress emit`, added Go setup to the docs deploy workflow, and moved remaining builderloop/hermes/installtest real-canonical test reads through split-safe progress.Load/emit helpers. Focused shape/list/docs/raw-reader gates passed before broad validation.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan (the canonical progress.json path becomes the split directory + index.json + modules/ member files)",
+        "internal/progress/item_json.go",
+        "internal/progress/progress.go",
+        "internal/progress/health.go",
+        "internal/progress/preservation_test.go",
+        "internal/progress/item_json_test.go",
+        "internal/progress/split.go",
+        "internal/progress/split_test.go",
+        "webpages/docs/scripts/copy-progress-json.mjs",
+        "webpages/docs/build_test.go",
+        ".github/workflows/deploy-gormes-docs.yml",
+        "webpages/docs/upstream_coverage_test.go",
+        "internal/builderloop/candidates.go",
+        "internal/builderloop/candidates_test.go",
+        "internal/hermes/codex_responses_temperature_test.go",
+        "internal/installtest/go_toolchain_floor_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./... -count=1",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Canonical path is the module-keyed split directory; merge byte-identical to the pre-flip monolith; all consumers/CI/fleet green; one atomic git-reversible commit; single logical backlog + internal/progress.Load contract preserved."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  }
+]

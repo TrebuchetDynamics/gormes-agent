@@ -12,7 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progressctl"
 )
 
-const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact|split <dir>|emit}"
+const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact|split <dir>|emit|list --module <module>}"
 
 var errParse = errors.New("parse error")
 
@@ -64,6 +64,12 @@ func run(stdout, stderr io.Writer, args []string) error {
 			return fmt.Errorf("%w\n%s", errParse, usage)
 		}
 		return progressctl.Emit(stdout, root)
+	case "list":
+		opts, err := parseListOptions(args[1:])
+		if err != nil {
+			return err
+		}
+		return progressctl.List(stdout, root, opts)
 	default:
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
@@ -113,4 +119,24 @@ func parseFormat(args []string) (string, error) {
 		return "", fmt.Errorf("%w: unexpected argument %q\n%s", errParse, args[i], usage)
 	}
 	return format, nil
+}
+
+func parseListOptions(args []string) (progressctl.ListOptions, error) {
+	var opts progressctl.ListOptions
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--module":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("%w: --module requires a value\n%s", errParse, usage)
+			}
+			opts.Module = args[i+1]
+			i++
+		default:
+			return opts, fmt.Errorf("%w: unexpected argument %q\n%s", errParse, args[i], usage)
+		}
+	}
+	if opts.Module == "" {
+		return opts, fmt.Errorf("%w: list requires --module <module>\n%s", errParse, usage)
+	}
+	return opts, nil
 }

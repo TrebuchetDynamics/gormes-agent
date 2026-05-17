@@ -16,13 +16,14 @@ import (
 // Owned by autoloop. The planner READS it to prioritize repairs and MUST
 // preserve any unknown fields verbatim across regenerations.
 type RowHealth struct {
-	AttemptCount        int             `json:"attempt_count,omitempty"`
-	ConsecutiveFailures int             `json:"consecutive_failures,omitempty"`
-	LastAttempt         string          `json:"last_attempt,omitempty"` // RFC3339
-	LastSuccess         string          `json:"last_success,omitempty"` // RFC3339
-	LastFailure         *FailureSummary `json:"last_failure,omitempty"`
-	BackendsTried       []string        `json:"backends_tried,omitempty"`
-	Quarantine          *Quarantine     `json:"quarantine,omitempty"`
+	AttemptCount        int                        `json:"attempt_count,omitempty"`
+	ConsecutiveFailures int                        `json:"consecutive_failures,omitempty"`
+	LastAttempt         string                     `json:"last_attempt,omitempty"` // RFC3339
+	LastSuccess         string                     `json:"last_success,omitempty"` // RFC3339
+	LastFailure         *FailureSummary            `json:"last_failure,omitempty"`
+	BackendsTried       []string                   `json:"backends_tried,omitempty"`
+	Quarantine          *Quarantine                `json:"quarantine,omitempty"`
+	Extra               map[string]json.RawMessage `json:"-"`
 }
 
 // FailureSummary is autoloop's classification of a worker outcome.
@@ -66,22 +67,25 @@ type Quarantine struct {
 type PlannerVerdict struct {
 	// NeedsHuman is sticky: once true, only a human edit can clear it.
 	// Planner runtime never auto-unsets it.
-	NeedsHuman   bool   `json:"needs_human,omitempty"`
-	Reason       string `json:"reason,omitempty"`
-	Since        string `json:"since,omitempty"`         // RFC3339; set when NeedsHuman first triggers
-	ReshapeCount int    `json:"reshape_count,omitempty"` // monotonic; total times planner reshaped this row
-	LastReshape  string `json:"last_reshape,omitempty"`  // RFC3339 of most recent reshape
-	LastOutcome  string `json:"last_outcome,omitempty"`  // "unstuck" | "still_failing" | "no_attempts_yet"
+	NeedsHuman   bool                       `json:"needs_human,omitempty"`
+	Reason       string                     `json:"reason,omitempty"`
+	Since        string                     `json:"since,omitempty"`         // RFC3339; set when NeedsHuman first triggers
+	ReshapeCount int                        `json:"reshape_count,omitempty"` // monotonic; total times planner reshaped this row
+	LastReshape  string                     `json:"last_reshape,omitempty"`  // RFC3339 of most recent reshape
+	LastOutcome  string                     `json:"last_outcome,omitempty"`  // "unstuck" | "still_failing" | "no_attempts_yet"
+	Extra        map[string]json.RawMessage `json:"-"`
 }
 
 // Provenance is per-row source-of-truth metadata. Owned by the planner;
 // autoloop preserves it via typed-struct round-trip. The planner sets
 // origin_type="gormes" for rows that have no upstream analog.
 type Provenance struct {
-	OriginType  string `json:"origin_type"`            // "upstream" | "gormes" | "hybrid"
-	UpstreamRef string `json:"upstream_ref,omitempty"` // e.g. "hermes:gateway/api_server.py@abc123"
-	OwnedSince  string `json:"owned_since,omitempty"`  // RFC3339 when origin_type became "gormes"
-	Note        string `json:"note,omitempty"`
+	OriginType   string                     `json:"origin_type"`             // "upstream" | "gormes" | "hybrid"
+	UpstreamRef  string                     `json:"upstream_ref,omitempty"`  // e.g. "hermes:gateway/api_server.py@abc123"
+	UpstreamRefs []string                   `json:"upstream_refs,omitempty"` // older planner rows may carry plural refs.
+	OwnedSince   string                     `json:"owned_since,omitempty"`   // RFC3339 when origin_type became "gormes"
+	Note         string                     `json:"note,omitempty"`
+	Extra        map[string]json.RawMessage `json:"-"`
 }
 
 // DriftState is subphase-level convergence state. Owned by the planner.
@@ -284,9 +288,32 @@ func isSplitLayout(path string) bool {
 	return err == nil && fi.IsDir()
 }
 
+func splitLayoutKeyBy(path string) (string, error) {
+	raw, err := os.ReadFile(filepath.Join(path, splitIndexName))
+	if err != nil {
+		return "", fmt.Errorf("%w: read index: %v", ErrMalformedSplit, err)
+	}
+	var idx splitIndex
+	if err := json.Unmarshal(raw, &idx); err != nil {
+		return "", fmt.Errorf("%w: parse index: %v", ErrMalformedSplit, err)
+	}
+	switch idx.KeyBy {
+	case "", splitKeyByPhase:
+		return splitKeyByPhase, nil
+	case splitKeyByModule:
+		return splitKeyByModule, nil
+	default:
+		return "", fmt.Errorf("%w: unknown key_by %q", ErrMalformedSplit, idx.KeyBy)
+	}
+}
+
 func SaveProgress(path string, prog *Progress) error {
 	if isSplitLayout(path) {
-		return WriteSplit(path, prog)
+		keyBy, err := splitLayoutKeyBy(path)
+		if err != nil {
+			return err
+		}
+		return WriteSplitBy(path, prog, keyBy)
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

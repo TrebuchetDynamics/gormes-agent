@@ -80,17 +80,17 @@ func TestRenderDocsChecklist_ItemCheckboxes(t *testing.T) {
 		Phases: map[string]Phase{
 			"1": {Name: "Phase 1 — Test", Subphases: map[string]Subphase{
 				"1.A": {Name: "Alpha", Items: []Item{
-					{Name: "done", Status: StatusComplete},
-					{Name: "todo", Status: StatusPlanned},
+					{Name: "done", Status: StatusComplete, Module: ModuleProviders},
+					{Name: "todo", Status: StatusPlanned, Module: ModuleTTS},
 				}},
 			}},
 		},
 	}
 	got := RenderDocsChecklist(p)
-	if !strings.Contains(got, "- [x] done") {
+	if !strings.Contains(got, "- [x] `providers` done") {
 		t.Errorf("checklist missing checked item; got:\n%s", got)
 	}
-	if !strings.Contains(got, "- [ ] todo") {
+	if !strings.Contains(got, "- [ ] `tts` todo") {
 		t.Errorf("checklist missing unchecked item; got:\n%s", got)
 	}
 	if !strings.Contains(got, "### 1.A — Alpha") {
@@ -434,5 +434,70 @@ func TestRenderProgressSchema(t *testing.T) {
 	}
 	if strings.Contains(got, "autonomous worker selection") {
 		t.Fatalf("progress schema still uses loop-era worker wording:\n%s", got)
+	}
+}
+
+func TestRenderModuleRoadmapPageGroupsRowsAndCounts(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"4": {Name: "Phase 4 — Brain", Subphases: map[string]Subphase{
+			"4.A": {Name: "Providers", Items: []Item{
+				{Name: "Provider harness", Status: StatusComplete, Priority: "P1", Module: ModuleProviders},
+				{Name: "TTS row", Status: StatusPlanned, Priority: "P2", Module: ModuleTTS},
+			}},
+		}},
+		"5": {Name: "Phase 5 — Purge", Subphases: map[string]Subphase{
+			"5.C": {Name: "Setup", Items: []Item{
+				{Name: "OpenRouter setup", Status: StatusPlanned, Priority: "P0", Module: ModuleProviders},
+			}},
+		}},
+	}}
+
+	got := RenderModuleRoadmapPage(p, ModuleProviders)
+	for _, want := range []string{
+		`title: "Providers Module Roadmap"`,
+		"# Providers Module Roadmap",
+		"single logical backlog",
+		"**Module:** `providers`",
+		"**Rows:** 2",
+		"**Status counts:** `complete`: 1 · `in_progress`: 0 · `planned`: 1",
+		"**Priority counts:** `P0`: 1 · `P1`: 1",
+		"## Phase 4 — Brain",
+		"### 4.A — Providers",
+		"| Status | Priority | Module | Row |",
+		"| `complete` | `P1` | `providers` | Provider harness |",
+		"## Phase 5 — Purge",
+		"### 5.C — Setup",
+		"| `planned` | `P0` | `providers` | OpenRouter setup |",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("module roadmap missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "TTS row") {
+		t.Fatalf("module roadmap must not include rows from other modules:\n%s", got)
+	}
+}
+
+func TestRenderModuleRoadmapIndexListsModulesAndCounts(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"1": {Name: "Phase 1", Subphases: map[string]Subphase{
+			"1.A": {Name: "Alpha", Items: []Item{
+				{Name: "provider", Status: StatusComplete, Priority: "P1", Module: ModuleProviders},
+				{Name: "tts", Status: StatusPlanned, Module: ModuleTTS},
+			}},
+		}},
+	}}
+
+	got := RenderModuleRoadmapIndex(p)
+	for _, want := range []string{
+		`title: "Module Roadmaps"`,
+		"# Module Roadmaps",
+		"| Module | Rows | Complete | In progress | Planned | Priorities |",
+		"| [Providers](providers/) | 1 | 1 | 0 | 0 | `P1`: 1 |",
+		"| [TTS](tts/) | 1 | 0 | 0 | 1 | `unset`: 1 |",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("module index missing %q:\n%s", want, got)
+		}
 	}
 }

@@ -291,13 +291,19 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 
 	waitForDiscord(t, 30*time.Second, func() bool {
 		sent := ms.complexSnapshot()
-		if len(sent) == 0 || sent[0].Data == nil {
-			return false
+		sawPartial := false
+		for _, item := range sent {
+			if item.Data == nil {
+				continue
+			}
+			switch item.Data.Content {
+			case "done":
+				return true
+			case "partial ▉":
+				sawPartial = true
+			}
 		}
-		if sent[0].Data.Content == "done" {
-			return true
-		}
-		if sent[0].Data.Content != "partial ▉" {
+		if !sawPartial {
 			return false
 		}
 		for _, edit := range ms.editsSnapshot() {
@@ -307,8 +313,20 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 		}
 		return false
 	}, func() string {
-		return fmt.Sprintf("submits=%+v sent=%+v edits=%+v", k.submitsSnapshot(), ms.complexSnapshot(), ms.editsSnapshot())
+		return fmt.Sprintf("submits=%+v sent_contents=%+v edits=%+v", k.submitsSnapshot(), discordComplexContents(ms.complexSnapshot()), ms.editsSnapshot())
 	})
+}
+
+func discordComplexContents(sent []mockComplexSent) []string {
+	out := make([]string, 0, len(sent))
+	for _, item := range sent {
+		if item.Data == nil {
+			out = append(out, "<nil>")
+			continue
+		}
+		out = append(out, item.Data.Content)
+	}
+	return out
 }
 
 func waitForDiscord(t *testing.T, timeout time.Duration, cond func() bool, details ...func() string) {

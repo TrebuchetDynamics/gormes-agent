@@ -50,6 +50,10 @@ func Validate(p *Progress) error {
 					errs = append(errs, fmt.Errorf("progress: phase %s subphase %s item[%d] (%q): invalid execution_owner %q",
 						phKey, spKey, i, it.Name, it.ExecutionOwner))
 				}
+				if it.Module != "" && !ValidModule(it.Module) {
+					errs = append(errs, fmt.Errorf("progress: phase %s subphase %s item[%d] (%q): invalid module %q (allowed modules: %s)",
+						phKey, spKey, i, it.Name, it.Module, strings.Join(AllowedModules(), ", ")))
+				}
 				for _, tc := range it.TrustClass {
 					if !validTrustClass(tc) {
 						errs = append(errs, fmt.Errorf("progress: phase %s subphase %s item[%d] (%q): invalid trust_class %q",

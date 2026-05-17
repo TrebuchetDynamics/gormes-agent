@@ -1,0 +1,990 @@
+{
+  "meta": {
+    "version": "2.0",
+    "last_updated": "2026-05-15T07:10:00Z",
+    "links": {
+      "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
+      "landing_page": "https://gormes.ai",
+      "docs_site": "https://docs.gormes.ai/building-gormes/architecture_plan/",
+      "source_code": "https://github.com/TrebuchetDynamics/gormes-agent"
+    },
+    "builder_loop": {
+      "entrypoint": "docs/development-skills/gormes-skill-manager/SKILL.md",
+      "plan": "docs/content/building-gormes/architecture_plan/completion-plan.md",
+      "agent_queue": "docs/content/building-gormes/builder-loop/agent-queue.md",
+      "progress_schema": "docs/content/building-gormes/builder-loop/progress-schema.md",
+      "candidate_source": "docs/content/building-gormes/architecture_plan/progress.json",
+      "unit_test": "go test ./internal/progress -count=1",
+      "candidate_policy": [
+        "Skip rows with blocked_by until ready_when is satisfied.",
+        "Skip slice_size=umbrella rows until they are split.",
+        "Use gormes-builder and gormes-tdd-slice for one row at a time; do not recreate the deleted builder-loop selector.",
+        "Use gormes-planner to split vague rows before implementation.",
+        "A builder pass must restate the row contract, write_scope, test_commands, acceptance, and done_signal before editing.",
+        "Run row-local tests first, then focused package tests, then go run ./cmd/progress validate.",
+        "Update progress evidence only for the row being built.",
+        "If validation fails from stale loop assumptions, fix the docs or progress row instead of invoking old loop binaries.",
+        "Canonical skill files live in docs/development-skills; .agents/skills, .claude/skills, and .codex/skills are symlink loader views.",
+        "Prefer contract rows with write_scope, test_commands, and done_signal.",
+        "Do not create side queues; missing work becomes a progress.json row."
+      ]
+    }
+  },
+  "key_by": "module",
+  "skeleton": [
+    {
+      "id": "1",
+      "name": "Phase 1 — The Dashboard",
+      "deliverable": "Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary",
+      "subphases": [
+        {
+          "id": "1.A",
+          "name": "Core TUI",
+          "item_count": 3
+        },
+        {
+          "id": "1.B",
+          "name": "Wire Doctor",
+          "item_count": 1
+        },
+        {
+          "id": "1.C",
+          "name": "Automation Reliability",
+          "drift_state": {
+            "status": "owned",
+            "last_upstream_check": "2026-04-28T01:55:00Z",
+            "origin_decision": "Automation reliability, autoloop row health, planner self-healing, and drift/provenance awareness are Gormes-original control-plane surfaces. Upstream Hermes 853ed609, Gormes-owned, and Honcho e659b6b were checked this run; this subphase remains owned and complete. Gormes-owned durable-worker lessons remain tracked as small future rows in 2.E.3, and the new Gormes-owned sourceId cycle-sync lesson is tracked under 6.D maintenance rather than reopening the autoloop control plane. The backend usage-limit/stdin health bypass stays under 5.N Misc Operator Tools to preserve Phase 1 closeout."
+          },
+          "item_count": 10
+        },
+        {
+          "id": "1.D",
+          "name": "Skill-Driven Control Plane",
+          "priority": "P0",
+          "drift_state": {
+            "status": "owned",
+            "last_upstream_check": "2026-04-28T02:56:53Z",
+            "origin_decision": "Skill-driven planning/building is Gormes-owned control-plane architecture. It replaces the deleted loop binaries while preserving progress.json as the only backlog."
+          },
+          "item_count": 4
+        },
+        {
+          "id": "1.E",
+          "name": "Gormes-owned: Unified Bubble Tea admin TUI",
+          "priority": "P2",
+          "item_count": 8
+        },
+        {
+          "id": "5.X",
+          "name": "Termux Runtime Compatibility",
+          "item_count": 8
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Phase 2 — The Gateway",
+      "deliverable": "Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout",
+      "subphases": [
+        {
+          "id": "2.A",
+          "name": "Tool Registry",
+          "item_count": 6
+        },
+        {
+          "id": "2.B.1",
+          "name": "Telegram Scout",
+          "item_count": 4
+        },
+        {
+          "id": "2.B.2",
+          "name": "Gateway Chassis + Discord",
+          "priority": "P1",
+          "item_count": 4
+        },
+        {
+          "id": "2.B.3",
+          "name": "Slack on Shared Chassis",
+          "priority": "P1",
+          "drift_state": {
+            "status": "planned",
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Slack's shared Gormes channel chassis is shipped: Socket Mode acking, shared parser wiring, gateway.Channel registration, config, and doctor/status are complete. Upstream Hermes 49fb7546 added an env-token enabled-state regression fix; Gormes tracks that as a narrow config/status row here. Upstream Hermes 24d321617 added Slack manifest App Home DM mutability plus groups:read; Gormes now tracks the local `gormes slack manifest` generator as a dedicated P1 child row without reopening Slack transport behavior. Earlier Hermes 6087e040/c0d25df3/f414df3a follow-up Slack context/delivery semantics remain tracked under 2.B.5."
+          },
+          "item_count": 7
+        },
+        {
+          "id": "2.B.4",
+          "name": "WhatsApp Adapter",
+          "priority": "P1",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T03:55:07Z",
+            "origin_decision": "Hermes 91512b82/6993e566 hardened WhatsApp identity alias expansion against traversal-like and non-ASCII identifiers. Gormes already owns bridge/native identity, self-chat suppression, outbound pairing, and retry fixtures, so this adapter subphase remains complete. The remaining upstream-led safety delta is tracked under 2.B.5 session/delivery routing because unsafe raw IDs affect session keys and outbound targets rather than bridge/native runtime selection."
+          },
+          "item_count": 6
+        },
+        {
+          "id": "2.B.5",
+          "name": "Session Context + Delivery Routing",
+          "priority": "P1",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T16:08:51Z",
+            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval/auth/reaction surfaces found in the May 2026 channel sweeps. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweeps keep Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, cross-platform image/document MEDIA delivery, Telegram inline approvals, Telegram startup safety, Slack mention gating, Discord interaction auth, and processing lifecycle reactions in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline. Follow-up sweeps add row-backed weaknesses for Telegram text/caption batching, cross-platform multi-image native batching, Discord message admission/reply-mode policy, webhook dynamic-route/rate-limit runtime behavior, Slack/Discord channel-scoped skills and prompts, Telegram fallback/reconnect recovery, Telegram sticker vision adapter binding, Discord native slash/thread command registration, Telegram entity-only mention boundaries, Telegram forum thread/send retry safety, Telegram semantic MarkdownV2 formatting, and gateway platform reconnect/health resilience after comparing Gormes adapters with Hermes b816fd4e2 gateway tests. The second 2026-05-05 sweep adds gateway startup admission safety for allowlist warnings, weak placeholder platform tokens, and network-exposed API-server placeholder keys. Webhook runtime drift is tracked here rather than reopening complete Phase 7.D, Telegram sticker adapter binding is tracked here rather than reopening complete Phase 2.F.4, and platform lifecycle drift is tracked here rather than reopening complete Phase 2.F.3."
+          },
+          "item_count": 81
+        },
+        {
+          "id": "2.B.10",
+          "name": "WeChat Adapter",
+          "priority": "P1",
+          "item_count": 2
+        },
+        {
+          "id": "2.B.11",
+          "name": "Discord Forum Channels",
+          "priority": "P3",
+          "item_count": 3
+        },
+        {
+          "id": "2.B.12",
+          "name": "Channel-Neutral Native Runtime Adapter",
+          "priority": "P0",
+          "item_count": 9
+        },
+        {
+          "id": "2.C",
+          "name": "Thin Mapping Persistence",
+          "item_count": 2
+        },
+        {
+          "id": "2.D",
+          "name": "Cron / Scheduled Automations",
+          "item_count": 5
+        },
+        {
+          "id": "2.E.0",
+          "name": "OS-AI Spine: Deterministic Subagent Runtime",
+          "priority": "P0",
+          "item_count": 5
+        },
+        {
+          "id": "2.E.1",
+          "name": "OS-AI Spine: Delegation Policy + Child Execution",
+          "priority": "P0",
+          "item_count": 5
+        },
+        {
+          "id": "2.E.2",
+          "name": "OS-AI Spine: Concurrent-Tool Cancellation",
+          "priority": "P1",
+          "item_count": 1
+        },
+        {
+          "id": "2.E.3",
+          "name": "OS-AI Spine: Durable Job Resilience",
+          "priority": "P2",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T11:44:19Z",
+            "origin_decision": "Gormes-owned, e2961c0 added abort propagation plus force-eviction for wedged workers, and c78c3d0 added RSS watchdog drains, stable-run restart reset, cold-start DB connect retry, and autopilot maxWaiting=1. Gormes has Go-native durable routing, ledger, backpressure, supervisor status, pause/resume, replay, inbox, protected-submit denial, a fake-handler DurableWorker loop, and abort-slot recovery validated over SQLite. Existing max_waiting evidence covers the queue-pileup lesson; the RSS lesson is now split into policy helper, drain integration, and doctor/status evidence so workers do not mix upstream lookup, runtime cancellation, and operator rendering in one slice. The Postgres/Supabase connect-retry lesson does not apply to the default SQLite-first runtime or internal Goncho memory unless a future optional remote database connector is introduced."
+          },
+          "item_count": 9
+        },
+        {
+          "id": "2.F.1",
+          "name": "Slash Command Registry + Gateway Dispatch",
+          "priority": "P1",
+          "item_count": 3
+        },
+        {
+          "id": "2.F.2",
+          "name": "Hook Registry + BOOT.md",
+          "priority": "P2",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T03:55:07Z",
+            "origin_decision": "Gormes has shipped the hook registry, manifest loader, and BOOT.md startup hook, so this subphase remains complete. Hermes e19854d8 adds a security parsing lesson for executable hook auto-accept; track it under Phase 5.J approval/security guards before any Gormes auto-accept config or CLI flag becomes executable."
+          },
+          "item_count": 3
+        },
+        {
+          "id": "2.F.3",
+          "name": "Restart / Pairing / Status",
+          "priority": "P2",
+          "drift_state": {
+            "status": "converged",
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Hermes restart, pairing, status, session-expiry finalization, failed-startup adapter cleanup timeout, and normal shutdown adapter-disconnect timeout behavior are now represented by validated Go gateway/session rows. The 2026-05-09 sweep against Hermes a7e7921db found the remaining stop/restart lifecycle drift after dccf1fb6e/78b0008f4; the child row `Gateway shutdown capped adapter disconnect` completed the small remaining 2.F.3 port."
+          },
+          "item_count": 17
+        },
+        {
+          "id": "2.F.4",
+          "name": "Home Channel + Operator Surfaces",
+          "priority": "P3",
+          "item_count": 6
+        },
+        {
+          "id": "2.F.5",
+          "name": "Gateway Mid-Run Steering + Active-Turn Policy",
+          "priority": "P2",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes 635253b9 remains the donor for busy-input /steer behavior and Hermes b816fd4e2 adds a separate `/goal` loop with per-session persistence, fail-open judging, and bounded post-turn continuations. Gormes has completed steer and active-turn command bypass; the remaining weakness is now tracked as `Gateway persistent goal loop + continuation judge` rather than leaving `/goal` as a recognized-unavailable command."
+          },
+          "item_count": 5
+        },
+        {
+          "id": "2.G",
+          "name": "OS-AI Spine: Skills Runtime",
+          "priority": "P0",
+          "item_count": 5
+        },
+        {
+          "id": "2.H",
+          "name": "Gormes-owned: Dynamic agents and per-thread spawn UX",
+          "priority": "P2",
+          "item_count": 4
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Phase 3 — The Black Box (Memory)",
+      "deliverable": "SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries",
+      "subphases": [
+        {
+          "id": "3.A",
+          "name": "SQLite + FTS5 Lattice",
+          "item_count": 3
+        },
+        {
+          "id": "3.B",
+          "name": "Ontological Graph + LLM Extractor",
+          "item_count": 3
+        },
+        {
+          "id": "3.C",
+          "name": "Neural Recall + Context Injection",
+          "item_count": 4
+        },
+        {
+          "id": "3.D",
+          "name": "Semantic Fusion + Local Embeddings",
+          "item_count": 4
+        },
+        {
+          "id": "3.D.5",
+          "name": "Memory Mirror (USER.md sync)",
+          "item_count": 2
+        },
+        {
+          "id": "3.E.1",
+          "name": "Session Index Mirror",
+          "priority": "P0",
+          "item_count": 2
+        },
+        {
+          "id": "3.E.2",
+          "name": "Tool Execution Audit Log",
+          "priority": "P0",
+          "item_count": 3
+        },
+        {
+          "id": "3.E.3",
+          "name": "Transcript Export Command",
+          "priority": "P2",
+          "item_count": 2
+        },
+        {
+          "id": "3.E.4",
+          "name": "Extraction State Visibility",
+          "priority": "P1",
+          "item_count": 2
+        },
+        {
+          "id": "3.E.5",
+          "name": "Insights Audit Log",
+          "priority": "P3",
+          "item_count": 2
+        },
+        {
+          "id": "3.E.6",
+          "name": "Memory Decay",
+          "priority": "P1",
+          "item_count": 3
+        },
+        {
+          "id": "3.E.7",
+          "name": "Cross-Chat Synthesis",
+          "priority": "P2",
+          "drift_state": {
+            "status": "converged",
+            "last_upstream_check": "2026-04-27T13:21:48Z",
+            "origin_decision": "Honcho e659b6b remains the synchronized donor for SillyTavern and host-integration guidance. The 2026-04-27 check found no new core cross-chat schema requirement beyond Gormes' validated host-integration, persona/group mapping, scope/source schema, deny-path, and operator-evidence fixtures. Internal implementation remains Goncho; external compatibility keeps honcho_* naming."
+          },
+          "item_count": 9
+        },
+        {
+          "id": "3.E.8",
+          "name": "Session Lineage + Cross-Source Search",
+          "priority": "P4",
+          "item_count": 6
+        },
+        {
+          "id": "3.F",
+          "name": "Goncho Honcho Memory Parity",
+          "priority": "P3",
+          "drift_state": {
+            "status": "complete",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Honcho e659b6b remains the synchronized memory donor for core memory docs, and Phase 3 stays complete for local Goncho memory primitives. Upstream Hermes b816fd4e2 honcho_plugin tests expose plugin-facing compatibility beyond the completed empty-profile hint; that follow-up is tracked under Phase 5.I as `Goncho Honcho plugin session config + async write compatibility` while keeping the internal implementation named Goncho and preserving honcho_* public tool compatibility."
+          },
+          "item_count": 19
+        },
+        {
+          "id": "3.G",
+          "name": "Goncho Drop-In Compatibility Closure",
+          "priority": "P1",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-28T02:56:53Z",
+            "origin_decision": "Goncho core rows cover many Honcho-compatible pieces, but drop-in confidence now needs an explicit SDK-style harness and a normal-agent-turn integration row before Phase 3 memory can be called complete."
+          },
+          "item_count": 6
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "name": "Phase 4 — The Brain Transplant",
+      "deliverable": "Native Go agent orchestrator + prompt builder",
+      "dependency_note": "Build priority: 2.E0 deterministic subagent runtime -> 2.G static skills + reviewed candidate flow -> runner-enforced delegation policy + wider gateway surface -> native agent loop",
+      "subphases": [
+        {
+          "id": "4.A",
+          "name": "Provider Adapters",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T11:09:04Z",
+            "origin_decision": "Hermes ee1a07f is current after the 2026-04-27 sync. Gormes provider fixtures validate DeepSeek/Kimi, Azure OpenAI, Azure Anthropic, Azure Foundry probing/runtime/status, Codex Responses conversion/repair, and Bedrock request/cache mapping. Hermes ee1a07f reasserts the cross-provider reasoning leak guard for DeepSeek/Kimi; the completed Gormes reasoning_content isolation fixtures already cover storage-only reasoning from prior providers. Hermes c5781d50 adds Azure Foundry GPT-5.x/codex/o-series Responses-only api_mode inference; Gormes tracks that as a small runtime read-model row instead of reopening the probe/status rows. Bedrock remains upstream-led for ConverseStream event decoding and the blocked SigV4/credential seam. Hermes 192e7eb2 provider-rate drift remains tracked under 4.H; b2d3308f/25ba6a4a doctor and gateway reasoning drift remain under 5.O/4.D."
+          },
+          "item_count": 38
+        },
+        {
+          "id": "4.B",
+          "name": "Context Engine + Compression",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-09T12:28:42-07:00",
+            "origin_decision": "Hermes e90aa7f28 is current after sync. Prior context-engine compression, budget, and boundary rows remain complete or row-backed. New Hermes #22764 fixes commit_memory_session so context_compressor.on_session_end fires when a session id rotates; Gormes has ContextEngine.OnSessionEnd but reset/session-rotation only called OnSessionReset after clearing state. Track the bounded P1 row `ContextEngine session-end hook on reset` rather than reopening compression, memory extraction, or gateway reset umbrella rows."
+          },
+          "item_count": 16
+        },
+        {
+          "id": "4.C",
+          "name": "Native Prompt Builder",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T12:56:05Z",
+            "origin_decision": "Hermes 920ebd83 adds product self-help guidance into prompt assembly and existing Hermes CLI/gateway/cron paths expose prefill_messages_file as API-call-time prompt control. Gormes has native prompt-builder slices complete; the remaining prompt-control drift is now tracked by `Ephemeral prefill messages file injection` before cron/batch-specific reuse. Existing Azure [SYSTEM: to [IMPORTANT:] drift remains complete."
+          },
+          "item_count": 11
+        },
+        {
+          "id": "4.D",
+          "name": "Smart Model Routing",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-10T04:30:52Z",
+            "origin_decision": "The 2026-05-10 all-topic Hermes parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned rows were 20, below the 90-row cap. Fresh Hermes 3800972dd vision_analyze native fast-path evidence made the existing image input mode row the highest builder-ready weakness, so it was raised to P1, sharpened, and completed rather than adding a new row. CLI chat -q, comment-preserving config writes, generic provider auth messages, release child rows, and curator rename-map behavior were already row-backed or complete; broader native multimodal tool-result bytes remain out of this bounded gateway slice."
+          },
+          "item_count": 11
+        },
+        {
+          "id": "4.E",
+          "name": "Trajectory + Insights",
+          "item_count": 3
+        },
+        {
+          "id": "4.F",
+          "name": "Title Generation",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T11:44:19Z",
+            "origin_decision": "Hermes 4a2ee6c1 makes title-generation failures visible through _emit_auxiliary_failure after provider errors were previously swallowed. Gormes has a native TUI auto-title eligibility helper but no title prompt/model boundary, no auxiliary failure routing, and no session title persistence, so this subphase remains upstream-led and is split into prompt/failure/persistence rows."
+          },
+          "item_count": 3
+        },
+        {
+          "id": "4.G",
+          "name": "Credentials + OAuth",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes still leads credential and OAuth UX. Google Workspace OAuth scope preservation remains validated as a pure XDG-scoped state-machine row. The second 2026-05-05 parity sweep found Copilot auth/model-mode drift outside the provider registry manifest: Copilot-specific token shape validation, env/gh CLI resolution, Copilot JWT exchange cache, request headers, and GPT-5 Responses mode selection. Gormes now tracks this as `GitHub Copilot token exchange + Responses mode selector` before any live Copilot provider/ACP runtime adapter claims parity."
+          },
+          "item_count": 7
+        },
+        {
+          "id": "4.H",
+          "name": "Rate / Retry / Caching",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T03:55:07Z",
+            "origin_decision": "Hermes 7c17accb added a streaming retry interrupt guard and Hermes 192e7eb2 sharpened Nous 429 handling so upstream-capacity responses do not trip a cross-session quota breaker. The current Hermes donor bucket tags are requests, requests-1h, tokens, and tokens-1h, and genuine quota requires remaining<=0 plus a reset window >=60s. Hermes 16e243e0/366351b9 adds a provider-timeout fail-closed config lookup lesson, now tracked as a helper-only row before Gormes exposes provider-specific timeout config. Gormes has retry/backoff and provider-hint behavior, but this subphase remains upstream-led until prompt-cache guards, provider budget/rate telemetry, and timeout config evidence are fixture-backed."
+          },
+          "item_count": 21
+        },
+        {
+          "id": "4.I",
+          "name": "Native Agent Turn Closure",
+          "priority": "P0",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-28T02:56:53Z",
+            "origin_decision": "Phase 4 needed an explicit closure subphase for the full Go-native agent turn. Provider, context, retry, and prompt rows remain useful, but Gormes is not Hermes in Go until the e2e turn proves provider, tool, Goncho memory, final response, and audit/status evidence together."
+          },
+          "item_count": 11
+        },
+        {
+          "id": "4.J",
+          "name": "Permission-Hardened Tool Execution",
+          "item_count": 1
+        },
+        {
+          "id": "4.K",
+          "name": "Provider Fallback Chain",
+          "item_count": 3
+        },
+        {
+          "id": "4.L",
+          "name": "Safety-Anchored Turn Loop (MOSAIC)",
+          "item_count": 4,
+          "extra": {
+            "source": "docs/content/papers/safety-and-deployment.md"
+          }
+        },
+        {
+          "id": "4.M",
+          "name": "Advanced Provider Routing",
+          "item_count": 3,
+          "extra": {
+            "source": "docs/content/papers/safety-and-deployment.md"
+          }
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "name": "Phase 5 — The Final Purge",
+      "deliverable": "Python tool scripts ported to Go or WASM",
+      "subphases": [
+        {
+          "id": "5.A",
+          "name": "Tool Surface Port",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes still leads terminal/process and platform-toolset behavior. The 97d54f0e watch-pattern flood-control fix, 4921b269 HASS_TOKEN carveout, and b288934d Discord limit coercion are validated. The 2026-05-05 parity sweep found that Gormes only toggles Home Assistant toolset availability and owns a gateway channel adapter; Hermes b816fd4e2 exposes four active ha_* control handlers with safety tests, now tracked as `Home Assistant tool handlers + service safety validation` before Gormes claims Home Assistant tool parity."
+          },
+          "item_count": 16
+        },
+        {
+          "id": "5.B",
+          "name": "Sandboxing Backends",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T12:07:47Z",
+            "origin_decision": "Hermes 2e6699b3 fixed a macOS bash declare-x leak by suppressing stdout/stderr when sourcing terminal environment snapshots. Gormes does not yet have the sandbox environment wrapper, so the invariant is captured as a blocked draft row behind Environment interface + file sync contract. Docker top-level key semantics remain validated; backend-specific execution is still planned."
+          },
+          "item_count": 10
+        },
+        {
+          "id": "5.C",
+          "name": "Browser Automation",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-29T00:00:00Z",
+            "origin_decision": "Hermes 42c076d3 added browser cloud/local hybrid routing for private URLs, 7317d69f tightened quoted-false handling in SSRF guard config, and the 2026-04-29 upstream refresh added Browser Use/CDP/browser-connect evidence that should be paired with the local ../go-browser-harness runtime target plus the legacy ../browser-harness reference checkout. Gormes still lacks live native browser runtime wiring, so Phase 5.C stays upstream-led and now carries pure route-key, SSRF-config, Browserbase/Firecrawl, Browser Use/go-browser-harness rows, and a builder-ready go-browser-harness Chromedp backend row before browser action runtime work is complete."
+          },
+          "item_count": 21
+        },
+        {
+          "id": "5.D",
+          "name": "Vision + Image Generation",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes ec671c41 added native image routing, image-aware compression pressure, image-too-large classification, and shrink recovery; Hermes b816fd4e2 image_gen tests add provider registry and plugin dispatch contracts. Gormes has pure routing, shrink retry, and artifact result envelopes, but provider selection/refresh remains missing and is now tracked as `Image generation provider registry + plugin dispatch` before any live image API binding."
+          },
+          "item_count": 8
+        },
+        {
+          "id": "5.E",
+          "name": "TTS / Voice / Transcription",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-06T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 remains the TTS/STT/voice-mode source of truth. The 2026-05-06 all-topic weakness sweep found the current unblocked small Hermes-sourced weakness in voice.record_key config/status/TUI binding after checking CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Gormes has the transcription helper, Telegram STT ingress, TTS tool/media delivery seam, and voice environment detector complete; keep provider-specific synthesis/config and platform delivery separated so voice work does not reopen completed STT rows."
+          },
+          "item_count": 22
+        },
+        {
+          "id": "5.F",
+          "name": "Skills System (Remaining)",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-28T01:55:00Z",
+            "origin_decision": "Hermes 93977675 removed the empty skills/feeds category and its static website label. Recent Hermes windows added a bundled Airtable productivity skill plus optional-env registration, direct SKILL.md URL install behavior with name/category guards, and 853ed609 moved touchdesigner-mcp from optional to bundled creative skills. Gormes tracks Airtable and TouchDesigner as credential/prerequisite-evidence SKILL.md rows rather than live external integrations, and tracks direct URL install as a pure candidate parser plus dependent install-binding row behind SKILL.md frontmatter validation. The skills surface remains upstream-led for hub search/list/install parity and reviewed bundled-skill content."
+          },
+          "item_count": 11
+        },
+        {
+          "id": "5.G",
+          "name": "MCP Integration",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 MCP tests add call-level circuit-breaker cooldown, half-open probe, reconnect reset, lifecycle-event precedence, and probe-cleanup coverage beyond Gormes' validated config/discovery/OAuth/browser-login/managed-gateway/orphan-cleanup rows. The next drift is a fake-clock MCP tool-call recovery seam, not another OAuth store or live MCP transport. Honcho MCP HONCHO_API_URL remains server-local MCP config and does not change internal Goncho memory naming."
+          },
+          "item_count": 13
+        },
+        {
+          "id": "5.H",
+          "name": "ACP Integration",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Hermes 0bcc327ca is current for this sweep. Existing Gormes ACP rows cover manifest, client bridge, JSON-RPC stdio session/prompt closeout, and benign probe suppression, and the 2026-05-09 builder pass now ports b349ae1e4's ACP task-cwd propagation fix through RuntimePromptRequest.CWD. Broader OpenRouter Pareto routing, gateway transcript replay metadata, and Teams lazy-import deltas remain separate source-backed findings for future cycles rather than expanding this pass beyond one row."
+          },
+          "item_count": 5
+        },
+        {
+          "id": "5.I",
+          "name": "Plugins Architecture",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes still leads plugin and dashboard-extension contracts. af22421e/cf2fabc4 page-scoped built-in slots, 64a497bf Hindsight setup preservation, and df3c9593 Google Meet metadata are validated. The 2026-05-05 parity sweep found two plugin-facing gaps: Gormes has metadata/discovery rows and CLI command-tree inventory but no operator-facing `plugins install/update/remove/list/enable/disable` lifecycle behavior, and Hermes b816fd4e2 honcho_plugin tests cover session config, async write, and pinPeerName behavior beyond core Goncho memory. Those gaps are now captured as `Hermes plugin CLI lifecycle parity` and `Goncho Honcho plugin session config + async write compatibility` without executing plugin runtime code."
+          },
+          "item_count": 14
+        },
+        {
+          "id": "5.J",
+          "name": "Approval / Security Guards",
+          "item_count": 23
+        },
+        {
+          "id": "5.K",
+          "name": "Code Execution",
+          "item_count": 1
+        },
+        {
+          "id": "5.L",
+          "name": "File Ops + Patches",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-10T00:00:00Z",
+            "origin_decision": "Hermes ce374bc1b plus recent file-operation rows show the remaining File Ops + Patches weakness is full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, block-anchor fuzzy replace, V4A fuzzy hunk matching, V4A apply rollback, context-aware fuzzy replacement, and replace-mode post-write verification validated. The 2026-05-10 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 15 before adding the post-write verification row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `Patch replace post-write verification` as the next small builder-ready runtime slice."
+          },
+          "item_count": 25
+        },
+        {
+          "id": "5.M",
+          "name": "Mixture of Agents",
+          "item_count": 34
+        },
+        {
+          "id": "5.N",
+          "name": "Misc Operator Tools",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-06T15:30:05Z",
+            "origin_decision": "The 2026-05-06 all-topic parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows against Hermes b816fd4e2 plus Honcho e659b6b. CLI/setup, provider/auth, gateway live-turn, tool-loop, memory/Goncho, install/runtime, browser, docs, and release surfaces have either complete rows or lower-priority planned slices. The strongest builder-ready weakness remains cron execution: Gormes has native cron store/scheduler/action rows, but Hermes b816fd4e2 tests still cover unshipped script execution, workdir/TERMINAL_CWD binding, inactivity timeout, Codex 401 refresh, and owner-only cron file modes. Promote `Cron script/workdir/inactivity execution binding` to P0 before no-agent script-only watchdog mode."
+          },
+          "item_count": 54
+        },
+        {
+          "id": "5.O",
+          "name": "Hermes CLI Parity",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. The second 2026-05-05 sweep also found missing sessions CLI ergonomics: MRU continue by last_active, prefix-safe delete/prune confirmation, browse fallback, and multi-word session argument coalescing. Keep update and sessions as dedicated CLI slices instead of mixing them into broad diagnostics/status inventory."
+          },
+          "item_count": 118,
+          "extra": {
+            "rows": [
+              {
+                "name": "Goal loop Ctrl+C auto-pause parity",
+                "status": "complete",
+                "priority": "P1",
+                "slice_size": "small",
+                "execution_owner": "gateway",
+                "contract": "Hermes goal continuation auto-pauses when an in-flight `/goal` turn is interrupted by Ctrl+C or `/stop`: the active per-session goal is marked paused with interrupt evidence, the judge is not called, no continuation prompt is queued, and the operator receives a goal-paused notice. Gormes must port this behavior through the existing gateway/session goal loop rather than the subagent runner.",
+                "contract_status": "validated",
+                "ready_when": "Gateway persistent goal loop + continuation judge is complete: internal/gateway/goal_loop.go, internal/gateway/goal_loop_test.go, and internal/session/goal_state.go already prove per-session `/goal` state, post-turn continuation, pause/resume, and active-turn control.",
+                "not_ready_when": "The slice tries to wire process-wide OS signal handlers, changes subagent delegation, or creates a separate goal runner instead of treating gateway EventCancel/PhaseCancelling as the testable Ctrl+C boundary.",
+                "write_scope": [
+                  "internal/gateway/manager.go",
+                  "internal/gateway/goal_loop.go",
+                  "internal/gateway/goal_loop_test.go",
+                  "docs/content/building-gormes/architecture_plan/progress.json"
+                ],
+                "test_commands": [
+                  "go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1",
+                  "go run ./cmd/progress validate",
+                  "git diff --check"
+                ],
+                "acceptance": [
+                  "TestGatewayGoalInterruptAutoPauses proves cancelling an active goal turn pauses the persisted goal with interrupt evidence.",
+                  "The interrupt path sends an operator-visible goal-paused notice and does not call the goal judge.",
+                  "The interrupted turn does not enqueue an automatic continuation prompt.",
+                  "Existing /goal pause/resume/status and post-turn continuation fixtures remain green."
+                ],
+                "done_signal": [
+                  "Gateway goal-loop fixtures prove Ctrl+C-/stop-style cancellation pauses the active goal, skips judging, avoids continuation, and leaves the existing resume path intact."
+                ],
+                "source_refs": [
+                  "./hermes-agent/tests/cli/test_cli_goal_interrupt.py@78b0008f4:TestInterruptAutoPause",
+                  "./hermes-agent/hermes_cli/goals.py@78b0008f4:GoalManager.pause and continuation invariants",
+                  "internal/gateway/goal_loop.go:handleGoalPostTurnContinuation",
+                  "internal/gateway/manager.go:EventCancel and PhaseCancelling dispatch",
+                  "internal/session/goal_state.go:PauseGoal/ResumeGoal"
+                ],
+                "fixture": "internal/gateway/goal_loop_test.go::TestGatewayGoalInterruptAutoPauses uses EventCancel plus a fake PhaseCancelling render frame to simulate Ctrl+C without real OS signals.",
+                "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 25, below the 90-row cap, but no new row was added. The existing row was stale: it pointed at a nonexistent subagent goal loop even though the source-backed gateway `/goal` row is now complete in internal/gateway and internal/session. Promoted to P1 because Hermes 78b0008f4 explicitly guards Ctrl+C during goal continuation in tests/cli/test_cli_goal_interrupt.py, while Gormes EventCancel marked the turn cancelled without pausing the active goal. TDD added gateway interrupt auto-pause handling so a cancelling goal turn pauses the persisted goal, skips the judge, avoids continuation, and tells the operator how to resume or clear.",
+                "evidence": {
+                  "implementation": [
+                    "internal/gateway/manager.go: PhaseFailed/PhaseCancelling dispatch now routes cancelled active turns through the goal interruption pause helper before draining follow-ups.",
+                    "internal/gateway/goal_loop.go: handleGoalPostTurnContinuation pauses cancelled goal turns on idle completion and pauseInterruptedGoal stores interrupt evidence without invoking the judge.",
+                    "internal/gateway/goal_loop_test.go: TestGatewayGoalInterruptAutoPauses covers EventCancel plus PhaseCancelling with persisted goal state, skipped judge, no continuation, and operator-visible pause notice."
+                  ],
+                  "verification": [
+                    "RED: go test ./internal/gateway -run TestGatewayGoalInterruptAutoPauses -count=1 failed because the interrupted goal stayed active.",
+                    "GREEN: go test ./internal/gateway -run TestGatewayGoalInterruptAutoPauses -count=1 passed.",
+                    "GREEN: go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1 passed.",
+                    "RECONCILED 2026-05-09: go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1 passed before changing stale planned status to complete."
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "5.P",
+          "name": "Docker / Packaging",
+          "item_count": 12
+        },
+        {
+          "id": "5.Q",
+          "name": "API Server + TUI Gateway Streaming",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, `ui-tui/packages/hermes-ink`, and `ui-tui/src/__tests__`) remains the TUI source of truth. The 2026-05-09 all-topic weakness sweep refreshed Hermes to a7e7921db and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Provider/auth, gateway/channel, tools, memory/Goncho, browser, docs/public, and release/operator gaps stayed complete, owned, blocked, or row-backed; the newly refreshed active Ink change was markdown/prose wrap-trim behavior, now tracked by `Native TUI markdown soft-wrap boundary trim`. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits TUI drift into narrow renderer rows rather than reopening completed chat-completions, cron-admin, keybinding, slash, or websocket rows."
+          },
+          "item_count": 55
+        },
+        {
+          "id": "5.R",
+          "name": "Code Execution Mode Policy",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-08T00:00:00Z",
+            "origin_decision": "Hermes 242da9db9 code-execution tests still cover mode precedence, project cwd, active venv/conda interpreter choice, local-shell initialization, shared-container task ids, and Modal sandbox edge cases. Gormes keeps the completed 5.K Sandboxed exec block intact; the 2026-05-08 sweep sharpened `Project-mode CWD + active venv detection` into the next small TDD row, leaving default mode selection + config cut-over as the later runtime wiring split."
+          },
+          "item_count": 4
+        },
+        {
+          "id": "5.S",
+          "name": "Loop Detection",
+          "item_count": 1
+        },
+        {
+          "id": "5.T",
+          "name": "Browser Harness Doctor",
+          "item_count": 1
+        },
+        {
+          "id": "5.U",
+          "name": "Fault-Tolerant Sandbox Execution",
+          "item_count": 3,
+          "extra": {
+            "source": "docs/content/papers/safety-and-deployment.md"
+          }
+        },
+        {
+          "id": "5.V",
+          "name": "Unified Event Bus",
+          "item_count": 11,
+          "extra": {
+            "source": "docs/content/papers/agentic-os-design.md"
+          }
+        },
+        {
+          "id": "5.W",
+          "name": "i18n Internationalization",
+          "item_count": 2
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "name": "Phase 6 — The Learning Loop (Soul)",
+      "deliverable": "Hermes-compatible background review and skill curation, plus Gormes-native evidence gates for safe compounding intelligence.",
+      "subphases": [
+        {
+          "id": "6.A",
+          "name": "Complexity Detector",
+          "item_count": 2
+        },
+        {
+          "id": "6.B",
+          "name": "Skill Extractor",
+          "item_count": 1
+        },
+        {
+          "id": "6.C",
+          "name": "Skill Storage Format",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T05:26:06Z",
+            "origin_decision": "Gormes-owned.22.4 adds shared frontmatter validation, audit, migration, doctor, and hook flows. Hermes 8c5d3a99 adds claude-design, while 55be5323/7d586ddb clarify design-skill routing and short descriptions. Gormes should adapt the validation-code contract first, then fixture-lock real creative skill metadata/routing, then keep broader reviewed skill storage metadata as a dependent row; do not import Gormes-owned CLI, auto-fix, PGLite/Postgres, pre-commit workflow, or Hermes' HTML artifact runtime."
+          },
+          "item_count": 3
+        },
+        {
+          "id": "6.D",
+          "name": "Skill Retrieval + Matching",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-28T01:55:00Z",
+            "origin_decision": "Gormes-owned, Code Cathedral II evidence, source-swamp resistance, delta-bounded maintenance, and per-source sync anchors that prevent global-anchor full reimports. The synced 891c28b frontmatter-guard release affects 6.C validation rather than changing 6.D retrieval shape. Gormes should adapt these as small SQLite/skills evidence contracts with visible degraded modes, not import Gormes-owned TypeScript chunker, PGLite/Postgres search runtime, SQL ranking builders, or source table runtime."
+          },
+          "item_count": 4
+        },
+        {
+          "id": "6.E",
+          "name": "Feedback Loop",
+          "item_count": 5
+        },
+        {
+          "id": "6.F",
+          "name": "Skill Surface",
+          "item_count": 5
+        },
+        {
+          "id": "6.G",
+          "name": "Structured Memory Types",
+          "item_count": 1
+        },
+        {
+          "id": "6.H",
+          "name": "Skill Metadata Placement",
+          "item_count": 1
+        },
+        {
+          "id": "6.I",
+          "name": "Zero-LLM Knowledge Graph",
+          "item_count": 1
+        },
+        {
+          "id": "6.J",
+          "name": "Agentic Memory Lifecycle (AgeMem)",
+          "item_count": 3,
+          "extra": {
+            "source": "docs/content/papers/agent-memory-systems.md"
+          }
+        },
+        {
+          "id": "6.K",
+          "name": "Self-Evolution Engine (GEPA)",
+          "item_count": 3,
+          "extra": {
+            "source": "docs/content/papers/agentic-os-design.md"
+          }
+        },
+        {
+          "id": "6.L",
+          "name": "Composable Skill Execution (Voyager)",
+          "drift_state": {
+            "status": "owned",
+            "last_upstream_check": "2026-05-07T16:28:25Z",
+            "origin_decision": "Voyager-inspired composable skill execution is Gormes-owned architecture. All three Phase 6.L rows are now complete: code executor, dependency resolver/composer, and load-time validator with execution proof."
+          },
+          "item_count": 4,
+          "extra": {
+            "source": "docs/content/papers/foundational-architectures.md"
+          }
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "name": "Phase 7 — Paused Channel Backlog",
+      "deliverable": "Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize",
+      "subphases": [
+        {
+          "id": "7.A",
+          "name": "Signal Adapter",
+          "priority": "P2",
+          "item_count": 4
+        },
+        {
+          "id": "7.B",
+          "name": "Email + SMS Adapters",
+          "priority": "P3",
+          "item_count": 2
+        },
+        {
+          "id": "7.C",
+          "name": "Matrix + Mattermost Adapters",
+          "priority": "P4",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-04-27T05:26:06Z",
+            "origin_decision": "Matrix and Mattermost are deferred Phase 7 adapters, but upstream Hermes still contributes safety contracts before implementation starts. Hermes af3d5150 adds Matrix self/bridge sender filtering to prevent pairing and echo loops; Gormes tracks this as a blocked helper row behind the Matrix shared-chassis seam. The prior E2EE device_id binding row remains blocked behind real bootstrap work."
+          },
+          "item_count": 7
+        },
+        {
+          "id": "7.D",
+          "name": "Webhook + Trigger Ingress",
+          "priority": "P4",
+          "item_count": 2
+        },
+        {
+          "id": "7.E",
+          "name": "Regional + Device Adapter Backlog",
+          "priority": "P4",
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes ab687963 adds a full Yuanbao platform and Hermes b816fd4e2 also exposes Microsoft Teams as a plugin platform. Gormes has completed Yuanbao fixture/runtime seams, while Teams has no Go channel package yet; the gap is now tracked as `Microsoft Teams adapter plugin seam` before any live Bot Framework transport binding. Keep regional/device adapters thin, disabled by default, and fixture-first; Goncho/Honcho memory naming is unaffected."
+          },
+          "item_count": 23
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "name": "Phase 8 — Reputation & Publication",
+      "deliverable": "TrebuchetDynamics has a credible public face (blog, writeups, talks) that documents Gormes's autonomous-porting methodology and one or two sharp differentiators. Reputation is built through publication cadence, not parity scope.",
+      "subphases": [
+        {
+          "id": "8.A",
+          "name": "Publication Infrastructure",
+          "item_count": 2
+        },
+        {
+          "id": "8.B",
+          "name": "Repository Messaging",
+          "item_count": 3
+        },
+        {
+          "id": "8.C",
+          "name": "Engineering Writeups",
+          "item_count": 1
+        },
+        {
+          "id": "8.D",
+          "name": "Sharp v1.0",
+          "item_count": 22
+        },
+        {
+          "id": "8.E",
+          "name": "Toolkit Extraction",
+          "item_count": 2
+        },
+        {
+          "id": "8.F",
+          "name": "Cost Discipline & Loop Economics",
+          "item_count": 18
+        },
+        {
+          "id": "8.G",
+          "name": "Community & External Contributions",
+          "item_count": 2
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "name": "Phase 9 — Design & Security Hardening",
+      "deliverable": "Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.",
+      "subphases": [
+        {
+          "id": "9.A",
+          "name": "Declarative Agent Middleware Chain",
+          "item_count": 1
+        },
+        {
+          "id": "9.B",
+          "name": "Sandbox Provider Abstraction + Virtual Path System",
+          "item_count": 1
+        },
+        {
+          "id": "9.C",
+          "name": "Hermes Config Parity — Personalities & Display",
+          "item_count": 1
+        },
+        {
+          "id": "9.D",
+          "name": "Speech-to-Text Tool Wiring",
+          "item_count": 1
+        },
+        {
+          "id": "9.E",
+          "name": "Navivox HTTP-only Hardening",
+          "item_count": 6
+        },
+        {
+          "id": "9.F",
+          "name": "Navivox Operator Activation",
+          "priority": "P0",
+          "item_count": 10
+        },
+        {
+          "id": "9.G",
+          "name": "External Issue Radar Regression Guards",
+          "item_count": 6
+        }
+      ]
+    }
+  ],
+  "modules": [
+    "browser",
+    "builder",
+    "channels",
+    "cli",
+    "config",
+    "docs",
+    "doctor",
+    "fleet",
+    "gateway",
+    "goncho",
+    "install",
+    "kanban",
+    "landing",
+    "learning-loop",
+    "memory",
+    "navivox",
+    "planner",
+    "profiles",
+    "progress",
+    "providers",
+    "release",
+    "runtime",
+    "sessions",
+    "skills",
+    "stt",
+    "tools",
+    "tts",
+    "tui"
+  ]
+}

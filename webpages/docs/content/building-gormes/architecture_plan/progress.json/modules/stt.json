@@ -1,0 +1,309 @@
+[
+  {
+    "phase": "2",
+    "subphase": "2.B.5",
+    "pos": 31,
+    "item": {
+      "name": "Telegram voice/audio inbound attachment markers",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Telegram voice and audio messages produce nonblank channel-neutral submit text plus bounded attachment descriptors so downstream gateway/model paths can see media evidence instead of an empty user turn.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "stt",
+      "trust_class": [
+        "gateway",
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If Telegram supplies media without a resolvable URL, Gormes preserves the platform file ID as redacted source evidence and still emits a readable marker rather than blank text.",
+      "fixture": "internal/channels/telegram/bot_test.go:TestBot_ToInboundEvent_VoiceMessageIsNotBlank + TestBot_ToInboundEvent_AudioMessageWithCaptionPreservesCaptionAndMarker",
+      "source_refs": [
+        "../hermes-agent/gateway/platforms/telegram.py",
+        "internal/channels/telegram/bot.go",
+        "internal/gateway/event.go"
+      ],
+      "ready_when": [
+        "Gateway Attachment descriptors are available on InboundEvent.SubmitText.",
+        "Telegram adapter tests can inject fake voice/audio updates without live Telegram or provider calls."
+      ],
+      "not_ready_when": [
+        "The implementation requires live Telegram file downloads or provider transcription calls.",
+        "Media-only updates can still become blank EventSubmit text."
+      ],
+      "acceptance": [
+        "Voice-only updates emit nonblank submit text containing a Telegram voice marker and duration evidence.",
+        "Audio updates with captions preserve the caption and append a Telegram audio marker.",
+        "Attachment descriptors include kind, media type, file name where present, and source ID without fetching live media.",
+        "Slash-command parsing still runs after marker assembly and media fixtures remain hermetic."
+      ],
+      "write_scope": [
+        "internal/channels/telegram/bot.go",
+        "internal/channels/telegram/bot_test.go",
+        "internal/channels/telegram/mock_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "www.gormes.ai/internal/site/data/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'VoiceMessageIsNotBlank|AudioMessageWithCaption' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Telegram voice/audio fake-update tests prove media-only and captioned audio messages produce nonblank submit text and bounded attachment evidence."
+      ],
+      "provenance": {
+        "origin_type": "porting",
+        "upstream_ref": "hermes:gateway/platforms/telegram.py media ingress behavior",
+        "note": "Completes the small adapter seam that prevents Telegram voice/audio updates from entering Gormes as blank turns."
+      },
+      "evidence": [
+        "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -run 'VoiceMessageIsNotBlank|AudioMessageWithCaption' -count=1 -> pass",
+        "2026-04-29: GOCACHE=/tmp/gormes-go-cache go test ./internal/channels/telegram -count=1 -> pass"
+      ]
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 5,
+    "item": {
+      "name": "Hermes/Honcho Go runtime plan second-wave reconciliation",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "A second-wave sub-agent reconciliation turns the raw Hermes/Honcho swarm findings into one canonical Go runtime implementation plan, classifying every subsystem as owned, mapped-by-symbol, mapped-by-contract, excluded, or still row-backed, with no subsystem-level unknown/gap remaining.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "stt",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If a future parity pass finds an unclassified subsystem, Gormes reports unknown_gap_in_runtime_plan and requires gormes-planner to update the runtime plan, feature map, swarm audit, upstream ledger, progress rows, and nested coverage test before builder selection.",
+      "fixture": "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+      "source_refs": [
+        "../hermes-agent/run_agent.py",
+        "../hermes-agent/agent/",
+        "../hermes-agent/tools/",
+        "../hermes-agent/gateway/",
+        "../hermes-agent/hermes_cli/",
+        "../hermes-agent/acp_adapter/",
+        "../hermes-agent/mcp_serve.py",
+        "../hermes-agent/plugins/",
+        "../hermes-agent/skills/",
+        "../hermes-agent/optional-skills/",
+        "../honcho/src/",
+        "../honcho/docs/v3/openapi.json",
+        "../honcho/tests/",
+        "../honcho/sdks/python/src/",
+        "../honcho/sdks/typescript/src/",
+        "../honcho/sdks/typescript/__tests__/",
+        "../honcho/mcp/src/tools/",
+        "../honcho/honcho-cli/src/honcho_cli/",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/development-skills/gormes-planner/references/parity-map.md",
+        "docs/development-skills/gormes-planner/references/progress-row-contract.md",
+        "docs/upstream_coverage_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "ready_when": [
+        "The source-lane swarm findings for Hermes runtime/providers, Hermes tools/security/plugins, Hermes gateway/CLI/release, Honcho core/Goncho, and Honcho SDK/MCP/CLI/deploy are available.",
+        "Second-wave reconciliation can classify large surfaces without implementing runtime code.",
+        "The pass updates only docs, planner references, tests, and progress rows."
+      ],
+      "not_ready_when": [
+        "The pass tries to implement runtime code under cmd or internal.",
+        "Any subsystem remains unknown/gap without an owned, excluded, mapped, or row-backed decision.",
+        "The pass creates a side backlog outside progress.json."
+      ],
+      "unblocks": [
+        "Nested feature-level coverage test matrix for swarm gaps"
+      ],
+      "acceptance": [
+        "Hermes/Honcho To Gormes Go Runtime Plan has the required sections: Evidence Corpus, Classification Vocabulary, Hermes Feature Map, Honcho Feature Map, Go Implementation Order, Nested Feature-Level Coverage Matrix, Swarm Gap Matrix, and Progress Register Actions.",
+        "Every broad Hermes and Honcho subsystem is classified as owned, mapped-by-symbol, mapped-by-contract, excluded, or still row-backed.",
+        "The runtime plan states that no subsystem-level unknown/gap remains after the two-wave swarm pass.",
+        "The architecture index, building index, completion plan, feature map, upstream ledger, and swarm audit link to the runtime plan.",
+        "Planner reference docs explain the full-map classification vocabulary and exact nested-ref requirement."
+      ],
+      "note": "Complete in the 2026-04-28 gormes-planner second-wave swarm pass: source mappers fed architecture, runtime-contract, test-matrix, docs/register, and gap-classifier agents, producing a canonical Go runtime plan that maps all Hermes/Honcho subsystems without claiming implementation parity.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/_index.md",
+        "docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "docs/content/building-gormes/_index.md",
+        "docs/development-skills/gormes-planner/references/parity-map.md",
+        "docs/development-skills/gormes-planner/references/progress-row-contract.md",
+        "docs/upstream_coverage_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress write",
+        "go run ./cmd/progress validate",
+        "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
+        "go test ./docs -count=1"
+      ],
+      "done_signal": [
+        "The runtime plan is the canonical Hermes/Honcho-to-Gormes Go implementation map, with zero subsystem-level unknown/gap items and nested coverage protected by docs tests."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "two-wave swarm audit over hermes-agent current tree + honcho current tree",
+        "note": "Turns full-map swarm output into an implementation-ready planning register without adding runtime code."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.L",
+    "pos": 3,
+    "item": {
+      "name": "Session auto-reset + STT config parity",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes gains Hermes-parity session reset (auto-clear sessions on inactivity/daily boundary) and STT config surface. Session reset checks the configured policy before processing each message and auto-resets stale sessions. STT config exposes enabled/provider/local model/openai model in config.toml.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "stt",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When session_reset policy is 'none', sessions persist indefinitely (legacy behavior). When STT is not configured, transcription defaults to local provider with base model.",
+      "fixture": "internal/gateway/manager.go",
+      "source_refs": [
+        "./hermes-agent/cli-config.yaml.example",
+        "./hermes-agent/hermes_cli/config.py"
+      ],
+      "ready_when": [
+        "ManagerConfig has SessionResetPolicy/SessionResetIdleMinutes/SessionResetDailyHour fields.",
+        "checkAutoReset() evaluates inactivity/daily/both/none policies.",
+        "Config struct has STTCfg with enabled/provider/local/openai fields.",
+        "go build ./cmd/gormes succeeds."
+      ],
+      "not_ready_when": [
+        "Session reset policies are not implemented in manager.go.",
+        "STT config fields are missing from config.go."
+      ],
+      "acceptance": [
+        "ManagerConfig has SessionResetPolicy/SessionResetIdleMinutes/SessionResetDailyHour fields.",
+        "checkAutoReset() evaluates inactivity/daily/both/none policies before submitting turns.",
+        "Config struct has STTCfg with enabled/provider/local/openai fields.",
+        "Build and tests pass."
+      ],
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/gateway/manager.go",
+        "cmd/gormes/gateway.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -count=1",
+        "go test ./internal/gateway -count=1",
+        "go build ./cmd/gormes",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Session auto-reset works with inactivity/daily/both/none policies; STT config fields exposed in config.toml."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/config/config.go: STTCfg with Enabled, Provider, Local.Model, Local.Language, OpenAI.Model fields",
+          "internal/config/config.go: SessionResetPolicy/AfterMinutes/DailyHour fields in RuntimeCfg",
+          "internal/gateway/manager.go: SessionResetPolicy/IdleMinutes/DailyHour fields in ManagerConfig",
+          "internal/gateway/manager.go: checkAutoReset() evaluates inactivity/daily/both/none policies",
+          "internal/gateway/manager_test.go: TestCheckAutoReset_* covers all policy branches"
+        ],
+        "tests": "go test ./internal/config -count=1 | go test ./internal/gateway -run TestCheckAutoReset -count=1 | go build ./cmd/gormes"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.D",
+    "pos": 0,
+    "item": {
+      "name": "Transcribe audio tool registration + local whisper provider",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes registers the existing transcribe_audio tool in the default tool registry so STT works by default with no API key. A LocalSTTProvider wraps the WASI whisper runtime (internal/wasi/whisper/) into the TranscriptionProvider interface with auto-downloading tiny.en model (~77MB from HuggingFace). Cloud STT providers (OpenAI, Groq, Mistral, XAI) are registered alongside and activate when their API keys are present.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "stt",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When the local whisper model is unavailable (first-run download failure or disk full), the transcribe_audio tool reports stt_provider_unavailable instead of crashing. Cloud providers (OpenAI, Groq, Mistral, XAI) still work if their API keys are configured.",
+      "fixture": "internal/tools/transcription_providers_local.go",
+      "source_refs": [
+        "./internal/tools/transcription_tool.go",
+        "./internal/tools/transcription_providers.go",
+        "./internal/tools/transcription_providers_local.go",
+        "./internal/wasi/whisper/transcriber.go",
+        "./internal/wasi/whisper/model_cache.go",
+        "./cmd/gormes/registry_audio.go"
+      ],
+      "ready_when": [
+        "transcribe_audio tool exists in internal/tools/ but is unregistered.",
+        "WASI whisper runtime exists in internal/wasi/whisper/.",
+        "LocalSTTProvider wraps whisper into TranscriptionProvider interface.",
+        "registry_audio.go registers the transcription tool with local provider."
+      ],
+      "not_ready_when": [
+        "The row attempts to add voice recording or voice mode — that is separate.",
+        "The row requires cloud provider API keys for basic functionality."
+      ],
+      "acceptance": [
+        "LocalSTTProvider implements TranscriptionProvider with Available() and Transcribe().",
+        "transcribe_audio tool is registered via MustRegister in the default tool registry.",
+        "go build ./cmd/gormes succeeds with the non-slim build tag.",
+        "go test ./internal/tools -count=1 stays green."
+      ],
+      "write_scope": [
+        "internal/tools/transcription_providers_local.go",
+        "cmd/gormes/registry_audio.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go build ./cmd/gormes",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "transcribe_audio tool is registered by default; local whisper provider auto-downloads model on first use; no API key required for basic STT."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/tools/transcription_providers_local.go:LocalSTTProvider implements TranscriptionProvider with Available()/Transcribe()",
+          "cmd/gormes/registry_audio.go:registerAudioTools registers transcribe_audio via MustRegister in default tool registry"
+        ],
+        "tests": [
+          "internal/tools/transcription_providers_local_test.go:TestLocalSTTProvider_Transcribe_RejectsEmptyPath",
+          "internal/tools/transcription_providers_local_test.go:TestLocalSTTProvider_Transcribe_RejectsMissingFile",
+          "internal/tools/transcription_providers_local_test.go:TestLocalSTTProvider_Transcribe_RejectsNonWAV",
+          "internal/tools/transcription_providers_local_test.go:TestLocalSTTProvider_Transcribe_JFKFixture"
+        ],
+        "verification": [
+          "go build ./cmd/gormes -> exit 0",
+          "go test ./internal/tools -count=1 -> PASS",
+          "go run ./cmd/progress validate -> validated 9 phases",
+          "git diff --check -> clean"
+        ]
+      }
+    }
+  }
+]

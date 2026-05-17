@@ -58,6 +58,7 @@ func TestSetupModelPickerUsesActiveProviderPickerModelSet(t *testing.T) {
 func TestSetupModelPickerUsesOpenRouterFullModelSet(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	withOpenRouterModelCatalogFetcherForTest(t, openRouterModelCatalogOfflineForTest)
 
 	cmd := &cobra.Command{}
 	var stdout, stderr bytes.Buffer

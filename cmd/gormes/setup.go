@@ -1293,7 +1293,7 @@ func runSetupProviderSection(cmd *cobra.Command, seams setupCommandSeams, nonInt
 		fmt.Fprintln(cmd.ErrOrStderr(), "setup_requires_tty: run `gormes setup provider --non-interactive` to use GORMES_ENDPOINT + GORMES_API_KEY env vars")
 		return errSetupRequiresTTY
 	}
-	return setupProviderInteractive(cmd)
+	return setupProviderInteractive(cmd, seams)
 }
 
 func setupProviderNonInteractive(cmd *cobra.Command) error {
@@ -1306,11 +1306,12 @@ func setupProviderNonInteractive(cmd *cobra.Command) error {
 	return writeProviderConfig(cmd, "", endpoint, apiKey, model)
 }
 
-func setupProviderInteractive(cmd *cobra.Command) error {
+func setupProviderInteractive(cmd *cobra.Command, seams setupCommandSeams) error {
+	seams = setupProviderInteractiveSeams(seams)
 	out := cmd.OutOrStdout()
 	current, _ := loadSetupProviderCurrent()
 	entries, defaultIndex := cli.HermesProviderCatalogMenu(current.Provider)
-	idx, err := promptSetupProviderChoice(cmd, entries, defaultIndex)
+	idx, err := seams.ChooseSetupProvider(cmd, entries, defaultIndex)
 	if err != nil {
 		if errors.Is(err, cli.ErrModelPickerCancelled) {
 			fmt.Fprintln(out, "No change.")
@@ -1328,6 +1329,9 @@ func setupProviderInteractive(cmd *cobra.Command) error {
 	}
 
 	provider := setupCanonicalProviderID(entries[idx].ID)
+	if provider == config.CodexOAuthProvider {
+		return runSetupSelectedProviderFlow(cmd, seams, current, provider)
+	}
 	var endpoint string
 	if provider == "custom" {
 		endpoint, err = promptString(cmd, "Endpoint URL: ", "")
@@ -1370,6 +1374,24 @@ func setupProviderInteractive(cmd *cobra.Command) error {
 	model = hermes.NormalizeProviderModelID(provider, model)
 
 	return writeProviderConfig(cmd, provider, endpoint, apiKey, model)
+}
+
+func setupProviderInteractiveSeams(seams setupCommandSeams) setupCommandSeams {
+	if seams.ChooseSetupProvider == nil {
+		seams.ChooseSetupProvider = promptSetupProviderChoice
+	}
+	if seams.LoadProviderAuthStatus == nil {
+		seams.LoadProviderAuthStatus = func(provider string) (cli.ProviderAuthStatus, error) {
+			return cli.ResolveAuthStatus(context.Background(), provider, cli.AuthStatusOptions{})
+		}
+	}
+	if seams.RunProviderAuth == nil {
+		seams.RunProviderAuth = runSetupProviderAuth
+	}
+	if seams.RunActiveProviderModelPicker == nil {
+		seams.RunActiveProviderModelPicker = runSetupActiveProviderModelPicker
+	}
+	return seams
 }
 
 func loadSetupProviderCurrent() (cli.ProviderModel, error) {

@@ -1,10 +1,12 @@
 package progress
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -176,6 +178,47 @@ func TestSaveProgressPreservesSplitLayout(t *testing.T) {
 	}
 }
 
+// (C5) SaveProgress must preserve module-keyed split directories. After the
+// canonical progress.json path flips to modules/<feature>.json, any writer
+// that round-trips through SaveProgress must not silently rewrite it back to
+// the older phase-keyed layout.
+func TestSaveProgressPreservesModuleKeyedSplitLayout(t *testing.T) {
+	splitDir := filepath.Join(t.TempDir(), "progress.json")
+	if err := WriteSplitBy(splitDir, moduleKeyedFixture(), splitKeyByModule); err != nil {
+		t.Fatalf("WriteSplitBy(module): %v", err)
+	}
+
+	mutated := moduleKeyedFixture()
+	mutated.Phases["1"].Subphases["1.A"].Items[0].Note = "C5 module mutation"
+
+	if err := SaveProgress(splitDir, mutated); err != nil {
+		t.Fatalf("SaveProgress(module split): %v", err)
+	}
+	assertStillSplit(t, splitDir)
+	idxRaw, err := os.ReadFile(filepath.Join(splitDir, "index.json"))
+	if err != nil {
+		t.Fatalf("read index: %v", err)
+	}
+	if !strings.Contains(string(idxRaw), `"key_by": "module"`) {
+		t.Fatalf("SaveProgress must preserve module keying, got index:\n%s", string(idxRaw))
+	}
+	if _, err := os.Stat(filepath.Join(splitDir, splitModulesDir)); err != nil {
+		t.Fatalf("modules directory missing after SaveProgress(module split): %v", err)
+	}
+
+	got, err := Load(splitDir)
+	if err != nil {
+		t.Fatalf("Load(module split) after save: %v", err)
+	}
+	if got.Phases["1"].Subphases["1.A"].Items[0].Note != "C5 module mutation" {
+		t.Fatalf("mutation not persisted into module split, got %q",
+			got.Phases["1"].Subphases["1.A"].Items[0].Note)
+	}
+	if a, b := saveBytes(t, got), saveBytes(t, mutated); !reflect.DeepEqual(a, b) {
+		t.Fatalf("module split-preserving save must be byte-stable through the canonical marshaller (%d vs %d bytes)", len(a), len(b))
+	}
+}
+
 // (C3.2) The builderloop write path (ApplyHealthUpdates) preserves the split
 // layout for both the normal SaveProgress branch and the single-empty-health
 // raw-splice branch (which must not byte-splice a directory).
@@ -263,7 +306,7 @@ func moduleKeyedFixture() *Progress {
 					{Name: "tui-row", Status: StatusComplete, ExecutionOwner: ExecutionOwnerTui},
 					{Name: "tools-row", Status: StatusPlanned, ExecutionOwner: ExecutionOwnerTools, Priority: "P2"},
 				}},
-				"1.B": {Name: "B status-only", Status: StatusComplete},
+				"1.B": {Name: "B status-only", Status: StatusComplete, Extra: map[string]json.RawMessage{"source": json.RawMessage(`"fixture-source"`)}},
 			}},
 			"10": {Name: "P10", Deliverable: "d10", DependencyNote: "after 9", Subphases: map[string]Subphase{
 				"10.A": {Name: "Tenth", Items: []Item{
@@ -305,6 +348,74 @@ func TestModuleKeyedSplitRoundTripIsLossless(t *testing.T) {
 	}
 	if a, b := saveBytes(t, got), saveBytes(t, p); !reflect.DeepEqual(a, b) {
 		t.Fatalf("module-keyed split must be byte-stable through SaveProgress (%d vs %d bytes)", len(a), len(b))
+	}
+}
+
+// (C5) The operator-gated physical flip materializes the canonical
+// progress.json path itself as a module-keyed split directory. The old
+// progress.split staging directory and broad transitional module buckets are
+// no longer the final shape.
+func TestCanonicalProgressPathIsMaterializedModuleKeyedSplitDirectory(t *testing.T) {
+	canonical := filepath.Join("..", "..", "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	fi, err := os.Stat(canonical)
+	if err != nil {
+		t.Fatalf("stat canonical progress path: %v", err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("canonical progress path must be a module-keyed split directory after C5, got regular file: %s", canonical)
+	}
+
+	idxRaw, err := os.ReadFile(filepath.Join(canonical, splitIndexName))
+	if err != nil {
+		t.Fatalf("read split index: %v", err)
+	}
+	var idx struct {
+		KeyBy   string   `json:"key_by"`
+		Modules []string `json:"modules"`
+	}
+	if err := json.Unmarshal(idxRaw, &idx); err != nil {
+		t.Fatalf("parse split index: %v", err)
+	}
+	if idx.KeyBy != splitKeyByModule {
+		t.Fatalf("canonical split key_by = %q, want %q", idx.KeyBy, splitKeyByModule)
+	}
+	if len(idx.Modules) == 0 {
+		t.Fatal("canonical module-keyed split index has no modules")
+	}
+	if _, err := os.Stat(filepath.Join(canonical, splitPhasesDir)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("canonical C5 split must not include phase-keyed members, stat phases dir err=%v", err)
+	}
+
+	modulesDir := filepath.Join(canonical, splitModulesDir)
+	entries, err := os.ReadDir(modulesDir)
+	if err != nil {
+		t.Fatalf("read modules dir: %v", err)
+	}
+	memberFiles := map[string]bool{}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			t.Fatalf("unexpected module split entry %s", entry.Name())
+		}
+		memberFiles[strings.TrimSuffix(entry.Name(), ".json")] = true
+	}
+	if len(memberFiles) != len(idx.Modules) {
+		t.Fatalf("module member count = %d, index modules = %d", len(memberFiles), len(idx.Modules))
+	}
+	for _, module := range idx.Modules {
+		if !ValidModule(module) {
+			t.Fatalf("module split contains non-approved module %q", module)
+		}
+		if !memberFiles[module] {
+			t.Fatalf("index lists module %q but modules/%s.json is missing", module, module)
+		}
+	}
+
+	p, err := Load(canonical)
+	if err != nil {
+		t.Fatalf("Load(canonical module split): %v", err)
+	}
+	if err := Validate(p); err != nil {
+		t.Fatalf("Validate(canonical module split): %v", err)
 	}
 }
 

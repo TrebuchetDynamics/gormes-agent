@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
 func TestInstallersRequireCurrentGoToolchain(t *testing.T) {
@@ -74,9 +76,30 @@ func TestInstallersRequireCurrentGoToolchain(t *testing.T) {
 
 func readFileFromRoot(t *testing.T, root, rel string) string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(root, rel))
+	path := filepath.Join(root, rel)
+	if filepath.ToSlash(rel) == "webpages/docs/content/building-gormes/architecture_plan/progress.json" {
+		return readLogicalProgressFromRoot(t, path)
+	}
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", rel, err)
+	}
+	return string(raw)
+}
+
+func readLogicalProgressFromRoot(t *testing.T, path string) string {
+	t.Helper()
+	p, err := progress.Load(path)
+	if err != nil {
+		t.Fatalf("progress.Load(%s): %v", path, err)
+	}
+	tmp := filepath.Join(t.TempDir(), "progress.json")
+	if err := progress.SaveProgress(tmp, p); err != nil {
+		t.Fatalf("progress.SaveProgress(%s): %v", path, err)
+	}
+	raw, err := os.ReadFile(tmp)
+	if err != nil {
+		t.Fatalf("read emitted progress text: %v", err)
 	}
 	return string(raw)
 }

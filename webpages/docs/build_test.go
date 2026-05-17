@@ -436,6 +436,8 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 		"workflow_dispatch:",
 		"actions/setup-node@v4",
 		"cache-dependency-path: webpages/docs/package-lock.json",
+		"actions/setup-go@v6",
+		"go-version-file: go.mod",
 		"working-directory: webpages/docs",
 		"npm ci",
 		"npm run build",
@@ -454,6 +456,34 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 	for _, want := range wants {
 		if !strings.Contains(text, want) {
 			t.Fatalf("deploy workflow missing %q", want)
+		}
+	}
+}
+
+func TestDocsProgressArtifactUsesSplitSafeEmitter(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("scripts", "copy-progress-json.mjs"))
+	if err != nil {
+		t.Fatalf("read copy-progress-json script: %v", err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"execFile",
+		"'go'",
+		"'./cmd/progress'",
+		"'emit'",
+		"maxBuffer",
+		"fs.writeFile(target, stdout)",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("copy-progress-json script missing %q", want)
+		}
+	}
+	for _, reject := range []string{
+		"fs.copyFile(source, target)",
+		"'content', 'building-gormes', 'architecture_plan', 'progress.json'",
+	} {
+		if strings.Contains(text, reject) {
+			t.Fatalf("copy-progress-json script must not raw-copy the canonical path; found %q", reject)
 		}
 	}
 }

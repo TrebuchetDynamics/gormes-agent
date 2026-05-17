@@ -5,10 +5,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
@@ -42,6 +44,12 @@ type modelPickerSuggestionSet struct {
 	Models         []string
 	DegradedReason string
 }
+
+type openRouterModelCatalogFetchFunc func(context.Context) ([]string, error)
+
+var openRouterModelCatalogFetcher openRouterModelCatalogFetchFunc = fetchOpenRouterModelCatalog
+var openRouterModelsURL = "https://openrouter.ai/api/v1/models"
+var openRouterModelsHTTPClient = &http.Client{Timeout: 8 * time.Second}
 
 func newModelCommand() *cobra.Command {
 	return newModelCommandWithSeams(defaultModelCommandSeams())
@@ -191,6 +199,11 @@ func defaultModelPickerSuggestions(provider string) []string {
 
 func defaultModelPickerSuggestionSet(provider string) modelPickerSuggestionSet {
 	provider = strings.TrimSpace(provider)
+	if strings.EqualFold(provider, "openrouter") && openRouterModelCatalogFetcher != nil {
+		if models, err := openRouterModelCatalogFetcher(context.Background()); err == nil && len(models) > 0 {
+			return modelPickerSuggestionSet{Models: models}
+		}
+	}
 	foundProvider := false
 	for _, entry := range hermes.ListPickerProviders() {
 		if !strings.EqualFold(entry.Slug, provider) {
@@ -214,6 +227,45 @@ func defaultModelPickerSuggestionSet(provider string) modelPickerSuggestionSet {
 		return modelPickerSuggestionSet{DegradedReason: "picker catalog had no models"}
 	}
 	return modelPickerSuggestionSet{DegradedReason: "provider not in picker catalog"}
+}
+
+func fetchOpenRouterModelCatalog(ctx context.Context) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, openRouterModelsURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if apiKey := firstNonEmpty(strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")), strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))); apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	client := openRouterModelsHTTPClient
+	if client == nil {
+		client = &http.Client{Timeout: 8 * time.Second}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("openrouter_models_http_status_%d", resp.StatusCode)
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return nil, err
+	}
+	entries, err := hermes.ParseOpenRouterModelRegistry(raw, "openrouter-models-api")
+	if err != nil {
+		return nil, err
+	}
+	models := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		model := strings.TrimSpace(entry.Model)
+		if model != "" {
+			models = append(models, model)
+		}
+	}
+	return models, nil
 }
 
 func promptModelChoice(in io.Reader, out io.Writer, provider string, current string, suggestions []string) (string, error) {

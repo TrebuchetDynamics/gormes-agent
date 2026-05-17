@@ -938,9 +938,15 @@ func readNestedCoverageCorpus(t *testing.T) string {
 	}
 	var b strings.Builder
 	for _, path := range paths {
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read nested coverage corpus %s: %v", path, err)
+		var raw []byte
+		if path == canonicalProgressPath {
+			raw = canonicalProgressBytes(t, path)
+		} else {
+			var err error
+			raw, err = os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read nested coverage corpus %s: %v", path, err)
+			}
 		}
 		b.Write(raw)
 		b.WriteByte('\n')

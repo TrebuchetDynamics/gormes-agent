@@ -30,7 +30,7 @@ row source refs. Do not depend on the Python runtime from Gormes code.
 ## Source Order
 
 1. Read `AGENTS.md`.
-2. Read the selected row in `docs/content/building-gormes/architecture_plan/progress.json` — the single logical backlog. Access it through `internal/progress.Load`/`SaveProgress` or `cmd/progress`, which transparently handle either the monolithic file or a split/per-module directory layout (monolith on disk today, split-capable); never hand-parse member files.
+2. Read the selected row in `docs/content/building-gormes/architecture_plan/progress.json` — the single logical backlog. Access it through `internal/progress.Load`/`SaveProgress` or `cmd/progress`, which transparently handle either the monolithic file or a split/per-module directory layout (monolith on disk today, split-capable); never hand-parse member files. Before selecting a row, name the feature module you are working in and use `go run ./cmd/progress list --module <module>` as a scoped view, not as a separate queue.
 3. Read the relevant section of `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`.
 4. Read generated handoff docs under `docs/content/building-gormes/builder-loop/` when useful.
 5. Read exact `source_refs`, upstream Hermes/Honcho files, and current Gormes code before editing.
@@ -77,6 +77,7 @@ Useful discovery:
 
 ```sh
 go run ./cmd/progress validate
+go run ./cmd/progress list --module providers
 go run ./cmd/progress emit | jq -r '.phases | to_entries[] | .key as $phase | .value.subphases | to_entries[] | .key as $subphase | .value.items[]? | select(.status=="planned" or .status=="porting" or .status=="fixture_ready") | [$phase,$subphase,.name,.priority] | @tsv' | head -20
 ```
 

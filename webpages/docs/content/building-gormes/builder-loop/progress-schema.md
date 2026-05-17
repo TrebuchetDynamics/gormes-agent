@@ -87,6 +87,7 @@ generic notes without bounded tests or write scope do not.
 - `docs/content/building-gormes/builder-loop/agent-queue.md` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands or a no-test-required reason, done signal, acceptance, and source references.
 - `docs/content/building-gormes/builder-loop/blocked-slices.md` keeps blocked rows out of the execution queue while preserving their unblock condition.
 - `docs/content/building-gormes/builder-loop/umbrella-cleanup.md` lists broad inventory rows that must be split before assignment.
+- `docs/content/building-gormes/modules/` contains generated module-scoped roadmap review pages. These are views over the single logical backlog, not side queues.
 
 ## Good Row
 

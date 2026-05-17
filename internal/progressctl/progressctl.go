@@ -12,6 +12,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
@@ -30,12 +33,139 @@ type countsJSON struct {
 	Planned    int `json:"planned"`
 }
 
+// ListOptions controls the read-only progress inventory view.
+type ListOptions struct {
+	Module string
+}
+
+type moduleListRow struct {
+	PhaseID    string
+	SubphaseID string
+	Item       progress.Item
+}
+
 func toCountsJSON(c progress.Counts) countsJSON {
 	return countsJSON{
 		Total:      c.Total,
 		Complete:   c.Complete,
 		InProgress: c.InProgress,
 		Planned:    c.Planned,
+	}
+}
+
+// List emits a read-only inventory view over the single logical backlog. The
+// first supported scope is exactly one module, so planner/builder agents can
+// choose a feature boundary without creating independent queues.
+func List(stdout io.Writer, root string, opts ListOptions) error {
+	module := strings.TrimSpace(opts.Module)
+	if module == "" {
+		return fmt.Errorf("progress: list requires --module <module>")
+	}
+	if strings.Contains(module, ",") {
+		return fmt.Errorf("progress: --module accepts exactly one module; comma-separated module filters are not supported")
+	}
+	if !progress.ValidModule(module) {
+		return fmt.Errorf("progress: unknown module %q (allowed: %s)", module, strings.Join(progress.AllowedModules(), ", "))
+	}
+
+	p, err := loadValidProgress(root)
+	if err != nil {
+		return err
+	}
+	rows := rowsForModule(p, module)
+	rowNoun := "rows"
+	if len(rows) == 1 {
+		rowNoun = "row"
+	}
+	if _, err := fmt.Fprintf(stdout, "progress: module %s (%d %s)\n", module, len(rows), rowNoun); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(stdout, "phase\tsubphase\tstatus\tpriority\tname"); err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\t%s\n",
+			row.PhaseID, row.SubphaseID, row.Item.Status, row.Item.Priority, row.Item.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func rowsForModule(p *progress.Progress, module string) []moduleListRow {
+	if p == nil {
+		return nil
+	}
+	var rows []moduleListRow
+	for _, phaseID := range roadmapKeys(p.Phases) {
+		phase := p.Phases[phaseID]
+		for _, subphaseID := range roadmapKeys(phase.Subphases) {
+			subphase := phase.Subphases[subphaseID]
+			for _, item := range subphase.Items {
+				if progress.Module(item, phaseID, subphaseID) != module {
+					continue
+				}
+				rows = append(rows, moduleListRow{
+					PhaseID: phaseID, SubphaseID: subphaseID, Item: item,
+				})
+			}
+		}
+	}
+	return rows
+}
+
+func roadmapKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return compareRoadmapKeys(keys[i], keys[j]) < 0
+	})
+	return keys
+}
+
+func compareRoadmapKeys(a, b string) int {
+	aParts := strings.Split(a, ".")
+	bParts := strings.Split(b, ".")
+	for i := 0; i < len(aParts) && i < len(bParts); i++ {
+		if diff := compareRoadmapPart(aParts[i], bParts[i]); diff != 0 {
+			return diff
+		}
+	}
+	switch {
+	case len(aParts) < len(bParts):
+		return -1
+	case len(aParts) > len(bParts):
+		return 1
+	default:
+		return 0
+	}
+}
+
+func compareRoadmapPart(a, b string) int {
+	aNum, aErr := strconv.Atoi(a)
+	bNum, bErr := strconv.Atoi(b)
+	switch {
+	case aErr == nil && bErr == nil:
+		switch {
+		case aNum < bNum:
+			return -1
+		case aNum > bNum:
+			return 1
+		default:
+			return 0
+		}
+	case aErr == nil:
+		return -1
+	case bErr == nil:
+		return 1
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	default:
+		return 0
 	}
 }
 
@@ -61,7 +191,8 @@ func Validate(stdout io.Writer, root, format string) error {
 }
 
 // Write regenerates every markered section in the docs tree from
-// progress.json and mirrors the JSON into the www.gormes.ai data directories.
+// progress.json, writes generated module roadmap pages, and mirrors the JSON
+// into the www.gormes.ai data directories.
 // Errors from individual rewrites are collected, surfaced one per line, and
 // returned via errors.Join so the caller fails the whole run while still
 // telling the operator which markers updated and which did not.
@@ -91,6 +222,11 @@ func Write(stdout io.Writer, root string) error {
 		} else {
 			fmt.Fprintln(stdout, "progress:", m.label)
 		}
+	}
+	if err := writeModuleRoadmapPages(p, paths.moduleRoadmapsDir); err != nil {
+		errs = append(errs, err)
+	} else {
+		fmt.Fprintln(stdout, "progress: module roadmaps regenerated")
 	}
 	for _, siteProgress := range paths.siteProgress {
 		if err := syncFile(paths.progressJSON, siteProgress); err != nil {
@@ -217,6 +353,7 @@ type pathSet struct {
 	blockedSlices      string
 	umbrellaCleanup    string
 	progressSchema     string
+	moduleRoadmapsDir  string
 	siteProgress       []string
 	siteProgressSlim   string
 }
@@ -236,6 +373,7 @@ func progressPaths(root string) pathSet {
 		blockedSlices:      filepath.Join(builderLoopDir, "blocked-slices.md"),
 		umbrellaCleanup:    filepath.Join(builderLoopDir, "umbrella-cleanup.md"),
 		progressSchema:     filepath.Join(builderLoopDir, "progress-schema.md"),
+		moduleRoadmapsDir:  filepath.Join(buildingGormes, "modules"),
 		// Verbatim site mirrors: now empty. The dead
 		// webpages/landing/src/data/progress.json mirror had no consumer
 		// (nothing in the Astro site imports it) and is no longer
@@ -288,6 +426,25 @@ func rewriteMarker(path, kind, body string) error {
 	}
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
+func writeModuleRoadmapPages(p *progress.Progress, dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", dir, err)
+	}
+	pages := map[string]string{
+		"_index.md": progress.RenderModuleRoadmapIndex(p),
+	}
+	for _, module := range progress.AllowedModules() {
+		pages[module+".md"] = progress.RenderModuleRoadmapPage(p, module)
+	}
+	for name, body := range pages {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", path, err)
+		}
 	}
 	return nil
 }

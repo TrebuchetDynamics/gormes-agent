@@ -1,0 +1,1164 @@
+[
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 0,
+    "item": {
+      "name": "Orchestrator failure-row stabilization for 4-8 workers",
+      "status": "complete",
+      "contract": "Worker verification and failure-taxonomy contract",
+      "contract_status": "validated",
+      "slice_size": "large",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "The orchestrator records precise failure reasons, poisoned-task thresholds, soft-success decisions, and original exit codes instead of collapsing failures into one generic status.",
+      "fixture": "scripts/orchestrator/tests/unit/{failures,soft-success}.bats",
+      "source_refs": [
+        "docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md",
+        "scripts/orchestrator/lib/worktree.sh",
+        "scripts/gormes-auto-codexu-orchestrator.sh"
+      ],
+      "ready_when": [
+        "Failure taxonomy and soft-success recovery behavior are covered by direct orchestrator unit fixtures."
+      ],
+      "not_ready_when": [
+        "The row is treated as complete before direct try_soft_success_nonzero coverage lands."
+      ],
+      "unblocks": [
+        "Soft-success-nonzero bats coverage",
+        "Planner wrapper/test consistency closeout"
+      ],
+      "acceptance": [
+        "Failure rows emit a granular reason instead of contract_or_test_failure.",
+        "Non-timeout/non-OOM codex exits can become soft_success_nonzero only after final-report and commit verification pass.",
+        "Timeout and OOM exits remain hard failures."
+      ],
+      "note": "Complete: failure rows now preserve granular verify/report reasons, poisoned-task records are covered, and soft-success recovery has direct unit coverage for timeout/OOM rejection, opt-out rejection, invalid-report rejection, dirty-commit rejection, valid report + clean commit recovery, and worker-state original_rc preservation via scripts/orchestrator/tests/unit/soft-success.bats.",
+      "write_scope": [
+        "scripts/gormes-auto-codexu-orchestrator.sh",
+        "scripts/orchestrator/lib/",
+        "scripts/orchestrator/tests/unit/"
+      ],
+      "test_commands": [
+        "scripts/orchestrator/tests/run.sh unit"
+      ],
+      "done_signal": [
+        "Fail-fast aborts terminate worker process trees and successful workers are still harvested before the failed cycle pauses."
+      ]
+    }
+  },
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 1,
+    "item": {
+      "name": "Soft-success-nonzero bats coverage",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Soft-success nonzero recovery guard",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When the recovery guard refuses a non-zero exit, the worker state keeps the original exit reason and does not promote the run.",
+      "fixture": "scripts/orchestrator/tests/unit/soft-success.bats",
+      "source_refs": [
+        "docs/superpowers/specs/2026-04-24-orchestrator-oiling-release-1-design.md",
+        "scripts/gormes-auto-codexu-orchestrator.sh"
+      ],
+      "ready_when": [
+        "Orchestrator failure-row stabilization remains active and try_soft_success_nonzero is testable without running the full worker loop."
+      ],
+      "not_ready_when": [
+        "The slice attempts to revisit the already-decided ALLOW_SOFT_SUCCESS_NONZERO default."
+      ],
+      "unblocks": [
+        "Orchestrator failure-row stabilization for 4-8 workers"
+      ],
+      "acceptance": [
+        "rc=124 and rc=137 always reject soft success.",
+        "ALLOW_SOFT_SUCCESS_NONZERO=0 rejects even with valid report and clean commit.",
+        "Valid report plus clean commit plus allowed non-zero rc records soft_success_nonzero with original_rc."
+      ],
+      "note": "TDD landed: scripts/orchestrator/tests/unit/soft-success.bats source-loads the legacy entrypoint, directly covers try_soft_success_nonzero reject/recovery paths, and runs a one-worker fake-codexu success_nonzero fixture to prove worker state records mode=soft_success_nonzero with original_rc preserved. The default ALLOW_SOFT_SUCCESS_NONZERO remains on-by-default.",
+      "write_scope": [
+        "scripts/gormes-auto-codexu-orchestrator.sh",
+        "scripts/orchestrator/tests/unit/"
+      ],
+      "test_commands": [
+        "scripts/orchestrator/tests/run.sh unit"
+      ],
+      "done_signal": [
+        "Direct try_soft_success_nonzero cases cover reject and recovery paths with original_rc preserved."
+      ]
+    }
+  },
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 3,
+    "item": {
+      "name": "Autoloop row health and quarantine contract",
+      "status": "complete",
+      "contract": "Autoloop records per-row health, failure categories, quarantine state, stale-spec recovery, and backend penalties without letting planner writes mutate runtime-owned health blocks",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Rows with repeated worker failures are skipped or demoted with visible health/quarantine evidence instead of being retried indefinitely.",
+      "fixture": "internal/progress/health_test.go and internal/builderloop/health_writer_test.go",
+      "source_refs": [
+        "docs/superpowers/specs/2026-04-24-reactive-autoloop-design.md",
+        "internal/progress/health.go",
+        "internal/builderloop/health_writer.go",
+        "internal/builderloop/candidates.go",
+        "internal/builderloop/run_health_test.go"
+      ],
+      "ready_when": [
+        "RowHealth is a typed progress field and autoloop can batch health updates after worker outcomes."
+      ],
+      "not_ready_when": [
+        "The planner modifies or removes existing health blocks instead of treating them as autoloop-owned runtime state."
+      ],
+      "unblocks": [
+        "Planner self-healing verdict loop"
+      ],
+      "acceptance": [
+        "RowHealth, Quarantine, and ItemSpecHash round-trip through the progress model.",
+        "Autoloop writes success/failure health updates, quarantines rows after threshold failures, clears stale quarantines after spec changes, and emits trigger events.",
+        "Candidate selection skips active quarantines by default, exposes stale quarantines for reset, and applies deterministic failure penalties."
+      ],
+      "note": "Complete: internal/progress now owns RowHealth plus ItemSpecHash and ApplyHealthUpdates; internal/builderloop writes batched run health, quarantines repeated failures with current spec hashes, clears stale quarantines, emits planner trigger events, filters active quarantines, and demotes rows with repeated failures/backends tried.",
+      "write_scope": [
+        "internal/progress/",
+        "internal/builderloop/",
+        "internal/plannertriggers/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress ./internal/builderloop ./internal/plannertriggers -count=1"
+      ],
+      "done_signal": [
+        "Health writer, candidate selection, and progress preservation tests prove quarantine state is runtime-owned, typed, and stale-spec recoverable."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-04-25T11:02:16Z",
+        "note": "Autoloop row health/quarantine is a Gormes control-plane invention with no upstream Hermes or Honcho implementation analog."
+      }
+    }
+  },
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 6,
+    "item": {
+      "name": "Watchdog checkpoint coalescing",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Pure helper internal/builderloop/watchdog_coalesce.go exposes type Decision string with constants DecisionFirst=\"first\", DecisionAmend=\"amend\", DecisionNoop=\"noop\"; type CheckpointState struct{LastCheckpointAt time.Time; LastSubject string; WindowID string}; type CoalesceConfig struct{WindowSeconds int; Dirty bool; NextWindowID func() string} and one function DecideCheckpoint(now time.Time, st CheckpointState, cfg CoalesceConfig) (Decision, CheckpointState). Window math: windowSeconds <= 0 falls back to 600. Algorithm: when cfg.Dirty is false, return DecisionNoop and the input state unchanged. When cfg.Dirty is true and (st.WindowID == \"\" OR now.Sub(st.LastCheckpointAt) >= window), return DecisionFirst with state {LastCheckpointAt: now, LastSubject: st.LastSubject (caller fills), WindowID: cfg.NextWindowID()}. Otherwise (cfg.Dirty and inside the window) return DecisionAmend with state {LastCheckpointAt: now, LastSubject: st.LastSubject, WindowID: st.WindowID} (preserve the existing WindowID). No git invocation, no shell-script change, no live filesystem mutation in this slice; cfg.NextWindowID is the only source of new IDs and is supplied by the caller (typically a small monotonic counter or a uuid stub in tests).",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Watchdog status reports checkpoint_coalesce_active, checkpoint_coalesce_window_seconds, and the existing dirty-worktree checkpoint commit ID instead of emitting a fresh commit on every tick.",
+      "fixture": "internal/builderloop/watchdog_coalesce_test.go",
+      "source_refs": [
+        "internal/builderloop/run.go:CheckpointDirtyWorktree,lastCommitIsBuilderLoopCheckpoint,isBuilderLoopCheckpointSubject",
+        "scripts/orchestrator/watchdog.sh:checkpoint_dirty",
+        "docs/superpowers/specs/2026-04-25-builder-owned-planner-cycle-design.md"
+      ],
+      "ready_when": [
+        "Watchdog dirty-worktree checkpointing is in place (commit ff96a5d94) and emits a record_run_health event we can key off of.",
+        "Tests can use a fake clock and an in-memory git repo or a synthetic commit-recorder seam — no live system clock or systemd is required."
+      ],
+      "not_ready_when": [
+        "The slice changes the watchdog stall threshold, the dead-process detection, or the planner cadence.",
+        "The slice silently drops the dirty-worktree checkpoint when a stall is real — the first tick of every distinct stall window must still produce a single observable checkpoint."
+      ],
+      "unblocks": [
+        "Watchdog dead-process vs slow-progress separation"
+      ],
+      "acceptance": [
+        "TestDecideCheckpoint_FirstTickInFreshWindowReturnsFirst: empty state, cfg.Dirty=true, NextWindowID=()=>\"w-1\" returns (DecisionFirst, {LastCheckpointAt: now, WindowID: \"w-1\"}).",
+        "TestDecideCheckpoint_LaterTickInsideWindowReturnsAmend: prior state {LastCheckpointAt: now-30s, WindowID: \"w-1\"}, cfg.Dirty=true, windowSeconds=600 returns (DecisionAmend, {LastCheckpointAt: now, WindowID: \"w-1\"}); NextWindowID is NOT called.",
+        "TestDecideCheckpoint_LaterTickPastWindowReturnsFirst: prior state {LastCheckpointAt: now-601s, WindowID: \"w-1\"}, cfg.Dirty=true, windowSeconds=600, NextWindowID=()=>\"w-2\" returns (DecisionFirst, {LastCheckpointAt: now, WindowID: \"w-2\"}).",
+        "TestDecideCheckpoint_NoopWhenNotDirty: any prior state, cfg.Dirty=false returns (DecisionNoop, prior state unchanged); NextWindowID is NOT called.",
+        "TestDecideCheckpoint_DefaultWindowWhenZeroOrNegative: cfg.WindowSeconds=0 and cfg.WindowSeconds=-5 both behave like windowSeconds=600.",
+        "Helper is a pure function with no time.Now, no git invocation, no os.* calls — caller passes both the clock (now) and the dirty flag (cfg.Dirty) and the WindowID generator (cfg.NextWindowID)."
+      ],
+      "note": "Complete: TDD landed the pure DecideCheckpoint helper and fake-clock fixtures for first checkpoint, in-window amend, post-window rotation, no-dirty noop, and the 600-second fallback for zero/negative window sizes. Pure-Go decider only — shell-script wiring at scripts/orchestrator/watchdog.sh is OUT of scope and will be a separate row that imports DecideCheckpoint via a small stub binary.",
+      "write_scope": [
+        "internal/builderloop/watchdog_coalesce.go",
+        "internal/builderloop/watchdog_coalesce_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/builderloop -run TestDecideCheckpoint -count=1",
+        "go test ./internal/builderloop -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/builderloop/watchdog_coalesce_test.go fixtures prove first/amend/first-after-rotation/noop decisions across a fake clock with no live git or systemd."
+      ],
+      "planner_verdict": {
+        "reshape_count": 2,
+        "last_reshape": "2026-04-26T17:30:00Z",
+        "last_outcome": "unstuck"
+      },
+      "provenance": {
+        "origin_type": "operator_audit",
+        "note": "Reduces the 74-commit/28-min checkpoint storm observed overnight 2026-04-25 → 2026-04-26 to ≤1 commit per stall window."
+      }
+    }
+  },
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 7,
+    "item": {
+      "name": "PR-intake idle backoff",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Pure helper internal/builderloop/pr_intake_backoff.go exposes type BackoffState struct{ConsecutiveEmpty int; SuppressUntil time.Time; Threshold int; Baseline, Idle time.Duration} and methods (s BackoffState) ShouldPoll(now time.Time) bool and (s BackoffState) RecordResult(now time.Time, listed int) BackoffState. After Threshold consecutive listed=0 results, ShouldPoll returns false until now >= SuppressUntil; any listed > 0 result resets ConsecutiveEmpty and clears SuppressUntil. No GitHub API calls, no goroutines, no live clock in this slice.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "pr_intake_started/completed events carry an idle_backoff field with the active interval and the consecutive-empty count so dashboards can distinguish \"intake was suppressed\" from \"intake ran and found nothing\".",
+      "fixture": "internal/builderloop/pr_intake_backoff_test.go",
+      "source_refs": [
+        "internal/builderloop/pr_intake.go",
+        "internal/builderloop/pr_intake_test.go"
+      ],
+      "ready_when": [
+        "pr_intake already emits pr_intake_started and pr_intake_completed ledger events, and pr_intake_completed carries listed=N evidence.",
+        "A fake clock and a stub gh-list backend make backoff state observable without live network calls."
+      ],
+      "not_ready_when": [
+        "The slice changes how PRs are merged, classified, or evicted — only the schedule of intake runs is in scope.",
+        "The slice removes pr_intake calls entirely or makes them event-driven (gh webhook); event-driven is a separate row."
+      ],
+      "unblocks": [
+        "Builder-loop self-improvement vs user-feature ratio metric"
+      ],
+      "acceptance": [
+        "TestBackoffState_ShouldPollWhenNotSuppressed (fresh state, now=t0) returns true.",
+        "TestBackoffState_RecordEmptyBelowThreshold accumulates ConsecutiveEmpty without suppressing.",
+        "TestBackoffState_RecordEmptyAtThreshold sets SuppressUntil=now+Idle and ShouldPoll=false until SuppressUntil elapses.",
+        "TestBackoffState_RecordNonEmptyResetsState restores baseline (ConsecutiveEmpty=0, SuppressUntil zero).",
+        "TestBackoffState_ShouldPollAfterSuppressionElapsed flips back to true when now >= SuppressUntil even if ConsecutiveEmpty is still at threshold.",
+        "Helper is a pure function — caller injects the clock and the listed result count."
+      ],
+      "note": "Pure-Go state machine only. Wiring into pr_intake.go is a separate downstream row. Overnight ledger showed 654 pr_intake_completed events of which only 3 actually merged — this helper is the gate that suppresses 651 idle polls.",
+      "write_scope": [
+        "internal/builderloop/pr_intake_backoff.go",
+        "internal/builderloop/pr_intake_backoff_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/builderloop -run TestBackoffState -count=1",
+        "go test ./internal/builderloop -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/builderloop/pr_intake_backoff_test.go fixtures prove threshold/suppress/reset/reactivation behavior under a fake clock with no GitHub API and no goroutines."
+      ],
+      "planner_verdict": {
+        "reshape_count": 1,
+        "last_reshape": "2026-04-26T16:17:18Z",
+        "last_outcome": "unstuck"
+      },
+      "provenance": {
+        "origin_type": "operator_audit",
+        "note": "Cuts the 99.5% idle-poll rate observed overnight (651/654 polls were listed=0) without changing PR-merge policy."
+      }
+    }
+  },
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 8,
+    "item": {
+      "name": "Watchdog dead-process vs slow-progress separation",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "TDD packet for a missing pure helper; create exactly two files and do not wire them into the watchdog loop. STEP 1: cd into the repo root and run `ls internal/builderloop/watchdog_state*.go` — both files must be absent before the worker writes them. STEP 2: write internal/builderloop/watchdog_state_test.go in package builderloop with one TestDiagnose function holding a t.Run-driven table. The subtests are named exactly zero_pid_dead, pid_not_live_after_dead_threshold, live_after_slow_threshold, dead_wins_when_both_thresholds_fire, healthy_recent_live, and pid_live_silent_for_a_year_is_slow_not_dead. Use a fixed time anchor `now := time.Date(2026,4,26,18,0,0,0,time.UTC)` and pass deadAfter=120*time.Second, slowAfter=600*time.Second. STEP 3: write internal/builderloop/watchdog_state.go exposing type Verdict string with constants VerdictHealthy=\"healthy\", VerdictSlow=\"slow\", VerdictDead=\"dead\"; type WorkerVitals struct{PID int; LastCommitAt time.Time; PIDIsLive bool}; and func Diagnose(now time.Time, v WorkerVitals, deadAfter, slowAfter time.Duration) Verdict. Verdict precedence (evaluate in this order): if v.PID==0 return VerdictDead; let elapsed := now.Sub(v.LastCommitAt); if !v.PIDIsLive && elapsed>=deadAfter return VerdictDead; if v.PIDIsLive && elapsed>=slowAfter return VerdictSlow; otherwise return VerdictHealthy. STEP 4: the helper uses only caller-injected now and PIDIsLive — no os.FindProcess, signal delivery, time.Now, goroutines, watchdog wiring, config validation, or imports beyond `time`.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Watchdog status reports worker_state ∈ {alive_progressing, alive_silent, dead, unknown} and the threshold each one tripped; record_run_health carries the worker_state and which threshold (dead_after_seconds, silent_after_seconds) fired.",
+      "fixture": "internal/builderloop/watchdog_state_test.go (new file)::TestDiagnose/zero_pid_dead+dead_wins_when_both_thresholds_fire",
+      "source_refs": [
+        "internal/builderloop/run.go",
+        "internal/builderloop/run_health_test.go"
+      ],
+      "ready_when": [
+        "Existing watchdog timer (commit f96a5d94) emits stall events at a single threshold; this slice carves the threshold into two independent ones.",
+        "Watchdog checkpoint coalescing is fixture-ready or validated, so the dead-process tick does not amplify the commit storm.",
+        "Both target files are absent on main; the worker's first edit is the focused failing table test, then the helper.",
+        "If either target file already exists in the worker checkout, the worker should run the focused test and update this progress row instead of creating a duplicate helper."
+      ],
+      "not_ready_when": [
+        "The slice changes how worker output is rejected or how dirty worktrees are committed — only worker liveness detection is in scope.",
+        "The slice introduces process-group signal sending or container-aware death detection (those belong to a separate sandboxing row).",
+        "The worker needs to edit internal/builderloop/run.go, watchdog timers, backend prompts, ledger writing, or process-kill behavior to make the test pass."
+      ],
+      "unblocks": [
+        "Builder-loop self-improvement vs user-feature ratio metric"
+      ],
+      "acceptance": [
+        "TestDiagnose/healthy_recent_live: v={PID:1234, LastCommitAt:now-5*time.Second, PIDIsLive:true}, deadAfter=120s, slowAfter=600s returns VerdictHealthy.",
+        "TestDiagnose/live_after_slow_threshold: v={PID:1234, LastCommitAt:now-700*time.Second, PIDIsLive:true} returns VerdictSlow.",
+        "TestDiagnose/pid_not_live_after_dead_threshold: v={PID:1234, LastCommitAt:now-200*time.Second, PIDIsLive:false} returns VerdictDead.",
+        "TestDiagnose/zero_pid_dead: v={PID:0, LastCommitAt:now-1*time.Second, PIDIsLive:true} returns VerdictDead (zero PID short-circuits; thresholds and PIDIsLive are ignored).",
+        "TestDiagnose/dead_wins_when_both_thresholds_fire: v={PID:1234, LastCommitAt:now-700*time.Second, PIDIsLive:false} with deadAfter=120s, slowAfter=600s returns VerdictDead (dead wins over slow when both fire).",
+        "TestDiagnose/pid_live_silent_for_a_year_is_slow_not_dead: v={PID:1234, LastCommitAt:now-99999*time.Second, PIDIsLive:true} returns VerdictSlow (never VerdictDead while the process answers Signal(0)).",
+        "Helper is pure — caller injects the clock (now) and the PIDIsLive result; the test file imports only `testing` and `time` from stdlib."
+      ],
+      "note": "Reshape #7 (2026-04-26T19:00:00Z): added explicit STEP 1–4 numbering, named the fixed time anchor, exact subtest names matching the contract, and an extra silent-but-live-for-a-year guard subtest so the spec_hash differs from the prior no_progress reshape. Workers must add the helper + test files directly and must not touch watchdog wiring or run.go.",
+      "write_scope": [
+        "internal/builderloop/watchdog_state.go",
+        "internal/builderloop/watchdog_state_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/builderloop -run '^TestDiagnose$' -count=1",
+        "go test ./internal/builderloop -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/builderloop/watchdog_state_test.go fixtures prove healthy/slow/dead verdicts including the dead-vs-slow precedence rule with no os.FindProcess or signal calls.",
+        "internal/builderloop/watchdog_state.go contains exactly the new Verdict, WorkerVitals, and Diagnose helper API; no existing builderloop runtime file changes are required."
+      ],
+      "planner_verdict": {
+        "reshape_count": 10,
+        "last_reshape": "2026-04-26T19:00:00Z",
+        "last_outcome": "unstuck"
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-04-26T17:47:44Z",
+        "note": "Closes the 50-min dead-air gap from 05:28→06:19 local on 2026-04-26 by separating fast (dead-process) and slow (no-progress) thresholds."
+      }
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.D",
+    "pos": 0,
+    "item": {
+      "name": "robfig/cron scheduler + bbolt job store",
+      "status": "complete",
+      "module": "fleet"
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.D",
+    "pos": 1,
+    "item": {
+      "name": "SQLite cron_runs audit + CRON.md mirror",
+      "status": "complete",
+      "module": "fleet"
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.D",
+    "pos": 2,
+    "item": {
+      "name": "Heartbeat [SYSTEM:] + [SILENT] delivery contract",
+      "status": "complete",
+      "module": "fleet"
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.1",
+    "pos": 3,
+    "item": {
+      "name": "Durable job routing policy",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Durable-job routing separates deterministic restart-survivable work from live LLM subagents while keeping Gormes Go-native subagent APIs",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Until the policy lands, Gormes exposes in-memory subagents plus append-only run logs only; durable minion routing is documented as unavailable in status/doctor surfaces.",
+      "fixture": "internal/subagent/minion_policy_test.go",
+      "source_refs": [
+        "internal/subagent/minion_policy.go",
+        "internal/subagent/manager.go",
+        "internal/cron/executor.go"
+      ],
+      "ready_when": [
+        "Phase 2.E.0 and 2.E.1 subagent runtime slices are complete and append-only run logs exist for child executions."
+      ],
+      "unblocks": [
+        "Durable subagent/job ledger"
+      ],
+      "acceptance": [
+        "Policy fixtures classify deterministic shell/cron-like work separately from judgment-heavy LLM subagents.",
+        "Child-agent trust cannot submit privileged deterministic shell jobs through the durable-job route.",
+        "Existing delegate_task and subagent manager APIs remain Go-native and are not renamed to Minions."
+      ],
+      "note": "Complete: TDD landed a pure Gormes routing policy fixture in internal/subagent/minion_policy_test.go. Deterministic shell/cron-like work routes to a privileged durable-job lane for operator/system trust, judgment-heavy LLM work stays on the live Go-native delegate_task subagent lane, child-agent trust is denied for deterministic durable submits, and no Gormes-owned queue/executor/supervisor runtime was imported.",
+      "write_scope": [
+        "internal/subagent/",
+        "internal/cron/",
+        "internal/config/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent ./internal/cron ./internal/config -count=1"
+      ],
+      "done_signal": [
+        "Routing policy tests prove which work enters durable orchestration, which trust classes may submit it, and that existing delegate_task names remain stable."
+      ],
+      "not_ready_when": []
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.3",
+    "pos": 0,
+    "item": {
+      "name": "Durable job backpressure + timeout audit",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes durable jobs expose Gormes-owned max-waiting backpressure, wall-clock timeout evidence, and operator-readable queue health without importing Minions runtime code",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Doctor/status reports queue full, timeout-at, and stale waiting counts before accepting more durable work.",
+      "fixture": "internal/subagent/durable_backpressure_test.go",
+      "source_refs": [
+        "internal/subagent/durable_ledger.go"
+      ],
+      "ready_when": [
+        "The SQLite-first durable subagent/job ledger is complete and records claim, progress, completion, failure, and cancellation intent."
+      ],
+      "unblocks": [
+        "Durable worker supervisor status seam"
+      ],
+      "acceptance": [
+        "Submit fixtures reject or degrade when waiting durable jobs exceed a configured maxWaiting limit.",
+        "Wall-clock timeout_at is recorded and surfaced separately from context cancellation.",
+        "Doctor/status evidence reports waiting, claimed, timed-out, and backpressure-denied counts."
+      ],
+      "note": "Complete: TDD landed internal/subagent/durable_backpressure_test.go over the Go SQLite ledger. Durable submissions now reject with audited backpressure evidence when max_waiting is reached, claims persist timeout_at wall-clock evidence separately from cancellation intent, and doctor/status surfaces waiting, claimed, timed-out, stale waiting, queue-full, and backpressure-denied counts without importing Gormes durable jobs runtime code. The 2026-04-27 Gormes-owned; no new Gormes row is needed for queue pileup.",
+      "write_scope": [
+        "internal/subagent/",
+        "internal/doctor/",
+        "internal/config/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent ./internal/doctor ./internal/config -count=1"
+      ],
+      "done_signal": [
+        "Durable backpressure fixtures prove max-waiting rejection, timeout_at audit fields, and doctor/status queue health over the Go ledger."
+      ],
+      "not_ready_when": []
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.3",
+    "pos": 1,
+    "item": {
+      "name": "Durable worker supervisor status seam",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Gormes reports durable-worker liveness, restart intent, and degraded/no-worker modes before any external supervisor controls job execution",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Doctor/status reports no durable worker, stale heartbeat, or supervisor-unavailable instead of silently accepting restart-survivable work.",
+      "fixture": "internal/subagent/durable_supervisor_status_test.go",
+      "source_refs": [
+        "internal/subagent"
+      ],
+      "ready_when": [
+        "Backpressure and timeout audit fields are visible through the durable ledger status surface."
+      ],
+      "blocked_by": [
+        "Durable job backpressure + timeout audit"
+      ],
+      "acceptance": [
+        "Status fixtures distinguish no-worker, healthy heartbeat, stale heartbeat, and supervisor-unavailable states.",
+        "Restart intent is represented as data/audit evidence, not an implicit process launch.",
+        "Existing delegate_task and live child-agent APIs remain Go-native and are not renamed to Minions."
+      ],
+      "note": "Complete: TDD landed internal/subagent/durable_supervisor_status_test.go over the Go SQLite ledger. Durable status now distinguishes no-worker, healthy heartbeat, stale heartbeat, and supervisor-unavailable states, records restart intent as audit data, and doctor output surfaces worker liveness, supervisor availability, and restart-intent evidence without starting worker processes or renaming Go-native delegate_task APIs to Minions.",
+      "write_scope": [
+        "internal/subagent/",
+        "internal/doctor/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent ./internal/doctor -count=1"
+      ],
+      "done_signal": [
+        "Durable supervisor status fixtures prove worker liveness/degraded modes without starting external worker processes."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-25T09:22:51Z",
+        "last_success": "2026-04-25T09:22:51Z"
+      },
+      "not_ready_when": []
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.3",
+    "pos": 2,
+    "item": {
+      "name": "Durable pause/resume intent contract",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes durable jobs record pause and resume as explicit operator/system control intents over the SQLite ledger without starting a Gormes-owned worker daemon",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Doctor/status reports paused jobs, resume intent, and unsupported child-agent lifecycle control instead of silently leaving workers active.",
+      "fixture": "internal/subagent/durable_lifecycle_test.go",
+      "source_refs": [
+        "internal/subagent/durable_ledger.go",
+        "internal/doctor/durable_ledger.go"
+      ],
+      "ready_when": [
+        "Durable worker supervisor status is complete and the SQLite ledger can already report worker liveness, cancellation intent, and replay availability."
+      ],
+      "unblocks": [
+        "Durable replay and inbox message contract"
+      ],
+      "acceptance": [
+        "Pause transitions waiting or active durable jobs into an observable paused state with actor, reason, and timestamp evidence.",
+        "Resume returns paused jobs to the correct claimable state without losing progress_json, parent_id, timeout_at, or lock audit fields.",
+        "Child-agent trust cannot pause or resume privileged deterministic shell/cron jobs.",
+        "Doctor/status includes paused and resume-pending counts plus degraded evidence when lifecycle control is unsupported."
+      ],
+      "note": "Complete: TDD landed internal/subagent/durable_lifecycle_test.go over the Go SQLite ledger. Durable jobs now record pause/resume as explicit operator/system lifecycle intents, transition waiting or active work through a paused state with actor/reason/timestamp evidence, resume paused work back to a claimable waiting state without losing progress, parent, timeout, or lock audit fields, deny child-agent lifecycle control for privileged deterministic jobs, and surface paused, resume-pending, and unsupported lifecycle-control counts through doctor/status without starting worker daemons.",
+      "write_scope": [
+        "internal/subagent/",
+        "internal/doctor/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent ./internal/doctor -count=1"
+      ],
+      "done_signal": [
+        "Durable lifecycle fixtures prove pause/resume state transitions, trust denial, and doctor/status counts over the Go SQLite ledger."
+      ],
+      "health": {
+        "attempt_count": 2,
+        "last_attempt": "2026-04-25T09:54:25Z",
+        "last_success": "2026-04-25T09:54:25Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "note": "Gormes-owned defines the minion lifecycle semantics; Gormes adapts them to its Go-native durable ledger without importing the Minions runtime."
+      },
+      "not_ready_when": []
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.3",
+    "pos": 3,
+    "item": {
+      "name": "Durable replay and inbox message contract",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes durable jobs can replay completed/failed work and store steer messages as auditable inbox data without exposing protected shell submission to child agents",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system",
+        "child-agent"
+      ],
+      "degraded_mode": "Status reports replay unavailable, inbox-unread, and protected-submit denial separately so operators can distinguish observation from mutation.",
+      "fixture": "internal/subagent/durable_replay_inbox_test.go",
+      "source_refs": [
+        "internal/subagent/minion_policy.go",
+        "internal/subagent/durable_ledger.go"
+      ],
+      "ready_when": [
+        "Pause/resume intent fixtures are landed and durable ledger status exposes lifecycle-control state without requiring an external worker."
+      ],
+      "not_ready_when": [
+        "The slice implements arbitrary shell execution, a full CLI, token accounting, or fan-out aggregators before replay/inbox storage and trust boundaries are fixture-locked."
+      ],
+      "acceptance": [
+        "Replay creates a new job linked to replay_of with data_overrides preserved as JSON and without mutating the original terminal job.",
+        "Inbox messages store sender, directive payload, unread/read timestamps, and are only claimable by the owning job or operator/system trust.",
+        "Child-agent trust may observe get/list/progress-style durable job state but cannot submit protected shell_command work."
+      ],
+      "note": "Complete: TDD landed internal/subagent/durable_replay_inbox_test.go over the Go SQLite ledger. Replay creates a fresh waiting job linked by replay_of, preserves data_overrides_json, and leaves the terminal source job untouched. Durable inbox messages persist sender/trust, directive payload, unread/read timestamps, and owner/operator/system claim boundaries. Child-agent trust can observe get/list/progress-style durable state while protected shell_command submit is denied and audited separately. Doctor/status now reports replay-unavailable, inbox-unread, and protected-submit-denied evidence independently. Gormes keeps this as a local SQLite/in-process durable ledger mode rather than porting Postgres/PGLite engine or shell worker.",
+      "write_scope": [
+        "internal/subagent/",
+        "internal/doctor/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent ./internal/doctor -count=1"
+      ],
+      "done_signal": [
+        "Durable replay/inbox fixtures prove replay lineage, steer-message audit, and protected shell-submit denial using Gormes-owned SQLite ledger evidence."
+      ],
+      "health": {
+        "attempt_count": 2,
+        "last_attempt": "2026-04-25T10:19:57Z",
+        "last_success": "2026-04-25T10:19:57Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "note": "Upstream provides the lifecycle and protection model; Gormes owns the Go-native ledger representation."
+      }
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.3",
+    "pos": 4,
+    "item": {
+      "name": "Durable worker execution loop",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes durable jobs have a Go-native fake-handler execution seam that claims one waiting job from the SQLite ledger, invokes an injected handler with context.Context, records progress/result/failure evidence, and exits cleanly when no job is claimable",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Durable-worker status reports idle, claim_unavailable, handler_failed, or heartbeat_unavailable without starting a background daemon or shell executor.",
+      "fixture": "internal/subagent/durable_worker_test.go",
+      "source_refs": [
+        "internal/subagent/durable_ledger.go:Claim/UpdateProgress/Complete/Fail/RecordWorkerHeartbeat",
+        "internal/subagent/durable_ledger_test.go",
+        "internal/subagent/durable_backpressure_test.go",
+        "internal/subagent/durable_supervisor_status_test.go",
+        "internal/doctor/durable_ledger.go"
+      ],
+      "ready_when": [
+        "Durable job backpressure + timeout audit, Durable worker supervisor status seam, and Durable replay and inbox message contract are validated on main."
+      ],
+      "not_ready_when": [
+        "The worker needs polling goroutines, real sleeps, network services, Postgres/PGLite, or claim loops beyond a single deterministic RunOne-style helper."
+      ],
+      "unblocks": [
+        "Durable worker abort-slot recovery safety net"
+      ],
+      "acceptance": [
+        "TestDurableWorkerRunOne_ClaimsWaitingJobAndCompletesResult seeds a waiting durable job, runs a fake handler that returns JSON, and asserts the ledger records completed status, result_json, lock owner, and worker heartbeat evidence.",
+        "TestDurableWorkerRunOne_HandlerProgressPersists runs a fake handler that emits progress through the worker seam and asserts the ledger stores the progress_json before completion.",
+        "TestDurableWorkerRunOne_HandlerErrorFailsJob runs a fake handler that returns an error and asserts the ledger records failed status with the error text preserved.",
+        "TestDurableWorkerRunOne_NoJobReturnsIdle proves an empty ledger returns idle evidence, records no fake heartbeat, and does not mutate existing terminal jobs.",
+        "Doctor/status fixtures expose the last durable-worker heartbeat or heartbeat_unavailable evidence without requiring operators to inspect raw ledger rows."
+      ],
+      "note": "Complete: TDD landed internal/subagent/durable_worker_test.go over the existing SQLite DurableLedger. DurableWorker.RunOne now claims one waiting job, records heartbeat evidence only after a successful claim, invokes an injected Go handler with context.Context, persists handler progress, completes result JSON, records handler failures as failed terminal jobs, and returns idle without mutating terminal jobs or starting subprocesses, daemons, shell execution, polling loops, network services, or external TypeScript runtime code. Doctor output now exposes either the last durable-worker heartbeat or heartbeat_unavailable evidence.",
+      "write_scope": [
+        "internal/subagent/durable_worker.go",
+        "internal/subagent/durable_worker_test.go",
+        "internal/doctor/durable_ledger.go",
+        "internal/doctor/durable_ledger_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent -run '^TestDurableWorkerRunOne_' -count=1",
+        "go test ./internal/subagent ./internal/doctor -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Durable worker fake-handler fixtures prove claim, progress, completion, failure, idle return, and heartbeat/status evidence without external worker processes."
+      ],
+      "health": {
+        "attempt_count": 2,
+        "last_attempt": "2026-04-27T00:36:30Z",
+        "last_success": "2026-04-27T00:36:30Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "note": "Gormes-owned provides the durable worker lifecycle shape; Gormes adapts it as a minimal Go fake-handler loop over the SQLite durable ledger."
+      }
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.3",
+    "pos": 5,
+    "item": {
+      "name": "Durable worker abort-slot recovery safety net",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes durable worker execution loop propagates timed-out jobs into handler cancellation and uses a bounded grace timer to free the worker slot with auditable recovery evidence if the handler ignores cancellation",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Durable-worker status reports abort_signal_sent, abort_slot_recovered, handler_ignored_abort, or abort_recovery_unavailable instead of leaving capacity wedged.",
+      "fixture": "internal/subagent/durable_worker_abort_test.go",
+      "source_refs": [
+        "internal/subagent/durable_ledger.go",
+        "internal/subagent/durable_supervisor_status_test.go",
+        "internal/doctor/durable_ledger.go"
+      ],
+      "ready_when": [
+        "A Gormes durable worker execution loop exists that claims jobs from the SQLite ledger and invokes a handler through context.Context.",
+        "Durable job backpressure + timeout audit, Durable worker supervisor status seam, and Durable replay and inbox message contract are validated on main."
+      ],
+      "not_ready_when": [
+        "The slice must create the first durable worker execution loop, shell handler, or systemd service before cancellation can be tested.",
+        "The slice changes live delegate_task behavior, cron execution semantics, or builder-loop backend execution."
+      ],
+      "acceptance": [
+        "TestDurableWorker_TimeoutPropagatesCancel seeds a claimed job with a short timeout, runs a fake handler that observes ctx.Done, and asserts the ledger records aborted/dead evidence plus abort_signal_sent status.",
+        "TestDurableWorker_IgnoredAbortReleasesSlot runs a fake handler that blocks after ctx cancellation; after the injected grace clock fires, worker capacity is released, abort_slot_recovered is recorded once, and the handler cannot later double-complete the job.",
+        "TestDurableWorker_ClaimsNextJobAfterRecovery proves a second waiting job can be claimed after recovery from the ignored-abort handler.",
+        "Doctor/status fixtures expose handler_ignored_abort and abort_recovery_unavailable without requiring operators to inspect raw ledger rows."
+      ],
+      "note": "Complete: TDD landed internal/subagent/durable_worker_abort_test.go over the Go-native DurableWorker.RunOne seam. Timed-out runs now cancel the handler context, record abort_signal_sent audit evidence, terminally cancel the durable job with lock release, and, when a handler ignores cancellation, use an injected bounded grace timer to record handler_ignored_abort plus one-shot abort_slot_recovered evidence before returning capacity. Late handler returns cannot double-complete recovered jobs, a follow-up waiting job can be claimed after recovery, and doctor/status now exposes abort recovery counts including abort_recovery_unavailable.",
+      "write_scope": [
+        "internal/subagent/durable_worker.go",
+        "internal/subagent/durable_worker_abort_test.go",
+        "internal/doctor/durable_ledger.go",
+        "internal/doctor/durable_ledger_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent -run 'TestDurableWorker_TimeoutPropagatesCancel|TestDurableWorker_IgnoredAbortReleasesSlot|TestDurableWorker_ClaimsNextJobAfterRecovery' -count=1",
+        "go test ./internal/subagent ./internal/doctor -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Durable worker fixtures prove timeout cancellation reaches handlers, ignored handlers free capacity through a one-shot grace recovery, the next job can claim, and doctor/status expose abort recovery evidence."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-27T01:00:12Z",
+        "last_success": "2026-04-27T01:00:12Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "note": "Gormes-owned provides the abort-slot recovery lesson; Gormes adapts it only after a Go-native durable worker loop exists."
+      }
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.3",
+    "pos": 6,
+    "item": {
+      "name": "Durable worker RSS watchdog policy helper",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Gormes durable worker exposes a pure RSS watchdog policy helper that classifies disabled mode, unavailable RSS reads, threshold exceeded evidence, and stable watchdog restart reset without integrating with the worker loop yet",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Durable-worker policy reports rss_watchdog_disabled, rss_threshold_exceeded, rss_watchdog_unavailable, or stable_watchdog_restart before runtime drain wiring exists.",
+      "fixture": "internal/subagent/durable_worker_rss_watchdog_test.go::TestDurableWorkerRSSWatchdogPolicy",
+      "source_refs": [
+        "internal/subagent/durable_worker.go",
+        "internal/subagent/durable_worker_abort_test.go"
+      ],
+      "ready_when": [
+        "Durable worker execution loop and Durable worker abort-slot recovery safety net are validated on main."
+      ],
+      "not_ready_when": [
+        "The slice changes DurableWorker.RunOne, doctor/status output, cmd/gormes lifecycle, builder-loop backend watchdogs, live delegate_task behavior, or cron execution semantics.",
+        "The slice adds process self-termination to the main Gormes process or internal Goncho memory service."
+      ],
+      "unblocks": [
+        "Durable worker RSS drain integration"
+      ],
+      "acceptance": [
+        "TestDurableWorkerRSSWatchdog_DisabledAtZero proves max_rss_mb=0 records rss_watchdog_disabled and never reads the RSS seam.",
+        "TestDurableWorkerRSSWatchdog_ThresholdExceeded injects an RSS value over max_rss_mb and returns rss_threshold_exceeded evidence with observed_mb, max_mb, and checked_at from the fake clock.",
+        "TestDurableWorkerRSSWatchdog_RSSReadFailure returns rss_watchdog_unavailable evidence and does not request a drain.",
+        "TestDurableWorkerWatchdogRestartPolicy_StableRunReset classifies a watchdog exit after at least five minutes as stable_watchdog_restart and does not increment crash count past one."
+      ],
+      "note": "Complete: TDD landed a helper-only durable worker RSS watchdog policy in internal/subagent/durable_worker_rss_watchdog.go. The policy records rss_watchdog_disabled without reading RSS when max_rss_mb=0, degrades RSS read errors as rss_watchdog_unavailable without requesting drain, emits rss_threshold_exceeded evidence with observed_mb/max_mb/checked_at and a drain request, and classifies watchdog exits after at least five minutes as stable_watchdog_restart with crash count reset to one. This slice did not touch DurableWorker.RunOne, doctor/status, cmd/gormes lifecycle, builder-loop backend watchdogs, delegate_task behavior, cron semantics, process self-termination, Goncho memory service code, or Gormes-owned imports.",
+      "write_scope": [
+        "internal/subagent/durable_worker_rss_watchdog.go",
+        "internal/subagent/durable_worker_rss_watchdog_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent -run 'TestDurableWorkerRSSWatchdog_|TestDurableWorkerWatchdogRestartPolicy_' -count=1",
+        "go test ./internal/subagent -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Durable worker RSS policy fixtures prove disabled mode, threshold evidence, read-failure degradation, and stable watchdog restart classification without runtime drain or doctor/status edits."
+      ],
+      "health": {
+        "attempt_count": 2,
+        "last_attempt": "2026-04-27T05:58:48Z",
+        "last_success": "2026-04-27T05:58:48Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "note": "Gormes-owned provides the RSS watchdog policy lesson; Gormes adapts it first as a pure Go durable-worker helper, not for the internal Goncho memory service or main TUI/API process."
+      }
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.E.3",
+    "pos": 7,
+    "item": {
+      "name": "Durable worker RSS drain integration",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "DurableWorker integrates the validated RSS watchdog policy after job completion and on an injected periodic check, starts graceful drain, cancels in-flight handlers through existing abort-slot recovery, and records watchdog drain evidence",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Durable-worker status reports rss_drain_started or rss_handler_abort_sent instead of wedging capacity after threshold evidence.",
+      "fixture": "internal/subagent/durable_worker_rss_drain_test.go",
+      "source_refs": [
+        "internal/subagent/durable_worker.go",
+        "internal/subagent/durable_worker_abort_test.go",
+        "internal/subagent/durable_worker_rss_watchdog.go"
+      ],
+      "ready_when": [
+        "Durable worker RSS watchdog policy helper is validated on main and exposes threshold/read-failure evidence.",
+        "Durable worker abort-slot recovery safety net is complete, so handler cancellation and slot release already have ledger evidence.",
+        "The worker can inject a fake RSS reader and fake ticker/channel; no real periodic sleep, process RSS, subprocess, or supervisor is required."
+      ],
+      "not_ready_when": [
+        "The slice changes doctor/status rendering, cmd/gormes lifecycle, builder-loop backend watchdogs, live delegate_task behavior, cron execution semantics, or main-process termination.",
+        "The slice reimplements abort-slot recovery instead of reusing the existing cancellation/grace path."
+      ],
+      "unblocks": [
+        "Durable worker RSS doctor/status evidence"
+      ],
+      "acceptance": [
+        "TestDurableWorkerRSSDrain_PostJobThresholdAbortsSibling runs two fake jobs; after the quick job completes and injected RSS exceeds threshold, the sibling handler observes ctx cancellation and ledger/audit evidence records rss_handler_abort_sent.",
+        "TestDurableWorkerRSSDrain_PeriodicZeroCompletionsTriggersDrain runs one fake handler that never completes; an injected periodic check exceeds threshold, starts drain, and records rss_drain_started without waiting for a post-job hook.",
+        "TestDurableWorkerRSSDrain_ReadFailureDoesNotCancel proves rss_watchdog_unavailable evidence does not cancel handlers.",
+        "Existing DurableWorker abort-slot recovery tests remain green without sleeps longer than 100ms."
+      ],
+      "note": "Complete: TDD added internal/subagent/durable_worker_rss_drain_test.go and wired DurableWorker RSS drain integration through an injected DurableWorkerRSSDrain, fake RSS reader, and optional RSSCheck channel. Completed handlers run a post-job RSS policy check; threshold evidence records rss_drain_started and cancels registered sibling handlers through the existing abort-slot recovery path, which records rss_handler_abort_sent as the abort reason. Periodic checks can start the same drain with zero completions, RSS read failures record rss_watchdog_unavailable without cancelling handlers, and existing timeout/ignored-abort tests still use injected timers with no sleeps longer than 100ms. This slice did not touch doctor/status rendering, cmd/gormes lifecycle, builder-loop backend watchdogs, live delegate_task behavior, cron semantics, process self-termination, or supervisor behavior.",
+      "write_scope": [
+        "internal/subagent/durable_worker.go",
+        "internal/subagent/durable_worker_rss_watchdog.go",
+        "internal/subagent/durable_worker_rss_drain_test.go",
+        "internal/subagent/durable_worker_abort_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent -run '^TestDurableWorkerRSSDrain_|^TestDurableWorker_' -count=1",
+        "go test ./internal/subagent -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Durable worker fixtures prove post-job and injected periodic RSS drains cancel handlers through the existing abort path, preserve read-failure degradation, and avoid real RSS/sleeps/supervisors."
+      ],
+      "planner_verdict": {
+        "reshape_count": 1,
+        "last_reshape": "2026-04-27T11:38:55Z",
+        "last_outcome": "unstuck"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "note": "Gormes-owned provides graceful RSS drain semantics; Gormes adapts them to the Go DurableWorker after the pure policy helper is available."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 9,
+    "item": {
+      "name": "Autoloop recent-failure detail excerpts",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Planner audit includes bounded worker_failed detail excerpts in Recent failed tasks so control-plane/backend failures are distinguishable without reopening the raw ledger",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If no detail fields exist on a failed ledger event, the audit continues to show status and task only instead of fabricating a cause.",
+      "fixture": "internal/plannerloop/autoloop_audit_test.go::TestSummarizeAutoloopAuditIncludesRecentFailureDetail",
+      "source_refs": [
+        ".codex/builder-loop/state/runs.jsonl:control-plane/backend backend_failed cluster in 2026-04-19..2026-04-26 window",
+        "internal/plannerloop/autoloop_audit.go::TaskAuditRow",
+        "internal/plannerloop/prompt.go:Recent failed tasks",
+        "internal/builderloop/ledger.go::LedgerEvent.Detail",
+        "internal/builderloop/ledger.go::LedgerEvent.StderrTail"
+      ],
+      "ready_when": [
+        "Planner audit blank-subphase control-plane bucket is complete and already attributes empty Task worker_failed events to control-plane/backend.",
+        "builderloop.LedgerEvent already exposes Detail, ExitError, StdoutTail, and StderrTail from worker_failed records; the row only surfaces a bounded excerpt in planner audit output.",
+        "This row is planner-control-plane only; no worker backend execution, candidate selection, or promotion semantics change is needed."
+      ],
+      "not_ready_when": [
+        "The slice changes backend invocation, retry policy, row selection, worker prompts, or ledger event writing instead of only summarizing existing fields.",
+        "The slice prints unbounded stdout/stderr into the planner prompt.",
+        "The slice edits internal/builderloop runtime files; the existing LedgerEvent fields are sufficient for this audit-side change."
+      ],
+      "blocked_by": [
+        "Planner audit blank-subphase control-plane bucket"
+      ],
+      "acceptance": [
+        "TestSummarizeAutoloopAuditIncludesRecentFailureDetail writes a worker_failed event with Task=\"\", Status=\"backend_failed\", Detail containing \"backend_waiting_for_stdin\", and StderrTail containing \"Reading additional input from stdin\"; the summary row has SubphaseID=\"control-plane/backend\" and Detail containing the classified excerpt.",
+        "A second fixture with a 4096-character StderrTail proves TaskAuditRow.Detail is capped to 240 characters and keeps the status/task counts unchanged.",
+        "Prompt rendering includes the detail after the task line as ` — <excerpt>` only when Detail is non-empty; existing prompt output for empty Detail remains byte-stable.",
+        "No builderloop package files change in this slice."
+      ],
+      "note": "Planner repair for the 2026-04-26 audit: control-plane/backend is the hottest toxic bucket (60 claimed, 0 promoted, 31 failed) but Recent failed tasks only shows status. Surface the bounded ledger detail already recorded by builderloop so the next planner run can tell stdin waits, kills, and command failures apart without scanning runs.jsonl manually.",
+      "write_scope": [
+        "internal/plannerloop/autoloop_audit.go",
+        "internal/plannerloop/autoloop_audit_test.go",
+        "internal/plannerloop/prompt.go",
+        "internal/plannerloop/prompt_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/plannerloop -run 'TestSummarizeAutoloopAuditIncludesRecentFailureDetail|TestBuildPromptIncludesRecentFailureDetail' -count=1",
+        "go test ./internal/plannerloop -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Planner prompt Recent failed tasks lines include bounded control-plane/backend detail excerpts, and plannerloop tests prove counts and empty-detail compatibility remain stable."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-26T22:14:18Z",
+        "last_success": "2026-04-26T22:14:18Z"
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-04-26T21:50:06Z",
+        "note": "Autoloop audit prompt fidelity is a Gormes-owned control-plane surface with no upstream Hermes/Honcho analog."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 38,
+    "item": {
+      "name": "System Events, Heartbeat, and Presence",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port OpenClaw's system event surface: gormes system event enqueues a system event and optionally triggers a heartbeat; gormes system heartbeat shows and controls heartbeat state; gormes system presence lists system presence entries. Events are written to the audit ledger (JSONL) and surfaced in gormes status.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing audit ledger, event queue full, or heartbeat disabled reports system_unavailable with ledger path/error details.",
+      "fixture": "internal/tools/system_events_test.go",
+      "source_refs": [
+        "openclaw system event/heartbeat/presence CLI surface",
+        "internal/audit/ (JSONL audit log)",
+        "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+      ],
+      "ready_when": [
+        "Audit JSONL ledger (internal/audit/) is operational.",
+        "Session health monitoring (5.N) provides heartbeat data."
+      ],
+      "not_ready_when": [
+        "The row introduces a new event bus or message queue.",
+        "The row depends on external monitoring services."
+      ],
+      "unblocks": [
+        "Gateway discover/probe diagnostics"
+      ],
+      "acceptance": [
+        "gormes system event 'gateway restart' enqueues event with timestamp.",
+        "gormes system heartbeat shows on/off state and last beat time.",
+        "gormes system presence lists active components with last-seen times."
+      ],
+      "note": "Complete 2026-05-04: TDD landed a local SystemEventsManager over GormesHome/system/state.json and the existing audit.JSONLWriter, plus gormes system event/heartbeat/presence commands. Events enqueue with UTC timestamps and audit JSONL records; --mode now records heartbeat when enabled; disabled heartbeat, full queue, and audit/state write failures return system_unavailable with path/reason evidence; gormes status now surfaces heartbeat, queued-event, presence, and audit-ledger state.",
+      "write_scope": [
+        "internal/tools/system_events.go",
+        "internal/tools/system_events_test.go",
+        "cmd/gormes/system.go",
+        "cmd/gormes/system_command_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/status.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run TestSystemEvents -count=1",
+        "go test ./cmd/gormes -run TestSystem -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "gormes system ships with event, heartbeat, and presence subcommands."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 49,
+    "item": {
+      "name": "Cron no-agent script-only watchdog mode",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Gormes ports Hermes cron `no_agent` jobs as script-only scheduled automations: creation/update/list surfaces persist the mode, script is required, prompt is optional and ignored, successful script stdout can be delivered verbatim, empty stdout and wakeAgent=false stay silent, and failures/timeouts emit alert evidence without constructing an agent turn.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "fleet",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Invalid no-agent jobs return cron_no_agent_script_required or cron_no_agent_invalid_mode evidence; script failures return redacted cron_no_agent_script_failed/timeout evidence without leaking secrets or falling back to an agent prompt.",
+      "fixture": "internal/cron/no_agent_test.go; internal/tools/cronjob_tool_no_agent_test.go",
+      "source_refs": [
+        "../hermes-agent/cron/jobs.py@b816fd4e2:create_job",
+        "../hermes-agent/cron/scheduler.py@b816fd4e2:run_job,_run_job_script",
+        "../hermes-agent/tools/cronjob_tools.py@b816fd4e2:cronjob",
+        "../hermes-agent/hermes_cli/main.py@b816fd4e2:cron no-agent parser flags",
+        "../hermes-agent/hermes_cli/cron.py@b816fd4e2:_add_job,_edit_job",
+        "../hermes-agent/tests/cron/test_cron_no_agent.py@b816fd4e2",
+        "internal/cron/job.go",
+        "internal/cron/executor.go",
+        "internal/tools/cronjob_tool.go"
+      ],
+      "ready_when": [
+        "Cron prompt/script safety + pre-run script contract and Cronjob tool action envelope over native store are complete.",
+        "Tests can inject script runners, clocks, stores, and delivery sinks without live cron timers, providers, channels, or private runtime homes."
+      ],
+      "not_ready_when": [
+        "The slice starts real scheduled timers, invokes live shells outside injected script-runner tests, changes agent-mode cron behavior, or widens delivery routing.",
+        "No-agent mode constructs a provider/kernel/agent turn for successful script-only ticks."
+      ],
+      "acceptance": [
+        "Cronjob tool create/update accepts no_agent true, requires script, ignores prompt for execution, persists the mode, and list/get output identifies script-only mode.",
+        ".sh and .bash scripts route through the configured bash runner; other extensions route through the configured interpreter runner while retaining existing path-containment checks.",
+        "Successful stdout is delivered verbatim when wakeAgent=true and delivery is configured.",
+        "Empty stdout and wakeAgent=false produce silent successful ticks with run evidence but no delivery.",
+        "Non-zero exit and timeout produce redacted alert evidence and never call the provider/kernel submission seam."
+      ],
+      "write_scope": [
+        "internal/cron/job.go",
+        "internal/cron/executor.go",
+        "internal/cron/no_agent_test.go",
+        "internal/tools/cronjob_tool.go",
+        "internal/tools/cronjob_tool_no_agent_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cron -run 'TestCronNoAgent' -count=1",
+        "go test ./internal/tools -run 'TestCronjobTool.*NoAgent' -count=1",
+        "go test ./internal/cron ./internal/tools -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Cron no-agent fixtures prove script-only mode persists, executes, delivers/suppresses output correctly, alerts on failure, and never constructs an agent turn."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_refs": [
+          "hermes:b816fd4e2 cron/jobs.py",
+          "hermes:b816fd4e2 cron/scheduler.py",
+          "hermes:b816fd4e2 tools/cronjob_tools.py",
+          "hermes:b816fd4e2 tests/cron/test_cron_no_agent.py"
+        ],
+        "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows. Planned/fixture-ready row count is 101, so no new P3/P4 row was added. The existing P1 rows were non-builder-ready (draft transactional filesystem snapshots) or umbrella-only (gateway event bus adapter parent). This row is the highest unblocked active-Hermes runtime/operator weakness: Gormes already has cron script pre-run plumbing, script workdir, prompt/action safety, delivery, and cronjob tool envelopes, but lacks Hermes' `no_agent=True` script-only short-circuit that never constructs an agent turn."
+      },
+      "evidence": {
+        "implementation": [
+          "internal/cron/job.go",
+          "internal/cron/executor.go",
+          "internal/cron/no_agent_test.go",
+          "internal/tools/cronjob_tool.go",
+          "internal/tools/cronjob_tool_no_agent_test.go"
+        ],
+        "tests": [
+          "go test ./internal/cron -run 'TestCronNoAgent' -count=1",
+          "go test ./internal/tools -run 'TestCronjobTool.*NoAgent' -count=1",
+          "go test ./internal/cron ./internal/tools -count=1",
+          "go run ./cmd/progress validate",
+          "git diff --check"
+        ],
+        "note": "Complete 2026-05-07: Job.NoAgent now round-trips through the native cron store and cronjob tool; create/update enforce script-required semantics while prompt remains optional for no-agent jobs; summaries expose no_agent. Executor no-agent runs short-circuit before kernel submission, executes the configured script through the injected runner, delivers non-empty stdout verbatim through the normal delivery plan, suppresses empty stdout and wakeAgent=false JSON with run evidence, and delivers redacted failure/timeout alerts without constructing an agent/provider turn."
+      }
+    }
+  }
+]

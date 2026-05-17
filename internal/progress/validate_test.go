@@ -157,6 +157,50 @@ func TestValidate_RejectsBadExecutionOwner(t *testing.T) {
 	}
 }
 
+func TestValidate_AcceptsApprovedExplicitModules(t *testing.T) {
+	items := make([]Item, 0, len(AllowedModules()))
+	for _, module := range AllowedModules() {
+		items = append(items, Item{Name: module, Status: StatusPlanned, Module: module})
+	}
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: items},
+		}}},
+	}
+	if err := Validate(p); err != nil {
+		t.Errorf("Validate() = %v, want nil", err)
+	}
+}
+
+func TestValidate_RejectsUnknownModuleWithAllowedList(t *testing.T) {
+	p := &Progress{
+		Meta: Meta{Version: "2.0"},
+		Phases: map[string]Phase{"1": {Subphases: map[string]Subphase{
+			"1.A": {Items: []Item{
+				{Name: "old provider bucket", Status: StatusPlanned, Module: "providers-auth"},
+				{Name: "typo", Status: StatusPlanned, Module: "provider"},
+			}},
+		}}},
+	}
+	err := Validate(p)
+	if err == nil {
+		t.Fatalf("Validate() = nil, want module errors")
+	}
+	msg := err.Error()
+	for _, want := range []string{
+		`phase 1 subphase 1.A item[0] ("old provider bucket"): invalid module "providers-auth"`,
+		`phase 1 subphase 1.A item[1] ("typo"): invalid module "provider"`,
+		"allowed modules: browser, builder, channels",
+		"providers",
+		"tts",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error missing %q:\n%s", want, msg)
+		}
+	}
+}
+
 func TestValidate_AcceptsContractMetadata(t *testing.T) {
 	p := &Progress{
 		Meta: Meta{Version: "2.0"},

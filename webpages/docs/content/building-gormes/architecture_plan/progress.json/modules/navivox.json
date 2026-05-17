@@ -1,0 +1,1619 @@
+[
+  {
+    "phase": "2",
+    "subphase": "2.B.12",
+    "pos": 4,
+    "item": {
+      "name": "Navivox stdio protocol control-plane tracer",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "`gormes navivox serve --stdio` exposes a Gormes-owned SSH stdio control-plane server for the future Flutter Navivox app. The first slice implements only the binary NVOX frame codec and fakeable server loop for `hello` -> `server.status`, `ping` -> `pong`, and unknown readable event -> structured `error`; it rejects bad magic, unsupported prelude versions, invalid JSON headers, oversized headers/payloads, and payload-length mismatches without starting gateway.Manager or handling chat, voice, config, tools, pairing, or selected-agent routing.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "gateway",
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unreadable framing errors close the stdio server with typed Go errors instead of emitting untrustworthy in-band frames; readable unsupported event types return redacted `error` frames with correlation_id set to the triggering message id.",
+      "fixture": "internal/channels/navivox/protocol_test.go and internal/channels/navivox/server_test.go",
+      "source_refs": [
+        "flutter-navivox/navivox-decision-record.md:Protocol Framing",
+        "flutter-navivox/navivox-prd.md:Navivox Protocol",
+        "flutter-navivox/navivox-testing-plan.md:Protocol Codecs",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox SSH/Flutter channel",
+        "internal/gateway/channel.go",
+        "cmd/gormes/acp.go",
+        "internal/channels/yuanbao/runtime.go"
+      ],
+      "ready_when": [
+        "The decision record defines NVOX magic, protocol v1, header length, JSON header, payload_length, JSON-vs-binary body placement, and unsupported-version policy.",
+        "Tests can use bytes.Buffer or an in-memory pipe; no SSH daemon, PTY, Flutter app, gateway.Manager, provider, or live channel SDK is required."
+      ],
+      "not_ready_when": [
+        "The slice attempts `chat.submit` gateway dispatch, selected-agent routing, config.schema/admin, tool-call events, pairing roles, voice/TTS/STT, SSH client logic, or Flutter UI integration.",
+        "The implementation treats Navivox as a Hermes platform enum parity port instead of a Gormes-owned first-party channel.",
+        "Bad magic, invalid headers, or unsupported prelude versions are answered with in-band frames instead of failing the untrusted stream."
+      ],
+      "acceptance": [
+        "Codec tests prove binary frames round-trip with ASCII NVOX magic, uint32 network-byte-order protocol/header lengths, JSON headers, exact payload_length handling, and byte-for-byte binary payload preservation.",
+        "Codec tests prove bad magic, unsupported prelude version, invalid JSON, oversized header/payload, and payload-length mismatch return typed errors.",
+        "Server tests prove `hello` returns `server.status` with protocol=1, feature list, version/config evidence, and correlation_id matching the hello message id.",
+        "Server tests prove `ping` returns `pong` with correlation_id and unknown readable event types return a structured redacted `error` frame.",
+        "cmd/gormes tests prove `gormes navivox serve --stdio` is registered, requires `--stdio`, and can complete a fake stdio handshake without PTY assumptions."
+      ],
+      "note": "Complete 2026-05-05: TDD added internal/channels/navivox with the NVOX binary frame codec, typed framing errors, static status provider, and fakeable server loop. `gormes navivox serve --stdio` is registered as a thin command and handles hello/server.status, ping/pong, unknown readable event errors, EOF shutdown, and bad framing rejection without starting gateway.Manager, SSH, providers, Flutter, chat, config, tool, pairing, or voice surfaces.",
+      "write_scope": [
+        "cmd/gormes/main.go",
+        "cmd/gormes/navivox.go",
+        "cmd/gormes/navivox_test.go",
+        "internal/channels/navivox/protocol.go",
+        "internal/channels/navivox/protocol_test.go",
+        "internal/channels/navivox/server.go",
+        "internal/channels/navivox/server_test.go",
+        "internal/channels/navivox/status.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/navivox -run 'Test(Codec|Server)' -count=1",
+        "go test ./cmd/gormes -run TestNavivox -count=1",
+        "go test ./internal/channels/navivox ./cmd/gormes -run 'Test(Codec|Server|Navivox)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Navivox frame codec and stdio control-plane fixtures prove fake clients can handshake and health-check the server before chat, config, tool, or voice rows begin."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-05T00:00:00Z",
+        "note": "Navivox is a Gormes-owned first-party Flutter/SSH channel. Hermes gateway sources inform manager/channel principles, but there is no upstream Hermes Navivox platform to port."
+      },
+      "evidence": [
+        "2026-05-05: go test ./internal/channels/navivox -run 'Test(Codec|Server)' -count=1 -> pass",
+        "2026-05-05: go test ./cmd/gormes -run TestNavivox -count=1 -> pass",
+        "2026-05-05: go test ./internal/channels/navivox ./cmd/gormes -run 'Test(Codec|Server|Navivox)' -count=1 -> pass"
+      ],
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.B.12",
+    "pos": 5,
+    "item": {
+      "name": "Navivox QR pairing descriptor CLI",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "`gormes navivox pair` creates a gateway pairing-code request for the `navivox` platform, prints a terminal QR code, and prints a plain-text fallback `navivox://pair?...` descriptor containing transport=ssh, host, port, SSH user, `gormes navivox serve --stdio`, protocol version, device name, pairing code, and expiry. Host selection prefers an explicit `--host`, then Tailscale IPv4, then LAN IPv4, then loopback. `gormes navivox setup-host --plan` renders the recommended host preparation path with Tailscale SSH, OpenSSH server commands, and sudo-password safety without mutating the host.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "gateway",
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If QR scanning is unavailable, the fallback URI is fully usable. If Tailscale is unavailable, the command still emits an explicit host source and recommends `gormes navivox setup-host --plan`. Pairing output never includes private keys, sudo passwords, or shell credentials; setup planning states that sudo passwords are prompt-only and never stored.",
+      "fixture": "cmd/gormes/navivox_test.go::TestNavivoxPairPrintsScannableDescriptorAndPersistsPendingPairing",
+      "source_refs": [
+        "openclaw/src/plugin-sdk/channel-pairing.ts:createChannelPairingChallengeIssuer",
+        "openclaw/src/pairing/pairing-messages.ts:buildPairingReply",
+        "openclaw/docs/install/oracle.md:Install Tailscale",
+        "openclaw/docs/install/podman.md:Podman + Tailscale",
+        "hermes-agent/SECURITY.md:Network exposure",
+        "internal/gateway/pairing_store.go",
+        "cmd/gormes/navivox.go",
+        "Context7 /websites/tailscale: `tailscale up --ssh` and `tailscale set --ssh` for secure remote SSH",
+        "Context7 /mdp/qrterminal: GenerateHalfBlock terminal QR output"
+      ],
+      "ready_when": [
+        "The prior Navivox stdio control-plane tracer is complete.",
+        "Gateway pairing store can issue and persist pending platform codes without live network credentials.",
+        "QR rendering can be tested with text fallback and no live SSH daemon."
+      ],
+      "not_ready_when": [
+        "The slice attempts live SSH login, authorized_keys mutation, Tailscale installation, config admin, selected-agent routing, or chat gateway binding.",
+        "The QR contains a sudo password, private key, API token, or other credential that grants shell access.",
+        "The CLI claims that pairing approval is enforced by `serve --stdio` before the Navivox channel-binding row validates that behavior."
+      ],
+      "unblocks": [
+        "Navivox host setup apply with transient sudo",
+        "Navivox Flutter QR scanner and SSH bootstrap"
+      ],
+      "acceptance": [
+        "`gormes navivox pair --host 100.77.1.2 --port 2222 --user ada --device-name pixel-lab --qr=false` prints a clear operator-first pairing screen, server details, pairing code, fallback URI, and Tailscale recommendation.",
+        "The fallback URI parses as `navivox://pair` and contains transport, host, port, user, command, protocol, code, and device fields.",
+        "The command persists one pending `navivox` pairing record in the existing gateway pairing store.",
+        "Pairing output does not contain sudo-password prompts, private-key markers, or credential-shaped text.",
+        "`gormes navivox setup-host --plan` renders Tailscale install/up guidance, OpenSSH server enable commands, and a clear statement that sudo passwords are prompt-only and never stored."
+      ],
+      "note": "Complete 2026-05-05: TDD added `gormes navivox pair` with qrterminal rendering, text fallback, explicit host/port/user/command details, existing gateway pairing-store persistence, Tailscale-first host discovery, and `setup-host --plan` UX copy for OpenSSH/Tailscale/sudo safety. Live privileged host mutation remains a separate planned row.",
+      "write_scope": [
+        "cmd/gormes/navivox.go",
+        "cmd/gormes/navivox_test.go",
+        "go.mod",
+        "go.sum",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestNavivox(Pair|SetupHost)' -count=1",
+        "go test ./cmd/gormes -run TestNavivox -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Operators can run one command on the Gormes host, scan a QR from Navivox, or manually paste a complete SSH stdio pairing descriptor without exposing credentials."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "OpenClaw channel pairing challenge helpers and Tailscale-first remote-access docs; Hermes QR onboarding and network hardening guidance",
+        "owned_since": "2026-05-05T00:00:00Z",
+        "note": "Navivox QR pairing is Gormes-owned. OpenClaw proves channel pairing challenge UX and Tailscale-first remote access patterns; Hermes contributes QR terminal onboarding precedent and the security rule to avoid public exposure without VPN/Tailscale/firewall."
+      },
+      "evidence": [
+        "2026-05-05: go test ./cmd/gormes -run 'TestNavivox(Pair|SetupHost)' -count=1 -> pass",
+        "2026-05-05: go test ./cmd/gormes -run TestNavivox -count=1 -> pass",
+        "2026-05-05: go test ./... -count=1 -> pass"
+      ]
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.B.12",
+    "pos": 6,
+    "item": {
+      "name": "Navivox Flutter voice morph surface",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "The Flutter Navivox app exposes a reusable `VoiceMorphSurface` for voice mode with state-driven soft morph graphics, an intensity input that can later bind to mic/TTS amplitude, reduced-motion phase freezing, live semantics, and a visible speaking surface in the fake chat voice message flow.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Reduced-motion settings freeze phase-driven animation without removing the state-specific visual. Intensity is clamped to 0.0..1.0 so malformed audio levels cannot distort layout or painter behavior.",
+      "fixture": "flutter-navivox/app/test/features/voice/widgets/voice_morph_surface_test.dart",
+      "source_refs": [
+        "flutter-navivox/navivox-prd.md:Voice",
+        "flutter-navivox/navivox-ui-design.md:chat and voice surfaces",
+        "flutter-navivox/navivox-testing-plan.md:Voice and chat UI tests",
+        "Context7 /websites/flutter_dev: CustomPaint, AnimationController, RepaintBoundary, accessibility testing"
+      ],
+      "ready_when": [
+        "The Flutter scaffold has a fake chat flow that can display a voice message without live SSH, STT, or TTS.",
+        "The first slice can use fake state/intensity inputs and does not need real microphone or audio playback plumbing."
+      ],
+      "not_ready_when": [
+        "The slice starts live microphone capture, TTS playback, SSH streaming, or provider audio work.",
+        "The widget requires golden screenshots to prove basic behavior, ignores reduced-motion, or exposes no semantics for blind users."
+      ],
+      "acceptance": [
+        "`VoiceMorphSurface` supports idle, listening, thinking, speaking, and disabled states with distinct styles and semantic labels.",
+        "The painter receives clamped intensity and deterministic phase/style inputs that can later be driven by real audio amplitude.",
+        "Reduced motion freezes phase at zero while preserving the current state style.",
+        "The fake chat voice message renders the voice morph surface instead of a static play icon.",
+        "Flutter tests cover semantics, state styling, clamping, reduced motion, and fake chat integration."
+      ],
+      "note": "Complete 2026-05-05: TDD added `VoiceMorphSurface`, `VoiceMorphStyle`, and `VoiceMorphPainter` under the Flutter voice feature, using CustomPaint/RepaintBoundary with state-driven soft blob rendering, clamped intensity, live semantics, and reduced-motion phase freezing. The fake voice message bubble now shows the speaking morph surface while leaving live audio plumbing for later rows.",
+      "write_scope": [
+        "flutter-navivox/app/lib/features/voice/widgets/voice_morph_surface.dart",
+        "flutter-navivox/app/lib/features/chat/widgets/simple_chat_adapter.dart",
+        "flutter-navivox/app/test/features/voice/widgets/voice_morph_surface_test.dart",
+        "flutter-navivox/app/test/router/app_router_test.dart",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "cd flutter-navivox/app && flutter test test/features/voice/widgets/voice_morph_surface_test.dart",
+        "cd flutter-navivox/app && flutter test",
+        "cd flutter-navivox/app && flutter analyze",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "The fake Navivox chat experience has an accessible, reduced-motion-safe soft voice graphic ready for later live voice-mode state and amplitude wiring."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-05T00:00:00Z",
+        "note": "Navivox voice graphics are a Gormes-owned Flutter UX surface; Flutter official docs inform the CustomPaint, animation, repaint, and accessibility implementation shape."
+      },
+      "evidence": [
+        "2026-05-05: cd flutter-navivox/app && flutter test test/features/voice/widgets/voice_morph_surface_test.dart -> pass",
+        "2026-05-05: cd flutter-navivox/app && flutter test -> pass",
+        "2026-05-05: cd flutter-navivox/app && flutter analyze -> no issues"
+      ],
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 52,
+    "item": {
+      "name": "Navivox host setup apply with transient sudo",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "`gormes navivox setup-host --apply` prepares a Linux host for Navivox by detecting OpenSSH server and Tailscale readiness, prompting for sudo password only through a masked transient prompt when required, installing/enabling OpenSSH server and Tailscale through explicit distro-aware steps, running `tailscale up --ssh` or equivalent Tailscale SSH enablement with operator confirmation, and discarding the sudo password immediately after the command. The existing `--plan` output remains the non-mutating default evidence surface.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unsupported OS, missing package manager, missing systemd, failed sudo, failed Tailscale auth, or declined confirmation return typed setup evidence and leave the host unchanged beyond steps already completed. The command never writes sudo passwords, private SSH keys, or Tailscale auth keys into config, progress data, logs, or pairing URIs.",
+      "fixture": "cmd/gormes/navivox_host_setup_test.go",
+      "source_refs": [
+        "cmd/gormes/navivox.go",
+        "cmd/gormes/navivox_host_setup_test.go",
+        "openclaw/docs/install/oracle.md:Install Tailscale",
+        "openclaw/docs/install/ansible.md:Tailscale VPN",
+        "openclaw/docs/reference/wizard.md:sudo prompt note",
+        "hermes-agent/SECURITY.md:Network exposure",
+        "internal/tui/hermes_panels.go:SecretPanelSudo"
+      ],
+      "ready_when": [
+        "Navivox QR pairing descriptor CLI is complete.",
+        "The setup executor can be injected in tests so no real sudo, package manager, systemctl, curl, or Tailscale command runs in CI.",
+        "The UX contract distinguishes Tailscale installation/enablement, OpenSSH installation, service enablement, and QR pairing handoff."
+      ],
+      "not_ready_when": [
+        "The command silently runs curl-pipe-shell, installs Tailscale during normal `install.sh`, stores sudo password or Tailscale auth keys, modifies `authorized_keys` without explicit approval, or opens public SSH/firewall rules by default.",
+        "Tests require root, network, a live Tailscale account, package manager access, or a real SSH daemon.",
+        "The implementation bypasses the existing Gormes secret/sudo prompt language or writes a second host-setup state model outside the canonical config/runtime surfaces."
+      ],
+      "unblocks": [
+        "Navivox Flutter first-run remote host preparation",
+        "Navivox installed-host smoke checklist"
+      ],
+      "acceptance": [
+        "`gormes navivox setup-host --plan` remains non-mutating and lists every command category that `--apply` may run.",
+        "`--apply` prompts before privileged work, masks sudo input, runs commands through an injected executor in tests, and never logs or persists the sudo password.",
+        "Linux Debian/Ubuntu and Fedora/RHEL fixtures cover OpenSSH install/enable command selection and Tailscale install/up command selection.",
+        "Unsupported OS/package-manager/systemd fixtures produce actionable setup evidence instead of partial hidden failure.",
+        "Post-apply output tells the operator to run `gormes navivox pair` and prefers the Tailscale host/IP in the descriptor."
+      ],
+      "note": "Complete 2026-05-05: TDD added `gormes navivox setup-host --apply` behind explicit opt-in confirmation/`--yes`, command previews with shell-quoted copyable commands, distro-aware Debian/Ubuntu and Fedora/RHEL OpenSSH install/enablement, Tailscale install/`tailscale up --ssh` steps, transient sudo stdin handling through injected command execution seams, unsupported-OS no-change output, and final `gormes navivox pair` handoff. The command never stores sudo passwords or places them in command args/output.",
+      "write_scope": [
+        "cmd/gormes/navivox.go",
+        "cmd/gormes/navivox_host_setup_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestNavivoxSetupHost' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic host-setup fixtures prove `--apply` can prepare SSH/Tailscale using prompt-only sudo handling and leave the operator at a ready-to-scan `gormes navivox pair` handoff."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "OpenClaw Tailscale-first host setup docs plus Hermes sudo prompt and network-hardening guidance",
+        "owned_since": "2026-05-05T00:00:00Z",
+        "note": "Navivox host setup is a Gormes-owned explicit operator flow informed by OpenClaw's Tailscale-first setup docs and Hermes sudo/network-hardening guidance."
+      },
+      "evidence": [
+        "2026-05-05: go test ./cmd/gormes -run 'TestNavivoxSetupHost' -count=1 -> pass"
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 100,
+    "item": {
+      "name": "gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Umbrella inventory parent for a NEW Gormes-owned `gormes setup profiles` interactive setup section that manages profiles and configures, PER PROFILE: (a) MULTIPLE workspace directories, (b) MULTIPLE messaging channels (telegram/whatsapp/discord/slack), and (c) navivox accessibility (all profiles reachable through navivox by default). OWNED DIVERGENCE: Hermes has NO `hermes setup profiles` section — Hermes profiles are separate ~/.hermes-<name> homes via hermes_cli/profiles.py, never a setup section, and Hermes has no per-profile multi-workspace / per-profile multi-channel / navivox-default-routing concept. This whole section is intentionally Gormes-owned (cite hermes_cli/setup.py [no profiles section] + hermes_cli/profiles.py as owned-divergence reference, NOT a parity port). It must REUSE existing Gormes seams, not reimplement: the profile command seams (cmd/gormes/profile.go defaultProfileCommandSeams: ListKnownProfiles/CreateProfile/ReadActiveProfileName/ResolveProfileRoot/WriteActiveProfile), the shipped `gormes setup <section>` boxed-header/footer chrome (runSetupSection — REUSE, do NOT add a third chrome variant), the real config TOML round-trip writer (internal/config/writer.go), and the existing channel/navivox config + setup surfaces (internal/config TelegramCfg/DiscordCfg/SlackCfg + Bindings []AgentBindingCfg + NavivoxCfg; cmd/gormes/setup_navivox.go, internal/gateway/channel_setup.go, runSetupGatewaySection navivox platform). Per-profile config persists into the SELECTED profile's OWN config.toml (default profile → config.GormesHome() config; named → filepath.Join(config.GormesHome(),\"profiles\",name)/config.toml), list-shaped fields as TOML arrays. Goncho.Workspace (memory workspace ID) is a DIFFERENT concept from the agents filesystem workspace and must NOT be conflated. SPLIT into builder-ready children; this parent is NOT builder-selectable.",
+      "contract_status": "validated",
+      "slice_size": "umbrella",
+      "execution_owner": "tools",
+      "module": "navivox",
+      "source_refs": [
+        "cmd/gormes/setup.go:36 setupSections / :43 setupSectionLabels / :528 runSetupSection (shipped boxed-header+footer chrome to reuse) / :562 dispatch / :615 runSetupBindingsSection / :1726 runSetupGatewaySection (navivox platform)",
+        "cmd/gormes/profile.go profileCommandSeams/defaultProfileCommandSeams (ListKnownProfiles/CreateProfile/ResolveProfileRoot/ReadActiveProfileName); config.GormesHome()+\"profiles\"/<name>",
+        "internal/config/config.go Agents AgentsCfg (agents.defaults workspace ~:356) + Bindings []AgentBindingCfg + TelegramCfg/DiscordCfg/SlackCfg + NavivoxCfg (~:54/:1737) + flexibleStringList; internal/config/writer.go (real TOML config round-trip)",
+        "cmd/gormes/setup_navivox.go, cmd/gormes/navivox_connect_info.go, internal/gateway/channel_setup.go (navivox + channel wiring to reuse)",
+        "../hermes-agent/hermes_cli/setup.py@55c9f3206 (NO profiles section — owned-divergence reference), ../hermes-agent/hermes_cli/profiles.py@55c9f3206 (Hermes ~/.hermes-<name> profile model — what NOT to port)"
+      ],
+      "ready_when": [
+        "Split into child rows; the scaffold child (workspace list) is built first, then channels, then navivox-default."
+      ],
+      "not_ready_when": [
+        "Implemented as one slice, or reimplements profile CRUD / setup chrome / config writing instead of reusing the existing seams, or ports a Hermes setup-profiles section (none exists)."
+      ],
+      "acceptance": [
+        "All child rows shipped: (1) `gormes setup profiles` section scaffold + per-profile workspace LIST; (2) per-profile channels (telegram/whatsapp/discord/slack, many per profile); (3) all profiles navivox-accessible by default. Each reuses the profile seams + shipped setup chrome + config round-trip, Gormes-owned wording, hermetic, no Hermes/~/.hermes wording."
+      ],
+      "note": "Umbrella (Gormes-owned, no Hermes parity port). Child 1 builder-ready below (scaffold + per-profile workspace list). Children 2 (per-profile channels) and 3 (navivox-default) are specified+planned, refine to builder-ready after child 1 ships (they depend on the section scaffold). Recommended chain: gormes-tdd-slice for child 1.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "no_test_required": "umbrella inventory parent; child rows carry the tests",
+      "done_signal": [
+        "All 3 children complete/validated with tests; `gormes setup profiles` manages profiles and persists per-profile workspaces + channels + navivox-default into each profile's own config.toml via a real round-trip."
+      ],
+      "provenance": {
+        "origin_type": "owned",
+        "upstream_refs": [
+          "hermes:55c9f3206 hermes_cli/setup.py (no profiles section), hermes_cli/profiles.py (owned-divergence reference)"
+        ],
+        "note": "skill_origin: 2026-05-16 user request via gormes-planner: 'gormes setup profiles. to manage add profiles and set their workspaces(plural). also add their channels, a profile can have many channels (telegram, whatsapp, discord...) all profiles can be accessed tru navivox by default'. Workspace cardinality + bind target clarified via AskUserQuestion: MULTIPLE workspaces per profile, persisted to that profile's own config.toml (no symlink farm). Owned divergence — Hermes has no equivalent."
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 103,
+    "item": {
+      "name": "gormes setup profiles — all profiles navivox-accessible by default",
+      "priority": "P3",
+      "status": "planned",
+      "contract": "Child 3/3 of the setup-profiles umbrella (specified, NOT yet builder-ready — refine after children 1-2 ship). Make ALL profiles reachable through navivox by default: `gormes setup profiles` should ensure each managed profile is navivox-accessible without per-profile manual navivox wiring (a sensible Gormes-owned default), reusing the existing navivox subsystem (internal/config NavivoxCfg, cmd/gormes/setup_navivox.go, cmd/gormes/navivox_connect_info.go, internal/gateway/channel_setup.go, runSetupGatewaySection navivox platform) — do NOT reimplement navivox. Decide & document the exact 'navivox-accessible by default' semantics against the real navivox routing model (single navivox endpoint multiplexing profiles vs per-profile navivox config) before builder-ready. OWNED DIVERGENCE: navivox + profile-default routing is entirely Gormes-owned (no Hermes equivalent). Gormes-owned wording, hermetic, config round-trip for any persisted default.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "navivox",
+      "degraded_mode": "navivox disabled/unconfigured → the default is a recorded intent, not a fabricated live endpoint; --offline → config-only, no network; surfaced typed errors, never a panic.",
+      "fixture": "cmd/gormes/setup_profiles_test.go",
+      "source_refs": [
+        "internal/config/config.go NavivoxCfg (~:54/:1737-:1767 validation) ; cmd/gormes/setup_navivox.go ; cmd/gormes/navivox_connect_info.go ; internal/gateway/channel_setup.go ; cmd/gormes/setup.go:1726 runSetupGatewaySection (navivox platform)",
+        "internal/config/writer.go round-trip",
+        "../hermes-agent (no navivox / no per-profile-default routing — fully owned)"
+      ],
+      "ready_when": [
+        "Children 1-2 shipped; the navivox routing model + exact 'all profiles accessible by default' semantics confirmed and the row refined to builder-ready."
+      ],
+      "not_ready_when": [
+        "Built before children 1-2; reimplements navivox; fabricates navivox reachability without a real config/routing basis; ports a non-existent Hermes navivox-profile concept."
+      ],
+      "blocked_by": [
+        "gormes setup profiles — section scaffold + per-profile workspace list",
+        "gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)"
+      ],
+      "acceptance": [
+        "All managed profiles are navivox-accessible by a documented Gormes-owned default (reusing the navivox subsystem, persisted via the config round-trip where applicable); hermetic; Gormes-owned; no fabricated navivox state; no Hermes parity port."
+      ],
+      "note": "Child 3/3 (specified, refine after children 1-2). Before builder-ready: confirm the navivox routing model + exact 'all profiles accessible by default' semantics. Recommended chain: gormes-planner refine -> gormes-tdd-slice.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_profiles_test.go",
+        "internal/config/writer.go",
+        "internal/config/writer_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'Setup|Profile|Navivox' -count=1",
+        "go test ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Fixtures prove all managed profiles are navivox-accessible by a documented Gormes-owned default, reusing the navivox subsystem — owned, hermetic, no fabricated state, no Hermes port."
+      ],
+      "provenance": {
+        "origin_type": "owned",
+        "upstream_refs": [
+          "hermes:55c9f3206 (no navivox / no per-profile-default routing — fully Gormes-owned)"
+        ],
+        "note": "skill_origin: 2026-05-16 user request -> gormes-planner. Child 3/3 of the setup-profiles umbrella. Specified; refine to builder-ready after children 1-2 ship."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.E",
+    "pos": 0,
+    "item": {
+      "name": "Remove SSH Navivox stdio path",
+      "status": "complete",
+      "contract": "Delete the SSH stdio Navivox transport — `gormes navivox serve|pair|setup-host` CLI surface, the wire-protocol Go package (codec/frames/server/status), the Flutter dartssh2 transport and ssh_navivox_channel client, and the `dartssh2` dependency. Preserve the HTTP/WS path (`internal/channels/navivox/channel.go` and `flutter-navivox/app/lib/core/gateway/*`). Move `PlatformName = \"navivox\"` from `protocol.go` into the surviving channel package so deleting protocol.go does not break the gateway import.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "fixture": "internal/channels/navivox/channel_test.go",
+      "source_refs": [
+        "internal/channels/navivox/channel.go:PlatformName"
+      ],
+      "ready_when": [
+        "Inventory confirms `internal/channels/navivox/channel.go` and `cmd/gormes/gateway.go` only depend on `PlatformName` from the SSH protocol package; no live consumers of NewServer/NewCodec/Frame/Header/StatusProvider remain outside the deletion set.",
+        "Flutter HTTP gateway client (`lib/core/gateway/navivox_gateway_*`) and `gateway_navivox_channel.dart` already build and tests pass with no dependency on dartssh2."
+      ],
+      "not_ready_when": [
+        "The slice tries to also redesign the HTTP channel surface in the same commit.",
+        "The slice keeps dartssh2 in pubspec.yaml \"for later\".",
+        "The slice removes `internal/channels/navivox/channel.go` or any HTTP-side code."
+      ],
+      "unblocks": [
+        "Navivox VPN host enumeration helper",
+        "Navivox HTTP gateway mandatory-VPN bind",
+        "Navivox HTTP gateway connect-info command"
+      ],
+      "acceptance": [
+        "`grep -rE \"dartssh2|navivox.NewServer|navivox.NewCodec|navivox.Frame\" cmd/ internal/ flutter-navivox/app/lib flutter-navivox/app/test` returns no matches.",
+        "`gormes navivox --help` returns \"unknown command\" (entire `navivox` cobra command removed from main.go registration).",
+        "`grep -n 'dartssh2' flutter-navivox/app/pubspec.yaml` returns nothing; `flutter pub get` succeeds.",
+        "Both `go test ./... -count=1` and `flutter test` are green.",
+        "`PlatformName` constant survives the deletion and is reachable from `cmd/gormes/gateway.go` via `internal/channels/navivox.PlatformName`."
+      ],
+      "note": "Shipped 2026-05-14. Deleted Go: cmd/gormes/{navivox.go,navivox_test.go,navivox_host_setup_test.go} and internal/channels/navivox/{protocol.go,protocol_test.go,server.go,server_test.go,status.go}. Deleted Flutter: lib/core/channel/ssh_navivox_channel.dart, lib/core/transport/dartssh2_byte_transport.dart, and the 5 ssh_navivox_channel_* + 1 dartssh2_byte_transport_test test files. Moved PlatformName const into internal/channels/navivox/channel.go. Patched cmd/gormes/setup_navivox.go to stop calling the deleted resolveNavivoxPairHost (auto-detect deferred to the vpnhost row). Removed `newNavivoxCommand()` from main.go cobra registration. dartssh2 dropped from pubspec.yaml (along with transitive deps asn1lib/pinenacl/pointycastle). Validation: `go test ./... -count=1` all packages OK; `flutter test` 83/83 passed (down from 113 — 30 tests deleted with the SSH transport).",
+      "write_scope": [
+        "internal/channels/navivox/protocol.go",
+        "internal/channels/navivox/protocol_test.go",
+        "internal/channels/navivox/server.go",
+        "internal/channels/navivox/server_test.go",
+        "internal/channels/navivox/status.go",
+        "internal/channels/navivox/channel.go",
+        "cmd/gormes/navivox.go",
+        "cmd/gormes/navivox_test.go",
+        "cmd/gormes/navivox_host_setup_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/setup_navivox.go",
+        "flutter-navivox/app/lib/core/channel/ssh_navivox_channel.dart",
+        "flutter-navivox/app/lib/core/transport/dartssh2_byte_transport.dart",
+        "flutter-navivox/app/test/core/channel/ssh_navivox_channel_test.dart",
+        "flutter-navivox/app/test/core/channel/ssh_navivox_channel_agents_test.dart",
+        "flutter-navivox/app/test/core/channel/ssh_navivox_channel_artifacts_test.dart",
+        "flutter-navivox/app/test/core/channel/ssh_navivox_channel_config_test.dart",
+        "flutter-navivox/app/test/core/channel/ssh_navivox_channel_tools_test.dart",
+        "flutter-navivox/app/test/core/transport/dartssh2_byte_transport_test.dart",
+        "flutter-navivox/app/pubspec.yaml",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./... -count=1",
+        "sh -c 'cd flutter-navivox/app && flutter test'"
+      ],
+      "done_signal": [
+        "`go test ./... -count=1` and `cd flutter-navivox/app && flutter test` both pass; `git grep dartssh2` and `git grep 'navivox.NewServer'` return empty."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-14",
+        "note": "Operator decided 2026-05-14 that the SSH stdio path is too complicated for the product; HTTP/WS gateway becomes the only Navivox transport."
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.E",
+    "pos": 1,
+    "item": {
+      "name": "Remove Flutter Navivox fake-server mode and wire protocol",
+      "status": "complete",
+      "contract": "Delete the Flutter SSH wire-protocol artifacts that survived the first cut: `lib/core/protocol/navivox_frame.dart`, `lib/core/protocol/frame_reader.dart`, `lib/core/transport/byte_transport.dart`, `lib/core/transport/in_memory_transport.dart`, `lib/core/channel/fake_navivox_channel.dart`. Rework `lib/core/channel/navivox_channel_provider.dart` so `activeNavivoxChannelProvider` returns the gateway channel directly (no fake/gateway switcher), and delete `NavivoxChannelMode`/`NavivoxChannelSwitcher`. Update `enterFakeServerMode` callers in the router to use a real local gateway against a test fixture instead.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "fixture": "flutter-navivox/app/test/router/app_router_test.dart",
+      "source_refs": [
+        "flutter-navivox/app/lib/core/channel/navivox_channel_provider.dart:NavivoxChannelSwitcher",
+        "flutter-navivox/app/lib/core/channel/fake_navivox_channel.dart:FakeNavivoxChannel"
+      ],
+      "ready_when": [
+        "`Remove SSH Navivox stdio path` shipped.",
+        "Test inventory shows the only callers of `enterFakeServerMode` are the router and a couple of widget tests — easy to migrate to a real GatewayNavivoxChannel against a fixture server.",
+        "`flutter test` is green on development."
+      ],
+      "not_ready_when": [
+        "The slice tries to also delete the SSH keys feature (separate row).",
+        "The slice removes `gateway_navivox_channel.dart` or any HTTP-side code."
+      ],
+      "blocked_by": [
+        "Remove SSH Navivox stdio path"
+      ],
+      "unblocks": [
+        "Remove Flutter SSH keys feature"
+      ],
+      "acceptance": [
+        "`grep -rE 'FakeNavivoxChannel|NavivoxFrame|FrameReader|ByteTransport|InMemoryTransport' flutter-navivox/app/lib flutter-navivox/app/test` returns no matches.",
+        "`activeNavivoxChannelProvider` returns `GatewayNavivoxChannel` directly without a switcher.",
+        "Router test suite still covers the no-server-configured starting state and a successful chat path against a fixture HTTP gateway (or marks the chat path as a deferred integration test if no fixture server is feasible).",
+        "`flutter test` is green."
+      ],
+      "note": "Shipped 2026-05-14. Deleted: lib/core/channel/fake_navivox_channel.dart, lib/core/protocol/{navivox_frame,frame_reader}.dart, lib/core/transport/{byte_transport,in_memory_transport}.dart, plus 5 dead-code tests (test/core/protocol/{frame_codec,frame_reader}_test.dart, test/features/voice/voice_capture_test.dart, test/features/chat/{chat_send_message,chat_screen_voice_wiring}_test.dart). Renamed activeNavivoxChannelProvider → navivoxChannelProvider (now a Provider<NavivoxChannel> that returns the gateway channel directly; gatewayNavivoxChannelProvider remains as a typed handle for the setup flow .connect call). Dropped enterFakeServerMode from NavivoxChannel interface and GatewayNavivoxChannel; removed the in-product \"Use fake local server\" button + .useGateway() call from setup_screen.dart. Created test/support/test_navivox_channel.dart with seedAgents/seedServers/emitConfigSchema/emitConfigValues/emitApprovalRequest helpers; migrated 5 widget tests (agents, chat_active_agent, approval_banner x2, config_screen) to it. Router test suite kept the no-server starting state; the chat-mode integration test was marked deferred (needs a fixture HTTP gateway). 65/65 flutter tests passing.",
+      "write_scope": [
+        "flutter-navivox/app/lib/core/channel/navivox_channel_provider.dart",
+        "flutter-navivox/app/lib/core/channel/fake_navivox_channel.dart",
+        "flutter-navivox/app/lib/core/protocol/",
+        "flutter-navivox/app/lib/core/transport/byte_transport.dart",
+        "flutter-navivox/app/lib/core/transport/in_memory_transport.dart",
+        "flutter-navivox/app/test/router/",
+        "flutter-navivox/app/test/core/channel/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "sh -c 'cd flutter-navivox/app && flutter test'"
+      ],
+      "done_signal": [
+        "`cd flutter-navivox/app && flutter test` passes; `git grep FakeNavivoxChannel flutter-navivox/app/lib` returns empty."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-14",
+        "note": "Discovered while shipping `Remove SSH Navivox stdio path`: FakeNavivoxChannel still uses the SSH wire frame types, blocking deletion of lib/core/protocol/."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.E",
+    "pos": 2,
+    "item": {
+      "name": "Remove Flutter SSH keys feature",
+      "status": "complete",
+      "contract": "Delete the Flutter SSH keys feature in its entirety: `lib/features/keys/` (data, services, screens), the `lib/features/keys/services/openssh_key_validator.dart` already on the SSH deletion shortlist, and the entire `test/features/keys/` directory. Remove the Keys route from the router and any sidebar/menu entries. Drop `drift`, `drift_dev`, and `sqlite3` from `pubspec.yaml` (sole consumers are KeyDatabase/DriftKeyStore). Drop generated `key_database.g.dart`. After this slice, Flutter Navivox has no `dart:io`-only or native-FFI-only dependencies and can be web-targeted (the original blocker the operator flagged on 2026-05-14).",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "fixture": "flutter-navivox/app/test/router/app_router_test.dart",
+      "source_refs": [
+        "flutter-navivox/app/lib/features/keys/services/openssh_key_validator.dart",
+        "flutter-navivox/app/lib/features/keys/data/key_database.dart",
+        "flutter-navivox/app/lib/features/keys/services/drift_key_store.dart"
+      ],
+      "ready_when": [
+        "`Remove Flutter Navivox fake-server mode and wire protocol` shipped.",
+        "`flutter test` is green on development."
+      ],
+      "not_ready_when": [
+        "The slice keeps the Keys route in the router \"in case we add it back\".",
+        "The slice ships before the fake-server-mode row (a stale fake mode may pull in obsolete keys references)."
+      ],
+      "blocked_by": [
+        "Remove Flutter Navivox fake-server mode and wire protocol"
+      ],
+      "acceptance": [
+        "`flutter-navivox/app/lib/features/keys/` no longer exists.",
+        "`grep -E 'drift|sqlite3' flutter-navivox/app/pubspec.yaml` returns nothing.",
+        "`flutter build web --release` succeeds (no native-FFI blocker remains).",
+        "`flutter test` is green."
+      ],
+      "note": "Shipped 2026-05-14. Deleted entire lib/features/keys/ tree (data, services, screens, providers, generated key_database.g.dart) and test/features/keys/ (7 tests), plus test/features/servers/setup_screen_imports_test.dart. Removed keys/keyImport/keyGenerate route constants, the Keys GoRoute, and the Keys destination from app_shell. setup_screen.dart no longer imports key_store/serverStoreProvider and the \"Recently imported\" servers section is gone. Dropped drift, drift_dev, and sqlite3 from pubspec.yaml. Flutter `flutter pub get` removed 20+ transitive deps; `flutter test` 33/33 passing. Added Flutter web platform scaffold via `flutter create --platforms=web .` and confirmed `flutter build web --release` builds successfully (build/web/index.html present) — the dart:io / FFI blocker the operator flagged at the start of 2026-05-14 is cleared.",
+      "write_scope": [
+        "flutter-navivox/app/lib/features/keys/",
+        "flutter-navivox/app/lib/router/",
+        "flutter-navivox/app/lib/app.dart",
+        "flutter-navivox/app/test/features/keys/",
+        "flutter-navivox/app/test/router/",
+        "flutter-navivox/app/pubspec.yaml",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "sh -c 'cd flutter-navivox/app && flutter test'",
+        "sh -c 'cd flutter-navivox/app && flutter build web --release'"
+      ],
+      "done_signal": [
+        "`cd flutter-navivox/app && flutter test && flutter build web --release` both succeed; `ls flutter-navivox/app/build/web/index.html` exists."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-14",
+        "note": "Keys feature managed OpenSSH identities for the deleted SSH transport; with HTTP/WS as the only Navivox path the feature is dead code. Side-effect: drops the `drift` + `sqlite3` deps, which were the other blocker for Flutter web builds."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.E",
+    "pos": 3,
+    "item": {
+      "name": "Navivox VPN host enumeration helper",
+      "status": "complete",
+      "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. The navivox HTTP gateway channel (mandatory-VPN bind, connect-info command) consumes it. The package is built fresh — no SSH-pair code remains by this point.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "fixture": "internal/network/vpnhost/vpnhost_test.go",
+      "source_refs": [
+        "internal/channels/navivox/channel.go:NewChannel",
+        "cmd/gormes/setup_navivox.go:navivoxSetupBindDefault"
+      ],
+      "ready_when": [
+        "`Remove SSH Navivox stdio path` shipped (no leftover tailscale-only detection in cmd/gormes).",
+        "`go test ./... -count=1` is green on development."
+      ],
+      "not_ready_when": [
+        "The slice also rebinds the running gateway or edits install.sh.",
+        "The slice adds VPN providers beyond Tailscale and WireGuard without test fixtures."
+      ],
+      "blocked_by": [
+        "Remove SSH Navivox stdio path"
+      ],
+      "unblocks": [
+        "Navivox HTTP gateway mandatory-VPN bind",
+        "Navivox HTTP gateway connect-info command"
+      ],
+      "acceptance": [
+        "internal/network/vpnhost.List(ctx) returns at least one entry on a host with Tailscale or WireGuard up, with kind ∈ {tailscale, wireguard, tun-other}.",
+        "internal/network/vpnhost has zero imports from internal/channels or cmd/ so both can import it.",
+        "`cmd/gormes/setup_navivox.go:navivoxSetupBindDefault` consumes vpnhost.List for exposure_mode=tailscale instead of returning the loopback default.",
+        "Tests use seamed fakes for `tailscale` CLI and `ip` CLI — no live commands at test time."
+      ],
+      "note": "Shipped 2026-05-14. New package internal/network/vpnhost with Lister struct exposing LookPath/RunTailscale/RunIP seams; package-level vpnhost.List(ctx) for production. Detects tailscale via `tailscale ip -4/-6`, wireguard via `ip -j -d link show type wireguard` + `ip -j addr show dev <iface>`, tun-other via `ip -j link show type tun` excluding already-detected interfaces. Tests (6) use seamed fakes — no live CLI calls. cmd/gormes/setup_navivox.go now consumes vpnhostList (a test-overridable var) so navivoxSetupBindDefault picks the first detected tailscale IPv4 for exposure_mode=tailscale, falling back to config.NavivoxDefaultBindHost. Four new setup_navivox_test.go cases cover the picks/fallback paths.",
+      "write_scope": [
+        "internal/network/vpnhost/",
+        "cmd/gormes/setup_navivox.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/network/vpnhost -count=1",
+        "go test ./cmd/gormes -run NavivoxSetup -count=1"
+      ],
+      "done_signal": [
+        "`go test ./internal/network/vpnhost -count=1` passes; `grep -rn 'exec.Command.*\"tailscale\"' cmd/ internal/` only matches inside internal/network/vpnhost."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-14"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.E",
+    "pos": 4,
+    "item": {
+      "name": "Navivox HTTP gateway mandatory-VPN bind",
+      "status": "complete",
+      "contract": "When `[navivox]` exposure_mode is `tailscale`, `wireguard`, or `vpn`, config validation and gateway startup refuse to start unless bind_host matches an active VPN interface IP returned by internal/network/vpnhost. Loopback (127.0.0.1) remains valid only under exposure_mode=local; 0.0.0.0/:: remains gated behind exposure_mode=public + public_confirmed=true. The exposure_mode allowlist is extended to add `wireguard` and `vpn` alongside existing `local`/`tailscale`/`public`.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "fixture": "internal/config/navivox_config_test.go",
+      "source_refs": [
+        "internal/config/config.go:NavivoxCfg",
+        "internal/config/config.go:NavivoxExposureLocal",
+        "internal/config/config.go:NavivoxExposureTailscale",
+        "internal/channels/navivox/channel.go:NewChannel"
+      ],
+      "ready_when": [
+        "internal/network/vpnhost shipped per `Navivox VPN host enumeration helper`.",
+        "internal/config navivox validation surface (NavivoxCfg / Validate path in internal/config/config.go) is the only mutation site for bind-host enforcement."
+      ],
+      "not_ready_when": [
+        "The slice removes loopback bind for exposure_mode=local.",
+        "The slice silently rewrites bind_host instead of failing closed with a typed error.",
+        "The slice requires tailscale CLI at runtime (vpnhost is the only seam)."
+      ],
+      "blocked_by": [
+        "Navivox VPN host enumeration helper"
+      ],
+      "unblocks": [
+        "Navivox HTTP gateway connect-info command"
+      ],
+      "acceptance": [
+        "Config validation fails closed with a typed error when exposure_mode ∈ {tailscale,wireguard,vpn} and bind_host does not match any IP returned by vpnhost.List.",
+        "Config validation passes when bind_host matches a tailscale or wireguard IP from vpnhost.List.",
+        "Channel constructor surfaces the validation error verbatim instead of partially initializing.",
+        "exposure_mode=local with loopback bind still accepted unchanged.",
+        "New exposure_mode values `wireguard` and `vpn` are accepted by validation alongside `tailscale`."
+      ],
+      "note": "Shipped 2026-05-14. Added NavivoxExposureWireGuard and NavivoxExposureVPN constants; extended normalizeNavivoxConfig allowlist; added NavivoxExposureRequiresVPN(mode) helper and ValidateNavivoxBindAgainstVPN(cfg, vpnIPs) — pure structural validator that accepts IPs as []string so internal/config has no dependency on internal/network/vpnhost. internal/channels/navivox/channel.go now calls vpnHostLister (test-overridable var, defaults to vpnhost.List) in NewChannel after structural validation and runs the bind check; loopback bind for exposure_mode=local stays untouched. Tests: 6 new internal/config cases (mode allowlist + helper truth table + nil/disabled + local-or-public no-op + match + no-VPN failure + mismatch listing). 3 new internal/channels/navivox cases (loopback rejected, matching VPN accepted, local unaffected).",
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/config/navivox_config_test.go",
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/channel_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -run Navivox -count=1",
+        "go test ./internal/channels/navivox -count=1"
+      ],
+      "done_signal": [
+        "`go test ./internal/config ./internal/channels/navivox -count=1` passes; `gormes gateway` exits non-zero with a typed error when [navivox] exposure_mode=tailscale and bind_host=127.0.0.1."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-14"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.E",
+    "pos": 5,
+    "item": {
+      "name": "Navivox HTTP gateway connect-info command",
+      "status": "complete",
+      "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "fixture": "cmd/gormes/navivox_connect_info_test.go",
+      "source_refs": [
+        "internal/channels/navivox/channel.go:NewChannel",
+        "internal/config/config.go:NavivoxCfg"
+      ],
+      "ready_when": [
+        "internal/network/vpnhost shipped.",
+        "Navivox HTTP gateway mandatory-VPN bind shipped.",
+        "Remove SSH Navivox stdio path shipped (so reintroducing `gormes navivox` does not collide with deleted subcommands)."
+      ],
+      "not_ready_when": [
+        "The slice also implements an HTTP /v1/navivox/connect-info server endpoint (split row).",
+        "The slice prints the static_token value to stdout or JSON output."
+      ],
+      "blocked_by": [
+        "Navivox VPN host enumeration helper",
+        "Navivox HTTP gateway mandatory-VPN bind"
+      ],
+      "acceptance": [
+        "`gormes navivox connect-info --json` returns one entry per VPN interface with `base_url=http://<vpn-ip>:<port>`, `host_source` ∈ {tailscale,wireguard,tun-other}, `healthz_url=base_url+/healthz`, `token_required=true` when auth_mode ∈ {static_token, pairing_token}.",
+        "Without --json, a human-readable list is printed (one URL per line) with the VPN kind shown next to each.",
+        "When exposure_mode=local, only `http://127.0.0.1:<port>` is printed.",
+        "When the channel is disabled, the command exits non-zero with a typed error pointing at `[navivox] enabled`.",
+        "The static_token value never appears in stdout or JSON output."
+      ],
+      "note": "Shipped 2026-05-14. New cmd/gormes/navivox_connect_info.go (and reintroduced top-level `gormes navivox` cobra command). `gormes navivox connect-info [--json]` emits one entry per reachable Navivox interface: loopback for exposure_mode=local; tailscale/wireguard/tun-other entries from vpnhostList for VPN-class modes. JSON shape {entries:[{host, host_source, port, base_url, healthz_url, token_required}]}; never includes the static_token value. Disabled config returns a typed error pointing at [navivox].enabled. Tests (6): disabled, local-mode JSON, never-leaks-token (both formats), tailscale-mode JSON, vpn-mode lists all kinds, text-output includes URL+kind+healthz.",
+      "write_scope": [
+        "cmd/gormes/navivox_connect_info.go",
+        "cmd/gormes/navivox_connect_info_test.go",
+        "cmd/gormes/main.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run NavivoxConnectInfo -count=1"
+      ],
+      "done_signal": [
+        "`go test ./cmd/gormes -run NavivoxConnectInfo -count=1` passes; on a tailscale host `gormes navivox connect-info --json` prints one base_url with host_source=tailscale and no token value."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-14",
+        "note": "Replaces the deleted `gormes navivox pair` SSH command with an HTTP-only equivalent."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 0,
+    "item": {
+      "name": "Navivox HTTP/WS documentation refresh",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Refresh the stale Navivox planning docs so every operator and builder surface describes the current HTTP/WebSocket gateway channel, not the deleted SSH stdio transport. The pass updates the decision record, PRD, architecture, routes, testing plan, and generated CLI/docs references to say that `gormes navivox connect-info`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream` are the supported path; `gormes navivox serve|pair|setup-host`, NVOX binary frames, dartssh2, SSH keys, and fake-server mode are historical/deleted only.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If docs remain stale, builders may reintroduce the deleted SSH/stdin protocol or fake-server client; runtime behavior stays HTTP/WS but operator setup guidance is contradictory.",
+      "fixture": "docs/content/cli/navivox.md",
+      "source_refs": [
+        "CHANGELOG.md:31",
+        "CHANGELOG.md:67",
+        "docs/content/cli/navivox.md",
+        "flutter-navivox/navivox-decision-record.md:86",
+        "flutter-navivox/navivox-prd.md:15",
+        "flutter-navivox/navivox-architecture.md:94",
+        "flutter-navivox/navivox-routes.md:43",
+        "flutter-navivox/navivox-testing-plan.md:154",
+        "flutter-navivox/navivox-library-research.md:34",
+        "flutter-navivox/navivox-ui-design.md:48",
+        "flutter-navivox/navivox-data-model.md:14",
+        "flutter-navivox/navivox-chat-ui-research.md:8",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:151",
+        "https://github.com/dograh-hq/dograh#your-first-voice-bot"
+      ],
+      "ready_when": [
+        "The current changelog proves SSH stdio was removed and HTTP/WS is the only Navivox transport.",
+        "`docs/content/cli/navivox.md` already documents `connect-info` as the surviving CLI surface.",
+        "The pass stays docs-only and does not edit runtime code under cmd/ or internal/."
+      ],
+      "not_ready_when": [
+        "The edit reintroduces `gormes navivox serve`, `pair`, `setup-host`, dartssh2, SSH keys, NVOX frame codec, or fake-server mode as current behavior.",
+        "The edit describes public exposure without the existing local/Tailscale/public confirmation gates.",
+        "The edit starts planning campaigns, telephony, retries, scheduling, or human handoff before the core Navivox talk loop is proven."
+      ],
+      "unblocks": [
+        "Navivox connect-and-talk first screen",
+        "Navivox profile contact summary API",
+        "Navivox natural-language profile seed flow",
+        "Navivox continuous voice command mode",
+        "Navivox structured tool event cards",
+        "Navivox safe config admin over HTTP",
+        "Navivox voice run records",
+        "Navivox per-profile BYO voice profiles"
+      ],
+      "acceptance": [
+        "`rg -n 'serve --stdio|navivox pair|setup-host|dartssh2|NVOX|SSH stdio|fake-server' flutter-navivox docs/content/cli docs/content/building-gormes` returns only historical/deleted mentions that are explicitly labeled as removed.",
+        "The docs name the live HTTP/WS endpoints and `gormes navivox connect-info` path.",
+        "The Dograh-inspired activation principle is documented as `connect and talk without telephony setup`, not as telephony/campaign scope.",
+        "HTTP/WS trust boundaries remain visible: disabled by default, loopback by default, VPN/public exposure gates, token redaction."
+      ],
+      "note": "Complete 2026-05-16: refreshed the Navivox decision record, PRD, architecture, route, testing, library, UI, data-model, chat-UI research, CLI, and Hermes/Honcho feature-map docs around the current HTTP/WebSocket gateway. Current docs now name `gormes navivox connect-info`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream`; the Dograh-inspired activation principle is connect-and-talk without telephony setup; tool calls stay structured UI objects; config admin stays schema-driven/redacted/server-authoritative; stale transport terms remain only in historical progress/generated evidence or deleted-code comments.",
+      "write_scope": [
+        "flutter-navivox/navivox-decision-record.md",
+        "flutter-navivox/navivox-prd.md",
+        "flutter-navivox/navivox-architecture.md",
+        "flutter-navivox/navivox-routes.md",
+        "flutter-navivox/navivox-testing-plan.md",
+        "flutter-navivox/navivox-library-research.md",
+        "flutter-navivox/navivox-ui-design.md",
+        "flutter-navivox/navivox-data-model.md",
+        "flutter-navivox/navivox-chat-ui-research.md",
+        "docs/content/cli/navivox.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "rg -n 'serve --stdio|navivox pair|setup-host|dartssh2|NVOX|SSH stdio|fake-server' flutter-navivox docs/content/cli docs/content/building-gormes",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Navivox planning docs describe only HTTP/WS as current, stale SSH/NVOX terms are removed or explicitly historical, and progress validation plus diff-check pass."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16",
+        "note": "Dograh lesson: make the first useful voice-agent proof a local web call without telephony setup. Gormes translation: Navivox connect-and-talk over the existing HTTP/WS gateway, not Dograh's Docker/Python stack."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 1,
+    "item": {
+      "name": "Navivox connect-and-talk first screen",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Make the first useful Navivox screen a connected chat/voice test surface: after the operator pastes or scans `gormes navivox connect-info`, the app connects to the HTTP/WS gateway, shows gateway readiness, opens chat as the primary surface, and lets the operator send text or a device-transcribed voice turn to Gormes without configuring telephony. The slice should prove the Dograh-style Web Call insight through a local fake HTTP gateway and one real `internal/channels/navivox` fixture.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "When the gateway is not reachable, the app shows a bounded setup/connect error with `connect-info` guidance and keeps text-only fallback available; it never suggests telephony as the prerequisite for a first agent turn.",
+      "fixture": "flutter-navivox/app/test/features/setup/navivox_connect_and_talk_test.dart",
+      "source_refs": [
+        "internal/channels/navivox/channel.go:handleStatus",
+        "internal/channels/navivox/channel.go:handleTurn",
+        "internal/channels/navivox/channel.go:handleStream",
+        "cmd/gormes/navivox_connect_info.go",
+        "flutter-navivox/app/lib/core/gateway/navivox_gateway_protocol.dart:NavivoxGatewayConfig",
+        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart:connect",
+        "flutter-navivox/app/test/core/channel/gateway_navivox_channel_test.dart",
+        "flutter-navivox/navivox-ui-design.md:2.1",
+        "flutter-navivox/navivox-chat-ui-research.md:2",
+        "https://docs.dograh.com/voice-agent/introduction"
+      ],
+      "ready_when": [
+        "`Navivox HTTP/WS documentation refresh` has landed so builders follow the current transport contract.",
+        "`Navivox HTTP gateway connect-info command` is complete and prints token-redacted URLs.",
+        "Flutter Navivox can build for web after the SSH key/drift dependency removal."
+      ],
+      "not_ready_when": [
+        "The slice adds telephony, phone-number setup, campaigns, scheduling, or human handoff.",
+        "The slice depends on fake-server mode instead of a fixture HTTP/WS gateway.",
+        "The slice prints or stores the static token outside the existing token field and secure input flow."
+      ],
+      "unblocks": [
+        "Navivox profile contact summary API",
+        "Navivox natural-language profile seed flow",
+        "Navivox continuous voice command mode",
+        "Navivox structured tool event cards",
+        "Navivox safe config admin over HTTP",
+        "Navivox voice run records"
+      ],
+      "acceptance": [
+        "A widget/integration test starts a fake HTTP/WS Navivox gateway, enters base URL plus token, lands on chat, sends a text turn, receives streamed assistant output, and shows no telephony setup prompt.",
+        "A Go fixture posts to `/v1/navivox/turn` and opens `/v1/navivox/stream`, proving the HTTP channel can queue a normal gateway submit and broadcast the response lifecycle.",
+        "Voice capture with a device transcript submits as a normal Navivox turn and renders a voice message bubble locally; when no voice service exists, the text composer remains primary.",
+        "Gateway disconnected/unauthorized states show bounded errors and `gormes navivox connect-info` guidance without leaking bearer tokens."
+      ],
+      "note": "Complete 2026-05-16: Navivox now starts from a connect-and-talk setup screen using `gormes navivox connect-info`, opens the gateway chat surface after base URL plus token entry, sends text turns, renders device-transcribed voice turns as local voice bubbles, and keeps disconnected failures bounded with connect-info guidance and no token leak. Backend coverage proves authenticated HTTP turns queue normal gateway submits and subscribed WebSockets receive assistant lifecycle events without telephony setup.",
+      "write_scope": [
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/channel_test.go",
+        "flutter-navivox/app/lib/core/gateway/",
+        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+        "flutter-navivox/app/lib/features/setup/",
+        "flutter-navivox/app/lib/features/chat/",
+        "flutter-navivox/app/test/core/channel/gateway_navivox_channel_test.dart",
+        "flutter-navivox/app/test/features/setup/",
+        "flutter-navivox/app/test/features/chat/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/navivox -run 'TestNavivox.*Turn|TestNavivox.*Stream|TestNavivox.*Auth' -count=1",
+        "sh -c 'cd flutter-navivox/app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/setup/navivox_connect_and_talk_test.dart test/features/chat/chat_voice_button_test.dart'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "A fresh Navivox user can enter connect-info, reach chat, send text or a voice transcript, see the streamed answer, and never touch telephony setup."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 2,
+    "item": {
+      "name": "Navivox profile contact summary API",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Expose a safe server-authoritative Navivox profile contact read model before visual chat polish. Gormes returns one contact per `server_id + profile_id`, where the profile is an isolated Gormes home/config/secrets/sessions/memory/skills/runtime state, not a live OpenClaw-style multi-agent router. Provide an HTTP snapshot plus WebSocket updates with display name, deterministic avatar seed, sanitized latest preview, health, compact workspace-root counts, attention badges, mic availability, and active-turn state. Flutter renders/caches this summary but keeps local-only metadata such as pins, aliases, command word, calibration, and trusted-server state out of the API. No raw workspace paths, secrets, tokens, config documents, or session payloads appear in contact rows.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If profile contact updates cannot stream, Navivox keeps the last HTTP snapshot visible with a stale/reconnecting badge and refreshes on reconnect; offline or unauthorized profiles remain visible with disabled send/mic affordances and recovery actions.",
+      "fixture": "internal/channels/navivox/profile_contacts_test.go",
+      "source_refs": [
+        "cmd/gormes/profile.go",
+        "cmd/gormes/setup.go:runSetupProfilesInteractive",
+        "cmd/gormes/doctor_profiles_test.go",
+        "internal/cli/profile_root.go",
+        "internal/doctor/doctor_profiles.go",
+        "internal/channels/navivox/channel.go:handleStatus",
+        "flutter-navivox/navivox-ui-design.md:2.2",
+        "flutter-navivox/navivox-chat-ui-research.md:3.1"
+      ],
+      "ready_when": [
+        "`Navivox connect-and-talk first screen` has landed so the app has an authenticated HTTP/WS gateway and a live chat fixture.",
+        "Existing Gormes profile commands and doctor profile checks remain the source evidence for profile roots and health.",
+        "The UI docs classify profile contacts as `server + profile_id`, not as dynamic agents or Telegram accounts."
+      ],
+      "not_ready_when": [
+        "The slice exposes raw profile home paths, workspace root paths, static tokens, provider secrets, raw config documents, or raw session payloads in contact summaries.",
+        "The slice makes Flutter infer profile contacts from unrelated raw endpoints instead of a dedicated summary contract.",
+        "The slice treats pinned contacts, local aliases, command-word calibration, or server trust as server-authoritative profile state.",
+        "The slice adds TDLib, MTProto, Firebase, telephony, campaigns, scheduling, retries, or human handoff."
+      ],
+      "blocked_by": [
+        "Navivox connect-and-talk first screen"
+      ],
+      "unblocks": [
+        "Navivox Telegram-inspired chat polish",
+        "Navivox natural-language profile seed flow",
+        "Navivox continuous voice command mode"
+      ],
+      "acceptance": [
+        "HTTP snapshot returns a bounded list of profile contacts with server_id, profile_id, display_name, avatar_seed, latest_preview/kind/timestamp, health, workspace_root_count, workspace_roots_ok/warning/error, attention_badges, mic_available, and active_turn_state.",
+        "WebSocket updates can change health, latest preview, attention badges, mic availability, and active-turn state for one contact without replacing unrelated contacts.",
+        "Latest preview is server-sanitized and redacted; tool JSON, secrets, raw logs, raw config, and raw paths are absent from JSON and Flutter row widgets.",
+        "Flutter contact-list tests render a flat profile list with server chips, deterministic avatars, attention badges, workspace counts, disabled offline/unauthorized mic affordances, and local pin ordering that does not affect server data."
+      ],
+      "note": "Partial 2026-05-16: shipped the fixture-backed Flutter profiles-as-contacts shell as the UI precursor to the server-authoritative profile contact API. Navivox channel state now carries profile contacts keyed by server_id + profile_id; /chats renders a flat multi-server contact list with deterministic avatars, server chips, health/badge/workspace/mic indicators, add/profile-detail placeholders, and profile tap routing into scoped chat. Chat turns include the selected server_id/profile_id in gateway metadata, and existing connect-and-talk e2e now selects the default profile before sending. Remaining for this row: real HTTP snapshot endpoint and WebSocket contact updates from Gormes.",
+      "write_scope": [
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/profile_contacts_test.go",
+        "internal/doctor/doctor_profiles.go",
+        "cmd/gormes/profile.go",
+        "flutter-navivox/app/lib/core/gateway/navivox_gateway_protocol.dart",
+        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+        "flutter-navivox/app/lib/features/chat/",
+        "flutter-navivox/app/lib/features/servers/",
+        "flutter-navivox/app/test/core/channel/gateway_navivox_channel_test.dart",
+        "flutter-navivox/app/test/features/chat/profile_contact_list_test.dart",
+        "flutter-navivox/navivox-ui-design.md",
+        "flutter-navivox/navivox-chat-ui-research.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/navivox ./internal/doctor ./cmd/gormes -run 'Test.*Navivox.*Contact|Test.*Profile|TestDoctorProfiles' -count=1",
+        "sh -c 'cd flutter-navivox/app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat/profile_contact_list_test.dart'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Navivox can load and update a flat, safe profile-contact list from Gormes without leaking secrets or raw paths, and visual chat polish has a stable contact model to build on."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16",
+        "note": "Decision from 2026-05-16 grill pass: profile contacts are `server + profile_id`; Gormes profiles are isolated homes, while pins, aliases, command word, calibration, and server trust are local Navivox metadata."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 3,
+    "item": {
+      "name": "Navivox continuous voice command mode",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Implement the first continuous voice mode as a local Navivox app mode pointed at one active trusted `server + profile` contact. The row mic starts device STT when mic permission and per-server local trust exist; transcripts auto-send as voice-marked user bubbles with a short visible `Sending...` grace window. The command word defaults to `navi`, is locally configurable and optionally calibrated, is recognized only at utterance start while voice mode is open, and drives local commands before text reaches Gormes: direct `navi <profile>`, `navi cancel`, `navi stop`, `navi settings`, `navi help`, plus a five-second command mode when the word is spoken alone. `navi cancel` follows the voice-turn lifecycle: discard before server commit, request cancel/stop when supported after commit, and never claim side effects were undone.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "When device STT, mic permission, server trust, or gateway cancellation is unavailable, typed chat remains usable; mic affordances show disabled reasons, command mode stays local, and post-commit cancellation degrades to stopped/cannot-undo evidence instead of deleting history.",
+      "fixture": "flutter-navivox/app/test/features/voice/continuous_voice_command_mode_test.dart",
+      "source_refs": [
+        "flutter-navivox/navivox-ui-design.md:2.5",
+        "flutter-navivox/navivox-chat-ui-research.md:9",
+        "internal/channels/navivox/channel.go:handleTurn",
+        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+        "flutter-navivox/app/lib/features/chat/"
+      ],
+      "ready_when": [
+        "`Navivox profile contact summary API` has landed so voice mode has a stable active `server + profile` contact and mic availability.",
+        "`Navivox connect-and-talk first screen` has landed so text turns over HTTP/WS are proven.",
+        "Local Settings can store app-only voice settings without changing server profile config."
+      ],
+      "not_ready_when": [
+        "The slice implements always-listening background wake-word detection.",
+        "The slice sends recognized local command utterances to Gormes as chat content.",
+        "The slice lets voice commands approve tools, edit workspace roots, or mutate profile/server config.",
+        "The slice silently deletes or rewrites a turn after Gormes has committed it.",
+        "The slice requires BYO STT/TTS providers, telephony, TDLib, MTProto, Firebase, campaigns, scheduling, retries, or human handoff."
+      ],
+      "blocked_by": [
+        "Navivox profile contact summary API",
+        "Navivox connect-and-talk first screen"
+      ],
+      "unblocks": [
+        "Navivox voice run records"
+      ],
+      "acceptance": [
+        "Row mic starts global continuous voice only for trusted healthy servers; offline, unauthorized, untrusted, or globally disabled voice states show disabled reasons and leave typed chat unaffected.",
+        "Device STT creates voice-marked user bubbles, auto-sends after a visible grace window, and supports cancelling before server commit without creating Gormes history.",
+        "Local command tests cover command word alone entering command mode, direct profile switching by exact unique match, duplicate disambiguation, `navi cancel`, `navi stop`, `navi settings`, `navi help`, timeout discard, and disabled voice switching.",
+        "Typed `navi <profile>` is recognized only on chat composer submit; search/settings/config fields treat the same text as ordinary input.",
+        "After server commit, cancel/stop leaves visible cancelled/stopped/cannot-undo state and never hides that a tool side effect may have started."
+      ],
+      "write_scope": [
+        "flutter-navivox/app/lib/features/chat/",
+        "flutter-navivox/app/lib/features/settings/",
+        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+        "flutter-navivox/app/lib/core/gateway/navivox_gateway_protocol.dart",
+        "flutter-navivox/app/test/features/voice/continuous_voice_command_mode_test.dart",
+        "flutter-navivox/app/test/features/chat/",
+        "flutter-navivox/app/test/features/settings/",
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/channel_test.go",
+        "flutter-navivox/navivox-ui-design.md",
+        "flutter-navivox/navivox-chat-ui-research.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "sh -c 'cd flutter-navivox/app && flutter test test/features/voice/continuous_voice_command_mode_test.dart test/features/chat test/features/settings'",
+        "go test ./internal/channels/navivox -run 'Test.*Navivox.*Turn|Test.*Cancel|Test.*Stop' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "A trusted profile contact can be opened in continuous voice, local command-word commands route deterministically inside Navivox, auto-sent voice turns have a real cancellation lifecycle, and typed chat remains available."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16",
+        "note": "Decision from 2026-05-16 grill pass: command word defaults to navi but is local/customizable; calibration is local/resettable; voice switching is global app setting; no always-listening mode or voice approvals in first version."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 4,
+    "item": {
+      "name": "Navivox Telegram-inspired chat polish",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "After the connect-and-talk loop and profile contact summary API work, make Navivox feel like a polished Telegram-inspired operator client without changing the Gormes HTTP/WS backend. Render a flat profile-contact list with deterministic avatar, display name, small server label, sanitized latest preview, timestamp, health, attention badges, workspace counts, and mic availability; render the profile chat screen with grouped Telegram-style bubbles, compact timestamps, local send/queued/streaming/done/error ticks, a pinned redacted server/profile/trust banner, always-reachable composer, and a global continuous-voice bar when active. Use Telegram-like draggable sheets for profile/server/action/tool detail flows. Evaluate `v_chat_bubbles` as the bubble renderer (`VBubbleStyle.telegram`, `VCustomBubble` for ToolCallCard, performance config for long transcripts) but fall back to local widgets if the package fails accessibility, theming, performance, or dependency review. This row is visual/interaction polish only: no TDLib, MTProto, Firebase chat backend, Telegram login, telephony, campaigns, or call-center scope.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "If `v_chat_bubbles` is unsuitable, Navivox keeps the current simple adapter and implements only local Telegram-like preview tiles, grouped bubbles, status ticks, and sheets. Text chat, tool cards, and voice transcript fallback remain usable.",
+      "fixture": "flutter-navivox/app/test/features/chat/navivox_telegram_polish_test.dart",
+      "source_refs": [
+        "flutter-navivox/navivox-chat-ui-research.md:2",
+        "flutter-navivox/navivox-ui-design.md:2.1",
+        "https://pub.dev/packages/v_chat_bubbles",
+        "https://docs.flutter.dev/ui/design/material",
+        "https://api.flutter.dev/flutter/widgets/DraggableScrollableSheet-class.html",
+        "https://github.com/tdlib/td",
+        "https://github.com/babakcode/flutter_chat"
+      ],
+      "ready_when": [
+        "`Navivox connect-and-talk first screen` has landed and provides a live chat fixture.",
+        "`Navivox profile contact summary API` has landed so the list uses server-authoritative profile contacts, not mocks.",
+        "The UI docs classify Telegram/TDLib references as rendering/lifecycle inspiration only, not backend dependencies.",
+        "The package/dependency review for `v_chat_bubbles` can be performed without blocking text chat."
+      ],
+      "not_ready_when": [
+        "The slice adds Telegram account login, MTProto, TDLib, Firebase Firestore, or another chat backend.",
+        "The slice makes `v_chat_bubbles` mandatory before proving it can render ToolCallCard as a custom bubble.",
+        "The slice hides gateway status, auth mode, token-required state, or redaction evidence in favor of decorative chat styling.",
+        "The slice introduces telephony, campaigns, scheduling, retries, or human handoff."
+      ],
+      "blocked_by": [
+        "Navivox connect-and-talk first screen",
+        "Navivox profile contact summary API"
+      ],
+      "acceptance": [
+        "Chat list previews show profile avatar, display name, server label, sanitized latest preview, timestamp, health/auth status, attention badges, workspace counts, and mic availability.",
+        "Chat bubbles are grouped by author and time gap, have compact timestamps and local delivery-state ticks, and update one assistant bubble during streaming.",
+        "ToolCallCard remains a structured custom bubble or local widget with redaction, status, and expandable details; tool output is not rendered as assistant prose.",
+        "Profile/server/action/tool detail panels use `DraggableScrollableSheet` or a tested desktop side-panel equivalent.",
+        "Mobile uses Material 3 `NavigationBar` with Chats, Servers, and Settings; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage.",
+        "A package gate documents whether `v_chat_bubbles` was adopted or rejected, including accessibility, theming, performance, license, and dependency findings."
+      ],
+      "write_scope": [
+        "flutter-navivox/app/pubspec.yaml",
+        "flutter-navivox/app/lib/features/chat/",
+        "flutter-navivox/app/lib/features/servers/",
+        "flutter-navivox/app/lib/shared/widgets/",
+        "flutter-navivox/app/test/features/chat/",
+        "flutter-navivox/app/test/features/servers/",
+        "flutter-navivox/navivox-chat-ui-research.md",
+        "flutter-navivox/navivox-ui-design.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "sh -c 'cd flutter-navivox/app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Navivox opens to a Telegram-inspired chat list and chat surface that is visually polished, operationally useful, and still backed only by the Gormes HTTP/WS gateway."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16",
+        "note": "User-supplied Telegram-style reference pass: use Telware/telega2/babakcode-style lessons for visual density and interaction design, verify third-party sources before dependency adoption, and keep Navivox Gormes-owned rather than becoming a Telegram client."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 5,
+    "item": {
+      "name": "Navivox natural-language profile seed flow",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add a Navivox and CLI/API profile creation path that accepts a short natural-language seed such as `screen inbound leads`, `triage support calls`, or `work on mineru repo`, creates an editable Gormes profile draft, and pre-populates safe defaults for profile_id, display_name, instructions, provider/model setup, tool policy, voice profile metadata, and workspace root labels/purposes. The generation may use a provider when configured, but must degrade to deterministic templates when no provider is available so first-run remains usable. Workspace paths are never granted silently; the operator must explicitly enter or confirm each path and Gormes validates/canonicalizes it server-side.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Without a model/provider, seed creation uses a deterministic local template and marks generation_source=template; invalid or risky seeds are rejected with redacted typed evidence and do not mutate profile config or workspace roots.",
+      "fixture": "cmd/gormes/profile_seed_test.go",
+      "source_refs": [
+        "cmd/gormes/profile.go",
+        "internal/cli/profile_create.go",
+        "cmd/gormes/setup.go:runSetupProfilesInteractive",
+        "internal/cli/profile_root.go",
+        "flutter-navivox/navivox-ui-design.md:2.8",
+        "flutter-navivox/navivox-chat-ui-research.md:10",
+        "https://docs.dograh.com/core-concepts/workflows-and-agents"
+      ],
+      "ready_when": [
+        "`Navivox profile contact summary API` has landed so newly seeded profiles can appear as contacts immediately.",
+        "Existing `gormes profile` create/list/show/use behavior remains green and must not be replaced.",
+        "The design preserves Gormes' server-authoritative config model; the Flutter app requests creation and renders/edit drafts, it does not write TOML."
+      ],
+      "not_ready_when": [
+        "The slice creates a Dograh-style workflow graph engine or OpenClaw-style live multi-agent router instead of a Gormes profile draft.",
+        "The slice writes raw provider output directly to config without validation.",
+        "The slice grants workspace paths inferred from the seed without explicit operator confirmation.",
+        "The slice adds campaigns, bulk outbound calls, telephony transfer, or call-center scheduling."
+      ],
+      "blocked_by": [
+        "Navivox profile contact summary API"
+      ],
+      "unblocks": [
+        "Navivox per-profile BYO voice profiles"
+      ],
+      "acceptance": [
+        "`gormes profile seed \"work on mineru repo\" --json --dry-run` returns a redacted draft with profile_id, display_name, instructions, provider_model_state, workspace_root_suggestions, tool_policy, voice_profile_metadata, and generation_source without filesystem mutation.",
+        "`gormes profile seed \"work on mineru repo\" --apply --json` creates or updates only the selected profile home after validation, without shadowing existing profile ids or granting unconfirmed workspace paths.",
+        "Navivox profile creation exposes Create from seed, renders editable fields, requires explicit workspace path entry/confirmation, and shows the new profile as a contact when applied.",
+        "Provider-backed generation passes through validation and records generation_source=model; provider-unconfigured path records generation_source=template."
+      ],
+      "write_scope": [
+        "cmd/gormes/profile.go",
+        "cmd/gormes/profile_seed_test.go",
+        "internal/profileseed/",
+        "internal/cli/profile_create.go",
+        "internal/cli/profile_create_test.go",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_profiles_test.go",
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/channel_test.go",
+        "flutter-navivox/app/lib/features/chat/",
+        "flutter-navivox/app/lib/features/profiles/",
+        "flutter-navivox/app/test/features/chat/",
+        "flutter-navivox/app/test/features/profiles/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestProfileSeed|TestProfileCreate|TestSetupProfiles' -count=1",
+        "go test ./internal/profileseed ./internal/cli -run 'Test.*Profile.*Seed|Test.*Profile.*Create' -count=1",
+        "sh -c 'cd flutter-navivox/app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "A short use-case seed can create a validated editable Gormes profile draft, show it as a Navivox contact, and send the first chat turn against it without telephony or unconfirmed workspace access."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 6,
+    "item": {
+      "name": "Navivox structured tool event cards",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Promote Navivox tool progress from plain text messages into structured HTTP/WS events that the Flutter app renders as durable ToolCallCard UI objects with status, summary, approval state, and artifact references. Existing Telegram/Discord/Slack text progress remains unchanged; Navivox implements an optional structured-progress channel capability so tool output never appears as assistant prose or raw logs in chat.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If a channel lacks structured tool progress, gateway falls back to existing bounded text progress; if Navivox receives malformed tool metadata, it renders redacted error evidence inside a tool card instead of assistant text.",
+      "fixture": "internal/channels/navivox/tool_events_test.go",
+      "source_refs": [
+        "internal/gateway/channel.go",
+        "internal/gateway/manager.go:dispatchToolProgress",
+        "internal/gateway/render.go:FormatToolProgressPlainMode",
+        "internal/channels/navivox/channel.go:ServerEvent",
+        "flutter-navivox/app/lib/core/protocol/navivox_event.dart:NavivoxToolCall",
+        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall",
+        "flutter-navivox/app/lib/features/chat/widgets/simple_chat_adapter.dart:_ToolCallBody"
+      ],
+      "ready_when": [
+        "`Navivox connect-and-talk first screen` has landed so a streaming chat fixture exists.",
+        "The gateway manager already has render-frame tool progress and channel-neutral fallback behavior.",
+        "Flutter already has a basic NavivoxToolCall model and ToolCall body renderer to extend."
+      ],
+      "not_ready_when": [
+        "The slice removes existing text tool progress for other gateway channels.",
+        "The slice serializes raw tool arguments, raw stdout, secrets, or full logs into Navivox events.",
+        "The slice buries tool progress in assistant text instead of distinct message objects."
+      ],
+      "blocked_by": [
+        "Navivox connect-and-talk first screen"
+      ],
+      "acceptance": [
+        "A Go gateway fixture emits tool start/update/finish/failure events through Navivox as `tool_call_started`, `tool_call_updated`, and `tool_call_finished` with stable ids and redacted metadata.",
+        "Flutter GatewayNavivoxChannel upserts a single ToolCall message per tool_call_id and never creates assistant text for tool events.",
+        "Artifacts in event metadata render as bounded attachment rows with id/kind/title/summary/ref; oversized or unsafe fields are truncated/redacted.",
+        "Existing non-Navivox gateway tests for FormatToolProgressPlain/Telegram continue to pass."
+      ],
+      "write_scope": [
+        "internal/gateway/channel.go",
+        "internal/gateway/manager.go",
+        "internal/gateway/manager_test.go",
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/channel_test.go",
+        "internal/channels/navivox/tool_events_test.go",
+        "flutter-navivox/app/lib/core/gateway/navivox_gateway_protocol.dart",
+        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+        "flutter-navivox/app/lib/core/protocol/navivox_event.dart",
+        "flutter-navivox/app/lib/features/chat/widgets/simple_chat_adapter.dart",
+        "flutter-navivox/app/test/core/channel/gateway_navivox_channel_test.dart",
+        "flutter-navivox/app/test/features/chat/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/navivox ./internal/gateway -run 'Test.*Tool.*Progress|Test.*Navivox.*Tool' -count=1",
+        "sh -c 'cd flutter-navivox/app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Navivox renders tool calls as cards with status and artifacts, while all existing gateway text-progress behavior for other channels remains green."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 7,
+    "item": {
+      "name": "Navivox safe config admin over HTTP",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Implement the Navivox config admin loop over the HTTP/WS gateway: schema, redacted get, diff, validate, apply, reload-or-pending-restart. Gormes remains the source of truth and performs all validation/writes; Flutter renders schema-driven controls, secret status/actions, and exact non-secret before/after confirmation without ever editing config.toml or .env directly.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "When config validation fails, Navivox shows typed field errors and keeps the last-good server config active; secret values are never returned, logged, or echoed, only status/source/redacted evidence.",
+      "fixture": "internal/channels/navivox/config_admin_test.go",
+      "source_refs": [
+        "flutter-navivox/navivox-decision-record.md:141",
+        "internal/config/writer.go",
+        "cmd/gormes/config.go",
+        "internal/gateway/config_reload.go",
+        "internal/channels/navivox/channel.go:Handler",
+        "flutter-navivox/app/lib/features/config/screens/config_screen.dart",
+        "flutter-navivox/app/test/features/config/config_screen_test.dart"
+      ],
+      "ready_when": [
+        "`Navivox HTTP/WS documentation refresh` has landed so config admin docs describe HTTP/WS events, not stdio frames.",
+        "`Navivox connect-and-talk first screen` has landed so the app has a live authenticated gateway connection.",
+        "The config schema must be generated from Gormes config metadata or a typed allowlist; no free-form TOML editor."
+      ],
+      "not_ready_when": [
+        "The slice exposes raw secret values through config.get, WebSocket events, logs, or Flutter state.",
+        "The slice lets Flutter write config.toml or .env directly.",
+        "The slice applies provider/gateway changes without validation, confirmation, or reload/pending-restart evidence."
+      ],
+      "blocked_by": [
+        "Navivox HTTP/WS documentation refresh",
+        "Navivox connect-and-talk first screen"
+      ],
+      "unblocks": [
+        "Navivox per-profile BYO voice profiles"
+      ],
+      "acceptance": [
+        "HTTP or WS handlers expose config.schema, redacted config.get, config.diff, config.validate, config.apply, and config.reload/pending_restart results with authenticated requests only.",
+        "Secret fields render as set/rotate/delete/test actions and status/source evidence; tests prove the configured secret value never appears in JSON, logs, stdout, or Flutter widgets.",
+        "A validation failure returns field-scoped errors and does not mutate the on-disk config.",
+        "A successful non-secret change writes via existing config writer paths and reloads gateway config when possible, otherwise returns pending_restart=true."
+      ],
+      "write_scope": [
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/config_admin.go",
+        "internal/channels/navivox/config_admin_test.go",
+        "internal/config/",
+        "internal/gateway/config_reload.go",
+        "flutter-navivox/app/lib/core/channel/navivox_channel.dart",
+        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
+        "flutter-navivox/app/lib/features/config/",
+        "flutter-navivox/app/test/features/config/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/navivox ./internal/config ./internal/gateway -run 'Test.*Config.*Admin|Test.*Navivox.*Config|Test.*ConfigReload' -count=1",
+        "sh -c 'cd flutter-navivox/app && flutter test test/features/config'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Navivox can edit safe config through schema/diff/validate/apply/reload, secret values stay write-only, and direct TOML/env editing remains out of scope."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 8,
+    "item": {
+      "name": "Navivox voice run records",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Define durable voice-aware run records for Navivox turns: text transcript, voice transcript, device/server STT evidence, TTS output metadata, tool events, provider usage/cost, attachment/artifact refs, and terminal status. The API/gateway read model must let Navivox inspect a run after the call-like test turn ends, similar to Dograh's run/transcript concept, without introducing telephony campaigns or phone recordings.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If audio bytes, STT, TTS, or usage data are unavailable, the run record stores explicit unavailable evidence and preserves the text transcript/tool timeline instead of dropping the run or faking costs.",
+      "fixture": "internal/session/navivox_run_record_test.go",
+      "source_refs": [
+        "internal/apiserver/runs.go:runRecord",
+        "internal/session/",
+        "internal/store/recording.go",
+        "cmd/gormes/session.go",
+        "internal/channels/navivox/channel.go:sessionState",
+        "flutter-navivox/app/lib/core/protocol/navivox_event.dart:NavivoxVoiceMessage",
+        "https://docs.dograh.com/core-concepts/how-dograh-works"
+      ],
+      "ready_when": [
+        "`Navivox connect-and-talk first screen` has landed and produces session ids for normal turns.",
+        "`Navivox continuous voice command mode` has landed or its cancellation lifecycle contract is explicit.",
+        "`Navivox structured tool event cards` is at least planned so tool timeline data has a typed event shape.",
+        "The row uses existing session/store/apiserver surfaces where possible instead of creating a side database."
+      ],
+      "not_ready_when": [
+        "The slice stores raw audio by default without an explicit retention policy.",
+        "The slice adds outbound campaigns, phone numbers, retries, scheduling, or human transfer.",
+        "The slice reports fake token cost when provider usage is absent."
+      ],
+      "blocked_by": [
+        "Navivox connect-and-talk first screen",
+        "Navivox continuous voice command mode"
+      ],
+      "unblocks": [
+        "Navivox per-profile BYO voice profiles"
+      ],
+      "acceptance": [
+        "A fake Navivox text turn produces a durable run record with transcript, status, timestamps, session id, and provider usage when available.",
+        "A fake Navivox voice turn records device transcript, optional server STT evidence, audio duration/codec metadata, and TTS metadata without persisting raw audio unless explicitly configured.",
+        "Tool events appear in the run timeline as typed entries, not assistant prose.",
+        "A run inspection endpoint or command returns redacted JSON suitable for the Navivox UI."
+      ],
+      "write_scope": [
+        "internal/session/",
+        "internal/store/",
+        "internal/apiserver/runs.go",
+        "internal/apiserver/responses_runs_test.go",
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/channel_test.go",
+        "cmd/gormes/session.go",
+        "cmd/gormes/session_test.go",
+        "flutter-navivox/app/lib/core/protocol/navivox_event.dart",
+        "flutter-navivox/app/lib/features/chat/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/session ./internal/store ./internal/apiserver ./internal/channels/navivox -run 'Test.*Navivox.*Run|Test.*Voice.*Run|Test.*RunRecord' -count=1",
+        "go test ./cmd/gormes -run 'TestSession.*Run|TestNavivox.*Run' -count=1",
+        "sh -c 'cd flutter-navivox/app && flutter test test/features/chat'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Text and voice Navivox turns produce durable redacted run records with transcript, tool timeline, STT/TTS evidence, and provider usage without telephony scope."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 9,
+    "item": {
+      "name": "Navivox per-profile BYO voice profiles",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add per-profile voice metadata that lets operators choose STT/TTS providers, voice id, language policy, fallback voice, and safe provider credentials through Gormes config/admin surfaces. Navivox renders voice metadata on profile create/edit and sends voice turns using the active profile; Gormes resolves BYO STT/TTS providers from existing provider matrices and write-only secret references. Local microphone behavior, command word, calibration, auto-send, aliases, and pins remain Navivox app settings, not server profile config.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "When a requested STT/TTS provider is unavailable, Gormes records provider_unavailable evidence, falls back according to the profile policy, and keeps text chat usable; secrets remain redacted/write-only.",
+      "fixture": "internal/config/profile_voice_profile_test.go",
+      "source_refs": [
+        "cmd/gormes/profile.go",
+        "internal/cli/profile_root.go",
+        "internal/config/config.go:STTCfg",
+        "internal/config/config.go:VoiceCfg",
+        "internal/tools/tts_providers.go:BuiltinTTSProviderNames",
+        "internal/tools/transcription_providers.go",
+        "cmd/gormes/registry_audio.go",
+        "flutter-navivox/navivox-decision-record.md:120",
+        "flutter-navivox/navivox-ui-design.md:2.8"
+      ],
+      "ready_when": [
+        "`Navivox natural-language profile seed flow` has landed so profiles have editable draft metadata.",
+        "`Navivox safe config admin over HTTP` has landed so provider/secret changes use server-side validation and write-only secrets.",
+        "`Navivox voice run records` has landed or is in progress so STT/TTS evidence can be audited."
+      ],
+      "not_ready_when": [
+        "The slice stores provider API keys directly in profile metadata or Flutter state.",
+        "The slice hardcodes one vendor voice path instead of reusing existing STT/TTS provider matrices.",
+        "The slice makes voice mandatory for text chat or first-run connect-and-talk.",
+        "The slice stores local command word, calibration, pins, aliases, or trusted-server state in server profile config."
+      ],
+      "blocked_by": [
+        "Navivox natural-language profile seed flow",
+        "Navivox safe config admin over HTTP",
+        "Navivox voice run records"
+      ],
+      "acceptance": [
+        "Profile metadata supports a voice_profile with stt_provider, tts_provider, voice_id, language_policy, fallback_voice, and credential status refs.",
+        "Validation rejects unknown providers and accepts configured local/cloud providers using the existing TTS/STT provider matrices.",
+        "Navivox profile create/edit UI can set and display voice profile fields without reading secret values.",
+        "A fake voice turn proves Gormes resolves the selected profile and records fallback evidence when the primary provider is unavailable."
+      ],
+      "write_scope": [
+        "cmd/gormes/profile.go",
+        "internal/cli/profile_root.go",
+        "internal/config/profile_voice_profile_test.go",
+        "internal/tools/tts_providers.go",
+        "internal/tools/transcription_providers.go",
+        "cmd/gormes/registry_audio.go",
+        "internal/channels/navivox/channel.go",
+        "internal/channels/navivox/channel_test.go",
+        "flutter-navivox/app/lib/features/profiles/",
+        "flutter-navivox/app/lib/features/config/",
+        "flutter-navivox/app/test/features/profiles/",
+        "flutter-navivox/app/test/features/config/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config ./internal/tools ./cmd/gormes ./internal/channels/navivox -run 'Test.*VoiceProfile|Test.*TTS|Test.*Transcription|Test.*Navivox.*Voice' -count=1",
+        "sh -c 'cd flutter-navivox/app && flutter test test/features/profiles test/features/config test/features/voice'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Each Navivox/Gormes profile can carry safe editable BYO STT/TTS voice metadata, voice turns resolve through it, local app voice settings stay local, and text chat remains usable when voice providers degrade."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-16"
+      }
+    }
+  }
+]

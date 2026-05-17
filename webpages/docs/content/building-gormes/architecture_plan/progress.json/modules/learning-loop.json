@@ -1,0 +1,260 @@
+[
+  {
+    "phase": "6",
+    "subphase": "6.A",
+    "pos": 0,
+    "item": {
+      "name": "Hermes background review fork lifecycle",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "After turns that trigger memory or skill review, Gormes can launch a quiet background review fork that inherits the active runtime credentials, runs only memory and skills toolsets, writes to shared stores without mutating parent history, emits one attributed self-improvement summary, and always cleans up approval callbacks and memory providers",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "learning-loop",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Learning-loop status reports background_review_unavailable, background_review_runtime_unavailable, background_review_denied_toolset, or background_review_cleanup_failed instead of running a full-tool child agent silently.",
+      "fixture": "internal/hermes/background_review_test.go",
+      "source_refs": [
+        "./hermes-agent/run_agent.py@b816fd4e2:AIAgent._spawn_background_review",
+        "./hermes-agent/run_agent.py@b816fd4e2:AIAgent._summarize_background_review_actions",
+        "./hermes-agent/tests/run_agent/test_background_review.py@b816fd4e2",
+        "./hermes-agent/tests/run_agent/test_background_review_summary.py@b816fd4e2",
+        "./hermes-agent/tests/run_agent/test_background_review_toolset_restriction.py@b816fd4e2",
+        "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@b816fd4e2",
+        "internal/subagent/background_review_toolset.go",
+        "internal/hermes/guidance_constants.go",
+        "internal/tools/skill_manager.go"
+      ],
+      "ready_when": [
+        "Background review toolset restriction is validated, so the review fork can be memory+skills-only from construction.",
+        "Native skills list/view tool surface and Hermes skill_manage support-file and curator intent actions are validated, so the review fork can inspect and mutate skills without a Python subprocess.",
+        "Tests can use fake review runners and fake stores; no live provider, Telegram, gateway, or shell command is required."
+      ],
+      "not_ready_when": [
+        "The slice grants terminal, browser, file-write outside skill_manage, provider-management, or foreground subagent toolsets to the background fork.",
+        "The slice re-resolves credentials from environment variables instead of inheriting the active runtime binding.",
+        "The slice mutates parent conversation history or re-surfaces stale tool messages from the inherited transcript as new review actions."
+      ],
+      "blocked_by": [
+        "Background review toolset restriction",
+        "Native skills list/view tool surface",
+        "Hermes skill_manage support-file and curator intent actions"
+      ],
+      "unblocks": [
+        "Hermes curator state transitions and run reports",
+        "Hermes curator command surface"
+      ],
+      "acceptance": [
+        "TestBackgroundReviewFork_InheritsActiveRuntime proves provider, model, api_mode, base_url, api_key, credential pool, platform, parent_session_id, and memory store flags are copied from the active parent into the fake review worker.",
+        "TestBackgroundReviewFork_RestrictsTools proves the worker receives only memory and skills toolsets and denies terminal, browser, execute_code, network, file_write, and provider-management toolsets with background_review_toolset evidence.",
+        "TestBackgroundReviewFork_SkipsPriorToolMessages proves summaries ignore tool messages already present in the inherited transcript and only report successful review-tool actions from the fork.",
+        "TestBackgroundReviewFork_EmitsAttributedSummary proves CLI/gateway callbacks receive exactly one `Self-improvement review` summary when memory or skills were updated.",
+        "TestBackgroundReviewFork_Cleanup proves approval callbacks are auto-deny during the run, cleared after the run, and memory providers are shutdown before close."
+      ],
+      "note": "Hermes v0.12.0 made the after-turn self-improvement review concrete: it forks an AIAgent with the active runtime binding, memory+skills toolsets, auto-deny approvals, parent session attribution, prompt-history isolation, and explicit `Self-improvement review` user-facing summaries. Gormes already has the toolset-restriction policy; this row wires the lifecycle without adding curator scheduling yet. Completed 2026-05-06 with RED evidence from `go test ./internal/hermes -run TestBackgroundReviewFork -count=1` failing on missing background review lifecycle types, then GREEN evidence from the focused Hermes slice and the row package commands.",
+      "write_scope": [
+        "internal/hermes/background_review.go",
+        "internal/hermes/background_review_test.go",
+        "internal/subagent/background_review_toolset.go",
+        "internal/tools/skill_manager.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/hermes ./internal/subagent ./internal/tools -run 'TestBackgroundReviewFork|TestBackgroundReviewToolsetRestriction|TestSkillManager' -count=1",
+        "go test ./internal/hermes ./internal/subagent ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Background review fixtures prove runtime inheritance, memory+skills-only tools, prompt-history isolation, attributed summaries, auto-deny approval behavior, and cleanup without live model calls."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:b816fd4e2 run_agent.py",
+        "note": "Hermes owns the background review lifecycle contract; Gormes ports it through Go-native review runners and existing memory/skills tool surfaces."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.E",
+    "pos": 3,
+    "item": {
+      "name": "Hermes review prompt transient-environment guard",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes' native curator review prompt must preserve Hermes' current class-first learning guard: background review may capture durable reusable fixes, but must not create or harden skills from transient setup failures, post-migration path mismatches, missing binaries, unconfigured credentials, negative tool capability claims, resolved session-specific errors, or one-off task narratives.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "learning-loop",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without this guard, a temporary local setup failure such as a missing browser dependency can become a durable self-cited skill constraint that keeps Gormes refusing a working tool after the environment is repaired.",
+      "fixture": "internal/skills/curator_test.go::TestCuratorPromptTransientEnvironmentGuard",
+      "source_refs": [
+        "./hermes-agent/run_agent.py@e5af1dd63:_SKILL_REVIEW_PROMPT transient environment Do NOT capture section",
+        "./hermes-agent/run_agent.py@e5af1dd63:_COMBINED_REVIEW_PROMPT transient environment Do NOT capture section",
+        "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@e5af1dd63",
+        "internal/skills/curator.go:curatorPrompt",
+        "internal/skills/curator_test.go"
+      ],
+      "ready_when": [
+        "Hermes curator state transitions and run reports plus native curator prompt plumbing are complete/validated.",
+        "The slice can assert the prompt string passed to the injected CuratorReviewer; no live LLM, gateway, network, home-directory state, or tool execution is required.",
+        "The in-repo Hermes source is refreshed to 44cdf555a and includes e5af1dd63's transient-environment review prompt regression tests."
+      ],
+      "not_ready_when": [
+        "The slice changes skill archive/restore/classification behavior, curator scheduling, usage scoring, or live reviewer model calls.",
+        "The prompt forbids all negative feedback instead of only forbidding durable capture of transient environment failures and unsupported tool claims.",
+        "The row is used to implement broader Skill effectiveness scoring or another learning-loop umbrella behavior."
+      ],
+      "acceptance": [
+        "TestCuratorPromptTransientEnvironmentGuard fails while curatorPrompt lacks a Do NOT capture section for transient environment failures and passes after the injected CuratorReviewer receives the guard text.",
+        "The prompt tells reviewers to capture durable setup fixes under existing setup/troubleshooting skills rather than standalone negative constraints such as a tool not working.",
+        "Existing curator state/run/rename summary tests remain green."
+      ],
+      "note": "Complete 2026-05-10: added and shipped by a bounded all-topic Hermes parity weakness sweep after refreshing Hermes to 44cdf555a and Honcho to e659b6b. Planned rows were 15, below the 90-row cap, so adding one source-backed P1 row was allowed. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current Codex Spark/model-catalog, Kanban slash help, stream-drop diagnostics, vision, user-story mirror, release trust, browser, install/runtime, and Goncho deltas are complete or row-backed; TD publication and broad release rows remain operator-gated or non-selectable. This row targeted the remaining learning-loop drift from Hermes e5af1dd63: background review must not turn transient environment failures into durable negative skills. TDD added a curator prompt fixture that failed on the one-line prompt, then expanded the native prompt with Do NOT capture guidance for environment-dependent failures, negative tool claims, resolved transient errors, one-off task narratives, and the positive rule to capture setup fixes instead of standalone tool-does-not-work constraints.",
+      "write_scope": [
+        "internal/skills/curator.go",
+        "internal/skills/curator_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/skills -run 'TestCuratorPromptTransientEnvironmentGuard|TestCuratorRun' -count=1",
+        "go test ./internal/skills -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Curator prompt fixtures prove Gormes preserves Hermes' transient-environment learning guard without changing curator state, archive, scheduling, or live reviewer behavior."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:e5af1dd63 run_agent.py + tests/run_agent/test_review_prompt_class_first.py",
+        "note": "Hermes owns the class-first background-review prompt guard; Gormes ports the same durable-vs-transient boundary into the native curator prompt."
+      },
+      "blocked_by": [],
+      "evidence": {
+        "implementation": [
+          "internal/skills/curator.go: curatorPrompt now includes Hermes-compatible class-level review guidance and a transient-environment Do NOT capture section.",
+          "internal/skills/curator_test.go: TestCuratorPromptTransientEnvironmentGuard captures the injected CuratorReviewer prompt and checks the durable-vs-transient boundary."
+        ],
+        "verification": [
+          "RED: go test ./internal/skills -run TestCuratorPromptTransientEnvironmentGuard -count=1 failed because curatorPrompt was only the one-line native curator prompt.",
+          "GREEN: go test ./internal/skills -run TestCuratorPromptTransientEnvironmentGuard -count=1 passed after the guard text landed.",
+          "GREEN: go test ./internal/skills -run 'TestCuratorPromptTransientEnvironmentGuard|TestCuratorRun' -count=1 passed."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.K",
+    "pos": 0,
+    "item": {
+      "name": "Prompt evaluation harness",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "A harness that evaluates agent prompt/behavior variants against a set of test scenarios. Produces quantitative scores (task success, tool selection accuracy, response quality) for each variant. Enables data-driven prompt optimization without LLM-as-judge circularity.",
+      "contract_status": "validated",
+      "slice_size": "large",
+      "execution_owner": "orchestrator",
+      "module": "learning-loop",
+      "trust_class": [
+        "operator"
+      ],
+      "source_refs": [
+        "docs/content/papers/agentic-os-design.md",
+        "Hermes Agent GEPA engine (hermes-agent/agent/)",
+        "internal/hermes/prompt_evaluator.go",
+        "internal/hermes/eval_scenarios.go"
+      ],
+      "ready_when": [
+        "Agent loop is deterministic enough for reproducible evaluation",
+        "Test scenarios exist with known-good outcomes"
+      ],
+      "not_ready_when": [
+        "Agent loop is non-deterministic or cannot be replayed",
+        "No test scenario corpus available"
+      ],
+      "acceptance": [
+        "Harness runs agent with prompt variant N against M test scenarios",
+        "Produces per-scenario scores: task_success (bool), tool_accuracy (%), response_quality (1-5)",
+        "Aggregate score across all scenarios for variant comparison",
+        "Evaluation is deterministic (same variant + scenario = same score)",
+        "Harness runs <60s for 10 scenarios (fast enough for iterative optimization)"
+      ],
+      "note": "Complete: TDD expanded the prompt evaluator into a deterministic, variant-aware harness. `EvaluateVariant` runs one prompt variant against every scenario through an injected runner, records per-scenario task_success, tool_accuracy, response_quality on a 1-5 scale, error evidence, and aggregate scores, while `CompareVariants` returns deterministic aggregate ranking for prompt comparison. `DefaultPromptEvalScenarios` provides a 10-scenario local corpus covering file reads, code search, patching, tests, command safety, memory search/update, and doc refresh; focused tests prove replay determinism and sub-second execution without live LLM judging or provider calls.",
+      "write_scope": [
+        "internal/hermes/prompt_evaluator.go",
+        "internal/hermes/prompt_evaluator_test.go",
+        "internal/hermes/eval_scenarios.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/hermes -run TestPromptEvaluator -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Evaluator tests prove deterministic scoring of prompt variants against known scenarios"
+      ]
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.K",
+    "pos": 1,
+    "item": {
+      "name": "Iterative prompt mutation and scoring loop",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Given a base prompt and evaluation harness, automatically generate prompt variants (mutations), score them, and select the best. Iterate until convergence or budget. Mutations target: tool selection heuristics, response style, task decomposition strategies.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "learning-loop",
+      "trust_class": [
+        "operator"
+      ],
+      "source_refs": [
+        "docs/content/papers/agentic-os-design.md",
+        "Hermes Agent GEPA engine",
+        "internal/hermes/prompt_evaluator.go"
+      ],
+      "ready_when": [
+        "Prompt evaluation harness exists (6.K row 1)"
+      ],
+      "not_ready_when": [
+        "No evaluation harness to score variants"
+      ],
+      "acceptance": [
+        "Mutation generates N variants from base prompt",
+        "Each variant scored by evaluation harness",
+        "Best variant selected as next base for further mutation",
+        "Loop terminates when improvement < threshold or max iterations reached",
+        "Final best prompt is at least 10% better than base on aggregate score",
+        "Optimization does not require LLM API calls (uses harness scores)"
+      ],
+      "note": "Complete: TDD replaced placeholder word-deletion mutation with a deterministic GEPA-style optimizer. `GenerateVariants` creates bounded strategy mutations for exact tool selection, concrete response quality, task decomposition, and command safety. `OptimizeDetailed` scores every variant through the prompt evaluation harness, promotes the best variant as the next iteration base only when it clears the improvement threshold, records per-iteration candidates/evaluations/selected variant, and terminates with explicit converged, perfect_score, or budget_exhausted evidence. Focused tests prove N-variant generation, cumulative next-base improvement, at least 10% aggregate lift over the baseline, and convergence without LLM API calls.",
+      "write_scope": [
+        "internal/hermes/prompt_optimizer.go",
+        "internal/hermes/prompt_optimizer_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/hermes -run TestPromptOptimizer -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Optimizer tests prove mutation+scoring loop converges to measurably better prompt variants"
+      ]
+    }
+  }
+]
