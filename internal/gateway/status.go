@@ -48,6 +48,7 @@ type RuntimeStatus struct {
 	StartTime                 int64                                      `json:"start_time,omitempty"`
 	Generation                uint64                                     `json:"generation"`
 	BootGitSHA                string                                     `json:"boot_git_sha,omitempty"`
+	SourceRoot                string                                     `json:"source_root,omitempty"`
 	Command                   string                                     `json:"command,omitempty"`
 	Argv                      []string                                   `json:"argv,omitempty"`
 	ProcessValidation         RuntimeProcessValidation                   `json:"process_validation,omitempty"`
@@ -595,6 +596,11 @@ func (s *RuntimeStatusStore) applyStaleCodeEvidence(status RuntimeStatus, valida
 		return status
 	}
 	checker := s.staleCodeChecker
+	if sourceRoot := strings.TrimSpace(status.SourceRoot); sourceRoot != "" {
+		if checker == nil || strings.TrimSpace(checker.SourceRoot) != sourceRoot {
+			checker = NewStaleCodeChecker(sourceRoot)
+		}
+	}
 	if checker == nil {
 		checker = NewStaleCodeChecker(DefaultStaleCodeSourceRoot())
 	}
@@ -732,10 +738,18 @@ func runtimePIDRecordMismatch(status RuntimeStatus, pidRecord RuntimeStatus) str
 	return ""
 }
 
+func (s *RuntimeStatusStore) runtimeSourceRoot() string {
+	if s == nil || s.staleCodeChecker == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.staleCodeChecker.SourceRoot)
+}
+
 func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUpdate) {
 	status.Kind = runtimeStatusKind
 	status.PID = s.pid()
 	status.BootGitSHA = s.bootGitSHA
+	status.SourceRoot = s.runtimeSourceRoot()
 	status.StaleCode = nil
 	if startTime, ok := s.startTime(status.PID); ok {
 		status.StartTime = startTime
