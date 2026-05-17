@@ -611,6 +611,7 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	home := t.TempDir()
 	secret := "sk-openrouter-secret-7890"
 	t.Setenv("GORMES_HOME", home)
+	withOpenRouterModelCatalogFetcherForTest(t, openRouterModelCatalogOfflineForTest)
 	if err := config.WriteTOMLValue(config.ConfigPath(), "hermes.provider", "openrouter"); err != nil {
 		t.Fatalf("seed provider: %v", err)
 	}
@@ -665,6 +666,66 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	}
 	if !strings.Contains(string(envBody), "GORMES_API_KEY="+secret) {
 		t.Fatalf(".env missing API key entry:\n%s", string(envBody))
+	}
+}
+
+func TestSetupProviderOpenAICodexUsesOAuthFlow(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY: true,
+		current: cli.ProviderModel{
+			Provider: "openrouter",
+			Model:    "moonshotai/kimi-k2.6",
+		},
+		providerAuthStatus: cli.ProviderAuthStatus{
+			Provider:      "openai-codex",
+			AuthType:      "oauth_external",
+			Status:        cli.AuthStatusLoggedOut,
+			Authenticated: false,
+		},
+	}
+	fake.chooseSetupProvider = func(_ *cobra.Command, entries []cli.ProviderMenuEntry, _ int) (int, error) {
+		for i, entry := range entries {
+			if entry.ID == "openai-codex" {
+				return i, nil
+			}
+		}
+		t.Fatalf("provider menu missing openai-codex: %#v", entries)
+		return -1, nil
+	}
+	fake.runProviderAuth = func(_ *cobra.Command, provider string) error {
+		events = append(events, "auth:"+provider)
+		return nil
+	}
+	seams := fake.seams()
+	seams.RunActiveProviderModelPicker = func(_ *cobra.Command, current cli.ProviderModel) error {
+		events = append(events, "model:"+current.Provider)
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, seams, "6\n", "provider")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got, want := strings.Join(events, ","), "auth:openai-codex,model:openai-codex"; got != want {
+		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+	for _, want := range []string{
+		"Selected provider: OpenAI Codex",
+		"Not logged into OpenAI Codex. Starting login...",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "API key:") {
+		t.Fatalf("OpenAI Codex setup must not ask for an API key:\n%s", stdout)
+	}
+	if _, err := os.Stat(config.EnvPath()); !os.IsNotExist(err) {
+		t.Fatalf("Codex OAuth setup should not write GORMES_API_KEY env path %s: %v", config.EnvPath(), err)
 	}
 }
 
