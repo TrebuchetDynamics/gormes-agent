@@ -18,6 +18,10 @@ import (
 const (
 	defaultShortSummaryCadence = 20
 	defaultLongSummaryCadence  = 60
+
+	createMessagesLockRetryAttempts = 6
+	createMessagesLockRetryMin      = 20 * time.Millisecond
+	createMessagesLockRetryMax      = 150 * time.Millisecond
 )
 
 // Service is the first in-binary Goncho domain facade. It sits directly on
@@ -462,6 +466,28 @@ func (s *Service) CreateMessages(ctx context.Context, params CreateMessagesParam
 	if sessionKey == "" {
 		return CreateMessagesResult{}, fmt.Errorf("goncho: session_key is required")
 	}
+
+	var lastErr error
+	for attempt := 0; attempt < createMessagesLockRetryAttempts; attempt++ {
+		result, err := s.createMessagesOnce(ctx, sessionKey, params.Messages)
+		if err == nil {
+			return result, nil
+		}
+		if !isTransientSQLiteLockError(err) {
+			return CreateMessagesResult{}, err
+		}
+		lastErr = err
+		if attempt == createMessagesLockRetryAttempts-1 {
+			break
+		}
+		if err := waitCreateMessagesLockRetry(ctx, attempt); err != nil {
+			return CreateMessagesResult{}, fmt.Errorf("goncho: create messages retry canceled: %w; last error: %v", err, lastErr)
+		}
+	}
+	return CreateMessagesResult{}, lastErr
+}
+
+func (s *Service) createMessagesOnce(ctx context.Context, sessionKey string, inputs []CreateMessage) (CreateMessagesResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return CreateMessagesResult{}, fmt.Errorf("goncho: begin create messages: %w", err)
@@ -473,7 +499,7 @@ func (s *Service) CreateMessages(ctx context.Context, params CreateMessagesParam
 		}
 	}()
 
-	messages, err := createLifecycleMessages(ctx, tx, s.workspaceID, sessionKey, s.maxMessageSize, params.Messages)
+	messages, err := createLifecycleMessages(ctx, tx, s.workspaceID, sessionKey, s.maxMessageSize, inputs)
 	if err != nil {
 		return CreateMessagesResult{}, err
 	}
@@ -486,6 +512,37 @@ func (s *Service) CreateMessages(ctx context.Context, params CreateMessagesParam
 		SessionKey:  sessionKey,
 		Messages:    messages,
 	}, nil
+}
+
+func waitCreateMessagesLockRetry(ctx context.Context, attempt int) error {
+	timer := time.NewTimer(createMessagesLockRetryDelay(attempt))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func createMessagesLockRetryDelay(attempt int) time.Duration {
+	delay := createMessagesLockRetryMin * time.Duration(attempt+1)
+	if delay > createMessagesLockRetryMax {
+		return createMessagesLockRetryMax
+	}
+	return delay
+}
+
+func isTransientSQLiteLockError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "database is locked") ||
+		strings.Contains(msg, "database table is locked") ||
+		strings.Contains(msg, "database is busy") ||
+		strings.Contains(msg, "sqlite_busy") ||
+		strings.Contains(msg, "sqlite_locked")
 }
 
 func (s *Service) DeleteSession(ctx context.Context, sessionKey string) (SessionDeletionResult, error) {
