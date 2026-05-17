@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 94/110 subphases shipped · 16 in progress · 0 planned
+**Overall:** 93/110 subphases shipped · 17 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -102,7 +102,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -1407,11 +1407,16 @@ classification and row-backed implementation queue.
 - [x] `docs` TD engineering blog scaffolded and live
 - [ ] `docs` TD social presence connected to blog feed
 
-### 8.B — Repository Messaging ✅
+### 8.B — Repository Messaging 🔨
 
 - [x] `docs` README rewrite to methodology-first positioning
 - [x] `docs` README release and benchmark metadata sync
 - [x] `landing` gormes.ai landing page positioning audit
+- [x] `docs` Gormes market comparison positioning brief
+- [ ] `docs` Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents
+- [ ] `channels` Channel capability matrix with stable/fixture/planned labels
+- [ ] `learning-loop` Learning-loop proof demo for skills, memory, and curator
+- [ ] `install` No-stack first-run proof path from install to offline doctor
 
 ### 8.C — Engineering Writeups 🔨
 

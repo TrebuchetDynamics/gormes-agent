@@ -7,9 +7,9 @@ title: "Docs Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `docs`
-**Rows:** 11
-**Status counts:** `complete`: 7 · `in_progress`: 0 · `planned`: 4
-**Priority counts:** `P1`: 7 · `P2`: 2 · `P3`: 2
+**Rows:** 13
+**Status counts:** `complete`: 8 · `in_progress`: 0 · `planned`: 5
+**Priority counts:** `P1`: 9 · `P2`: 2 · `P3`: 2
 
 ## Phase 8 — Reputation & Publication
 
@@ -26,6 +26,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 |---|---|---|---|
 | `complete` | `P1` | `docs` | README rewrite to methodology-first positioning |
 | `complete` | `P1` | `docs` | README release and benchmark metadata sync |
+| `complete` | `P1` | `docs` | Gormes market comparison positioning brief |
+| `planned` | `P1` | `docs` | Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents |
 
 ### 8.C — Engineering Writeups
 

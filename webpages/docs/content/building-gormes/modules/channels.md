@@ -7,9 +7,9 @@ title: "Channels Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `channels`
-**Rows:** 130
-**Status counts:** `complete`: 127 · `in_progress`: 0 · `planned`: 3
-**Priority counts:** `P0`: 7 · `P1`: 42 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47
+**Rows:** 131
+**Status counts:** `complete`: 127 · `in_progress`: 0 · `planned`: 4
+**Priority counts:** `P0`: 7 · `P1`: 43 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47
 
 ## Phase 2 — The Gateway
 
@@ -258,3 +258,11 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `channels` | Google Chat standalone cron sender |
 | `complete` | `P2` | `channels` | Google Chat install dependency hint refresh |
 | `planned` | `P2` | `channels` | SimpleX Chat platform plugin parity |
+
+## Phase 8 — Reputation & Publication
+
+### 8.B — Repository Messaging
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `planned` | `P1` | `channels` | Channel capability matrix with stable/fixture/planned labels |

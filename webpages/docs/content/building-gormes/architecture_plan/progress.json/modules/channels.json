@@ -7734,5 +7734,68 @@
         "SimpleX fake-daemon fixtures prove config/status, inbound admission, outbound delivery, DM pairing, and command routing without live credentials."
       ]
     }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.B",
+    "pos": 5,
+    "item": {
+      "name": "Channel capability matrix with stable/fixture/planned labels",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Turn channel breadth into proof instead of a raw count: publish a channel capability matrix that separates runtime-ready, fixture-backed, and planned adapters, links each stable top-channel setup path, and states that gateway readiness comes from `gormes channels capabilities` plus `gormes gateway status`, not from roadmap row count.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "channels",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without labeled channel proof, Gormes either undersells existing gateway breadth or overclaims long-tail adapters as runtime-ready support.",
+      "fixture": "webpages/docs/content/cli/channels.md::capability matrix",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/market-positioning.md",
+        "webpages/docs/content/cli/channels.md",
+        "webpages/docs/content/recipes/multi-channel.md",
+        "webpages/docs/content/cli/gateway.md",
+        "webpages/docs/content/building-gormes/modules/channels.md",
+        "cmd/gormes/channels.go"
+      ],
+      "ready_when": [
+        "`gormes channels capabilities` exists and can be used as the runtime-facing truth surface.",
+        "Gateway recipes for Telegram, Discord, and Slack remain current.",
+        "The builder can add docs/tests without changing channel adapter behavior."
+      ],
+      "not_ready_when": [
+        "The matrix counts roadmap/planned adapters as runtime-ready.",
+        "The docs claim 50+ integrations or parity with OpenClaw channel breadth without executable evidence.",
+        "The slice changes gateway runtime behavior instead of documenting and testing the proof surface."
+      ],
+      "acceptance": [
+        "The channel docs include a matrix with at least runtime-ready, fixture-backed, and planned statuses.",
+        "Telegram, Discord, and Slack link to setup/status paths; WhatsApp and long-tail channels are labeled honestly according to current evidence.",
+        "The multi-channel recipe points users to `gormes channels capabilities` and `gormes gateway status --json` as the readiness proof.",
+        "A docs test fails if the matrix collapses stable, fixture-backed, and planned labels into one bucket."
+      ],
+      "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. OpenClaw owns broad integration perception; Gormes should answer with labeled proof, not inflated counts.",
+      "write_scope": [
+        "webpages/docs/content/cli/channels.md",
+        "webpages/docs/content/recipes/multi-channel.md",
+        "webpages/docs/docs_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run 'Test.*Channel.*(Capability|Matrix|Recipe)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Channel matrix and gateway recipe distinguish runtime-ready, fixture-backed, and planned adapters with docs tests guarding the labels."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned public proof row; channel runtime work remains in dedicated channel rows."
+      }
+    }
   }
 ]

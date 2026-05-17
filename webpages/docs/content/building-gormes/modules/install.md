@@ -7,9 +7,9 @@ title: "Install Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `install`
-**Rows:** 27
-**Status counts:** `complete`: 27 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 2 · `P1`: 14 · `P2`: 4 · `P3`: 3 · `unset`: 4
+**Rows:** 28
+**Status counts:** `complete`: 27 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 2 · `P1`: 15 · `P2`: 4 · `P3`: 3 · `unset`: 4
 
 ## Phase 1 — The Dashboard
 
@@ -58,6 +58,12 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `install` | Install: Termux publishes a real $PREFIX/bin binary, not an $HOME-targeting symlink |
 
 ## Phase 8 — Reputation & Publication
+
+### 8.B — Repository Messaging
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `planned` | `P1` | `install` | No-stack first-run proof path from install to offline doctor |
 
 ### 8.D — Sharp v1.0
 

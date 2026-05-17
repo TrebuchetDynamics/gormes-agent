@@ -1597,6 +1597,77 @@
   },
   {
     "phase": "8",
+    "subphase": "8.B",
+    "pos": 7,
+    "item": {
+      "name": "No-stack first-run proof path from install to offline doctor",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Harden the public first-run proof around the strongest Gormes wedge: install or source-build the single binary, verify `gormes version`, run `gormes doctor --offline`, open the offline TUI, then add provider credentials only after local readiness passes. README, docs, and landing copy must keep the distinction between local no-stack software and hosted zero-infrastructure SaaS.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "install",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without a crisp first-run proof, hosted competitors can define the self-hosting debate as Docker/VPS/weekend maintenance even when Gormes does not require Python, venvs, Docker, or a remote server for local use.",
+      "fixture": "webpages/docs/content/start-here/_index.md::first-run proof",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/market-positioning.md",
+        "README.md",
+        "webpages/docs/content/start-here/_index.md",
+        "webpages/docs/content/install/_index.md",
+        "webpages/docs/content/recipes/doctor-offline.md",
+        "webpages/landing/src/data/landing.js",
+        "install.sh",
+        "scripts/install.ps1"
+      ],
+      "ready_when": [
+        "Release-first and source-build install docs are current.",
+        "`gormes doctor --offline` remains the canonical pre-token proof.",
+        "The builder can update docs/landing/tests without changing installer runtime behavior."
+      ],
+      "not_ready_when": [
+        "The copy implies Gormes is hosted SaaS, no-terminal software, or zero-infrastructure after provider/gateway deployment.",
+        "The proof path asks for provider credentials before offline doctor/local readiness.",
+        "The slice rewrites installer behavior instead of documenting the first-run proof unless a separate installer row is created."
+      ],
+      "acceptance": [
+        "Start-here, install, README, and landing agree on the first-run order: install/build, version, doctor --offline, offline TUI or first chat, then credentials.",
+        "The copy says no pip/no venv/no Docker daemon while avoiding no-terminal or hosted-SaaS claims.",
+        "At least one docs or landing test guards the first-run proof sequence and the no-provider-before-offline-doctor rule.",
+        "Existing install script links and inspect-before-run posture stay intact."
+      ],
+      "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. Hosted competitors sell zero infrastructure; Gormes should answer as local no-stack ownership, not SaaS.",
+      "write_scope": [
+        "README.md",
+        "webpages/docs/content/start-here/_index.md",
+        "webpages/docs/content/install/_index.md",
+        "webpages/docs/content/recipes/doctor-offline.md",
+        "webpages/docs/docs_test.go",
+        "webpages/landing/src/data/landing.js",
+        "webpages/landing/tests/home.spec.mjs",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run 'Test.*(StartHere|Install|DoctorOffline|FirstRun)' -count=1",
+        "(cd webpages/landing && npm run test:e2e)",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "First-run proof is synchronized across README/docs/landing, guarded by tests, and clearly distinguishes local no-stack ownership from hosted zero-infrastructure claims."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned public proof row; not an installer runtime behavior change."
+      }
+    }
+  },
+  {
+    "phase": "8",
     "subphase": "8.D",
     "pos": 3,
     "item": {

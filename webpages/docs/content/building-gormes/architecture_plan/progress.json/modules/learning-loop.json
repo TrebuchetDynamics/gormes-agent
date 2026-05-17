@@ -256,5 +256,71 @@
         "Optimizer tests prove mutation+scoring loop converges to measurably better prompt variants"
       ]
     }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.B",
+    "pos": 6,
+    "item": {
+      "name": "Learning-loop proof demo for skills, memory, and curator",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Make the Hermes-compatible learning loop visible as an operator proof: document or demo the path from task evidence to skill creation/improvement, memory/recall persistence, curator status, and improved repeated-task behavior. The proof must use local fixtures or deterministic screenshots/output, avoid live-model hype, and link the existing skills, curator, and memory command surfaces.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "learning-loop",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "If the learning loop stays buried in architecture docs, users will believe Gormes only has the no-stack runtime wedge and will continue assigning the self-improvement story exclusively to Hermes.",
+      "fixture": "webpages/docs/content/building-gormes/core-systems/learning-loop.md::operator proof",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/market-positioning.md",
+        "webpages/docs/content/building-gormes/core-systems/learning-loop.md",
+        "webpages/docs/content/cli/curator.md",
+        "webpages/docs/content/cli/skills.md",
+        "webpages/docs/content/cli/memory.md",
+        "webpages/docs/content/building-gormes/modules/learning-loop.md",
+        "webpages/docs/content/building-gormes/modules/skills.md"
+      ],
+      "ready_when": [
+        "Curator state, skill surfaces, and memory docs exist and can be linked.",
+        "The builder can use deterministic local examples; no live provider, network, or Reddit/social evidence is required.",
+        "The proof can stay honest about what is shipped versus hardening."
+      ],
+      "not_ready_when": [
+        "The demo claims autonomous improvement from a live model without reproducible output or fixture evidence.",
+        "The slice changes skills/curator runtime behavior instead of documenting the proof path.",
+        "The page implies every repeated task improves automatically with no operator review or trust boundary."
+      ],
+      "acceptance": [
+        "Learning-loop docs show a concrete task-evidence to skill/memory/curator path with commands or deterministic sample output.",
+        "The docs distinguish skill creation, skill improvement, memory recall, and curator maintenance instead of treating learning as a single vague feature.",
+        "The landing or Why Gormes page links to the learning-loop proof without making methodology the hero.",
+        "Docs tests pin the presence of skills, memory, curator, and repeated-task proof language."
+      ],
+      "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. Hermes owns the learning-loop perception; Gormes has row-backed substrate and needs public proof.",
+      "write_scope": [
+        "webpages/docs/content/building-gormes/core-systems/learning-loop.md",
+        "webpages/docs/content/cli/curator.md",
+        "webpages/docs/content/cli/skills.md",
+        "webpages/docs/content/why-gormes.md",
+        "webpages/docs/docs_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run 'Test.*Learning.*Loop|Test.*Curator.*Docs|Test.*Skill.*Docs' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Learning-loop proof page is linked, deterministic, and test-guarded across skills, memory, curator, and repeated-task behavior."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned public proof row over already row-backed learning-loop substrate."
+      }
+    }
   }
 ]
