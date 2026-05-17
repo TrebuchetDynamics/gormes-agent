@@ -108,6 +108,24 @@ done
 printf '\n' >> "$GORMES_FAKE_LOG"
 
 case "$1" in
+  -C)
+    shift
+    shift
+    case "${1:-}" in
+      rev-parse)
+        if [ "${2:-}" = "--short" ] && [ "${3:-}" = "HEAD" ]; then
+          printf '%s\n' "${GORMES_FAKE_REV_PARSE_SHORT:-18736acec}"
+        fi
+        ;;
+      diff)
+        if [ "${GORMES_FAKE_DIRTY:-}" = "1" ]; then
+          exit 1
+        fi
+        ;;
+      *)
+        ;;
+    esac
+    ;;
   --version)
     printf 'git version 2.53.0\n'
     ;;
@@ -189,6 +207,9 @@ if [ -n "${GORMES_FAKE_LOG:-}" ]; then
   for arg in "$@"; do
     line="${line} ${arg}"
   done
+  if [ "${GORMES_FAKE_LOG_SOURCE_ROOT:-}" = "1" ] && [ -n "${GORMES_SOURCE_ROOT:-}" ]; then
+    line="${line} source_root=${GORMES_SOURCE_ROOT}"
+  fi
   printf '%%s\n' "$line" >> "$GORMES_FAKE_LOG"
 fi
 case "${1:-}" in
@@ -249,6 +270,70 @@ func writeFakeUnixToolchain(t *testing.T, root string) (string, string) {
 	writeExecutable(t, filepath.Join(bin, "tar"), fakeTarScript())
 
 	return bin, logPath
+}
+
+func writeFakeProfileSystemctl(t *testing.T, bin string, stateDir string) {
+	t.Helper()
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		t.Fatalf("mkdir systemctl state: %v", err)
+	}
+	writeExecutable(t, filepath.Join(bin, "systemctl"), fmt.Sprintf(`#!/bin/sh
+set -eu
+printf 'systemctl' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do
+  printf ' %%s' "$arg" >> "$GORMES_FAKE_LOG"
+done
+printf '\n' >> "$GORMES_FAKE_LOG"
+
+if [ "${1:-}" = "--user" ]; then
+  shift
+else
+  exit 1
+fi
+
+cmd="${1:-}"
+case "$cmd" in
+  "")
+    exit 0
+    ;;
+  list-units)
+    printf 'gormes-gateway-mineru.service loaded active running Gormes Gateway mineru\n'
+    printf 'gormes-gateway-yunobo.service loaded active running Gormes Gateway yunobo\n'
+    ;;
+  show)
+    unit="${2:-}"
+    case "$unit" in
+      gormes-gateway-mineru.service)
+        pid_file="%s/mineru.pid"
+        [ -f "$pid_file" ] || printf '2101\n' > "$pid_file"
+        cat "$pid_file"
+        ;;
+      gormes-gateway-yunobo.service)
+        pid_file="%s/yunobo.pid"
+        [ -f "$pid_file" ] || printf '2202\n' > "$pid_file"
+        cat "$pid_file"
+        ;;
+      *)
+        printf '0\n'
+        ;;
+    esac
+    ;;
+  restart)
+    unit="${2:-}"
+    case "$unit" in
+      gormes-gateway-mineru.service)
+        printf '3101\n' > "%s/mineru.pid"
+        ;;
+      gormes-gateway-yunobo.service)
+        printf '3202\n' > "%s/yunobo.pid"
+        ;;
+    esac
+    ;;
+  daemon-reload|enable|stop|start|status)
+    exit 0
+    ;;
+esac
+`, stateDir, stateDir, stateDir, stateDir))
 }
 
 func writeVersionTool(t *testing.T, path string, version string) {
@@ -1048,6 +1133,54 @@ func TestInstallSH_RerunUpdatesPersistentManagedCheckout(t *testing.T) {
 	}
 }
 
+func TestInstallSH_SourceBuildRebuildsDirtyCheckoutEvenWhenCommitTagMatches(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	writeMinimalGoModule(t, checkout)
+	buildBin := filepath.Join(home, ".gormes", "bin", "gormes")
+	writeExecutable(t, buildBin, `#!/bin/sh
+case "${1:-}" in
+  version)
+    printf 'gormes cached\n'
+    ;;
+  doctor)
+    printf 'doctor ok\n'
+    ;;
+  gateway)
+    case "${2:-}" in
+      status)
+        printf '{"runtime":{"gateway_state":"stopped","active_agents":0},"validation":{"status":"stopped","live":false}}\n'
+        ;;
+    esac
+    ;;
+esac
+`)
+	if err := os.WriteFile(buildBin+".build-tag", []byte("18736acec\n"), 0o644); err != nil {
+		t.Fatalf("write build tag: %v", err)
+	}
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_DIRTY=1",
+		"GORMES_FAKE_REV_PARSE_SHORT=18736acec",
+		"GORMES_INSTALL_FROM_SOURCE=1",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+	log := readTextFile(t, logPath)
+	if !strings.Contains(log, "go build") {
+		t.Fatalf("dirty checkout with matching build tag did not rebuild:\n%s\noutput:\n%s", log, out)
+	}
+	if !strings.Contains(out, "source tree has local changes; rebuilding") {
+		t.Fatalf("dirty rebuild output missing explanation:\n%s", out)
+	}
+}
+
 func TestInstallSH_RerunRestartsLiveGatewayWithPublishedBinary(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
@@ -1131,7 +1264,7 @@ fi
 	}
 }
 
-func TestInstallSH_NoRestartSkipsLiveGatewayRestart(t *testing.T) {
+func TestInstallSH_RerunStartsManualGatewayWithSourceRoot(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	checkout := filepath.Join(home, ".gormes", "gormes-agent")
@@ -1150,6 +1283,111 @@ fi
 `)
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
 
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+activeBin+string(os.PathListSeparator)+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_GATEWAY_STATUS_PID=7777",
+		"GORMES_FAKE_LOG_SOURCE_ROOT=1",
+		"GORMES_INSTALL_FROM_SOURCE=1",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+
+	log := readTextFile(t, logPath)
+	want := "built-gormes gateway source_root=" + checkout
+	if !strings.Contains(log, want) {
+		t.Fatalf("manual gateway restart missing source root %q:\n%s", want, log)
+	}
+}
+
+func TestInstallSH_RerunRestartsProfileGatewayServices(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	writeMinimalGoModule(t, checkout)
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+	writeFakeProfileSystemctl(t, fakebin, filepath.Join(root, "systemctl-state"))
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_GATEWAY_STATUS_PID=7777",
+		"GORMES_INSTALL_FROM_SOURCE=1",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+
+	log := readTextFile(t, logPath)
+	for _, want := range []string{
+		"systemctl --user list-units gormes-gateway-*.service --type=service --state=running --no-legend --no-pager",
+		"systemctl --user restart gormes-gateway-mineru.service",
+		"systemctl --user restart gormes-gateway-yunobo.service",
+		"systemctl --user show gormes-gateway-mineru.service -p ExecMainPID --value",
+		"systemctl --user show gormes-gateway-yunobo.service -p ExecMainPID --value",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("toolchain log missing %q\n%s", want, log)
+		}
+	}
+	for _, want := range []string{
+		"restarting profile gateway unit gormes-gateway-mineru.service pid=2101",
+		"profile gateway unit restarted gormes-gateway-mineru.service pid=2101 -> 3101",
+		"restarting profile gateway unit gormes-gateway-yunobo.service pid=2202",
+		"profile gateway unit restarted gormes-gateway-yunobo.service pid=2202 -> 3202",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("install output missing %q\n%s", want, out)
+		}
+	}
+
+	for _, unit := range []string{"gormes-gateway-mineru.service", "gormes-gateway-yunobo.service"} {
+		dropIn := filepath.Join(home, ".config", "systemd", "user", unit+".d", "10-gormes-install-source.conf")
+		body := readTextFile(t, dropIn)
+		if !strings.Contains(body, `GORMES_SOURCE_ROOT=`+checkout) {
+			t.Fatalf("source-root drop-in for %s missing checkout %q:\n%s", unit, checkout, body)
+		}
+	}
+
+	ledger := readTextFile(t, filepath.Join(home, ".gormes", "install.log.jsonl"))
+	for _, want := range []string{
+		`"profile_gateways":[`,
+		`"unit":"gormes-gateway-mineru.service"`,
+		`"old_pid":2101`,
+		`"new_pid":3101`,
+		`"unit":"gormes-gateway-yunobo.service"`,
+		`"old_pid":2202`,
+		`"new_pid":3202`,
+	} {
+		if !strings.Contains(ledger, want) {
+			t.Fatalf("install ledger missing %q\n%s", want, ledger)
+		}
+	}
+}
+
+func TestInstallSH_NoRestartSkipsLiveGatewayRestart(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	writeMinimalGoModule(t, checkout)
+	activeBin := filepath.Join(root, "activebin")
+	if err := os.MkdirAll(activeBin, 0o755); err != nil {
+		t.Fatalf("mkdir active bin: %v", err)
+	}
+	writeExecutable(t, filepath.Join(activeBin, "gormes"), `#!/bin/sh
+printf 'active-gormes' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"; done
+printf '\n' >> "$GORMES_FAKE_LOG"
+if [ "${1:-}" = "gateway" ] && [ "${2:-}" = "status" ]; then
+  printf '{"runtime":{"gateway_state":"running","pid":4242,"active_agents":0},"validation":{"status":"live","live":true,"pid":4242}}\n'
+fi
+`)
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+	writeFakeProfileSystemctl(t, fakebin, filepath.Join(root, "systemctl-state"))
+
 	out, err := runInstallScriptWithArgs(t,
 		[]string{"--no-restart"},
 		"HOME="+home,
@@ -1163,8 +1401,14 @@ fi
 	if strings.Contains(log, "built-gormes gateway stop") || strings.Contains(log, "built-gormes gateway\n") {
 		t.Fatalf("--no-restart still stopped/started gateway:\n%s", log)
 	}
+	if strings.Contains(log, "systemctl --user restart gormes-gateway-") {
+		t.Fatalf("--no-restart still restarted profile gateway services:\n%s", log)
+	}
 	if !strings.Contains(out, "gateway restart skipped by policy=never") {
 		t.Fatalf("--no-restart output missing skip evidence:\n%s", out)
+	}
+	if !strings.Contains(out, "profile gateway restart skipped by policy=never") {
+		t.Fatalf("--no-restart output missing profile skip evidence:\n%s", out)
 	}
 }
 
