@@ -39,6 +39,11 @@ feature-level gap register. The source-class ledger can pass while individual
 provider, tool, gateway, SDK, MCP, CLI, webhook, queue, or release behavior is
 still too vague for builder work.
 
+Use [Hermes v0.14 Module Pairings](../hermes-v0.14-module-pairings/) when
+triaging release-note-sized Hermes behavior after an upstream pull. It maps
+the v0.14 user-visible surface to the generated `building-gormes/modules`
+taxonomy and records which newly surfaced behaviors became rows.
+
 ## Reading Rules
 
 - **Covered** means Gormes has repository evidence and tests.

@@ -2062,6 +2062,53 @@
   },
   {
     "phase": "6",
+    "subphase": "6.C",
+    "pos": 3,
+    "item": {
+      "name": "Hermes v0.14 optional skill catalog refresh",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Refresh the Gormes skill catalog and metadata compatibility checks against Hermes v0.14 optional skills, including devops/pinggy-tunnel, research/darwinian-evolver, research/osint-investigation, and the updated Notion skill, without blindly copying unsupported Python scripts into runtime packages.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "skills",
+      "fixture": "internal/skills optional skill catalog fixtures",
+      "source_refs": [
+        "../hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md",
+        "../hermes-agent/optional-skills/research/darwinian-evolver/SKILL.md",
+        "../hermes-agent/optional-skills/research/osint-investigation/SKILL.md",
+        "../hermes-agent/skills/productivity/notion/SKILL.md",
+        "internal/skills"
+      ],
+      "ready_when": [
+        "Skill metadata parser and hub registry fixtures exist."
+      ],
+      "not_ready_when": [
+        "The slice vendors Hermes optional-skill scripts as trusted Go runtime code.",
+        "The slice marks skills enabled by default without platform/dependency guards."
+      ],
+      "acceptance": [
+        "New optional skills parse with frontmatter, loaded/when metadata, references, and script/template inventories.",
+        "Unsupported scripts remain catalog evidence with explicit dependency/degraded status.",
+        "Skill hub/search output surfaces these skills with category and safety metadata."
+      ],
+      "write_scope": [
+        "internal/skills",
+        "docs/development-skills",
+        "docs/content/building-gormes/architecture_plan"
+      ],
+      "test_commands": [
+        "go test ./internal/skills -run 'Test.*Skill.*Catalog|Test.*Optional' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Optional skill fixtures prove v0.14 metadata/catalog visibility and guarded unsupported-script handling."
+      ]
+    }
+  },
+  {
+    "phase": "6",
     "subphase": "6.D",
     "pos": 0,
     "item": {

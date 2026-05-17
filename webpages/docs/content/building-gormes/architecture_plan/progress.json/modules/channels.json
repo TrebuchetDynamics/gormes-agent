@@ -7687,5 +7687,52 @@
       },
       "unblocks": []
     }
+  },
+  {
+    "phase": "7",
+    "subphase": "7.E",
+    "pos": 23,
+    "item": {
+      "name": "SimpleX Chat platform plugin parity",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Port Hermes' SimpleX Chat platform plugin into Gormes behind the shared channel adapter contract: local daemon/WebSocket configuration, allowlist admission, opaque contact IDs, DM pairing, outbound delivery, command routing, and status/degraded evidence.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "fixture": "internal/channels/simplex fake WebSocket fixtures",
+      "source_refs": [
+        "../hermes-agent/plugins/platforms/simplex/plugin.yaml",
+        "../hermes-agent/plugins/platforms/simplex/adapter.py",
+        "internal/gateway/platform_manifest.go",
+        "internal/gateway/platform_connected_checkers.go"
+      ],
+      "ready_when": [
+        "Gateway platform manifest already classifies SimpleX as row-backed.",
+        "Shared channel adapter fixtures can run without a live SimpleX daemon."
+      ],
+      "not_ready_when": [
+        "The slice requires a real SimpleX account, daemon, or network socket in tests.",
+        "The slice bypasses shared gateway admission/delivery abstractions."
+      ],
+      "acceptance": [
+        "Config/status checks distinguish disabled, missing ws_url, unauthorized, and connected fake-daemon states.",
+        "Inbound fake events produce normalized PlatformEvent values with opaque contact identity preserved.",
+        "Outbound fake delivery and DM pairing preserve Hermes-visible SimpleX behavior and degraded errors."
+      ],
+      "write_scope": [
+        "internal/channels/simplex",
+        "internal/gateway",
+        "cmd/gormes/gateway.go"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/simplex ./internal/gateway -run 'SimpleX|PlatformManifest|Connected' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "SimpleX fake-daemon fixtures prove config/status, inbound admission, outbound delivery, DM pairing, and command routing without live credentials."
+      ]
+    }
   }
 ]

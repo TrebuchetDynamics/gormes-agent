@@ -334,6 +334,58 @@
   },
   {
     "phase": "8",
+    "subphase": "8.C",
+    "pos": 1,
+    "item": {
+      "name": "Hermes v0.14 release feature-to-module pairing ledger",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Map Hermes v0.14 release-level user-visible features to the Gormes module taxonomy, mark which surfaces are covered or row-backed, and add source-backed planned rows for newly visible behavior that is not already explicit in module roadmaps.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "fixture": "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+      "source_refs": [
+        "../hermes-agent/RELEASE_v0.14.0.md",
+        "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/modules/_index.md"
+      ],
+      "ready_when": [
+        "Hermes v0.14 release notes are present in the in-repo Hermes checkout.",
+        "The planner can compare release surfaces against existing module rows without changing runtime code.",
+        "Newly visible behavior that is not already explicit can be represented as planned progress rows."
+      ],
+      "not_ready_when": [
+        "The ledger claims runtime parity for behavior that only has a doc pairing.",
+        "The ledger creates a side backlog outside progress.json.",
+        "The ledger copies py2many output into production Go packages."
+      ],
+      "acceptance": [
+        "The ledger pairs each Hermes v0.14 release surface to a Gormes module and either an existing row family or a newly added planned row.",
+        "The module roadmap pages regenerate from progress.json and show the added rows in their owning modules.",
+        "The ledger records the current py2many Go target command as `py2many --go <file.py>` and keeps generated Go non-runtime."
+      ],
+      "note": "Complete 2026-05-17: refreshed Hermes to 9f182bd7b, regenerated source-pair and py2many maps, then added a release-level module-pairing ledger plus planned rows for x_search, send_cmd, session recap, gateway memory monitor, LSP diagnostics, ACP setup-browser bootstrap, SimpleX, optional skills, and TUI truecolor/ANSI drift.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/modules"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress write",
+        "go run ./cmd/progress validate",
+        "go test ./internal/progress -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermes v0.14 feature families are paired into Gormes modules and generated module roadmaps include the added source-backed rows."
+      ]
+    }
+  },
+  {
+    "phase": "8",
     "subphase": "8.E",
     "pos": 0,
     "item": {

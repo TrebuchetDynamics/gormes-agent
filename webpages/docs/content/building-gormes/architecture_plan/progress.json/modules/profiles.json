@@ -934,6 +934,77 @@
   },
   {
     "phase": "5",
+    "subphase": "5.O",
+    "pos": 120,
+    "item": {
+      "name": "Long-term plan: profile fleet supervisor and single control-plane gateway",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Define Gormes' long-term profile-fleet runtime so operators get one control surface for all named profiles while preserving Hermes-compatible profile isolation. The near-term per-profile gateway services remain a compatibility bridge; the target is a fleet supervisor that can enumerate configured profiles, start/stop/restart isolated profile workers or a proven profile-scoped in-process equivalent, validate token ownership, surface per-profile health, and coordinate update/restart-all flows without sharing config, auth, sessions, memory, tool state, or kernels across profiles.",
+      "contract_status": "draft",
+      "slice_size": "large",
+      "execution_owner": "orchestrator",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If fleet supervision is unavailable, Gormes must keep the Hermes-compatible per-profile service/process bridge and report exact per-profile service state instead of collapsing profiles into the default GORMES_HOME.",
+      "fixture": "internal/gateway/fleet_supervisor_test.go; cmd/gormes/gateway_fleet_test.go",
+      "source_refs": [
+        "webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation",
+        "webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking",
+        "webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all",
+        "webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens",
+        "cmd/gormes/gateway.go:gatewayManagerConfig",
+        "internal/config/agents.go:AgentDefaultsCfg",
+        "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile"
+      ],
+      "ready_when": [
+        "The current per-profile gateway-service bridge is documented as migration/runtime compatibility, not the final operator model.",
+        "Gormes-owned profile workspace/channel config and token-scoped gateway locks are available as inputs.",
+        "The implementation shape chooses either isolated worker processes or a tested profile-scoped in-process runtime, with the same operator-facing fleet contract."
+      ],
+      "not_ready_when": [
+        "The design treats a single gateway process as permission to reuse one GORMES_HOME, one auth store, one session DB, one memory DB, or one kernel across multiple named profiles.",
+        "The slice deletes or disables the per-profile service bridge before the fleet supervisor can prove profile/token isolation and restart-all behavior.",
+        "Tests require live Telegram tokens, live systemd units, or Juan's real profile directories."
+      ],
+      "acceptance": [
+        "Fleet status JSON lists every configured profile with desired channels, runtime owner, version, health, last error, and token-lock evidence.",
+        "Start/stop/restart-all paths operate on all configured profiles while preserving isolated GORMES_HOME, config, auth, session, memory, and tool state per profile.",
+        "A duplicate Telegram token across profiles is detected and reported as a per-profile conflict rather than racing two pollers.",
+        "Update/release restart hooks can target the fleet through one operator-facing command or service instead of requiring hand-managed unit names.",
+        "Regression tests use fake profile roots and fake supervisors only; no live systemd, Telegram, or provider credentials are required."
+      ],
+      "write_scope": [
+        "cmd/gormes/gateway.go",
+        "cmd/gormes/gateway_fleet_test.go",
+        "internal/gateway/fleet_supervisor.go",
+        "internal/gateway/fleet_supervisor_test.go",
+        "internal/config/agents.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/modules/profiles.md"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestFleetSupervisor|TestGatewayFleet' -count=1",
+        "go test ./cmd/gormes -run 'TestGatewayFleet' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "The profiles module documents one operator-facing fleet gateway/supervisor target, preserves profile isolation as non-negotiable, and makes the current per-profile services an explicit compatibility bridge rather than silent architecture drift."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes profile-scoped gateway processes + Gormes-owned fleet supervisor target",
+        "note": "Hermes permits concurrent profile gateways as isolated processes; Gormes keeps that as the compatibility baseline while planning a single operator control plane."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.Q",
     "pos": 0,
     "item": {

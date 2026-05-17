@@ -7,9 +7,9 @@ title: "Tools Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `tools`
-**Rows:** 139
-**Status counts:** `complete`: 139 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 23 · `P1`: 46 · `P2`: 34 · `P3`: 8 · `P4`: 2 · `unset`: 26
+**Rows:** 142
+**Status counts:** `complete`: 139 · `in_progress`: 0 · `planned`: 3
+**Priority counts:** `P0`: 23 · `P1`: 48 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -115,6 +115,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P0` | `tools` | ACP JSON-RPC stdio session/prompt closeout |
 | `complete` | `P1` | `tools` | ACP stdio benign ping/probe suppression |
 | `complete` | `P0` | `tools` | ACP session CWD propagation into prompt runners |
+| `planned` | `P2` | `tools` | ACP setup-browser bootstrap parity |
 
 ### 5.J — Approval / Security Guards
 
@@ -171,6 +172,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | Context-aware fuzzy replace for native patch tool |
 | `complete` | `P1` | `tools` | V4A patch apply rollback for native patch tool |
 | `complete` | `P1` | `tools` | Patch replace post-write verification |
+| `planned` | `P1` | `tools` | Hermes LSP write-time semantic diagnostics |
 
 ### 5.N — Misc Operator Tools
 
@@ -213,6 +215,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | Cron origin delivery isolation from session identity |
 | `complete` | `P0` | `tools` | Cron script/workdir/inactivity execution binding |
 | `complete` | `P1` | `tools` | Cron dashboard partial-record page |
+| `planned` | `P1` | `tools` | Hermes x_search tool and auth surface |
 
 ### 5.O — Hermes CLI Parity
 

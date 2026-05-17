@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-15T07:10:00Z",
+    "last_updated": "2026-05-17",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -133,7 +133,7 @@
             "last_upstream_check": "2026-05-05T16:08:51Z",
             "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval/auth/reaction surfaces found in the May 2026 channel sweeps. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweeps keep Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, cross-platform image/document MEDIA delivery, Telegram inline approvals, Telegram startup safety, Slack mention gating, Discord interaction auth, and processing lifecycle reactions in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline. Follow-up sweeps add row-backed weaknesses for Telegram text/caption batching, cross-platform multi-image native batching, Discord message admission/reply-mode policy, webhook dynamic-route/rate-limit runtime behavior, Slack/Discord channel-scoped skills and prompts, Telegram fallback/reconnect recovery, Telegram sticker vision adapter binding, Discord native slash/thread command registration, Telegram entity-only mention boundaries, Telegram forum thread/send retry safety, Telegram semantic MarkdownV2 formatting, and gateway platform reconnect/health resilience after comparing Gormes adapters with Hermes b816fd4e2 gateway tests. The second 2026-05-05 sweep adds gateway startup admission safety for allowlist warnings, weak placeholder platform tokens, and network-exposed API-server placeholder keys. Webhook runtime drift is tracked here rather than reopening complete Phase 7.D, Telegram sticker adapter binding is tracked here rather than reopening complete Phase 2.F.4, and platform lifecycle drift is tracked here rather than reopening complete Phase 2.F.3."
           },
-          "item_count": 81
+          "item_count": 82
         },
         {
           "id": "2.B.10",
@@ -561,7 +561,7 @@
             "last_upstream_check": "2026-05-09T00:00:00Z",
             "origin_decision": "Hermes 0bcc327ca is current for this sweep. Existing Gormes ACP rows cover manifest, client bridge, JSON-RPC stdio session/prompt closeout, and benign probe suppression, and the 2026-05-09 builder pass now ports b349ae1e4's ACP task-cwd propagation fix through RuntimePromptRequest.CWD. Broader OpenRouter Pareto routing, gateway transcript replay metadata, and Teams lazy-import deltas remain separate source-backed findings for future cycles rather than expanding this pass beyond one row."
           },
-          "item_count": 5
+          "item_count": 6
         },
         {
           "id": "5.I",
@@ -591,7 +591,7 @@
             "last_upstream_check": "2026-05-10T00:00:00Z",
             "origin_decision": "Hermes ce374bc1b plus recent file-operation rows show the remaining File Ops + Patches weakness is full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, block-anchor fuzzy replace, V4A fuzzy hunk matching, V4A apply rollback, context-aware fuzzy replacement, and replace-mode post-write verification validated. The 2026-05-10 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 15 before adding the post-write verification row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `Patch replace post-write verification` as the next small builder-ready runtime slice."
           },
-          "item_count": 25
+          "item_count": 26
         },
         {
           "id": "5.M",
@@ -606,7 +606,7 @@
             "last_upstream_check": "2026-05-06T15:30:05Z",
             "origin_decision": "The 2026-05-06 all-topic parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows against Hermes b816fd4e2 plus Honcho e659b6b. CLI/setup, provider/auth, gateway live-turn, tool-loop, memory/Goncho, install/runtime, browser, docs, and release surfaces have either complete rows or lower-priority planned slices. The strongest builder-ready weakness remains cron execution: Gormes has native cron store/scheduler/action rows, but Hermes b816fd4e2 tests still cover unshipped script execution, workdir/TERMINAL_CWD binding, inactivity timeout, Codex 401 refresh, and owner-only cron file modes. Promote `Cron script/workdir/inactivity execution binding` to P0 before no-agent script-only watchdog mode."
           },
-          "item_count": 54
+          "item_count": 55
         },
         {
           "id": "5.O",
@@ -616,7 +616,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. The second 2026-05-05 sweep also found missing sessions CLI ergonomics: MRU continue by last_active, prefix-safe delete/prune confirmation, browse fallback, and multi-word session argument coalescing. Keep update and sessions as dedicated CLI slices instead of mixing them into broad diagnostics/status inventory."
           },
-          "item_count": 118,
+          "item_count": 121,
           "extra": {
             "rows": [
               {
@@ -688,7 +688,7 @@
             "last_upstream_check": "2026-05-09T00:00:00Z",
             "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, `ui-tui/packages/hermes-ink`, and `ui-tui/src/__tests__`) remains the TUI source of truth. The 2026-05-09 all-topic weakness sweep refreshed Hermes to a7e7921db and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Provider/auth, gateway/channel, tools, memory/Goncho, browser, docs/public, and release/operator gaps stayed complete, owned, blocked, or row-backed; the newly refreshed active Ink change was markdown/prose wrap-trim behavior, now tracked by `Native TUI markdown soft-wrap boundary trim`. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits TUI drift into narrow renderer rows rather than reopening completed chat-completions, cron-admin, keybinding, slash, or websocket rows."
           },
-          "item_count": 55
+          "item_count": 56
         },
         {
           "id": "5.R",
@@ -756,7 +756,7 @@
             "last_upstream_check": "2026-04-27T05:26:06Z",
             "origin_decision": "Gormes-owned.22.4 adds shared frontmatter validation, audit, migration, doctor, and hook flows. Hermes 8c5d3a99 adds claude-design, while 55be5323/7d586ddb clarify design-skill routing and short descriptions. Gormes should adapt the validation-code contract first, then fixture-lock real creative skill metadata/routing, then keep broader reviewed skill storage metadata as a dependent row; do not import Gormes-owned CLI, auto-fix, PGLite/Postgres, pre-commit workflow, or Hermes' HTML artifact runtime."
           },
-          "item_count": 3
+          "item_count": 4
         },
         {
           "id": "6.D",
@@ -867,7 +867,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes ab687963 adds a full Yuanbao platform and Hermes b816fd4e2 also exposes Microsoft Teams as a plugin platform. Gormes has completed Yuanbao fixture/runtime seams, while Teams has no Go channel package yet; the gap is now tracked as `Microsoft Teams adapter plugin seam` before any live Bot Framework transport binding. Keep regional/device adapters thin, disabled by default, and fixture-first; Goncho/Honcho memory naming is unaffected."
           },
-          "item_count": 23
+          "item_count": 24
         }
       ]
     },
@@ -889,7 +889,7 @@
         {
           "id": "8.C",
           "name": "Engineering Writeups",
-          "item_count": 1
+          "item_count": 2
         },
         {
           "id": "8.D",

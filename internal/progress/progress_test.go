@@ -704,10 +704,17 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if longTail.Priority != "P4" {
 		t.Fatalf("Phase 7.E priority = %q, want P4", longTail.Priority)
 	}
-	if got := longTail.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 7.E = %q, want complete", got)
+	if got := longTail.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 7.E = %q, want in_progress after SimpleX parity row reopened the adapter backlog", got)
 	}
 	longTailItems := itemsByName(longTail.Items)
+	simpleX := longTailItems["SimpleX Chat platform plugin parity"]
+	if simpleX.Status != StatusPlanned {
+		t.Fatalf("Phase 7.E SimpleX status = %q, want planned", simpleX.Status)
+	}
+	if simpleX.ContractStatus != ContractStatusDraft || simpleX.Module != ModuleChannels {
+		t.Fatalf("Phase 7.E SimpleX metadata = contract_status %q module %q, want draft channels", simpleX.ContractStatus, simpleX.Module)
+	}
 	blueBubblesHA := longTailItems["BlueBubbles + HomeAssistant adapters"]
 	if blueBubblesHA.Status != StatusComplete {
 		t.Fatalf("Phase 7.E BlueBubbles + HomeAssistant adapters status = %q, want complete", blueBubblesHA.Status)

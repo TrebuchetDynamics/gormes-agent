@@ -7,9 +7,9 @@ title: "Docs Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `docs`
-**Rows:** 9
-**Status counts:** `complete`: 6 · `in_progress`: 0 · `planned`: 3
-**Priority counts:** `P1`: 5 · `P2`: 2 · `P3`: 2
+**Rows:** 10
+**Status counts:** `complete`: 7 · `in_progress`: 0 · `planned`: 3
+**Priority counts:** `P1`: 6 · `P2`: 2 · `P3`: 2
 
 ## Phase 8 — Reputation & Publication
 
@@ -32,6 +32,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `planned` | `P1` | `docs` | Engineering writeup #1: autonomous Hermes-porting loop |
+| `complete` | `P1` | `docs` | Hermes v0.14 release feature-to-module pairing ledger |
 
 ### 8.E — Toolkit Extraction
 

@@ -219,12 +219,12 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | ✅ | 22/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
-| Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
+| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
+| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 <!-- PROGRESS:END -->

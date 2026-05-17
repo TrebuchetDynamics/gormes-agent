@@ -2946,6 +2946,53 @@
   },
   {
     "phase": "2",
+    "subphase": "2.B.5",
+    "pos": 81,
+    "item": {
+      "name": "Gateway memory monitor pressure policy",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Port Hermes gateway memory monitor behavior into Gormes as a typed pressure policy that samples process memory, reports WARN/CRITICAL evidence, and can request bounded shutdown/restart action without killing unrelated operator processes.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "fixture": "internal/gateway memory monitor fake sampler fixtures",
+      "source_refs": [
+        "../hermes-agent/gateway/memory_monitor.py",
+        "../hermes-agent/tests/gateway/test_memory_monitor.py",
+        "internal/gateway/status.go",
+        "cmd/gormes/gateway_status.go"
+      ],
+      "ready_when": [
+        "Gateway status can report degraded evidence with a fake memory sampler."
+      ],
+      "not_ready_when": [
+        "The slice reads or kills real system processes in tests.",
+        "The slice makes memory pressure a generic provider error instead of gateway runtime evidence."
+      ],
+      "acceptance": [
+        "Fake sampler thresholds produce OK/WARN/CRITICAL gateway status evidence.",
+        "Critical policy requests are bounded to the current gateway process owner and never target unrelated PIDs.",
+        "Human and JSON status redact environment details while preserving pressure numbers."
+      ],
+      "write_scope": [
+        "internal/gateway",
+        "cmd/gormes/gateway_status.go",
+        "cmd/gormes/gateway.go"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestMemoryMonitor|TestGatewayStatus' -count=1",
+        "go test ./cmd/gormes -run 'TestGateway.*Memory|TestGatewayStatus' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Gateway status fixtures prove memory pressure classification and bounded action evidence with fake process data."
+      ]
+    }
+  },
+  {
+    "phase": "2",
     "subphase": "2.B.12",
     "pos": 0,
     "item": {
