@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -140,7 +141,7 @@ func (candidate Candidate) SelectionReason() string {
 }
 
 func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error) {
-	data, err := os.ReadFile(path)
+	data, err := readProgressCandidateBytes(path)
 	if err != nil {
 		return nil, err
 	}
@@ -273,6 +274,30 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 	})
 
 	return candidates, nil
+}
+
+func readProgressCandidateBytes(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err == nil {
+		return data, nil
+	}
+	if fi, statErr := os.Stat(path); statErr != nil || !fi.IsDir() {
+		return nil, err
+	}
+	p, loadErr := progress.Load(path)
+	if loadErr != nil {
+		return nil, loadErr
+	}
+	tmpDir, mkErr := os.MkdirTemp("", "builderloop-progress-")
+	if mkErr != nil {
+		return nil, mkErr
+	}
+	defer os.RemoveAll(tmpDir)
+	tmp := filepath.Join(tmpDir, "progress.json")
+	if saveErr := progress.SaveProgress(tmp, p); saveErr != nil {
+		return nil, saveErr
+	}
+	return os.ReadFile(tmp)
 }
 
 // itemPtr returns a pointer to a progress.Item view of the given progressItem

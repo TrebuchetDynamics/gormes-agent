@@ -1,0 +1,1158 @@
+[
+  {
+    "phase": "2",
+    "subphase": "2.B.5",
+    "pos": 24,
+    "item": {
+      "name": "Active Hermes/Sidon profile context root resolver for live turns",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Live-turn context discovery resolves explicit Gormes overrides first, then Gormes-owned home/profile files and Gormes workspace ancestor SOUL/USER/MEMORY files. Upstream HERMES_HOME may be inspected by migration/config tooling, but it is not a live persona or durable-memory fallback for gateway turns, preventing Mineru/Hermes profile fall-through in the Telegram dogfood bot.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "profiles",
+      "trust_class": [
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Missing Gormes-owned profile or memory files render missing-context evidence and continue the turn from the platform/session block; HERMES_HOME content is ignored unless explicitly migrated into Gormes-owned files or selected through GORMES_CONTEXT_HOME/GORMES_CONTEXT_MEMORY_DIR.",
+      "fixture": "internal/hermes/context_root_resolver_test.go + internal/gateway/live_turn_prompt_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_constants.py (reference only; no runtime dependency)",
+        "../hermes-agent/run_agent.py (reference only; no runtime dependency)",
+        "internal/hermes/context_files.go",
+        "internal/hermes/durable_user_context.go",
+        "internal/gateway/live_turn_prompt.go",
+        "internal/gateway/live_turn_prompt_test.go"
+      ],
+      "ready_when": [
+        "Current live-turn context discovery seams are identified in internal/hermes and internal/gateway.",
+        "Temp HERMES_HOME/profile/workspace fixtures can prove resolution order without reading Juan's live profile."
+      ],
+      "acceptance": [
+        "Temp-dir tests prove Gormes override wins over all implicit discovery.",
+        "When HERMES_HOME contains a SOUL.md or memory files and the active workspace contains Gormes-owned context, production live-turn discovery selects the workspace/Gormes files instead of Hermes profile content.",
+        "Workspace ancestor SOUL/USER/MEMORY fallback is covered.",
+        "Unit tests do not read `/home/xel/.gormes` or `/home/xel/.hermes`."
+      ],
+      "write_scope": [
+        "internal/hermes/",
+        "internal/gateway/live_turn_prompt.go",
+        "internal/gateway/live_turn_prompt_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/hermes ./internal/gateway -run 'ContextRoot|SOUL|DurableUserContext|LiveTurn' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Production defaultLiveTurnProfileDir/defaultLiveTurnMemoryDir ignore HERMES_HOME as a live persona/memory source, prefer explicit Gormes context env, GORMES_HOME files, and workspace ancestor context, with regression tests proving no Mineru/Hermes fall-through."
+      ],
+      "evidence": [
+        "Validated 2026-04-29: added regression tests TestDefaultLiveTurnProfileDir_PrefersWorkspaceGormesContextOverHermesHome and TestDefaultLiveTurnMemoryDir_PrefersWorkspaceGormesMemoryOverHermesHome; updated internal/gateway/live_turn_prompt.go so HERMES_HOME is not a live profile/memory fallback. Focused command: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestDefaultLiveTurn(ProfileDir|MemoryDir)|LiveTurn' -count=1.",
+        "Validated 2026-04-29: added authoritative Current Runtime Facts block ahead of project context so live Telegram turns answer active workspace/current cwd from Gormes process evidence, while preserving the missing-context byte-identical fallback for arbitrary temp dirs. Focused command: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run 'TestLiveTurn_SystemPrompt_IncludesAuthoritativeWorkspaceFact|LiveTurn' -count=1."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.F",
+    "pos": 8,
+    "item": {
+      "name": "Update bundled skills across active and named profiles",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes skill update/sync paths seed reviewed bundled skills into the active profile and every named profile, target explicit profile roots, preserve user-modified skills, and return a deterministic per-profile summary without writing to unrelated homes.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Profile-root discovery, sync conflicts, and write failures return skill_profile_sync_unavailable, skill_profile_conflict, or skill_profile_write_failed evidence with profile names only; no skill body or private path content is logged.",
+      "fixture": "internal/skills/profile_sync_test.go; cmd/gormes/skills_sync_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/main.py@20edca75e",
+        "../hermes-agent/tests/hermes_cli/test_cmd_update.py@20edca75e",
+        "internal/skills/delta_maintenance.go",
+        "internal/skills/store.go",
+        "cmd/gormes/skills.go"
+      ],
+      "ready_when": [
+        "Skills list enabled/disabled status and bundled skill catalog rows are complete enough to enumerate reviewed bundled skills.",
+        "Tests can build fake active and named profile roots under t.TempDir and inject bundled skill fixtures; no live update download, registry fetch, or real user profile mutation is required."
+      ],
+      "not_ready_when": [
+        "The slice downloads skills from network registries, rewrites URL install semantics, or overwrites user-edited active skills without conflict evidence.",
+        "The slice writes outside injected profile roots or reads real ~/.gormes/~/.hermes homes.",
+        "Profile sync silently skips the active profile while updating only named profiles."
+      ],
+      "blocked_by": [
+        "Skills list — enabled/disabled status column + --enabled-only filter"
+      ],
+      "acceptance": [
+        "TestBundledSkillProfileSyncWritesActiveAndNamedProfiles seeds active/default/work profiles and proves each receives missing reviewed bundled SKILL.md files.",
+        "TestBundledSkillProfileSyncPreservesUserModifiedSkills proves changed skills are not overwritten and conflict evidence names the profile and skill.",
+        "TestBundledSkillProfileSyncSummaryDeterministic proves per-profile added/unchanged/conflict/failed counts are sorted and redacted.",
+        "TestSkillsSyncCommandRunsProfileSyncWithFakeRoots proves the native skills sync/update-equivalent path calls the profile sync helper without network, registry, or real home writes."
+      ],
+      "note": "Complete 2026-05-06: added internal/skills profile sync over injected profile roots plus gormes skills sync command seams. Focused tests prove active/default/work profile writes, user-modified conflict preservation, deterministic redacted summaries, and command binding through fake roots with no network or live-home mutation.",
+      "write_scope": [
+        "internal/skills/profile_sync.go",
+        "internal/skills/profile_sync_test.go",
+        "cmd/gormes/skills.go",
+        "cmd/gormes/skills_sync_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/skills -run 'TestBundledSkillProfileSync' -count=1",
+        "go test ./cmd/gormes -run 'TestSkills.*ProfileSync|TestSkills.*Sync' -count=1",
+        "go test ./internal/skills ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Profile-sync fixtures prove bundled skills are updated across active and named profiles, user edits are preserved, summaries are deterministic, and tests never touch live homes or registries."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:20edca75e hermes_cli/main.py update skill sync",
+        "note": "Hermes fixed update to sync bundled skills to every profile including the active profile; Gormes tracks the same invariant in its native skills/update paths. Parity sweep 2026-05-06 raised this to P1 because it is source-backed, small, builder-ready, and unblocks operator-visible skills/profile parity while planned-row count is 70."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 24,
+    "item": {
+      "name": "Config, profile, auth, and setup command surfaces",
+      "status": "complete",
+      "slice_size": "umbrella",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "not_ready_when": [
+        "The row is assigned as one combined config/profile/auth/setup migration instead of the pure profile, auth-status, setup, and uninstall slices."
+      ],
+      "unblocks": [
+        "CLI profile name validator",
+        "CLI profile root resolver",
+        "CLI active-profile store",
+        "Hermes auth command-tree manifest refresh",
+        "Hermes auth credential-pool command surface",
+        "Hermes auth OAuth provider adapters",
+        "Hermes auth Spotify service-provider subcommand",
+        "Provider endpoint/API-key root flags + runtime resolution",
+        "Gormes config command surface",
+        "Hermes config migration dry-run manifest",
+        "OpenClaw migration dry-run manifest",
+        "Gormes auth bare interactive credential-pool readout",
+        "Gormes auth status per-provider aggregator",
+        "Gormes auth add openai-codex strict isolation contract",
+        "Gormes auth add bedrock open-question planning note",
+        "Gormes top-level logout provider shortcut",
+        "Gormes removed top-level login guidance",
+        "Gormes model interactive provider/model picker",
+        "Gormes setup minimal sectioned wizard slice",
+        "Gormes setup top-level chooser menu",
+        "Gormes setup full-wizard shell and branded summary",
+        "Hermes setup entry-mode and reset semantics",
+        "Gormes setup tools checklist command binding",
+        "Gormes setup gateway platform checklist command binding",
+        "Gormes setup terminal TTS and agent-settings section bindings",
+        "Gormes uninstall dry-run command contract",
+        "Gormes mcp login interface seam + noninteractive default",
+        "Gormes mcp login browser callback flow",
+        "Gormes profile command binding",
+        "Model and profile selector seam (Cobra + gateway)",
+        "Gormes agent template reset command"
+      ],
+      "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
+      "completed_at": "2026-05-08T03:56:15Z",
+      "no_test_required": "",
+      "test_commands": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 32,
+    "item": {
+      "name": "Gormes profile command binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Implements `gormes profile show|set|list` over the existing CLI profile name validator (`CLI profile name validator` row), root resolver (`CLI profile root resolver` row), and active-profile store (`CLI active-profile store` row). `show` renders the active profile name plus redacted root path; `set <name>` validates the name first → updates the active-profile store → swaps the root resolver; `list` enumerates known profiles with a current marker. User-facing selection (when invoked without an explicit name) delegates to the new `Model and profile selector seam (Cobra + gateway)` row's `ProfileSelector` interface once that lands; until then `set` requires an explicit name argument.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Invalid profile name returns `profile_name_invalid` typed evidence and the active-profile store is left untouched. An unwritable profile root returns `profile_root_unwritable`. A corrupt active-profile store returns `active_profile_corrupt`. A partial failure (e.g. store updated but root resolver swap fails) returns `profile_set_partial_failure` with the prior active profile name in the evidence so operators can recover.",
+      "fixture": "cmd/gormes/profile_command_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/profiles.py:validate_profile_name",
+        "../hermes-agent/hermes_cli/profiles.py:list_profiles",
+        "../hermes-agent/hermes_cli/profiles.py:get_profile_dir",
+        "../hermes-agent/hermes_cli/main.py:profile_subparsers",
+        "cmd/gormes/hermes_cli_parity.go:81",
+        "cmd/gormes/hermes_cli_parity.go:111",
+        "internal/cli/profile_name.go",
+        "internal/cli/profile_root.go",
+        "internal/cli/active_profile.go",
+        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+      ],
+      "ready_when": [
+        "CLI profile name validator row is complete and exposes a Go-native validator.",
+        "CLI profile root resolver row is complete and exposes a Go-native resolver that can be swapped at runtime.",
+        "CLI active-profile store row is complete and exposes read/write/replace primitives over the active-profile pointer.",
+        "Model and profile selector seam (Cobra + gateway) row is at least planned so the bare-invocation selector path is documented.",
+        "Tests inject fake validator/resolver/store seams and a temp profile root; no live ~/.hermes or ~/.gormes profile state is read."
+      ],
+      "not_ready_when": [
+        "The slice re-implements profile name validation, root resolution, or active-profile storage instead of delegating to rows 19851/19910/19971.",
+        "The slice mutates the active-profile store before validating the name.",
+        "Test fixtures read live ~/.hermes or ~/.gormes profile state.",
+        "Output prints raw root paths in a way that could leak auth tokens stored under the profile root."
+      ],
+      "blocked_by": [
+        "CLI profile name validator",
+        "CLI profile root resolver",
+        "CLI active-profile store",
+        "Model and profile selector seam (Cobra + gateway)"
+      ],
+      "acceptance": [
+        "TestGormesProfileShowRendersActivePathRedacted proves `gormes profile show` outputs the active profile name and a redacted root path; the test asserts that no raw filesystem path string that could contain an auth token slug appears in stdout/stderr.",
+        "TestGormesProfileSetValidatesNameThenUpdatesStore proves the validator (CLI profile name validator) is called before the active-profile store; an invalid name returns `profile_name_invalid` typed evidence and the store is byte-identical after the failed call.",
+        "TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker proves `gormes profile list` output marks the active profile (`*` or equivalent) and lists all profiles returned by the root resolver in stable order.",
+        "TestGormesProfileSetUpdatesRootResolver proves the root resolver swap happens after the store update succeeds, not before; a fake store-write failure leaves the resolver pointing at the prior root.",
+        "TestGormesProfileSetPartialFailureReportsTypedEvidence proves a fake resolver-swap failure after a successful store update returns `profile_set_partial_failure` evidence containing the prior active profile name."
+      ],
+      "note": "Encodes the Q4B-P1 decision: three helper rows (CLI profile name validator, CLI profile root resolver, CLI active-profile store) are complete and currently have zero callers. This row converts that into operator-visible behavior. Coordinates with the gateway `_handle_profile_command` overlap noted in the `Gateway, platform, webhook, and cron management CLI` umbrella via the new selector seam (`Model and profile selector seam (Cobra + gateway)`) so the same selection logic powers both Cobra `gormes profile` and the gateway slash command. Hermes-side parity reference: `hermes_cli/profiles.py` — Hermes' profile command lives there and exposes list/use/create/delete/show/alias/rename/export/import; this row lands a minimal `show|set|list` slice and tracks the remaining verbs as future row-backed work.",
+      "write_scope": [
+        "cmd/gormes/profile.go",
+        "cmd/gormes/profile_command_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run '^TestGormesProfile' -count=1",
+        "go test ./cmd/gormes ./internal/cli -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Profile command-binding fixtures prove redacted show, validator-before-store ordering on set, current-marker list, ordered resolver swap on set, and partial-failure typed evidence."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:hermes_cli/profiles.py + hermes_cli/main.py:profile_subparsers (Q4B-P1 decision: minimal show|set|list slice over the three already-shipped helper rows)",
+        "note": "Hermes ships a fuller profile command surface (list/use/create/delete/show/alias/rename/export/import); Gormes lands the show|set|list slice first to materialize the existing helper rows into operator-visible behavior, with remaining verbs row-backed for follow-up."
+      },
+      "evidence": {
+        "implementation": "cmd/gormes/profile.go (newProfileCommand, profileCommandSeams, runProfileShowCommand, runProfileSetCommand, runProfileListCommand, writeProfileSummary, redactProfileRootPath, defaultProfileCommandSeams); one-line registration in cmd/gormes/main.go newRootCommandWithRuntime",
+        "tests": "cmd/gormes/profile_command_test.go (TestGormesProfileShowRendersActivePathRedacted, TestGormesProfileSetValidatesNameThenUpdatesStore with invalid_name_is_rejected_before_store_write and valid_name_writes_store_after_validation subtests, TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker, TestGormesProfileSetUpdatesRootResolver with resolver_invoked_after_store_write_succeeds and resolver_failure_after_write_surfaces_partial_failure subtests, TestGormesProfileSelectorWiring)",
+        "note": "show/set/list consume function-shaped seams that wrap cli.ValidateProfileName, cli.ResolveProfileRoot, cli.ReadActiveProfile, and cli.WriteActiveProfile. The default production wiring derives paths from config.GormesHome() so internal/config stays unmodified. show and set share writeProfileSummary so name/redacted-root rendering lives in one place; redactProfileRootPath strips parent directories and prefixes '...' so operator home identifiers never reach stdout."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 33,
+    "item": {
+      "name": "Gormes profile distribution metadata readout",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port Hermes' new shareable profile-distribution metadata surface without implementing remote git install/update in this slice: Gormes reads `distribution.yaml` from resolved profile roots, applies Hermes manifest defaults, surfaces distribution name/version/source/env requirements through `gormes profile list`, `gormes profile show`, and `gormes profile info <name>`, and treats plain profiles as non-distributions without failing.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If a profile has malformed distribution metadata, Gormes returns typed parse evidence for that profile without mutating profile roots, cloning git repos, reading live Hermes homes, or leaking raw profile root paths in list/show output.",
+      "fixture": "internal/cli/profile_distribution_test.go; cmd/gormes/profile_command_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/profile_distribution.py@f209a3585:DistributionManifest,EnvRequirement,read_manifest,describe_distribution",
+        "./hermes-agent/hermes_cli/profiles.py@f209a3585:_read_distribution_meta,list_profiles",
+        "./hermes-agent/hermes_cli/main.py@f209a3585:cmd_profile profile install/update/info branches and profile list distribution column",
+        "./hermes-agent/tests/hermes_cli/test_profile_distribution.py@f209a3585",
+        "./hermes-agent/website/docs/reference/profile-commands.md@f209a3585:Profile distributions",
+        "cmd/gormes/profile.go",
+        "internal/cli/profile_name.go",
+        "internal/cli/profile_root.go",
+        "internal/cli/active_profile.go"
+      ],
+      "ready_when": [
+        "Gormes profile command binding is complete and can resolve profile names to Gormes-owned profile roots.",
+        "The existing Go module already depends on gopkg.in/yaml.v3, so manifest parsing can be hermetic.",
+        "Tests can use fake profile command seams and temp directories; no live ~/.hermes, ~/.gormes, credentials, git network, or remote provider is required."
+      ],
+      "not_ready_when": [
+        "The slice shells out to git, clones a remote distribution, overwrites distribution-owned files, updates config.yaml, creates aliases, or schedules cron jobs.",
+        "The slice reads HERMES_HOME, ~/.hermes, ~/.gormes, or an operator's live profile roots in tests.",
+        "The slice expands into full profile create/delete/rename/export/import parity instead of the distribution metadata readout."
+      ],
+      "blocked_by": [
+        "Gormes profile command binding"
+      ],
+      "acceptance": [
+        "TestReadProfileDistributionManifestDefaults proves `distribution.yaml` parsing matches Hermes defaults: missing version becomes 0.1.0, omitted env `required` becomes true, and explicit distribution_owned entries are normalized.",
+        "TestGormesProfileListShowsDistributionMetadata proves human and JSON `profile list` output include distribution name/version for distribution profiles while plain profiles remain listed.",
+        "TestGormesProfileShowIncludesDistributionSummary proves active-profile `show` includes a distribution summary without printing raw profile root paths.",
+        "TestGormesProfileInfoRendersDistributionManifest proves `profile info <name>` prints manifest description, source, installed timestamp, and env requirements; non-distribution profiles return a non-error explanatory message."
+      ],
+      "write_scope": [
+        "internal/cli/profile_distribution.go",
+        "internal/cli/profile_distribution_test.go",
+        "cmd/gormes/profile.go",
+        "cmd/gormes/profile_command_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli -run '^TestReadProfileDistributionManifest' -count=1",
+        "go test ./cmd/gormes -run '^TestGormesProfile(ListShowsDistributionMetadata|ShowIncludesDistributionSummary|InfoRendersDistributionManifest)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Profile-distribution fixtures prove Gormes reads Hermes-compatible distribution.yaml metadata and surfaces it through profile list/show/info without git/network side effects or raw profile root leakage."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:f209a3585 feat(profile): shareable profile distributions via git (#20831)",
+        "note": "Added by the 2026-05-08 all-topic parity sweep after refreshing the in-repo hermes-agent submodule. This row captures the metadata/readout slice of the new upstream profile-distribution surface; install/update mutation is intentionally out of scope for this bounded cycle."
+      },
+      "completed_at": "2026-05-08T17:13:38Z",
+      "evidence": {
+        "implementation": "internal/cli/profile_distribution.go reads Hermes-compatible distribution.yaml metadata with default version/env-required normalization; cmd/gormes/profile.go wires profile list/show/info through fakeable seams without git/network/profile mutation side effects.",
+        "tests": "go test ./internal/cli -run '^TestReadProfileDistributionManifest' -count=1; go test ./cmd/gormes -run '^TestGormesProfile(ListShowsDistributionMetadata|ShowIncludesDistributionSummary|InfoRendersDistributionManifest)' -count=1; go run ./cmd/progress validate; git diff --check",
+        "note": "The slice intentionally stops at metadata/readout parity for the upstream f209a3585 profile-distribution feature. Git clone, install, update, config overwrite, alias creation, and cron scheduling remain outside this bounded row."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 34,
+    "item": {
+      "name": "Gormes profile create clone-all infrastructure exclusion",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port Hermes' hardened `profile create --clone-all` default-profile copy policy: Gormes creates a named profile from the default Gormes profile, preserves real profile data, strips runtime process files, excludes default-root infrastructure directories, and excludes regenerable bytecode/socket/temp files at any depth.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Invalid, reserved, or existing profile names fail before copying; missing default profile roots return typed create evidence; stdout/stderr and JSON output render only redacted profile roots and never print raw home paths, secrets, repo checkout paths, or copied file contents.",
+      "fixture": "internal/cli/profile_create_test.go; cmd/gormes/profile_command_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/profiles.py@f7e514d4a:_CLONE_ALL_DEFAULT_EXCLUDE_ROOT",
+        "./hermes-agent/hermes_cli/profiles.py@f7e514d4a:_clone_all_copytree_ignore",
+        "./hermes-agent/hermes_cli/profiles.py@f7e514d4a:create_profile clone_all branch",
+        "./hermes-agent/tests/hermes_cli/test_profiles.py@f7e514d4a:TestCreateProfile.test_clone_all_excludes_default_infrastructure",
+        "cmd/gormes/profile.go",
+        "internal/cli/profile_name.go",
+        "internal/cli/profile_root.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+      ],
+      "ready_when": [
+        "Gormes profile command binding and distribution metadata readout are complete, so `profile` command wiring and profile-root resolution already exist.",
+        "The row can be proven with temp XDG/GORMES_HOME fixtures and fake command seams; no live ~/.hermes, ~/.gormes, credentials, git network, or remote provider access is required.",
+        "The slice is limited to local profile creation and clone-all exclusion policy, not remote distribution install/update, aliases, rename/delete/export/import, or gateway `/profile` work."
+      ],
+      "not_ready_when": [
+        "The implementation reads or writes an operator's live ~/.hermes, ~/.gormes, repository checkout, or named-profile roots in tests.",
+        "The slice shells out to git, clones a remote profile distribution, mutates auth tokens, or copies infrastructure directories into the target profile.",
+        "The slice expands into full profile lifecycle parity instead of `create --clone-all` plus minimal fresh-create support needed for a coherent command."
+      ],
+      "blocked_by": [
+        "Gormes profile command binding",
+        "Gormes profile distribution metadata readout"
+      ],
+      "unblocks": [
+        "Full Hermes profile create/delete/rename/export/import parity"
+      ],
+      "acceptance": [
+        "TestCreateProfileCloneAllExcludesDefaultInfrastructure proves `CreateProfile(... CloneAll=true)` copies config, env, state, sessions, logs, and skills from a temp default profile while excluding root `gormes-agent`, `.worktrees`, `profiles`, `bin`, and `node_modules` plus nested `__pycache__`, `*.pyc`, `*.pyo`, `*.sock`, and `*.tmp` entries.",
+        "TestCreateProfileCloneAllStripsRuntimeFiles proves `gateway.pid`, `gateway_state.json`, and `processes.json` are removed from the cloned target after copy.",
+        "TestGormesProfileCreateCloneAllCommand proves `gormes profile create <name> --clone-all --json` returns a structured created report with a redacted root and no raw temp-home leakage.",
+        "TestGormesProfileCreateRejectsDefaultAndExistingTargets proves invalid/reserved/existing targets fail before copy and leave source data untouched."
+      ],
+      "write_scope": [
+        "internal/cli/profile_create.go",
+        "internal/cli/profile_create_test.go",
+        "cmd/gormes/profile.go",
+        "cmd/gormes/profile_command_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli -run '^TestCreateProfile' -count=1",
+        "go test ./cmd/gormes -run '^TestGormesProfileCreate' -count=1",
+        "go test ./cmd/gormes ./internal/cli -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Profile-create fixtures prove clone-all preserves profile data, excludes default-root infrastructure and regenerable files, strips runtime files, rejects unsafe targets before copy, and renders redacted command output only."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:f7e514d4a fix(profiles): exclude infrastructure artifacts when cloning with --clone-all",
+        "note": "2026-05-09 bounded all-topic weakness sweep refreshed Hermes from 93e25ceb1 to cca2869d7 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh upstream deltas were profile clone-all infrastructure exclusion and banner update-check repo resolution. Existing Gormes update/install rows already own managed-checkout update safety, while profile create/clone-all remained row-backed after show/set/list and distribution metadata completion; this is the one new source-backed row for the cycle."
+      },
+      "completed_at": "2026-05-09T11:22:32Z",
+      "evidence": {
+        "implementation": "internal/cli/profile_create.go implements CreateProfile, clone-all copy exclusion, runtime-file stripping, and minimal fresh profile directory creation; cmd/gormes/profile.go wires `gormes profile create <name> [--clone-all] [--json]` through fakeable seams with redacted root output.",
+        "tests": "go test ./internal/cli -run '^TestCreateProfile' -count=1; go test ./cmd/gormes -run '^TestGormesProfileCreate' -count=1; go test ./cmd/gormes ./internal/cli -count=1",
+        "note": "TDD added temp-profile fixtures only. Clone-all copies config, dotenv, state, sessions, logs, and skills while excluding default-root infrastructure directories (`gormes-agent`, `.worktrees`, `profiles`, `bin`, `node_modules`), nested regenerable files (`__pycache__`, `*.pyc`, `*.pyo`, `*.sock`, `*.tmp`), and root runtime process files (`gateway.pid`, `gateway_state.json`, `processes.json`)."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 35,
+    "item": {
+      "name": "Model and profile selector seam (Cobra + gateway)",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Defines `type ModelSelector interface { Select(ctx context.Context, kind SelectionKind) (Selection, error) }` and `type ProfileSelector interface { Select(ctx context.Context) (Profile, error) }` in `internal/cli/selector.go`. Default implementations consume the existing rows: `Hermes config.yaml model/provider runtime bridge` for live config, `TUI launch model override + static alias resolver` for alias resolution, and the three profile helpers (`CLI profile name validator`, `CLI profile root resolver`, `CLI active-profile store`). The seam returns a `(provider, model, account)` triple for model selection and a profile descriptor for profile selection; consumers decide what to do with the result. The seam is the canonical entry point for both the Cobra `gormes model` / `gormes profile` commands and the gateway slash commands `/model` / `/profile`.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "`selector_no_match` typed evidence is returned when no provider/model alias resolves; `selector_helper_unavailable` when one of the helper rows is not yet wired; `selector_alias_resolution_failed` when the static alias resolver returns an error.",
+      "fixture": "internal/cli/selector_test.go",
+      "source_refs": [
+        "internal/hermes/model_alias_resolver.go",
+        "internal/config/config.go:HermesCfg",
+        "internal/cli/profile_name.go",
+        "internal/cli/profile_root.go",
+        "internal/cli/active_profile.go",
+        "cmd/gormes/hermes_cli_parity.go:286",
+        "../hermes-agent/gateway/run.py:_handle_model_command",
+        "../hermes-agent/gateway/run.py:_handle_profile_command",
+        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+      ],
+      "ready_when": [
+        "Hermes config.yaml model/provider runtime bridge row is complete and exposes a typed read model.",
+        "TUI launch model override + static alias resolver row is complete and exposes the alias resolver as a callable.",
+        "CLI profile name validator, CLI profile root resolver, and CLI active-profile store rows are complete and expose Go-native helpers.",
+        "Tests can inject fake helper-row implementations and a fake alias resolver; no live config files or live provider endpoints are needed."
+      ],
+      "not_ready_when": [
+        "The selector duplicates alias resolution, config loading, or profile root resolution that already lives in the Hermes config.yaml model/provider runtime bridge, TUI launch model override + static alias resolver, CLI profile name validator, CLI profile root resolver, or CLI active-profile store rows.",
+        "The seam returns concrete struct types instead of small interface-friendly result records.",
+        "Tests require live config files or live provider endpoints."
+      ],
+      "blocked_by": [
+        "Hermes config.yaml model/provider runtime bridge",
+        "TUI launch model override + static alias resolver",
+        "CLI profile name validator",
+        "CLI profile root resolver",
+        "CLI active-profile store"
+      ],
+      "unblocks": [
+        "Gormes model interactive provider/model picker",
+        "Gormes profile command binding"
+      ],
+      "acceptance": [
+        "TestModelSelectorContract proves the `ModelSelector` interface signature `Select(ctx context.Context, kind SelectionKind) (Selection, error)` and the `ProfileSelector` interface signature `Select(ctx context.Context) (Profile, error)` are exported from `internal/cli/selector.go`.",
+        "TestModelSelectorDefaultConsumesExistingResolverRows proves the default `ModelSelector` implementation calls into the Hermes config.yaml model/provider runtime bridge and the TUI launch model override + static alias resolver without re-deriving alias logic.",
+        "TestProfileSelectorDefaultConsumesProfileHelpers proves the default `ProfileSelector` implementation calls the CLI profile name validator → CLI profile root resolver → CLI active-profile store helpers in that order.",
+        "TestSelectorReturnsTypedErrorOnNoMatch proves a no-match scenario returns `selector_no_match` typed evidence (not a panic, not a nil result, not a generic error)."
+      ],
+      "note": "Complete: TDD shipped `internal/cli/selector.go` and `internal/cli/selector_test.go` exposing `ModelSelector`/`ProfileSelector` interfaces with `Selection` and `Profile` result records and the `SelectionKindModel|Provider|Account` enum. Default implementations consume the existing helper rows through function-shaped seams (`ReadInferenceDefaultsFunc` over the Hermes config.yaml model/provider runtime bridge, `ResolveAliasFunc` over the TUI launch model override + static alias resolver, `ReadActiveProfileNameFunc`/`ValidateProfileNameFunc`/`ResolveProfileRootFunc` over the three profile helper rows) — no alias resolution, config loading, or profile root logic is re-derived in this package. Tests inject fakes only; no live config files, no live provider endpoints, no network. Q7B decision preserved: the seam is the canonical entry point for both Cobra (`gormes model`, `gormes profile`) and gateway slash (`/model`, `/profile`) commands. When the gateway handler bindings (`_handle_model_command`, `_handle_profile_command` — currently row-backed under `Gateway, platform, webhook, and cron management CLI` per `cmd/gormes/hermes_cli_parity.go:286`) land in their own row, those rows must blocked_by this seam.",
+      "write_scope": [
+        "internal/cli/selector.go",
+        "internal/cli/selector_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli -run '^TestModelSelector|^TestProfileSelector' -count=1",
+        "go test ./internal/cli -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Selector-seam fixtures prove the interface signatures, default-implementation delegation to the existing helper rows, profile-helper call order, and `selector_no_match` typed evidence on a no-match scenario."
+      ],
+      "provenance": {
+        "origin_type": "owned",
+        "upstream_ref": "Q7B planner decision: a single Go-native selector interface for both Cobra and gateway model/profile selection, derived from the Hermes parity scope without porting a Python helper",
+        "note": "Hermes routes model/profile selection through ad-hoc helpers per command; Gormes consolidates them behind a single interface so Cobra and gateway slash commands share the same code path."
+      },
+      "evidence": {
+        "implementation": "internal/cli/selector.go",
+        "tests": "internal/cli/selector_test.go (TestModelSelectorContract, TestModelSelectorDefaultConsumesExistingResolverRows, TestProfileSelectorDefaultConsumesProfileHelpers, TestSelectorReturnsTypedErrorOnNoMatch with model_no_match/model_helper_unavailable/model_alias_resolution_failed/profile_no_match/profile_helper_unavailable subtests)",
+        "note": "Default selectors take function-shaped seams (ReadInferenceDefaultsFunc, ResolveAliasFunc, ReadActiveProfileNameFunc, ValidateProfileNameFunc, ResolveProfileRootFunc) so they consume — not re-derive — the Hermes config.yaml runtime bridge, TUI launch model override + static alias resolver, and the three profile helper rows. Cobra/gateway wiring lives in the next slice."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 54,
+    "item": {
+      "name": "Gormes profile skills chat invocation shim",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes accepts the active Hermes worker invocation shape `gormes -p <profile> --skills <skill> chat -q <prompt>` as a native compatibility shim: profile selection resolves Gormes-owned profile roots before config loading, repeated or comma-separated `--skills` values become an explicit runtime skill allowlist for the one turn, and `chat -q` dispatches through the existing oneshot path without reading HERMES_HOME, shelling out to Hermes, or persisting invocation-only flags.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system",
+        "child-agent"
+      ],
+      "degraded_mode": "Invalid profile names, missing profile root resolution, missing selected skills, and provider setup failures return typed Gormes evidence before opening provider clients; raw skill paths, private profile roots, and provider secrets are not printed.",
+      "fixture": "cmd/gormes/chat_command_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/main.py@b816fd4e2:_apply_profile_override",
+        "./hermes-agent/hermes_cli/main.py@b816fd4e2:build_top_level_parser",
+        "./hermes-agent/hermes_cli/main.py@b816fd4e2:cmd_chat",
+        "./hermes-agent/cli.py@b816fd4e2:_parse_skills_argument",
+        "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:_default_spawn",
+        "cmd/gormes/main.go:newRootCommandWithRuntime",
+        "cmd/gormes/profile.go:defaultProfileCommandSeams",
+        "internal/skills/store.go:Runtime.BuildSkillBlockWithOptions"
+      ],
+      "ready_when": [
+        "Provider endpoint/API-key root flags + runtime resolution is complete, so `chat -q` can reuse the oneshot path and redaction behavior.",
+        "Gormes profile name/root helpers and the skills runtime are complete and can be wired without reading Hermes runtime homes.",
+        "The slice only adds the CLI invocation shim; Kanban process spawning, worker tools, and dashboard/slash surfaces remain separate rows."
+      ],
+      "not_ready_when": [
+        "The slice implements a full Hermes prompt-toolkit chat UI instead of delegating to existing Gormes TUI/oneshot paths.",
+        "The slice reads HERMES_HOME, ~/.hermes, live provider credentials, or an operator's real skills directory in tests.",
+        "The slice persists `--profile`, `--skills`, or `chat -q` values into config.toml or dotenv."
+      ],
+      "unblocks": [
+        "Hermes Kanban production worker process binding"
+      ],
+      "acceptance": [
+        "TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad proves `-p/--profile` resolves a Gormes profile root before `chat -q` loads config and never touches HERMES_HOME.",
+        "TestChatCommandQueryDispatchesOneshot proves `gormes chat -q <prompt>` and `gormes chat <prompt>` dispatch the exact prompt through the existing oneshot invocation instead of starting the TUI.",
+        "TestChatCommandSkillsFlagBuildsForcedSkillProvider proves repeated and comma-separated `--skills` values normalize to an explicit one-turn skill allowlist and do not mutate config or global skill roots.",
+        "TestChatCommandSkillsFlagRejectsMissingSkillBeforeOneshot proves missing selected skills return typed Gormes evidence before the oneshot/provider path runs.",
+        "TestChatCommandWithoutQueryDelegatesTUI proves bare `gormes chat` preserves the interactive chat behavior.",
+        "Root and chat help expose `-p/--profile`, `--skills`, and `chat -q` so the Kanban worker process row can build native Gormes argv without shelling out to Hermes."
+      ],
+      "note": "Added by the 2026-05-06 all-topic parity sweep. The top P1 Kanban production-worker row was not actually buildable because its not_ready_when requires the native root command to accept Hermes' profile/skills chat invocation shape. This row is the narrow CLI prerequisite rather than broadening the Kanban worker row.",
+      "write_scope": [
+        "cmd/gormes/main.go",
+        "cmd/gormes/chat_command_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run '^TestChatCommand(ProfileFlag|Query|SkillsFlag|WithoutQuery)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Chat invocation fixtures prove profile-root resolution, `chat -q` oneshot dispatch, forced skill allowlist wiring, TUI fallback for bare chat, and no Hermes home/config mutation."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:b816fd4e2 hermes_cli/main.py profile preparse + chat parser and cli.py skills argument parsing",
+        "note": "Source-backed CLI prerequisite found while sweeping Kanban, CLI/profile, skills, and operator runtime surfaces."
+      },
+      "blocked_by": [],
+      "evidence": {
+        "implementation": "cmd/gormes/main.go adds persistent -p/--profile and --skills flags, native chat -q/query dispatch through the existing oneshot path, Gormes-only profile root resolution before config loading, missing selected-skill validation before provider setup, forced one-turn skill allowlist wiring into the oneshot kernel skill provider, and bare chat TUI fallback. cmd/gormes/chat_command_test.go covers profile, query, skills, missing-skill evidence, and TUI fallback behavior without reading Hermes home or mutating config.",
+        "tests": "go test ./cmd/gormes -run '^TestChatCommand(ProfileFlag|Query|SkillsFlag|WithoutQuery)' -count=1; go test ./cmd/gormes -count=1; go test ./webpages/docs -count=1; (cd webpages/landing/legacy/go-renderer && go test ./... -count=1); (cd webpages/landing && npm run build); (cd webpages/landing && npm run test:e2e); (cd webpages/docs/www-tests && npm run test:e2e); go test ./... -count=1; go run ./cmd/progress validate; git diff --check"
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 63,
+    "item": {
+      "name": "CLI profile name validator",
+      "status": "complete",
+      "contract": "internal/cli adds a pure function `ValidateProfileName(name string) error` and an exported sentinel error set: ErrProfileNameEmpty, ErrProfileNameTooLong, ErrProfileNameInvalidChars, ErrProfileNameReserved; the function accepts names matching `^[a-z0-9][a-z0-9_-]{0,63}$`, treats 'default' as valid (special alias), and rejects the reserved subcommand names {'create','delete','list','use','export','import','show'}",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Callers report a typed sentinel error class instead of free-form text so the CLI can render uniform error messages later without re-parsing strings.",
+      "fixture": "internal/cli/profile_name_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/profiles.py@edc78e25:_PROFILE_ID_RE",
+        "../hermes-agent/hermes_cli/profiles.py@edc78e25:validate_profile_name",
+        "../hermes-agent/tests/hermes_cli/test_profiles.py@edc78e25",
+        "internal/cli/banner.go"
+      ],
+      "ready_when": [
+        "internal/cli already exposes pure helpers; adding one new file with one validator + sentinel errors compiles cleanly alongside them.",
+        "This slice only defines validation; no path resolution, active-profile read/write, command wiring, alias wrapper, or env mutation is required."
+      ],
+      "not_ready_when": [
+        "The slice resolves filesystem paths, creates wrapper scripts, mutates provider credentials, modifies internal/config, or registers a Cobra command.",
+        "The slice modifies any other internal/cli file beyond the new profile_name.go and profile_name_test.go."
+      ],
+      "unblocks": [
+        "CLI active-profile store",
+        "CLI profile root resolver"
+      ],
+      "acceptance": [
+        "TestValidateProfileName_AcceptsValid: ValidateProfileName each of {'default','coder','work-1','tier_2','a','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'} returns nil (the last is exactly 64 chars).",
+        "TestValidateProfileName_RejectsEmpty: ValidateProfileName('') and ValidateProfileName('   ') (after caller-side trim) both return ErrProfileNameEmpty.",
+        "TestValidateProfileName_RejectsTooLong: ValidateProfileName(strings.Repeat('a', 65)) returns ErrProfileNameTooLong.",
+        "TestValidateProfileName_RejectsInvalidChars: each of {'Coder','my profile','-leading','_leading','dot.name','slash/name','tab\\tname'} returns ErrProfileNameInvalidChars.",
+        "TestValidateProfileName_RejectsReserved: each of {'create','delete','list','use','export','import','show'} returns ErrProfileNameReserved (these collide with subcommand names)."
+      ],
+      "note": "Reshape of the prior quarantined 5.O 'CLI profile path and active-profile store' row. The previous contract bundled validation + path resolution + active-profile store + env resolution, four concept layers that workers couldn't land atomically. This row narrows scope to the validator alone; path resolver and active-profile store are tracked as the two sibling rows below. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+      "write_scope": [
+        "internal/cli/profile_name.go",
+        "internal/cli/profile_name_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli -run 'TestValidateProfileName_' -count=1",
+        "go test ./internal/cli -count=1",
+        "go vet ./internal/cli",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/cli/profile_name.go declares ValidateProfileName plus the four sentinel errors; five named tests pass; no other internal/cli, internal/config, or cmd/gormes file is modified."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
+        "note": "Reshape of the prior 5.O quarantine. Hermes defines the profile name regex and reserved-name list; Gormes lands the validator first as a pure function before path resolution, active-profile store, or command wiring."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 64,
+    "item": {
+      "name": "CLI profile root resolver",
+      "status": "complete",
+      "contract": "internal/cli adds a pure function `ResolveProfileRoot(name string, gormesXDGConfigHome string) (string, error)` that returns gormesXDGConfigHome+'/gormes' for name=='default' and gormesXDGConfigHome+'/gormes/profiles/'+name for any other valid profile name; it rejects invalid names by returning the same sentinel errors as ValidateProfileName and never touches the filesystem",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Path resolution returns sentinel errors for invalid names; callers handle filesystem access (mkdir, stat) outside this helper.",
+      "fixture": "internal/cli/profile_root_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/profiles.py@edc78e25:_get_profiles_root",
+        "../hermes-agent/hermes_cli/profiles.py@edc78e25:get_profile_dir"
+      ],
+      "ready_when": [
+        "CLI profile name validator is validated, exporting ValidateProfileName."
+      ],
+      "not_ready_when": [
+        "The slice reads $XDG_CONFIG_HOME from os.Getenv inside the function (the function takes the value as a parameter), creates directories, walks the filesystem, or modifies internal/config."
+      ],
+      "blocked_by": [
+        "CLI profile name validator"
+      ],
+      "unblocks": [
+        "CLI active-profile store"
+      ],
+      "acceptance": [
+        "TestResolveProfileRoot_DefaultProfile: ResolveProfileRoot('default', '/tmp/cfg') returns ('/tmp/cfg/gormes', nil).",
+        "TestResolveProfileRoot_NamedProfile: ResolveProfileRoot('coder', '/tmp/cfg') returns ('/tmp/cfg/gormes/profiles/coder', nil).",
+        "TestResolveProfileRoot_RejectsInvalidName: ResolveProfileRoot('Coder', '/tmp/cfg') returns ('', ErrProfileNameInvalidChars).",
+        "TestResolveProfileRoot_RejectsEmptyXDGRoot: ResolveProfileRoot('default', '') returns ('', ErrProfileXDGRootRequired).",
+        "TestResolveProfileRoot_NoFilesystemAccess: a fixture that runs the function with a path under a directory that does not exist still returns the canonical string and no error (proves the function does not stat or mkdir)."
+      ],
+      "note": "Sibling row after the validator. Path resolution is isolated as a pure function so the active-profile store row can compose validator + resolver without re-discovering the rules.",
+      "write_scope": [
+        "internal/cli/profile_root.go",
+        "internal/cli/profile_root_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli -run 'TestResolveProfileRoot_' -count=1",
+        "go test ./internal/cli -count=1",
+        "go vet ./internal/cli",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/cli/profile_root.go declares ResolveProfileRoot and ErrProfileXDGRootRequired; five named tests pass; no other internal/cli, internal/config, or cmd/gormes file is modified."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-26T20:12:55Z",
+        "last_success": "2026-04-26T20:12:55Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
+        "note": "Hermes resolves profile dirs via env reads inside the helper; Gormes takes the XDG root as a parameter so the function stays pure and testable."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 65,
+    "item": {
+      "name": "CLI active-profile store",
+      "status": "complete",
+      "contract": "internal/cli adds an active-profile read/write store with `ReadActiveProfile(rootFile string) (string, error)` returning ErrActiveProfileUnset when missing, `WriteActiveProfile(rootFile, name string) error` that calls ValidateProfileName before writing, and `ClearActiveProfile(rootFile string) error`; both write paths use a temp-file + rename pattern so partial writes never produce a half-written file",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Read returns ErrActiveProfileUnset for missing files; write rejects invalid names via the validator's sentinel errors; clear is idempotent (no error when the file does not exist).",
+      "fixture": "internal/cli/active_profile_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/profiles.py@edc78e25:_get_active_profile_path"
+      ],
+      "ready_when": [
+        "CLI profile name validator and CLI profile root resolver are validated, exporting ValidateProfileName/ResolveProfileRoot."
+      ],
+      "not_ready_when": [
+        "The slice mutates process env, creates wrapper scripts, copies profile directories, registers a Cobra command, or modifies internal/config."
+      ],
+      "blocked_by": [
+        "CLI profile name validator",
+        "CLI profile root resolver"
+      ],
+      "unblocks": [
+        "Gormes auth status per-provider aggregator",
+        "Gormes setup minimal sectioned wizard slice",
+        "Gormes uninstall dry-run command contract"
+      ],
+      "acceptance": [
+        "TestReadActiveProfile_UnsetWhenMissing: ReadActiveProfile(<nonexistent path>) returns ('', ErrActiveProfileUnset).",
+        "TestWriteActiveProfile_RoundTrip: WriteActiveProfile then ReadActiveProfile returns the same name with nil error.",
+        "TestWriteActiveProfile_RejectsInvalidName: WriteActiveProfile(path, 'Bad Name') returns ErrProfileNameInvalidChars and leaves the file unchanged.",
+        "TestWriteActiveProfile_AtomicTempRename: a fixture that pre-creates a sentinel file at path+'.tmp' confirms WriteActiveProfile completes successfully (proving temp-file + rename) and the final file content equals the new name byte-for-byte.",
+        "TestClearActiveProfile_IdempotentMissing: ClearActiveProfile(<nonexistent path>) returns nil.",
+        "TestClearActiveProfile_RemovesExisting: after WriteActiveProfile, ClearActiveProfile removes the file and the next ReadActiveProfile returns ErrActiveProfileUnset."
+      ],
+      "note": "Sibling row after validator and root resolver. Persists only the active-profile name through atomic temp-file + rename so workers can land the store boundary without hand-rolling concurrency.",
+      "write_scope": [
+        "internal/cli/active_profile.go",
+        "internal/cli/active_profile_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli -run 'TestReadActiveProfile_|TestWriteActiveProfile_|TestClearActiveProfile_' -count=1",
+        "go test ./internal/cli -count=1",
+        "go vet ./internal/cli",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/cli/active_profile.go declares ReadActiveProfile/WriteActiveProfile/ClearActiveProfile and ErrActiveProfileUnset; six named tests pass; no other internal/cli, internal/config, or cmd/gormes file is modified."
+      ],
+      "health": {
+        "attempt_count": 2,
+        "last_attempt": "2026-04-26T20:26:35Z",
+        "last_success": "2026-04-26T20:26:35Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:edc78e25 hermes_cli/profiles.py",
+        "note": "Hermes persists active_profile as a plain text file under HERMES_HOME; Gormes does the same with atomic write semantics under the resolved XDG profile root."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 66,
+    "item": {
+      "name": "CLI profile path and active-profile store (deprecated umbrella)",
+      "status": "complete",
+      "slice_size": "umbrella",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "not_ready_when": [
+        "The row is selected at all — execute the three sibling rows above (CLI profile name validator, CLI profile root resolver, CLI active-profile store) instead."
+      ],
+      "note": "Deprecated 2026-04-26: the prior validator+resolver+store umbrella was repeatedly quarantined because workers could not land four concept layers atomically. Replaced by three sibling rows. Keep this row in inventory so historical references resolve."
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 101,
+    "item": {
+      "name": "gormes setup profiles — section scaffold + per-profile workspace list",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Add a NEW Gormes-owned `profiles` section to `gormes setup` (child 1/3 of the setup-profiles umbrella). Wire it through the SHIPPED runSetupSection boxed-header/footer chrome (cmd/gormes/setup.go:528 — add \"profiles\" to setupSections :36 and setupSectionLabels :43 as \"profiles\"->\"Profiles\"; add a dispatch case to runSetupProfilesSection; do NOT add a third chrome variant — reuse the shipped `│ Gormes Setup — <Label> │` / `<Label> configuration complete!` wrapper exactly like the other sections). runSetupProfilesSection (interactive, TTY): list known profiles with the active marker (REUSE defaultProfileCommandSeams().ListKnownProfiles + ReadActiveProfileName — do NOT re-enumerate ~/.gormes/profiles by hand); offer to create a profile (REUSE CreateProfile seam — do NOT reimplement profile creation); let the operator select a profile; prompt for ONE OR MORE workspace directories (repeatable prompt / comma-or-newline list); persist them as a workspace LIST into the SELECTED profile's OWN config.toml via the real internal/config/writer.go TOML round-trip (default profile → config.GormesHome() config path; named profile → filepath.Join(config.GormesHome(),\"profiles\",<name>)/config.toml), written as a TOML ARRAY under the existing agents workspace config shape (VERIFY the exact key/struct in internal/config/config.go AgentsCfg/agents.defaults workspace + Bindings/[[agents.list]] before coding — if agents already expresses per-agent/list workspaces, reuse that shape; do NOT invent a new schema; list fields are TOML arrays per the established config-writer round-trip rule). Non-interactive / no-TTY → errSetupRequiresTTY (or a deterministic non-interactive default path) with NO false `Profiles configuration complete!` footer on cancel/refuse/error (the shipped chrome already suppresses the footer when err!=nil or output cancelled — keep that contract). --offline-safe (pure local FS, no network). Hermetic via temp GORMES_HOME. OWNED DIVERGENCE: Hermes has no setup profiles section — Gormes-owned wording only (`gormes setup profiles`, `gormes profile create`, ~/.gormes/profiles), never `hermes`/~/.hermes/wrapper. Goncho.Workspace (memory workspace ID) is NOT the filesystem agent workspace — do not touch it. OUT OF SCOPE (sibling children): per-profile channels (child 2) and navivox-default (child 3). SHIPPED 2026-05-16 (gormes-tdd-slice).",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "degraded_mode": "No TTY / non-interactive → errSetupRequiresTTY or a deterministic non-interactive message, NO false success footer. Profile-list seam error → surface a typed error, never a panic or a fabricated profile list. Selecting the default profile writes config.GormesHome() config; a named profile writes profiles/<name>/config.toml; an unwritable target is a surfaced error, not a silent no-op. An empty workspace input keeps the existing list (no destructive clear without explicit confirm).",
+      "fixture": "cmd/gormes/setup_profiles_test.go",
+      "source_refs": [
+        "cmd/gormes/setup.go:36 setupSections / :43 setupSectionLabels / :528 runSetupSection (shipped boxed-header+footer chrome — reuse) / :562 dispatch / :1499 runSetupAgentSection (advisory workspace section — keep coherent, do not duplicate its advisory-only behavior; this section actually persists)",
+        "cmd/gormes/profile.go profileCommandSeams/defaultProfileCommandSeams (ListKnownProfiles/CreateProfile/ReadActiveProfileName/ResolveProfileRoot); config.GormesHome()+\"profiles\"/<name>",
+        "internal/config/config.go Agents AgentsCfg agents.defaults workspace (~:356) + Bindings []AgentBindingCfg; internal/config/writer.go real TOML round-trip (list fields as arrays)",
+        "../hermes-agent/hermes_cli/setup.py@55c9f3206 (no profiles section — owned-divergence reference); ../hermes-agent/hermes_cli/profiles.py@55c9f3206 (what NOT to port)",
+        "Shipped sibling: 'gormes setup <section> boxed header + completion footer (UX parity)' (chrome to reuse)"
+      ],
+      "ready_when": [
+        "Shipped: the runSetupSection boxed-header/footer chrome + setupSections/setupSectionLabels; the profile command seams; internal/config/writer.go TOML round-trip. All deps present — builder-ready now.",
+        "Tests can drive `gormes setup profiles` through cobra with a temp GORMES_HOME + injected TTY/seam fakes (list/create/select/persist) and assert the written profile config.toml workspace array without real prompts."
+      ],
+      "not_ready_when": [
+        "Reimplements profile enumeration/creation instead of reusing defaultProfileCommandSeams; adds a third setup chrome variant instead of reusing the shipped runSetupSection wrapper; writes workspace via raw string concat instead of the internal/config/writer.go round-trip; invents a new workspace schema when agents.* already expresses it; writes a scalar instead of a TOML array; writes the default home config when a named profile was selected (or vice-versa); emits a false `Profiles configuration complete!` on cancel/no-TTY; prints `hermes`/~/.hermes/wrapper wording; conflates Goncho.Workspace with the filesystem workspace.",
+        "Implements per-profile channels or navivox-default (those are sibling children 2/3, out of scope)."
+      ],
+      "acceptance": [
+        "`gormes setup profiles` renders under the shipped boxed `│ Gormes Setup — Profiles │` header (reused chrome, no third variant) and is listed in setupSections/setupSectionLabels.",
+        "Interactive flow reuses the profile seams: lists known profiles + active marker (ListKnownProfiles/ReadActiveProfileName), can create a profile (CreateProfile), selects a profile, prompts for one-or-more workspace dirs.",
+        "Selected profile's workspace LIST is persisted as a TOML array into THAT profile's own config.toml via the internal/config/writer.go round-trip (default → GormesHome config; named → profiles/<name>/config.toml) and survives a re-read (config.Load round-trip).",
+        "Non-interactive/no-TTY → errSetupRequiresTTY (or deterministic non-interactive path); cancel/refuse/error emits NO `Profiles configuration complete!`; --offline identical; Gormes-owned wording (no ~/.hermes/hermes/wrapper); Goncho.Workspace untouched.",
+        "`go test ./cmd/gormes -run 'Setup|Profile' -count=1` and `go test ./cmd/gormes -count=1` green."
+      ],
+      "note": "Child 1/3 of 'gormes setup profiles ...' umbrella. SHIPPED 2026-05-16 (gormes-tdd-slice), 4 tracer-bullet RED→GREEN. cmd/gormes/setup.go: added `profiles` to setupSections (after workspace) + setupSectionLabels (\"profiles\"->\"Profiles\") + a dispatch case → runSetupProfilesSection (non-interactive/no-TTY → errSetupRequiresTTY, so the shipped boxed `│ Gormes Setup — Profiles │` header renders with NO false completion footer) → runSetupProfilesInteractive(defaultProfileCommandSeams()): lists known profiles + active marker (REUSES ListKnownProfiles/ReadActiveProfileName), optional create (REUSES ValidateProfileName+CreateProfile — profiles/<name> dir proves seam reuse), select a profile (default=active), prompt comma-separated workspace dirs, persist via config.WriteTOMLValue(ResolveProfileRoot(sel)+\"/config.toml\", \"agents.defaults.workspaces\", input) — real internal/config TOML round-trip. Persistence layer: internal/config/agents.go AgentDefaultsCfg gained `Workspaces []string` (toml `workspaces`, round-trips via config.Load; Workspace stays the single primary for back-compat); internal/config/writer.go coerceTOMLValue gained `agents.defaults.workspaces`/`.skills` → parseEnvCSV string-array case (TOML array, not scalar). Default profile → ~/.gormes/config.toml; named → ~/.gormes/profiles/<name>/config.toml (proven NOT to leak into default home). Goncho.Workspace untouched (line ~356 is GonchoCfg, correctly avoided). Tests: cmd/gormes/setup_profiles_test.go (5: boxed header / no-TTY-no-false-success+no-write / interactive list+create via seam / default-profile persist+config.Load round-trip / named-profile writes own config not default home; no ~/.hermes/hermes/wrapper wording). Write-scope corrections (recorded, tdd-slice precedent): added internal/config/agents.go (the `Workspaces` field — smallest real schema expressing the user's MULTIPLE-workspaces-per-profile, no new subsystem) and updated the stale section-list fixture in cmd/gormes/setup_text_fidelity_test.go (`available=...|workspace|profiles|bindings|...`) since setupSections legitimately changed. Gates: go test ./cmd/gormes -run 'Setup|Profile' -count=1 ok; go test ./cmd/gormes -count=1 ok (12.5s); go test ./internal/config -count=1 ok; go run ./cmd/progress validate (9 phases); git diff --check clean. Owned divergence honored: Hermes has no setup profiles section; Gormes-owned wording; reuses profile seams + shipped setup chrome + real config round-trip (no reimplementation, no invented schema beyond the one minimal list field). Children 2 (per-profile channels) + 3 (navivox-default) remain — refine via gormes-planner then gormes-tdd-slice. tdd-slice does not commit.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_profiles_test.go",
+        "internal/config/writer.go",
+        "internal/config/writer_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'Setup|Profile' -count=1",
+        "go test ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Fixtures prove `gormes setup profiles` reuses the shipped chrome + profile seams, lists/creates/selects profiles, and persists a per-profile workspace TOML array into the selected profile's own config.toml via a real config round-trip — Gormes-owned, hermetic, no Hermes wording, Goncho.Workspace untouched."
+      ],
+      "provenance": {
+        "origin_type": "owned",
+        "upstream_refs": [
+          "hermes:55c9f3206 hermes_cli/setup.py (no profiles section), hermes_cli/profiles.py (owned-divergence reference)"
+        ],
+        "note": "skill_origin: 2026-05-16 user request -> gormes-planner. Child 1/3 of the setup-profiles umbrella. Workspace cardinality MULTIPLE + config-path bind target clarified via AskUserQuestion this session."
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 102,
+    "item": {
+      "name": "gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Child 2/3 of the setup-profiles umbrella. BUILDER-READY (refinement TODOs RESOLVED 2026-05-16; child 1 SHIPPED commit fb23ff105). Extend runSetupProfilesInteractive (cmd/gormes/setup.go) so AFTER the shipped per-profile workspace-list step, for the SELECTED profile, prompt for a comma-separated list of messaging channels; validate each against the known set {telegram,whatsapp,discord,slack} (skip/reject unknown with a Gormes-owned message — never fabricate a channel); persist the validated list as a TOML ARRAY into the SELECTED profile's OWN config.toml (default profile → config.GormesHome()/config.toml; named → pseams.ResolveProfileRoot(name)/config.toml) via config.WriteTOMLValue(path, \"agents.defaults.channels\", input) — the SAME real internal/config round-trip child 1 used for agents.defaults.workspaces; blank input KEEPS the existing list (no destructive clear); round-trips back via config.Load into cfg.Agents.Defaults.Channels. Add AgentDefaultsCfg.Channels []string (internal/config/agents.go, toml `channels`) and an `agents.defaults.channels` coerce case in internal/config/writer.go coerceTOMLValue → parseEnvCSV string array — EXACTLY SYMMETRIC with the shipped Workspaces field + agents.defaults.workspaces case (do NOT invent a different schema). REUSE BOUNDARY (decided this pass): runSetupBindingsSection is ADVISORY-ONLY (prints `[[bindings]]` guidance + 'Or open your editor', no persistence) so it is NOT reused for persistence; child 2 extends the child-1 interactive flow and uses the same config.WriteTOMLValue round-trip. OWNED DIVERGENCE: Hermes has no per-profile multi-channel concept; agents.defaults.channels is WHICH channels the profile uses, distinct from [[bindings]] routing and per-channel credential cfg (TelegramCfg/DiscordCfg/SlackCfg tokens, whatsapp QR/session via `gormes whatsapp` / internal/gateway/channel_setup.go) — per-channel credential/token/QR/whatsapp-pairing setup is OUT OF SCOPE and MUST NOT be reimplemented or faked here. Non-interactive/no-TTY unchanged (errSetupRequiresTTY, NO false `Profiles configuration complete!`); --offline-safe (pure local FS); hermetic temp GORMES_HOME; Gormes-owned wording (never ~/.hermes/hermes/wrapper); Goncho.Workspace untouched. OUT OF SCOPE: child 3 (navivox-default). SHIPPED 2026-05-16 (gormes-tdd-slice).",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "degraded_mode": "No TTY / non-interactive → errSetupRequiresTTY, NO false completion footer (same shipped child-1 chrome rule). Unknown channel name → skipped with a Gormes-owned 'unknown channel' notice, never persisted or fabricated. Blank channel input → keep the existing agents.defaults.channels list (no destructive clear). Per-channel credentials/tokens/whatsapp-pairing are NOT prompted here (out of scope) — only the channel-name list is recorded, so the step is fully hermetic and identical under --offline.",
+      "fixture": "cmd/gormes/setup_profiles_test.go",
+      "source_refs": [
+        "cmd/gormes/setup.go runSetupProfilesInteractive (shipped child 1 — extend after the workspace-list step) ; runSetupBindingsSection ~:1678 (ADVISORY-ONLY, no persistence — NOT reused for persistence) ; :1954 known-channel list []string{telegram,discord,slack,whatsapp,navivox}",
+        "internal/config/agents.go AgentDefaultsCfg (Workspaces []string precedent — add symmetric Channels []string)",
+        "internal/config/writer.go coerceTOMLValue (shipped `agents.defaults.workspaces`/`.skills` case ~:609 — add symmetric `agents.defaults.channels`)",
+        "internal/gateway/channel_setup.go:43 whatsapp `gormes whatsapp --plan` (per-channel credential/QR setup — OUT OF SCOPE, do not reimplement/fake)",
+        "../hermes-agent/hermes_cli/setup.py@55c9f3206 (no per-profile channels — owned-divergence reference)"
+      ],
+      "ready_when": [
+        "Child 1 (section scaffold + per-profile workspace list) SHIPPED (commit fb23ff105) — done.",
+        "Per-profile channel shape DECIDED (2026-05-16 gormes-planner): symmetric AgentDefaultsCfg.Channels []string + agents.defaults.channels coerce case, parallel to the shipped Workspaces field.",
+        "runSetupBindingsSection reuse boundary DECIDED: it is advisory-only (no persistence helper) so NOT reused for persistence; reuse the child-1 flow + config.WriteTOMLValue round-trip.",
+        "WhatsApp hermetic question RESOLVED: no WhatsAppCfg; per-channel credential/QR is out of scope; recording the channel-name string is hermetic."
+      ],
+      "not_ready_when": [
+        "Reimplements or fakes per-channel credential/token/QR or whatsapp-pairing setup; invents a schema other than the symmetric AgentDefaultsCfg.Channels list; writes channels to the default-home config when a named profile was selected; persists unknown/unvalidated channel names; emits a false `Profiles configuration complete!` on no-TTY/cancel; prints ~/.hermes/hermes/wrapper wording; conflates Goncho.Workspace."
+      ],
+      "acceptance": [
+        "internal/config/agents.go AgentDefaultsCfg gains Channels []string (toml `channels`) and internal/config/writer.go coerceTOMLValue gains an `agents.defaults.channels` → string-array case (symmetric with the shipped workspaces), round-tripping via config.Load into cfg.Agents.Defaults.Channels.",
+        "`gormes setup profiles` channels step validates each entry against {telegram,whatsapp,discord,slack} and persists the validated list as a TOML array into the SELECTED profile's own config.toml (default → ~/.gormes/config.toml; named → ~/.gormes/profiles/<name>/config.toml) via the real config.WriteTOMLValue round-trip; blank input keeps the existing list.",
+        "Reuses the shipped child-1 interactive flow + config round-trip; NO reimplemented per-channel credential/whatsapp setup; runSetupBindingsSection not used for persistence.",
+        "Gormes-owned wording (no ~/.hermes/hermes/wrapper); non-interactive/no-TTY → errSetupRequiresTTY with no false footer; hermetic temp GORMES_HOME; `go test ./cmd/gormes -run 'Setup|Profile' -count=1`, `go test ./internal/config -count=1`, `go test ./cmd/gormes -count=1` green."
+      ],
+      "note": "Child 2/3 of the 'gormes setup profiles ...' umbrella. SHIPPED 2026-05-16 (gormes-tdd-slice), 4 tracer-bullet RED→GREEN. internal/config/agents.go: AgentDefaultsCfg.Channels []string (toml `channels`, symmetric with the shipped Workspaces). internal/config/writer.go: coerceTOMLValue `agents.defaults.channels` folded into the existing workspaces/skills string-array case (parseEnvCSV → TOML array). cmd/gormes/setup.go runSetupProfilesInteractive: restructured the workspace block so it no longer early-returns (blank → notice, else persist), then a channels step for the SAME selected profile + SAME profileConfigPath — promptString 'Messaging channels (comma-separated: telegram,whatsapp,discord,slack — blank to keep)', parseSetupChannelList (reuses parseSetupWorkspaceList splitter; validates lowercased against knownSetupChannels {telegram,whatsapp,discord,slack}; unknowns skipped with `Skipping unknown channel %q (known: ...)` and never persisted), blank keeps existing, ≥1 valid → config.WriteTOMLValue(profileConfigPath,'agents.defaults.channels',join) + `Set N channel(s) ...`. Default profile → ~/.gormes/config.toml; named → ~/.gormes/profiles/<name>/config.toml (proven not to leak into default home). No per-channel credential/token/QR/whatsapp-pairing (out of scope, not faked). Tests cmd/gormes/setup_profiles_test.go: TestAgentDefaultsChannelsConfigRoundTrip, TestSetupProfilesPersistsChannelListForDefaultProfile, TestSetupProfilesNamedProfileChannelsWriteOwnConfig, TestSetupProfilesSkipsUnknownChannels (4 new); the 5 shipped child-1 tests stay green after a legitimate in-scope fixture update (their stdin sequences gained the extra blank channels line — the interactive flow gained a step). Gates: go test ./cmd/gormes -run 'Setup|Profile' -count=1 ok; go test ./internal/config -count=1 ok; go test ./cmd/gormes -count=1 ok (12.5s); go run ./cmd/progress validate (9 phases); git diff --check clean. Owned divergence honored: Hermes has no per-profile channels; Gormes-owned wording; symmetric schema (no invention); runSetupBindingsSection NOT reused for persistence; Goncho.Workspace untouched. Child 3/3 (navivox-default) now unblocked — refine via gormes-planner then gormes-tdd-slice. tdd-slice does not commit.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_profiles_test.go",
+        "internal/config/agents.go",
+        "internal/config/writer.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'Setup|Profile' -count=1",
+        "go test ./internal/config -count=1",
+        "go test ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Fixtures prove the per-profile channels step validates against {telegram,whatsapp,discord,slack} and persists agents.defaults.channels as a TOML array into the SELECTED profile's own config.toml via a real config.Load round-trip (default vs named target), reusing child 1's flow with no reimplemented channel-credential setup — Gormes-owned, hermetic, no Hermes wording."
+      ],
+      "provenance": {
+        "origin_type": "owned",
+        "upstream_refs": [
+          "hermes:55c9f3206 hermes_cli/setup.py (no per-profile channels — owned-divergence reference)"
+        ],
+        "note": "skill_origin: 2026-05-16 user request -> gormes-planner. Child 2/3 of the setup-profiles umbrella. Specified; refine to builder-ready after child 1 ships."
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 0,
+    "item": {
+      "name": "Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)",
+      "priority": "P2",
+      "status": "complete",
+      "slice_size": "umbrella",
+      "execution_owner": "gateway",
+      "module": "profiles",
+      "not_ready_when": [
+        "The row is assigned as one combined tui_gateway helper migration instead of the two pure-helper slices below."
+      ],
+      "unblocks": [
+        "TUI gateway tool-progress mode normalizer",
+        "TUI gateway completion path normalizer",
+        "TUI gateway image/personality/platform-event helpers"
+      ],
+      "note": "Complete 2026-05-09 planner closeout: repeated worker attempts showed this combined helper surface was too broad, so it executed through child rows. Completed children now cover tool-progress mode normalization, completion path normalization, image metadata/token estimation, personality prompt validation, and platform-event structs. No HTTP, SSE, JSON-RPC, or Bubble Tea program landed in this umbrella row."
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 4,
+    "item": {
+      "name": "TUI gateway image/personality/platform-event helpers",
+      "status": "complete",
+      "contract": "Pure TUI gateway media, personality, and platform-event helpers expose stable structs and validation without remote transport",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Remote TUI image/personality/platform-event features report unavailable until helper validation is fixture-backed.",
+      "fixture": "internal/tuigateway/media_personality_event_test.go",
+      "source_refs": [
+        "../hermes-agent/tui_gateway/server.py@edc78e25",
+        "../hermes-agent/tui_gateway/render.py@edc78e25",
+        "../hermes-agent/tests/test_tui_gateway_server.py@edc78e25",
+        "internal/kernel/frame.go",
+        "internal/tui/"
+      ],
+      "ready_when": [
+        "TUI gateway progress/completion helpers are validated, so internal/tuigateway package scaffolding exists."
+      ],
+      "not_ready_when": [
+        "The slice creates NewRemoteClient, NewGatewayMux, SSE dialers, JSON-RPC dispatchers, or live image reads outside temp fixtures."
+      ],
+      "blocked_by": [
+        "TUI gateway completion path normalizer"
+      ],
+      "unblocks": [
+        "SSE streaming to Bubble Tea TUI"
+      ],
+      "acceptance": [
+        "Image token estimates and metadata parsing use temp fixture files and bounded reads only.",
+        "Personality validation/rendering returns deterministic messages for supported, missing, and invalid values.",
+        "PlatformEvent structs round-trip JSON for submit, cancel, resize, progress, and image metadata without starting transport."
+      ],
+      "note": "Complete: internal/tuigateway/image.go ports _estimate_image_tokens and _image_meta as EstimateImageTokens(width, height int) int and ReadImageMetadata(path string) (ImageMetadata, error) — the metadata reader caps reads at 64 KiB through io.LimitReader so PNG/JPEG/GIF headers decode in O(header) and a fake 12 MiB pseudo-PNG falls back to name-only without exhausting memory. internal/tuigateway/personality.go ports _render_personality_prompt and _validate_personality as RenderPersonalityPrompt(value any) string and ValidatePersonality(value string, personalities map[string]any) (name, prompt string, err error) with deterministic alias handling (`none`, `default`, `neutral`) and sorted, raw-casing-preserving error messages. internal/tuigateway/platform_event.go declares the PlatformEventKind enum plus SubmitEvent, CancelEvent, ResizeEvent, ProgressEvent, ImageMetadataEvent — each round-trips encoding/json with stable field tags, and ValidPlatformEventKind gives O(1) discriminator validation. Fixtures in internal/tuigateway/media_personality_event_test.go cover tile-math math + zero/negative guard, PNG/JPEG/GIF fixture decode, non-image and missing-file fallbacks, the bounded-read invariant, personality dict assembly + plain-string passthrough + alias clearing + sorted available-list error + raw-casing preservation, and JSON round-trip plus omitempty checks for every event variant. No NewRemoteClient, NewGatewayMux, SSE dialer, JSON-RPC dispatcher, or live image read outside t.TempDir() exists in this slice.",
+      "write_scope": [
+        "internal/tuigateway/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tuigateway -run 'Test.*Image|Test.*Personality|Test.*PlatformEvent|Test.*Media' -count=1",
+        "go test ./internal/tuigateway -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Media/personality/platform-event fixtures prove deterministic helper behavior and JSON schema without remote transport."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-26T19:51:20Z",
+        "last_success": "2026-04-26T19:51:20Z"
+      },
+      "planner_verdict": {
+        "reason": "Row landed on main: internal/tuigateway/media_personality_event_test.go and helpers (image.go, personality.go, platform_event.go) all present; status=complete, contract_status=validated, last_success=2026-04-26T19:51:20Z. Stale still_failing outcome cleared 2026-04-27T14:55:00Z by Gormes Architecture Planner Loop.",
+        "reshape_count": 1,
+        "last_reshape": "2026-04-26T16:17:18Z",
+        "last_outcome": "unstuck"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:edc78e25 tui_gateway/server.py",
+        "note": "Hermes defines remote TUI helper schemas; Gormes ports them as inert Go helper contracts before transport."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.L",
+    "pos": 2,
+    "item": {
+      "name": "Agent personalities + enhanced display config",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Gormes gains Hermes-parity config surface for agent personalities (12 built-in personas with custom system prompts), display preferences (show_reasoning, streaming, bell_on_complete, compact, cleanup_progress, busy_input_mode, background_process_notifications), and agent runtime settings (max_turns, reasoning_effort, gateway_timeout, api_max_retries, verbose). Personality prompts are injected into BuildSystemPrompt.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When no personality is configured, the agent uses the default identity prompt without personality injection.",
+      "fixture": "internal/config/config.go",
+      "source_refs": [
+        "./hermes-agent/cli-config.yaml.example",
+        "./hermes-agent/hermes_cli/config.py"
+      ],
+      "ready_when": [
+        "internal/config/config.go has AgentRuntimeCfg with Personalities, MaxTurns, ReasoningEffort, GatewayTimeout, APIMaxRetries, Verbose fields.",
+        "internal/config/config.go has DisplayCfg with ShowReasoning, Streaming, BellOnComplete, Compact, CleanupProgress, BusyInputMode fields.",
+        "defaultPersonalities() returns 12 built-in personas matching Hermes upstream.",
+        "BuildSystemPrompt injects personality block when opts.Personality is non-empty.",
+        "go build ./cmd/gormes succeeds."
+      ],
+      "not_ready_when": [
+        "Personality injection is incomplete or missing.",
+        "Default personality prompts don't match Hermes upstream."
+      ],
+      "acceptance": [
+        "12 built-in personalities are defined with Hermes-matching prompts.",
+        "Personality field in PromptAssemblyOptions is injected into system prompt.",
+        "Config defaults provide sensible values for all new fields.",
+        "Build and tests pass."
+      ],
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/hermes/prompt_assembly.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -count=1",
+        "go test ./internal/hermes -count=1",
+        "go build ./cmd/gormes",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Personality system prompt injection works; 12 built-in personas configured; display and agent config fields defined with defaults."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/config/config.go: AgentRuntimeCfg extended with 8 new fields incl. Personalities map",
+          "internal/config/config.go: DisplayCfg extended with 11 new Hermes-parity fields",
+          "internal/config/config.go: defaultPersonalities() returns 12 built-in persona prompts",
+          "internal/hermes/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
+        ],
+        "tests": "go test ./internal/config -count=1, go test ./internal/hermes -count=1"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.C",
+    "pos": 0,
+    "item": {
+      "name": "Agent personalities + enhanced display config",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Gormes gains Hermes-parity config surface for agent personalities (12 built-in personas with custom system prompts), display preferences (show_reasoning, streaming, bell_on_complete, compact, cleanup_progress, busy_input_mode, background_process_notifications), and agent runtime settings (max_turns, reasoning_effort, gateway_timeout, api_max_retries, verbose). Personality prompts are injected into BuildSystemPrompt.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When no personality is configured, the agent uses the default identity prompt without personality injection.",
+      "fixture": "internal/config/config.go",
+      "source_refs": [
+        "./hermes-agent/cli-config.yaml.example",
+        "./hermes-agent/hermes_cli/config.py",
+        "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+      ],
+      "ready_when": [
+        "internal/config/config.go has AgentRuntimeCfg with Personalities, MaxTurns, ReasoningEffort, GatewayTimeout, APIMaxRetries, Verbose fields.",
+        "internal/config/config.go has DisplayCfg with ShowReasoning, Streaming, BellOnComplete, Compact, CleanupProgress, BusyInputMode fields.",
+        "defaultPersonalities() returns 12 built-in personas matching Hermes upstream.",
+        "BuildSystemPrompt injects personality block when opts.Personality is non-empty.",
+        "go build ./cmd/gormes succeeds."
+      ],
+      "acceptance": [
+        "12 built-in personalities are defined with Hermes-matching prompts.",
+        "Personality field in PromptAssemblyOptions is injected into system prompt.",
+        "Config defaults provide sensible values for all new fields.",
+        "Build and tests pass."
+      ],
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/hermes/prompt_assembly.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -count=1",
+        "go test ./internal/hermes -count=1",
+        "go build ./cmd/gormes",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Personality system prompt injection works; 12 built-in personas configured; display and agent config fields defined with defaults."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/config/config.go: AgentRuntimeCfg extended with 8 new fields incl. Personalities map",
+          "internal/config/config.go: DisplayCfg extended with 11 new Hermes-parity fields",
+          "internal/config/config.go: defaultPersonalities() returns 12 built-in persona prompts",
+          "internal/hermes/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
+        ],
+        "tests": "go test ./internal/config -count=1, go test ./internal/hermes -count=1"
+      }
+    }
+  }
+]

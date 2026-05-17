@@ -1,0 +1,557 @@
+[
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 2,
+    "item": {
+      "name": "Planner wrapper/test consistency closeout",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Planner wrapper compatibility contract",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Planner callers using the old wrapper names continue to exec the renamed planner-tasks manager instead of failing before a run can start.",
+      "fixture": "internal/plannerloopagent_test.go",
+      "source_refs": [
+        "docs/superpowers/plans/2026-04-23-gormes-architecture-task-manager-script.md",
+        "scripts/gormes-architecture-planner-tasks-manager.sh",
+        "scripts/gormes-architecture-task-manager.sh",
+        "scripts/architectureplanneragent.sh"
+      ],
+      "ready_when": [
+        "The renamed manager script remains the single implementation and both legacy wrapper names forward all arguments to it."
+      ],
+      "acceptance": [
+        "`go test ./internal -run ArchitecturePlanner -count=1` is green.",
+        "`bash -n` passes for the real manager and both wrapper scripts.",
+        "The planner run summary still emits the legacy report/state/schedule labels consumed by the test harness."
+      ],
+      "note": "Complete: restored tiny exec wrappers at scripts/gormes-architecture-task-manager.sh and scripts/architectureplanneragent.sh, both forwarding to scripts/gormes-architecture-planner-tasks-manager.sh. The manager summary now preserves Planner report, Planner state, and Periodic schedule lines for the existing wrapper test contract.",
+      "write_scope": [
+        "scripts/gormes-architecture-planner-tasks-manager.sh",
+        "scripts/gormes-architecture-task-manager.sh",
+        "scripts/architectureplanneragent.sh",
+        "internal/progress/progress_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "bash -n scripts/gormes-architecture-planner-tasks-manager.sh",
+        "bash -n scripts/gormes-architecture-task-manager.sh",
+        "bash -n scripts/architectureplanneragent.sh",
+        "go test ./internal -run ArchitecturePlanner -count=1",
+        "go test ./internal/progress -run TestLoad_RealFile_Phase1PlannerWrapperCloseout -count=1"
+      ],
+      "done_signal": [
+        "Both legacy wrapper names exist, exec the renamed planner manager, and the focused ArchitecturePlanner suite passes."
+      ]
+    }
+  },
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 4,
+    "item": {
+      "name": "Planner self-healing verdict loop",
+      "status": "complete",
+      "contract": "Architecture planner consumes autoloop health/ledger outcomes, stamps planner-owned verdicts, retries validation-safe regenerations, and escalates rows that stay failing after repeated reshapes",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Rows that resist planner reshapes are marked needs_human and removed from default autoloop selection instead of silently cycling.",
+      "fixture": "internal/plannerloop/lifecycle_test.go",
+      "source_refs": [
+        "docs/superpowers/specs/2026-04-24-planner-self-healing-design.md",
+        "internal/plannerloop/verdict.go",
+        "internal/plannerloop/evaluation.go",
+        "internal/plannerloop/retry.go",
+        "internal/builderloop/candidates_health_test.go"
+      ],
+      "ready_when": [
+        "Autoloop row health blocks and planner trigger events exist on main."
+      ],
+      "not_ready_when": [
+        "The slice relies on live LLM calls or manual ledger edits instead of deterministic planner/autoloop fixtures."
+      ],
+      "unblocks": [
+        "Planner divergence and provenance awareness"
+      ],
+      "acceptance": [
+        "PlannerVerdict round-trips and is preserved by autoloop health writes.",
+        "Planner self-evaluation distinguishes unstuck, still_failing, and no_attempts_yet outcomes.",
+        "NeedsHuman is sticky after the configured reshape threshold, and autoloop skips those rows by default."
+      ],
+      "note": "Complete: architectureplanner now records planner ledger events, consumes trigger/cursor state, evaluates previous reshapes against autoloop outcomes, retries validation failures with feedback, stamps PlannerVerdict reshape counts/outcomes, escalates persistent failures to needs_human, and exposes needs-human rows in status while autoloop skips them by default.",
+      "write_scope": [
+        "internal/plannerloop/",
+        "internal/builderloop/",
+        "internal/progress/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/plannerloop ./internal/builderloop ./internal/progress -count=1"
+      ],
+      "done_signal": [
+        "Planner lifecycle tests prove trigger consumption, reshape self-evaluation, PlannerVerdict stamping, sticky needs_human escalation, and autoloop candidate skipping."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-04-25T11:02:16Z",
+        "note": "PlannerVerdict, planner retry/self-evaluation, and needs_human selection are Gormes-owned autoloop control-plane behavior."
+      }
+    }
+  },
+  {
+    "phase": "1",
+    "subphase": "1.C",
+    "pos": 5,
+    "item": {
+      "name": "Planner divergence and provenance awareness",
+      "status": "complete",
+      "contract": "Architecture planner distinguishes upstream-led, converged, and Gormes-owned surfaces using per-row provenance, subphase drift state, and implementation inventory from repo paths",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Planner status reports porting/converged/owned buckets and recent promotions so Gormes-original surfaces stop receiving fabricated upstream refs.",
+      "fixture": "internal/plannerloop/divergence_lifecycle_test.go",
+      "source_refs": [
+        "docs/superpowers/specs/2026-04-25-planner-divergence-awareness-design.md",
+        "internal/progress/health.go",
+        "internal/plannerloop/implscan.go",
+        "internal/plannerloop/drift.go",
+        "internal/plannerloop/status.go"
+      ],
+      "ready_when": [
+        "PlannerVerdict and RowHealth preservation are validated on main."
+      ],
+      "not_ready_when": [
+        "The planner fabricates upstream_ref values for Gormes-original code or demotes owned subphases automatically."
+      ],
+      "acceptance": [
+        "Provenance and DriftState round-trip through progress and survive autoloop writes.",
+        "Implementation inventory lists Gormes-original paths under internal/builderloop, internal/plannerloop, internal/plannertriggers, cmd/progress, cmd/repoctl, and progress health schema.",
+        "Status output buckets drift states and records forward-only drift promotions."
+      ],
+      "note": "Complete: progress now has typed Provenance and DriftState blocks; architectureplanner scans Gormes-original cmd/internal paths, injects implementation inventory and drift-state guidance into prompts, records forward drift promotions, and renders drift-state status buckets without treating owned surfaces as upstream-led.",
+      "write_scope": [
+        "internal/progress/",
+        "internal/plannerloop/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress ./internal/plannerloop -count=1"
+      ],
+      "done_signal": [
+        "Divergence lifecycle and status tests prove provenance preservation, implementation inventory, forward-only drift promotions, and owned/porting/converged status reporting."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-04-25T11:02:16Z",
+        "note": "Divergence awareness exists to protect Gormes-owned surfaces from upstream-led planning assumptions."
+      }
+    }
+  },
+  {
+    "phase": "2",
+    "subphase": "2.D",
+    "pos": 3,
+    "item": {
+      "name": "Architecture planner tasks manager script",
+      "status": "complete",
+      "module": "planner",
+      "note": "TDD landed for the main tracked entrypoint: scripts/gormes-architecture-planner-tasks-manager.sh writes .codex/planner/architecture-planner-tasks.md plus report/state artifacts, logs verbose repo/upstream/progress/validation/schedule context, and installs a periodic systemd/cron run. Phase 1.C later restored the compatibility wrappers at scripts/gormes-architecture-task-manager.sh and scripts/architectureplanneragent.sh."
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 2,
+    "item": {
+      "name": "Hermes and Honcho feature parity map to Go implementation plan",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "A planner pass maps Hermes agent loop, provider routing, prompt assembly, tool continuation, memory plugin, skills/plugins, API, CLI, operator commands, and Honcho memory/server/SDK concepts into Go package targets, implementation strategy, proof gates, subsystem classifications, dependency order, and progress.json anchors.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unmapped upstream behavior is reported as parity_unmapped with upstream path, Gormes package, and proposed row instead of being hidden in prose.",
+      "fixture": "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+      "source_refs": [
+        "../hermes-agent/run_agent.py",
+        "../hermes-agent/agent/",
+        "../hermes-agent/tools/",
+        "../hermes-agent/gateway/",
+        "../hermes-agent/hermes_cli/",
+        "../hermes-agent/plugins/",
+        "../hermes-agent/tests/",
+        "../honcho/src/",
+        "../honcho/docs/v3/",
+        "../honcho/sdks/",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "ready_when": [
+        "Upstream hermes-agent is available as ../hermes-agent or the planner pass records the exact missing source.",
+        "The pass updates progress.json rows directly and regenerates Hugo docs through cmd/progress.",
+        "The pass can name exact Gormes packages or missing packages for each mapped behavior.",
+        "Honcho sources are available as ../honcho or the planner pass records the exact missing source."
+      ],
+      "not_ready_when": [
+        "The pass writes a free-form TODO list outside progress.json.",
+        "The pass marks a behavior complete without repository evidence and tests.",
+        "The pass implements runtime code; this is planner-only row splitting."
+      ],
+      "acceptance": [
+        "Hermes And Honcho Feature Map names all major Hermes feature families and Honcho concepts with upstream refs, Go targets, implementation strategy, and progress anchors.",
+        "Hermes/Honcho To Gormes Go Runtime Plan classifies every broad subsystem as owned, mapped-by-symbol, mapped-by-contract, excluded, still row-backed, or a gap that must be converted into a row or divergence decision.",
+        "The runtime plan records row-splitting candidates for nested Hermes and Honcho surfaces including provider transports, ACP/MCP, tool parsers, Yuanbao, Honcho OpenAPI, SDKs, MCP, CLI, queue, document tree, webhooks, telemetry, deploy divergence, and live-LLM exclusions.",
+        "The map calls out broad umbrella rows that must not be selected by builder skills.",
+        "Completion Plan, Lane Roadmap, Architecture Plan, and Building Gormes overview link to the map.",
+        "Generated Hugo pages reflect the updated rows after go run ./cmd/progress write."
+      ],
+      "note": "Updated in the 2026-04-28 gormes-planner swarm pass: hermes-honcho-go-runtime-plan.md now reconciles the feature map, source-class ledger, swarm audit, nested coverage matrix, package ownership, classifications, dependency order, and row split candidates for Hermes/Honcho-to-Go implementation.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/subsystem-inventory.md",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/_index.md",
+        "docs/content/building-gormes/_index.md",
+        "docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "docs/content/building-gormes/architecture_plan/lane-roadmap.md"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress write",
+        "go run ./cmd/progress validate",
+        "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
+        "go test ./docs -count=1"
+      ],
+      "done_signal": [
+        "Hermes/Honcho runtime-plan docs make the remaining normal-turn, provider, CLI/API, tool, gateway, plugin, Goncho memory, SDK, and operator-command gaps visible with Go targets, classifications, proof gates, and row split candidates."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes-agent current tree + honcho current tree",
+        "note": "Keeps Phase 4 and Phase 3 from relying on broad headings when the real finish line is feature-level Hermes parity and Honcho-compatible Goncho behavior."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 3,
+    "item": {
+      "name": "Upstream source coverage ledger for Hermes/Honcho mapping completeness",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "A planner-facing ledger enumerates every feature-bearing Hermes and Honcho source class, maps each class to a feature-map anchor, Go package target, progress anchor, and coverage status, and defines the drift rule for deciding whether the feature map is complete.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If an upstream source class is missing from the ledger or lacks a feature-map/progress anchor, parity auditors report parity_unmapped and send the work to gormes-planner before builder selection.",
+      "fixture": "docs/upstream_coverage_test.go::TestUpstreamCoverageLedgerMatchesSourceClasses",
+      "source_refs": [
+        "../hermes-agent/run_agent.py",
+        "../hermes-agent/agent/",
+        "../hermes-agent/tools/",
+        "../hermes-agent/gateway/",
+        "../hermes-agent/hermes_cli/",
+        "../hermes-agent/acp_adapter/",
+        "../hermes-agent/plugins/",
+        "../hermes-agent/skills/",
+        "../hermes-agent/optional-skills/",
+        "../hermes-agent/tests/",
+        "../honcho/src/",
+        "../honcho/docs/",
+        "../honcho/sdks/",
+        "../honcho/mcp/",
+        "../honcho/honcho-cli/",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "docs/upstream_coverage_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "ready_when": [
+        "Upstream hermes-agent and honcho checkouts are available as sibling repos or the planner records the exact missing source.",
+        "The planner can categorize feature-bearing source classes without implementing runtime code.",
+        "The pass can update the feature map, completion docs, and progress rows together."
+      ],
+      "not_ready_when": [
+        "The pass claims feature completeness from prose alone without an upstream inventory.",
+        "The pass treats tests, examples, release notes, or repo hygiene files as runtime features without a public contract.",
+        "The pass creates a side backlog outside progress.json."
+      ],
+      "acceptance": [
+        "Upstream Coverage Ledger defines the inventory, anchor, Go target, backlog reachability, and drift checks required to claim Hermes/Honcho mapping completeness.",
+        "The ledger has Hermes source-class rows for agent runtime, providers, tools, gateway, cron, CLI, ACP, MCP, plugins, skills, TUI/web, batch/research, packaging, and fixture/doc donors.",
+        "The ledger has Honcho source-class rows for models/schemas, routers, CRUD, dialectic chat, derivation/dreaming/reconciliation, utils/search/context, vector stores, telemetry/webhooks, docs, SDKs/MCP, CLI, examples, tests, and Claude skills.",
+        "TestUpstreamCoverageLedgerMatchesSourceClasses fails when the local sibling Hermes or Honcho checkout contains a feature-like top-level source class that is neither represented in the ledger nor explicitly classified as repo hygiene.",
+        "The feature map, completion plan, architecture index, and building-gormes overview link to the ledger."
+      ],
+      "note": "Complete in the 2026-04-28 gormes-planner pass and hardened with docs test coverage: Upstream Coverage Ledger plus TestUpstreamCoverageLedgerMatchesSourceClasses tell future parity audits whether every feature-bearing Hermes/Honcho source class is mapped, planned, owned, or excluded instead of relying on broad feature prose.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "docs/upstream_coverage_test.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "docs/content/building-gormes/architecture_plan/_index.md",
+        "docs/content/building-gormes/_index.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress write",
+        "go run ./cmd/progress validate",
+        "go test ./docs -run TestUpstreamCoverageLedgerMatchesSourceClasses -count=1",
+        "go test ./docs -count=1"
+      ],
+      "done_signal": [
+        "A planner can answer whether Hermes/Honcho mapping is complete by checking that the upstream coverage ledger has no unmapped feature-bearing source class."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes-agent current tree + honcho current tree",
+        "note": "Turns full-parity mapping into an auditable source-class coverage contract."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 8,
+    "item": {
+      "name": "Planner audit blank-subphase control-plane bucket",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "internal/plannerloop.subphaseFromTask normalizes empty/non-conforming task labels to a sentinel ControlPlaneSubphaseID = 'control-plane/backend' so SummarizeAutoloopAudit toxic_subphases and hot_subphases never use the empty string as a subphase_id",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When a worker fails before claiming a row (no Task value), the audit attributes the event to ControlPlaneSubphaseID instead of '' so reports don't collapse multiple unrelated incidents into a blank bucket.",
+      "fixture": "internal/plannerloop/autoloop_audit_test.go",
+      "source_refs": [
+        ".codex/planner-loop/state/runs.jsonl:20260425T210430Z backend_failed Reading additional input from stdin",
+        ".codex/planner-loop/state/runs.jsonl:20260425T233746Z backend_failed signal: killed",
+        "internal/plannerloop/autoloop_audit.go:subphaseFromTask",
+        "internal/plannerloop/autoloop_audit.go:SummarizeAutoloopAudit",
+        "internal/builderloop/backend_failure.go:ClassifyBackendFailure"
+      ],
+      "ready_when": [
+        "internal/builderloop/backend_failure.go already classifies backend_waiting_for_stdin, backend_killed, and backend_no_progress, so the backend-side classifier work is done.",
+        "Audit shows 60 blank-subphase claims with 31 worker/backend failures over the last 7 days because subphaseFromTask returns '' for empty Task strings and SummarizeAutoloopAudit emits that '' as a subphase_id; this row fixes only that bucket attribution.",
+        "The slice can use a synthetic ledger written by the test (no real Codex backend, no progress.json mutation, no roadmap selection change)."
+      ],
+      "not_ready_when": [
+        "The slice modifies internal/builderloop/backend.go, builder/planner worker prompts, progress.json contracts, or roadmap selection code.",
+        "The slice changes the on-disk ledger format or drops any existing audit fields.",
+        "The slice introduces a new failure category (those already exist in internal/progress/health.go and internal/builderloop/backend_failure.go)."
+      ],
+      "acceptance": [
+        "TestSubphaseFromTaskEmptyReturnsControlPlane: subphaseFromTask('') == ControlPlaneSubphaseID; subphaseFromTask('   ') == ControlPlaneSubphaseID; subphaseFromTask('5/5.J/Foo') still returns '5/5.J'.",
+        "TestSummarizeAutoloopAuditBlankBucket: a synthetic JSONL ledger written by the test with three worker_failed events that have empty Task strings (each with a different status) appears in audit.HotSubphases and audit.ToxicSubphases under ControlPlaneSubphaseID, never under ''.",
+        "TestSummarizeAutoloopAuditPreservesNamedRows: ledger events with Task='5/5.J/Foo' continue to bucket under '5/5.J' alongside any control-plane events.",
+        "TestControlPlaneSubphaseIDExported: the constant is exported and documented; consumers can match on it without string-typing 'control-plane/backend'."
+      ],
+      "note": "Replaces the prior quarantined 5.N umbrella. The backend classifier already exists (see internal/builderloop/backend_failure.go and backend_failure_test.go); the actually-missing piece is subphase attribution. Splitting the umbrella to this single audit-side change makes the slice landable in one TDD pass. The split intentionally drops the prior health/quarantine block; the contract is materially replaced.",
+      "write_scope": [
+        "internal/plannerloop/autoloop_audit.go",
+        "internal/plannerloop/autoloop_audit_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/plannerloop -run 'TestSubphaseFromTaskEmptyReturnsControlPlane|TestSummarizeAutoloopAuditBlankBucket|TestSummarizeAutoloopAuditPreservesNamedRows|TestControlPlaneSubphaseIDExported' -count=1",
+        "go test ./internal/plannerloop -count=1",
+        "go vet ./internal/plannerloop",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "ControlPlaneSubphaseID is exported from internal/plannerloop and SummarizeAutoloopAudit attributes empty-Task events to it; four named tests pass; backend.go/backend_failure.go are unchanged."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-26T17:41:07Z",
+        "last_success": "2026-04-26T17:41:07Z"
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-04-26T01:23:57Z",
+        "note": "Reshape of the prior quarantined 5.N umbrella. The backend-side classifier landed earlier; this row narrows the remaining scope to audit attribution."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 31,
+    "item": {
+      "name": "Gormes auth add bedrock open-question planning note",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Preserve Hermes parity for the Bedrock auth gap: `gormes auth add bedrock` refuses credential-pool mutation for API-key or OAuth-style inputs and returns `bedrock_use_aws_sdk_chain` guidance, while bare `gormes auth` remains the redacted AWS credential-chain status surface.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "No credential-pool entry is written for Bedrock; operators receive `bedrock_use_aws_sdk_chain` evidence that points to AWS env/profile/SSO/role credential-chain setup and bare `gormes auth` Bedrock identity status without printing tokens, URLs, ARNs, or host paths.",
+      "fixture": "cmd/gormes/auth_command_test.go::TestGormesAuthAddBedrockRefusesCredentialPoolMutation",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/auth.py:304-310",
+        "../hermes-agent/hermes_cli/auth.py:2653-2659",
+        "../hermes-agent/hermes_cli/auth_commands.py:423-442",
+        "cmd/gormes/auth.go:runAuthAddCommand",
+        "cmd/gormes/auth_command_test.go:TestGormesAuthAddBedrockRefusesCredentialPoolMutation",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Credential pool, token vault, and auth commands"
+      ],
+      "ready_when": [
+        "Hermes upstream evidence confirms Bedrock is not a credential-pool `auth add` provider and uses the AWS SDK credential chain in the bare auth readout.",
+        "Gormes auth command tests can exercise the refusal with temp credential stores and neutral placeholder token strings only."
+      ],
+      "not_ready_when": [
+        "A builder treats this row as an implementation row instead of a planner-owned open-question note.",
+        "The row is closed without an explicit decision recorded for whether `gormes auth add bedrock` is supported, refused, or deferred."
+      ],
+      "acceptance": [
+        "`gormes auth add bedrock --type api-key --api-key <placeholder> --inference-url <placeholder>` returns an error containing `bedrock_use_aws_sdk_chain` and AWS credential-chain guidance.",
+        "The command output/error does not include the supplied placeholder token or endpoint.",
+        "The Bedrock credential pool remains empty after the refused command.",
+        "Existing bare `gormes auth` Bedrock identity status remains redacted and non-mutating."
+      ],
+      "note": "Shipped 2026-04-30: the former open-question note is now a validated parity slice. Hermes has no `auth add bedrock` credential-pool handler; Bedrock appears only as AWS SDK credential-chain status in bare auth. Gormes now matches that gap intentionally by refusing `gormes auth add bedrock` before API-key/OAuth handling, returning safe `bedrock_use_aws_sdk_chain` guidance, and leaving the Bedrock credential pool empty. Focused test: cmd/gormes/auth_command_test.go::TestGormesAuthAddBedrockRefusesCredentialPoolMutation.",
+      "write_scope": [
+        "cmd/gormes/auth.go",
+        "cmd/gormes/auth_command_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run '^TestGormesAuthAddBedrockRefusesCredentialPoolMutation$' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes ./internal/config ./internal/hermes ./internal/runtime ./internal/gateway -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Focused auth command fixture proves Bedrock `auth add` refuses credential-pool mutation with safe `bedrock_use_aws_sdk_chain` guidance; progress validation remains green."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:hermes_cli/auth_commands.py bare Bedrock AWS SDK status + absence of auth-add Bedrock handler",
+        "note": "Hermes-side gap is now an explicit Gormes compatibility decision with CLI test coverage; do not add a Gormes-only Bedrock credential-pool handler unless Hermes upstream adds that public command."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 86,
+    "item": {
+      "name": "Gormes update release planner and dry-run contract",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "`gormes update` must distinguish normal release-installed operators from managed source checkouts before it mutates anything. For release installs, the command plans against trusted GitHub Releases: detect install layout, current version/build, OS/arch artifact name, channel policy (`stable` by default, `development` explicit), latest release metadata, snapshot path, components to update, blocked reasons, and whether an update is available. `gormes update --dry-run` prints the exact non-mutating plan; `gormes update --check` performs no mutation and exits 0 when current, 10 when an update is available, and nonzero for check errors. Existing source-checkout behavior from `Self-update command lifecycle safety` remains the managed/dev path and must not be silently used for release installs.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown install layout, unsupported OS/arch, missing release metadata, channel mismatch, dirty unmanaged source checkout, and network/API lookup failures produce typed plan blockers without changing binaries, assets, skills, services, config, credentials, sessions, memory, or source checkouts.",
+      "fixture": "cmd/gormes/update_release_plan_test.go; internal/cli/update_release_plan_test.go",
+      "source_refs": [
+        "cmd/gormes/update.go:newUpdateCommandWithSeams (current source-checkout update command and injectable seams)",
+        "internal/cli/update_lifecycle.go:RunUpdateLifecycle (completed managed source-checkout updater)",
+        "cmd/gormes/version.go:newVersionCommand/newBuildProvenance (current version/build evidence)",
+        "install.sh:decide_install_method + fetch_release_binary (release asset naming, GitHub latest release lookup, SHA-256 sidecar evidence)",
+        "scripts/install.ps1:release binary fetch block (Windows release asset naming and SHA-256 sidecar evidence)",
+        "internal/installtest/install_method_test.go (release-vs-source installer behavior)",
+        "Completed row: Self-update command lifecycle safety (source-checkout update path remains intact)"
+      ],
+      "ready_when": [
+        "The existing source-checkout `gormes update` command and lifecycle seams are complete and validated.",
+        "Installer release-binary fetch behavior already defines trusted repo, platform artifact names, release channels, and SHA-256 sidecar expectations.",
+        "Tests can inject install layout, current build, release metadata, OS/arch, channel, and clock without network or filesystem mutation."
+      ],
+      "not_ready_when": [
+        "The slice downloads or swaps binaries, syncs skills/assets, restarts services, or pulls git remotes.",
+        "Release-installed binaries silently fall back to managed source checkout mutation.",
+        "`--check` or `--dry-run` writes update logs, snapshots, config, skills, sessions, services, or source checkout state.",
+        "Exit codes for current/update-available/error are not deterministic and tested."
+      ],
+      "unblocks": [
+        "Gormes update verified binary swap and rollback"
+      ],
+      "acceptance": [
+        "Release install, managed source checkout, unmanaged source checkout, and unknown install layouts are classified with typed evidence.",
+        "`gormes update --dry-run` prints current version/build, target version/build, source (`github_release` or `managed_source`), channel, artifact, snapshot path, component plan, and blockers without mutation.",
+        "`gormes update --check` exits 0 when current, 10 when an update is available, and nonzero for check errors, with JSON and text reports carrying the same state.",
+        "Stable vs development channel policy is explicit; release installs use GitHub Releases by default, managed source/dev installs use the existing source lifecycle only when detected or explicitly requested.",
+        "No binary, asset, skill, service, config, credential, session, memory, git checkout, or update ledger file changes during planner/check/dry-run tests."
+      ],
+      "note": "Builder-ready row 1 of the grilled release-update cluster. It deliberately avoids mutation so the release-installed operator contract can be proven before binary replacement, bundled asset/skill sync, or service coordination.",
+      "write_scope": [
+        "cmd/gormes/update.go",
+        "cmd/gormes/update_release_plan_test.go",
+        "internal/cli/update_release_plan.go",
+        "internal/cli/update_release_plan_test.go",
+        "internal/cli/update_lifecycle.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner|TestUpdateCommandReleaseDryRun|TestUpdateCommandCheck' -count=1",
+        "go test ./cmd/gormes ./internal/cli -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Update planner fixtures prove release/source/unknown layout detection, current-vs-target metadata, stable/development channel policy, dry-run output, --check exit codes, and zero mutation before any release artifact install path exists."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "grill_origin: 2026-05-16 operator plan for a safer `gormes update` command. This row extends the completed Hermes-style managed source updater with Gormes-owned release-install planning semantics for the single-binary distribution."
+      },
+      "blocked_by": [],
+      "completed_at": "2026-05-16T01:56:01Z",
+      "evidence": [
+        "RED: go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner|TestUpdateCommandReleaseDryRun|TestUpdateCommandCheck' -count=1 failed because BuildUpdateReleasePlan, release update metadata types, install-kind/channel/source enums, and update command release-planner seams did not exist.",
+        "GREEN: internal/cli/update_release_plan.go adds the pure release update planner with typed install layout classification, github_release vs managed_source routing, stable/development channel blockers, platform artifact naming, snapshot/component plans, current-vs-target version/build comparison, and typed degraded blockers.",
+        "GREEN: cmd/gormes/update.go adds --dry-run and --channel, routes release-installed --check and all --dry-run invocations through the non-mutating planner, emits JSON/text plan reports with build provenance, returns exit 0/current, 10/update-available, and 1/blocker, and keeps existing source-checkout lifecycle behavior for managed-source checks.",
+        "VALIDATION: go test ./cmd/gormes ./internal/cli -run 'TestUpdateReleasePlanner|TestUpdateCommandReleaseDryRun|TestUpdateCommandCheck' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS; go run ./cmd/progress validate PASS; git diff --check PASS."
+      ]
+    }
+  }
+]

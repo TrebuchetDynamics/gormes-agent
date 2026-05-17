@@ -30,6 +30,10 @@ jobs:
           cache: npm
           cache-dependency-path: webpages/docs/package-lock.json
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
       - name: Install docs dependencies
         working-directory: webpages/docs
         run: npm ci

@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 99/110 subphases shipped · 10 in progress · 1 planned
+**Overall:** 100/110 subphases shipped · 9 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -102,7 +102,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -113,55 +113,55 @@ classification and row-backed implementation queue.
 
 ### 1.A — Core TUI ✅
 
-- [x] Bubble Tea shell
-- [x] 16ms coalescing mailbox
-- [x] SSE reconnect
+- [x] `tui` Bubble Tea shell
+- [x] `tui` 16ms coalescing mailbox
+- [x] `gateway` SSE reconnect
 
 ### 1.B — Wire Doctor ✅
 
-- [x] Offline tool validation
+- [x] `doctor` Offline tool validation
 
 ### 1.C — Automation Reliability ✅
 
-- [x] Orchestrator failure-row stabilization for 4-8 workers
-- [x] Soft-success-nonzero bats coverage
-- [x] Planner wrapper/test consistency closeout
-- [x] Autoloop row health and quarantine contract
-- [x] Planner self-healing verdict loop
-- [x] Planner divergence and provenance awareness
-- [x] Watchdog checkpoint coalescing
-- [x] PR-intake idle backoff
-- [x] Watchdog dead-process vs slow-progress separation
-- [x] Builder-loop self-improvement vs user-feature ratio metric
+- [x] `fleet` Orchestrator failure-row stabilization for 4-8 workers
+- [x] `fleet` Soft-success-nonzero bats coverage
+- [x] `planner` Planner wrapper/test consistency closeout
+- [x] `fleet` Autoloop row health and quarantine contract
+- [x] `planner` Planner self-healing verdict loop
+- [x] `planner` Planner divergence and provenance awareness
+- [x] `fleet` Watchdog checkpoint coalescing
+- [x] `fleet` PR-intake idle backoff
+- [x] `fleet` Watchdog dead-process vs slow-progress separation
+- [x] `progress` Builder-loop self-improvement vs user-feature ratio metric
 
 ### 1.D — Skill-Driven Control Plane ✅
 
-- [x] Skill control-plane docs and Hugo navigation closeout
-- [x] Skill-manager selection matrix hardening
-- [x] Skill-pack coverage audit for Hermes-in-Go completion
-- [x] Canonical development-skills directory and loader symlinks
+- [x] `skills` Skill control-plane docs and Hugo navigation closeout
+- [x] `skills` Skill-manager selection matrix hardening
+- [x] `skills` Skill-pack coverage audit for Hermes-in-Go completion
+- [x] `skills` Canonical development-skills directory and loader symlinks
 
 ### 1.E — Gormes-owned: Unified Bubble Tea admin TUI ✅
 
-- [x] Shared Bubble Tea wizard step chassis under internal/tui/wizard
-- [x] Unified admin TUI shell with tab navigation
-- [x] Admin TUI: Setup health screen with missing-config callouts
-- [x] Admin TUI: Chat tab with keybinding to jump in from any screen
-- [x] Admin TUI: Agents screen wired to the 2.H dynamic registry
-- [x] Admin TUI: Commands catalog over the root CLI tree
-- [x] Admin TUI: Safe command execution from the Commands tab
-- [x] Admin TUI: Searchable Commands palette
+- [x] `tui` Shared Bubble Tea wizard step chassis under internal/tui/wizard
+- [x] `tui` Unified admin TUI shell with tab navigation
+- [x] `tui` Admin TUI: Setup health screen with missing-config callouts
+- [x] `tui` Admin TUI: Chat tab with keybinding to jump in from any screen
+- [x] `tui` Admin TUI: Agents screen wired to the 2.H dynamic registry
+- [x] `tui` Admin TUI: Commands catalog over the root CLI tree
+- [x] `tui` Admin TUI: Safe command execution from the Commands tab
+- [x] `tui` Admin TUI: Searchable Commands palette
 
 ### 5.X — Termux Runtime Compatibility ✅
 
-- [x] Gormes Termux Runtime Compatibility
-- [x] Termux runtime doctor check
-- [x] Termux install and release smoke guide
-- [x] Termux storage and path safety audit
-- [x] Termux gateway foreground tmux lifecycle
-- [x] Termux notification bridge via termux-api
-- [x] Termux real-device smoke evidence
-- [x] Termux remote execution guidance
+- [x] `install` Gormes Termux Runtime Compatibility
+- [x] `doctor` Termux runtime doctor check
+- [x] `install` Termux install and release smoke guide
+- [x] `install` Termux storage and path safety audit
+- [x] `gateway` Termux gateway foreground tmux lifecycle
+- [x] `install` Termux notification bridge via termux-api
+- [x] `install` Termux real-device smoke evidence
+- [x] `install` Termux remote execution guidance
 
 ## Phase 2 — The Gateway ✅
 
@@ -169,261 +169,261 @@ classification and row-backed implementation queue.
 
 ### 2.A — Tool Registry ✅
 
-- [x] In-process Go tool registry
-- [x] Streamed tool_calls accumulation
-- [x] Kernel tool loop
-- [x] Doctor verification
-- [x] Coding-agent delegation tooling (codex/claude-code/opencode)
-- [x] Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
+- [x] `gateway` In-process Go tool registry
+- [x] `gateway` Streamed tool_calls accumulation
+- [x] `gateway` Kernel tool loop
+- [x] `doctor` Doctor verification
+- [x] `gateway` Coding-agent delegation tooling (codex/claude-code/opencode)
+- [x] `gateway` Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
 
 ### 2.B.1 — Telegram Scout ✅
 
-- [x] Telegram adapter
-- [x] Long-poll ingress
-- [x] Edit coalescing
-- [x] Telegram important notification default
+- [x] `channels` Telegram adapter
+- [x] `channels` Long-poll ingress
+- [x] `channels` Edit coalescing
+- [x] `channels` Telegram important notification default
 
 ### 2.B.2 — Gateway Chassis + Discord ✅
 
-- [x] Reusable gateway chassis
-- [x] Telegram on shared chassis
-- [x] gormes gateway multi-channel entrypoint
-- [x] Discord
+- [x] `channels` Reusable gateway chassis
+- [x] `channels` Telegram on shared chassis
+- [x] `channels` gormes gateway multi-channel entrypoint
+- [x] `channels` Discord
 
 ### 2.B.3 — Slack on Shared Chassis ✅
 
-- [x] Slack Socket Mode adapter
-- [x] Thread routing + coalesced reply flow
-- [x] Slack CommandRegistry parser wiring
-- [x] Slack gateway.Channel adapter shim
-- [x] Slack config + cmd/gormes gateway registration
-- [x] Slack env-token enabled-state preservation
-- [x] Slack app manifest App Home and private-channel scopes
+- [x] `channels` Slack Socket Mode adapter
+- [x] `channels` Thread routing + coalesced reply flow
+- [x] `channels` Slack CommandRegistry parser wiring
+- [x] `channels` Slack gateway.Channel adapter shim
+- [x] `channels` Slack config + cmd/gormes gateway registration
+- [x] `channels` Slack env-token enabled-state preservation
+- [x] `channels` Slack app manifest App Home and private-channel scopes
 
 ### 2.B.4 — WhatsApp Adapter ✅
 
-- [x] Bridge-vs-native runtime decision
-- [x] WhatsApp identity resolution + self-chat guard
-- [x] Inbound normalization + command passthrough
-- [x] Pairing, reconnect, and send contract
-- [x] WhatsApp outbound pairing gate + raw peer mapping
-- [x] WhatsApp reconnect backoff + send retry policy
+- [x] `channels` Bridge-vs-native runtime decision
+- [x] `channels` WhatsApp identity resolution + self-chat guard
+- [x] `channels` Inbound normalization + command passthrough
+- [x] `channels` Pairing, reconnect, and send contract
+- [x] `channels` WhatsApp outbound pairing gate + raw peer mapping
+- [x] `channels` WhatsApp reconnect backoff + send retry policy
 
 ### 2.B.5 — Session Context + Delivery Routing ✅
 
-- [x] Gateway session store + SessionSource parity
-- [x] Gateway manual reset session-boundary hooks
-- [x] Gateway session reset notification parity
-- [x] Gateway slash-confirm session-boundary cleanup
-- [x] SessionContext prompt injection
-- [x] Hermes live-turn prompt assembly parity (channel-neutral)
-- [x] Live-turn SOUL.md and project context wiring (channel-neutral)
-- [x] Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)
-- [x] Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)
-- [x] Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
-- [x] Hermes MEMORY_GUIDANCE stale-artifact exclusion refresh
-- [x] Live-turn metadata production wiring (cmd/gormes -> Manager seams)
-- [x] BlueBubbles iMessage session-context prompt guidance
-- [x] Telegram production live-turn provider payload golden
-- [x] Telegram /status Hermes-format closeout
-- [x] Gateway /title manual session title command
-- [x] Session metadata manual-title protection flag
-- [x] Gateway auto-title generation wiring
-- [x] Telegram reply_to_mode and reply-context parity
-- [x] Telegram sendChatAction typing API
-- [x] Gateway typing-action wiring during stream
-- [x] Placeholder edit-failure fallback hardening
-- [x] Gateway stream/tool trace formatting fixture matrix
-- [x] Telegram dynamic BotCommand menu wiring
-- [x] Active Hermes/Sidon profile context root resolver for live turns
-- [x] Durable context ordering and frozen snapshot decision fixture
-- [x] Live-turn model/tool guidance wiring
-- [x] Gateway active-turn policy manifest closeout
-- [x] Gateway conversational session metadata refresh
-- [x] Gateway session token accounting parity
-- [x] Gateway startup allowlist + weak credential guard
-- [x] Telegram voice/audio inbound attachment markers
-- [x] DeliveryRouter + --deliver target parsing
-- [x] Gateway stream consumer for agent-event fan-out
-- [x] Non-editable gateway progress/commentary send fallback
-- [x] WhatsApp identifier safety predicate
-- [x] WhatsApp unsafe sender/chat inbound evidence
-- [x] WhatsApp unsafe alias endpoint inbound evidence
-- [x] Gateway fresh-final eligibility helper
-- [x] Gateway fresh-final send/delete fallback
-- [x] Telegram fresh-final delete and config exposure
-- [x] Telegram group bot-command mention gate helper
-- [x] Telegram require-mention config fields
-- [x] Telegram group require-mention bot binding
-- [x] Slack rich-text quotes/lists + link-unfurl ingress
-- [x] Slack thread-parent context + team-scoped cache key
-- [x] Gateway message deduplicator bounded helper
-- [x] Gateway inbound dedup key helper
-- [x] Gateway inbound dedup manager binding
-- [x] Email outbound Date header contract
-- [x] Telegram MarkdownV2 parse-mode rendering closeout
-- [x] Telegram topic mode off/help/auth/debounce closeout
-- [x] Telegram document/photo cache + batch attachment parity
-- [x] Discord authenticated attachment download safety
-- [x] Slack Block Kit approval buttons + action callback
-- [x] Discord thread participation persistence
-- [x] Cross-platform image/document MEDIA delivery routing
-- [x] Telegram inline approval buttons + callback auth
-- [x] Telegram polling conflict + webhook secret startup guard
-- [x] Slack mention/free-response gating + strict thread-memory guard
-- [x] Discord interaction authorization + mention safety guards
-- [x] Gateway processing lifecycle reactions for Telegram and Discord
-- [x] Telegram text batching + caption merge parity
-- [x] Cross-platform multi-image native batching
-- [x] Discord message admission + reply-mode policy
-- [x] Webhook dynamic route reload + signed rate-limit order
-- [x] Slack/Discord channel-scoped skills, prompts, and reload resync
-- [x] Telegram fallback transport + polling reconnect recovery
-- [x] Telegram sticker vision adapter binding
-- [x] Discord native slash/thread command registration parity
-- [x] Telegram entity-only mention boundary closeout
-- [x] Telegram thread-aware outbound text + typing seam
-- [x] Telegram forum thread fallback + send retry safety
-- [x] Telegram DM topic reply-fallback routing
-- [x] Telegram semantic MarkdownV2 formatter + table rewrite
-- [x] Telegram Markdown table row-label bullet suppression
-- [x] Telegram streaming edit Markdown safety
-- [x] Telegram guest mention allowlist bypass
-- [x] Gateway platform reconnect isolation + channel health limits
-- [x] Gateway per-platform circuit breaker + /platform pause/resume/list command
-- [x] Gateway /model interactive provider/model picker
+- [x] `gateway` Gateway session store + SessionSource parity
+- [x] `gateway` Gateway manual reset session-boundary hooks
+- [x] `gateway` Gateway session reset notification parity
+- [x] `gateway` Gateway slash-confirm session-boundary cleanup
+- [x] `gateway` SessionContext prompt injection
+- [x] `gateway` Hermes live-turn prompt assembly parity (channel-neutral)
+- [x] `gateway` Live-turn SOUL.md and project context wiring (channel-neutral)
+- [x] `gateway` Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)
+- [x] `gateway` Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)
+- [x] `builder` Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
+- [x] `gateway` Hermes MEMORY_GUIDANCE stale-artifact exclusion refresh
+- [x] `gateway` Live-turn metadata production wiring (cmd/gormes -> Manager seams)
+- [x] `channels` BlueBubbles iMessage session-context prompt guidance
+- [x] `channels` Telegram production live-turn provider payload golden
+- [x] `channels` Telegram /status Hermes-format closeout
+- [x] `gateway` Gateway /title manual session title command
+- [x] `gateway` Session metadata manual-title protection flag
+- [x] `gateway` Gateway auto-title generation wiring
+- [x] `channels` Telegram reply_to_mode and reply-context parity
+- [x] `channels` Telegram sendChatAction typing API
+- [x] `gateway` Gateway typing-action wiring during stream
+- [x] `gateway` Placeholder edit-failure fallback hardening
+- [x] `gateway` Gateway stream/tool trace formatting fixture matrix
+- [x] `channels` Telegram dynamic BotCommand menu wiring
+- [x] `profiles` Active Hermes/Sidon profile context root resolver for live turns
+- [x] `gateway` Durable context ordering and frozen snapshot decision fixture
+- [x] `gateway` Live-turn model/tool guidance wiring
+- [x] `gateway` Gateway active-turn policy manifest closeout
+- [x] `gateway` Gateway conversational session metadata refresh
+- [x] `gateway` Gateway session token accounting parity
+- [x] `gateway` Gateway startup allowlist + weak credential guard
+- [x] `stt` Telegram voice/audio inbound attachment markers
+- [x] `gateway` DeliveryRouter + --deliver target parsing
+- [x] `gateway` Gateway stream consumer for agent-event fan-out
+- [x] `gateway` Non-editable gateway progress/commentary send fallback
+- [x] `channels` WhatsApp identifier safety predicate
+- [x] `channels` WhatsApp unsafe sender/chat inbound evidence
+- [x] `channels` WhatsApp unsafe alias endpoint inbound evidence
+- [x] `gateway` Gateway fresh-final eligibility helper
+- [x] `gateway` Gateway fresh-final send/delete fallback
+- [x] `channels` Telegram fresh-final delete and config exposure
+- [x] `channels` Telegram group bot-command mention gate helper
+- [x] `channels` Telegram require-mention config fields
+- [x] `channels` Telegram group require-mention bot binding
+- [x] `channels` Slack rich-text quotes/lists + link-unfurl ingress
+- [x] `channels` Slack thread-parent context + team-scoped cache key
+- [x] `gateway` Gateway message deduplicator bounded helper
+- [x] `gateway` Gateway inbound dedup key helper
+- [x] `gateway` Gateway inbound dedup manager binding
+- [x] `channels` Email outbound Date header contract
+- [x] `channels` Telegram MarkdownV2 parse-mode rendering closeout
+- [x] `channels` Telegram topic mode off/help/auth/debounce closeout
+- [x] `channels` Telegram document/photo cache + batch attachment parity
+- [x] `channels` Discord authenticated attachment download safety
+- [x] `channels` Slack Block Kit approval buttons + action callback
+- [x] `channels` Discord thread participation persistence
+- [x] `gateway` Cross-platform image/document MEDIA delivery routing
+- [x] `channels` Telegram inline approval buttons + callback auth
+- [x] `channels` Telegram polling conflict + webhook secret startup guard
+- [x] `channels` Slack mention/free-response gating + strict thread-memory guard
+- [x] `channels` Discord interaction authorization + mention safety guards
+- [x] `channels` Gateway processing lifecycle reactions for Telegram and Discord
+- [x] `channels` Telegram text batching + caption merge parity
+- [x] `gateway` Cross-platform multi-image native batching
+- [x] `channels` Discord message admission + reply-mode policy
+- [x] `channels` Webhook dynamic route reload + signed rate-limit order
+- [x] `channels` Slack/Discord channel-scoped skills, prompts, and reload resync
+- [x] `channels` Telegram fallback transport + polling reconnect recovery
+- [x] `channels` Telegram sticker vision adapter binding
+- [x] `channels` Discord native slash/thread command registration parity
+- [x] `channels` Telegram entity-only mention boundary closeout
+- [x] `channels` Telegram thread-aware outbound text + typing seam
+- [x] `channels` Telegram forum thread fallback + send retry safety
+- [x] `channels` Telegram DM topic reply-fallback routing
+- [x] `channels` Telegram semantic MarkdownV2 formatter + table rewrite
+- [x] `channels` Telegram Markdown table row-label bullet suppression
+- [x] `channels` Telegram streaming edit Markdown safety
+- [x] `channels` Telegram guest mention allowlist bypass
+- [x] `gateway` Gateway platform reconnect isolation + channel health limits
+- [x] `gateway` Gateway per-platform circuit breaker + /platform pause/resume/list command
+- [x] `gateway` Gateway /model interactive provider/model picker
 
 ### 2.B.10 — WeChat Adapter ✅
 
-- [x] WeCom + WeiXin shared-chassis bot seam
-- [x] WeCom + WeiXin transport/bootstrap layer
+- [x] `channels` WeCom + WeiXin shared-chassis bot seam
+- [x] `channels` WeCom + WeiXin transport/bootstrap layer
 
 ### 2.B.11 — Discord Forum Channels ✅
 
-- [x] Discord forum channel ingress + thread lifecycle
-- [x] Discord SessionSource guild/parent/message evidence
-- [x] Discord forum media + polish parity
+- [x] `channels` Discord forum channel ingress + thread lifecycle
+- [x] `channels` Discord SessionSource guild/parent/message evidence
+- [x] `channels` Discord forum media + polish parity
 
 ### 2.B.12 — Channel-Neutral Native Runtime Adapter ✅
 
-- [x] Channel-neutral native runtime turn adapter
-- [x] Hermes gateway platform registry manifest
-- [x] MSGraph webhook platform manifest drift closeout
-- [x] Bundled platform plugin manifest drift guard
-- [x] Navivox stdio protocol control-plane tracer
-- [x] Navivox QR pairing descriptor CLI
-- [x] Navivox Flutter voice morph surface
-- [x] Multimodal photo attachment passthrough
-- [x] Hermes-style default prompt and image-path hints for inbound photos
+- [x] `gateway` Channel-neutral native runtime turn adapter
+- [x] `gateway` Hermes gateway platform registry manifest
+- [x] `channels` MSGraph webhook platform manifest drift closeout
+- [x] `gateway` Bundled platform plugin manifest drift guard
+- [x] `navivox` Navivox stdio protocol control-plane tracer
+- [x] `navivox` Navivox QR pairing descriptor CLI
+- [x] `navivox` Navivox Flutter voice morph surface
+- [x] `gateway` Multimodal photo attachment passthrough
+- [x] `gateway` Hermes-style default prompt and image-path hints for inbound photos
 
 ### 2.C — Thin Mapping Persistence ✅
 
-- [x] bbolt session resume
-- [x] (platform, chat_id) -> session_id
+- [x] `gateway` bbolt session resume
+- [x] `gateway` (platform, chat_id) -> session_id
 
 ### 2.D — Cron / Scheduled Automations ✅
 
-- [x] robfig/cron scheduler + bbolt job store
-- [x] SQLite cron_runs audit + CRON.md mirror
-- [x] Heartbeat [SYSTEM:] + [SILENT] delivery contract
-- [x] Architecture planner tasks manager script
-- [x] Cron no-agent script-only short-circuit
+- [x] `fleet` robfig/cron scheduler + bbolt job store
+- [x] `fleet` SQLite cron_runs audit + CRON.md mirror
+- [x] `fleet` Heartbeat [SYSTEM:] + [SILENT] delivery contract
+- [x] `planner` Architecture planner tasks manager script
+- [x] `gateway` Cron no-agent script-only short-circuit
 
 ### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅
 
-- [x] Deterministic subagent runtime
-- [x] Max-depth guard + bounded batch execution
-- [x] Timeout + cancellation scopes
-- [x] Typed result envelope
-- [x] Append-only run log
+- [x] `gateway` Deterministic subagent runtime
+- [x] `gateway` Max-depth guard + bounded batch execution
+- [x] `gateway` Timeout + cancellation scopes
+- [x] `gateway` Typed result envelope
+- [x] `gateway` Append-only run log
 
 ### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution ✅
 
-- [x] Runner-enforced tool allowlists + blocked-tool policy
-- [x] Tool-call audit in typed child results
-- [x] Real child Hermes stream loop
-- [x] Durable job routing policy
-- [x] Durable subagent/job ledger
+- [x] `gateway` Runner-enforced tool allowlists + blocked-tool policy
+- [x] `gateway` Tool-call audit in typed child results
+- [x] `gateway` Real child Hermes stream loop
+- [x] `fleet` Durable job routing policy
+- [x] `gateway` Durable subagent/job ledger
 
 ### 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation ✅
 
-- [x] Interrupt propagation to concurrent-tool workers
+- [x] `gateway` Interrupt propagation to concurrent-tool workers
 
 ### 2.E.3 — OS-AI Spine: Durable Job Resilience ✅
 
-- [x] Durable job backpressure + timeout audit
-- [x] Durable worker supervisor status seam
-- [x] Durable pause/resume intent contract
-- [x] Durable replay and inbox message contract
-- [x] Durable worker execution loop
-- [x] Durable worker abort-slot recovery safety net
-- [x] Durable worker RSS watchdog policy helper
-- [x] Durable worker RSS drain integration
-- [x] Durable worker RSS doctor/status evidence
+- [x] `fleet` Durable job backpressure + timeout audit
+- [x] `fleet` Durable worker supervisor status seam
+- [x] `fleet` Durable pause/resume intent contract
+- [x] `fleet` Durable replay and inbox message contract
+- [x] `fleet` Durable worker execution loop
+- [x] `fleet` Durable worker abort-slot recovery safety net
+- [x] `fleet` Durable worker RSS watchdog policy helper
+- [x] `fleet` Durable worker RSS drain integration
+- [x] `doctor` Durable worker RSS doctor/status evidence
 
 ### 2.F.1 — Slash Command Registry + Gateway Dispatch ✅
 
-- [x] Canonical CommandDef registry
-- [x] Gateway slash dispatch + per-platform exposure
-- [x] Gateway slash registry parity sweep (recognized-name expansion)
+- [x] `gateway` Canonical CommandDef registry
+- [x] `gateway` Gateway slash dispatch + per-platform exposure
+- [x] `gateway` Gateway slash registry parity sweep (recognized-name expansion)
 
 ### 2.F.2 — Hook Registry + BOOT.md ✅
 
-- [x] Gateway per-event hook registry
-- [x] Hook manifest discovery + handler loading
-- [x] Built-in BOOT.md startup hook
+- [x] `gateway` Gateway per-event hook registry
+- [x] `gateway` Hook manifest discovery + handler loading
+- [x] `gateway` Built-in BOOT.md startup hook
 
 ### 2.F.3 — Restart / Pairing / Status ✅
 
-- [x] Graceful restart drain + managed shutdown
-- [x] Adapter startup failure cleanup contract
-- [x] Gateway channel disconnect timeout on failed startup
-- [x] Gateway shutdown capped adapter disconnect
-- [x] Active-turn follow-up queue + late-arrival drain policy
-- [x] Drain-timeout resume_pending recovery
-- [x] Pairing read-model schema + atomic persistence
-- [x] Pairing approval + rate-limit semantics
-- [x] Unauthorized DM pairing response contract
-- [x] `gormes gateway status` read-only command
-- [x] Runtime status JSON + PID/process validation
-- [x] Token-scoped gateway locks
-- [x] Gateway /restart command + takeover markers
-- [x] Gateway restart notification opt-out
-- [x] Session expiry finalized-flag migration
-- [x] Session expiry hook cleanup retry evidence
-- [x] Channel lifecycle writers into status model
+- [x] `gateway` Graceful restart drain + managed shutdown
+- [x] `gateway` Adapter startup failure cleanup contract
+- [x] `gateway` Gateway channel disconnect timeout on failed startup
+- [x] `gateway` Gateway shutdown capped adapter disconnect
+- [x] `gateway` Active-turn follow-up queue + late-arrival drain policy
+- [x] `gateway` Drain-timeout resume_pending recovery
+- [x] `gateway` Pairing read-model schema + atomic persistence
+- [x] `gateway` Pairing approval + rate-limit semantics
+- [x] `gateway` Unauthorized DM pairing response contract
+- [x] `gateway` `gormes gateway status` read-only command
+- [x] `gateway` Runtime status JSON + PID/process validation
+- [x] `gateway` Token-scoped gateway locks
+- [x] `gateway` Gateway /restart command + takeover markers
+- [x] `gateway` Gateway restart notification opt-out
+- [x] `gateway` Session expiry finalized-flag migration
+- [x] `gateway` Session expiry hook cleanup retry evidence
+- [x] `gateway` Channel lifecycle writers into status model
 
 ### 2.F.4 — Home Channel + Operator Surfaces ✅
 
-- [x] Home channel ownership resolver fixtures
-- [x] Notify-to delivery routing
-- [x] Channel directory atomic persistence + lookup
-- [x] Channel directory refresh + stale-target invalidation
-- [x] Manager remember-source hook
-- [x] Mirror + sticker cache surfaces
+- [x] `gateway` Home channel ownership resolver fixtures
+- [x] `gateway` Notify-to delivery routing
+- [x] `gateway` Channel directory atomic persistence + lookup
+- [x] `gateway` Channel directory refresh + stale-target invalidation
+- [x] `gateway` Manager remember-source hook
+- [x] `gateway` Mirror + sticker cache surfaces
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ✅
 
-- [x] Steer slash command parser + preview helper
-- [x] Steer slash command registry + queue fallback
-- [x] Mid-run steer injection between tool calls
-- [x] Gateway-handled slash commands bypass active-session guard
-- [x] Gateway persistent goal loop + continuation judge
+- [x] `gateway` Steer slash command parser + preview helper
+- [x] `gateway` Steer slash command registry + queue fallback
+- [x] `gateway` Mid-run steer injection between tool calls
+- [x] `gateway` Gateway-handled slash commands bypass active-session guard
+- [x] `gateway` Gateway persistent goal loop + continuation judge
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 
-- [x] SKILL.md parsing + active store
-- [x] Deterministic selection + prompt block
-- [x] Kernel injection + usage log
-- [x] Inactive candidate drafting
-- [x] Explicit promotion flow
+- [x] `gateway` SKILL.md parsing + active store
+- [x] `gateway` Deterministic selection + prompt block
+- [x] `gateway` Kernel injection + usage log
+- [x] `gateway` Inactive candidate drafting
+- [x] `gateway` Explicit promotion flow
 
 ### 2.H — Gormes-owned: Dynamic agents and per-thread spawn UX ✅
 
-- [x] Goncho-backed dynamic agent registry
-- [x] gormes agent spawn/list/inspect/bind/unbind CLI
-- [x] Telegram /spawn opens forum topic bound to spawned agent
-- [x] Discord /spawn opens thread bound to spawned agent
+- [x] `goncho` Goncho-backed dynamic agent registry
+- [x] `gateway` gormes agent spawn/list/inspect/bind/unbind CLI
+- [x] `channels` Telegram /spawn opens forum topic bound to spawned agent
+- [x] `channels` Discord /spawn opens thread bound to spawned agent
 
 ## Phase 3 — The Black Box (Memory) ✅
 
@@ -431,118 +431,118 @@ classification and row-backed implementation queue.
 
 ### 3.A — SQLite + FTS5 Lattice ✅
 
-- [x] SqliteStore
-- [x] FTS5 triggers
-- [x] Schema migrations v3a->v3d
+- [x] `memory` SqliteStore
+- [x] `memory` FTS5 triggers
+- [x] `config` Schema migrations v3a->v3d
 
 ### 3.B — Ontological Graph + LLM Extractor ✅
 
-- [x] Extractor
-- [x] Entity/relationship upsert
-- [x] Dead-letter queue
+- [x] `memory` Extractor
+- [x] `memory` Entity/relationship upsert
+- [x] `memory` Dead-letter queue
 
 ### 3.C — Neural Recall + Context Injection ✅
 
-- [x] RecallProvider
-- [x] 2-layer seed selection
-- [x] CTE traversal
-- [x] <memory-context> fence
+- [x] `memory` RecallProvider
+- [x] `memory` 2-layer seed selection
+- [x] `memory` CTE traversal
+- [x] `memory` <memory-context> fence
 
 ### 3.D — Semantic Fusion + Local Embeddings ✅
 
-- [x] Ollama embeddings
-- [x] Vector cache
-- [x] Cosine similarity recall
-- [x] Hybrid fusion
+- [x] `providers` Ollama embeddings
+- [x] `memory` Vector cache
+- [x] `memory` Cosine similarity recall
+- [x] `memory` Hybrid fusion
 
 ### 3.D.5 — Memory Mirror (USER.md sync) ✅
 
-- [x] Async background export
-- [x] SQLite as source of truth
+- [x] `memory` Async background export
+- [x] `memory` SQLite as source of truth
 
 ### 3.E.1 — Session Index Mirror ✅
 
-- [x] Read-only bbolt sessions.db -> index.yaml mirror
-- [x] Deterministic mirror refresh without mutating session state
+- [x] `config` Read-only bbolt sessions.db -> index.yaml mirror
+- [x] `sessions` Deterministic mirror refresh without mutating session state
 
 ### 3.E.2 — Tool Execution Audit Log ✅
 
-- [x] Append-only JSONL writer + schema
-- [x] Kernel + delegate_task audit hooks
-- [x] Outcome, duration, and error capture
+- [x] `tools` Append-only JSONL writer + schema
+- [x] `tools` Kernel + delegate_task audit hooks
+- [x] `tools` Outcome, duration, and error capture
 
 ### 3.E.3 — Transcript Export Command ✅
 
-- [x] gormes session export <id> --format=markdown
-- [x] Render turns, tool calls, and timestamps from SQLite
+- [x] `sessions` gormes session export <id> --format=markdown
+- [x] `tools` Render turns, tool calls, and timestamps from SQLite
 
 ### 3.E.4 — Extraction State Visibility ✅
 
-- [x] gormes memory status command
-- [x] Extractor queue depth + dead-letter summary
+- [x] `memory` gormes memory status command
+- [x] `memory` Extractor queue depth + dead-letter summary
 
 ### 3.E.5 — Insights Audit Log ✅
 
-- [x] Append-only daily usage.jsonl writer
-- [x] Session, token, and cost rollups from local runtime
+- [x] `memory` Append-only daily usage.jsonl writer
+- [x] `sessions` Session, token, and cost rollups from local runtime
 
 ### 3.E.6 — Memory Decay ✅
 
-- [x] relationships.last_seen schema + backfill
-- [x] Relationship writer freshness updates
-- [x] Deterministic weight attenuation at recall time
+- [x] `memory` relationships.last_seen schema + backfill
+- [x] `memory` Relationship writer freshness updates
+- [x] `memory` Deterministic weight attenuation at recall time
 
 ### 3.E.7 — Cross-Chat Synthesis ✅
 
-- [x] user_id concept above chat_id
-- [x] Same-chat default recall fence
-- [x] Opt-in user-scope recall + source filters
-- [x] Interrupted-turn memory sync suppression
-- [x] Honcho-compatible scope/source tool schema
-- [x] Honcho host integration compatibility fixtures
-- [x] SillyTavern persona and group-chat mapping fixtures
-- [x] Cross-chat deny-path fixtures
-- [x] Cross-chat operator evidence
+- [x] `sessions` user_id concept above chat_id
+- [x] `memory` Same-chat default recall fence
+- [x] `memory` Opt-in user-scope recall + source filters
+- [x] `memory` Interrupted-turn memory sync suppression
+- [x] `goncho` Honcho-compatible scope/source tool schema
+- [x] `goncho` Honcho host integration compatibility fixtures
+- [x] `memory` SillyTavern persona and group-chat mapping fixtures
+- [x] `memory` Cross-chat deny-path fixtures
+- [x] `memory` Cross-chat operator evidence
 
 ### 3.E.8 — Session Lineage + Cross-Source Search ✅
 
-- [x] parent_session_id lineage for compression splits
-- [x] Gateway resume follows compression continuation
-- [x] Source-filtered session/message search core
-- [x] GONCHO user-scope search/context parameters
-- [x] Lineage-aware source-filtered search hits
-- [x] Operator-auditable search evidence
+- [x] `sessions` parent_session_id lineage for compression splits
+- [x] `gateway` Gateway resume follows compression continuation
+- [x] `sessions` Source-filtered session/message search core
+- [x] `goncho` GONCHO user-scope search/context parameters
+- [x] `sessions` Lineage-aware source-filtered search hits
+- [x] `sessions` Operator-auditable search evidence
 
 ### 3.F — Goncho Honcho Memory Parity ✅
 
-- [x] Goncho context representation options
-- [x] Goncho search filter grammar
-- [x] Vector store + reconciler divergence proof
-- [x] Directional peer cards and representation scopes
-- [x] Goncho queue status read model
-- [x] Goncho summary context budget
-- [x] Goncho dialectic chat contract
-- [x] Goncho file upload import ingestion
-- [x] Goncho topology design fixtures
-- [x] Goncho operator diagnostics contract
-- [x] Goncho streaming chat persistence contract
-- [x] Goncho configuration namespace
-- [x] Goncho dreaming scheduler contract
-- [x] Goncho CRUD lifecycle invariants
-- [x] Goncho empty peer-card hint contract
-- [x] Hermes memory tool over Goncho/local durable store
-- [x] Goncho memory provider lifecycle adapter
-- [x] Goncho Memory V1 compatibility contract and migration harness
-- [x] GONCHO local-first markdown MCP memory requirement
+- [x] `goncho` Goncho context representation options
+- [x] `goncho` Goncho search filter grammar
+- [x] `goncho` Vector store + reconciler divergence proof
+- [x] `goncho` Directional peer cards and representation scopes
+- [x] `goncho` Goncho queue status read model
+- [x] `goncho` Goncho summary context budget
+- [x] `goncho` Goncho dialectic chat contract
+- [x] `goncho` Goncho file upload import ingestion
+- [x] `goncho` Goncho topology design fixtures
+- [x] `goncho` Goncho operator diagnostics contract
+- [x] `goncho` Goncho streaming chat persistence contract
+- [x] `goncho` Goncho configuration namespace
+- [x] `goncho` Goncho dreaming scheduler contract
+- [x] `goncho` Goncho CRUD lifecycle invariants
+- [x] `goncho` Goncho empty peer-card hint contract
+- [x] `goncho` Hermes memory tool over Goncho/local durable store
+- [x] `goncho` Goncho memory provider lifecycle adapter
+- [x] `goncho` Goncho Memory V1 compatibility contract and migration harness
+- [x] `goncho` GONCHO local-first markdown MCP memory requirement
 
 ### 3.G — Goncho Drop-In Compatibility Closure ✅
 
-- [x] Goncho keys + webhooks compatibility surface
-- [x] Goncho webhook delivery retry worker contract
-- [x] Goncho HTTP route parity over OpenAPI v3
-- [x] Goncho CLI command-tree parity
-- [x] Goncho Honcho SDK compatibility e2e harness
-- [x] Goncho memory integration into normal agent turn
+- [x] `goncho` Goncho keys + webhooks compatibility surface
+- [x] `goncho` Goncho webhook delivery retry worker contract
+- [x] `goncho` Goncho HTTP route parity over OpenAPI v3
+- [x] `goncho` Goncho CLI command-tree parity
+- [x] `goncho` Goncho Honcho SDK compatibility e2e harness
+- [x] `goncho` Goncho memory integration into normal agent turn
 
 ## Phase 4 — The Brain Transplant ✅
 
@@ -550,174 +550,174 @@ classification and row-backed implementation queue.
 
 ### 4.A — Provider Adapters ✅
 
-- [x] Provider interface + stream fixture harness
-- [x] Hermes provider registry and alias manifest
-- [x] OpenRouter Pareto router request plugin
-- [x] Tool-call normalization + continuation contract
-- [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
-- [x] DeepSeek/Kimi cross-provider reasoning isolation
-- [x] DeepSeek/Kimi all-assistant reasoning_content replay
-- [x] Moonshot/Kimi tool-schema sanitizer
-- [x] Anthropic
-- [x] Azure OpenAI query/default_query transport contract
-- [x] Azure Anthropic Messages endpoint contract
-- [x] Azure Foundry transport probe read model
-- [x] Azure Foundry probe — path sniffing
-- [x] Azure Foundry probe — /models classification + Anthropic fallback
-- [x] Azure Foundry runtime env/config read model
-- [x] Azure Foundry CLI setup/status manual fallback
-- [x] Azure Foundry Responses-only model-family API mode
-- [x] Bedrock provider runtime binding
-- [x] Bedrock Converse payload mapping (no AWS SDK)
-- [x] Bedrock stream event decoding (SSE fixtures)
-- [x] Bedrock SigV4 + credential seam
-- [x] Bedrock stale-client eviction + retry classification
-- [x] Gemini Cloud Code request/stream mapper
-- [x] OpenRouter compatible-provider routing
-- [x] OpenRouter Grok prompt-cache affinity header
-- [x] Google Code Assist project/quota resolver
-- [x] Codex
-- [x] Codex Responses pure conversion harness
-- [x] Codex Responses assistant content role types
-- [x] Codex Responses HTTP client binding
-- [x] Codex OAuth state + stale-token relogin
-- [x] Codex stream repair + tool-call leak sanitizer
-- [x] Cross-provider reasoning-tag sanitization
-- [x] Tool-call argument repair + schema sanitizer
-- [x] OpenAI-compatible developer-role API-boundary swap
-- [x] xAI Grok provider adapter
-- [x] LM Studio provider adapter
-- [x] Vision-unsupported provider retry (strip-images-and-resend)
+- [x] `providers` Provider interface + stream fixture harness
+- [x] `providers` Hermes provider registry and alias manifest
+- [x] `providers` OpenRouter Pareto router request plugin
+- [x] `providers` Tool-call normalization + continuation contract
+- [x] `providers` DeepSeek/Kimi reasoning_content echo for tool-call replay
+- [x] `providers` DeepSeek/Kimi cross-provider reasoning isolation
+- [x] `providers` DeepSeek/Kimi all-assistant reasoning_content replay
+- [x] `providers` Moonshot/Kimi tool-schema sanitizer
+- [x] `providers` Anthropic
+- [x] `providers` Azure OpenAI query/default_query transport contract
+- [x] `providers` Azure Anthropic Messages endpoint contract
+- [x] `providers` Azure Foundry transport probe read model
+- [x] `providers` Azure Foundry probe — path sniffing
+- [x] `providers` Azure Foundry probe — /models classification + Anthropic fallback
+- [x] `providers` Azure Foundry runtime env/config read model
+- [x] `providers` Azure Foundry CLI setup/status manual fallback
+- [x] `providers` Azure Foundry Responses-only model-family API mode
+- [x] `providers` Bedrock provider runtime binding
+- [x] `providers` Bedrock Converse payload mapping (no AWS SDK)
+- [x] `gateway` Bedrock stream event decoding (SSE fixtures)
+- [x] `providers` Bedrock SigV4 + credential seam
+- [x] `providers` Bedrock stale-client eviction + retry classification
+- [x] `providers` Gemini Cloud Code request/stream mapper
+- [x] `providers` OpenRouter compatible-provider routing
+- [x] `providers` OpenRouter Grok prompt-cache affinity header
+- [x] `providers` Google Code Assist project/quota resolver
+- [x] `providers` Codex
+- [x] `providers` Codex Responses pure conversion harness
+- [x] `providers` Codex Responses assistant content role types
+- [x] `providers` Codex Responses HTTP client binding
+- [x] `providers` Codex OAuth state + stale-token relogin
+- [x] `providers` Codex stream repair + tool-call leak sanitizer
+- [x] `providers` Cross-provider reasoning-tag sanitization
+- [x] `providers` Tool-call argument repair + schema sanitizer
+- [x] `providers` OpenAI-compatible developer-role API-boundary swap
+- [x] `providers` xAI Grok provider adapter
+- [x] `providers` LM Studio provider adapter
+- [x] `providers` Vision-unsupported provider retry (strip-images-and-resend)
 
 ### 4.B — Context Engine + Compression ✅
 
-- [x] Long session management
-- [x] Context compression
-- [x] ContextEngine interface + status tool contract
-- [x] Compression token-budget trigger + summary sizing
-- [x] Aux compression headroom for system and tool schemas
-- [x] Aux compression provider-aware context cap
-- [x] Tool-result pruning + protected head/tail summary
-- [x] Aux compression single-prompt threshold reconciliation
-- [x] Compression protected-tail multimodal length estimator
-- [x] Context compressor image-token budget charge
-- [x] Context references stable-handle store
-- [x] Manual compression feedback + context references
-- [x] Manual compression feedback renderer + focus parser
-- [x] ContextEngine compression-boundary callback vocabulary
-- [x] Kernel compression-boundary callback binding
-- [x] ContextEngine session-end hook on reset
+- [x] `sessions` Long session management
+- [x] `sessions` Context compression
+- [x] `tools` ContextEngine interface + status tool contract
+- [x] `sessions` Compression token-budget trigger + summary sizing
+- [x] `tools` Aux compression headroom for system and tool schemas
+- [x] `providers` Aux compression provider-aware context cap
+- [x] `tools` Tool-result pruning + protected head/tail summary
+- [x] `sessions` Aux compression single-prompt threshold reconciliation
+- [x] `sessions` Compression protected-tail multimodal length estimator
+- [x] `sessions` Context compressor image-token budget charge
+- [x] `sessions` Context references stable-handle store
+- [x] `sessions` Manual compression feedback + context references
+- [x] `sessions` Manual compression feedback renderer + focus parser
+- [x] `sessions` ContextEngine compression-boundary callback vocabulary
+- [x] `sessions` Kernel compression-boundary callback binding
+- [x] `sessions` ContextEngine session-end hook on reset
 
 ### 4.C — Native Prompt Builder ✅
 
-- [x] Default agent identity / SOUL.md loader
-- [x] Context-file discovery + injection scan
-- [x] Progressive subdirectory hint tracker
-- [x] Model-specific role and tool-use guidance
-- [x] Toolset-aware skills prompt snapshot
-- [x] Memory guidance constant + injection
-- [x] Session search guidance constant + injection
-- [x] Gormes self-help skill/docs prompt guidance
-- [x] [SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility
-- [x] Native full prompt assembly
-- [x] Ephemeral prefill messages file injection
+- [x] `builder` Default agent identity / SOUL.md loader
+- [x] `builder` Context-file discovery + injection scan
+- [x] `builder` Progressive subdirectory hint tracker
+- [x] `builder` Model-specific role and tool-use guidance
+- [x] `builder` Toolset-aware skills prompt snapshot
+- [x] `builder` Memory guidance constant + injection
+- [x] `builder` Session search guidance constant + injection
+- [x] `builder` Gormes self-help skill/docs prompt guidance
+- [x] `builder` [SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility
+- [x] `builder` Native full prompt assembly
+- [x] `builder` Ephemeral prefill messages file injection
 
 ### 4.D — Smart Model Routing ✅
 
-- [x] Model metadata registry + context limits
-- [x] Provider-enforced context-length resolver
-- [x] Model pricing/capability registry fixtures
-- [x] Ollama Cloud models.dev suffix normalization
-- [x] Model catalog cache + preferred-provider live merge
-- [x] Routing policy and fallback selector
-- [x] Per-turn model selection
-- [x] Per-turn reasoning effort propagation
-- [x] Provider-default model resolution at config load
-- [x] OpenAI Codex Spark catalog and context parity
-- [x] Image input mode resolver + vision_analyze text fallback
+- [x] `providers` Model metadata registry + context limits
+- [x] `providers` Provider-enforced context-length resolver
+- [x] `providers` Model pricing/capability registry fixtures
+- [x] `providers` Ollama Cloud models.dev suffix normalization
+- [x] `providers` Model catalog cache + preferred-provider live merge
+- [x] `providers` Routing policy and fallback selector
+- [x] `providers` Per-turn model selection
+- [x] `providers` Per-turn reasoning effort propagation
+- [x] `providers` Provider-default model resolution at config load
+- [x] `providers` OpenAI Codex Spark catalog and context parity
+- [x] `providers` Image input mode resolver + vision_analyze text fallback
 
 ### 4.E — Trajectory + Insights ✅
 
-- [x] Trajectory writer + redaction gates
-- [x] Trajectory compressor + compressed-evidence lineage
-- [x] Self-monitoring telemetry
+- [x] `providers` Trajectory writer + redaction gates
+- [x] `gateway` Trajectory compressor + compressed-evidence lineage
+- [x] `providers` Self-monitoring telemetry
 
 ### 4.F — Title Generation ✅
 
-- [x] Title prompt and truncation contract
-- [x] Title auxiliary failure visibility
-- [x] Auto-naming sessions
+- [x] `sessions` Title prompt and truncation contract
+- [x] `sessions` Title auxiliary failure visibility
+- [x] `sessions` Auto-naming sessions
 
 ### 4.G — Credentials + OAuth ✅
 
-- [x] Token vault
-- [x] Anthropic OAuth/keychain credential discovery
-- [x] Multi-account auth
-- [x] Credential non-ASCII sanitizer + one-shot warning
-- [x] Google OAuth flow + refresh seam
-- [x] MiniMax OAuth provider registry and default auth routing
-- [x] GitHub Copilot token exchange + Responses mode selector
+- [x] `providers` Token vault
+- [x] `providers` Anthropic OAuth/keychain credential discovery
+- [x] `providers` Multi-account auth
+- [x] `providers` Credential non-ASCII sanitizer + one-shot warning
+- [x] `providers` Google OAuth flow + refresh seam
+- [x] `providers` MiniMax OAuth provider registry and default auth routing
+- [x] `providers` GitHub Copilot token exchange + Responses mode selector
 
 ### 4.H — Rate / Retry / Caching ✅
 
-- [x] Provider-side resilience
-- [x] Classified provider-error taxonomy
-- [x] Generic provider timeout message classifier
-- [x] Provider image-too-large error classification
-- [x] Unsupported temperature retry + Codex no-temperature guard
-- [x] Codex Responses temperature guard after flush removal
-- [x] Generic unsupported-parameter retry + max_tokens guard
-- [x] Jittered reconnect backoff schedule
-- [x] Retry-After header parsing + HTTPError hint
-- [x] Kernel retry honors Retry-After hint
-- [x] Streaming interrupt retry suppression
-- [x] Provider stream-drop retry diagnostics
-- [x] Provider stream-drop timing and upstream diagnostics
-- [x] Provider timeout config fail-closed helper
-- [x] Prompt-cache capability guard
-- [x] Provider account usage read model + renderer
-- [x] Gateway /usage command binding over provider account usage
-- [x] Provider rate guard + budget telemetry
-- [x] Provider rate guard — x-ratelimit header classification
-- [x] Provider rate guard — degraded-state + last-known-good evidence
-- [x] Hermes fast-mode request override serializer
+- [x] `providers` Provider-side resilience
+- [x] `providers` Classified provider-error taxonomy
+- [x] `providers` Generic provider timeout message classifier
+- [x] `providers` Provider image-too-large error classification
+- [x] `providers` Unsupported temperature retry + Codex no-temperature guard
+- [x] `providers` Codex Responses temperature guard after flush removal
+- [x] `providers` Generic unsupported-parameter retry + max_tokens guard
+- [x] `providers` Jittered reconnect backoff schedule
+- [x] `providers` Retry-After header parsing + HTTPError hint
+- [x] `providers` Kernel retry honors Retry-After hint
+- [x] `providers` Streaming interrupt retry suppression
+- [x] `providers` Provider stream-drop retry diagnostics
+- [x] `providers` Provider stream-drop timing and upstream diagnostics
+- [x] `providers` Provider timeout config fail-closed helper
+- [x] `providers` Prompt-cache capability guard
+- [x] `providers` Provider account usage read model + renderer
+- [x] `gateway` Gateway /usage command binding over provider account usage
+- [x] `providers` Provider rate guard + budget telemetry
+- [x] `providers` Provider rate guard — x-ratelimit header classification
+- [x] `providers` Provider rate guard — degraded-state + last-known-good evidence
+- [x] `providers` Hermes fast-mode request override serializer
 
 ### 4.I — Native Agent Turn Closure ✅
 
-- [x] Python-free normal agent turn e2e harness
-- [x] Provider-tool-memory golden transcript suite
-- [x] Hermes and Honcho feature parity map to Go implementation plan
-- [x] Upstream source coverage ledger for Hermes/Honcho mapping completeness
-- [x] Swarm feature-level parity audit for Hermes/Honcho map
-- [x] Hermes/Honcho Go runtime plan second-wave reconciliation
-- [x] Nested feature-level coverage test matrix for swarm gaps
-- [x] Hermes website docs mirror coverage gate
-- [x] Gormes setup/channel/provider docs webpage parity gate
-- [x] Native runtime provider gateway binding
-- [x] Hermes compatibility namespace retirement boundary
+- [x] `runtime` Python-free normal agent turn e2e harness
+- [x] `providers` Provider-tool-memory golden transcript suite
+- [x] `planner` Hermes and Honcho feature parity map to Go implementation plan
+- [x] `planner` Upstream source coverage ledger for Hermes/Honcho mapping completeness
+- [x] `goncho` Swarm feature-level parity audit for Hermes/Honcho map
+- [x] `stt` Hermes/Honcho Go runtime plan second-wave reconciliation
+- [x] `runtime` Nested feature-level coverage test matrix for swarm gaps
+- [x] `runtime` Hermes website docs mirror coverage gate
+- [x] `providers` Gormes setup/channel/provider docs webpage parity gate
+- [x] `gateway` Native runtime provider gateway binding
+- [x] `runtime` Hermes compatibility namespace retirement boundary
 
 ### 4.J — Permission-Hardened Tool Execution ✅
 
-- [x] Shell blocklist + filesystem scoping + permission approval
+- [x] `tools` Shell blocklist + filesystem scoping + permission approval
 
 ### 4.K — Provider Fallback Chain ✅
 
-- [x] Resilient provider chain dispatch
-- [x] Hermes fallback activation + classifier carve-outs
-- [x] Fallback entry api_key_env credential alias
+- [x] `providers` Resilient provider chain dispatch
+- [x] `providers` Hermes fallback activation + classifier carve-outs
+- [x] `providers` Fallback entry api_key_env credential alias
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC) ✅
 
-- [x] Plan gate hook in agent turn loop
-- [x] Tool gate pre-execution validation
-- [x] Refusal-as-action in ReAct cycle
-- [x] Safety loop end-to-end integration
+- [x] `runtime` Plan gate hook in agent turn loop
+- [x] `tools` Tool gate pre-execution validation
+- [x] `runtime` Refusal-as-action in ReAct cycle
+- [x] `runtime` Safety loop end-to-end integration
 
 ### 4.M — Advanced Provider Routing ✅
 
-- [x] Circuit breaker per provider and API key
-- [x] P95 latency-aware failover
-- [x] Capability-based model tier routing
+- [x] `providers` Circuit breaker per provider and API key
+- [x] `providers` P95 latency-aware failover
+- [x] `providers` Capability-based model tier routing
 
 ## Phase 5 — The Final Purge 🔨
 
@@ -725,536 +725,536 @@ classification and row-backed implementation queue.
 
 ### 5.A — Tool Surface Port ✅
 
-- [x] 61-tool registry port
-- [x] Tool registry inventory + schema parity harness
-- [x] Tool-call JSON-string array/object coercion parity
-- [x] Tool parity manifest refresh for Hermes b35d692f
-- [x] Tool parity manifest refresh for Hermes ea86714 computer_use
-- [x] Tool parity manifest refresh for Hermes 524cbabd patch schema
-- [x] Microsoft Graph auth/client helper parity
-- [x] Discord tool split + platform-scoped toolsets
-- [x] Discord tool limit coercion helper
-- [x] Home Assistant HASS_TOKEN platform-toolset carveout
-- [x] Home Assistant tool handlers + service safety validation
-- [x] Pure core tools first
-- [x] Stateful tool migration queue
-- [x] Terminal process watch notification throttle contract
-- [x] Tool output budget persisted artifact pointer
-- [x] Tool descriptor layer (OperationSpec)
+- [x] `tools` 61-tool registry port
+- [x] `tools` Tool registry inventory + schema parity harness
+- [x] `tools` Tool-call JSON-string array/object coercion parity
+- [x] `tools` Tool parity manifest refresh for Hermes b35d692f
+- [x] `tools` Tool parity manifest refresh for Hermes ea86714 computer_use
+- [x] `tools` Tool parity manifest refresh for Hermes 524cbabd patch schema
+- [x] `tools` Microsoft Graph auth/client helper parity
+- [x] `channels` Discord tool split + platform-scoped toolsets
+- [x] `channels` Discord tool limit coercion helper
+- [x] `tools` Home Assistant HASS_TOKEN platform-toolset carveout
+- [x] `tools` Home Assistant tool handlers + service safety validation
+- [x] `tools` Pure core tools first
+- [x] `config` Stateful tool migration queue
+- [x] `tools` Terminal process watch notification throttle contract
+- [x] `tools` Tool output budget persisted artifact pointer
+- [x] `tools` Tool descriptor layer (OperationSpec)
 
 ### 5.B — Sandboxing Backends ✅
 
-- [x] Environment interface + file sync contract
-- [x] Terminal snapshot source stdout suppression guard
-- [x] Terminal deleted-cwd recovery guard
-- [x] Raw tool-call parser fixture matrix
-- [x] Docker execution backend (container lifecycle + mount policy)
-- [x] Docker backend top-level container reuse semantics
-- [x] Modal
-- [x] Daytona
-- [x] Singularity command/preflight contract
-- [x] Sandbox Policy Explain
+- [x] `tools` Environment interface + file sync contract
+- [x] `tools` Terminal snapshot source stdout suppression guard
+- [x] `tools` Terminal deleted-cwd recovery guard
+- [x] `tools` Raw tool-call parser fixture matrix
+- [x] `install` Docker execution backend (container lifecycle + mount policy)
+- [x] `install` Docker backend top-level container reuse semantics
+- [x] `tools` Modal
+- [x] `tools` Daytona
+- [x] `tools` Singularity command/preflight contract
+- [x] `tools` Sandbox Policy Explain
 
 ### 5.C — Browser Automation ✅
 
-- [x] Browser action contract + event transcript
-- [x] go-browser-harness Chromedp action backend
-- [x] Rod
-- [x] Browser provider bridge + Firecrawl fallback
-- [x] Camofox REST browser mode and managed identity bridge
-- [x] Browser Use cloud + Go browser harness bridge
-- [x] Go browser-harness Hermes browser_* tool wrappers
-- [x] Go-native Hermes web_search/web_extract tool wrappers
-- [x] Go-native Hermes web backend matrix and config resolver
-- [x] Go-native Hermes web extract safety policy and summarizer
-- [x] Goscrapling local extraction for web_extract
-- [x] Go-native Hermes web_crawl tool adapter
-- [x] Go-native Hermes web managed gateway status and live smoke closure
-- [x] Brave Search + DDGS web search provider parity
-- [x] Browser artifact and console render contract
-- [x] Browser console expression CDP result shaping
-- [x] Telegram browser artifact rendering
-- [x] Browser hybrid private-URL local sidecar routing
-- [x] Browser SSRF quoted-false guard
-- [x] Go browser harness binary repo + integration lane (placeholder)
-- [x] Browser session inactivity cleanup thread
+- [x] `browser` Browser action contract + event transcript
+- [x] `browser` go-browser-harness Chromedp action backend
+- [x] `browser` Rod
+- [x] `browser` Browser provider bridge + Firecrawl fallback
+- [x] `browser` Camofox REST browser mode and managed identity bridge
+- [x] `browser` Browser Use cloud + Go browser harness bridge
+- [x] `browser` Go browser-harness Hermes browser_* tool wrappers
+- [x] `browser` Go-native Hermes web_search/web_extract tool wrappers
+- [x] `browser` Go-native Hermes web backend matrix and config resolver
+- [x] `browser` Go-native Hermes web extract safety policy and summarizer
+- [x] `browser` Goscrapling local extraction for web_extract
+- [x] `browser` Go-native Hermes web_crawl tool adapter
+- [x] `browser` Go-native Hermes web managed gateway status and live smoke closure
+- [x] `browser` Brave Search + DDGS web search provider parity
+- [x] `browser` Browser artifact and console render contract
+- [x] `browser` Browser console expression CDP result shaping
+- [x] `browser` Telegram browser artifact rendering
+- [x] `browser` Browser hybrid private-URL local sidecar routing
+- [x] `browser` Browser SSRF quoted-false guard
+- [x] `browser` Go browser harness binary repo + integration lane (placeholder)
+- [x] `browser` Browser session inactivity cleanup thread
 
 ### 5.D — Vision + Image Generation ✅
 
-- [x] Multimodal in/out
-- [x] Image input mode router + native content parts
-- [x] vision_analyze native multimodal tool-result path
-- [x] Image-too-large shrink retry helper
-- [x] Image generation result contract
-- [x] Image generation provider registry + plugin dispatch
-- [x] FAL image generation queue REST binding
-- [x] Native video_analyze tool contract
+- [x] `tools` Multimodal in/out
+- [x] `tools` Image input mode router + native content parts
+- [x] `tools` vision_analyze native multimodal tool-result path
+- [x] `tools` Image-too-large shrink retry helper
+- [x] `tools` Image generation result contract
+- [x] `providers` Image generation provider registry + plugin dispatch
+- [x] `tools` FAL image generation queue REST binding
+- [x] `tools` Native video_analyze tool contract
 
 ### 5.E — TTS / Voice / Transcription ✅
 
-- [x] Voice mode port
-- [x] Voice mode environment detector + audio provider seam
-- [x] Transcription tool contract
-- [x] Telegram voice/audio STT ingress hook
-- [x] TTS tool contract + media delivery seam
-- [x] MiniMax TTS v1 text_to_speech raw-audio compatibility
-- [x] TTS provider matrix + dotenv/command-provider resolution
-- [x] TTS synthesis + voice-mode state
-- [x] Voice record-key config binding for native TUI
-- [x] Telegram voice STT HTTP-provider fallback
-- [x] Pure-Go STT exploration
-- [x] wazero WASI smoke harness
-- [x] whisper.cpp WASI module discovery
-- [x] Pure-Go Whisper transcribe one WAV
-- [x] Whisper tiny.en model cache fetcher
-- [x] Wire Pure-Go Whisper into Telegram resolver
-- [x] WASI Whisper ffmpeg preprocess + fixed-window chunker
-- [x] Audio preprocessing and chunking pipeline
-- [x] Whisper benchmark harness + perf budget
-- [x] Go-native OGG/Opus decoder decision
-- [x] Go-native OGG/Opus decoder implementation
-- [x] Pure-Go TTS decision research
+- [x] `tts` Voice mode port
+- [x] `tts` Voice mode environment detector + audio provider seam
+- [x] `tts` Transcription tool contract
+- [x] `tts` Telegram voice/audio STT ingress hook
+- [x] `tts` TTS tool contract + media delivery seam
+- [x] `tts` MiniMax TTS v1 text_to_speech raw-audio compatibility
+- [x] `tts` TTS provider matrix + dotenv/command-provider resolution
+- [x] `tts` TTS synthesis + voice-mode state
+- [x] `tts` Voice record-key config binding for native TUI
+- [x] `tts` Telegram voice STT HTTP-provider fallback
+- [x] `tts` Pure-Go STT exploration
+- [x] `tts` wazero WASI smoke harness
+- [x] `tts` whisper.cpp WASI module discovery
+- [x] `tts` Pure-Go Whisper transcribe one WAV
+- [x] `tts` Whisper tiny.en model cache fetcher
+- [x] `tts` Wire Pure-Go Whisper into Telegram resolver
+- [x] `tts` WASI Whisper ffmpeg preprocess + fixed-window chunker
+- [x] `tts` Audio preprocessing and chunking pipeline
+- [x] `tts` Whisper benchmark harness + perf budget
+- [x] `tts` Go-native OGG/Opus decoder decision
+- [x] `tts` Go-native OGG/Opus decoder implementation
+- [x] `tts` Pure-Go TTS decision research
 
 ### 5.F — Skills System (Remaining) ✅
 
-- [x] Skills hub search result types + in-memory registry provider
-- [x] Skills hub search read-model function over registry providers
-- [x] Skill registries
-- [x] Skills hub direct URL candidate parser
-- [x] Skills hub direct URL install name/category guard
-- [x] Skill preprocessing + dynamic slash commands
-- [x] [IMPORTANT:] prompt prefix for cron and skill commands
-- [x] Skills list — enabled/disabled status column + --enabled-only filter
-- [x] Update bundled skills across active and named profiles
-- [x] Bundled Airtable productivity skill contract
-- [x] Bundled TouchDesigner MCP skill catalog contract
+- [x] `providers` Skills hub search result types + in-memory registry provider
+- [x] `providers` Skills hub search read-model function over registry providers
+- [x] `skills` Skill registries
+- [x] `skills` Skills hub direct URL candidate parser
+- [x] `skills` Skills hub direct URL install name/category guard
+- [x] `skills` Skill preprocessing + dynamic slash commands
+- [x] `skills` [IMPORTANT:] prompt prefix for cron and skill commands
+- [x] `skills` Skills list — enabled/disabled status column + --enabled-only filter
+- [x] `profiles` Update bundled skills across active and named profiles
+- [x] `skills` Bundled Airtable productivity skill contract
+- [x] `skills` Bundled TouchDesigner MCP skill catalog contract
 
 ### 5.G — MCP Integration ✅
 
-- [x] MCP client
-- [x] Goncho MCP tool catalog
-- [x] MCP server config/env resolver
-- [x] MCP stdio transport + tool/list discovery
-- [x] MCP HTTP transport + tool/list discovery
-- [x] MCP schema normalization + structured-content adapter
-- [x] MCP OAuth state store + noninteractive auth errors
-- [x] MCP OAuth refresh + 401 session-expired recovery
-- [x] Managed tool gateway bridge
-- [x] MCP circuit breaker cooldown + reconnect reset
-- [x] MCP stdio orphan cleanup after cron ticks
-- [x] Gormes-native MCP host runtime boundary
-- [x] MCP channels_list tool
+- [x] `tools` MCP client
+- [x] `goncho` Goncho MCP tool catalog
+- [x] `config` MCP server config/env resolver
+- [x] `tools` MCP stdio transport + tool/list discovery
+- [x] `tools` MCP HTTP transport + tool/list discovery
+- [x] `tools` MCP schema normalization + structured-content adapter
+- [x] `providers` MCP OAuth state store + noninteractive auth errors
+- [x] `providers` MCP OAuth refresh + 401 session-expired recovery
+- [x] `gateway` Managed tool gateway bridge
+- [x] `tools` MCP circuit breaker cooldown + reconnect reset
+- [x] `tools` MCP stdio orphan cleanup after cron ticks
+- [x] `tools` Gormes-native MCP host runtime boundary
+- [x] `channels` MCP channels_list tool
 
 ### 5.H — ACP Integration ✅
 
-- [x] ACP server side
-- [x] ACP Client Bridge Mode
-- [x] ACP JSON-RPC stdio session/prompt closeout
-- [x] ACP stdio benign ping/probe suppression
-- [x] ACP session CWD propagation into prompt runners
+- [x] `tools` ACP server side
+- [x] `tools` ACP Client Bridge Mode
+- [x] `tools` ACP JSON-RPC stdio session/prompt closeout
+- [x] `tools` ACP stdio benign ping/probe suppression
+- [x] `tools` ACP session CWD propagation into prompt runners
 
 ### 5.I — Plugins Architecture ✅
 
-- [x] Plugin SDK
-- [x] Dashboard theme/plugin extension status contract
-- [x] Dashboard page-scoped plugin slot inventory
-- [x] Third-party extensions
-- [x] Hermes plugin CLI lifecycle parity
-- [x] Teams pipeline plugin CLI metadata + disabled runtime inventory
-- [x] Goncho Honcho plugin session config + async write compatibility
-- [x] First-party Spotify plugin fixture
-- [x] First-party Google Meet plugin metadata fixture
-- [x] Hindsight memory setup blank-input preservation
-- [x] Agent Hooks Registry
-- [x] Plugin Marketplace + Doctor
-- [x] Extension Lifecycle Hook System
-- [x] Plugin lifecycle hook: transform_llm_output
+- [x] `skills` Plugin SDK
+- [x] `skills` Dashboard theme/plugin extension status contract
+- [x] `skills` Dashboard page-scoped plugin slot inventory
+- [x] `skills` Third-party extensions
+- [x] `skills` Hermes plugin CLI lifecycle parity
+- [x] `skills` Teams pipeline plugin CLI metadata + disabled runtime inventory
+- [x] `goncho` Goncho Honcho plugin session config + async write compatibility
+- [x] `skills` First-party Spotify plugin fixture
+- [x] `skills` First-party Google Meet plugin metadata fixture
+- [x] `skills` Hindsight memory setup blank-input preservation
+- [x] `skills` Agent Hooks Registry
+- [x] `doctor` Plugin Marketplace + Doctor
+- [x] `skills` Extension Lifecycle Hook System
+- [x] `skills` Plugin lifecycle hook: transform_llm_output
 
 ### 5.J — Approval / Security Guards ✅
 
-- [x] Dangerous action gating
-- [x] Gateway approval FIFO queue resolver
-- [x] Hardline command pattern table + DetectHardline function
-- [x] Recoverable dangerous patterns + blocked-result schema
-- [x] Approval mode config normalization
-- [x] Gateway hook auto-accept strict parser
-- [x] delegate_task batch JSON-string task recovery
-- [x] Subagent dangerous-command non-interactive approval policy
-- [x] Concurrent tool approval callback propagation
-- [x] Background review toolset restriction
-- [x] Cron dangerous-command approval mode
-- [x] Cron approval mode config normalizer
-- [x] Tirith external security finding ingestion
-- [x] Unified security guard decision composer
-- [x] Shell blocklist (36+ dangerous patterns)
-- [x] Filesystem scoping (folder-level read/write restrictions)
-- [x] Permission approval UX (inline y/n/always)
-- [x] Trust-class enforcement in shared tool executor
-- [x] Secrets Runtime Controls
-- [x] Security Audit Command
-- [x] Email allowlist pre-dispatch loop guard
-- [x] Auth state TOCTOU close + redaction default-on parity
-- [x] Gateway allowed_chats/channels/rooms whitelist parity
+- [x] `tools` Dangerous action gating
+- [x] `gateway` Gateway approval FIFO queue resolver
+- [x] `tools` Hardline command pattern table + DetectHardline function
+- [x] `tools` Recoverable dangerous patterns + blocked-result schema
+- [x] `config` Approval mode config normalization
+- [x] `gateway` Gateway hook auto-accept strict parser
+- [x] `tools` delegate_task batch JSON-string task recovery
+- [x] `tools` Subagent dangerous-command non-interactive approval policy
+- [x] `tools` Concurrent tool approval callback propagation
+- [x] `tools` Background review toolset restriction
+- [x] `tools` Cron dangerous-command approval mode
+- [x] `config` Cron approval mode config normalizer
+- [x] `tools` Tirith external security finding ingestion
+- [x] `tools` Unified security guard decision composer
+- [x] `tools` Shell blocklist (36+ dangerous patterns)
+- [x] `tools` Filesystem scoping (folder-level read/write restrictions)
+- [x] `tools` Permission approval UX (inline y/n/always)
+- [x] `tools` Trust-class enforcement in shared tool executor
+- [x] `runtime` Secrets Runtime Controls
+- [x] `tools` Security Audit Command
+- [x] `channels` Email allowlist pre-dispatch loop guard
+- [x] `tools` Auth state TOCTOU close + redaction default-on parity
+- [x] `gateway` Gateway allowed_chats/channels/rooms whitelist parity
 
 ### 5.K — Code Execution ✅
 
-- [x] Sandboxed exec
+- [x] `tools` Sandboxed exec
 
 ### 5.L — File Ops + Patches ✅
 
-- [x] Atomic file write helper with temp+rename pattern
-- [x] File tool atomic checkpoint integration
-- [x] Checkpoints CLI (status/list/prune/clear/clear-legacy)
-- [x] Checkpoint shadow-repo GC policy
-- [x] File read dedup cache invalidation and wrapper guard
-- [x] File read repeated-stub BLOCKED escalation
-- [x] Native file task tool surface
-- [x] V4A patch mode for native patch tool
-- [x] V4A move operation for native patch tool
-- [x] Symlink-preserving atomic writer helper
-- [x] File write/patch staleness registry + cwd tracking
-- [x] Terminal cwd config bridge
-- [x] Terminal deleted-cwd recovery
-- [x] search_files hidden-root and context-line parsing drift
-- [x] Structured lint delta for native write/patch tools
-- [x] Python syntax lint delta for native write/patch tools
-- [x] Shell lint delta for native write/patch tools
-- [x] Patch replace no-match did-you-mean hint
-- [x] Core fuzzy replace strategies for native patch tool
-- [x] Unicode-normalized fuzzy replace for native patch tool
-- [x] Block-anchor fuzzy replace for native patch tool
-- [x] V4A fuzzy hunk matching for native patch tool
-- [x] Context-aware fuzzy replace for native patch tool
-- [x] V4A patch apply rollback for native patch tool
-- [x] Patch replace post-write verification
+- [x] `tools` Atomic file write helper with temp+rename pattern
+- [x] `tools` File tool atomic checkpoint integration
+- [x] `tools` Checkpoints CLI (status/list/prune/clear/clear-legacy)
+- [x] `tools` Checkpoint shadow-repo GC policy
+- [x] `tools` File read dedup cache invalidation and wrapper guard
+- [x] `tools` File read repeated-stub BLOCKED escalation
+- [x] `tools` Native file task tool surface
+- [x] `tools` V4A patch mode for native patch tool
+- [x] `tools` V4A move operation for native patch tool
+- [x] `tools` Symlink-preserving atomic writer helper
+- [x] `tools` File write/patch staleness registry + cwd tracking
+- [x] `config` Terminal cwd config bridge
+- [x] `tools` Terminal deleted-cwd recovery
+- [x] `tools` search_files hidden-root and context-line parsing drift
+- [x] `tools` Structured lint delta for native write/patch tools
+- [x] `tools` Python syntax lint delta for native write/patch tools
+- [x] `tools` Shell lint delta for native write/patch tools
+- [x] `tools` Patch replace no-match did-you-mean hint
+- [x] `tools` Core fuzzy replace strategies for native patch tool
+- [x] `tools` Unicode-normalized fuzzy replace for native patch tool
+- [x] `tools` Block-anchor fuzzy replace for native patch tool
+- [x] `tools` V4A fuzzy hunk matching for native patch tool
+- [x] `tools` Context-aware fuzzy replace for native patch tool
+- [x] `tools` V4A patch apply rollback for native patch tool
+- [x] `tools` Patch replace post-write verification
 
 ### 5.M — Mixture of Agents ✅
 
-- [x] Multi-model coordination
-- [x] Hermes Kanban durable board core
-- [x] Hermes Kanban dispatcher and worker spawn loop
-- [x] Hermes Kanban production worker process binding
-- [x] Hermes Kanban worker tools and prompt gating
-- [x] Kanban orchestrator board-routing tools
-- [x] Kanban comment author hardening and cross-task handoff policy
-- [x] Hermes Kanban slash/gateway/dashboard surfaces
-- [x] Native TUI /kanban slash command binding over gormes kanban
-- [x] Gateway /kanban shared command-runner binding
-- [x] Kanban slash help and usage-error UX
-- [x] Kanban dashboard dispatch quick path
-- [x] Kanban dashboard task run history endpoint
-- [x] Kanban dispatcher status in gateway /status
-- [x] Kanban multi-board isolation
-- [x] Kanban workspace context injection
-- [x] Kanban run history persistence
-- [x] Kanban notification delivery parity
-- [x] Kanban chat board DB pin
-- [x] Kanban schema migration duplicate-column race guard
-- [x] Kanban notify subscription store and CLI
-- [x] Kanban notify delivery engine blocked retention
-- [x] Kanban stats command and board summary
-- [x] Kanban corrupt timestamp age hardening
-- [x] Kanban named-board workspace and log roots
-- [x] Kanban current-board task command routing
-- [x] Kanban task run history command
-- [x] Kanban boards list/show task-count read model
-- [x] Kanban global --board task command override
-- [x] Kanban GC terminal event and worker-log retention
-- [x] Kanban worker log read command
-- [x] Kanban task event tail command
-- [x] Kanban worker heartbeat, reclaim, and zombie detection
-- [x] Hermes Kanban specify triage parity
+- [x] `providers` Multi-model coordination
+- [x] `kanban` Hermes Kanban durable board core
+- [x] `kanban` Hermes Kanban dispatcher and worker spawn loop
+- [x] `kanban` Hermes Kanban production worker process binding
+- [x] `kanban` Hermes Kanban worker tools and prompt gating
+- [x] `kanban` Kanban orchestrator board-routing tools
+- [x] `kanban` Kanban comment author hardening and cross-task handoff policy
+- [x] `kanban` Hermes Kanban slash/gateway/dashboard surfaces
+- [x] `kanban` Native TUI /kanban slash command binding over gormes kanban
+- [x] `kanban` Gateway /kanban shared command-runner binding
+- [x] `kanban` Kanban slash help and usage-error UX
+- [x] `kanban` Kanban dashboard dispatch quick path
+- [x] `kanban` Kanban dashboard task run history endpoint
+- [x] `kanban` Kanban dispatcher status in gateway /status
+- [x] `kanban` Kanban multi-board isolation
+- [x] `kanban` Kanban workspace context injection
+- [x] `kanban` Kanban run history persistence
+- [x] `kanban` Kanban notification delivery parity
+- [x] `kanban` Kanban chat board DB pin
+- [x] `kanban` Kanban schema migration duplicate-column race guard
+- [x] `kanban` Kanban notify subscription store and CLI
+- [x] `kanban` Kanban notify delivery engine blocked retention
+- [x] `kanban` Kanban stats command and board summary
+- [x] `kanban` Kanban corrupt timestamp age hardening
+- [x] `kanban` Kanban named-board workspace and log roots
+- [x] `kanban` Kanban current-board task command routing
+- [x] `kanban` Kanban task run history command
+- [x] `kanban` Kanban boards list/show task-count read model
+- [x] `kanban` Kanban global --board task command override
+- [x] `kanban` Kanban GC terminal event and worker-log retention
+- [x] `kanban` Kanban worker log read command
+- [x] `kanban` Kanban task event tail command
+- [x] `kanban` Kanban worker heartbeat, reclaim, and zombie detection
+- [x] `kanban` Hermes Kanban specify triage parity
 
 ### 5.N — Misc Operator Tools ✅
 
-- [x] Todo
-- [x] Clarify
-- [x] Session search tool schema and argument validation
-- [x] Session search tool execution wrapper
-- [x] Session shutdown memory transcript handoff
-- [x] Debug helpers
-- [x] Debug share paste sweep scheduler contract
-- [x] Doctor GitHub CLI auth fallback
-- [x] Planner audit blank-subphase control-plane bucket
-- [x] Autoloop recent-failure detail excerpts
-- [x] Backend usage-limit stdin health bypass
-- [x] Cronjob tool API + schedule parser parity
-- [x] Cron schedule parser + repeat state fixtures
-- [x] Cron recurring next-run failure preservation
-- [x] Cron prompt/script safety + pre-run script contract
-- [x] Cron GitHub auth-header scanner parity
-- [x] Cronjob tool action envelope over native store
-- [x] Cron run resource release contract
-- [x] Cron run resource release executor binding
-- [x] Cron context_from output chaining
-- [x] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
-- [x] Cron multi-target delivery + media/live-adapter fallback
-- [x] Cron deliver=all routing intent expansion
-- [x] Plugin standalone sender cron delivery fallback
-- [x] Goncho serialized write queue + relation candidates
-- [x] Blocker Policy Integration
-- [x] OpenClaw SecretRef core resolver
-- [x] Cross-agent config isolation
-- [x] SecretRef runtime snapshot activation
-- [x] OpenClaw security audit --deep --fix
-- [x] ACP bridge doctor/status evidence
-- [x] Gateway probe auth/capability HTTP closeout
-- [x] Safety-critical panic and swallowed-error closeout
-- [x] Session Health Monitoring
-- [x] Evidence-Before-Claims Quality Gate
-- [x] Git Delivery Contract Enforcement
-- [x] QMD Hybrid Search
-- [x] Session Rollover Automation
-- [x] System Events, Heartbeat, and Presence
-- [x] Gateway Discover and Probe
-- [x] Channels Capabilities Introspection
-- [x] Teams configured-state in channel capabilities
-- [x] Prompt Fragment Include System
-- [x] Multi-agent gateway runtime activation
-- [x] Multi-agent auth and tool-policy runtime isolation
-- [x] Per-agent channel bot tokens (Telegram/Discord/Slack)
-- [x] Cron env-ref expansion + parallel run state serialization
-- [x] Cron origin delivery isolation from session identity
-- [x] Cron script/workdir/inactivity execution binding
-- [x] Cron no-agent script-only watchdog mode
-- [x] Cron partial legacy job read-model normalization
-- [x] Cron dashboard partial-record page
-- [x] Navivox host setup apply with transient sudo
-- [x] Gateway auto-resume on restart
+- [x] `tools` Todo
+- [x] `tools` Clarify
+- [x] `tools` Session search tool schema and argument validation
+- [x] `tools` Session search tool execution wrapper
+- [x] `tools` Session shutdown memory transcript handoff
+- [x] `tools` Debug helpers
+- [x] `tools` Debug share paste sweep scheduler contract
+- [x] `doctor` Doctor GitHub CLI auth fallback
+- [x] `planner` Planner audit blank-subphase control-plane bucket
+- [x] `fleet` Autoloop recent-failure detail excerpts
+- [x] `tools` Backend usage-limit stdin health bypass
+- [x] `tools` Cronjob tool API + schedule parser parity
+- [x] `tools` Cron schedule parser + repeat state fixtures
+- [x] `tools` Cron recurring next-run failure preservation
+- [x] `tools` Cron prompt/script safety + pre-run script contract
+- [x] `tools` Cron GitHub auth-header scanner parity
+- [x] `tools` Cronjob tool action envelope over native store
+- [x] `tools` Cron run resource release contract
+- [x] `tools` Cron run resource release executor binding
+- [x] `tools` Cron context_from output chaining
+- [x] `tools` Cron prompt/script safety + pre-run script contract (deprecated umbrella)
+- [x] `tools` Cron multi-target delivery + media/live-adapter fallback
+- [x] `tools` Cron deliver=all routing intent expansion
+- [x] `skills` Plugin standalone sender cron delivery fallback
+- [x] `goncho` Goncho serialized write queue + relation candidates
+- [x] `tools` Blocker Policy Integration
+- [x] `tools` OpenClaw SecretRef core resolver
+- [x] `config` Cross-agent config isolation
+- [x] `tools` SecretRef runtime snapshot activation
+- [x] `tools` OpenClaw security audit --deep --fix
+- [x] `doctor` ACP bridge doctor/status evidence
+- [x] `gateway` Gateway probe auth/capability HTTP closeout
+- [x] `tools` Safety-critical panic and swallowed-error closeout
+- [x] `tools` Session Health Monitoring
+- [x] `tools` Evidence-Before-Claims Quality Gate
+- [x] `tools` Git Delivery Contract Enforcement
+- [x] `tools` QMD Hybrid Search
+- [x] `tools` Session Rollover Automation
+- [x] `fleet` System Events, Heartbeat, and Presence
+- [x] `gateway` Gateway Discover and Probe
+- [x] `tools` Channels Capabilities Introspection
+- [x] `channels` Teams configured-state in channel capabilities
+- [x] `tools` Prompt Fragment Include System
+- [x] `gateway` Multi-agent gateway runtime activation
+- [x] `tools` Multi-agent auth and tool-policy runtime isolation
+- [x] `channels` Per-agent channel bot tokens (Telegram/Discord/Slack)
+- [x] `tools` Cron env-ref expansion + parallel run state serialization
+- [x] `tools` Cron origin delivery isolation from session identity
+- [x] `tools` Cron script/workdir/inactivity execution binding
+- [x] `fleet` Cron no-agent script-only watchdog mode
+- [x] `providers` Cron partial legacy job read-model normalization
+- [x] `tools` Cron dashboard partial-record page
+- [x] `navivox` Navivox host setup apply with transient sudo
+- [x] `gateway` Gateway auto-resume on restart
 
 ### 5.O — Hermes CLI Parity 🔨
 
-- [x] 49-file CLI tree port
-- [x] Hermes CLI command-tree parity manifest
-- [x] Hermes CLI nested parser inventory refresh
-- [x] Hermes auth command-tree manifest refresh
-- [x] Hermes auth credential-pool command surface
-- [x] Hermes auth OAuth provider adapters
-- [x] Hermes auth Spotify service-provider subcommand
-- [x] Deterministic helper-file ports (banner/output/tips/webhook/dump)
-- [x] CLI banner/output formatting helpers
-- [x] CLI deterministic tip selector
-- [x] CLI OpenClaw residue detection and hint text
-- [x] CLI onboarding seen-state map helpers
-- [x] CLI contextual first-touch onboarding hint renderers
-- [x] CLI bracketed-paste wrapper sanitizer
-- [x] CLI slow bracketed-paste diagnostic threshold
-- [x] CLI terminal control-response sanitizer
-- [x] CLI submitted user-message preview formatter
-- [x] CLI webhook URL normalizer
-- [x] CLI dump support-summary helper
-- [x] PTY bridge protocol adapter
-- [x] CLI command registry parity + active-turn busy policy
-- [x] Gateway /reasoning command parser
-- [x] Gateway /reasoning apply + dispatch
-- [x] Busy command guard for compression and long CLI actions
-- [x] Config, profile, auth, and setup command surfaces
-- [x] Gormes agent template reset command
-- [x] Hermes py2many parity mapping report
-- [x] Hermes source-pair manifest and Phase 0 refresh mode
-- [x] Gormes auth bare interactive credential-pool readout
-- [x] Gormes auth status per-provider aggregator
-- [x] Gormes auth add openai-codex strict isolation contract
-- [x] Gormes auth add bedrock open-question planning note
-- [x] Gormes profile command binding
-- [x] Gormes profile distribution metadata readout
-- [x] Gormes profile create clone-all infrastructure exclusion
-- [x] Model and profile selector seam (Cobra + gateway)
-- [x] Gormes top-level logout provider shortcut
-- [x] Top-level logout configured-provider fallback
-- [x] Gormes removed top-level login guidance
-- [x] Gormes model interactive provider/model picker
-- [x] Gormes setup minimal sectioned wizard slice
-- [x] Gormes setup top-level chooser menu
-- [x] Gormes setup full-wizard shell and branded summary
-- [x] Gormes setup model step uses the dynamic provider-tracked model picker
-- [x] Hermes setup entry-mode and reset semantics
-- [x] Gormes setup tools checklist command binding
-- [x] Gormes setup gateway platform checklist command binding
-- [x] Bubble Tea Messaging Platforms setup: Telegram-first Hermes fidelity
-- [x] Gormes setup terminal TTS and agent-settings section bindings
-- [x] Gormes uninstall dry-run command contract
-- [x] Gormes mcp login interface seam + noninteractive default
-- [x] Gormes mcp login browser callback flow
-- [x] Hermes fallback provider chain CLI commands
-- [x] Provider endpoint/API-key root flags + runtime resolution
-- [x] Gormes profile skills chat invocation shim
-- [x] Hermes config.yaml Telegram compatibility bridge
-- [x] Gormes config command surface
-- [x] Gormes config set comment-preserving TOML writes
-- [x] Gormes config edit/check/native schema-migrate closeout
-- [x] Hermes config migration dry-run manifest
-- [x] Hermes config migration writer
-- [x] OpenClaw migration dry-run manifest
-- [x] OpenClaw migration writer and cleanup command
-- [x] CLI profile name validator
-- [x] CLI profile root resolver
-- [x] CLI active-profile store
-- [x] CLI profile path and active-profile store (deprecated umbrella)
-- [x] Scripted chat query model/provider resolver
-- [x] Oneshot final-output writer boundary
-- [x] Oneshot noninteractive safety and clarify policy
-- [x] Platform toolset config persistence + MCP sentinel
-- [x] Platform toolset mixed composite runtime expansion
-- [x] Effective toolset picker dedupes bundled plugin keys
-- [x] Gateway, platform, webhook, and cron management CLI
-- [x] WhatsApp top-level pairing wizard shell
-- [x] WhatsApp live Baileys QR pairing wizard
-- [x] Gateway management CLI read-model closeout
-- [x] Gateway mutating-subcommand unavailability stub
-- [x] Windows gateway Scheduled Task lifecycle commands
-- [x] Windows detached gateway Ctrl+C boundary
-- [x] Service RestartSec parser helper
-- [x] Service restart active-status poller
-- [x] Diagnostics, backup, logs, and status CLI
-- [x] Hermes sessions CLI MRU browse/delete ergonomics
-- [x] Backup/update opt-in and exclusion policy
-- [x] Self-update command lifecycle safety
-- [x] Gormes update release planner and dry-run contract
-- [x] Gormes update verified binary swap and rollback
-- [x] Gormes update bundled assets and skills sync
-- [x] Gormes update managed service drain and restart
-- [x] doctorCustomEndpointReadiness check function
-- [x] gormes doctor actionable issues summary and --fix auto-remediation
-- [x] gormes doctor ◆ Section grouping + upstream section ordering (UX parity)
-- [x] gormes doctor section-content parity (Security Advisories / Directory Structure / Skills Hub / Auth Providers / Profiles)
-- [x] gormes doctor ◆ Directory Structure section content
-- [x] gormes doctor ◆ Skills Hub section content
-- [x] gormes doctor ◆ Auth Providers section content
-- [x] gormes doctor ◆ Profiles section content
-- [x] gormes doctor ◆ Security Advisories section content
-- [x] gormes setup <section> boxed header + completion footer (UX parity)
-- [ ] gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
-- [x] gormes setup profiles — section scaffold + per-profile workspace list
-- [x] gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
-- [ ] gormes setup profiles — all profiles navivox-accessible by default
-- [x] Custom provider model-switch credential preservation
-- [x] Custom provider model-switch key_env write guard
-- [x] CLI log redactor for known secret shapes
-- [x] CLI log snapshot reader using shared redactor
-- [x] Hermes config.yaml model/provider runtime bridge
-- [x] Interactive Onboarding
-- [x] Internal onboarding interactive action runner
-- [x] CLI setup/onboard/help text fidelity matrix
-- [x] Hermes CLI alias and suggestion fidelity matrix
-- [x] Logs Command
-- [x] Gateway planned stop marker + WSL systemd PATH parity
-- [x] Gateway stale-code self-check uses git HEAD SHA
-- [x] Agent lifecycle hooks (agent:start, agent:step, agent:end)
-- [x] Nous OAuth device code + refresh token + agent key provisioning
+- [x] `cli` 49-file CLI tree port
+- [x] `cli` Hermes CLI command-tree parity manifest
+- [x] `cli` Hermes CLI nested parser inventory refresh
+- [x] `cli` Hermes auth command-tree manifest refresh
+- [x] `providers` Hermes auth credential-pool command surface
+- [x] `providers` Hermes auth OAuth provider adapters
+- [x] `providers` Hermes auth Spotify service-provider subcommand
+- [x] `channels` Deterministic helper-file ports (banner/output/tips/webhook/dump)
+- [x] `cli` CLI banner/output formatting helpers
+- [x] `cli` CLI deterministic tip selector
+- [x] `cli` CLI OpenClaw residue detection and hint text
+- [x] `config` CLI onboarding seen-state map helpers
+- [x] `config` CLI contextual first-touch onboarding hint renderers
+- [x] `cli` CLI bracketed-paste wrapper sanitizer
+- [x] `cli` CLI slow bracketed-paste diagnostic threshold
+- [x] `tools` CLI terminal control-response sanitizer
+- [x] `cli` CLI submitted user-message preview formatter
+- [x] `channels` CLI webhook URL normalizer
+- [x] `cli` CLI dump support-summary helper
+- [x] `cli` PTY bridge protocol adapter
+- [x] `cli` CLI command registry parity + active-turn busy policy
+- [x] `gateway` Gateway /reasoning command parser
+- [x] `gateway` Gateway /reasoning apply + dispatch
+- [x] `sessions` Busy command guard for compression and long CLI actions
+- [x] `profiles` Config, profile, auth, and setup command surfaces
+- [x] `cli` Gormes agent template reset command
+- [x] `cli` Hermes py2many parity mapping report
+- [x] `cli` Hermes source-pair manifest and Phase 0 refresh mode
+- [x] `providers` Gormes auth bare interactive credential-pool readout
+- [x] `providers` Gormes auth status per-provider aggregator
+- [x] `providers` Gormes auth add openai-codex strict isolation contract
+- [x] `planner` Gormes auth add bedrock open-question planning note
+- [x] `profiles` Gormes profile command binding
+- [x] `profiles` Gormes profile distribution metadata readout
+- [x] `profiles` Gormes profile create clone-all infrastructure exclusion
+- [x] `profiles` Model and profile selector seam (Cobra + gateway)
+- [x] `providers` Gormes top-level logout provider shortcut
+- [x] `providers` Top-level logout configured-provider fallback
+- [x] `cli` Gormes removed top-level login guidance
+- [x] `providers` Gormes model interactive provider/model picker
+- [x] `config` Gormes setup minimal sectioned wizard slice
+- [x] `config` Gormes setup top-level chooser menu
+- [x] `config` Gormes setup full-wizard shell and branded summary
+- [x] `providers` Gormes setup model step uses the dynamic provider-tracked model picker
+- [x] `config` Hermes setup entry-mode and reset semantics
+- [x] `config` Gormes setup tools checklist command binding
+- [x] `gateway` Gormes setup gateway platform checklist command binding
+- [x] `tui` Bubble Tea Messaging Platforms setup: Telegram-first Hermes fidelity
+- [x] `tts` Gormes setup terminal TTS and agent-settings section bindings
+- [x] `install` Gormes uninstall dry-run command contract
+- [x] `tools` Gormes mcp login interface seam + noninteractive default
+- [x] `browser` Gormes mcp login browser callback flow
+- [x] `providers` Hermes fallback provider chain CLI commands
+- [x] `providers` Provider endpoint/API-key root flags + runtime resolution
+- [x] `profiles` Gormes profile skills chat invocation shim
+- [x] `channels` Hermes config.yaml Telegram compatibility bridge
+- [x] `config` Gormes config command surface
+- [x] `config` Gormes config set comment-preserving TOML writes
+- [x] `config` Gormes config edit/check/native schema-migrate closeout
+- [x] `config` Hermes config migration dry-run manifest
+- [x] `config` Hermes config migration writer
+- [x] `config` OpenClaw migration dry-run manifest
+- [x] `config` OpenClaw migration writer and cleanup command
+- [x] `profiles` CLI profile name validator
+- [x] `profiles` CLI profile root resolver
+- [x] `profiles` CLI active-profile store
+- [x] `profiles` CLI profile path and active-profile store (deprecated umbrella)
+- [x] `providers` Scripted chat query model/provider resolver
+- [x] `cli` Oneshot final-output writer boundary
+- [x] `tools` Oneshot noninteractive safety and clarify policy
+- [x] `config` Platform toolset config persistence + MCP sentinel
+- [x] `tools` Platform toolset mixed composite runtime expansion
+- [x] `skills` Effective toolset picker dedupes bundled plugin keys
+- [x] `channels` Gateway, platform, webhook, and cron management CLI
+- [x] `channels` WhatsApp top-level pairing wizard shell
+- [x] `channels` WhatsApp live Baileys QR pairing wizard
+- [x] `gateway` Gateway management CLI read-model closeout
+- [x] `gateway` Gateway mutating-subcommand unavailability stub
+- [x] `gateway` Windows gateway Scheduled Task lifecycle commands
+- [x] `gateway` Windows detached gateway Ctrl+C boundary
+- [x] `cli` Service RestartSec parser helper
+- [x] `cli` Service restart active-status poller
+- [x] `cli` Diagnostics, backup, logs, and status CLI
+- [x] `sessions` Hermes sessions CLI MRU browse/delete ergonomics
+- [x] `cli` Backup/update opt-in and exclusion policy
+- [x] `cli` Self-update command lifecycle safety
+- [x] `planner` Gormes update release planner and dry-run contract
+- [x] `install` Gormes update verified binary swap and rollback
+- [x] `gateway` Gormes update bundled assets and skills sync
+- [x] `cli` Gormes update managed service drain and restart
+- [x] `doctor` doctorCustomEndpointReadiness check function
+- [x] `doctor` gormes doctor actionable issues summary and --fix auto-remediation
+- [x] `doctor` gormes doctor ◆ Section grouping + upstream section ordering (UX parity)
+- [x] `doctor` gormes doctor section-content parity (Security Advisories / Directory Structure / Skills Hub / Auth Providers / Profiles)
+- [x] `doctor` gormes doctor ◆ Directory Structure section content
+- [x] `doctor` gormes doctor ◆ Skills Hub section content
+- [x] `doctor` gormes doctor ◆ Auth Providers section content
+- [x] `doctor` gormes doctor ◆ Profiles section content
+- [x] `doctor` gormes doctor ◆ Security Advisories section content
+- [x] `config` gormes setup <section> boxed header + completion footer (UX parity)
+- [x] `navivox` gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
+- [x] `profiles` gormes setup profiles — section scaffold + per-profile workspace list
+- [x] `profiles` gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
+- [ ] `navivox` gormes setup profiles — all profiles navivox-accessible by default
+- [x] `providers` Custom provider model-switch credential preservation
+- [x] `providers` Custom provider model-switch key_env write guard
+- [x] `cli` CLI log redactor for known secret shapes
+- [x] `cli` CLI log snapshot reader using shared redactor
+- [x] `providers` Hermes config.yaml model/provider runtime bridge
+- [x] `config` Interactive Onboarding
+- [x] `config` Internal onboarding interactive action runner
+- [x] `config` CLI setup/onboard/help text fidelity matrix
+- [x] `cli` Hermes CLI alias and suggestion fidelity matrix
+- [x] `cli` Logs Command
+- [x] `gateway` Gateway planned stop marker + WSL systemd PATH parity
+- [x] `gateway` Gateway stale-code self-check uses git HEAD SHA
+- [x] `runtime` Agent lifecycle hooks (agent:start, agent:step, agent:end)
+- [x] `providers` Nous OAuth device code + refresh token + agent key provisioning
 
 ### 5.P — Docker / Packaging ✅
 
-- [x] OCI image
-- [x] Homebrew
-- [x] Nix flake package and NixOS module contract
-- [x] Unix installer (install.sh) source-backed update flow
-- [x] Unix installer root/FHS layout policy
-- [x] Windows installer (install.ps1 + install.cmd) parity
-- [x] Installer script serving and MIME validation
-- [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
-- [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
-- [x] Install isolation: skip system service install when sandbox bin dir is set
-- [x] Install: prefer pre-built release binary over source build by default
-- [x] Install: Termux publishes a real $PREFIX/bin binary, not an $HOME-targeting symlink
+- [x] `install` OCI image
+- [x] `install` Homebrew
+- [x] `install` Nix flake package and NixOS module contract
+- [x] `install` Unix installer (install.sh) source-backed update flow
+- [x] `install` Unix installer root/FHS layout policy
+- [x] `install` Windows installer (install.ps1 + install.cmd) parity
+- [x] `install` Installer script serving and MIME validation
+- [x] `install` Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
+- [x] `install` Install isolation: skip shell-rc PATH write when bin dir is under /tmp
+- [x] `install` Install isolation: skip system service install when sandbox bin dir is set
+- [x] `install` Install: prefer pre-built release binary over source build by default
+- [x] `install` Install: Termux publishes a real $PREFIX/bin binary, not an $HOME-targeting symlink
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
-- [x] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
-- [x] TUI gateway tool-progress mode normalizer
-- [x] TUI gateway completion path normalizer
-- [x] TUI gateway tool summary formatter
-- [x] TUI gateway image/personality/platform-event helpers
-- [x] TUI gateway config health null-section probe
-- [x] TUI mouse tracking config + slash toggle
-- [x] Native TUI bundle independence check
-- [x] TUI launch model override + static alias resolver
-- [x] TUI prompt-submit auto-title eligibility helper
-- [x] TUI TerminalNativeSelectionHelp constant + help-string fixture
-- [x] Native TUI slash-command dispatch table
-- [x] Native TUI /save canonical session export
-- [x] Native TUI /save XDG export helper
-- [x] Native TUI /save local runtime binding
-- [x] Native TUI /branch session fork + transcript target switch
-- [x] TUI running-agent placeholder surfaces interrupt + queued slash actions
-- [x] Native TUI conversation viewport tail helper
-- [x] Native TUI queued-message edit helper
-- [x] Native TUI renderConv viewport budget binding
-- [x] Native TUI Hermes skin token renderer
-- [x] Native TUI Hermes status bar renderer
-- [x] Native TUI Hermes bottom-pinned chrome layout
-- [x] Native TUI Hermes input keybinding semantics
-- [x] Native TUI Shift+Enter newline CSI-u parity
-- [x] Native TUI clipboard, OSC52, and terminal setup parity
-- [x] Native TUI image/file drop + paste collapse ingress
-- [x] Native TUI Hermes slash completion helpers
-- [x] Native TUI absolute path completion routing
-- [x] Native TUI Hermes slash dispatch behavioral matrix
-- [x] Native TUI /quit local exit binding
-- [x] Native TUI Hermes tool progress + modal panel renderers
-- [x] Native TUI Ink behavioral transcript golden matrix
-- [x] Native TUI markdown soft-wrap boundary trim
-- [x] Channel/TUI iteration-limit finalization transcript fixture
-- [x] SSE streaming to Bubble Tea TUI
-- [x] TUI websocket attach transport
-- [x] OpenAI-compatible chat-completions API server
-- [x] API server multimodal content preservation
-- [x] Responses API store + run event stream
-- [x] API server disconnect snapshot persistence
-- [x] Gateway proxy mode forwarding contract
-- [x] Gateway proxy replay assistant metadata preservation
-- [x] Dashboard API client contract
-- [x] Dashboard PTY chat sidecar contract
-- [x] API server detailed health snapshot contract
-- [x] API server detailed health endpoint
-- [x] API server cron admin read-only endpoints
-- [x] API server cron admin mutating endpoints
-- [x] API server legacy jobs routes + default toolset
-- [x] Provider client lazy-init for TUI cold-start budget
-- [x] Native TUI /model slash command binding over the existing model picker
-- [x] Kernel in-session model-switch seam for the native TUI
-- [ ] Kernel cross-provider client swap for in-session model switch
-- [ ] Native TUI slash handler-port coverage
+- [x] `profiles` Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
+- [x] `gateway` TUI gateway tool-progress mode normalizer
+- [x] `gateway` TUI gateway completion path normalizer
+- [x] `gateway` TUI gateway tool summary formatter
+- [x] `profiles` TUI gateway image/personality/platform-event helpers
+- [x] `gateway` TUI gateway config health null-section probe
+- [x] `tui` TUI mouse tracking config + slash toggle
+- [x] `tui` Native TUI bundle independence check
+- [x] `gateway` TUI launch model override + static alias resolver
+- [x] `gateway` TUI prompt-submit auto-title eligibility helper
+- [x] `gateway` TUI TerminalNativeSelectionHelp constant + help-string fixture
+- [x] `tui` Native TUI slash-command dispatch table
+- [x] `tui` Native TUI /save canonical session export
+- [x] `tui` Native TUI /save XDG export helper
+- [x] `tui` Native TUI /save local runtime binding
+- [x] `tui` Native TUI /branch session fork + transcript target switch
+- [x] `gateway` TUI running-agent placeholder surfaces interrupt + queued slash actions
+- [x] `tui` Native TUI conversation viewport tail helper
+- [x] `tui` Native TUI queued-message edit helper
+- [x] `tui` Native TUI renderConv viewport budget binding
+- [x] `tui` Native TUI Hermes skin token renderer
+- [x] `tui` Native TUI Hermes status bar renderer
+- [x] `tui` Native TUI Hermes bottom-pinned chrome layout
+- [x] `tui` Native TUI Hermes input keybinding semantics
+- [x] `tui` Native TUI Shift+Enter newline CSI-u parity
+- [x] `tui` Native TUI clipboard, OSC52, and terminal setup parity
+- [x] `tui` Native TUI image/file drop + paste collapse ingress
+- [x] `tui` Native TUI Hermes slash completion helpers
+- [x] `tui` Native TUI absolute path completion routing
+- [x] `tui` Native TUI Hermes slash dispatch behavioral matrix
+- [x] `tui` Native TUI /quit local exit binding
+- [x] `tui` Native TUI Hermes tool progress + modal panel renderers
+- [x] `tui` Native TUI Ink behavioral transcript golden matrix
+- [x] `tui` Native TUI markdown soft-wrap boundary trim
+- [x] `gateway` Channel/TUI iteration-limit finalization transcript fixture
+- [x] `tui` SSE streaming to Bubble Tea TUI
+- [x] `gateway` TUI websocket attach transport
+- [x] `gateway` OpenAI-compatible chat-completions API server
+- [x] `gateway` API server multimodal content preservation
+- [x] `gateway` Responses API store + run event stream
+- [x] `gateway` API server disconnect snapshot persistence
+- [x] `gateway` Gateway proxy mode forwarding contract
+- [x] `gateway` Gateway proxy replay assistant metadata preservation
+- [x] `gateway` Dashboard API client contract
+- [x] `gateway` Dashboard PTY chat sidecar contract
+- [x] `gateway` API server detailed health snapshot contract
+- [x] `gateway` API server detailed health endpoint
+- [x] `gateway` API server cron admin read-only endpoints
+- [x] `gateway` API server cron admin mutating endpoints
+- [x] `gateway` API server legacy jobs routes + default toolset
+- [x] `gateway` Provider client lazy-init for TUI cold-start budget
+- [x] `tui` Native TUI /model slash command binding over the existing model picker
+- [x] `tui` Kernel in-session model-switch seam for the native TUI
+- [ ] `gateway` Kernel cross-provider client swap for in-session model switch
+- [ ] `tui` Native TUI slash handler-port coverage
 
 ### 5.R — Code Execution Mode Policy ✅
 
-- [x] Execution-mode resolver + config precedence
-- [x] Strict-mode CWD + interpreter parity
-- [x] Project-mode CWD + active venv detection
-- [x] Default mode selection + config cut-over
+- [x] `config` Execution-mode resolver + config precedence
+- [x] `tools` Strict-mode CWD + interpreter parity
+- [x] `tools` Project-mode CWD + active venv detection
+- [x] `config` Default mode selection + config cut-over
 
 ### 5.S — Loop Detection ✅
 
-- [x] 5-type loop detector
+- [x] `runtime` 5-type loop detector
 
 ### 5.T — Browser Harness Doctor ✅
 
-- [x] go-browser-harness doctor subcommand
+- [x] `browser` go-browser-harness doctor subcommand
 
 ### 5.U — Fault-Tolerant Sandbox Execution ✅
 
-- [x] Pre-execution command classification
-- [x] Transactional tool execution with snapshot/rollback
-- [x] Sandbox isolation depth selection
+- [x] `tools` Pre-execution command classification
+- [x] `tools` Transactional tool execution with snapshot/rollback
+- [x] `tools` Sandbox isolation depth selection
 
 ### 5.V — Unified Event Bus ✅
 
-- [x] Event bus core: pub/sub interface + in-process implementation
-- [x] Gateway channel adapters publish to event bus
-- [x] Gateway outbound sends publish message-sent events
-- [x] Weixin gateway event-bus adapter
-- [x] WeCom gateway event-bus adapter
-- [x] Telegram gateway event-bus adapter
-- [x] Discord gateway event-bus adapter
-- [x] Slack gateway event-bus adapter
-- [x] WhatsApp gateway event-bus adapter
-- [x] Agent turn and tool execution events on bus
-- [x] Event bus integration test: full message flow
+- [x] `runtime` Event bus core: pub/sub interface + in-process implementation
+- [x] `channels` Gateway channel adapters publish to event bus
+- [x] `gateway` Gateway outbound sends publish message-sent events
+- [x] `channels` Weixin gateway event-bus adapter
+- [x] `channels` WeCom gateway event-bus adapter
+- [x] `channels` Telegram gateway event-bus adapter
+- [x] `channels` Discord gateway event-bus adapter
+- [x] `channels` Slack gateway event-bus adapter
+- [x] `channels` WhatsApp gateway event-bus adapter
+- [x] `tools` Agent turn and tool execution events on bus
+- [x] `gateway` Event bus integration test: full message flow
 
 ### 5.W — i18n Internationalization ✅
 
-- [x] Hermes i18n static-message port
-- [x] Hermes i18n expanded locale catalog parity
+- [x] `runtime` Hermes i18n static-message port
+- [x] `runtime` Hermes i18n expanded locale catalog parity
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 
@@ -1262,72 +1262,72 @@ classification and row-backed implementation queue.
 
 ### 6.A — Complexity Detector 🔨
 
-- [x] Hermes background review fork lifecycle
-- [ ] Heuristic or LLM-scored signal
+- [x] `learning-loop` Hermes background review fork lifecycle
+- [ ] `channels` Heuristic or LLM-scored signal
 
 ### 6.B — Skill Extractor ✅
 
-- [x] LLM-assisted pattern distillation
+- [x] `skills` LLM-assisted pattern distillation
 
 ### 6.C — Skill Storage Format ✅
 
-- [x] SKILL.md frontmatter validation guard
-- [x] Hermes creative skill metadata compatibility
-- [x] Portable SKILL.md format
+- [x] `skills` SKILL.md frontmatter validation guard
+- [x] `skills` Hermes creative skill metadata compatibility
+- [x] `skills` Portable SKILL.md format
 
 ### 6.D — Skill Retrieval + Matching ✅
 
-- [x] Hybrid lexical + semantic lookup
-- [x] Source-aware retrieval damping fixtures
-- [x] Delta-bounded skill and memory maintenance passes
-- [x] Code Cathedral II code-context retrieval fixtures
+- [x] `skills` Hybrid lexical + semantic lookup
+- [x] `skills` Source-aware retrieval damping fixtures
+- [x] `gateway` Delta-bounded skill and memory maintenance passes
+- [x] `skills` Code Cathedral II code-context retrieval fixtures
 
 ### 6.E — Feedback Loop 🔨
 
-- [x] Hermes curator auxiliary model routing slot
-- [x] Hermes curator state transitions and run reports
-- [x] Hermes curator rename summary notice
-- [x] Hermes review prompt transient-environment guard
-- [ ] Skill effectiveness scoring
+- [x] `providers` Hermes curator auxiliary model routing slot
+- [x] `skills` Hermes curator state transitions and run reports
+- [x] `skills` Hermes curator rename summary notice
+- [x] `learning-loop` Hermes review prompt transient-environment guard
+- [ ] `skills` Skill effectiveness scoring
 
 ### 6.F — Skill Surface 🔨
 
-- [x] Hermes skill_manage support-file and curator intent actions
-- [x] Hermes curator command surface
-- [x] Hermes curator archive/list/prune CLI catch-up
-- [ ] TUI + Telegram browsing
-- [x] Native skills list/view tool surface
+- [x] `skills` Hermes skill_manage support-file and curator intent actions
+- [x] `skills` Hermes curator command surface
+- [x] `skills` Hermes curator archive/list/prune CLI catch-up
+- [ ] `channels` TUI + Telegram browsing
+- [x] `skills` Native skills list/view tool surface
 
 ### 6.G — Structured Memory Types ✅
 
-- [x] 6 typed memory categories with confidence scoring
+- [x] `memory` 6 typed memory categories with confidence scoring
 
 ### 6.H — Skill Metadata Placement ✅
 
-- [x] SKILL.md metadata.when/loaded/placement schema
+- [x] `skills` SKILL.md metadata.when/loaded/placement schema
 
 ### 6.I — Zero-LLM Knowledge Graph ✅
 
-- [x] Regex-based auto-link extraction + brain-first lookup
+- [x] `memory` Regex-based auto-link extraction + brain-first lookup
 
 ### 6.J — Agentic Memory Lifecycle (AgeMem) ✅
 
-- [x] Memory operations as agent-callable tools
-- [x] Agent-controlled memory retention with importance scoring
-- [x] Cross-session memory continuity
+- [x] `tools` Memory operations as agent-callable tools
+- [x] `memory` Agent-controlled memory retention with importance scoring
+- [x] `sessions` Cross-session memory continuity
 
 ### 6.K — Self-Evolution Engine (GEPA) ✅
 
-- [x] Prompt evaluation harness
-- [x] Iterative prompt mutation and scoring loop
-- [x] Behavioral pattern extraction from session logs
+- [x] `learning-loop` Prompt evaluation harness
+- [x] `learning-loop` Iterative prompt mutation and scoring loop
+- [x] `sessions` Behavioral pattern extraction from session logs
 
 ### 6.L — Composable Skill Execution (Voyager) ✅
 
-- [x] Skill code execution runtime
-- [x] Skill dependency resolution and composition
-- [x] Agent personalities + enhanced display config
-- [x] Session auto-reset + STT config parity
+- [x] `skills` Skill code execution runtime
+- [x] `skills` Skill dependency resolution and composition
+- [x] `profiles` Agent personalities + enhanced display config
+- [x] `stt` Session auto-reset + STT config parity
 
 ## Phase 7 — Paused Channel Backlog ✅
 
@@ -1335,56 +1335,56 @@ classification and row-backed implementation queue.
 
 ### 7.A — Signal Adapter ✅
 
-- [x] Inbound event normalization + session identity
-- [x] Reply/send contract on shared chassis
-- [x] Signal transport/bootstrap layer
-- [x] Signal markdown bodyRanges + attachment rate scheduler
+- [x] `channels` Inbound event normalization + session identity
+- [x] `channels` Reply/send contract on shared chassis
+- [x] `channels` Signal transport/bootstrap layer
+- [x] `channels` Signal markdown bodyRanges + attachment rate scheduler
 
 ### 7.B — Email + SMS Adapters ✅
 
-- [x] Email ingress + outbound delivery contract
-- [x] SMS ingress + outbound delivery contract
+- [x] `channels` Email ingress + outbound delivery contract
+- [x] `channels` SMS ingress + outbound delivery contract
 
 ### 7.C — Matrix + Mattermost Adapters ✅
 
-- [x] Threaded text adapter contract suite
-- [x] Matrix shared-chassis bot seam
-- [x] Matrix self/bridge sender drop helper
-- [x] Mattermost shared-chassis bot seam
-- [x] Matrix real client/bootstrap layer
-- [x] Matrix E2EE device-id crypto-store binding
-- [x] Mattermost REST/WS bootstrap layer
+- [x] `channels` Threaded text adapter contract suite
+- [x] `channels` Matrix shared-chassis bot seam
+- [x] `channels` Matrix self/bridge sender drop helper
+- [x] `channels` Mattermost shared-chassis bot seam
+- [x] `channels` Matrix real client/bootstrap layer
+- [x] `channels` Matrix E2EE device-id crypto-store binding
+- [x] `channels` Mattermost REST/WS bootstrap layer
 
 ### 7.D — Webhook + Trigger Ingress ✅
 
-- [x] Signed event parsing + auth gates
-- [x] Prompt-to-delivery routing bridge
+- [x] `channels` Signed event parsing + auth gates
+- [x] `channels` Prompt-to-delivery routing bridge
 
 ### 7.E — Regional + Device Adapter Backlog ✅
 
-- [x] BlueBubbles + HomeAssistant adapters
-- [x] BlueBubbles iMessage bubble formatting parity
-- [x] Feishu shared-chassis bot seam
-- [x] DingTalk shared-chassis bot seam
-- [x] QQ Bot shared-chassis bot seam
-- [x] Feishu transport/bootstrap layer
-- [x] Feishu native update prompt cards
-- [x] Feishu drive-comment rule + pairing seam
-- [x] Feishu drive-comment reply workflow
-- [x] DingTalk transport/bootstrap layer
-- [x] DingTalk real SDK binding
-- [x] DingTalk AI Cards streaming-update contract
-- [x] DingTalk emoji reaction send/receive parity
-- [x] DingTalk media (image/file) attachment routing
-- [x] Yuanbao protocol envelope + markdown fixtures
-- [x] Yuanbao media/sticker attachment normalization
-- [x] Yuanbao gateway runtime + toolset registration
-- [x] Microsoft Teams adapter plugin seam
-- [x] QQ Bot transport/bootstrap layer
-- [x] Google Chat shared-chassis platform adapter seam
-- [x] Google Chat relay sender-type self-filter
-- [x] Google Chat standalone cron sender
-- [x] Google Chat install dependency hint refresh
+- [x] `channels` BlueBubbles + HomeAssistant adapters
+- [x] `channels` BlueBubbles iMessage bubble formatting parity
+- [x] `channels` Feishu shared-chassis bot seam
+- [x] `channels` DingTalk shared-chassis bot seam
+- [x] `channels` QQ Bot shared-chassis bot seam
+- [x] `channels` Feishu transport/bootstrap layer
+- [x] `channels` Feishu native update prompt cards
+- [x] `channels` Feishu drive-comment rule + pairing seam
+- [x] `channels` Feishu drive-comment reply workflow
+- [x] `channels` DingTalk transport/bootstrap layer
+- [x] `channels` DingTalk real SDK binding
+- [x] `channels` DingTalk AI Cards streaming-update contract
+- [x] `channels` DingTalk emoji reaction send/receive parity
+- [x] `channels` DingTalk media (image/file) attachment routing
+- [x] `channels` Yuanbao protocol envelope + markdown fixtures
+- [x] `channels` Yuanbao media/sticker attachment normalization
+- [x] `gateway` Yuanbao gateway runtime + toolset registration
+- [x] `channels` Microsoft Teams adapter plugin seam
+- [x] `channels` QQ Bot transport/bootstrap layer
+- [x] `channels` Google Chat shared-chassis platform adapter seam
+- [x] `channels` Google Chat relay sender-type self-filter
+- [x] `channels` Google Chat standalone cron sender
+- [x] `channels` Google Chat install dependency hint refresh
 
 ## Phase 8 — Reputation & Publication 🔨
 
@@ -1392,70 +1392,74 @@ classification and row-backed implementation queue.
 
 ### 8.A — Publication Infrastructure 🔨
 
-- [x] TD engineering blog scaffolded and live
-- [ ] TD social presence connected to blog feed
+- [x] `docs` TD engineering blog scaffolded and live
+- [ ] `docs` TD social presence connected to blog feed
 
 ### 8.B — Repository Messaging ✅
 
-- [x] README rewrite to methodology-first positioning
-- [x] README release and benchmark metadata sync
-- [x] gormes.ai landing page positioning audit
+- [x] `docs` README rewrite to methodology-first positioning
+- [x] `docs` README release and benchmark metadata sync
+- [x] `landing` gormes.ai landing page positioning audit
 
 ### 8.C — Engineering Writeups ⏳
 
-- [ ] Engineering writeup #1: autonomous Hermes-porting loop
+- [ ] `docs` Engineering writeup #1: autonomous Hermes-porting loop
 
 ### 8.D — Sharp v1.0 🔨
 
-- [x] Sharp v1.0 differentiator decision
-- [ ] Single-binary cross-platform release pipeline
-- [x] Release binary version/provenance smoke guard
-- [x] CI and installer Go toolchain floor sync
-- [x] Release prep guide target matrix sync
-- [x] Windows install.ps1 release binary fetch selector
-- [x] OCI image PR build and arm64 smoke workflow
-- [x] Release build-date provenance injection
-- [x] Landing release metadata date-alias sync
-- [x] GitHub release title date-alias binding
-- [x] Release notes artifact size table
-- [x] Release SBOM attestation binding
-- [x] Release build provenance attest action contract
-- [x] Release notes SBOM attestation wording
-- [x] Release archive 30 MB size gate
-- [x] Termux android/arm64 release artifact and installer selector
-- [x] Gormes-owned chat TUI divergence ratification
-- [x] Gormes-owned session-aware welcome panel
-- [x] Gormes-owned semantic chat style system
-- [x] Gormes-owned streaming feedback uplift
-- [ ] Gormes streaming tool-trail status + spinner cadence wiring
-- [x] Gormes welcome panel version/tool-count wiring
+- [x] `release` Sharp v1.0 differentiator decision
+- [ ] `release` Single-binary cross-platform release pipeline
+- [x] `release` Release binary version/provenance smoke guard
+- [x] `install` CI and installer Go toolchain floor sync
+- [x] `release` Release prep guide target matrix sync
+- [x] `install` Windows install.ps1 release binary fetch selector
+- [x] `install` OCI image PR build and arm64 smoke workflow
+- [x] `release` Release build-date provenance injection
+- [x] `landing` Landing release metadata date-alias sync
+- [x] `release` GitHub release title date-alias binding
+- [x] `release` Release notes artifact size table
+- [x] `release` Release SBOM attestation binding
+- [x] `release` Release build provenance attest action contract
+- [x] `release` Release notes SBOM attestation wording
+- [x] `release` Release archive 30 MB size gate
+- [x] `install` Termux android/arm64 release artifact and installer selector
+- [x] `tui` Gormes-owned chat TUI divergence ratification
+- [x] `tui` Gormes-owned session-aware welcome panel
+- [x] `tui` Gormes-owned semantic chat style system
+- [x] `tui` Gormes-owned streaming feedback uplift
+- [ ] `tui` Gormes streaming tool-trail status + spinner cadence wiring
+- [x] `tui` Gormes welcome panel version/tool-count wiring
 
 ### 8.E — Toolkit Extraction 🔨
 
-- [x] Agentic-porting-kit extraction spec
-- [ ] Agentic-porting-kit public repo scaffold
+- [x] `docs` Agentic-porting-kit extraction spec
+- [ ] `docs` Agentic-porting-kit public repo scaffold
 
-### 8.F — Cost Discipline & Loop Economics 🔨
+### 8.F — Cost Discipline & Loop Economics ✅
 
-- [x] Loop $/iteration cost metric in status file
-- [x] Stop git-tracking duplicate landing progress mirrors (build-time generate)
-- [x] Compact completed-row shipped-evidence notes to a one-line pointer
-- [ ] Module-split the progress backlog (per-subsystem files, parity-aligned)
-- [x] Backlog split C1: lossless multi-file loader/writer behind the single-file API
-- [x] Backlog split C2: docs/landing generators read the split layout
-- [x] Backlog split C3: migrate remaining backlog consumers and the write path to the split layout
-- [x] Backlog split C5a: optional per-row module key + deterministic derivation + backfill
-- [x] Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout
-- [x] Backlog split C5b: module-keyed split layout behind the existing API
-- [x] Backlog split C5c: migrate webpages/docs raw progress.json readers to internal/progress.Load
-- [x] Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json
-- [x] Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe
-- [ ] Backlog split C5: single atomic operator-gated flip to the module-keyed split directory
+- [x] `progress` Loop $/iteration cost metric in status file
+- [x] `landing` Stop git-tracking duplicate landing progress mirrors (build-time generate)
+- [x] `progress` Compact completed-row shipped-evidence notes to a one-line pointer
+- [x] `progress` Module-split the progress backlog (per-subsystem files, parity-aligned)
+- [x] `progress` Backlog split C1: lossless multi-file loader/writer behind the single-file API
+- [x] `landing` Backlog split C2: docs/landing generators read the split layout
+- [x] `progress` Backlog split C3: migrate remaining backlog consumers and the write path to the split layout
+- [x] `progress` Backlog split C5a: optional per-row module key + deterministic derivation + backfill
+- [x] `progress` Backlog split C4: AGENTS.md + gormes-* skills source-order updated to the split layout
+- [x] `progress` Backlog split C5b: module-keyed split layout behind the existing API
+- [x] `progress` Backlog split C5c: migrate webpages/docs raw progress.json readers to internal/progress.Load
+- [x] `progress` Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json
+- [x] `progress` Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe
+- [x] `progress` Backlog split C5f: replace coarse module buckets with the approved feature taxonomy
+- [x] `progress` Backlog split C5g: explicitly classify every row into a valid feature module
+- [x] `progress` Backlog split C5h: add module-scoped progress commands for planner and builder selection
+- [x] `progress` Backlog split C5i: render per-module roadmap pages before the physical split
+- [x] `progress` Backlog split C5: single atomic operator-gated flip to the module-keyed split directory
 
 ### 8.G — Community & External Contributions ✅
 
-- [x] Built-with-Gormes page scaffold
-- [x] Upstream Hermes user-stories static mirror
+- [x] `docs` Built-with-Gormes page scaffold
+- [x] `docs` Upstream Hermes user-stories static mirror
 
 ## Phase 9 — Design & Security Hardening 🔨
 
@@ -1463,50 +1467,50 @@ classification and row-backed implementation queue.
 
 ### 9.A — Declarative Agent Middleware Chain ✅
 
-- [x] Agent middleware chain framework
+- [x] `runtime` Agent middleware chain framework
 
 ### 9.B — Sandbox Provider Abstraction + Virtual Path System ✅
 
-- [x] Sandbox provider interface and virtual path security
+- [x] `providers` Sandbox provider interface and virtual path security
 
 ### 9.C — Hermes Config Parity — Personalities & Display ✅
 
-- [x] Agent personalities + enhanced display config
+- [x] `profiles` Agent personalities + enhanced display config
 
 ### 9.D — Speech-to-Text Tool Wiring ✅
 
-- [x] Transcribe audio tool registration + local whisper provider
+- [x] `stt` Transcribe audio tool registration + local whisper provider
 
 ### 9.E — Navivox HTTP-only Hardening ✅
 
-- [x] Remove SSH Navivox stdio path
-- [x] Remove Flutter Navivox fake-server mode and wire protocol
-- [x] Remove Flutter SSH keys feature
-- [x] Navivox VPN host enumeration helper
-- [x] Navivox HTTP gateway mandatory-VPN bind
-- [x] Navivox HTTP gateway connect-info command
+- [x] `navivox` Remove SSH Navivox stdio path
+- [x] `navivox` Remove Flutter Navivox fake-server mode and wire protocol
+- [x] `navivox` Remove Flutter SSH keys feature
+- [x] `navivox` Navivox VPN host enumeration helper
+- [x] `navivox` Navivox HTTP gateway mandatory-VPN bind
+- [x] `navivox` Navivox HTTP gateway connect-info command
 
 ### 9.F — Navivox Operator Activation 🔨
 
-- [x] Navivox HTTP/WS documentation refresh
-- [x] Navivox connect-and-talk first screen
-- [ ] Navivox profile contact summary API
-- [ ] Navivox continuous voice command mode
-- [ ] Navivox Telegram-inspired chat polish
-- [ ] Navivox natural-language profile seed flow
-- [ ] Navivox structured tool event cards
-- [ ] Navivox safe config admin over HTTP
-- [ ] Navivox voice run records
-- [ ] Navivox per-profile BYO voice profiles
+- [x] `navivox` Navivox HTTP/WS documentation refresh
+- [x] `navivox` Navivox connect-and-talk first screen
+- [ ] `navivox` Navivox profile contact summary API
+- [ ] `navivox` Navivox continuous voice command mode
+- [ ] `navivox` Navivox Telegram-inspired chat polish
+- [ ] `navivox` Navivox natural-language profile seed flow
+- [ ] `navivox` Navivox structured tool event cards
+- [ ] `navivox` Navivox safe config admin over HTTP
+- [ ] `navivox` Navivox voice run records
+- [ ] `navivox` Navivox per-profile BYO voice profiles
 
 ### 9.G — External Issue Radar Regression Guards ✅
 
-- [x] PicoClaw-derived channel media and identity regression matrix
-- [x] PicoClaw-derived session ledger read-model regression matrix
-- [x] PicoClaw-derived provider stream and auth regression matrix
-- [x] PicoClaw-derived tool path safety regression pack
-- [x] MCP Streamable HTTP session lifecycle compatibility
-- [x] Dynamic agent identity inheritance regression matrix
+- [x] `runtime` PicoClaw-derived channel media and identity regression matrix
+- [x] `providers` PicoClaw-derived session ledger read-model regression matrix
+- [x] `providers` PicoClaw-derived provider stream and auth regression matrix
+- [x] `install` PicoClaw-derived tool path safety regression pack
+- [x] `tools` MCP Streamable HTTP session lifecycle compatibility
+- [x] `runtime` Dynamic agent identity inheritance regression matrix
 
 <!-- PROGRESS:END -->
 

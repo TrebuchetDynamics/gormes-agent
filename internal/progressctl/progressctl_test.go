@@ -414,6 +414,168 @@ func TestEmitIsSplitDirectorySafeAndCanonical(t *testing.T) {
 	}
 }
 
+func TestCurrentCanonicalModuleSplitDirectoryEmitsByteIdentically(t *testing.T) {
+	root := repoRootForTest(t)
+	p, err := loadValidProgress(root)
+	if err != nil {
+		t.Fatalf("load real canonical progress: %v", err)
+	}
+	monoBytes := emitBytes(t, root)
+
+	splitRoot := t.TempDir()
+	splitCanonical := progressPaths(splitRoot).progressJSON
+	if err := os.MkdirAll(filepath.Dir(splitCanonical), 0o755); err != nil {
+		t.Fatalf("mkdir split canonical parent: %v", err)
+	}
+	if err := progress.WriteSplitBy(splitCanonical, p, "module"); err != nil {
+		t.Fatalf("WriteSplitBy(module at canonical path): %v", err)
+	}
+	fi, err := os.Stat(splitCanonical)
+	if err != nil {
+		t.Fatalf("stat split canonical path: %v", err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("future canonical path must be a split directory, got regular file: %s", splitCanonical)
+	}
+
+	splitBytes := emitBytes(t, splitRoot)
+	if !bytes.Equal(monoBytes, splitBytes) {
+		t.Fatalf("module-keyed canonical directory must emit byte-identically to the current canonical monolith (%d vs %d bytes)", len(splitBytes), len(monoBytes))
+	}
+}
+
+// Backlog split C5h (2026-05-16): `progress list --module <feature>` is a
+// read-only view over the one logical backlog. It must produce the same module
+// inventory from the monolith and from the future module-keyed split layout.
+func TestListModuleIsSplitSafeReadOnlyAndScoped(t *testing.T) {
+	p := &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"1": {Name: "P1", Deliverable: "d1", Subphases: map[string]progress.Subphase{
+				"1.A": {Name: "A", Items: []progress.Item{
+					{Name: "provider planned", Priority: "P1", Status: progress.StatusPlanned, Module: progress.ModuleProviders},
+					{Name: "tts planned", Priority: "P2", Status: progress.StatusPlanned, Module: progress.ModuleTTS},
+				}},
+			}},
+			"2": {Name: "P2", Deliverable: "d2", Subphases: map[string]progress.Subphase{
+				"2.A": {Name: "A", Items: []progress.Item{
+					{Name: "provider complete", Priority: "P2", Status: progress.StatusComplete, Module: progress.ModuleProviders},
+				}},
+			}},
+		},
+	}
+
+	monoRoot := t.TempDir()
+	seedMonolith(t, monoRoot, p)
+	before, err := os.ReadFile(progressPaths(monoRoot).progressJSON)
+	if err != nil {
+		t.Fatalf("read monolith before list: %v", err)
+	}
+
+	splitRoot := t.TempDir()
+	seedSplitModule(t, splitRoot, p)
+
+	var monoOut, splitOut bytes.Buffer
+	if err := List(&monoOut, monoRoot, ListOptions{Module: progress.ModuleProviders}); err != nil {
+		t.Fatalf("List monolith: %v", err)
+	}
+	if err := List(&splitOut, splitRoot, ListOptions{Module: progress.ModuleProviders}); err != nil {
+		t.Fatalf("List module split: %v", err)
+	}
+	if !bytes.Equal(monoOut.Bytes(), splitOut.Bytes()) {
+		t.Fatalf("module list must be identical for monolith and module split:\nmono=%s\nsplit=%s", monoOut.String(), splitOut.String())
+	}
+
+	got := monoOut.String()
+	for _, want := range []string{
+		"progress: module providers (2 rows)\n",
+		"phase\tsubphase\tstatus\tpriority\tname\n",
+		"1\t1.A\tplanned\tP1\tprovider planned\n",
+		"2\t2.A\tcomplete\tP2\tprovider complete\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("module list missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "tts planned") {
+		t.Fatalf("module list must not broaden outside selected module:\n%s", got)
+	}
+	after, err := os.ReadFile(progressPaths(monoRoot).progressJSON)
+	if err != nil {
+		t.Fatalf("read monolith after list: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("module list must be read-only and leave the canonical monolith untouched")
+	}
+}
+
+func TestListModuleRejectsUnknownAndMultiModuleFilters(t *testing.T) {
+	root := t.TempDir()
+	seedMonolith(t, root, c2Fixture())
+
+	err := List(io.Discard, root, ListOptions{Module: "providers,tts"})
+	if err == nil || !strings.Contains(err.Error(), "exactly one module") {
+		t.Fatalf("comma-separated modules must fail clearly, got %v", err)
+	}
+
+	err = List(io.Discard, root, ListOptions{Module: "not-a-module"})
+	if err == nil || !strings.Contains(err.Error(), "unknown module") || !strings.Contains(err.Error(), progress.ModuleProviders) {
+		t.Fatalf("unknown modules must fail with allowed module guidance, got %v", err)
+	}
+}
+
+func TestWriteRendersModuleRoadmapPagesFromMonolithAndModuleSplit(t *testing.T) {
+	p := &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"1": {Name: "P1", Deliverable: "d1", Subphases: map[string]progress.Subphase{
+				"1.A": {Name: "A", Items: []progress.Item{
+					{Name: "provider row", Priority: "P1", Status: progress.StatusPlanned, Module: progress.ModuleProviders},
+					{Name: "tts row", Priority: "P2", Status: progress.StatusPlanned, Module: progress.ModuleTTS},
+				}},
+			}},
+		},
+	}
+
+	monoRoot := t.TempDir()
+	seedMonolith(t, monoRoot, p)
+	seedWriteMarkerFiles(t, monoRoot)
+
+	splitRoot := t.TempDir()
+	seedSplitModule(t, splitRoot, p)
+	seedWriteMarkerFiles(t, splitRoot)
+
+	if err := Write(io.Discard, monoRoot); err != nil {
+		t.Fatalf("Write monolith: %v", err)
+	}
+	if err := Write(io.Discard, splitRoot); err != nil {
+		t.Fatalf("Write split: %v", err)
+	}
+
+	monoProviders := mustReadFile(t, filepath.Join(progressPaths(monoRoot).moduleRoadmapsDir, progress.ModuleProviders+".md"))
+	splitProviders := mustReadFile(t, filepath.Join(progressPaths(splitRoot).moduleRoadmapsDir, progress.ModuleProviders+".md"))
+	if monoProviders != splitProviders {
+		t.Fatalf("module page must be identical for monolith and module split:\nmono=%s\nsplit=%s", monoProviders, splitProviders)
+	}
+	for _, want := range []string{
+		`title: "Providers Module Roadmap"`,
+		"**Module:** `providers`",
+		"| `planned` | `P1` | `providers` | provider row |",
+	} {
+		if !strings.Contains(monoProviders, want) {
+			t.Fatalf("providers page missing %q:\n%s", want, monoProviders)
+		}
+	}
+	if strings.Contains(monoProviders, "tts row") {
+		t.Fatalf("providers page must not contain tts rows:\n%s", monoProviders)
+	}
+
+	index := mustReadFile(t, filepath.Join(progressPaths(monoRoot).moduleRoadmapsDir, "_index.md"))
+	if !strings.Contains(index, "| [Providers](providers/) | 1 | 0 | 0 | 1 | `P1`: 1 |") {
+		t.Fatalf("module index missing provider counts:\n%s", index)
+	}
+}
+
 // (1) A root backed ONLY by a split layout generates byte-identical output
 // to a root backed only by the monolith.
 func TestProgressctlResolvesSplitLayoutForGenerators(t *testing.T) {
@@ -505,4 +667,38 @@ func mustMarshal(t *testing.T, p *progress.Progress) []byte {
 		t.Fatalf("marshal: %v", err)
 	}
 	return b
+}
+
+func seedWriteMarkerFiles(t *testing.T, root string) {
+	t.Helper()
+	paths := progressPaths(root)
+	markers := map[string]string{
+		paths.docsIndex:          "docs-full-checklist",
+		paths.readme:             "readme-rollup",
+		paths.contractReadiness:  "contract-readiness",
+		paths.builderLoopHandoff: "builder-loop-handoff",
+		paths.agentQueue:         "agent-queue",
+		paths.nextSlices:         "next-slices",
+		paths.blockedSlices:      "blocked-slices",
+		paths.umbrellaCleanup:    "umbrella-cleanup",
+		paths.progressSchema:     "progress-schema",
+	}
+	for path, kind := range markers {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+		}
+		body := "before\n<!-- PROGRESS:START kind=" + kind + " -->\nold\n<!-- PROGRESS:END -->\nafter\n"
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatalf("write marker %s: %v", path, err)
+		}
+	}
+}
+
+func mustReadFile(t *testing.T, path string) string {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(raw)
 }

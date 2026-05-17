@@ -1,0 +1,283 @@
+[
+  {
+    "phase": "8",
+    "subphase": "8.B",
+    "pos": 2,
+    "item": {
+      "name": "gormes.ai landing page positioning audit",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "The gormes.ai landing page hero matches the success-plan.md North Star and README: autonomous-porting methodology + the ratified 30-skill single-binary differentiator appear before Hermes compatibility. Hermes parity stays as supporting evidence. Until the separate TD engineering blog row publishes a real URL, the landing page must not add a dead blog link; it should instead preserve docs, GitHub, install, roadmap, and TrebuchetDynamics links.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "landing",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "A landing page misaligned with the README erodes the methodology framing every time a reader bounces between the two.",
+      "fixture": "webpages/landing/src/",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/success-plan.md",
+        "docs/content/building-gormes/strategy/v1-differentiator.md",
+        "README.md",
+        "webpages/landing/src/data/landing.js",
+        "webpages/landing/src/pages/index.astro",
+        "webpages/landing/tests/home.spec.mjs"
+      ],
+      "ready_when": [
+        "README rewrite to methodology-first positioning is complete.",
+        "Sharp v1.0 differentiator decision is complete.",
+        "Landing-page Playwright tests can assert the hero/metadata copy without requiring live blog DNS."
+      ],
+      "not_ready_when": [
+        "The hero copy contradicts the README hero copy.",
+        "The page removes existing operator-facing CTAs (install, docs, github) without replacement.",
+        "The slice adds a TD blog link before the TD engineering blog row records a public URL."
+      ],
+      "blocked_by": [
+        "README rewrite to methodology-first positioning",
+        "Sharp v1.0 differentiator decision"
+      ],
+      "acceptance": [
+        "Landing page title, description, hero headline, and first hero paragraph lead with the autonomous-porting methodology and 30-skill single-binary differentiator before mentioning Hermes compatibility.",
+        "Install, docs, roadmap, GitHub, and TrebuchetDynamics links remain visible; no dead TD blog link is introduced while the TD engineering blog row is still planned.",
+        "Landing-page Playwright tests pin the new positioning and continue to pass after the copy changes."
+      ],
+      "note": "Reopened and deepened 2026-05-09 because the previous pass left the page title (\"Hermes-Compatible AI Agent Runtime in One Go Binary\") and hero opening line (\"Drop-in compatible with the Hermes agent ecosystem ...\") leading with Hermes parity instead of methodology — directly contradicting the row contract. New pass rewrote: page title + meta description, top nav (How it is built → Methodology), hero kicker (now methodology-forward + cyan-emphasized), hero headline (\"Autonomously porting Python to Go, in production.\"), hero paragraph 1 (TrebuchetDynamics methodology + \"Gormes is the receipt\"), hero paragraph 2 (the v1 30-skill / 1-binary / 3-hard-targets differentiator), hero secondary CTA (See how it is built → See the methodology), proof strip (3 differentiator chips with new .proof-item-pop visual emphasis ahead of release/license chips), methodology section headline (\"How the receipt is produced.\") and intro (\"The methodology is the product. Hermes-parity is supporting evidence the methodology works.\"), reordered methodology pillars (Reusable porting toolkit promoted ahead of Hermes-as-oracle; Hermes pillar reframed as \"parity oracle, not the contract\"), and fit-for copy (engineering teams curious about autonomous porting now lead). Playwright suite (6 tests) updated to pin the new copy + new .proof-item-pop class and is green.",
+      "write_scope": [
+        "webpages/landing/src/",
+        "webpages/landing/tests/home.spec.mjs",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "(cd webpages/landing && npm run test:e2e)",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hero and metadata copy match the North Star and v1 differentiator; landing-page e2e tests green."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      },
+      "evidence": {
+        "implementation": [
+          "webpages/landing/src/data/landing.js: page.title now \"Gormes — Autonomously porting Python to Go, in production\"; description leads with TrebuchetDynamics methodology, then the receipt + 30-skill differentiator.",
+          "webpages/landing/src/data/landing.js: heroHeadline now \"Autonomously porting Python to Go, in production.\"; heroLines[0] is the methodology lede ending in \"Gormes is the receipt\"; heroLines[1] is the ratified v1 differentiator (30 skills · 1 Go binary · Termux/Windows-without-Python/locked-down corp Linux); Hermes-compat phrasing demoted out of the hero opening.",
+          "webpages/landing/src/data/landing.js: proofStrip restructured to objects with optional kind=\"pop\"; the three differentiator chips (30 Hermes skills curated · 1 Go binary · 3 hard targets) now render with a yellow-bordered pop variant ahead of release/license/offline-doctor chips.",
+          "webpages/landing/src/data/landing.js: methodologyHeadline=\"How the receipt is produced.\"; methodologyIntro now states \"The methodology is the product. Hermes-parity is supporting evidence the methodology works.\"; methodologyPillars reordered so \"Reusable porting toolkit\" precedes \"Hermes is the parity oracle, not the contract\".",
+          "webpages/landing/src/data/landing.js: nav now leads with \"Methodology\" instead of \"How it is built\"; secondaryCta label is \"See the methodology\".",
+          "webpages/landing/src/pages/index.astro: hero kicker upgraded to cyan tracking-wide treatment for visual hierarchy; .proof-item template renders pop variant with .proof-item-pop class + yellow border/text when item.kind === \"pop\".",
+          "webpages/landing/tests/home.spec.mjs: assertions pinned to the new title, headline, hero paragraphs, navigation, secondary CTA label, methodology headline + intro, reordered pillars, fit-for copy, and the three .proof-item-pop differentiator chips."
+        ],
+        "verification": [
+          "GREEN: timeout 90 npm run build → built 2 pages (1.30s) clean.",
+          "GREEN: timeout 180 npm run test:e2e → 6 passed (5.8s) covering homepage redesign, built-with page, and four mobile viewports."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.D",
+    "pos": 8,
+    "item": {
+      "name": "Landing release metadata date-alias sync",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "The public landing release metadata mirrors the operator-facing semver tag together with the Hermes-style date alias from cmd/gormes/version.go. sync-assets.mjs must parse VersionDateAlias into webpages/landing/src/data/release.json, and the landing release label must display the paired alias so public install surfaces, release metadata, and `gormes version --json` agree.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "landing",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without date_alias in landing release metadata, public install/trust surfaces show only v<semver> while `gormes version --json` and release documentation claim a paired Hermes-style vYYYY.M.D alias.",
+      "fixture": "webpages/docs/install/release_metadata_test.go::TestLandingReleaseMetadataCarriesDateAlias",
+      "source_refs": [
+        "cmd/gormes/version.go:VersionDateAlias",
+        "cmd/gormes/version_test.go:TestVersionCommand_JSONIncludesSemverAndDateAlias",
+        "webpages/landing/scripts/sync-assets.mjs:writeReleaseData",
+        "webpages/landing/src/data/release.json",
+        "webpages/landing/src/data/landing.js"
+      ],
+      "ready_when": [
+        "`gormes version --json` already emits date_alias from VersionDateAlias.",
+        "webpages/landing/scripts/sync-assets.mjs already mirrors Version into release.json.",
+        "Landing homepage tests already derive the displayed release label from release.json."
+      ],
+      "not_ready_when": [
+        "The slice changes the semver tag or release version.",
+        "The landing label hard-codes the current date alias instead of reading release.json.",
+        "The change requires a live GitHub release, tag push, or hosted www.gormes.ai deployment."
+      ],
+      "acceptance": [
+        "TestLandingReleaseMetadataCarriesDateAlias fails before release.json contains date_alias and passes after sync-assets parses VersionDateAlias from cmd/gormes/version.go.",
+        "The landing release label displays the semver tag paired with the date alias, derived from release.json rather than duplicated constants.",
+        "node webpages/landing/scripts/sync-assets.mjs regenerates release.json with version, tag, date_alias, url, and source.",
+        "Existing release workflow and landing homepage tests remain green."
+      ],
+      "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Focused drift gates for CLI command parity, provider registry/tool parsers, gateway platform registry, tool parity, Goncho OpenAPI, and upstream docs coverage were green. Planned rows were 15 before this planner pass, below the 90-row cap, so adding one source-backed P1 row was allowed. Higher-priority publication rows remain operator-blocked and the broad release parent remains too large to assign directly. The concrete public-surface gap was that cmd/gormes/version.go said the semver tag is paired with VersionDateAlias in release.json and release surfaces, but sync-assets.mjs wrote only version/tag/url/source and the landing label showed only the semver tag. TDD added a release metadata fixture, sync-assets VersionDateAlias parsing, generated date_alias in release.json, and a landing label that displays the semver tag paired with the date alias.",
+      "write_scope": [
+        "webpages/landing/scripts/sync-assets.mjs",
+        "webpages/landing/src/data/release.json",
+        "webpages/landing/src/data/landing.js",
+        "webpages/landing/tests/home.spec.mjs",
+        "webpages/docs/install/release_metadata_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs/install -run TestLandingReleaseMetadataCarriesDateAlias -count=1",
+        "node webpages/landing/scripts/sync-assets.mjs",
+        "timeout 20m sh -c 'cd webpages/landing && npm run build'",
+        "timeout 30m sh -c 'cd webpages/landing && npm run test:e2e'",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "release.json, landing data, and homepage tests prove public release labels show the current semver tag paired with VersionDateAlias."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      },
+      "blocked_by": [],
+      "evidence": {
+        "implementation": [
+          "webpages/landing/scripts/sync-assets.mjs parses VersionDateAlias from cmd/gormes/version.go and writes date_alias into release.json beside version, tag, url, and source.",
+          "webpages/landing/src/data/landing.js derives the current scout release label from release.tag plus release.date_alias, with a semver-only fallback for older metadata.",
+          "webpages/landing/tests/home.spec.mjs derives the expected homepage/footer release label from release.json so Playwright coverage follows the public data file.",
+          "webpages/docs/install/release_metadata_test.go pins the Go Version/VersionDateAlias source, generated release.json, sync script, and landing data contract."
+        ],
+        "verification": [
+          "RED: go test ./webpages/docs/install -run TestLandingReleaseMetadataCarriesDateAlias -count=1 failed because release.json date_alias was empty while cmd/gormes/version.go declared VersionDateAlias=v2026.5.8.",
+          "GREEN: node webpages/landing/scripts/sync-assets.mjs regenerated release.json with date_alias.",
+          "GREEN: go test ./webpages/docs/install -run TestLandingReleaseMetadataCarriesDateAlias -count=1 passed."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 1,
+    "item": {
+      "name": "Stop git-tracking duplicate landing progress mirrors (build-time generate)",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "The canonical backlog webpages/docs/content/building-gormes/architecture_plan/progress.json (5.2 MB) is duplicated VERBATIM into two git-tracked landing mirrors, so every progress edit is a ~3-file multi-MB diff (~10.4 MB pure duplication tracked). Make both mirrors build-time generated, not committed. CONFIRMED generation today: (1) webpages/landing/src/data/progress.json is COPIED by webpages/landing/scripts/sync-assets.mjs:101-103 from the canonical file; (2) webpages/landing/legacy/go-renderer/internal/site/data/progress.json is consumed via `//go:embed data/progress.json` in webpages/landing/legacy/go-renderer/internal/site/progress.go:13 (so it MUST exist as a file in that package dir at `go build`/`go test` time — cannot simply gitignore without a regenerate-before-build step or repointing the embed). Approach: (a) add both mirror paths to .gitignore and `git rm --cached` them; (b) ensure `go run ./cmd/progress write` (and/or sync-assets.mjs) regenerates BOTH from the canonical file; (c) handle the go:embed constraint so `go test ./webpages/... -count=1` and the landing build still pass from a clean checkout — either repoint the embed at a generated path produced before compilation, or have the test/build harness regenerate the embedded file first (the row's builder must pick the smallest safe option and document it). Do NOT change the canonical file format or the rendered site output. Owned Gormes infra cleanup (not Hermes parity). SHIPPED 2026-05-16 (gormes-tdd-slice): src mirror was DEAD (no Astro consumer) → removed from progressctl + sync-assets.mjs, untracked via webpages/landing/.gitignore (negation→explicit ignore, benchmarks.json preserved); legacy go:embed mirror kept but written SLIM (135 KB status/name-only via slimProgress, 5.2 MB→135 KB, ~38×) so go:embed stays clean-build-valid and rendered output is byte-equivalent.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "landing",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If a mirror cannot be regenerated, the build/test must fail loudly with a clear 'run go run ./cmd/progress write' message — never silently embed a stale or empty mirror.",
+      "fixture": "internal/buildscripts_test.go",
+      "source_refs": [
+        "webpages/landing/scripts/sync-assets.mjs:101-103 (src mirror copy source)",
+        "webpages/landing/legacy/go-renderer/internal/site/progress.go:13 //go:embed data/progress.json + :20 ReadFile",
+        "cmd/progress/main.go (canonical regenerator); internal/progress/progress.go Load",
+        ".gitignore ; AGENTS.md progress-contract lines 89/96/100"
+      ],
+      "ready_when": [
+        "Generation paths for both mirrors confirmed (done this pass: sync-assets.mjs copy + go:embed legacy).",
+        "A from-clean-checkout build/test path that regenerates the embedded mirror before compiling is identified."
+      ],
+      "not_ready_when": [
+        "A mirror is gitignored but the go:embed legacy package still needs a committed file and the build now fails from a clean checkout.",
+        "The canonical progress.json schema or the rendered site output changes; the mirrors stop being byte-faithful derivations of the canonical file.",
+        "Stale/empty mirror is silently embedded instead of failing loudly."
+      ],
+      "acceptance": [
+        "Both webpages/landing/legacy/go-renderer/internal/site/data/progress.json and webpages/landing/src/data/progress.json are untracked (in .gitignore, git rm --cached) and regenerated by the build pipeline from the canonical file.",
+        "`go run ./cmd/progress write`, `go test ./webpages/docs -count=1`, `go test ./webpages/... -count=1`, and the landing build all pass from a clean checkout (no committed mirrors).",
+        "A single canonical progress-row edit produces a 1-file diff (canonical + its generated building-gormes docs), not a 3-file multi-MB diff.",
+        "Rendered site progress output is unchanged (byte-equal to pre-change generation)."
+      ],
+      "note": "Quick win #1 — SHIPPED 2026-05-16 (gormes-tdd-slice). Recon revealed two different problems needing two different safe fixes: (a) webpages/landing/src/data/progress.json was DEAD — no Astro/JS consumer imports it (only marketing string literals mention 'progress.json'); (b) the legacy go-renderer mirror is consumed via //go:embed and only ever reads phase/subphase names + derived statuses + Stats (never per-item prose). Fix: internal/progressctl/progressctl.go — progressPaths drops the src verbatim mirror (siteProgress=nil) and adds siteProgressSlim (the legacy embed); Write() now calls writeSlimProgress(slimProgress(p), legacyEmbed) which marshals a status/name-only reduced Progress (DerivedStatus/Stats provably identical) → 5.2 MB → 138,776 B (~38× smaller, go:embed stays clean-build-valid). webpages/landing/scripts/sync-assets.mjs: removed the src/data/progress.json copy pair. webpages/landing/.gitignore: replaced the `!src/data/progress.json` force-include negation with an explicit `src/data/progress.json` ignore placed after `!src/data/` (last-match wins) — benchmarks.json still tracked. git rm --cached the dead src mirror (now untracked + ignored). Tests: internal/progressctl/progressctl_test.go — replaced the stale TestProgressPathsMirrorSiteProgressToTrackedDataFiles with TestProgressPathsDropDeadSrcMirrorAndSlimLegacyEmbed + TestSlimProgressPreservesRenderInputsButDropsProse (Stats/DerivedStatus/names preserved, prose dropped, smaller). Write-scope corrections (recorded, tdd-slice precedent): the copier lived in internal/progressctl/progressctl.go (+ _test), not cmd/progress/main.go as the row assumed; and the operative ignore was the nested webpages/landing/.gitignore negation, not root .gitignore. Gates: go test ./internal/progressctl ./internal/progress -count=1 ok; go-renderer www.gormes.ai/internal/site ok (phase count + N/M-shipped regex unchanged); go test ./webpages/docs ./webpages/... -count=1 ok; clean-checkout sim (rm slim embed → cmd/progress write regenerates 138,776 B → go-renderer builds) ok; go run ./cmd/progress validate (9 phases); git diff --check clean. Net: per-progress-edit diff drops from ~3×5.2 MB to canonical + a ~135 KB slim mirror; ~10.3 MB tracked duplication eliminated. tdd-slice does not commit. Next in chain: ROW B (compact completed-row notes), then C1.",
+      "write_scope": [
+        ".gitignore",
+        "webpages/landing/scripts/sync-assets.mjs",
+        "webpages/landing/legacy/go-renderer/internal/site/progress.go",
+        "cmd/progress/main.go",
+        "internal/buildscripts_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress write",
+        "go test ./webpages/docs ./webpages/... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Mirrors untracked + build-time generated; clean-checkout build/tests green; progress edits no longer triple-diff; site output byte-unchanged."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 5,
+    "item": {
+      "name": "Backlog split C2: docs/landing generators read the split layout",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Make the docs/landing generators source the canonical backlog through C1's dual-layout Load so they work identically whether the backlog is the monolithic progress.json OR a split directory. Today internal/progressctl.Write/Validate/Compact call progress.Load(progressPaths(root).progressJSON) (a fixed FILE path); add split-layout resolution (when a split directory exists at the canonical location, or an opt-in path, load it via the C1 transparent Load) and prove every generated artifact — the building-gormes markered docs (_index.md, agent-queue.md, next-slices.md, blocked-slices.md, contract-readiness.md, umbrella-cleanup.md, progress-schema.md), the slim go:embed legacy mirror, and the validate JSON — is BYTE-IDENTICAL regardless of which physical layout backs the source. No row is moved and the monolith stays the default; this is purely teaching the generators to read either layout. Owned Gormes infra.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "landing",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If the split layout is absent or malformed, generators fall back to the monolithic progress.json unchanged (C1 ErrMalformedSplit surfaces; never emit a partially-generated doc set).",
+      "fixture": "internal/progressctl/progressctl_test.go",
+      "source_refs": [
+        "internal/progress/split.go Split/Merge/WriteSplit/ErrMalformedSplit + internal/progress/progress.go Load (C1 dual-layout substrate, SHIPPED eb2bf6cd1)",
+        "internal/progressctl/progressctl.go Write/Validate/Compact + progressPaths + writeSlimProgress/slimProgress",
+        "internal/progress/progress_marshal.go (stable marshal — byte-identity basis)",
+        "webpages/landing/legacy/go-renderer/internal/site (go:embed slim mirror consumer)"
+      ],
+      "ready_when": [
+        "C1 (dual-layout Load + Split/Merge/WriteSplit) is shipped; the generator entrypoints in internal/progressctl are understood."
+      ],
+      "not_ready_when": [
+        "Built as a big-bang rewrite; any real row is moved; internal/progress.Load's public file-path contract changes; generated docs/slim-mirror diverge byte-for-byte between the monolith and split sources; a consumer is left reading a now-missing monolith."
+      ],
+      "blocked_by": [
+        "Backlog split C1: lossless multi-file loader/writer behind the single-file API"
+      ],
+      "acceptance": [
+        "internal/progressctl Write/Validate/Compact resolve the canonical backlog via the C1 dual-layout Load (monolith file OR split dir) with the monolith remaining the default.",
+        "Every generated artifact (markered building-gormes docs + slim go:embed legacy mirror + validate JSON) is byte-identical whether sourced from the monolith or the split layout (test asserts byte equality on a fixture in both layouts).",
+        "No row moved; `go test ./internal/progress ./internal/progressctl -count=1` + `go test ./webpages/docs -count=1` + go-renderer `./...` green; `go run ./cmd/progress validate` output identical for both layouts."
+      ],
+      "note": "SHIPPED 2026-05-16 see git log — progressctl.canonicalSource + pathSet.progressSplitDir; loadValidProgress resolves split dir else monolith via C1 Load (generators layout-agnostic & byte-identical, monolith default, malformed→ErrMalformedSplit, Compact split write-back guarded for C3). progress.go untouched (C1 Load already dual-dispatches).",
+      "write_scope": [
+        "internal/progressctl/progressctl.go",
+        "internal/progressctl/progressctl_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress ./internal/progressctl -count=1",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Generators read either layout; all generated artifacts byte-identical across layouts; monolith still default; zero row movement."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  }
+]

@@ -1,0 +1,670 @@
+[
+  {
+    "phase": "3",
+    "subphase": "3.A",
+    "pos": 0,
+    "item": {
+      "name": "SqliteStore",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.A",
+    "pos": 1,
+    "item": {
+      "name": "FTS5 triggers",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.B",
+    "pos": 0,
+    "item": {
+      "name": "Extractor",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.B",
+    "pos": 1,
+    "item": {
+      "name": "Entity/relationship upsert",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.B",
+    "pos": 2,
+    "item": {
+      "name": "Dead-letter queue",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.C",
+    "pos": 0,
+    "item": {
+      "name": "RecallProvider",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.C",
+    "pos": 1,
+    "item": {
+      "name": "2-layer seed selection",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.C",
+    "pos": 2,
+    "item": {
+      "name": "CTE traversal",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.C",
+    "pos": 3,
+    "item": {
+      "name": "<memory-context> fence",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.D",
+    "pos": 1,
+    "item": {
+      "name": "Vector cache",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.D",
+    "pos": 2,
+    "item": {
+      "name": "Cosine similarity recall",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.D",
+    "pos": 3,
+    "item": {
+      "name": "Hybrid fusion",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.D.5",
+    "pos": 0,
+    "item": {
+      "name": "Async background export",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.D.5",
+    "pos": 1,
+    "item": {
+      "name": "SQLite as source of truth",
+      "status": "complete",
+      "module": "memory"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.4",
+    "pos": 0,
+    "item": {
+      "name": "gormes memory status command",
+      "status": "complete",
+      "module": "memory",
+      "note": "TDD: shipped `gormes memory status` with a SQLite-backed extractor summary, heuristic worker health, and recent dead-letter rendering."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.4",
+    "pos": 1,
+    "item": {
+      "name": "Extractor queue depth + dead-letter summary",
+      "status": "complete",
+      "module": "memory",
+      "note": "TDD: added deterministic dead-letter error aggregation to `gormes memory status`, with fixture-backed queue, summary, and CLI rendering coverage."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.5",
+    "pos": 0,
+    "item": {
+      "name": "Append-only daily usage.jsonl writer",
+      "status": "complete",
+      "module": "memory",
+      "note": "TDD landed: internal/insights now appends normalized DailyRollup records to usage.jsonl with schema-locked JSONL lines and deterministic append ordering."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.6",
+    "pos": 0,
+    "item": {
+      "name": "relationships.last_seen schema + backfill",
+      "status": "complete",
+      "module": "memory",
+      "note": "TDD landed: schema v3g adds relationships.last_seen, backfills legacy rows from updated_at, and keeps recall decay on COALESCE(NULLIF(last_seen, 0), updated_at) so migrated and fresh rows rank deterministically."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.6",
+    "pos": 1,
+    "item": {
+      "name": "Relationship writer freshness updates",
+      "status": "complete",
+      "module": "memory",
+      "note": "TDD landed: graph relationship upserts now advance last_seen on every observation while preserving the legacy updated_at timestamp for structural freshness semantics."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.6",
+    "pos": 2,
+    "item": {
+      "name": "Deterministic weight attenuation at recall time",
+      "status": "complete",
+      "module": "memory",
+      "note": "TDD landed: recall-time decay is now wired through RecallDecayHorizonDays, fixed-clock recall_sql coverage, and ranking assertions that preserve raw fence weights while attenuating candidate ordering."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.7",
+    "pos": 1,
+    "item": {
+      "name": "Same-chat default recall fence",
+      "status": "complete",
+      "module": "memory",
+      "note": "TDD landed: internal/memory recall applies a same-chat default fence to exact, FTS, and semantic seed selection, so named entities from another chat do not leak without explicit scope widening."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.7",
+    "pos": 2,
+    "item": {
+      "name": "Opt-in user-scope recall + source filters",
+      "status": "complete",
+      "module": "memory",
+      "note": "TDD landed: cross-chat recall widens only through canonical user_id bindings and optional source allowlists, with unresolved user scope falling back to same-chat behavior."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.7",
+    "pos": 3,
+    "item": {
+      "name": "Interrupted-turn memory sync suppression",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Interrupted or cancelled turns cannot flush partial observations into GONCHO or external Honcho-compatible memory",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "memory",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "Memory status reports skipped or interrupted sync attempts without promoting partial facts to recall.",
+      "fixture": "internal/memory/interrupted_sync_test.go",
+      "source_refs": [
+        "../hermes-agent/agent/memory_manager.py",
+        "../hermes-agent/tests/run_agent/test_memory_sync_interrupted.py",
+        "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+      ],
+      "ready_when": [
+        "The turn-finalization path can tell a normal completion from an interrupt, cancellation, or client disconnect."
+      ],
+      "not_ready_when": [
+        "The slice rewrites extraction, recall, or provider-plugin storage instead of only gating sync/finalization on interrupted turns."
+      ],
+      "unblocks": [
+        "Honcho host integration compatibility fixtures",
+        "Cross-chat operator evidence"
+      ],
+      "acceptance": [
+        "Interrupted turns record a skipped-sync reason and do not create new GONCHO conclusions.",
+        "Completed turns still sync/extract normally.",
+        "Operator status can distinguish skipped interrupted sync from extractor failures."
+      ],
+      "note": "TDD landed: interrupted turns are marked as skipped with reason=interrupted, stay out of extractor and Honcho-compatible turn reads, and create no goncho_conclusions; completed turns still mark ready and extract normally. Fixtures cover internal/memory/interrupted_sync_test.go plus skipped-row guards in the memory session catalog and GONCHO service. Verified with go test ./internal/kernel ./internal/memory ./internal/goncho -count=1.",
+      "write_scope": [
+        "internal/kernel/",
+        "internal/memory/",
+        "internal/goncho/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/kernel ./internal/memory ./internal/goncho -count=1"
+      ],
+      "done_signal": [
+        "Interrupted-turn fixtures prove partial memory observations are skipped while completed turns still sync."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.7",
+    "pos": 6,
+    "item": {
+      "name": "SillyTavern persona and group-chat mapping fixtures",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Goncho maps Honcho SillyTavern peer modes, session naming, enrichment modes, and group-chat participants without widening recall or leaking the internal goncho name",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "memory",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Host mapping evidence reports unsupported SillyTavern panel knobs or missing peer/session identifiers instead of silently merging personas or group characters.",
+      "fixture": "internal/goncho/sillytavern_mapping_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/guides/integrations/sillytavern.mdx@e659b6b",
+        "../honcho/docs/docs.json@e659b6b",
+        "internal/goncho/host_integration.go",
+        "internal/goncho/host_integration_test.go",
+        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md"
+      ],
+      "ready_when": [
+        "Honcho host integration compatibility fixtures already map baseline SillyTavern chat-instance sessions, recall modes, host-scoped config, and honcho_* external tool names."
+      ],
+      "not_ready_when": [
+        "The slice adds a SillyTavern extension, imports Node/browser code, calls hosted Honcho, or changes Goncho persistence instead of fixture-locking host mapping decisions."
+      ],
+      "unblocks": [
+        "Cross-chat operator evidence"
+      ],
+      "acceptance": [
+        "Peer mode fixtures distinguish one shared user peer from separate persona-scoped peers without changing the default Goncho workspace.",
+        "Session naming fixtures cover auto per-chat, per-character, and custom session names, including reset/orphan evidence for new chats.",
+        "Group-chat fixtures register one peer per character and lazy-add mid-chat characters instead of collapsing to one group peer.",
+        "Context-only, reasoning, and tool-call enrichment modes map to prompt context, honcho_chat-style reasoning, and tool exposure with explicit degraded evidence for unsupported modes."
+      ],
+      "note": "TDD landed: `internal/goncho/sillytavern_mapping_test.go` fixture-locks Honcho SillyTavern peer modes, auto/per-character/custom session naming with reset/orphan evidence, group-chat one-peer-per-character mapping with lazy mid-chat additions, context/reasoning/tool-call enrichment mapping, and degraded evidence for unsupported panel knobs or missing peer/session identifiers. The mapper stays pure Goncho host evidence: no SillyTavern extension, no Node/browser imports, no hosted Honcho calls, no persistence changes, and external tool evidence preserves honcho_* names including honcho_chat.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/goncho_honcho_memory/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/gonchotools -count=1"
+      ],
+      "done_signal": [
+        "SillyTavern mapping fixtures prove persona/session/group-chat decisions and enrichment-mode degradation while external tools keep honcho_* names."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-25T09:54:25Z",
+        "last_success": "2026-04-25T09:54:25Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "honcho:e659b6b docs/v3/guides/integrations/sillytavern.mdx",
+        "note": "Honcho defines host-facing SillyTavern behavior; Gormes maps it into internal Goncho fixtures and operator evidence."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.7",
+    "pos": 7,
+    "item": {
+      "name": "Cross-chat deny-path fixtures",
+      "status": "complete",
+      "contract": "Same-chat default recall with explicit user-scope widening",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "memory",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Memory status and operator evidence report unresolved, conflicting, or denied cross-chat identity bindings.",
+      "fixture": "internal/memory cross-chat allow-deny recall fixtures",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+      ],
+      "ready_when": [
+        "Honcho-compatible scope/source tool schema is complete and exposes source allowlist semantics."
+      ],
+      "not_ready_when": [
+        "Deny-path fixtures are mixed with operator evidence rendering in the same slice."
+      ],
+      "blocked_by": [
+        "Honcho-compatible scope/source tool schema"
+      ],
+      "unblocks": [
+        "Cross-chat operator evidence",
+        "parent_session_id lineage for compression splits"
+      ],
+      "acceptance": [
+        "Unknown user bindings stay same-chat.",
+        "Conflicting user bindings deny user-scope widening.",
+        "Allowed user-scope searches include source allowlist evidence."
+      ],
+      "note": "TDD landed: recall and session-search fixtures now deny user-scope widening when the current chat binding is unknown, unresolved, or conflicting; denied paths fall back to same-chat/session behavior, and allowed user-scope GONCHO hits preserve origin_source evidence for source allowlists.",
+      "write_scope": [
+        "internal/memory/",
+        "internal/goncho/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/memory ./internal/goncho -count=1"
+      ],
+      "done_signal": [
+        "Cross-chat recall fixtures prove unknown and conflicting identities cannot widen search scope."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.7",
+    "pos": 8,
+    "item": {
+      "name": "Cross-chat operator evidence",
+      "status": "complete",
+      "contract": "Memory and Goncho status expose operator-readable evidence for allowed, denied, and degraded cross-chat recall decisions",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "memory",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Status and dry-run output report unresolved user bindings, conflicting chat bindings, source allowlists, and host mapping gaps before recall widens.",
+      "fixture": "internal/memory/cross_chat_operator_evidence_test.go",
+      "source_refs": [
+        "internal/memory/session_catalog.go",
+        "internal/goncho/service.go",
+        "cmd/gormes/memory.go",
+        "docs/content/building-gormes/architecture_plan/phase-3-memory.md",
+        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md"
+      ],
+      "ready_when": [
+        "Cross-chat deny-path fixtures are complete, Honcho-compatible scope/source tool schemas are visible, and SillyTavern host mapping drift is either fixture-locked or explicitly degraded."
+      ],
+      "not_ready_when": [
+        "The slice changes recall ranking, creates new memory storage tables, or ports dialectic reasoning instead of only rendering existing allow/deny evidence."
+      ],
+      "blocked_by": [
+        "SillyTavern persona and group-chat mapping fixtures"
+      ],
+      "unblocks": [
+        "Operator-auditable search evidence"
+      ],
+      "acceptance": [
+        "Allowed user-scope recall reports resolved user_id, source allowlist, session/chat source, and number of widened sessions considered.",
+        "Denied recall reports unknown, unresolved, or conflicting identity reason and names the same-chat fallback scope.",
+        "Goncho context/search dry-run output preserves origin_source evidence for returned hits.",
+        "`gormes memory status` or an equivalent diagnostics path renders the evidence without exposing raw SQL rows."
+      ],
+      "note": "TDD landed: internal/memory/cross_chat_operator_evidence_test.go pins allowed and denied cross-chat recall evidence with resolved user_id, source allowlists, session/chat source, current binding details, widened-session counts, and same-chat fallback reasons for unresolved, unknown, or conflicting identity. Goncho search/context results now carry scope_evidence and preserve origin_source on returned hits, while gormes goncho doctor --scope user --sources renders the evidence without exposing raw SQL rows. The SillyTavern persona/group-chat mapping gate was fixture-locked before this closeout, so host mapping gaps remain explicit degraded evidence instead of being hidden by generic cross-chat status.",
+      "write_scope": [
+        "internal/memory/",
+        "internal/goncho/",
+        "cmd/gormes/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/memory ./internal/goncho ./cmd/gormes -count=1"
+      ],
+      "done_signal": [
+        "Cross-chat evidence fixtures prove allowed and denied recall paths produce operator-readable user/source/session diagnostics."
+      ],
+      "health": {
+        "attempt_count": 2,
+        "last_attempt": "2026-04-25T10:19:57Z",
+        "last_success": "2026-04-25T10:19:57Z"
+      },
+      "planner_verdict": {
+        "reshape_count": 1,
+        "last_reshape": "2026-04-25T09:23:21Z",
+        "last_outcome": "unstuck"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "note": "Gormes owns the operator evidence surface; upstream Honcho/Hermes compatibility defines the host and tool semantics that evidence must not obscure."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.G",
+    "pos": 0,
+    "item": {
+      "name": "6 typed memory categories with confidence scoring",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Identity, preference, goal, habit, episode, reflection with confidence/durability scoring and conflict resolution",
+      "contract_status": "validated",
+      "slice_size": "large",
+      "execution_owner": "memory",
+      "module": "memory",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Memory falls back to session-based storage; typed memory unavailable but session history preserved",
+      "fixture": "internal/goncho/typed_memory_test.go",
+      "source_refs": [
+        "mercury-agent/src/core/memory.ts",
+        "honcho/src/models.py",
+        "engram/internal/store/store.go"
+      ],
+      "ready_when": [
+        "Goncho SQLite schema exists for extension"
+      ],
+      "not_ready_when": [
+        "Goncho schema is still in flux"
+      ],
+      "unblocks": [
+        "Memory auto-extraction",
+        "Memory consolidation"
+      ],
+      "acceptance": [
+        "CRUD for 6 memory types",
+        "Confidence 0-1 and durability scoring",
+        "Conflict resolution: higher confidence wins, equal → newer",
+        "Auto-pruning: 21-day active stale, 120-day durable decay"
+      ],
+      "note": "Cross-project adoption from mercury-agent + honcho: structured memory with typed categories is a major UX improvement over session-based storage.",
+      "write_scope": [
+        "internal/goncho/typed_memory.go",
+        "internal/goncho/conflict_resolution.go"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run TestTypedMemory -count=1"
+      ],
+      "done_signal": [
+        "Typed memory tests prove CRUD, scoring, conflict resolution, and pruning"
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/goncho/typed_memory.go:MemoryType, MemoryEntry, TypedMemoryStore",
+          "internal/goncho/typed_memory.go:Create, Read, Update, Delete, ListByType, ListAll, Prune",
+          "internal/goncho/conflict_resolution.go:ConflictResolution, ResolveConflict, UpsertWithConflictResolution",
+          "internal/goncho/conflict_resolution.go:GetStats, GetAverageConfidence, GetPruningCandidates"
+        ],
+        "tests": [
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_CRUD",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_ListByType",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_ConfidenceValidation",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_DurabilityValidation",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_AllTypes",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_PruneActiveStale",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_PruneDurableDecay",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_NoPruneRecent",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_AverageConfidence",
+          "internal/goncho/typed_memory_test.go:TestTypedMemory_PruningCandidates",
+          "internal/goncho/conflict_resolution_test.go:TestConflictResolution_HigherConfidenceWins",
+          "internal/goncho/conflict_resolution_test.go:TestConflictResolution_LowerConfidenceLoses",
+          "internal/goncho/conflict_resolution_test.go:TestConflictResolution_EqualConfidenceNewerWins",
+          "internal/goncho/conflict_resolution_test.go:TestConflictResolution_EqualConfidenceOlderLoses",
+          "internal/goncho/conflict_resolution_test.go:TestConflictResolution_NoExisting",
+          "internal/goncho/conflict_resolution_test.go:TestConflictResolution_TypeMismatch",
+          "internal/goncho/conflict_resolution_test.go:TestTypedMemory_UpsertWithConflictResolution"
+        ],
+        "verification": [
+          "go test ./internal/goncho -count=1 -> ok",
+          "go run ./cmd/progress validate -> 7 phases validated"
+        ]
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.I",
+    "pos": 0,
+    "item": {
+      "name": "Regex-based auto-link extraction + brain-first lookup",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Markdown links, wikilinks, qualified wikilinks auto-extracted; typed inference; brain-first 5-step lookup",
+      "contract_status": "validated",
+      "slice_size": "large",
+      "execution_owner": "memory",
+      "module": "memory",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Links not auto-extracted; lookup skips local DB/graph and goes directly to LLM/external API",
+      "fixture": "internal/goncho/auto_link_test.go",
+      "source_refs": [
+        "hermes-agent/agent/context_references.py"
+      ],
+      "ready_when": [
+        "Goncho page storage exists"
+      ],
+      "not_ready_when": [
+        "No local page/slug storage in Goncho"
+      ],
+      "unblocks": [
+        "Compiled truth pattern",
+        "Tiered enrichment"
+      ],
+      "acceptance": [
+        "Markdown link syntax is auto-extracted",
+        "Wikilinks [[slug]] and [[source:dir/slug]] auto-extracted",
+        "Typed inference: FOUNDED, INVESTED, ADVISES, WORKS_AT",
+        "Brain-first lookup: local DB → graph → cache → LLM → external API"
+      ],
+      "note": "Cross-project adoption from gormes-owned: zero-LLM knowledge graph wiring significantly reduces LLM calls for entity resolution.",
+      "write_scope": [
+        "internal/goncho/auto_link.go",
+        "internal/goncho/brain_first.go"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run TestAutoLink -count=1"
+      ],
+      "done_signal": [
+        "Auto-link tests prove markdown/wikilink/typed extraction; brain-first tests prove 5-step lookup"
+      ],
+      "wired": true
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.J",
+    "pos": 1,
+    "item": {
+      "name": "Agent-controlled memory retention with importance scoring",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "The agent assigns importance scores to memories at store time and can adjust them later. Retention policy uses importance × recency decay curve. Low-importance old memories are candidates for summarization or forgetting. The agent periodically reviews and prunes.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "memory",
+      "trust_class": [
+        "operator"
+      ],
+      "source_refs": [
+        "docs/content/papers/agent-memory-systems.md",
+        "arXiv:2601.01885 (AgeMem 2026)",
+        "Generative Agents (Park et al. 2023) recency+importance+relevance retrieval",
+        "internal/goncho/store.go"
+      ],
+      "ready_when": [
+        "Memory tools exist (6.J row 1)",
+        "Goncho supports importance scoring on entries"
+      ],
+      "not_ready_when": [
+        "No importance metadata on memory entries"
+      ],
+      "acceptance": [
+        "Agent assigns importance 0.0-1.0 at storage time",
+        "Retrieval scoring: α·recency + β·importance + γ·relevance",
+        "Decay curve reduces importance over time unless reinforced",
+        "Periodic review identifies low-importance candidates",
+        "Agent can promote/demote importance via update_memory tool"
+      ],
+      "note": "Complete: TDD expanded `internal/goncho/importance_scorer.go` so ranking uses `α·recency + β·effective_importance + γ·relevance`, where effective importance is the agent-assigned importance after recency decay. `internal/goncho/decay.go` adds retention review candidates with summarize/forget actions for old low-effective-importance memories. `LocalMarkdownMemoryStore.Retrieve` now ranks active scoped memories through the shared scorer instead of raw SQL importance ordering, while retaining nonmatching memories in storage. `update_memory` now accepts optional `importance` so the agent can promote or demote entries after storage; descriptors expose the same field. Focused tests prove store-time importance, retrieval ranking, decay candidate review, and update-time importance adjustment.",
+      "write_scope": [
+        "internal/goncho/decay.go",
+        "internal/goncho/importance_scorer.go",
+        "internal/goncho/importance_scorer_test.go",
+        "internal/goncho/local_markdown_memory.go",
+        "internal/goncho/memory_tools.go",
+        "internal/goncho/memory_tools_test.go",
+        "internal/tools/memory_tool_descriptors.go",
+        "internal/tools/memory_tool_descriptors_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run TestImportanceScorer -count=1",
+        "go test ./internal/goncho -run TestDecayCurve -count=1",
+        "go test ./internal/goncho -run TestUpdateMemoryImportance -count=1",
+        "go test ./internal/tools -run TestMemoryToolDescriptorsExposeMCPCompatibleAgentMemoryCatalog -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Importance tests prove scoring affects retrieval ranking and decay reduces old unused memories"
+      ]
+    }
+  }
+]

@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
 func TestBuildCodexResponsesPayloadOmitsTemperatureAsTransportRule(t *testing.T) {
@@ -65,9 +67,30 @@ func readRepositoryTextFile(t *testing.T, slashPath string) string {
 		t.Fatal("runtime.Caller() failed")
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
-	raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(slashPath)))
+	path := filepath.Join(repoRoot, filepath.FromSlash(slashPath))
+	if slashPath == "docs/content/building-gormes/architecture_plan/progress.json" {
+		return readLogicalProgressText(t, path)
+	}
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", slashPath, err)
+	}
+	return string(raw)
+}
+
+func readLogicalProgressText(t *testing.T, path string) string {
+	t.Helper()
+	p, err := progress.Load(path)
+	if err != nil {
+		t.Fatalf("progress.Load(%s): %v", path, err)
+	}
+	tmp := filepath.Join(t.TempDir(), "progress.json")
+	if err := progress.SaveProgress(tmp, p); err != nil {
+		t.Fatalf("progress.SaveProgress(%s): %v", path, err)
+	}
+	raw, err := os.ReadFile(tmp)
+	if err != nil {
+		t.Fatalf("read emitted progress text: %v", err)
 	}
 	return string(raw)
 }

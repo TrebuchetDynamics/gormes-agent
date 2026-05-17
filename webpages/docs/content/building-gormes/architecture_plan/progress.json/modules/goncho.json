@@ -1,0 +1,2268 @@
+[
+  {
+    "phase": "2",
+    "subphase": "2.H",
+    "pos": 0,
+    "item": {
+      "name": "Goncho-backed dynamic agent registry",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "internal/goncho/dynamic_agents.go exposes a DynamicAgentRegistry (Create, Get, List, Bind, Unbind, Resolve) persisting agents and channel/peer bindings in new SQLite tables alongside Goncho memory. The gateway's existing agentRouter consults the registry as an overlay on top of config.AgentsCfg/AgentBindingCfg: static config wins on AgentID conflict (enforced at Create via CreateAgentOptions.ReservedIDs — operator-defined identity in config.toml cannot be silently shadowed), but dynamic bindings supplement runtime peer matches that static config does not cover. Public Go interface stays small; persistence and conflict semantics stay hidden behind the registry boundary.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without runtime mutation, every new agent persona requires editing config.toml and reloading; in-chat spawn UX from rows 2.H.2-4 cannot exist.",
+      "fixture": "internal/goncho/dynamic_agents_test.go tempdir SQLite + fake clock",
+      "source_refs": [
+        "https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native",
+        "internal/goncho/local_markdown_memory.go (AgentID partition key precedent)",
+        "internal/config/agents.go (AgentsCfg, AgentCfg, AgentBindingCfg schema this layers on top of)",
+        "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — thread-aware peer resolution already wired)"
+      ],
+      "ready_when": [
+        "config.AgentsCfg and config.AgentBindingCfg remain the static-config source of truth; the registry overlays runtime entries without rewriting config.toml.",
+        "Existing internal/goncho schema migrations apply cleanly under a new migration adding dynamic_agents and dynamic_agent_bindings tables.",
+        "The registry interface is testable with a tempdir SQLite DB; no live channel adapter or gateway integration test is needed for this slice."
+      ],
+      "not_ready_when": [
+        "The slice edits internal/config/agents.go schema, internal/gateway/agent_runtime.go resolver semantics beyond a single overlay-lookup hook, or any platform adapter.",
+        "The slice writes to config.toml, persists agent state in cleartext outside Goncho, or shares storage with cross-session memory rows.",
+        "The slice changes static-vs-dynamic conflict order — static config must win on AgentID conflict so operator-defined identity is not silently shadowed."
+      ],
+      "unblocks": [
+        "gormes agent spawn/list/inspect/bind/unbind CLI",
+        "Telegram /spawn opens forum topic bound to spawned agent"
+      ],
+      "acceptance": [
+        "TestDynamicAgentRegistry_CreateRoundTrips proves Create + Get returns the same AgentRecord with stable ID and persona seed across a registry reopen.",
+        "TestDynamicAgentRegistry_BindResolvesByPeer proves Bind + Resolve returns the dynamic AgentID for a (channel, chat_id, thread_id) match.",
+        "TestDynamicAgentRegistry_StaticConfigWinsOnIDConflict proves an overlapping static AgentCfg.ID is returned by the resolver even when a dynamic record with the same ID exists.",
+        "TestDynamicAgentRegistry_UnbindRemovesMatch proves Unbind removes the persisted binding and Resolve falls back to static config (or returns not-found)."
+      ],
+      "note": "Data foundation row. Implementation used the existing inline-DDL convention (mirrors internal/goncho/webhooks.go ensureWebhookEndpointTable) instead of a separate migrations/ directory; the write_scope was tightened accordingly. The static-vs-dynamic conflict invariant is enforced at Create time via CreateAgentOptions.ReservedIDs rather than at Resolve time — simpler boundary that keeps the registry unaware of static config schema. The CLI surface (2.H.2) and channel slices (2.H.3, 2.H.4) build on this.",
+      "write_scope": [
+        "internal/goncho/dynamic_agents.go",
+        "internal/goncho/dynamic_agents_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run '^TestDynamicAgentRegistry_' -count=1",
+        "go test ./internal/goncho -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Registry interface, inline DDL bootstrap, and four named tests landed in internal/goncho with the wider goncho suite and the full ./... gate green; no runtime change in cmd/gormes or gateway in this row."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned divergence inspired by OpenYabby's runtime agent-spawn pattern (https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native). Layers a SQLite-backed runtime registry on top of existing static config.AgentsCfg/AgentBindingCfg; no Hermes parity contract."
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.7",
+    "pos": 4,
+    "item": {
+      "name": "Honcho-compatible scope/source tool schema",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Honcho-compatible tool schemas expose GONCHO scope and source allowlist controls without renaming public tools",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Memory status and tool schema evidence show when user-scope or source-filtered recall is unavailable.",
+      "fixture": "internal/gonchotools/honcho_tools_test.go",
+      "source_refs": [
+        "docs/content/upstream-hermes/gormes-takeaways.md",
+        "docs/content/building-gormes/architecture_plan/phase-3-memory.md",
+        "../honcho/docs/v3/guides/integrations/hermes.mdx"
+      ],
+      "ready_when": [
+        "internal/goncho SearchParams and ContextParams already accept scope and sources fields."
+      ],
+      "not_ready_when": [
+        "The slice renames public honcho_* tools, changes internal goncho storage, or bundles deny-path/operator evidence work."
+      ],
+      "unblocks": [
+        "Cross-chat deny-path fixtures",
+        "Honcho host integration compatibility fixtures"
+      ],
+      "acceptance": [
+        "honcho_search and honcho_context JSON Schemas include optional scope and sources fields.",
+        "scope and sources are not required and omitted calls preserve same-chat default behavior.",
+        "The internal implementation package and tables remain named goncho while external tool names remain honcho_*."
+      ],
+      "note": "TDD landed: `honcho_search` and `honcho_context` keep their public Honcho-compatible names while their JSON Schemas now advertise optional `scope` and `sources` controls backed by the existing internal GONCHO params. Schema tests assert both fields are discoverable and not required, and executor round-trips without either field preserve same-chat default behavior. Deny-path fixtures and operator evidence remain separate 3.E.7 slices.",
+      "write_scope": [
+        "internal/gonchotools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/gonchotools ./internal/goncho -count=1"
+      ],
+      "done_signal": [
+        "Honcho-compatible tool schema tests prove scope and sources are optional, discoverable, and routed through existing GONCHO params."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.7",
+    "pos": 5,
+    "item": {
+      "name": "Honcho host integration compatibility fixtures",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "GONCHO preserves host-facing Honcho session, peer, and tool semantics needed by current OpenCode and SillyTavern integrations",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Doctor and memory status explain which Honcho-compatible host mappings are unsupported instead of silently accepting incompatible config.",
+      "fixture": "internal/goncho/host_integration_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/guides/integrations/opencode.mdx",
+        "../honcho/docs/v3/guides/integrations/sillytavern.mdx",
+        "../honcho/docs/v3/guides/integrations/hermes.mdx",
+        "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
+      ],
+      "ready_when": [
+        "Public honcho_* schemas expose scope/source controls and interrupted turns cannot persist partial memory observations."
+      ],
+      "not_ready_when": [
+        "The slice adds a cloud Honcho client or changes internal package names instead of fixture-locking host-facing compatibility."
+      ],
+      "acceptance": [
+        "Fixtures cover per-directory, per-repo, per-session, chat-instance, and global session strategies as mapping inputs.",
+        "Host-scoped config keys do not mutate another host's settings.",
+        "GONCHO keeps internal names while generated tool schemas and docs preserve honcho_* external compatibility."
+      ],
+      "note": "TDD landed: internal/goncho host integration fixtures now map Hermes/OpenCode/SillyTavern-style workspace, peer, session strategy, recall mode, and Honcho-compatible external tool naming semantics without adding a cloud Honcho client or renaming the internal Goncho service. Fixtures cover per-directory, per-repo, per-session, chat-instance, and global session keys, context/tools/hybrid recall behavior including context-only and tool-only aliases, host-scoped config patch isolation, and fail-closed diagnostics for unsupported host mappings.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/memory/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/memory -count=1"
+      ],
+      "done_signal": [
+        "Host integration fixtures prove GONCHO maps current Honcho host/session concepts without renaming external honcho_* tools."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.8",
+    "pos": 3,
+    "item": {
+      "name": "GONCHO user-scope search/context parameters",
+      "status": "complete",
+      "module": "goncho",
+      "note": "TDD landed: internal/goncho SearchParams and ContextParams accept scope=user plus sources[] and pass them into the session catalog; the Honcho-compatible tool schemas still need to advertise those fields."
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 0,
+    "item": {
+      "name": "Goncho context representation options",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "honcho_context exposes the Honcho v3 session.context representation controls while preserving current same-chat defaults",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unsupported representation options return structured unavailable evidence instead of being silently ignored.",
+      "fixture": "internal/goncho/context_options_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/get-context.mdx",
+        "../honcho/docs/v3/documentation/features/advanced/representation-scopes.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/goncho/types.go",
+        "internal/gonchotools/honcho_tools.go"
+      ],
+      "ready_when": [
+        "honcho_context already accepts peer, query, max_tokens, session_key, scope, and sources through the Goncho service."
+      ],
+      "not_ready_when": [
+        "The slice attempts to implement summaries, observations, or dialectic reasoning in the same change."
+      ],
+      "unblocks": [
+        "Goncho summary context budget",
+        "Directional peer cards and representation scopes"
+      ],
+      "acceptance": [
+        "ContextParams and the honcho_context JSON Schema expose optional peer_target, peer_perspective, limit_to_session, search_top_k, search_max_distance, include_most_frequent, and max_conclusions fields.",
+        "Omitted fields preserve current same-chat context behavior.",
+        "limit_to_session=true cannot widen recall through scope=user.",
+        "Fields that need the future observation table report explicit unsupported evidence."
+      ],
+      "note": "TDD landed: ContextParams and the honcho_context schema expose optional peer_target, peer_perspective, limit_to_session, search_top_k, search_max_distance, include_most_frequent, and max_conclusions. Omitted fields preserve same-chat context defaults; limit_to_session=true fails closed without session_key and cannot widen through scope=user; unsupported directional and semantic representation options return structured unavailable evidence. Summaries, observations, and dialectic-backed retrieval remain separate slices.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/gonchotools -count=1"
+      ],
+      "done_signal": [
+        "honcho_context schema and service fixtures prove Honcho v3 context options are discoverable, optional, and visibly degraded when not implemented."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 1,
+    "item": {
+      "name": "Goncho search filter grammar",
+      "priority": "P4",
+      "status": "complete",
+      "contract": "Goncho search accepts a typed subset of Honcho v3 filters and rejects unsupported filter operators visibly",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown filters, unsupported operators, or metadata paths return a structured unsupported-filter error instead of widening search.",
+      "fixture": "internal/goncho/filter_grammar_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/advanced/search.mdx",
+        "../honcho/docs/v3/documentation/features/advanced/using-filters.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/memory/session_catalog.go",
+        "internal/goncho/types.go"
+      ],
+      "ready_when": [
+        "Same-chat and user-scope deny paths are fixture-locked so filter failures cannot accidentally widen recall."
+      ],
+      "not_ready_when": [
+        "The slice adds an HTTP surface or full SDK compatibility before the internal filter AST is tested."
+      ],
+      "blocked_by": [
+        "Cross-chat deny-path fixtures"
+      ],
+      "acceptance": [
+        "Filter AST fixtures cover AND, OR, NOT, gt, gte, lt, lte, ne, in, contains, icontains, metadata, and wildcard parsing.",
+        "The first executable implementation supports a documented subset and returns unsupported-filter evidence for the rest.",
+        "Limit defaults to 10 and clamps to the Honcho-documented maximum of 100."
+      ],
+      "note": "TDD landed: Goncho SearchParams now accept Honcho-shaped filters and limit, parse an internal AST for AND, OR, NOT, gt, gte, lt, lte, ne, in, contains, icontains, metadata paths, and wildcard values, then compile only the current enforceable subset. session_id, source, and peer_id equality/in/wildcard filters narrow search; metadata, content, created_at, OR, NOT, unknown fields, and unknown operators return structured unsupported-filter errors instead of being ignored. Same-chat source/session deny paths and user-scope session/source filters are fixture-locked, and search limit defaults to 10 with a maximum of 100.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/memory/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/memory -count=1"
+      ],
+      "done_signal": [
+        "Filter grammar tests prove unsupported Honcho filters fail closed and supported filters keep workspace/user/session boundaries intact."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 2,
+    "item": {
+      "name": "Vector store + reconciler divergence proof",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Gormes explicitly owns local SQLite semantic recall as a divergence from Honcho's LanceDB/Turbopuffer external vector-store and sync-vector reconciler model.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "No external vector API key, LanceDB path, namespace delete, or sync-vector worker is required for local semantic recall; unsupported external sync semantics are visible as excluded divergence rows.",
+      "fixture": "internal/memory/divergence_test.go::TestVectorStoreDivergenceRowsClassifyExternalStoresAndReconciler",
+      "source_refs": [
+        "../honcho/src/vector_store/lancedb.py:LanceDBVectorStore",
+        "../honcho/src/vector_store/turbopuffer.py:TurbopufferVectorStore",
+        "../honcho/src/reconciler/sync_vectors.py:ReconciliationMetrics",
+        "internal/memory/vector_divergence.go:VectorStoreDivergenceRows",
+        "internal/memory/semantic_sql.go:semanticSeeds",
+        "internal/memory/schema.go:migration3cTo3d"
+      ],
+      "ready_when": [
+        "The local SQLite entity_embeddings schema and semanticSeeds query path are validated on main.",
+        "The slice can prove divergence with temp SQLite state and no external vector database, API key, network call, or background reconciler.",
+        "The row updates classification evidence only after Go fixtures prove the local query path and omitted sync-state columns."
+      ],
+      "not_ready_when": [
+        "The slice introduces a LanceDB/Turbopuffer adapter, external namespace cleanup, retry worker, or remote sync state in the local memory package.",
+        "The slice changes Goncho search behavior, embedding generation, provider calls, or cross-chat recall semantics.",
+        "The slice claims Honcho vector-store parity instead of an owned/excluded divergence contract."
+      ],
+      "acceptance": [
+        "VectorStoreDivergenceRows classifies LanceDB and Turbopuffer adapters as excluded and the SQLite semantic query contract as owned.",
+        "ValidateVectorStoreDivergence rejects unknown statuses and rows without upstream/Gormes evidence.",
+        "TestVectorStoreDivergenceProof_LocalSemanticCacheHasNoExternalSyncState proves entity_embeddings has no sync_state/sync_attempts/last_sync_at columns and semanticSeeds still returns local SQLite results.",
+        "Existing semantic_sql fixtures continue to prove model filtering, cache invalidation, corrupt-row tolerance, and Top-K cosine behavior."
+      ],
+      "note": "Complete: added `internal/memory/vector_divergence.go` and `internal/memory/divergence_test.go`. The row records the intentional split from Honcho's external LanceDB/Turbopuffer plus sync-vector reconciler path and proves Gormes local semantic recall works from SQLite entity_embeddings without external sync columns, credentials, namespaces, or workers.",
+      "write_scope": [
+        "internal/memory/vector_divergence.go",
+        "internal/memory/divergence_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+      ],
+      "test_commands": [
+        "go test ./internal/memory -run Divergence -count=1",
+        "go test ./internal/memory -count=1",
+        "go test ./...",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Divergence fixtures prove local SQLite semantic recall replaces external vector-store synchronization and records every excluded Honcho vector/reconciler surface explicitly."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "honcho:e659b6b src/vector_store/** src/reconciler/sync_vectors.py",
+        "note": "Honcho supplies external vector-store and reconciliation contracts; Gormes owns the local SQLite semantic-memory divergence inside the single binary."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 3,
+    "item": {
+      "name": "Directional peer cards and representation scopes",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Peer cards and stored representations are keyed by workspace, observer, and observed peer instead of a flat workspace/peer pair",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When directional representation is unavailable, the service reports that only the default gormes observer view was used.",
+      "fixture": "internal/goncho/directional_peer_card_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/advanced/representation-scopes.mdx",
+        "../honcho/docs/v3/documentation/features/advanced/peer-card.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/memory/schema.go",
+        "internal/goncho/sql.go"
+      ],
+      "ready_when": [
+        "Context options expose observer/target fields and current peer-card replacement behavior is fixture-locked."
+      ],
+      "not_ready_when": [
+        "The slice tries to port observe_others scheduling before the storage key and card semantics are stable."
+      ],
+      "blocked_by": [
+        "Goncho context representation options"
+      ],
+      "acceptance": [
+        "Peer cards enforce Honcho's max-40-facts cap.",
+        "Manual set_card behavior replaces the full card instead of merging.",
+        "Directional target cards are stored independently from default self cards.",
+        "Late-join non-retroactive reasoning remains documented as unsupported until the deriver queue exists."
+      ],
+      "note": "TDD landed: peer cards are stored by workspace, observer, and observed peer with legacy flat cards migrated to observer=gormes. Directional fixtures prove observer/observed isolation, max-40 truncation, and manual set_card replacement semantics; honcho_profile exposes optional target for directional card reads/writes. Context still reports directional representation as unavailable and uses only the default gormes observer view. Late-join non-retroactive reasoning and observe_others scheduling remain unsupported until the deriver queue exists.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/memory/",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/memory ./internal/gonchotools -count=1"
+      ],
+      "done_signal": [
+        "Directional peer-card fixtures prove observer/observed isolation, max-card cap, and replacement semantics."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 4,
+    "item": {
+      "name": "Goncho queue status read model",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Gormes exposes Honcho-style representation, summary, and dream work-unit queue status as observability, not synchronization",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If no Goncho task queue exists yet, memory status reports zero tracked Goncho work units plus the existing extractor queue status.",
+      "fixture": "internal/goncho/queue_status_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/advanced/queue-status.mdx",
+        "../honcho/docs/v3/documentation/core-concepts/reasoning.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/memory/status.go"
+      ],
+      "ready_when": [
+        "At least one Goncho-owned task type or a zero-state read model is available to report deterministically."
+      ],
+      "not_ready_when": [
+        "The slice waits for the queue to drain or treats queue empty as an application synchronization condition."
+      ],
+      "blocked_by": [
+        "Directional peer cards and representation scopes"
+      ],
+      "acceptance": [
+        "Status fields include completed_work_units, in_progress_work_units, pending_work_units, total_work_units, and optional per-session details.",
+        "Only representation, summary, and dream task types count toward Honcho-style queue status.",
+        "Docs and CLI output state that queue status is for observability and debugging, not waiting for completion."
+      ],
+      "note": "TDD landed: Goncho exposes a Honcho-style zero-state queue status read model for representation, summary, and dream work units with completed_work_units, in_progress_work_units, pending_work_units, total_work_units, and optional per-session details. Memory status and Goncho doctor output include extractor queue status alongside Goncho work-unit counts and explicitly frame queue status as observability/debugging evidence, not a synchronization contract or queue-drain wait condition.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/memory/",
+        "cmd/gormes/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes ./internal/goncho ./internal/memory -count=1"
+      ],
+      "done_signal": [
+        "Queue status fixtures prove Honcho-style counts and document that queue empty is not a synchronization contract."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-25T04:56:45Z",
+        "last_success": "2026-04-25T04:56:45Z"
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 5,
+    "item": {
+      "name": "Goncho summary context budget",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Session summaries use Honcho's short/long cadence and 40/60 context budget without double-billing last-N-turn recall",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When summaries are unavailable or too large for the token budget, context returns recent messages plus explicit summary_absent evidence.",
+      "fixture": "internal/goncho/summary_context_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/advanced/summarizer.mdx",
+        "../honcho/docs/v3/documentation/features/get-context.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/goncho/service.go",
+        "internal/memory/schema.go"
+      ],
+      "ready_when": [
+        "Context options are schema-visible and the memory store can add a session_summaries table via migration."
+      ],
+      "not_ready_when": [
+        "The slice rewrites RecallProvider.GetContext or merges summaries into the existing memory-context fence instead of adding a separate Goncho context component."
+      ],
+      "blocked_by": [
+        "Goncho context representation options"
+      ],
+      "acceptance": [
+        "Schema stores one short and one long summary slot per session with last-covered message and token count.",
+        "Short summaries trigger every 20 messages and long summaries every 60 messages by default.",
+        "Service.Context allocates 40 percent of the token budget to summary and 60 percent to recent messages when summary=true.",
+        "summary=false fills the budget with recent messages only."
+      ],
+      "note": "TDD landed: Goncho now stores one short and one long session summary slot in goncho_session_summaries, refreshes deterministic short/long slots at the Honcho default 20/60 message cadence, exposes summary/tokens/search_query context options, allocates summary=true context with a 40 percent summary budget and 60 percent recent-message budget without reusing messages covered by the selected summary, lets summary=false spend the token budget on recent messages only, and reports summary_absent evidence when no requested summary can fit.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/memory/",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/memory ./internal/gonchotools -count=1"
+      ],
+      "done_signal": [
+        "Summary context fixtures prove short/long cadence, token-budget allocation, summary=false behavior, and visible degradation when no summary can fit."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 6,
+    "item": {
+      "name": "Goncho dialectic chat contract",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Goncho exposes a Honcho peer.chat-compatible request and response contract while keeping query-specific reasoning separate from prompt-time context assembly",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until the real dialectic tool loop and streaming transport land, honcho_chat returns deterministic content plus explicit unsupported evidence for stream=true and target-specific reasoning gaps.",
+      "fixture": "internal/goncho/chat_contract_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/chat.mdx",
+        "../honcho/docs/v3/documentation/features/advanced/representation-scopes.mdx",
+        "../honcho/docs/v3/documentation/reference/sdk.mdx",
+        "../honcho/docs/v3/guides/integrations/opencode.mdx",
+        "../honcho/docs/v3/guides/integrations/claude-code.mdx",
+        "../honcho/docs/v3/guides/integrations/mcp.mdx",
+        "../honcho/docs/v3/openapi.json",
+        "docs/content/building-gormes/goncho_honcho_memory/01-prompts.md",
+        "docs/content/building-gormes/goncho_honcho_memory/02-tool-schemas.md",
+        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/gonchotools/honcho_tools.go",
+        "internal/goncho/service.go"
+      ],
+      "ready_when": [
+        "Context options are schema-visible and manual conclusions can be queried through the existing Goncho service."
+      ],
+      "not_ready_when": [
+        "The slice replaces honcho_context or removes honcho_reasoning instead of adding the host-compatible honcho_chat contract."
+      ],
+      "blocked_by": [
+        "Goncho context representation options"
+      ],
+      "acceptance": [
+        "Chat params accept query, session_id, target, reasoning_level, and stream.",
+        "The default reasoning level is low and invalid reasoning levels are rejected.",
+        "The non-streaming response shape is content-only and matches Honcho's OpenAPI response contract.",
+        "stream=true and target-specific reasoning gaps return explicit degraded evidence until implemented.",
+        "honcho_reasoning remains available for backward compatibility."
+      ],
+      "note": "Honcho docs expose peer.chat as the slow query-specific reasoning path; newer host integrations call this honcho_chat or chat. Gormes should add the alias and contract before porting the full dialectic tool loop.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/gonchotools -count=1"
+      ],
+      "done_signal": [
+        "Chat contract tests prove request validation, default reasoning level, response shape, host-compatible tool alias, and explicit streaming degradation."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 7,
+    "item": {
+      "name": "Goncho file upload import ingestion",
+      "priority": "P4",
+      "status": "complete",
+      "contract": "Goncho can import text-like memory files as session messages without persisting original file bytes, matching Honcho's file-upload migration model",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until PDF extraction and a Goncho queue exist, unsupported content types fail before writes and imported messages report queue-unavailable evidence.",
+      "fixture": "internal/goncho/file_import_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/advanced/file-uploads.mdx",
+        "../honcho/docs/v3/documentation/reference/sdk.mdx",
+        "../honcho/docs/v3/guides/integrations/openclaw.mdx",
+        "../honcho/docs/v3/openapi.json",
+        "../honcho/src/utils/files.py",
+        "../honcho/src/routers/messages.py",
+        "../honcho/src/config.py",
+        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/goncho/service.go",
+        "internal/memory/schema.go"
+      ],
+      "ready_when": [
+        "Goncho has a deterministic session-message write path or a documented queue-unavailable degraded path for imported messages."
+      ],
+      "not_ready_when": [
+        "The slice stores original uploaded file bytes, silently accepts unsupported content types, or attempts PDF/OCR extraction before text and JSON imports are fixture-locked."
+      ],
+      "blocked_by": [
+        "Goncho queue status read model"
+      ],
+      "acceptance": [
+        "Text, Markdown, and JSON imports create normal session messages with required peer_id.",
+        "Imported chunks persist file_id, filename, chunk_index, total_chunks, original_file_size, content_type, and chunk_character_range metadata.",
+        "Original file bytes are not persisted.",
+        "created_at, metadata, and configuration are preserved when provided.",
+        "Runtime chunk size follows Honcho source settings.MAX_MESSAGE_SIZE at 25000 characters unless upstream changes that setting."
+      ],
+      "note": "TDD landed: internal/goncho/file_import_test.go covers text, Markdown, and JSON imports as ordinary session messages, file metadata in meta_json, required peer_id, unsupported content-type rejection before writes, no raw JSON file-byte persistence, created_at/metadata/configuration preservation, Honcho MAX_MESSAGE_SIZE chunking at 25000 characters, and queue-unavailable evidence. Verified with go test ./internal/goncho ./internal/memory ./cmd/gormes -count=1.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/memory/",
+        "cmd/gormes/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/memory ./cmd/gormes -count=1"
+      ],
+      "done_signal": [
+        "File import fixtures prove supported formats become ordinary messages, unsupported formats fail before writes, and original files are not persisted."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-25T05:34:12Z",
+        "last_success": "2026-04-25T05:34:12Z"
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 8,
+    "item": {
+      "name": "Goncho topology design fixtures",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Goncho workspace, peer, session, and observation defaults are fixture-locked before more memory behavior is added",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown external participant identity falls back to a deterministic source-prefixed peer ID and records the fallback in evidence.",
+      "fixture": "internal/goncho/topology_design_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/core-concepts/design-patterns.mdx",
+        "../honcho/docs/v3/documentation/features/storing-data.mdx",
+        "../honcho/docs/v3/guides/integrations/openclaw.mdx",
+        "../honcho/docs/v3/guides/integrations/claude-code.mdx",
+        "../honcho/docs/v3/guides/integrations/paperclip.mdx",
+        "../honcho/docs/v3/guides/integrations/sillytavern.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/session/directory.go",
+        "internal/goncho/types.go",
+        "internal/goncho/service.go",
+        "internal/gonchotools/honcho_tools.go"
+      ],
+      "ready_when": [
+        "The current session directory, Goncho service types, and Honcho tool schemas are readable in the repo."
+      ],
+      "not_ready_when": [
+        "The slice changes persistence behavior or reasoning behavior before topology rules are proven."
+      ],
+      "unblocks": [
+        "Goncho context representation options",
+        "Directional peer cards and representation scopes",
+        "Goncho operator diagnostics contract"
+      ],
+      "acceptance": [
+        "Default workspace is gormes unless explicit hard isolation is requested.",
+        "Workspace-per-user is rejected in fixtures.",
+        "Peer ID selection prefers internal/session.Metadata.UserID and falls back to source-prefixed external IDs.",
+        "Deterministic assistants, transport bots, and import helpers default to observe_me=false.",
+        "Conversation sessions follow real context boundaries such as thread, channel, repo, import batch, or delegated child run.",
+        "Cross-peer observation is opt-in and cannot become a default side effect."
+      ],
+      "note": "TDD landed: internal/goncho/topology_design_test.go locks the default gormes workspace, rejects workspace-per-user, proves canonical session user IDs before source-prefixed external fallback IDs with evidence, keeps deterministic assistants/transport bots/import helpers unobserved by default, names real session boundaries, and keeps cross-peer observation opt-in.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/session/",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/session ./internal/gonchotools -count=1"
+      ],
+      "done_signal": [
+        "Topology fixtures prove the default workspace, peer ID derivation, observation defaults, and session boundary choices expected by the operator playbook."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 9,
+    "item": {
+      "name": "Goncho operator diagnostics contract",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Gormes exposes a Honcho-inspired Goncho doctor path that checks memory topology, queues, config, and degraded modes without requiring operators to inspect raw tables",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing optional model/provider features are reported as degraded capability rows, not startup failures, unless a requested command needs them.",
+      "fixture": "cmd/gormes/goncho_doctor_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/reference/cli.mdx",
+        "../honcho/docs/v3/contributing/self-hosting.mdx",
+        "../honcho/docs/v3/contributing/configuration.mdx",
+        "../honcho/docs/v3/contributing/troubleshooting.mdx",
+        "../honcho/docs/v3/documentation/features/advanced/queue-status.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "cmd/gormes/doctor.go",
+        "cmd/gormes/memory.go",
+        "internal/memory/status.go",
+        "internal/goncho/service.go",
+        "internal/config/config.go"
+      ],
+      "ready_when": [
+        "Topology rules define the expected workspace, peer, session, and observation defaults."
+      ],
+      "not_ready_when": [
+        "The slice reaches out to upstream Honcho, external network services, or hosted LLMs by default."
+      ],
+      "blocked_by": [
+        "Goncho topology design fixtures"
+      ],
+      "unblocks": [
+        "Long-running architecture-planner-loop health reporting",
+        "Goncho queue status read model"
+      ],
+      "acceptance": [
+        "A human-readable command reports config, schema, session catalog, tool registration, context dry-run, queue status, conclusion availability, summary availability, provider readiness, and degraded modes.",
+        "A JSON output mode is available for autoloop and planner consumption.",
+        "Exit code 0 means healthy or explicitly degraded, 1 means client/config issue, 2 means runtime/storage issue, and 3 means auth/provider issue.",
+        "Zero-state databases report no data without failing.",
+        "The command reuses existing memory status where possible instead of adding a second status model."
+      ],
+      "note": "TDD landed: `gormes goncho doctor` reports config paths, schema/table presence, session catalog state, Honcho-compatible tool registration, context dry-run output, extractor and Goncho queue status, conclusion and summary availability, provider readiness, and visible degraded modes without external Honcho, network services, or hosted LLM calls by default. JSON output is available for autoloop/planner consumption; exit-code fixtures cover 0 healthy/degraded, 1 client/config, 2 runtime/storage, and 3 auth/provider. `gormes memory status` now includes the observability-only Goncho representation/summary/dream zero-state alongside the existing extractor queue.",
+      "write_scope": [
+        "cmd/gormes/",
+        "internal/goncho/",
+        "internal/memory/",
+        "internal/config/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes ./internal/goncho ./internal/memory ./internal/config -count=1"
+      ],
+      "done_signal": [
+        "Doctor fixtures prove text and JSON output, exit-code mapping, zero-state behavior, and visible degraded capability reporting."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 10,
+    "item": {
+      "name": "Goncho streaming chat persistence contract",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Goncho streaming chat stores the final assistant response once and never turns partial stream chunks into memory",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until streaming transport exists, stream=true returns explicit unsupported evidence while non-streaming chat keeps the Honcho-compatible response contract.",
+      "fixture": "internal/goncho/streaming_chat_persistence_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/advanced/streaming-response.mdx",
+        "../honcho/docs/v3/documentation/features/chat.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/goncho/types.go",
+        "internal/goncho/service.go",
+        "internal/gonchotools/honcho_tools.go",
+        "internal/memory/schema.go"
+      ],
+      "ready_when": [
+        "honcho_chat or equivalent dialectic chat params and response shape are fixture-locked."
+      ],
+      "not_ready_when": [
+        "The slice stores stream chunks as messages, creates synthetic assistant turns before completion, or changes honcho_context behavior."
+      ],
+      "blocked_by": [
+        "Goncho dialectic chat contract"
+      ],
+      "acceptance": [
+        "Streaming response handlers accumulate chunks into a final response before persistence.",
+        "Partial chunks are never written as memory messages.",
+        "Interrupted streams record interruption evidence and do not flush incomplete assistant content.",
+        "Successful streamed assistant responses are stored exactly once with the same session and assistant peer as non-streaming chat.",
+        "Token/counting metadata can be attached after completion without affecting the stored text."
+      ],
+      "note": "Complete: TDD landed internal/goncho/streaming_chat_persistence_test.go. The fixture proves stream=true degraded chat persists the final assistant response once, streaming handlers buffer chunks until completion, token metadata attaches after completion without mutating stored text, and interrupted streams return evidence without flushing partial assistant content to memory.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "internal/memory/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/gonchotools ./internal/memory -count=1"
+      ],
+      "done_signal": [
+        "Streaming fixtures prove completed responses are persisted once and interrupted or partial chunks cannot pollute memory."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-25T04:56:45Z",
+        "last_success": "2026-04-25T04:56:45Z"
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 11,
+    "item": {
+      "name": "Goncho configuration namespace",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Gormes owns a Go-native [goncho] configuration namespace that maps Honcho runtime limits and feature gates into existing config loading",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unset Goncho config uses documented defaults and reports feature-disabled evidence instead of requiring Honcho-style Python service variables.",
+      "fixture": "internal/config/goncho_config_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/contributing/configuration.mdx",
+        "../honcho/docs/v3/contributing/self-hosting.mdx",
+        "../honcho/docs/v3/contributing/troubleshooting.mdx",
+        "docs/content/building-gormes/goncho_honcho_memory/05-operator-playbook.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/config/config.go",
+        "internal/goncho/types.go",
+        "cmd/gormes/doctor.go"
+      ],
+      "ready_when": [
+        "The existing Gormes config loader and doctor output can be extended without changing unrelated agent settings."
+      ],
+      "not_ready_when": [
+        "The slice copies Honcho Python environment variables directly or requires provider credentials before Goncho can run in zero-state mode."
+      ],
+      "blocked_by": [
+        "Goncho topology design fixtures"
+      ],
+      "unblocks": [
+        "Goncho operator diagnostics contract",
+        "Goncho file upload import ingestion",
+        "Goncho summary context budget"
+      ],
+      "acceptance": [
+        "Config supports enabled, workspace, observer_peer, recent_messages, max_message_size, max_file_size, get_context_max_tokens, reasoning_enabled, peer_card_enabled, summary_enabled, dream_enabled, deriver_workers, representation_batch_max_tokens, and dialectic_default_level.",
+        "Environment variables use the GORMES_GONCHO_ prefix.",
+        "Defaults mirror Honcho docs where applicable: max_message_size=25000, max_file_size=5242880, get_context_max_tokens=100000, deriver_workers=1, representation_batch_max_tokens=1024, and dream_enabled=false until fixtures exist.",
+        "Invalid reasoning levels and negative limits fail config validation.",
+        "Doctor output includes the effective Goncho config with secrets redacted."
+      ],
+      "note": "TDD landed: internal/config/goncho_config_test.go proves [goncho] defaults, GORMES_GONCHO_* overrides, invalid dialectic levels, negative limit validation, and mapping into goncho.Config; internal/goncho/config_test.go locks the Go-native runtime defaults and dialectic levels; cmd/gormes/goncho_doctor_test.go proves doctor visibility with secrets absent and dream feature-disabled evidence.",
+      "write_scope": [
+        "internal/config/",
+        "internal/goncho/",
+        "cmd/gormes/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config ./internal/goncho ./cmd/gormes -count=1"
+      ],
+      "done_signal": [
+        "Config fixtures prove defaults, GORMES_GONCHO_* overrides, validation failures, and doctor visibility for effective Goncho settings."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 12,
+    "item": {
+      "name": "Goncho dreaming scheduler contract",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Goncho models Honcho dream scheduling as local auditable work intent with cooldown, idle, threshold, and dedupe gates before any LLM dream execution",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When dreaming is disabled or no scheduler table exists, Goncho context and doctor output report dream_disabled or dream_unavailable evidence rather than implying background reasoning is active.",
+      "fixture": "internal/goncho/dream_scheduler_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/documentation/features/advanced/dreaming.mdx@e659b6b",
+        "../honcho/docs/v3/documentation/core-concepts/reasoning.mdx@e659b6b",
+        "../honcho/docs/v3/contributing/configuration.mdx@e659b6b",
+        "docs/content/building-gormes/goncho_honcho_memory/03-honcho-docs-study.md",
+        "docs/content/building-gormes/goncho_honcho_memory/04-agent-work-packets.md",
+        "internal/goncho/service.go",
+        "internal/config/config.go"
+      ],
+      "ready_when": [
+        "Goncho configuration namespace, queue status read model, and directional representation scope fixtures are validated on main.",
+        "The first slice only records dream work intent and degraded evidence; it does not need a model provider, worker daemon, or surprisal tree."
+      ],
+      "not_ready_when": [
+        "The slice runs LLM deduction or induction, implements tree-based surprisal, starts background workers, or calls a hosted Honcho service."
+      ],
+      "acceptance": [
+        "Scheduler fixtures create at most one pending or in-progress dream per workspace/observer/observed tuple.",
+        "A dream is eligible only after at least 50 new conclusions since the last dream, an eight-hour cooldown, and the configured idle timeout.",
+        "New activity cancels or marks stale a pending dream for the observed peer without deleting prior dream history.",
+        "Manual schedule requests are deduped and report whether they created, reused, or rejected a dream intent.",
+        "Doctor/status output exposes dream_disabled, dream_pending, dream_in_progress, and dream_cooldown evidence without waiting for queue emptiness."
+      ],
+      "note": "TDD landed: Goncho now records local auditable dream work intent in goncho_dreams, gates automatic scheduling on 50 new conclusions, eight-hour cooldown, and configured idle timeout, dedupes pending/in-progress work per workspace/observer/observed tuple, marks pending dreams stale on new activity, and reports dream_disabled, dream_unavailable, dream_pending, dream_in_progress, and dream_cooldown in context, doctor, and status evidence without LLM execution, surprisal trees, hosted Honcho calls, or background workers.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/memory/",
+        "internal/config/",
+        "cmd/gormes/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/memory ./internal/config ./cmd/gormes -run TestGonchoDream -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Dream scheduler fixtures prove threshold, cooldown, idle, dedupe, manual scheduling, cancellation, and doctor/status degraded evidence without LLM execution."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-25T12:27:15Z",
+        "last_success": "2026-04-25T12:27:15Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "honcho:e659b6b docs/v3/documentation/features/advanced/dreaming.mdx",
+        "note": "Honcho defines dream eligibility semantics; Gormes keeps the first slice as Go-native Goncho scheduler evidence before any hosted or LLM-backed dream execution."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 13,
+    "item": {
+      "name": "Goncho CRUD lifecycle invariants",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Goncho service methods preserve Honcho's core workspace/session/message lifecycle invariants over local SQLite: message creation assigns session-local sequence numbers with workspace/session/peer metadata, session deletion cascades session-scoped messages/conclusions/summaries while preserving cross-session peer state, and workspace deletion cascades only that workspace's local Goncho rows.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Goncho records lifecycle identity in turn metadata instead of introducing a parallel hosted Honcho schema; OpenAPI route shapes, SDK pagination, webhooks, vector embeddings, documents, and queue workers remain separate rows.",
+      "fixture": "internal/goncho/crud_invariants_test.go",
+      "source_refs": [
+        "../honcho/src/models.py:Workspace",
+        "../honcho/src/models.py:Peer",
+        "../honcho/src/models.py:Session",
+        "../honcho/src/models.py:SessionPeer",
+        "../honcho/src/models.py:Message",
+        "../honcho/src/models.py:MessageEmbedding",
+        "../honcho/src/models.py:Collection",
+        "../honcho/src/models.py:Document",
+        "../honcho/src/models.py:QueueItem",
+        "../honcho/src/models.py:ActiveQueueSession",
+        "../honcho/src/models.py:WebhookEndpoint",
+        "../honcho/src/crud/message.py:create_messages",
+        "../honcho/src/crud/session.py:delete_session",
+        "../honcho/src/crud/workspace.py:delete_workspace",
+        "../honcho/src/crud/peer.py",
+        "../honcho/src/crud/peer_card.py",
+        "../honcho/src/crud/document.py",
+        "../honcho/src/crud/webhook.py",
+        "../honcho/src/crud/deriver.py",
+        "../honcho/src/crud/collection.py:collection_cache_key,get_collection,get_or_create_collection,update_collection_internal_metadata",
+        "../honcho/tests/crud/test_workspace.py",
+        "../honcho/tests/crud/test_session.py",
+        "../honcho/tests/routes/test_messages.py",
+        "internal/goncho/service.go",
+        "internal/goncho/sql.go",
+        "internal/goncho/types.go"
+      ],
+      "ready_when": [
+        "Goncho topology design fixtures, summary context budget, conclusions, peer-card storage, and dream scheduler tables are validated on main.",
+        "The slice can remain inside internal/goncho service/sql code and tests without adding HTTP route handlers, CLI commands, hosted Honcho SDK clients, vector adapters, webhook delivery, or background workers.",
+        "Workspace identity is enforced through Goncho metadata and existing workspace_id columns so same session keys in different workspaces do not collide."
+      ],
+      "not_ready_when": [
+        "The slice implements OpenAPI v3 routes, SDK compatibility, webhook endpoints, document/vector storage, queue workers, or hosted Honcho auth instead of local lifecycle invariants.",
+        "The slice creates a second persistence queue outside the existing SQLite memory store.",
+        "The tests require Postgres, Redis, vector stores, external Honcho, network calls, or generated SDK clients."
+      ],
+      "unblocks": [
+        "Goncho HTTP route parity over OpenAPI v3",
+        "Goncho CLI command-tree parity",
+        "Goncho Honcho SDK compatibility e2e harness",
+        "Vector store + reconciler divergence proof"
+      ],
+      "acceptance": [
+        "CreateMessages stores a batch as ready turns with workspace/session/peer metadata and monotonically increasing seq_in_session values per workspace/session.",
+        "A second CreateMessages call for the same workspace/session continues from the last sequence number instead of restarting at one.",
+        "DeleteSession deletes only session-scoped messages, conclusions, and summaries for the workspace/session while preserving peer cards and global peer conclusions.",
+        "DeleteWorkspace deletes local Goncho messages, peer cards, conclusions, summaries, and dream rows for one workspace without deleting rows for another workspace using the same session key.",
+        "Focused tests prove the invariants over SQLite without OpenAPI, CLI, SDK, hosted Honcho, Postgres, Redis, vector store, webhook, or worker dependencies."
+      ],
+      "note": "Complete: TDD added internal/goncho/crud_invariants_test.go and Go-native lifecycle methods Service.CreateMessages, Service.DeleteSession, and Service.DeleteWorkspace backed by internal/goncho/sql.go helpers. CreateMessages stores Honcho-compatible workspace/session/peer/seq metadata on turns, session delete cascades session messages/conclusions/summaries while preserving cross-session peer state, and workspace delete cascades only that workspace's local Goncho rows even when another workspace shares the same session key. Verified with `go test ./internal/goncho -run CRUDInvariants -count=1` and `go test ./internal/goncho -count=1`.",
+      "write_scope": [
+        "internal/goncho/crud_invariants_test.go",
+        "internal/goncho/service.go",
+        "internal/goncho/sql.go",
+        "internal/goncho/types.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run CRUDInvariants -count=1",
+        "go test ./internal/goncho -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "CRUD lifecycle fixtures prove create-message sequencing, session-scoped cascade deletion, and workspace-scoped cascade deletion over local SQLite with no hosted Honcho dependencies."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-28T14:11:16Z",
+        "last_success": "2026-04-28T14:11:16Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "honcho:src/crud/{workspace,session,message}.py + src/models.py",
+        "note": "Honcho defines the workspace/session/message lifecycle and deletion cascade semantics; Gormes adapts them to its local SQLite turn/conclusion/summary/dream tables before HTTP, CLI, SDK, vector, or webhook compatibility rows."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 14,
+    "item": {
+      "name": "Goncho empty peer-card hint contract",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "honcho_profile reads that return an empty Goncho peer card include a structured diagnostic hint explaining likely causes and alternative tools, while populated cards keep the existing card response shape and empty cards remain a non-error state",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If Goncho cannot distinguish the exact cause, the hint reports peer_card_empty_unknown plus alternatives to honcho_reasoning and honcho_search instead of surfacing a cryptic empty result.",
+      "fixture": "internal/gonchotools/honcho_profile_hint_test.go::TestHonchoProfileEmptyHint_*",
+      "source_refs": [
+        "../hermes-agent/plugins/memory/honcho/__init__.py@894e0b93:PROFILE_SCHEMA/_empty_profile_hint/handle_tool_call",
+        "../hermes-agent/tests/honcho_plugin/test_empty_profile_hint.py@894e0b93",
+        "internal/goncho/types.go:ProfileResult",
+        "internal/goncho/service.go:Profile",
+        "internal/gonchotools/honcho_tools.go:HonchoProfileTool"
+      ],
+      "ready_when": [
+        "Goncho topology design fixtures, directional peer cards, and the honcho_profile tool are validated on main.",
+        "The worker can seed an empty peer card and a populated peer card through the in-memory Goncho test service; no hosted Honcho service, LLM dialectic worker, or external SDK is required.",
+        "Keep the internal implementation named Goncho while preserving the public honcho_profile tool name and JSON compatibility."
+      ],
+      "not_ready_when": [
+        "The slice renames honcho_profile, changes honcho_search/honcho_context schemas, or treats empty peer cards as execution errors.",
+        "The slice implements hosted Honcho SDK client configuration, HTTP timeouts, baseUrl migration, or global ~/.honcho config fallback.",
+        "The slice starts a dialectic worker or changes peer-card storage semantics."
+      ],
+      "unblocks": [
+        "Goncho Honcho SDK compatibility e2e harness"
+      ],
+      "acceptance": [
+        "TestHonchoProfileEmptyHint_DefaultEmptyCard includes result, hint, peer, workspace_id, and evidence code peer_card_empty_warmup or peer_card_empty_unknown without returning a tool error.",
+        "TestHonchoProfileEmptyHint_PeerCardDisabled includes peer_card_disabled evidence when Goncho config disables peer-card support.",
+        "TestHonchoProfileEmptyHint_AlternativeToolsMentioned proves the hint names honcho_reasoning and honcho_search so models can route around the empty card.",
+        "TestHonchoProfileEmptyHint_PopulatedCardOmitsHint proves populated cards preserve the existing card array response and do not include hint/evidence noise.",
+        "HonchoProfileTool.Schema description mentions that an empty card can include a hint and is not an error."
+      ],
+      "note": "Complete: TDD added internal/gonchotools/honcho_profile_hint_test.go plus typed ProfileHint output on goncho.ProfileResult. honcho_profile now returns non-error empty-card diagnostics with result text, peer/workspace identity, structured hint codes peer_card_empty_unknown or peer_card_disabled, and alternatives to honcho_reasoning and honcho_search. Populated cards preserve the existing card array shape with no hint/result noise, and the tool schema now states that empty cards can include a hint and are not errors.",
+      "write_scope": [
+        "internal/goncho/types.go",
+        "internal/goncho/service.go",
+        "internal/gonchotools/honcho_tools.go",
+        "internal/gonchotools/honcho_profile_hint_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/gonchotools -run 'TestHonchoProfileEmptyHint|TestHonchoProfileTool' -count=1",
+        "go test ./internal/goncho ./internal/gonchotools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "honcho_profile fixtures prove empty-card hints are structured, non-error, alternative-tool aware, and omitted for populated cards."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-28T22:23:19Z",
+        "last_success": "2026-04-28T22:23:19Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:894e0b93 plugins/memory/honcho/__init__.py",
+        "note": "Hermes supplies the user-visible Honcho plugin compatibility fix; Gormes adapts it to the internal Goncho service while preserving honcho_* tool names."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 15,
+    "item": {
+      "name": "Hermes memory tool over Goncho/local durable store",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Expose the Hermes-visible `memory` tool with add, replace, and remove actions plus a Gormes read-only inspection action over memory/user targets, backed by Goncho or local durable USER.md/MEMORY.md storage, while preserving safe write responses, redaction, locks, prompt-insertion semantics, and Hermes-compatible replace content arguments.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "system",
+        "operator"
+      ],
+      "degraded_mode": "If durable memory storage is unavailable, the tool returns memory_store_unavailable evidence and does not mutate prompt context or transcripts.",
+      "fixture": "internal/tools/memory_tool_test.go + internal/memory",
+      "source_refs": [
+        "../hermes-agent/tools/memory_tool.py:1-24",
+        "../hermes-agent/tools/memory_tool.py:222-513",
+        "../hermes-agent/tools/memory_tool.py:105-124",
+        "../hermes-agent/tools/memory_tool.py:129-163",
+        "cmd/gormes/registry.go",
+        "internal/gonchotools/honcho_tools.go",
+        "internal/hermes/durable_user_context.go",
+        "internal/memory/"
+      ],
+      "ready_when": [
+        "Hermes memory tool actions and Gormes Goncho/local durable context seams have been source-mapped.",
+        "Temp durable memory fixtures can prove add/replace/remove behavior without reading live USER.md/MEMORY.md or external Honcho."
+      ],
+      "acceptance": [
+        "Default tool registry exposes a Hermes-compatible `memory` descriptor.",
+        "Add, replace, and remove actions mutate only temp durable USER.md/MEMORY.md fixtures in tests.",
+        "Read action returns bounded live entries and usage without mutating durable USER.md/MEMORY.md fixtures.",
+        "Read action parses Hermes `\\n§\\n` delimited memory files and deduplicates repeated entries while preserving first occurrence order.",
+        "Add/write actions persist memory entries with Hermes' `\\n§\\n` delimiter instead of the legacy double-blank delimiter.",
+        "Add, replace, and remove actions honor Hermes' sibling `MEMORY.md.lock` / `USER.md.lock` file before read-modify-write mutations so concurrent sessions do not silently clobber durable memory.",
+        "Replace accepts Hermes' `content` field as a compatibility alias when Gormes' `new_content` field is omitted.",
+        "Limit-exceeded add responses return current_entries and current usage without leaking or persisting the rejected content.",
+        "memory and user targets map to the intended durable stores without renaming Goncho internally.",
+        "Injection/exfiltration scans reject Hermes role-hijack, bypass, secret-read, wget/curl exfiltration, SSH backdoor, and hidden unicode patterns before durable memory writes.",
+        "Tool responses are bounded and match Hermes-compatible success/error shapes with redacted degraded evidence."
+      ],
+      "write_scope": [
+        "cmd/gormes/registry.go",
+        "cmd/gormes/registry_test.go",
+        "internal/tools/memory_tool.go",
+        "internal/tools/memory_tool_test.go",
+        "internal/memory/",
+        "internal/goncho/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/memory ./internal/goncho -run 'MemoryTool|DurableUserContext|Goncho' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run Registry -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermes-compatible `memory` tool fixtures prove safe durable add/replace/remove/read behavior, replace content-field compatibility, bounded guidance, and default registry exposure."
+      ],
+      "health": {
+        "last_attempt": "2026-04-30T16:24:20Z",
+        "last_success": "2026-04-30T16:24:20Z",
+        "backends_tried": [
+          "codex"
+        ],
+        "evidence": [
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run ^TestMemoryTool -count=1 failed on undefined MemoryTool APIs.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run ^TestMemoryTool -count=1 passed.",
+          "RED/GREEN registry: GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run ^TestBuildDefaultRegistryDelegationDisabled$ -count=1 failed until memory registration was added, then passed.",
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReplaceAcceptsHermesContentField|ReadsDurableMemoryWithoutMutating|SchemaDocumentsReadActionAndGuidance)' -count=1 failed until read, content-field replace compatibility, and guidance were implemented.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryTool -count=1 passed.",
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolRejectsUnsafePromptInjectionContent -count=1 failed when role-hijack content was accepted and persisted.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolRejectsUnsafePromptInjectionContent -count=1 passed after porting the missing Hermes memory threat patterns.",
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolLimitExceededReturnsCurrentEntriesAndUsage -count=1 failed until current_entries and usage were added to limit-exceeded responses.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(LimitExceededReturnsCurrentEntriesAndUsage|RejectsUnsafePromptInjectionContent)' -count=1 passed.",
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReadsHermesDelimitedEntriesAndDeduplicates|WritesHermesEntryDelimiter)' -count=1 failed because Hermes-delimited files were parsed as one entry and writes used the legacy double-blank delimiter.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryTool(ReadsHermesDelimitedEntriesAndDeduplicates|WritesHermesEntryDelimiter)' -count=1 passed after switching to Hermes delimiter and deduping loaded entries.",
+          "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestMemoryToolAddWaitsForHermesLockFile -count=1 failed because add completed while MEMORY.md.lock was held.",
+          "GREEN: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestMemoryToolAddWaitsForHermesLockFile|^TestMemoryTool$' -count=1 passed after wrapping memory mutations in a sibling lock file."
+        ]
+      },
+      "provenance": {
+        "origin_type": "porting",
+        "upstream_ref": "hermes:tools/memory_tool.py",
+        "note": "Internal subsystem remains GONCHO/Goncho; public tool name remains Hermes-compatible `memory`."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 16,
+    "item": {
+      "name": "Goncho memory provider lifecycle adapter",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Create a native Goncho memory-provider lifecycle adapter covering initialize, prefetch, sync turn, pre-compress contribution, memory-write mirror, delegation, and shutdown evidence so Gormes matches Hermes MemoryManager behavior without a hosted Honcho dependency.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "Unavailable providers return memory_provider_unavailable evidence and leave ordinary turn execution intact.",
+      "fixture": "internal/memory/provider_lifecycle_test.go + internal/goncho",
+      "source_refs": [
+        "../hermes-agent/agent/memory_manager.py:97",
+        "../hermes-agent/agent/memory_manager.py:178",
+        "../hermes-agent/agent/memory_manager.py:210",
+        "../hermes-agent/agent/memory_manager.py:296",
+        "../hermes-agent/agent/memory_manager.py:315",
+        "../hermes-agent/agent/memory_manager.py:331",
+        "internal/memory/",
+        "internal/goncho/",
+        "internal/kernel/"
+      ],
+      "ready_when": [
+        "Hermes MemoryManager lifecycle hooks and Gormes Goncho/kernel seams have been source-mapped.",
+        "Fake provider and temp SQLite/local stores can exercise lifecycle behavior without hosted Honcho or provider network."
+      ],
+      "acceptance": [
+        "Lifecycle tests prove initialize and prefetch run once per session/provider.",
+        "Turn sync mirrors user/assistant exchanges into Goncho with redacted evidence.",
+        "Pre-compress contributions are bounded and ordered before compression.",
+        "Shutdown drains or reports pending memory work without blocking process exit.",
+        "Tests use fake providers and SQLite temp stores only."
+      ],
+      "note": "TDD landed 2026-04-30: internal/memory now exposes a native MemoryProviderLifecycle adapter with hermetic fixtures for initialize idempotence, ordered prefetch and pre-compress contributions, sync-turn mirroring, memory-write/delegation hooks, reverse shutdown, and sanitized memory_provider_unavailable degradation. Focused row tests also cover existing Goncho/kernel shutdown and pre-compress gates without live Honcho, provider network, or Hermes runtime services.",
+      "write_scope": [
+        "internal/memory/",
+        "internal/goncho/",
+        "internal/kernel/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/memory ./internal/goncho ./internal/kernel -run 'MemoryProviderLifecycle|ShutdownMemory|PreCompress|Goncho' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "MemoryProviderLifecycle fixtures prove initialize, prefetch, sync, pre-compress, memory-write mirror, delegation, reverse shutdown, and sanitized degraded evidence behavior."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:agent/memory_manager.py",
+        "note": "Hermes defines lifecycle semantics; Gormes adapts them to the native Goncho/local memory stack."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 17,
+    "item": {
+      "name": "Goncho Memory V1 compatibility contract and migration harness",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Freeze the first public Goncho memory compatibility contract so future V2+ memory work can improve ranking, summaries, embeddings, QMD-assisted deep search, dialectic, storage internals, and self-improving memory loops without breaking existing user memory or leaking memory across independent agents. V1 must define stable memory IDs, provenance, agent/workspace/peer/session scopes, markdown format, MCP/tool semantics, forget-versus-purge behavior, per-agent eval artifacts, and no-loss upgrade tests before additional local-first memory features build on top.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If optional embeddings, QMD, or dialectic workers are unavailable, V1 memory remains readable, writable, migratable, and recallable through local SQLite/FTS/graph paths with no network or hosted provider dependency.",
+      "fixture": "internal/memory/testdata/goncho_v1/; internal/goncho/memory_v1_contract_test.go; internal/gonchotools/memory_v1_mcp_test.go; cmd/gormes/goncho_memory_v1_test.go",
+      "source_refs": [
+        "User directive, 2026-05-03: plan V1 so V2 and later do not break user memory.",
+        "User directive, 2026-05-03: multi-agent memory must be independent by default; normal Gormes runtime must not read other agents' config or private memory except through explicit migrate commands.",
+        "docs/content/building-gormes/goncho_honcho_memory/_index.md",
+        "docs/content/building-gormes/architecture_plan/phase-3-memory.md",
+        "internal/memory/schema.go:schemaVersion",
+        "internal/memory/migrate.go:migrate",
+        "internal/goncho/memory_tools.go",
+        "internal/goncho/service.go",
+        "cmd/gormes/goncho.go"
+      ],
+      "ready_when": [
+        "Current SQLite schema migration behavior and Goncho memory object surfaces are audited.",
+        "The V1 object contract separates runtime source-of-truth state from editable/exported markdown state.",
+        "The plan distinguishes soft forget/tombstone behavior from explicit irreversible purge.",
+        "The plan identifies the agent_id/workspace_id/peer_id/session_id fields and fixtures needed to prove private per-agent memory and self-improvement isolation."
+      ],
+      "not_ready_when": [
+        "The row would change runtime memory code before a V1 corpus, format, and migration test shape are defined.",
+        "The design treats markdown or optional QMD indexes as the only durable source of user memory.",
+        "The design allows future schema migrations to rewrite, drop, or silently re-key user memory without golden corpus evidence.",
+        "The design allows one agent to read another agent's config/private memory, share recall by default, or mutate another agent's self-improvement artifacts without explicit workspace/peer scope and provenance."
+      ],
+      "acceptance": [
+        "A checked-in V1 corpus covers SQLite rows, editable markdown export, MCP/tool transcript fixtures, tombstones, revisions, provenance, agent/workspace/peer/session scopes, per-agent eval artifacts, and expected recall results.",
+        "Opening and migrating the V1 corpus preserves stable memory IDs, source/session/turn provenance, active/tombstoned state, and markdown round-trip checksums.",
+        "Unknown future memory schema versions are refused without writing, while known older V1 schema/format versions migrate transactionally.",
+        "V1 tool semantics for store_memory, retrieve_memory, update_memory, summarize_memories, forget_memory, and explicit purge policy are documented and test-locked.",
+        "Agent A cannot recall Agent B private memory by default; shared memory requires explicit workspace/peer scope and records provenance for the creating agent.",
+        "Self-improvement artifacts such as recall misses, quality scores, and proposed memory/ranking changes are per-agent by default and can affect shared memory only through reviewed, provenance-tagged proposals.",
+        "External Hermes/OpenClaw memory imports land only through gormes migrate hermes/openclaw into Gormes-owned namespaces; normal runtime memory access never reads foreign agent config or private memory.",
+        "Doctor/status output reports the memory schema version, Goncho memory contract version, markdown format version, and any degraded optional index/search providers.",
+        "The fast normal-turn recall path remains local and does not require embeddings, QMD, remote Honcho, or hosted APIs."
+      ],
+      "note": "Validated 2026-05-03: TDD added the Goncho Memory V1 contract constants/read model, schema v3j with stable-ID goncho_memory_items, FTS recall index, per-agent eval artifacts, migration backfill from goncho_conclusions, versioned markdown parser/renderer with checksum validation, MCP/tool transcript fixture checks, multi-agent private/shared recall isolation fixtures, per-agent self-improvement artifact fixture checks, unknown-future-version no-write evidence, and goncho doctor JSON/text contract reporting. Focused commands passed: go test ./internal/memory -run 'TestMigrate|TestGonchoMemoryV1' -count=1; go test ./internal/goncho ./internal/gonchotools -run 'TestMemoryV1|TestMemoryTools|TestHonchoMCP' -count=1; go test ./cmd/gormes -run 'TestGoncho.*Doctor|TestGoncho.*MemoryV1' -count=1.",
+      "write_scope": [
+        "internal/memory/",
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "cmd/gormes/",
+        "docs/content/building-gormes/goncho_honcho_memory/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/memory -run 'TestMigrate|TestGonchoMemoryV1' -count=1",
+        "go test ./internal/goncho ./internal/gonchotools -run 'TestMemoryV1|TestMemoryTools|TestHonchoMCP' -count=1",
+        "go test ./cmd/gormes -run 'TestGoncho.*Doctor|TestGoncho.*MemoryV1' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports the V1 corpus paths, contract/format version constants, migration tests, markdown round-trip tests, MCP/tool transcript fixtures, multi-agent isolation fixtures, per-agent self-improvement fixtures, and doctor output proving future Goncho upgrades cannot silently lose, leak, or re-key user memory."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.F",
+    "pos": 18,
+    "item": {
+      "name": "GONCHO local-first markdown MCP memory requirement",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "GONCHO must support a local-first memory mode that answers the OpenClaw community pain point: no cloud dependency, no mandatory API key, user-readable/editable markdown memory files, MCP-compatible access from any agent framework, optional local embeddings via Ollama, and restart-persistent storage.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If Ollama or embeddings are unavailable, GONCHO still persists and serves markdown-backed lexical/SQLite recall locally without requiring network access or a hosted memory provider.",
+      "fixture": "internal/goncho/local_markdown_mcp_test.go; internal/gonchotools/mcp_catalog_test.go; internal/memory/markdown_store_test.go",
+      "source_refs": [
+        "User-provided Reddit r/openclaw post, 2026-05-03: frustration with mem0/Zep/cloud-hosted/heavy/API-key memory; requested fully local markdown MCP memory for GONCHO.",
+        "Goncho Memory V1 compatibility contract and migration harness",
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "Phase 5.G MCP Integration / Goncho MCP tool catalog"
+      ],
+      "ready_when": [
+        "Goncho Memory V1 compatibility contract and migration harness has frozen stable IDs, provenance, markdown format version, MCP/tool semantics, forget/purge behavior, and golden corpus migration gates.",
+        "Existing Goncho service/tool contracts are audited for where markdown export/import, local embedding configuration, and MCP tool catalog behavior should attach.",
+        "The implementation plan preserves Honcho-compatible external tool names while branding the internal subsystem as GONCHO."
+      ],
+      "not_ready_when": [
+        "The design requires mem0, Zep, a hosted vector database, a cloud API key, or an opaque-only binary store to start.",
+        "Markdown files are treated only as one-way exports instead of user-editable source material that can be reloaded safely."
+      ],
+      "acceptance": [
+        "A fresh local Gormes install can enable GONCHO memory without cloud credentials or a paid API key.",
+        "Memories can be stored, inspected, edited, and reloaded as plain markdown files with deterministic conflict handling against SQLite/source-of-truth state.",
+        "Markdown reload/export preserves the V1 compatibility contract: stable memory IDs, provenance, revision history, tombstones, scopes, and golden recall fixtures survive future schema changes.",
+        "GONCHO exposes MCP-compatible memory tools/catalog entries usable by non-Gormes agent frameworks while keeping Honcho-compatible tool contracts where parity requires them.",
+        "Optional Ollama embeddings are configurable and never required for basic persistence/recall.",
+        "Memory survives process and machine restarts with documented on-disk paths and read-only diagnostics."
+      ],
+      "note": "Validated 2026-05-03: TDD added a local-first Goncho markdown memory store over the V1 SQLite tables, editable markdown reload/export that accepts same-revision human edits while rejecting stale files after newer DB revisions, restart-persistent retrieval, MCP-compatible store/retrieve/update/summarize/forget tool registration and catalog metadata, V1 tool result contract fields proving local_first/markdown_backed/no network/no Ollama requirement, and goncho doctor JSON/text diagnostics for the default on-disk GONCHO_MEMORY.md path plus registered MCP tools. Focused commands passed: go test ./internal/memory -run TestGonchoMarkdownStoreReloadExportAndConflictHandling -count=1; go test ./internal/goncho ./internal/gonchotools -run 'TestLocalMarkdownMemoryStore|TestMemoryV1MCP' -count=1; go test ./cmd/gormes -run 'TestGonchoDoctorCommand.*LocalMarkdown|TestGonchoDoctorCommand.*MemoryV1' -count=1.",
+      "write_scope": [
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "internal/memory/",
+        "cmd/gormes/",
+        "docs/content/building-gormes/architecture_plan/",
+        "docs/superpowers/specs/"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/gonchotools ./internal/memory -count=1",
+        "go test ./cmd/gormes -run Goncho -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Docs and tests demonstrate local markdown-backed GONCHO memory over MCP with no cloud/API-key dependency and restart persistence."
+      ]
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.G",
+    "pos": 0,
+    "item": {
+      "name": "Goncho keys + webhooks compatibility surface",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Goncho exposes Honcho-compatible scoped-key JWT helpers and workspace-scoped webhook endpoint CRUD/test-event/signature helpers over local SQLite without binding HTTP routes or delivery workers.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "The slice proves the local compatibility contract only: OpenAPI route binding, hosted auth middleware, queue-backed webhook publishing, delivery retries, and HMAC HTTP delivery remain row-backed by the HTTP route and operational worker rows.",
+      "fixture": "internal/goncho/keys_test.go; internal/goncho/webhooks_test.go",
+      "source_refs": [
+        "../honcho/src/routers/keys.py:create_key",
+        "../honcho/src/security.py:JWTParams/create_jwt/verify_jwt",
+        "../honcho/tests/routes/test_keys.py",
+        "../honcho/src/routers/webhooks.py",
+        "../honcho/src/crud/webhook.py",
+        "../honcho/src/webhooks/events.py",
+        "../honcho/tests/routes/test_webhooks.py",
+        "internal/goncho/keys.go",
+        "internal/goncho/webhooks.go"
+      ],
+      "ready_when": [
+        "Goncho CRUD lifecycle invariants are validated so workspace-scoped local persistence can reuse the same SQLite service facade.",
+        "The slice can remain inside internal/goncho with no HTTP route binding, hosted Honcho service, external JWT library, queue worker, or outbound webhook delivery."
+      ],
+      "not_ready_when": [
+        "The slice implements full OpenAPI v3 route parity, hosted auth middleware, SDK clients, queue-backed webhook publishing, or network delivery instead of the local compatibility surface.",
+        "The tests require Postgres, Redis, external Honcho, generated SDKs, live webhooks, or network calls."
+      ],
+      "unblocks": [
+        "Goncho HTTP route parity over OpenAPI v3",
+        "Goncho webhook delivery retry worker contract"
+      ],
+      "acceptance": [
+        "CreateScopedKey refuses disabled auth, non-admin callers, missing scope, and missing JWT secrets.",
+        "CreateScopedKey emits HS256 JWTs with Honcho-compatible compact claim names t, exp, w, p, and s, and VerifyScopedKey rejects wrong secrets and expired keys.",
+        "GetOrCreateWebhookEndpoint validates HTTP/HTTPS public URLs, enforces the default workspace limit, returns the existing endpoint for duplicate URLs in the same workspace, and treats the same URL in another workspace as a separate resource.",
+        "ListWebhookEndpoints and DeleteWebhookEndpoint are workspace-scoped and reject cross-workspace deletes.",
+        "NewTestWebhookEvent and SignWebhookPayload preserve Honcho's test.event and HMAC-SHA256 payload signature contract, including missing-secret failure evidence, without publishing to a queue."
+      ],
+      "note": "Complete: TDD added internal/goncho/keys.go, internal/goncho/webhooks.go, and focused tests. The key surface mirrors Honcho's admin-only /keys behavior with local HS256 JWT creation/verification and compact w/p/s/exp/t claim names. The webhook surface mirrors Honcho's workspace-scoped create/list/delete/test endpoint contract over local SQLite with URL validation, duplicate get-or-create semantics, per-workspace limit enforcement, workspace-isolated deletes, test.event construction, and HMAC-SHA256 payload signing. HTTP route binding, hosted auth middleware, queue publication, outbound delivery, retries, and OpenAPI/SDK compatibility remain separate rows.",
+      "write_scope": [
+        "internal/goncho/keys.go",
+        "internal/goncho/keys_test.go",
+        "internal/goncho/webhooks.go",
+        "internal/goncho/webhooks_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run Keys -count=1",
+        "go test ./internal/goncho -run Webhooks -count=1",
+        "go test ./internal/goncho -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Goncho fixtures prove scoped-key JWT creation/verification and workspace-scoped webhook CRUD/test-event/signature compatibility without HTTP routes, hosted Honcho, queue workers, or outbound delivery."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-28T15:06:00Z",
+        "last_success": "2026-04-28T15:06:00Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "honcho:src/routers/{keys,webhooks}.py + src/security.py + src/crud/webhook.py + src/webhooks/events.py",
+        "note": "Honcho supplies the public key/webhook behavior; Gormes owns a local Go compatibility surface and leaves route/worker binding to dedicated rows."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.G",
+    "pos": 1,
+    "item": {
+      "name": "Goncho webhook delivery retry worker contract",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Goncho ports Honcho outbound webhook delivery as a local fake-HTTP worker contract through WebhookDeliveryWorker, WebhookDeliveryStore, WebhookHTTPClient, WebhookClock, WebhookDeliveryAttempt, and WebhookDeliveryResult types with queue-empty/test events, HMAC headers, retry/backoff/failure evidence, and workspace endpoint disablement without requiring Redis, hosted Honcho, or live network tests.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Failed or disabled endpoints produce retry/failure evidence and leave local state auditable instead of dropping events silently or blocking core Goncho writes.",
+      "fixture": "internal/goncho/webhook_delivery_test.go",
+      "source_refs": [
+        "../honcho/src/webhooks/webhook_delivery.py",
+        "../honcho/src/webhooks/events.py:QueueEmptyEvent,TestEvent",
+        "../honcho/src/routers/webhooks.py",
+        "../honcho/tests/webhooks/test_webhook_delivery.py",
+        "../honcho/tests/routes/test_webhooks.py",
+        "internal/goncho/webhooks.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Webhooks",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+      ],
+      "ready_when": [
+        "`Goncho keys + webhooks compatibility surface` has validated endpoint CRUD, test-event construction, and HMAC signing helpers.",
+        "The worker can use fake HTTP clients, fake clocks, and in-memory queues; no Redis, Postgres, hosted Honcho, external network, or generated SDK is required."
+      ],
+      "not_ready_when": [
+        "The slice binds OpenAPI routes, starts a background service, performs live HTTP calls, or rewrites the existing webhook endpoint CRUD contract.",
+        "The slice treats queue publication as complete without retry/backoff/failure state and disabled-endpoint evidence.",
+        "The slice changes key/JWT behavior, SDK compatibility, or unrelated Goncho route bindings."
+      ],
+      "unblocks": [
+        "Self-monitoring telemetry"
+      ],
+      "acceptance": [
+        "WebhookDeliveryWorker consumes WebhookDeliveryStore, WebhookHTTPClient, and WebhookClock seams and returns WebhookDeliveryResult values with attempt, status, retry, and redacted evidence fields.",
+        "QueueEmptyEvent and TestEvent payload fixtures match Honcho event names, workspace/endpoint scoping, timestamps, and JSON shape needed by downstream SDK/webhook tests.",
+        "Delivery uses the existing HMAC-SHA256 payload signature helper and includes deterministic headers without exposing webhook secrets.",
+        "Fake HTTP tests cover success, retryable failure, permanent failure, backoff scheduling, max-attempt exhaustion, and endpoint-disabled behavior.",
+        "Failure evidence records endpoint, workspace, event, status/error class, attempt count, and next retry time with redacted URL/secret details.",
+        "The implementation remains a pure worker/service contract; HTTP route binding, Redis queue wiring, generated SDK clients, and live webhook calls stay row-backed."
+      ],
+      "note": "Complete: TDD added internal/goncho/webhook_delivery.go and internal/goncho/webhook_delivery_test.go. The pure WebhookDeliveryWorker contract consumes fake store/client/clock seams, builds deterministic Honcho-shaped test.event and queue.empty payloads, signs delivery bodies with the existing HMAC helper, returns redacted success/retry/failure/skipped/disabled evidence, schedules retry backoff, and disables endpoints for permanent failures or max-attempt exhaustion without Redis, hosted Honcho, route binding, generated SDK clients, or live network calls.",
+      "write_scope": [
+        "internal/goncho/webhooks.go",
+        "internal/goncho/webhooks_test.go",
+        "internal/goncho/webhook_delivery.go",
+        "internal/goncho/webhook_delivery_test.go",
+        "internal/progress/progress_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestWebhookDelivery' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Webhook delivery fixtures prove Honcho-compatible event payloads, HMAC headers, success/failure retries, backoff, endpoint disablement, redacted evidence, and no live network dependency."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-28T22:51:39Z",
+        "last_success": "2026-04-28T22:51:39Z"
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "honcho:src/webhooks/webhook_delivery.py",
+        "note": "Honcho owns the delivery/retry semantics; Gormes ports them as a local worker contract behind fake HTTP and clock seams."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.G",
+    "pos": 2,
+    "item": {
+      "name": "Goncho HTTP route parity over OpenAPI v3",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Goncho owns a source-backed OpenAPI v3 route manifest for every upstream Honcho HTTP path/method and classifies each route as service-backed or still row-backed with residual implementation evidence.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "This slice does not bind HTTP handlers. Routes without a service target remain row-backed with explicit residuals, and service-backed routes still require a later internal/apiserver adapter for auth, pagination, validation, status codes, and response envelopes.",
+      "fixture": "internal/goncho/http/routes_test.go",
+      "source_refs": [
+        "../honcho/docs/v3/openapi.json",
+        "../honcho/src/routers/workspaces.py",
+        "../honcho/src/routers/peers.py",
+        "../honcho/src/routers/sessions.py",
+        "../honcho/src/routers/messages.py",
+        "../honcho/src/routers/conclusions.py",
+        "../honcho/src/routers/keys.py",
+        "../honcho/src/routers/webhooks.py",
+        "../honcho/tests/routes/",
+        "internal/goncho/http/routes.go"
+      ],
+      "ready_when": [
+        "Goncho CRUD lifecycle invariants and keys/webhooks compatibility surface are validated.",
+        "The slice can remain a manifest/classification package and must not add HTTP route binding, hosted Honcho middleware, generated SDKs, or live network tests."
+      ],
+      "not_ready_when": [
+        "The slice attempts full API server parity, generated OpenAPI clients, SDK e2e flows, or broad hosted Honcho behavior instead of a route coverage manifest.",
+        "The implementation claims broad route coverage from globbed routers without proving each OpenAPI path/method."
+      ],
+      "unblocks": [
+        "Goncho CLI command-tree parity"
+      ],
+      "acceptance": [
+        "OpenAPIRouteManifest enumerates all 45 Honcho v3 path/method routes from docs/v3/openapi.json with operationId and tag evidence.",
+        "A test parses the upstream OpenAPI fixture and fails if any route is missing, renamed, or added without classification.",
+        "Every route has source refs, a service-backed or row-backed status, and a residual contract naming the remaining HTTP adapter work.",
+        "Service-backed routes identify existing Go targets such as CreateScopedKey, webhook helpers, CreateMessages, DeleteSession, DeleteWorkspace, Profile, Context, Search, Conclude, queue status, and dream scheduler.",
+        "The manifest returns defensive copies so later adapter code cannot mutate canonical parity rows."
+      ],
+      "note": "Complete: TDD added internal/goncho/http/routes.go and routes_test.go. The manifest enumerates all 45 upstream Honcho v3 OpenAPI path/method routes, including workspaces, peers, sessions, messages, conclusions, keys, and webhooks, and classifies each as service_backed or row_backed with per-route source refs and residual adapter work. Tests parse ../honcho/docs/v3/openapi.json when present, compare exact method/path/operationId/tag signatures, require every route to be classified with source/residual evidence, verify key/webhook/CRUD service-backed targets, and prove returned route slices are defensive copies. No HTTP handler binding, hosted auth middleware, SDK clients, queue delivery, pagination envelopes, or status-code parity was implemented in this slice.",
+      "write_scope": [
+        "internal/goncho/http/routes.go",
+        "internal/goncho/http/routes_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho/http -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "OpenAPI route manifest fixtures prove every upstream Honcho v3 route is classified with source refs, service-backed targets where available, and explicit residual row-backed HTTP adapter work."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-28T15:34:00Z",
+        "last_success": "2026-04-28T15:34:00Z"
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "honcho:docs/v3/openapi.json + src/routers/*.py",
+        "note": "Honcho OpenAPI is the source of truth for path/method/operation IDs; Gormes owns the Go route manifest and leaves handler binding to a later adapter row."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.G",
+    "pos": 3,
+    "item": {
+      "name": "Goncho CLI command-tree parity",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes owns a source-backed Honcho CLI command-tree manifest that enumerates upstream honcho-cli commands, global flags, shared scope flags, command groups, JSON/exit/confirm contracts, and classifies each command or flag as implemented or still row-backed.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "This slice does not implement the missing Honcho CLI commands. Only `cmd/gormes goncho doctor` is marked implemented; every other upstream command/global flag remains row-backed with residual behavior for future CLI adapter rows.",
+      "fixture": "cmd/gormes/goncho_cli_parity_test.go",
+      "source_refs": [
+        "../honcho/honcho-cli/src/honcho_cli/main.py",
+        "../honcho/honcho-cli/src/honcho_cli/config.py",
+        "../honcho/honcho-cli/src/honcho_cli/output.py",
+        "../honcho/honcho-cli/src/honcho_cli/validation.py",
+        "../honcho/honcho-cli/src/honcho_cli/_help.py",
+        "../honcho/honcho-cli/src/honcho_cli/branding.py",
+        "../honcho/honcho-cli/src/honcho_cli/common.py",
+        "../honcho/honcho-cli/src/honcho_cli/commands/setup.py",
+        "../honcho/honcho-cli/src/honcho_cli/commands/workspace.py",
+        "../honcho/honcho-cli/src/honcho_cli/commands/peer.py",
+        "../honcho/honcho-cli/src/honcho_cli/commands/session.py",
+        "../honcho/honcho-cli/src/honcho_cli/commands/message.py",
+        "../honcho/honcho-cli/src/honcho_cli/commands/conclusion.py",
+        "../honcho/honcho-cli/src/honcho_cli/commands/config_cmd.py",
+        "../honcho/honcho-cli/tests/test_commands.py",
+        "../honcho/honcho-cli/tests/test_config.py",
+        "../honcho/honcho-cli/tests/test_validation.py",
+        "cmd/gormes/goncho_cli_parity.go",
+        "cmd/gormes/goncho_cli_parity_test.go",
+        "cmd/gormes/goncho.go"
+      ],
+      "ready_when": [
+        "Goncho HTTP route manifest and local doctor diagnostics are validated.",
+        "The slice can remain a command-tree manifest/classification package and must not add hosted Honcho SDK clients, live network calls, destructive command execution, or broad CLI command binding."
+      ],
+      "not_ready_when": [
+        "The slice attempts to implement all Honcho CLI commands, generated clients, API mutation commands, or interactive setup flows in one pass.",
+        "The implementation claims command parity without reading upstream honcho-cli source files and tests."
+      ],
+      "unblocks": [
+        "Gateway, platform, webhook, and cron management CLI"
+      ],
+      "acceptance": [
+        "gonchoCLICompatibilityManifest enumerates upstream global flags, shared scope flags, top-level commands, command groups, and subcommands from honcho-cli.",
+        "A test reads upstream honcho-cli source files and fails if the command tree changes without updating the manifest.",
+        "Only `doctor` is classified as implemented and is checked against the current Cobra `goncho doctor` surface.",
+        "Every row-backed command has a residual contract for missing JSON/table output, config preservation, ID validation, destructive confirmation, exit-code, or command execution behavior.",
+        "The manifest returns defensive copies so future command wiring cannot mutate canonical parity rows."
+      ],
+      "note": "Complete: added `cmd/gormes/goncho_cli_parity.go` and `cmd/gormes/goncho_cli_parity_test.go`. The manifest maps Honcho CLI global `--json`, `--version`, `-V`, shared scope flags `--workspace/-w`, `--peer/-p`, `--session/-s`, top-level `init`, `doctor`, `help`, the `workspace`, `peer`, `session`, `message`, `conclusion`, and `config` groups, plus every upstream subcommand. Tests read `../honcho/honcho-cli/src/honcho_cli/**`, compare command paths, prove only `cmd/gormes goncho doctor` is currently implemented, require residual row-backed evidence for the rest, and lock defensive-copy behavior. No hosted Honcho SDK client, destructive command, interactive setup flow, or broad command binding was implemented.",
+      "write_scope": [
+        "cmd/gormes/goncho_cli_parity.go",
+        "cmd/gormes/goncho_cli_parity_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run GonchoCLIParity -count=1",
+        "go test ./cmd/gormes -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "CLI command-tree fixtures prove every upstream Honcho CLI command/global/shared scope flag is classified, current `goncho doctor` support is real, and all missing command behavior remains explicitly row-backed."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-28T15:52:00Z",
+        "last_success": "2026-04-28T15:52:00Z"
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "honcho:honcho-cli/src/honcho_cli/** + honcho-cli/tests/**",
+        "note": "Honcho CLI source and tests define the compatibility command tree; Gormes owns a local manifest and leaves command execution parity to future bounded command rows."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.G",
+    "pos": 4,
+    "item": {
+      "name": "Goncho Honcho SDK compatibility e2e harness",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Goncho exposes a Honcho-compatible local harness that can run the upstream Python and TypeScript SDK session/message/search/context flows against Gormes without a hosted Honcho service.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If a Honcho SDK flow is not supported locally, the harness reports sdk_flow_unsupported with the exact endpoint or field instead of silently diverging from Honcho.",
+      "fixture": "internal/goncho/compat_harness_test.go::TestGonchoHonchoSDKCompatibility",
+      "source_refs": [
+        "../honcho/tests/sdk/test_client.py",
+        "../honcho/tests/sdk_typescript/",
+        "../honcho/sdks/python/src/honcho/client.py",
+        "../honcho/sdks/python/src/honcho/aio.py",
+        "../honcho/sdks/python/src/honcho/api_types.py",
+        "../honcho/sdks/python/src/honcho/mixins.py",
+        "../honcho/sdks/typescript/src/client.ts",
+        "../honcho/sdks/typescript/src/validation.ts",
+        "../honcho/sdks/typescript/src/http/streaming.ts",
+        "../honcho/sdks/typescript/__tests__/",
+        "../honcho/docs/v3/documentation/features/chat.mdx",
+        "../honcho/docs/v3/documentation/features/search.mdx",
+        "internal/goncho/service.go",
+        "internal/goncho/types.go",
+        "internal/gonchotools/honcho_tools.go"
+      ],
+      "ready_when": [
+        "Goncho empty peer-card hint contract is validated.",
+        "Goncho context representation options, search filter grammar, directional peer cards, queue status, summary context budget, dialectic chat, file import, topology fixtures, diagnostics, streaming persistence, and configuration namespace are validated.",
+        "The worker can run the harness with temp SQLite state and in-process services only; no hosted Honcho, external SDK network, or LLM provider is required.",
+        "Public compatibility names stay honcho_* while internal packages remain named goncho."
+      ],
+      "not_ready_when": [
+        "The slice starts a hosted Honcho service, shells out to external SDK test runners, or requires live provider credentials for row-local proof.",
+        "The slice hides unsupported Honcho fields by dropping them silently.",
+        "The slice renames internal Goncho packages to Honcho instead of preserving compatibility at public boundaries."
+      ],
+      "unblocks": [
+        "Goncho memory integration into normal agent turn"
+      ],
+      "acceptance": [
+        "TestGonchoHonchoSDKCompatibility_SessionMessageSearch seeds a workspace, peer, session, messages, and search query through the compatibility harness and verifies Honcho-shaped responses.",
+        "TestGonchoHonchoSDKCompatibility_ContextPreview verifies representation, summary, and peer-card fields map to documented Honcho response names.",
+        "Unsupported upstream SDK flows return structured sdk_flow_unsupported evidence with endpoint, method, and field names.",
+        "The harness runs fully in Go with temp state and no hosted Honcho process."
+      ],
+      "note": "Complete: TDD added internal/goncho/compat_harness.go and compat_harness_test.go. The harness seeds Honcho-shaped workspace/peer/session/message flows through local Goncho service calls, verifies SDK response names for messages/search/context preview, proves summary and peer-card mapping from temp SQLite state, and reports unsupported SDK flows as structured sdk_flow_unsupported evidence with method, endpoint, and field names. It does not start hosted Honcho, shell out to Python or TypeScript SDK runners, or require provider credentials.",
+      "write_scope": [
+        "internal/goncho/compat_harness.go",
+        "internal/goncho/compat_harness_test.go",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/goncho_honcho_memory/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/gonchotools -run 'TestGonchoHonchoSDKCompatibility|TestHoncho' -count=1",
+        "go test ./internal/goncho ./internal/gonchotools ./internal/memory -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "A hermetic Go harness proves the required Honcho SDK flows against local Goncho services and reports every unsupported field explicitly."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-28T22:27:00Z",
+        "last_success": "2026-04-28T22:27:00Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "honcho:e659b6b tests/sdk + tests/sdk_typescript + sdks/python/src/honcho + sdks/typescript/src + sdks/typescript/__tests__",
+        "note": "Honcho supplies the public SDK contract; Gormes owns the in-process compatibility harness and local persistence."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.G",
+    "pos": 5,
+    "item": {
+      "name": "Goncho memory integration into normal agent turn",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "A Go-native agent turn reads scoped Goncho memory before prompt assembly, exposes honcho_* tool compatibility during the turn, and persists final user/assistant messages after provider completion without Python or hosted Honcho.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If Goncho recall, tool compatibility, or post-turn persistence is unavailable, the turn status reports goncho_recall_unavailable, honcho_tools_unavailable, or goncho_persist_unavailable while the agent turn remains explainable.",
+      "fixture": "internal/kernel/goncho_turn_integration_test.go::TestAgentTurnUsesGonchoMemory",
+      "source_refs": [
+        "../hermes-agent/plugins/memory/honcho/__init__.py",
+        "../hermes-agent/run_agent.py",
+        "internal/goncho/service.go",
+        "internal/gonchotools/honcho_tools.go",
+        "internal/memory/recall.go",
+        "internal/kernel/"
+      ],
+      "ready_when": [
+        "Goncho Honcho SDK compatibility e2e harness is fixture-ready or validated.",
+        "Python-free normal agent turn e2e harness is validated.",
+        "The worker can inject fake provider output and temp Goncho state without live credentials."
+      ],
+      "not_ready_when": [
+        "The slice changes provider adapter behavior, gateway channel parsing, or hosted Honcho configuration.",
+        "The slice persists partial streaming chunks as final memory.",
+        "The slice bypasses existing memory status/degraded-mode reporting."
+      ],
+      "acceptance": [
+        "The test seeds prior Goncho messages and proves scoped recall is visible to prompt/context assembly.",
+        "The test exposes honcho_context, honcho_search, honcho_profile, or equivalent compatibility tools through the turn tool registry.",
+        "The final assistant response is persisted once after provider completion.",
+        "Degraded recall or persist failures surface explicit status evidence and do not corrupt the transcript."
+      ],
+      "note": "Complete: TDD added internal/kernel/goncho_turn_integration_test.go and internal/gonchotools/turn_integration.go. A kernel-level fake-provider fixture now wires local Goncho recall before prompt assembly, registers honcho_context/honcho_search/honcho_profile tool descriptors, executes a honcho_search continuation, and proves the final assistant message is persisted exactly once in SQLite. A degraded subtest uses a nil Goncho service to report goncho_recall_unavailable and honcho_tools_unavailable while preserving transcript integrity and final persistence.",
+      "write_scope": [
+        "internal/kernel/",
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "internal/memory/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/kernel ./internal/goncho ./internal/gonchotools ./internal/memory -run 'TestAgentTurnUsesGonchoMemory|TestGoncho' -count=1",
+        "go test ./internal/kernel ./internal/goncho ./internal/gonchotools ./internal/memory -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "A normal Go agent turn proves Goncho recall, honcho_* tool exposure, final-message persistence, and degraded-mode evidence with a fake provider and temp state."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-28T22:30:21Z",
+        "last_success": "2026-04-28T22:30:21Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes memory/honcho plugin + honcho:e659b6b docs",
+        "note": "Bridges Honcho public memory semantics into the Gormes native agent spine."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 4,
+    "item": {
+      "name": "Swarm feature-level parity audit for Hermes/Honcho map",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "A five-lane sub-agent parity audit checks the Hermes/Honcho feature map beyond top-level source classes, records missing or vague feature-level surfaces, and maps every finding to a Go package target and progress action without implementing runtime code.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If any swarm lane reports missing or vague behavior, Gormes reports source_class_mapped_but_feature_level_incomplete and records the gap in Swarm Feature Parity Audit instead of claiming full feature parity.",
+      "fixture": "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+      "source_refs": [
+        "../hermes-agent/run_agent.py",
+        "../hermes-agent/agent/",
+        "../hermes-agent/agent/transports/",
+        "../hermes-agent/trajectory_compressor.py",
+        "../hermes-agent/tools/",
+        "../hermes-agent/gateway/",
+        "../hermes-agent/hermes_cli/",
+        "../hermes-agent/plugins/",
+        "../hermes-agent/skills/",
+        "../hermes-agent/acp_adapter/",
+        "../hermes-agent/mcp_serve.py",
+        "../honcho/src/",
+        "../honcho/docs/v3/openapi.json",
+        "../honcho/tests/sdk/",
+        "../honcho/sdks/typescript/__tests__/",
+        "../honcho/mcp/src/tools/",
+        "../honcho/honcho-cli/src/honcho_cli/",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "docs/upstream_coverage_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "ready_when": [
+        "The planner can spawn read-only sub-agents over independent Hermes/Honcho surfaces.",
+        "Sibling hermes-agent and honcho checkouts are available or the audit records missing upstream sources.",
+        "The pass edits only docs, progress rows, or tests for planning proof."
+      ],
+      "not_ready_when": [
+        "The pass uses sub-agents to implement runtime feature code.",
+        "The pass claims full feature parity when any swarm lane reports missing or vague behavior.",
+        "The pass creates a side backlog outside progress.json."
+      ],
+      "acceptance": [
+        "Swarm Feature Parity Audit records the five audit lanes: Hermes runtime/providers, Hermes tools/security/plugins, Hermes gateway/CLI/release, Honcho core/Goncho, and Honcho SDK/docs/MCP/CLI/deploy.",
+        "Each reported missing or vague surface is mapped to upstream refs, a Go target, and a progress action.",
+        "The audit distinguishes source-class completeness from feature-level completeness.",
+        "The planning spine links to the swarm audit so future planner and builder skills cannot treat broad source-class coverage as full feature parity."
+      ],
+      "note": "Complete in the 2026-04-28 gormes-planner swarm pass: five read-only sub-agents audited independent Hermes/Honcho surfaces and found source-class coverage is proven but feature-level mapping remains incomplete until the swarm gap register is resolved into builder-ready rows.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "docs/content/building-gormes/architecture_plan/_index.md",
+        "docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "docs/content/building-gormes/_index.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress write",
+        "go run ./cmd/progress validate",
+        "go test ./docs -run TestUpstreamCoverageLedgerMatchesSourceClasses -count=1",
+        "go test ./docs -count=1"
+      ],
+      "done_signal": [
+        "The docs now answer that source-class coverage is executable but full feature-level mapping is not complete until the swarm gap register is empty or every gap has a builder-ready row."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "swarm audit over hermes-agent current tree + honcho current tree",
+        "note": "Turns user-requested sub-agent swarm review into a durable planning artifact."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 1,
+    "item": {
+      "name": "Goncho MCP tool catalog",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "internal/gonchotools exposes a source-backed catalog for every upstream Honcho MCP tool name, classifying each row as mapped, partially mapped with field-level degradation, or unsupported with rationale.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unsupported and partial Honcho MCP tools remain visible as catalog rows with source path, input contract, unsupported input names, and reasons instead of silently disappearing from parity planning.",
+      "fixture": "internal/gonchotools/honcho_mcp_catalog_test.go",
+      "source_refs": [
+        "../honcho/mcp/src/server.ts",
+        "../honcho/mcp/src/tools/workspace.ts",
+        "../honcho/mcp/src/tools/peers.ts",
+        "../honcho/mcp/src/tools/sessions.ts",
+        "../honcho/mcp/src/tools/conclusions.ts",
+        "../honcho/mcp/src/tools/system.ts",
+        "internal/gonchotools/honcho_mcp_catalog.go",
+        "internal/gonchotools/honcho_tools.go"
+      ],
+      "ready_when": [
+        "Existing Goncho tool descriptors are registered in internal/gonchotools, so mapped rows can be verified without implementing a live MCP server.",
+        "The slice can remain a pure catalog and must not open transports, modify MCP clients, or add runtime HTTP handlers."
+      ],
+      "not_ready_when": [
+        "The slice starts a live MCP server, rewrites Goncho tool execution, adds HTTP routes, or marks broad upstream modules covered without per-tool rows."
+      ],
+      "blocked_by": [
+        "Goncho context representation options",
+        "Goncho dialectic chat contract",
+        "MCP schema normalization + structured-content adapter"
+      ],
+      "unblocks": [
+        "Goncho HTTP route parity over OpenAPI v3",
+        "Goncho CLI command-tree parity",
+        "Honcho API validation limits and metadata sanitizer"
+      ],
+      "acceptance": [
+        "HonchoMCPToolCatalog returns exactly the 30 upstream tool names registered from workspace, peers, sessions, conclusions, and system modules in server.ts order.",
+        "Mapped entries point at registered Goncho descriptors such as honcho_chat, honcho_profile, and honcho_context.",
+        "Partial entries point at registered Goncho descriptors but list unsupported upstream inputs such as target_peer_id and max_conclusions with field-level reasons.",
+        "Unsupported entries include a source path, input contract, and unsupported reason so future builders can split them without rediscovering upstream.",
+        "The catalog returns defensive copies so callers cannot mutate canonical parity rows or unsupported-input maps."
+      ],
+      "note": "Complete: TDD added internal/gonchotools/honcho_mcp_catalog.go and internal/gonchotools/honcho_mcp_catalog_test.go. The catalog enumerates all 30 tools registered by Honcho MCP server.ts across workspace, peers, sessions, conclusions, and system modules; maps fully covered peer-card surfaces to existing Goncho descriptors; records partial compatibility for chat.target_peer_id, get_peer_context.target_peer_id, and get_peer_context.max_conclusions; and marks workspace metadata, session CRUD/message surfaces, representation string reads, conclusion object query/top_k, target-scoped bulk conclusions, dreams, and queue status as explicit unsupported rows with source and input evidence. Fixtures prove exact upstream name coverage, mapped/partial rows resolve against the registered Goncho tool registry, unsupported rows carry reasons, representative input contracts and field-level degraded inputs are preserved, and returned catalog slices/maps are defensive copies.",
+      "write_scope": [
+        "internal/gonchotools/honcho_mcp_catalog.go",
+        "internal/gonchotools/honcho_mcp_catalog_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md"
+      ],
+      "test_commands": [
+        "go test ./internal/gonchotools -run HonchoMCPCatalog -count=1",
+        "go test ./internal/gonchotools -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Honcho MCP catalog fixtures prove every upstream MCP tool name is mapped, partially mapped with unsupported input evidence, or explicitly unsupported."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "honcho:mcp/src/server.ts + mcp/src/tools/*.ts",
+        "note": "Honcho MCP contributes the tool-name and input-contract source of truth; Gormes owns a Go catalog that keeps missing surfaces visible before implementing a live MCP compatibility server."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.I",
+    "pos": 6,
+    "item": {
+      "name": "Goncho Honcho plugin session config + async write compatibility",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Goncho preserves Hermes Honcho plugin session/config behavior over local-first memory: Honcho baseUrl without an API key resolves to a local/self-hosted sentinel when the URL is plausible, obvious non-URL literals fail closed, host-level config overrides root settings, writeFrequency supports async/turn/session/integer modes, session names prefer manual override then title then session id/dirname/global workspace, async writes queue and flush deterministically, and pinPeerName can opt a single-user multi-platform deployment into one configured peer while the default keeps multi-user platform IDs isolated.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Malformed baseUrl, invalid writeFrequency, async flush failures, missing session id/title, and unsafe pinPeerName combinations return goncho_config_* or goncho_async_* evidence without contacting hosted Honcho, merging unrelated users, or dropping queued memory writes silently.",
+      "fixture": "internal/goncho/plugin_session_config_test.go; internal/goncho/async_write_test.go",
+      "source_refs": [
+        "../hermes-agent/tests/honcho_plugin/test_cli.py@b816fd4e2",
+        "../hermes-agent/tests/honcho_plugin/test_async_memory.py@b816fd4e2",
+        "../hermes-agent/tests/honcho_plugin/test_pin_peer_name.py@b816fd4e2",
+        "../hermes-agent/tests/honcho_plugin/test_session.py@b816fd4e2",
+        "../hermes-agent/plugins/memory/honcho/client.py@b816fd4e2",
+        "../hermes-agent/plugins/memory/honcho/session.py@b816fd4e2",
+        "internal/goncho/service.go",
+        "internal/goncho/types.go",
+        "internal/gonchotools/honcho_tools.go"
+      ],
+      "ready_when": [
+        "Goncho topology design fixtures, CRUD lifecycle invariants, V1 memory compatibility, and empty peer-card hints are complete.",
+        "Tests can use local Goncho service fakes, temp JSON config files, fake clocks, and fake async sinks; no hosted Honcho SDK, network, Redis, vector store, or background provider is required.",
+        "Keep internal names Goncho while preserving public honcho_* compatibility and Honcho plugin config vocabulary."
+      ],
+      "not_ready_when": [
+        "The slice implements hosted Honcho HTTP routes, imports the Python Honcho plugin, starts async goroutines without controllable test shutdown, or reads live ~/.honcho/~/.hermes config.",
+        "pinPeerName=true without peerName collapses users to an empty/shared peer instead of falling back to runtime platform identity.",
+        "Async/session write modes can lose pending messages on flush_all or shutdown without evidence."
+      ],
+      "blocked_by": [
+        "Goncho CRUD lifecycle invariants",
+        "Goncho Memory V1 compatibility contract and migration harness"
+      ],
+      "acceptance": [
+        "TestGonchoHonchoBaseURLLocalSentinel proves apiKey root/host precedence, HONCHO_BASE_URL env fallback, local sentinel for plausible http/https/schemeless baseUrl, and rejection of obvious literals such as true/false/null/1/localhost without scheme.",
+        "TestGonchoWriteFrequencyParsingAndRouting proves async/turn/session/integer/string-integer parsing, host-block overrides, turn immediate flush, session deferred flush, and integer nth-turn flush.",
+        "TestGonchoSessionNameResolution proves manual session mapping beats title, title beats session id/dirname, per-session uses session id, global uses workspace, peer-prefix sanitization works, and invalid titles fall back safely.",
+        "TestGonchoAsyncWriterLifecycle proves async save enqueues, retry evidence is bounded, flush_all drains cached and queued sessions, and shutdown joins without leaks.",
+        "TestGonchoPinPeerNameResolution proves the default runtime platform id wins for multi-user bots, pinPeerName=true with peerName unifies Telegram/Discord for one configured user, missing peerName falls back to runtime id, and assistant peer identity is unchanged."
+      ],
+      "note": "Complete: the 2026-05-06 all-topic parity sweep selected this as the first medium, unblocked P1 builder-ready row after skipping ACP JSON-RPC as too large for one bounded cron slice and plugin CLI lifecycle as still blocked by broad third-party extension work. TDD added Go-native Honcho plugin compatibility helpers under internal/goncho: baseUrl local sentinel and fail-closed literal handling, host-over-root config precedence, writeFrequency parsing/routing, deterministic async queue flush/shutdown evidence, session-name resolution, and pinPeerName peer isolation/unification. The implementation is local-only and does not contact hosted Honcho, read live ~/.honcho/~/.hermes config, import Python plugin code, or rename public honcho_* tool surfaces.",
+      "write_scope": [
+        "internal/goncho/config.go",
+        "internal/goncho/session_config.go",
+        "internal/goncho/async_write.go",
+        "internal/goncho/plugin_session_config_test.go",
+        "internal/goncho/async_write_test.go",
+        "internal/gonchotools/honcho_tools.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1",
+        "go test ./internal/goncho ./internal/gonchotools -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Goncho fixtures prove Honcho plugin config precedence, self-hosted baseUrl sentinel behavior, writeFrequency routing, async flush/shutdown, session naming, and pinPeerName isolation/unification semantics locally."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-06T00:00:00Z",
+        "last_success": "2026-05-06T00:00:00Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:b816fd4e2 tests/honcho_plugin/test_async_memory.py + test_pin_peer_name.py",
+        "note": "Hermes' Honcho plugin compatibility tests cover user-visible memory scoping and write timing that are not covered by Gormes' current local Goncho CRUD/V1 rows."
+      },
+      "evidence": [
+        "RED: go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1 failed on missing PluginConfig/async writer helper symbols.",
+        "GREEN: go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1 passed.",
+        "FOCUSED: go test ./internal/goncho ./internal/gonchotools -count=1 passed."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 24,
+    "item": {
+      "name": "Goncho serialized write queue + relation candidates",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Goncho serializes memory/conclusion writes and records pending relation candidates for possible conflicts or supersession without blocking the originating memory write.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If candidate search or relation insertion fails, the memory write still succeeds with degraded evidence; queue-full returns a retryable typed error.",
+      "fixture": "internal/goncho/write_queue_relation_test.go",
+      "source_refs": [
+        "references/go-agent-os/GORMES-REUSE-AUDIT.md#5-deterministic-serialized-mcpmemory-write-queue",
+        "references/go-agent-os/engram/internal/mcp/write_queue.go",
+        "references/go-agent-os/engram/internal/store/relations.go",
+        "references/go-agent-os/engram/internal/store/store.go",
+        "internal/goncho/",
+        "internal/memory/",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+      ],
+      "ready_when": [
+        "The builder restates the Hermes parity contract and confirms no dependency on hermes-agent runtime services before editing.",
+        "Existing Goncho storage/tests identify the write entrypoints to serialize.",
+        "The relation vocabulary is mapped to Honcho-compatible public behavior or explicitly kept internal."
+      ],
+      "not_ready_when": [
+        "The row exposes Engram-specific API names as public Gormes/Honcho names.",
+        "The row fails the original memory write because candidate detection is unavailable.",
+        "The row adds an LLM judge before pending relation storage is deterministic."
+      ],
+      "unblocks": [
+        "Goncho memory integration into normal agent turn",
+        "Goncho operator diagnostics contract"
+      ],
+      "acceptance": [
+        "Concurrent memory writes execute in deterministic queue order under test.",
+        "Queued cancellation before start does not mutate storage; started writes complete deterministically.",
+        "Saving a memory can create pending relation candidates with verbs such as related, conflicts_with, supersedes, compatible, scoped, or not_conflict for later judgment."
+      ],
+      "write_scope": [
+        "internal/goncho/",
+        "internal/memory/",
+        "internal/gonchotools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho ./internal/memory -run 'WriteQueue|Relation|Conflict|Supersede' -count=1",
+        "go test ./internal/goncho ./internal/memory -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Goncho tests prove serialized writes and nonblocking pending relation candidates without changing Honcho-compatible external names."
+      ]
+    }
+  }
+]

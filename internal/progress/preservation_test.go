@@ -1,9 +1,11 @@
 package progress
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -252,5 +254,107 @@ func TestSymmetricPreservation_FourBlocksRoundTrip(t *testing.T) {
 	sub3 := prog3.Phases["1"].Subphases["1.A"]
 	if sub3.DriftState == nil || sub3.DriftState.Status != "owned" {
 		t.Fatal("DriftState erased by autoloop write")
+	}
+}
+
+func TestItemExtraEvidenceFieldsRoundTripAndStayIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "progress.json")
+	body := `{
+  "meta": {
+    "version": "2.0",
+    "last_updated": "2026-05-17",
+    "links": {
+      "github_readme": "README.md",
+      "landing_page": "https://gormes.ai",
+      "docs_site": "https://docs.gormes.ai",
+      "source_code": "https://github.com/TrebuchetDynamics/gormes-agent"
+    }
+  },
+  "phases": {
+    "1": {
+      "name": "P",
+      "deliverable": "d",
+      "subphases": {
+        "1.A": {
+          "name": "S",
+          "source": "docs/content/papers/safety-and-deployment.md",
+          "items": [
+            {
+              "name": "row-1",
+              "status": "complete",
+              "blocked_by": [],
+              "unblocks": [],
+              "no_test_required": "",
+              "evidence": {
+                "implementation": ["internal/progress/item_json.go"],
+                "tests": ["go test ./internal/progress -run ItemExtra"]
+              },
+              "completed_at": "2026-05-17T00:00:00Z",
+              "planner_verdict": {
+                "needs_human": false,
+                "last_outcome": "no_attempts_yet"
+              },
+              "health": {
+                "attempt_count": 1,
+                "evidence": ["RED: preserved"]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": ["hermes:gateway/run.py"],
+                "note": "plural refs survive"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	prog, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if err := SaveProgress(path, prog); err != nil {
+		t.Fatalf("SaveProgress: %v", err)
+	}
+	once, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read once: %v", err)
+	}
+	for _, want := range []string{
+		`"evidence": {`,
+		`"completed_at": "2026-05-17T00:00:00Z"`,
+		`"blocked_by": []`,
+		`"unblocks": []`,
+		`"no_test_required": ""`,
+		`"needs_human": false`,
+		`"source": "docs/content/papers/safety-and-deployment.md"`,
+		`"RED: preserved"`,
+		`"upstream_refs": [`,
+	} {
+		if !strings.Contains(string(once), want) {
+			t.Fatalf("round-trip output missing %q:\n%s", want, string(once))
+		}
+	}
+
+	prog, err = Load(path)
+	if err != nil {
+		t.Fatalf("Load second: %v", err)
+	}
+	if err := SaveProgress(path, prog); err != nil {
+		t.Fatalf("SaveProgress second: %v", err)
+	}
+	twice, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read twice: %v", err)
+	}
+	if !bytes.Equal(once, twice) {
+		t.Fatalf("extra field preservation is not idempotent:\nonce=%s\ntwice=%s", once, twice)
 	}
 }

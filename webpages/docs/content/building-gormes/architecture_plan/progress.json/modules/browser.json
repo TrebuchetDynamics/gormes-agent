@@ -1,0 +1,1902 @@
+[
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 0,
+    "item": {
+      "name": "Browser action contract + event transcript",
+      "status": "complete",
+      "contract": "Gormes freezes the native browser tool contract before binding Chromedp or Rod: action schema, page-state transcript events, screenshot/result envelope, console/content-none guards, private-URL safety handoff, oversized artifact pointer behavior, and unavailable-backend errors are represented as pure Go types and fixtures.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Browser status returns browser_backend_unavailable, browser_action_invalid, browser_result_truncated, or private_url_local_sidecar evidence instead of starting a browser, contacting cloud providers, or dumping screenshots/transcripts into model context.",
+      "fixture": "internal/tools/browser_contract_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/browser_tool.py",
+        "../hermes-agent/tests/tools/test_browser_content_none_guard.py",
+        "../hermes-agent/tests/tools/test_browser_console.py",
+        "../hermes-agent/tests/tools/test_browser_hardening.py",
+        "../hermes-agent/tests/tools/test_browser_hybrid_routing.py",
+        "references/go-agent-os/nanobot/pkg/agents/truncate.go",
+        "references/go-agent-os/axe/internal/artifact/tracker.go",
+        "internal/tools/browser_hybrid_routing.go",
+        "internal/tools/browser_ssrf_guard.go",
+        "internal/tools/result_budget.go"
+      ],
+      "ready_when": [
+        "Browser hybrid private-URL local sidecar routing and Browser SSRF quoted-false guard are validated on main.",
+        "The worker can build pure action/result/transcript fixtures with fake screenshots and fake page state; no Chromedp, Rod, Browserbase, Firecrawl, Camofox, DNS, or live browser dependency is required."
+      ],
+      "not_ready_when": [
+        "The slice starts a browser, follows redirects, opens network connections, chooses Chromedp versus Rod, or implements provider bridges.",
+        "The slice bypasses the existing private-host and quoted-false SSRF guard helpers."
+      ],
+      "unblocks": [
+        "go-browser-harness Chromedp action backend",
+        "Rod",
+        "Browser provider bridge + Firecrawl fallback",
+        "Browser Use cloud + Go browser harness bridge"
+      ],
+      "acceptance": [
+        "Action-schema fixtures validate navigation, click/type, snapshot, content extraction, wait, and invalid-action errors without a browser backend.",
+        "Transcript fixtures preserve page URL/title/text/console/error/screenshot metadata and handle None/empty content without panics.",
+        "Screenshot and oversized text results route through a bounded artifact pointer shape instead of embedding unbounded bytes in tool output.",
+        "Unavailable backend and private URL sidecar decisions produce typed degraded evidence and reuse the existing SSRF guard contracts."
+      ],
+      "note": "Complete: TDD landed internal/tools/browser_contract.go and browser_contract_test.go. BrowserAction validation covers navigate, click/type, snapshot, extract, wait, back, and scroll without starting a browser. Result envelopes reuse FormatToolResult for bounded artifact pointers, preserve URL/title/text/console/error/screenshot state, expose unavailable-backend evidence, and reuse the SSRF/private-URL sidecar guard instead of adding a provider- or channel-specific bypass.",
+      "write_scope": [
+        "internal/tools/browser_contract.go",
+        "internal/tools/browser_contract_test.go",
+        "internal/tools/browser_hybrid_routing.go",
+        "internal/tools/browser_ssrf_guard.go",
+        "internal/tools/result_budget.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestBrowserContract|TestBrowserResultEnvelope|TestBrowserTranscript' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Browser contract fixtures prove action validation, transcript/result envelopes, artifact-pointer behavior, unavailable backend errors, and reuse of private-URL guard decisions without starting a browser."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:tools/browser_tool.py",
+        "note": "Hermes owns the action/result contract; Go donors provide bounded-output and artifact-tracking implementation shapes."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 1,
+    "item": {
+      "name": "go-browser-harness Chromedp action backend",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Bind the Go-native gormes.browser.action.v1 contract to a live chromedp/CDP backend in ../go-browser-harness without Python: resolve the operator's remote-debugging endpoint, open browser_navigate in a new tab, preserve BU_NAME task namespaces, support snapshot/click/type/scroll/back/press/console/get_images/vision/cdp/dialog actions, return ActionResult JSON with @e refs plus bounded screenshot/artifact references, and surface typed unavailable evidence when Chrome/CDP is not reachable.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Missing Chrome remote-debugging endpoint, stale CDP target, invalid @e refs, action timeouts, screenshot failures, and CDP command failures return typed Go harness evidence such as go_browser_harness_backend_unavailable or go_browser_harness_action_invalid without falling back to Python, launching an unmanaged browser, or leaking cookies/profile state.",
+      "fixture": "../go-browser-harness/pkg/harness/action_test.go",
+      "source_refs": [
+        "../go-browser-harness/pkg/harness/action.go",
+        "../go-browser-harness/pkg/harness/harness.go",
+        "../go-browser-harness/cmd/go-browser-harness/main.go",
+        "../hermes-agent/tools/browser_tool.py",
+        "../hermes-agent/tools/browser_cdp_tool.py",
+        "../hermes-agent/tools/browser_dialog_tool.py",
+        "../browser-harness/SKILL.md",
+        "internal/tools/browser_contract.go",
+        "internal/tools/browser_harness_tools.go",
+        "internal/tools/browser_use_harness_bridge.go"
+      ],
+      "ready_when": [
+        "Browser action contract + event transcript is validated.",
+        "Gormes browser tools emit go-browser-harness --action-json with schema_version gormes.browser.action.v1 by default.",
+        "../go-browser-harness has a tested CLI/package action contract; live Chrome smoke remains optional and outside required CI."
+      ],
+      "not_ready_when": [
+        "The slice requires Python, uv, browser-harness -c, Browser Use cloud, Browserbase, Firecrawl, Camofox, or a live browser in required unit tests.",
+        "The implementation launches its own unmanaged browser instead of using an explicit operator-provided CDP endpoint or documented local sidecar route.",
+        "browser_navigate can clobber the operator's active tab instead of opening a new tab.",
+        "Errors include cookies, local profile contents, raw CDP URLs, bearer tokens, or unbounded page/screenshot output."
+      ],
+      "blocked_by": [
+        "Browser action contract + event transcript",
+        "Go browser-harness Hermes browser_* tool wrappers"
+      ],
+      "acceptance": [
+        "go-browser-harness package tests prove action JSON validation, backend dispatch, unavailable-backend evidence, and JSON result envelopes without starting Chrome.",
+        "Gormes internal/tools tests prove browser_navigate emits go-browser-harness --action-json with new_tab=true and never emits Python snippets by default.",
+        "Fake backend tests cover snapshot/click/type/scroll/back/press/console/get_images/vision/cdp/dialog ActionResult mapping, @e ref errors, timeouts, and bounded artifact evidence.",
+        "An optional live smoke document proves connecting to a user-started Chrome remote-debugging endpoint, navigating to a public test page, taking a snapshot, clicking an @e ref, and cleaning up."
+      ],
+      "write_scope": [
+        "../go-browser-harness/pkg/harness/action.go",
+        "../go-browser-harness/pkg/harness/action_test.go",
+        "../go-browser-harness/pkg/harness/harness.go",
+        "../go-browser-harness/cmd/go-browser-harness/main.go",
+        "../go-browser-harness/cmd/go-browser-harness/main_test.go",
+        "internal/tools/browser_harness_tools.go",
+        "internal/tools/browser_harness_tools_test.go",
+        "internal/tools/browser_use_harness_bridge.go",
+        "internal/tools/browser_use_harness_bridge_test.go",
+        "docs/development-skills/gormes-browser-harness/SKILL.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "(cd ../go-browser-harness && go test ./... -count=1)",
+        "go test ./internal/tools -run '^TestBrowserHarness' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Gormes default browser tools execute through go-browser-harness ActionResult JSON backed by chromedp/CDP fixtures, with Python browser-harness retained only as an explicit legacy compatibility path."
+      ],
+      "evidence": {
+        "red_tests": [
+          "TestAction_BackendUnavailableEvidence_NoCDPEndpoint",
+          "TestAction_NavigateOpensNewTab_NotClobbersOperatorTab",
+          "TestAction_BU_NAMETaskNamespacePreserved",
+          "TestAction_SnapshotClickTypeScrollBackPress_DispatchToBackend",
+          "TestAction_ConsoleGetImagesVisionCDPDialog_DispatchToBackend",
+          "TestAction_ResultEnvelope_ContainsAtERefsAndBoundedScreenshot",
+          "TestAction_InvalidAtERefReturnsTypedEvidence",
+          "TestAction_TimeoutReturnsTypedEvidence",
+          "TestAction_ScreenshotFailureReturnsTypedEvidence",
+          "TestBrowserHarness_NavigateEmitsNewTabActionJSON",
+          "TestBrowserHarness_DefaultBackendIsGoNotPython"
+        ],
+        "green_files": [
+          "../go-browser-harness/pkg/harness/chromedp_backend.go",
+          "../go-browser-harness/pkg/harness/chromedp_transport.go",
+          "../go-browser-harness/pkg/harness/chromedp_backend_test.go",
+          "../go-browser-harness/cmd/go-browser-harness/main.go",
+          "../go-browser-harness/cmd/go-browser-harness/main_test.go"
+        ],
+        "scope_decisions": [
+          "CDPTransport interface defined in chromedp_backend.go with SendCommand(ctx, method string, params interface{}) (json.RawMessage, error) signature",
+          "Live transport binding in chromedp_transport.go uses chromedp.NewRemoteAllocator + Browser.Execute — no auto-launch",
+          "Operator endpoint: CHROME_REMOTE_DEBUGGING_URL envvar or NewChromedpBackend(ctx, endpoint string) struct field",
+          "browser_navigate new-tab semantics: Target.createTarget + Target.activateTarget before Page.navigate (chromedp_backend.go:runNavigate)",
+          "browser_use_harness_bridge_test.go not extended — bridge routing already proven by TestBrowserHarness_DefaultBackendIsGoNotPython",
+          "ScreenshotMaxBytes = 8192 with truncation suffix keeps artifact within bound"
+        ]
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 2,
+    "item": {
+      "name": "Rod",
+      "priority": "P2",
+      "status": "complete",
+      "slice_size": "umbrella",
+      "execution_owner": "docs",
+      "module": "browser",
+      "not_ready_when": [
+        "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+      ],
+      "note": "TDD: keep Rod as a second backend only after the shared contract is stable, proving backend selection and parity for core actions without diverging schemas.",
+      "done_signal": [
+        "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+      ],
+      "no_test_required": "",
+      "test_commands": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 3,
+    "item": {
+      "name": "Browser provider bridge + Firecrawl fallback",
+      "status": "complete",
+      "contract": "Fakeable cloud browser provider bridge implements Hermes' CloudBrowserProvider shape for Browserbase and Firecrawl without starting a browser: provider registration is gated by explicit config/env credentials, CreateSession returns session_name, provider_session_id, bb_session_id compatibility evidence, cdp_url, and feature flags; Browserbase 402 responses retry deterministically by stripping keepAlive then proxies before failing; Firecrawl honors configured API URL and browser TTL; CloseSession and EmergencyCleanup are idempotent and redact API keys, project IDs, session URLs, and response bodies in errors.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Unavailable credentials, provider create failures, Browserbase fallback retries, Firecrawl API failures, and cleanup failures return typed evidence such as browser_provider_unconfigured, browserbase_plan_fallback, browser_provider_create_failed, browser_provider_cleanup_failed, and browser_provider_error_redacted without leaking secrets or attempting live navigation.",
+      "fixture": "internal/tools/browser_provider_bridge_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/browser_providers/base.py:CloudBrowserProvider",
+        "../hermes-agent/tools/browser_providers/browserbase.py:BrowserbaseProvider",
+        "../hermes-agent/tools/browser_providers/firecrawl.py:FirecrawlProvider",
+        "../hermes-agent/tools/browser_providers/browser_use.py:BrowserUseProvider",
+        "../hermes-agent/tests/tools/test_browser_hybrid_routing.py",
+        "internal/tools/browser_contract.go",
+        "internal/tools/browser_hybrid_routing.go",
+        "references/go-agent-os/nanobot/pkg/tools/flows.go",
+        "references/go-agent-os/axe/internal/artifact/tracker.go"
+      ],
+      "ready_when": [
+        "Browser action contract and private-URL sidecar routing are stable enough to define a cloud-provider session result consumed by later chromedp/Rod runtime slices.",
+        "Tests can inject fake HTTP transports for Browserbase and Firecrawl and synthetic credential structs; no DNS, Browserbase, Firecrawl, Chromium, chromedp, Rod, or Browser Use process is required.",
+        "Provider selection remains optional and disabled when required credentials or project IDs are missing."
+      ],
+      "not_ready_when": [
+        "The slice starts Chromium, opens CDP, navigates URLs, imports chromedp/Rod/Browser Use runtime packages, or calls a real cloud browser service.",
+        "The bridge sends LAN/private URLs to a cloud provider instead of consuming the existing private-URL local-sidecar routing decision.",
+        "Errors include raw API keys, bearer tokens, session URLs, project IDs, or unbounded provider response bodies."
+      ],
+      "blocked_by": [
+        "Browser action contract + event transcript",
+        "Browser hybrid private-URL local sidecar routing"
+      ],
+      "unblocks": [
+        "go-browser-harness Chromedp action backend",
+        "Rod"
+      ],
+      "acceptance": [
+        "TestBrowserProviderBridgeConfigGates proves Browserbase requires API key plus project ID, Firecrawl requires API key, and missing config produces browser_provider_unconfigured without constructing an HTTP request.",
+        "TestBrowserbaseCreateSessionFallbacks proves a fake 402 response retries by removing keepAlive, then proxies, and records browserbase_plan_fallback evidence while preserving a stable cdp_url/session result on success.",
+        "TestFirecrawlCreateSessionTTLAndURL proves the configured Firecrawl base URL and browser TTL flow into the fake /v2/browser request and the result captures id/cdpUrl/features.",
+        "TestBrowserProviderCloseAndEmergencyCleanup proves close and cleanup are idempotent, use fake clients, tolerate missing sessions, and surface cleanup evidence without panics.",
+        "TestBrowserProviderErrorsRedacted proves provider errors redact API keys, bearer headers, project IDs, CDP/session URLs, and truncate long response bodies."
+      ],
+      "note": "Complete: TDD landed internal/tools/browser_provider_bridge.go and browser_provider_bridge_test.go. Gormes now has fakeable Browserbase and Firecrawl cloud browser provider bridges with config gates, Browserbase 402 fallback that strips keepAlive then proxies, Firecrawl TTL/base URL handling, Hermes-compatible bb_session_id-style session IDs, idempotent close/emergency cleanup, and secret/URL/body-redacted provider errors. Tests use fake HTTP only and never start a browser or call Browserbase, Firecrawl, Browser Use, Chromium, chromedp, Rod, Camofox, DNS, or browser-harness.",
+      "write_scope": [
+        "internal/tools/browser_provider_bridge.go",
+        "internal/tools/browser_provider_bridge_test.go",
+        "internal/tools/browser_contract.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run '^TestBrowserProvider' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Browser provider fixtures prove config gates, Browserbase 402 fallback, Firecrawl TTL/base URL handling, idempotent cleanup, private-URL handoff safety, and secret-redacted errors using fake HTTP only."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/browser_providers/base.py",
+          "hermes:tools/browser_providers/browserbase.py",
+          "hermes:tools/browser_providers/firecrawl.py",
+          "references/go-agent-os/nanobot/pkg/tools/flows.go"
+        ],
+        "note": "Hermes defines provider behavior; Gormes adapts it behind native Go tool contracts before choosing a browser runtime backend."
+      },
+      "evidence": [
+        "TestBrowserProviderBridgeConfigGates proves Browserbase requires API key plus project ID, Firecrawl requires API key, and missing config returns browser_provider_unconfigured without HTTP calls.",
+        "TestBrowserbaseCreateSessionFallbacks proves fake Browserbase 402 responses retry by removing keepAlive, then proxies, and record browserbase_plan_fallback while preserving a stable cdp_url/session result.",
+        "TestFirecrawlCreateSessionTTLAndURL proves configured Firecrawl base URL and browser TTL flow into /v2/browser and maps id/cdpUrl/features.",
+        "TestBrowserProviderCloseAndEmergencyCleanup proves Browserbase and Firecrawl close/cleanup are idempotent, tolerate missing sessions/credentials in emergency cleanup, and use fake clients only.",
+        "TestBrowserProviderErrorsRedacted proves API keys, bearer tokens, project IDs, CDP/session URLs, provider session IDs, and long response bodies are redacted or bounded."
+      ],
+      "outputs": [
+        "internal/tools/browser_provider_bridge.go",
+        "internal/tools/browser_provider_bridge_test.go"
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 4,
+    "item": {
+      "name": "Camofox REST browser mode and managed identity bridge",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes ports Hermes' Camofox browser mode as a fakeable REST backend seam without starting a browser: CAMOFOX_URL enables the Camofox path only when BROWSER_CDP_URL is blank, managed persistence derives stable profile-scoped user_id and task-scoped session_key values with Hermes' uuid5 namespace contract, first-session creation POSTs /tabs with userId/sessionKey/url through an injected HTTP client, soft cleanup drops local state without DELETE when managed persistence is enabled, and hard close DELETEs /sessions/{user_id} with bounded redacted evidence.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Missing CAMOFOX_URL, explicit BROWSER_CDP_URL override, malformed tab-create responses, and close failures return typed browser_provider evidence without live browser startup, DNS, Camofox calls, raw profile paths, cookies, or unbounded response bodies.",
+      "fixture": "internal/tools/browser_camofox_bridge_test.go",
+      "source_refs": [
+        "./hermes-agent/tools/browser_camofox.py:is_camofox_mode",
+        "./hermes-agent/tools/browser_camofox.py:_get_session",
+        "./hermes-agent/tools/browser_camofox.py:_ensure_tab",
+        "./hermes-agent/tools/browser_camofox.py:camofox_close",
+        "./hermes-agent/tools/browser_camofox.py:camofox_soft_cleanup",
+        "./hermes-agent/tools/browser_camofox_state.py:get_camofox_identity",
+        "./hermes-agent/tests/tools/test_browser_camofox.py:TestCamofoxMode",
+        "./hermes-agent/tests/tools/test_browser_camofox_persistence.py:TestManagedPersistenceMode",
+        "./hermes-agent/tests/tools/test_browser_camofox_persistence.py:TestCamofoxSoftCleanup",
+        "internal/tools/browser_provider_bridge.go",
+        "internal/tools/browser_hybrid_routing.go",
+        "internal/tools/testdata/upstream_tool_parity_manifest.json"
+      ],
+      "ready_when": [
+        "Browser action contract, Browser Use/go-browser-harness bridge, Browserbase/Firecrawl provider bridge, and Camofox private-URL override semantics are validated.",
+        "Tests can inject fake HTTP clients, fake profile roots, and synthetic task IDs; no Camofox server, browser, CDP socket, DNS, Browserbase, Firecrawl, Browser Use, Python import, or live profile directory is required.",
+        "The slice is limited to Camofox mode/config/session identity and cleanup semantics; browser action routing remains on the existing gormes.browser.action.v1 contract."
+      ],
+      "not_ready_when": [
+        "The slice starts Camofox, Chrome, Rod, chromedp, Browser Use, Browserbase, Firecrawl, or any live browser service in required tests.",
+        "The implementation reads Hermes homes, copies browser profiles/cookies, or treats BROWSER_CDP_URL as lower priority than CAMOFOX_URL.",
+        "The bridge sends private/LAN URLs to a cloud provider instead of preserving the existing local-sidecar and Camofox-mode guard behavior."
+      ],
+      "blocked_by": [
+        "Browser action contract + event transcript",
+        "Browser provider bridge + Firecrawl fallback",
+        "Browser hybrid private-URL local sidecar routing"
+      ],
+      "acceptance": [
+        "TestCamofoxConfigMode proves CAMOFOX_URL enables Camofox, blank BROWSER_CDP_URL does not suppress it, nonblank BROWSER_CDP_URL suppresses it, and missing CAMOFOX_URL returns browser_provider_unconfigured without HTTP calls.",
+        "TestCamofoxManagedIdentityMatchesHermesUUID5 proves a fixed state root produces Hermes-compatible user_id/session_key values and that the same profile reuses user_id while task IDs change session_key.",
+        "TestCamofoxCreateSessionPostsTabWithIdentity proves fake HTTP receives POST /tabs with userId, sessionKey, and about:blank; the result records browser-camofox provider, tab id, compatibility session id, managed flag, and no CDP URL.",
+        "TestCamofoxSoftCleanupAndClose prove managed soft cleanup drops local state without HTTP DELETE, unmanaged soft cleanup returns skipped, and close DELETEs /sessions/{user_id} through the fake client with redacted cleanup evidence.",
+        "TestCamofoxCreateSessionErrorsRedacted proves create failures keep bounded Camofox failure context while redacting base URLs and profile-state roots."
+      ],
+      "note": "Complete 2026-05-09: TDD landed internal/tools/browser_camofox_bridge.go and browser_camofox_bridge_test.go. Gormes now has a fakeable Camofox REST backend seam with CAMOFOX_URL/BROWSER_CDP_URL mode priority, Hermes-compatible uuid5 managed identity, POST /tabs session creation through injected HTTP, REST-only provider-neutral session mapping, local-only managed soft cleanup, hard close DELETE /sessions/{user_id}, and bounded/redacted degraded evidence. Tests use fake HTTP and never start Camofox, Chrome, Rod, chromedp, Browser Use, Browserbase, Firecrawl, DNS, Python imports, or live profile directories.",
+      "write_scope": [
+        "internal/tools/browser_camofox_bridge.go",
+        "internal/tools/browser_camofox_bridge_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run '^TestCamofox' -count=1",
+        "go test ./internal/tools -run 'TestBrowserProvider|TestBrowserUse|TestBrowserHarness|TestCamofox' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Camofox bridge fixtures prove mode priority, Hermes-compatible managed identity, fake /tabs creation, soft cleanup, hard close, and redacted degraded evidence without live browser or Camofox calls."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-09T00:00:00Z",
+        "last_success": "2026-05-09T00:00:00Z",
+        "backends_tried": [
+          "codex"
+        ]
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_refs": [
+          "hermes:tools/browser_camofox.py",
+          "hermes:tools/browser_camofox_state.py",
+          "hermes:tests/tools/test_browser_camofox.py",
+          "hermes:tests/tools/test_browser_camofox_persistence.py"
+        ],
+        "note": "Parity sweep 2026-05-09 found Camofox exposed in Hermes browser tools and Gormes manifests but missing a builder-ready REST/session bridge row."
+      },
+      "evidence": [
+        "TestCamofoxConfigMode proves CAMOFOX_URL enables Camofox, blank BROWSER_CDP_URL does not suppress it, nonblank BROWSER_CDP_URL suppresses it, and missing config returns browser_provider_unconfigured without HTTP calls.",
+        "TestCamofoxManagedIdentityMatchesHermesUUID5 proves Gormes matches Hermes' uuid5 namespace contract for user_id and session_key values.",
+        "TestCamofoxCreateSessionPostsTabWithIdentity proves fake POST /tabs carries userId/sessionKey/about:blank and maps the tab response into a REST-only browser-camofox session.",
+        "TestCamofoxSoftCleanupAndClose proves managed soft cleanup is local-only, unmanaged soft cleanup is skipped, and hard close DELETEs the Camofox user session through the fake client.",
+        "TestCamofoxCreateSessionErrorsRedacted proves create-failure evidence is bounded and redacts the Camofox base URL and profile state root."
+      ],
+      "outputs": [
+        "internal/tools/browser_camofox_bridge.go",
+        "internal/tools/browser_camofox_bridge_test.go"
+      ],
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 5,
+    "item": {
+      "name": "Browser Use cloud + Go browser harness bridge",
+      "status": "complete",
+      "contract": "Fakeable Browser Use provider and Go browser harness command bridge implements Hermes' BrowserUseProvider session shape and browser operator workflow without starting a live browser: config detects direct BROWSER_USE_API_KEY or managed gateway state, CreateSession records id, cdpUrl/connectUrl, liveUrl, feature flags, timeout/proxy/profile inputs, and external_call_id with redacted evidence; Stop/Cleanup PATCHes action=stop; the default command runner builds argv as go-browser-harness --action-json gormes.browser.action.v1 plus a sanitized BU_NAME environment, while browser-harness -c remains explicit legacy compatibility only; harness stdout/stderr and screenshot/text outputs normalize into BrowserResultEnvelope with artifact budgeting.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Unavailable Browser Use credentials, missing go-browser-harness binary, session create failures, stale CDP/connectUrl resolution, cleanup failures, and command-runner failures return typed evidence such as browser_use_unconfigured, browser_harness_unavailable, browser_use_session_create_failed, browser_use_cleanup_failed, and browser_harness_command_failed without leaking API keys, profile IDs, cookies, CDP URLs, or unbounded provider response bodies.",
+      "fixture": "internal/tools/browser_use_harness_bridge_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/browser_providers/browser_use.py:BrowserUseProvider",
+        "../hermes-agent/tools/browser_tool.py:_get_cloud_provider,_resolve_cdp_override,_run_browser_command",
+        "../hermes-agent/tools/browser_cdp_tool.py",
+        "../hermes-agent/hermes_cli/browser_connect.py",
+        "../hermes-agent/cli.py:_handle_browser_command",
+        "../hermes-agent/tests/cli/test_cli_browser_connect.py",
+        "../go-browser-harness/pkg/harness/action.go",
+        "../go-browser-harness/cmd/go-browser-harness/main.go",
+        "../browser-harness/SKILL.md",
+        "../browser-harness/install.md",
+        "../browser-harness/agent-workspace/agent_helpers.py",
+        "Context7:/llmstxt/browser-use_llms-full_txt cloud browser profile/CDP docs",
+        "internal/tools/browser_contract.go",
+        "internal/tools/browser_hybrid_routing.go",
+        "internal/tools/result_budget.go"
+      ],
+      "ready_when": [
+        "Browser action contract, private-URL local sidecar routing, and SSRF quoted-false guard are validated.",
+        "../go-browser-harness has a tested Go action JSON CLI/package contract; the legacy ../browser-harness checkout is reference material only.",
+        "Tests can inject fake HTTP transports, fake command runners, and synthetic harness stdout/stderr; no DNS, Chrome, CDP socket, Browser Use cloud call, browser-harness daemon, or Python package import is required."
+      ],
+      "not_ready_when": [
+        "The slice starts Chrome, opens a real tab, runs browser-harness against a live browser, calls Browser Use cloud, imports browser-harness Python packages into Go, or sends a private/LAN URL to a cloud browser path.",
+        "The bridge exposes a non-Hermes tool name instead of preserving the browser_* descriptor surface.",
+        "Errors include raw BROWSER_USE_API_KEY values, profile/cookie material, CDP/connect URLs, live browser URLs, session IDs without redaction, or unbounded HTML/provider response bodies."
+      ],
+      "blocked_by": [
+        "Browser action contract + event transcript",
+        "Browser hybrid private-URL local sidecar routing",
+        "Browser SSRF quoted-false guard"
+      ],
+      "acceptance": [
+        "TestBrowserUseConfigGates proves direct Browser Use credentials, managed gateway credentials, unconfigured degraded evidence, and deterministic cloud-provider preference without live network calls.",
+        "TestBrowserUseCreateSessionMapsCDP proves managed /browsers creation maps provider id, CDP/live URLs, feature flags, idempotency, profile presence bits, and external-call evidence without leaking profile values.",
+        "TestBrowserUseStopCleanup proves stop/cleanup requests map to Browser Use PATCH actions, skipped cleanup handles empty session IDs, and failed cleanup errors are bounded/redacted.",
+        "TestBrowserHarnessCommandRunner proves the default Go harness runner receives go-browser-harness --action-json argv without shell concatenation, sanitized BU_NAME, redacted env evidence, and artifact-budgeted output envelopes.",
+        "TestBrowserHarnessLegacyCommandRunnerExplicit proves browser-harness -c remains available only as an explicit legacy compatibility command.",
+        "TestBrowserHarnessNoLiveRuntimeInUnitTests proves Browser Use and harness unit tests use injected fake runners/transports and never require a live browser, cloud session, provider account, or Python package import."
+      ],
+      "note": "Validated browser runtime bridge slice: Gormes now has a fakeable Browser Use lifecycle bridge plus Go-native go-browser-harness action JSON command runner with credential gates, managed-session idempotency, sanitized task namespaces, cleanup evidence, artifact-budgeted outputs, explicit legacy Python compatibility, and redacted degraded errors. No Chrome, Browser Use cloud, Browserbase, Firecrawl, Python browser-harness, or Hermes runtime is started by the required tests.",
+      "write_scope": [
+        "internal/tools/browser_use_harness_bridge.go",
+        "internal/tools/browser_use_harness_bridge_test.go",
+        "internal/tools/browser_contract.go",
+        "internal/tools/browser_hybrid_routing.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run '^TestBrowserUse|^TestBrowserHarness' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Browser Use/go-browser-harness fixtures prove credential gates, session create/stop mapping, sanitized BU_NAME command execution, action JSON argv, artifact-budgeted result envelopes, explicit legacy compatibility, and redacted degraded evidence without live browser, cloud calls, or Python imports."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-29T16:59:30Z",
+        "last_success": "2026-04-29T16:59:30Z",
+        "backends_tried": [
+          "codex"
+        ]
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/browser_providers/browser_use.py",
+          "hermes:tools/browser_tool.py",
+          "hermes:hermes_cli/browser_connect.py",
+          "go-browser-harness:pkg/harness/action.go",
+          "go-browser-harness:cmd/go-browser-harness/main.go",
+          "browser-use/browser-harness:SKILL.md",
+          "browser-use/browser-harness:install.md"
+        ],
+        "note": "Hermes owns the browser_* tool and BrowserUseProvider contracts; go-browser-harness is the Go-native runtime target, while browser-harness supplies Browser Use/CDP operator workflow reference material only."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 6,
+    "item": {
+      "name": "Go browser-harness Hermes browser_* tool wrappers",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes registers Hermes-visible browser_* tools backed by the Go BrowserHarnessBridge: browser_navigate emits go-browser-harness --action-json with schema_version gormes.browser.action.v1, new_tab=true, and the target URL; browser_snapshot returns text plus @e refs; browser_click/browser_type/browser_scroll/browser_back/browser_press/browser_console/browser_get_images/browser_vision/browser_cdp/browser_dialog generate argv-only Go action JSON, use sanitized BU_NAME task namespaces, preserve BrowserResultEnvelope artifact budgeting, and degrade with browser_harness_* evidence when the external harness is unavailable. Python browser-harness -c snippets remain explicit legacy compatibility only.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Missing go-browser-harness binary, stale CDP attachment, bad @e refs, command failures, and oversized output return typed browser_harness_unavailable/browser_harness_command_failed evidence through bounded BrowserHarnessToolResponse JSON. Unit tests use fake process runners only and never start Chrome, Browser Use, Browserbase, Firecrawl, Camofox, Python browser-harness, or go-browser-harness.",
+      "fixture": "internal/tools/browser_harness_tools_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/browser_tool.py:browser_navigate,browser_snapshot,browser_click,browser_type,browser_scroll,browser_back,browser_press,browser_console,browser_get_images,browser_vision",
+        "../hermes-agent/tools/browser_cdp_tool.py:browser_cdp",
+        "../hermes-agent/tools/browser_dialog_tool.py:browser_dialog",
+        "../go-browser-harness/pkg/harness/action.go",
+        "../go-browser-harness/cmd/go-browser-harness/main.go",
+        "../browser-harness/SKILL.md",
+        "../browser-harness/src/browser_harness/helpers.py",
+        "internal/tools/browser_use_harness_bridge.go",
+        "internal/tools/browser_contract.go",
+        "cmd/gormes/registry.go"
+      ],
+      "ready_when": [
+        "Browser action contract + event transcript is validated.",
+        "Browser Use cloud + Go browser harness bridge is validated.",
+        "../go-browser-harness exposes the gormes.browser.action.v1 contract used by the default command runner.",
+        "Tests can inject fake BrowserHarnessProcessRunner outputs; no live browser runtime is required."
+      ],
+      "not_ready_when": [
+        "The slice bypasses BrowserHarnessBridge and shell-concatenates commands.",
+        "browser_navigate omits new_tab=true in the Go action JSON and risks clobbering the operator's active tab.",
+        "The default path requires Python, uv, browser-harness -c, live Chrome, Browser Use, Browserbase, Firecrawl, Camofox, or CDP sockets.",
+        "The slice claims full Hermes browser parity; CDP supervisor sessions, Browserbase/Firecrawl providers, and optional live smoke remain separate rows."
+      ],
+      "blocked_by": [
+        "Browser action contract + event transcript",
+        "Browser Use cloud + Go browser harness bridge"
+      ],
+      "acceptance": [
+        "TestBrowserHarnessToolsExposeHermesNames proves all core Hermes browser_* names are exposed with valid JSON schemas.",
+        "TestBrowserHarnessNavigateUsesNewTabAndEnvelope proves browser_navigate builds go-browser-harness --action-json argv, sets new_tab=true rather than emitting Python goto_url/new_tab snippets, sanitizes BU_NAME, and returns a bounded BrowserHarnessToolResponse.",
+        "TestBrowserHarnessClickAndTypeUseSnapshotRefs proves browser_click/browser_type consume @e refs from the snapshot contract and reject missing refs before invoking the runner.",
+        "TestBrowserHarnessCDPConsoleAndVisionBuildExpectedActions proves browser_cdp, browser_console, browser_vision, and browser_dialog generate the expected Go action JSON without live browser runtime.",
+        "TestBrowserHarnessLegacyPythonCommandStillExplicit proves browser-harness -c remains available only when explicitly selected.",
+        "TestBuildDefaultRegistryDelegationDisabled proves the default Gormes registry used by TUI/gateway/Telegram exposes browser_navigate, browser_snapshot, browser_click, browser_type, browser_cdp, and browser_dialog."
+      ],
+      "note": "Complete: TDD landed internal/tools/browser_harness_tools.go and registered the browser toolset in cmd/gormes/registry.go. Gormes now exposes Hermes browser_* tool names to normal tool-call loops using the fakeable BrowserHarnessBridge and defaults to go-browser-harness --action-json instead of Python snippets. Explicit browser-harness -c legacy compatibility remains tested but is not the default plugin path. It is not final browser parity: live chromedp backend wiring, live smoke docs, Browserbase/Firecrawl provider selection, CDP supervisor frame routing, and richer vision analysis remain row-backed follow-ups.",
+      "write_scope": [
+        "internal/tools/browser_harness_tools.go",
+        "internal/tools/browser_harness_tools_test.go",
+        "cmd/gormes/registry.go",
+        "cmd/gormes/registry_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run '^TestBrowserHarness' -count=1",
+        "go test ./internal/tools -count=1",
+        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Gormes default registry exposes go-browser-harness-backed Hermes browser_* tools with fake-runner fixtures for schemas, navigation, snapshots, @e ref click/type, CDP/dialog/console/vision action JSON, explicit legacy Python fallback, artifact budgeting, and unavailable-runtime evidence."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-29T17:42:52Z",
+        "last_success": "2026-04-29T17:42:52Z",
+        "backends_tried": [
+          "codex"
+        ]
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/browser_tool.py",
+          "hermes:tools/browser_cdp_tool.py",
+          "hermes:tools/browser_dialog_tool.py",
+          "go-browser-harness:pkg/harness/action.go",
+          "browser-use/browser-harness:helpers.py"
+        ],
+        "note": "Hermes defines the public browser_* tool names and broad behavior; go-browser-harness is the default Go-native runtime target, with browser-harness retained as behavior reference and explicit legacy compatibility."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 7,
+    "item": {
+      "name": "Go-native Hermes web_search/web_extract tool wrappers",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes registers Hermes-visible `web_search` and `web_extract` tools backed by a fakeable `WebHTTPClient`. `ResolveWebBackend` maps Firecrawl direct/self-hosted config and managed Firecrawl gateway tokens into a common resolution shape. `web_search` posts to `/v2/search` and normalizes Firecrawl-style results into `{success,data.web[]}`. `web_extract` posts `/v2/scrape` once per public URL, blocks private/internal URLs with `private_url_blocked` evidence before any HTTP call, and normalizes markdown/title/sourceURL into `{results[]}`. Missing web config keeps both tools registered and returns `web_provider_unavailable` JSON instead of removing descriptors from the default registry.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Missing Firecrawl config returns `web_provider_unavailable` while preserving descriptors. Provider HTTP failures return `web_provider_request_failed` without leaking bearer tokens. Invalid URLs return `web_invalid_arguments`. Private, loopback, LAN, or internal hosts are blocked with `private_url_blocked` before the injected HTTP client is called.",
+      "fixture": "internal/tools/web_tools_test.go + cmd/gormes/registry_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/web_tools.py:web_search_tool",
+        "../hermes-agent/tools/web_tools.py:web_extract_tool",
+        "../hermes-agent/tools/managed_tool_gateway.py",
+        "internal/tools/managed_tool_gateway.go",
+        "internal/tools/browser_hybrid_routing.go:IsPrivateBrowserHost",
+        "cmd/gormes/registry.go"
+      ],
+      "ready_when": [
+        "Managed tool gateway bridge is validated so future gateway wiring has a normalized call boundary.",
+        "Browser private-host helper exists and can be reused for URL safety without DNS or network calls.",
+        "Tests can inject a fake WebHTTPClient; no live Firecrawl, Exa, Parallel, Tavily, managed gateway, browser runtime, or provider credential is required."
+      ],
+      "not_ready_when": [
+        "The slice removes web_search or web_extract from the default registry when credentials are absent.",
+        "Unit tests contact live web providers or depend on real API keys.",
+        "The implementation bypasses WebHTTPClient or spreads provider-specific HTTP logic into cmd/gormes callers.",
+        "Private/local URLs reach the HTTP client before safety classification."
+      ],
+      "blocked_by": [
+        "Managed tool gateway bridge",
+        "Browser hybrid private-URL local sidecar routing"
+      ],
+      "unblocks": [
+        "Managed Firecrawl gateway wiring for web tools",
+        "Toolset parity for web and safe research toolsets"
+      ],
+      "acceptance": [
+        "TestWebToolsExposeHermesNamesAndSchemas proves the package exposes valid Hermes-visible `web_search` and `web_extract` tool descriptors.",
+        "TestResolveWebBackendPrefersFirecrawlConfig proves Firecrawl API URL/key resolution and the missing-config degraded evidence.",
+        "TestWebSearchToolCallsFirecrawlThroughWebHTTPClient proves `web_search` uses the injected HTTP client, POSTs `/v2/search`, sends bearer auth, forwards query/limit, and normalizes result positions.",
+        "TestWebExtractToolCallsFirecrawlAndBlocksPrivateURLs proves `web_extract` blocks a loopback URL before HTTP, fetches only the public URL through `/v2/scrape`, and normalizes markdown/title/sourceURL.",
+        "TestBuildDefaultRegistryDelegationDisabled proves the default registry exposes `web_search` and `web_extract` alongside browser tools when delegation is disabled."
+      ],
+      "note": "Complete: TDD landed internal/tools/web_tools.go with WebHTTPClient-backed Firecrawl-compatible web_search/web_extract wrappers plus resolver and private-host guard reuse, and registered both tools in cmd/gormes/registry.go before delegate_task descriptors are captured. The slice intentionally leaves Exa/Parallel/Tavily SDK behavior and live managed-gateway routing as follow-up adapter work behind the same public tool contract.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "cmd/gormes/registry.go",
+        "cmd/gormes/registry_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
+        "go test ./internal/tools -count=1",
+        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native web tool fixtures prove descriptor exposure, resolver/degraded behavior, fake HTTP request mapping, private URL blocking, Firecrawl response normalization, and default registry wiring without live provider calls."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/web_tools.py",
+          "hermes:tools/managed_tool_gateway.py"
+        ],
+        "note": "Hermes defines the public web_search/web_extract names and Firecrawl/gateway behavior; Gormes adapts the first native HTTP adapter behind a fakeable Go boundary so later managed-gateway/provider adapters keep the same tool contract."
+      },
+      "evidence": [
+        "TestWebToolsExposeHermesNamesAndSchemas proves both public web tool names expose non-empty descriptions and valid schemas.",
+        "TestResolveWebBackendPrefersFirecrawlConfig proves direct/self-hosted Firecrawl config normalization and web_provider_unavailable when unset.",
+        "TestWebSearchToolCallsFirecrawlThroughWebHTTPClient proves fake HTTP search dispatch and normalized data.web output.",
+        "TestWebExtractToolCallsFirecrawlAndBlocksPrivateURLs proves private URL blocking and fake HTTP scrape normalization.",
+        "TestBuildDefaultRegistryDelegationDisabled proves normal Gormes registries include web_search and web_extract."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 8,
+    "item": {
+      "name": "Go-native Hermes web backend matrix and config resolver",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes resolves Hermes `web.backend` and `web.use_gateway` configuration into typed Go web backend state, preserves Hermes fallback order across Firecrawl, Parallel, Tavily, and Exa credentials, advertises the public `web_search.limit` parameter, and routes `web_search`/`web_extract` through fakeable HTTP adapters for Firecrawl, Exa, Parallel, and Tavily without live provider credentials in tests.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Missing or whitespace-only provider credentials keep web tools registered but resolve to `web_provider_unavailable`; provider HTTP failures remain per-tool JSON failures and redact bearer/API-key material. Private/local URL blocking from the first web slice still runs before provider extract calls.",
+      "fixture": "internal/tools/web_tools_test.go + internal/config/config_test.go + cmd/gormes/registry_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/web_tools.py:_get_backend",
+        "../hermes-agent/tools/web_tools.py:_exa_search",
+        "../hermes-agent/tools/web_tools.py:_parallel_search",
+        "../hermes-agent/tools/web_tools.py:_tavily_request",
+        "../hermes-agent/tools/web_tools.py:web_extract_tool",
+        "../hermes-agent/hermes_cli/tools_config.py:web_backend",
+        "internal/tools/web_tools.go",
+        "internal/config/config.go",
+        "cmd/gormes/registry.go"
+      ],
+      "ready_when": [
+        "The public web_search/web_extract wrappers and fakeable WebHTTPClient boundary are validated.",
+        "Hermes config.yaml loading already maps model/platform config, so adding the web section stays inside the config bridge.",
+        "Provider behavior can be proved with httptest/fake HTTP clients; no live Exa, Parallel, Tavily, Firecrawl, or managed gateway credentials are required."
+      ],
+      "not_ready_when": [
+        "Tests require live provider credentials or contact external web services.",
+        "Provider selection bypasses the typed WebBackendConfig resolver.",
+        "Gormes removes web_search or web_extract when a selected provider is unavailable.",
+        "The slice attempts LLM summarization, website policy, DNS-level URL safety, or full managed-gateway OAuth routing instead of only shipping backend/config parity."
+      ],
+      "unblocks": [
+        "Go-native Hermes web extract safety policy and summarizer"
+      ],
+      "acceptance": [
+        "TestWebToolsExposeHermesNamesAndSchemas proves web_search now advertises the Hermes `limit` parameter while retaining valid web_extract schema.",
+        "TestResolveWebBackendHonorsHermesBackendConfig proves configured Parallel, Exa, Tavily, and Firecrawl backends win over fallback credentials and whitespace-only keys are ignored.",
+        "TestWebSearchToolCallsExaBackend, TestWebSearchToolCallsParallelBackend, and TestWebSearchToolCallsTavilyBackend prove fake HTTP request mapping, auth placement, per-provider caps, and normalized `{success,data.web[]}` output.",
+        "TestWebExtractToolCallsExaBackend, TestWebExtractToolCallsParallelBackend, and TestWebExtractToolCallsTavilyBackend prove fake HTTP extract mapping and normalized `{results[]}` output.",
+        "TestLoad_HermesConfigYAMLWebBackend proves Hermes config.yaml `web.backend` and `web.use_gateway` load into Gormes config.",
+        "TestBuildDefaultRegistryPassesWebConfigBackend proves the default registry passes loaded web config into the registered web tools using an httptest Tavily endpoint."
+      ],
+      "note": "Complete: TDD extended internal/tools/web_tools.go beyond the initial Firecrawl tracer bullet with WebBackendConfig, Hermes fallback order, Exa/Parallel/Tavily search and extract adapters, provider-specific request/auth shaping, highlight/excerpt/full-content normalization, and web_search limit schema parity. internal/config now loads the Hermes web section, and cmd/gormes passes loaded web config into the default registry. Remaining web parity is intentionally split into safety/policy, auxiliary summarization, live managed-gateway/OAuth routing, toolset/status metadata, and optional web_crawl decisions.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "cmd/gormes/registry.go",
+        "cmd/gormes/registry_test.go",
+        "cmd/gormes/doctor.go",
+        "cmd/gormes/telegram.go",
+        "cmd/gormes/gateway.go",
+        "cmd/gormes/main.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
+        "go test ./internal/config -run 'TestLoad_HermesConfigYAMLWebBackend|TestLoad_GormesEnvOverridesHermesConfigYAML' -count=1",
+        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+        "go test ./internal/tools ./internal/config ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic fixtures prove all four Hermes web backends resolve and route through the Go-native web tools, config.yaml web selection reaches the default registry, and no provider test requires live credentials."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/web_tools.py",
+          "hermes:hermes_cli/tools_config.py"
+        ],
+        "note": "Hermes defines backend/config semantics in Python; Gormes keeps the public tool names while adapting provider calls to Go-native, fakeable HTTP adapters."
+      },
+      "blocked_by": [],
+      "evidence": [
+        "TestWebSearchToolCallsExaBackend proves Exa /search request mapping with x-api-key, x-exa-integration, highlights, and normalized descriptions.",
+        "TestWebSearchToolCallsParallelBackend proves Parallel /v1beta/search request mapping with x-api-key, default mode, result cap, and excerpt normalization.",
+        "TestWebSearchToolCallsTavilyBackend proves Tavily /search request mapping with JSON api_key, result cap, and content normalization.",
+        "TestWebExtractToolCallsExaBackend proves Exa /contents text extraction mapping.",
+        "TestWebExtractToolCallsParallelBackend proves Parallel /v1beta/extract full_content mapping.",
+        "TestWebExtractToolCallsTavilyBackend proves Tavily /extract mapping.",
+        "TestBuildDefaultRegistryPassesWebConfigBackend proves configured web backend selection is visible through the default registry."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 9,
+    "item": {
+      "name": "Go-native Hermes web extract safety policy and summarizer",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes ports the remaining registered Hermes web_extract safety behavior around the existing fakeable web provider adapters: URLs containing known secret/API-key token prefixes short-circuit before any HTTP request, Hermes security.website_blocklist config blocks requested URLs before fetch and redirected final URLs after fetch, base64 data-image payloads are scrubbed from JSON output, and long extracted pages can be summarized through an injected WebContentProcessor with the production registry wiring it to the active Hermes client.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Website policy blocks return a per-result `blocked_by_policy` object without contacting providers. Secret-bearing URLs return a top-level failure before provider calls. If summarization is unavailable, disabled, empty, or fails, Gormes keeps bounded raw content rather than failing the web_extract call. Content over the processing input cap returns a focused too-large message.",
+      "fixture": "internal/tools/web_tools_test.go + internal/config/config_test.go + cmd/gormes/registry_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/web_tools.py:web_extract_tool",
+        "../hermes-agent/tools/web_tools.py:process_content_with_llm",
+        "../hermes-agent/tools/web_tools.py:clean_base64_images",
+        "../hermes-agent/tools/website_policy.py",
+        "../hermes-agent/agent/redact.py:_PREFIX_RE",
+        "../hermes-agent/cli-config.yaml.example:security.website_blocklist",
+        "internal/tools/web_tools.go",
+        "internal/config/config.go",
+        "cmd/gormes/web_content_processor.go",
+        "cmd/gormes/registry.go"
+      ],
+      "ready_when": [
+        "The public web_search/web_extract wrappers, backend resolver, and provider matrix are already validated.",
+        "Hermes config.yaml loading already maps the web section, so adding the security website_blocklist section stays inside the config bridge.",
+        "Long-content processing can be proved with a fake WebContentProcessor and a hermes.MockClient; no live LLM provider or web provider credentials are required."
+      ],
+      "not_ready_when": [
+        "Tests require live provider credentials, live web pages, or external LLM calls.",
+        "Website policy is enforced only in cmd/gormes rather than inside the native web tool boundary.",
+        "Blocked requested URLs or redirected final URLs can still reach provider HTTP clients.",
+        "The slice adds a model-visible web_crawl tool even though upstream Hermes does not register web_crawl in the web toolset."
+      ],
+      "blocked_by": [
+        "Go-native Hermes web backend matrix and config resolver"
+      ],
+      "unblocks": [
+        "Toolset/status metadata parity for web provider availability"
+      ],
+      "acceptance": [
+        "TestWebExtractToolBlocksEmbeddedSecretsBeforeHTTP proves secret-prefix URLs short-circuit with no provider request.",
+        "TestWebExtractToolAppliesWebsitePolicyBeforeFetch proves configured website policy blocks before HTTP and returns blocked_by_policy metadata.",
+        "TestWebExtractToolBlocksRedirectedFinalURL proves Firecrawl metadata.sourceURL is rechecked after redirects and blocked content is suppressed.",
+        "TestWebExtractToolRemovesBase64ImagesFromOutput proves data:image base64 payloads are replaced by placeholders in tool output.",
+        "TestWebExtractToolProcessesLongContentWithProcessor proves long page content is passed to an injected processor and the summary replaces raw content.",
+        "TestLoad_HermesConfigYAMLWebsiteBlocklist proves Hermes security.website_blocklist config loads into native Gormes config.",
+        "TestBuildDefaultRegistryPassesWebsiteBlocklistToWebExtract proves default registry web_extract enforces loaded blocklist policy.",
+        "TestBuildDefaultRegistryWiresWebContentProcessor proves the default registry wires the active Hermes client as the web content processor with model context."
+      ],
+      "note": "Complete 2026-04-30: TDD added registered web_extract parity for Hermes secret URL blocking, website blocklist policy, redirected final URL policy rechecks, data-image base64 cleanup, and long-page summarization behind a WebContentProcessor interface. Production registry wiring reuses the active Hermes client stream adapter when available; hermetic tests use fake HTTP clients and hermes.MockClient. Upstream web_crawl remains an unregistered helper in Hermes, so Gormes did not expose a new model-visible web_crawl tool in this slice.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "cmd/gormes/registry.go",
+        "cmd/gormes/registry_test.go",
+        "cmd/gormes/web_content_processor.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
+        "go test ./internal/config -run 'TestLoad_HermesConfigYAML(WebBackend|WebsiteBlocklist)|TestLoad_GormesEnvOverridesHermesConfigYAML' -count=1",
+        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+        "go test ./internal/tools ./internal/config ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic fixtures prove registered web_extract safety and content-processing behavior matches Hermes' web_tools.py/website_policy.py contract without live web, Firecrawl, Tavily, Exa, Parallel, managed-gateway, or LLM credentials."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/web_tools.py",
+          "hermes:tools/website_policy.py",
+          "hermes:agent/redact.py"
+        ],
+        "note": "Hermes defines web_extract safety and summarization semantics; Gormes adapts them to typed Go policy/config structs, fakeable HTTP, and a small injected content-processor boundary."
+      },
+      "evidence": [
+        "TestWebExtractToolBlocksEmbeddedSecretsBeforeHTTP proves provider HTTP is not called for secret-bearing URLs.",
+        "TestWebExtractToolAppliesWebsitePolicyBeforeFetch proves requested URL policy blocking.",
+        "TestWebExtractToolBlocksRedirectedFinalURL proves final URL policy rechecks after provider response normalization.",
+        "TestWebExtractToolRemovesBase64ImagesFromOutput proves output cleanup.",
+        "TestWebExtractToolProcessesLongContentWithProcessor proves fake summarizer replacement.",
+        "TestBuildDefaultRegistryWiresWebContentProcessor proves production registry wiring reaches the Hermes client adapter."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 10,
+    "item": {
+      "name": "Goscrapling local extraction for web_extract",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes keeps the public Hermes-compatible `web_extract` tool name and integrates Go-native local/static extraction through the checked-out goscrapling module. When `css_selector` is set, `web_extract` fetches public http(s) URLs locally through the existing fakeable WebHTTPClient/direct document path, applies the same private/internal URL, secret URL, redirect, and website-policy guards, parses the response with goscrapling, and returns only matching element text in the existing `{results[]}` envelope. When the automatic DuckDuckGo/free backend handles `web_extract`, Gormes now tries goscrapling static URL extraction first for normal root URLs and document paths, using DuckDuckGo Instant Answer only as fallback.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Selector requests that match no elements or empty content return per-result invalid-arguments evidence. Fetch/parse failures return per-result request-failed evidence. DuckDuckGo/free static extraction falls back to Instant Answer when local fetch cannot produce content. Dynamic JavaScript pages still use browser tools/CDP; no new public goscrapling tool name is exposed.",
+      "fixture": "internal/tools/web_tools_test.go::TestWebExtractToolUsesGoscraplingCSSSelectorForStaticPages + TestWebExtractToolUsesGoscraplingForDuckDuckGoRootURL",
+      "source_refs": [
+        "goscrapling/README.md",
+        "goscrapling/response.go",
+        "goscrapling/document.go",
+        "goscrapling/selection.go",
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go"
+      ],
+      "ready_when": [
+        "The public web_extract wrapper, URL safety policy, website policy, fakeable WebHTTPClient boundary, and direct static document fetch path are already validated.",
+        "The local goscrapling checkout is available as a Go module and can parse static HTML without a browser runtime.",
+        "Tests can inject an httptest-backed WebHTTPClient; no live web provider, browser runtime, DNS, external website, or provider credentials are required."
+      ],
+      "not_ready_when": [
+        "The implementation exposes a new model-visible goscrapling-specific tool name instead of extending web_extract.",
+        "CSS selector extraction bypasses the existing WebHTTPClient, private URL guard, secret URL guard, website policy, or result post-policy.",
+        "Tests depend on live web pages or JavaScript-rendered content.",
+        "The slice attempts browser automation, crawling, search provider changes, or dynamic page execution."
+      ],
+      "blocked_by": [
+        "Go-native Hermes web extract safety policy and summarizer"
+      ],
+      "unblocks": [
+        "Termux-friendly static web extraction",
+        "Go-native local research workflows without a Firecrawl-compatible provider"
+      ],
+      "acceptance": [
+        "The public web_extract descriptor keeps existing urls support and advertises optional css_selector.",
+        "A css_selector request performs one local static GET through WebHTTPClient and returns only matching content.",
+        "DuckDuckGo/free web_extract performs a goscrapling static GET for a root URL instead of calling DuckDuckGo Instant Answer first.",
+        "DuckDuckGo/free web_extract keeps Instant Answer as fallback after a local static fetch cannot produce content.",
+        "Selected content excludes unrelated page content from nonmatching elements.",
+        "Result metadata preserves the requested/final URL and HTML title.",
+        "The implementation uses the local goscrapling module without exposing a new public tool name."
+      ],
+      "note": "Complete 2026-05-15: TDD added a goscrapling-backed local/static extraction path behind the existing web_extract tool. Follow-up TDD integrated goscrapling more deeply into the DuckDuckGo/free web_extract route so normal root URLs are fetched locally first and Instant Answer becomes fallback instead of the primary path. The public contract stays Hermes-compatible while Gormes owns the optional css_selector parameter and local static extraction behavior as Termux-friendly enhancements. Dynamic JavaScript and browser-heavy cases remain delegated to browser/CDP tools.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "go.mod",
+        "go.sum",
+        "goscrapling/go.mod",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run TestWebExtractToolUsesGoscraplingCSSSelectorForStaticPages -count=1",
+        "go test ./internal/tools -run TestWebExtractToolUsesGoscraplingForDuckDuckGoRootURL -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Focused web_extract fixture proves goscrapling-backed CSS selection through the existing tool contract."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "This is a Gormes-owned Go-native/Termux-friendly static extraction enhancement behind the existing Hermes-compatible web_extract surface, not an upstream Hermes tool rename."
+      },
+      "evidence": [
+        "TestWebExtractToolUsesGoscraplingCSSSelectorForStaticPages proves schema exposure, one fakeable local GET, selector-only content, unrelated-content exclusion, and title/URL metadata.",
+        "TestWebExtractToolUsesGoscraplingForDuckDuckGoRootURL proves the automatic DuckDuckGo/free backend locally fetches an ordinary root URL through goscrapling instead of calling DuckDuckGo Instant Answer first.",
+        "TestWebExtractToolUsesDuckDuckGoInstantAnswer proves Instant Answer remains fallback after local static extraction cannot produce content.",
+        "The implementation resolves goscrapling through the repo-local ./goscrapling module and keeps the root Gormes Go directive at 1.26 for Termux parity."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 11,
+    "item": {
+      "name": "Go-native Hermes web_crawl tool adapter",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes exposes a Go-native `web_crawl` tool for the Hermes `web_crawl_tool` helper surface, backed by the existing fakeable `WebHTTPClient` and web backend resolver. Firecrawl crawl posts to `/v2/crawl` with Hermes' fixed 20-page markdown crawl payload and ignores instructions because Firecrawl crawl has no prompt parameter. Tavily crawl posts to `/crawl` with `url`, `limit`, `extract_depth`, optional `instructions`, and the API key in the JSON body. Both paths normalize crawled pages into `{results:[{url,title,content,error}]}`, apply private/internal URL blocking before provider calls, enforce `security.website_blocklist` before crawl and against final crawled URLs, scrub base64 data images from output, and pass long page content through the existing `WebContentProcessor` when enabled.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Missing or unsupported crawl backend returns a bounded `success:false` error explaining that `web_crawl` requires Firecrawl or Tavily and suggesting `web_search` plus `web_extract` as fallback. Secret-bearing crawl URLs are blocked before any HTTP request as a Gormes-owned hardening for making Hermes' unregistered helper model-visible. Provider HTTP failures return a redacted crawl error without leaking bearer tokens.",
+      "fixture": "internal/tools/web_tools_test.go + cmd/gormes/registry_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/web_tools.py:web_crawl_tool",
+        "../hermes-agent/tools/web_tools.py:_normalize_tavily_documents",
+        "../hermes-agent/tools/web_tools.py:process_content_with_llm",
+        "../hermes-agent/tools/web_tools.py:clean_base64_images",
+        "../hermes-agent/tools/website_policy.py",
+        "../hermes-agent/tests/tools/test_web_tools_tavily.py:TestWebCrawlTavily",
+        "../hermes-agent/tests/tools/test_website_policy.py:test_web_crawl_short_circuits_blocked_url",
+        "../hermes-agent/tests/tools/test_website_policy.py:test_web_crawl_blocks_redirected_final_url",
+        "internal/tools/web_tools.go",
+        "cmd/gormes/registry.go"
+      ],
+      "ready_when": [
+        "The native web_search/web_extract tool wrappers, backend matrix, website policy, and content processor are already validated.",
+        "Hermes web_crawl_tool behavior is source-mapped, including its Firecrawl crawl payload, Tavily instructions path, policy checks, final URL rechecks, base64 cleanup, and per-page summarization.",
+        "The model-visible registration decision is explicit: upstream Hermes implements web_crawl_tool but does not register web_crawl in tools/web_tools.py or toolsets.py; Gormes registers it because this row exists to close the user-requested helper parity gap."
+      ],
+      "not_ready_when": [
+        "Tests require live Firecrawl, Tavily, DNS, network, managed-gateway, browser runtime, or LLM credentials.",
+        "Crawl behavior bypasses the shared WebHTTPClient boundary.",
+        "Policy-blocked requested URLs or final crawled URLs can still reach or leak provider content.",
+        "The progress row treats upstream web_crawl as a registered Hermes web tool without noting the Gormes-owned visibility decision."
+      ],
+      "blocked_by": [
+        "Go-native Hermes web backend matrix and config resolver",
+        "Go-native Hermes web extract safety policy and summarizer"
+      ],
+      "unblocks": [
+        "Toolset/status metadata parity for web provider availability"
+      ],
+      "acceptance": [
+        "TestWebToolsExposeHermesNamesAndSchemas proves NewWebTools exposes web_crawl with url, instructions, and depth schema fields.",
+        "TestWebCrawlToolCallsFirecrawlAndNormalizesPages proves Firecrawl crawl dispatch, fixed markdown crawl payload, instruction omission, bearer auth, URL prefixing, and page normalization.",
+        "TestWebCrawlToolCallsTavilyWithInstructions proves Tavily crawl dispatch, JSON-body API key, extract_depth, limit, instructions, and result normalization.",
+        "TestWebCrawlToolBlocksEmbeddedSecretsBeforeHTTP proves model-visible Gormes crawl blocks secret-bearing URLs before HTTP.",
+        "TestWebCrawlToolAppliesWebsitePolicyBeforeFetch proves requested crawl URLs are blocked by website policy before provider calls.",
+        "TestWebCrawlToolBlocksRedirectedFinalURL proves final crawled URLs are rechecked and blocked content is suppressed.",
+        "TestWebCrawlToolRemovesBase64ImagesFromOutput proves data:image base64 payloads are replaced by placeholders.",
+        "TestWebCrawlToolProcessesLongContentWithProcessor proves crawl pages use the existing WebContentProcessor summarization path.",
+        "TestBuildDefaultRegistryPassesWebsiteBlocklistToWebCrawl and TestBuildDefaultRegistryWiresWebContentProcessorToWebCrawl prove production registry wiring inherits policy and Hermes-client summarization."
+      ],
+      "note": "Complete 2026-04-30: TDD added a native web_crawl tool around Hermes' implemented but unregistered web_crawl_tool helper. Gormes intentionally registers it in the default web surface because the user explicitly asked to close crawl parity; the row records that visibility as a Gormes-owned decision rather than a claim that upstream registers web_crawl. The adapter covers Firecrawl and Tavily crawl payloads, policy/final URL checks, base64 cleanup, long-content processing, and a secret-URL guard for the new model-visible surface.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "cmd/gormes/registry_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestWeb|TestResolveWeb' -count=1",
+        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+        "go test ./internal/tools ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic fixtures prove native web_crawl dispatch, normalization, safety, registry wiring, and content-processing behavior without live web/provider/LLM credentials."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/web_tools.py",
+          "hermes:tools/website_policy.py"
+        ],
+        "note": "Hermes defines crawl helper behavior, while Gormes owns the model-visible registration and added secret-URL guard because upstream does not register web_crawl."
+      },
+      "evidence": [
+        "TestWebCrawlToolCallsFirecrawlAndNormalizesPages proves Firecrawl /v2/crawl payload and normalization.",
+        "TestWebCrawlToolCallsTavilyWithInstructions proves Tavily /crawl payload and instructions forwarding.",
+        "TestWebCrawlToolBlocksEmbeddedSecretsBeforeHTTP proves no HTTP request for secret-bearing crawl URLs.",
+        "TestWebCrawlToolAppliesWebsitePolicyBeforeFetch and TestWebCrawlToolBlocksRedirectedFinalURL prove website policy enforcement before and after crawl.",
+        "TestWebCrawlToolRemovesBase64ImagesFromOutput and TestWebCrawlToolProcessesLongContentWithProcessor prove output cleanup and per-page processing.",
+        "TestBuildDefaultRegistryPassesWebsiteBlocklistToWebCrawl and TestBuildDefaultRegistryWiresWebContentProcessorToWebCrawl prove default registry integration."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 12,
+    "item": {
+      "name": "Go-native Hermes web managed gateway status and live smoke closure",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes closes the remaining native web-tool parity gaps after web_search/web_extract/web_crawl: Firecrawl managed-gateway routing can resolve a Nous OAuth access token from the native Gormes auth store, refresh expiring tokens with Hermes' OAuth refresh-token grant, and prefer the managed route when web.use_gateway is true; the web backend resolver exposes a redacted status read model showing backend, direct/managed/unavailable route, credential source, gateway mode, tool names, and required env/auth hints; `gormes doctor --offline` renders that status without leaking tokens; and opt-in live smoke coverage can exercise real web_search/web_extract plus optional web_crawl only when an operator explicitly enables it with credentials.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Missing direct provider credentials or managed gateway auth keeps web tool descriptors registered and reports web_provider_unavailable in tool output plus WARN status in doctor. If a Nous access-token refresh fails, the resolver falls back to the cached access token like Hermes' managed_tool_gateway helper. Invalid shared gateway schemes are rejected before a managed URL is promoted. Auth-store access tokens are never included in status, doctor output, test failures, or tool results. Live smoke tests are skipped unless GORMES_LIVE_WEB_SMOKE=1 is set; missing credentials fail only that explicitly requested smoke run.",
+      "fixture": "internal/tools/web_tools_test.go + internal/tools/web_live_smoke_test.go + cmd/gormes/registry_test.go + cmd/gormes/doctor_custom_provider_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/managed_tool_gateway.py",
+        "../hermes-agent/tools/tool_backend_helpers.py:managed_nous_tools_enabled",
+        "../hermes-agent/tools/tool_backend_helpers.py:prefers_gateway",
+        "../hermes-agent/hermes_cli/auth.py:get_nous_auth_status",
+        "../hermes-agent/hermes_cli/auth.py:resolve_nous_access_token",
+        "../hermes-agent/hermes_cli/nous_subscription.py",
+        "../hermes-agent/tests/tools/test_managed_tool_gateway.py",
+        "../hermes-agent/tests/tools/test_web_tools_config.py",
+        "internal/tools/web_tools.go",
+        "internal/tools/web_live_smoke_test.go",
+        "cmd/gormes/registry.go",
+        "cmd/gormes/doctor.go"
+      ],
+      "ready_when": [
+        "Native web_search/web_extract/web_crawl adapters and safety policy are already validated.",
+        "Gormes auth add nous persists providers.nous access_token state in the native auth.json store.",
+        "Managed gateway routing and status can be proved with fake auth stores and httptest without live Nous, Firecrawl, or Tavily credentials."
+      ],
+      "not_ready_when": [
+        "The resolver can only use TOOL_GATEWAY_USER_TOKEN and cannot read the native Gormes auth store.",
+        "Doctor/status output includes raw provider tokens or bearer headers.",
+        "Live smoke tests run by default in CI or fail machines without credentials.",
+        "The status surface omits whether web tools are using direct credentials, managed gateway, or unavailable degraded mode."
+      ],
+      "blocked_by": [
+        "Go-native Hermes web_crawl tool adapter",
+        "Go-native Hermes web extract safety policy and summarizer"
+      ],
+      "unblocks": [
+        "Release-note web parity claim"
+      ],
+      "acceptance": [
+        "TestResolveWebBackendUsesNousAuthStoreForManagedGateway proves web.use_gateway prefers a Nous OAuth token from auth.json over direct Firecrawl credentials and derives the default Firecrawl gateway origin.",
+        "TestResolveWebBackendRefreshesExpiringNousAuthStoreToken proves expiring providers.nous access tokens are refreshed through POST /api/oauth/token and persisted without dropping other auth.json sections.",
+        "TestResolveWebBackendFallsBackToCachedNousTokenWhenRefreshFails proves refresh failures preserve Hermes' cached-token fallback for managed tool-gateway requests.",
+        "TestResolveWebBackendRejectsInvalidManagedGatewayScheme proves invalid TOOL_GATEWAY_SCHEME values do not silently promote a malformed managed gateway origin.",
+        "TestResolveWebBackendInvalidGatewaySchemeDoesNotBlockDirectFirecrawl proves invalid gateway-only config does not suppress direct Firecrawl credentials unless web.use_gateway requests the managed route.",
+        "TestBuildDefaultRegistryUsesNousAuthStoreForManagedWebGateway proves production registry wiring passes the native auth store path and sends the auth-store token as the managed gateway bearer without leaking it in output.",
+        "TestResolveWebBackendStatusReportsManagedRouteAndToolset proves the redacted status read model reports managed/auth_store route, tool names, required env metadata, and no token material.",
+        "TestDoctorWebToolsStatusReportsManagedGateway proves gormes doctor surfaces backend route/source/toolset metadata without leaking auth-store secrets.",
+        "TestWebLiveProviderSmoke is skipped by default and exercises live web_search/web_extract plus optional web_crawl only when GORMES_LIVE_WEB_SMOKE=1 and credentials are explicitly supplied."
+      ],
+      "note": "Complete 2026-04-30: TDD added managed Firecrawl gateway auth-store routing, native Nous access-token refresh for expiring providers.nous state, redacted web backend/toolset status metadata, doctor rendering, invalid gateway-scheme rejection, and opt-in live provider smoke coverage. Gormes uses the same OAuth refresh-token grant shape as Hermes but implements it natively over Gormes auth.json, preserving cached-token fallback when refresh is unavailable. The resolver preserves direct credential behavior when gateway mode is not requested and keeps status/doctor output token-free.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "internal/tools/web_live_smoke_test.go",
+        "cmd/gormes/registry.go",
+        "cmd/gormes/registry_test.go",
+        "cmd/gormes/doctor.go",
+        "cmd/gormes/doctor_custom_provider_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestResolveWebBackend|TestWebLiveProviderSmoke|TestWeb|TestResolveWeb' -count=1",
+        "go test ./cmd/gormes -run 'TestBuildDefaultRegistry|TestDoctorWebToolsStatusReportsManagedGateway' -count=1",
+        "go test ./internal/tools ./cmd/gormes -count=1",
+        "go test ./... -count=1",
+        "go test ./docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic fixtures prove managed gateway auth-store routing, redacted status metadata, doctor output, and skipped-by-default live smoke coverage for the complete native web tool surface."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/managed_tool_gateway.py",
+          "hermes:tools/tool_backend_helpers.py",
+          "hermes:hermes_cli/nous_subscription.py",
+          "hermes:hermes_cli/auth.py"
+        ],
+        "note": "Hermes defines managed tool-gateway semantics and OAuth refresh behavior; Gormes adapts them to its native auth.json store and typed resolver/status surfaces without importing Python runtime code."
+      },
+      "evidence": [
+        "TestResolveWebBackendUsesNousAuthStoreForManagedGateway proves resolver-level auth-store routing.",
+        "TestResolveWebBackendRefreshesExpiringNousAuthStoreToken proves native Nous access-token refresh and auth.json persistence.",
+        "TestResolveWebBackendFallsBackToCachedNousTokenWhenRefreshFails proves cached-token fallback on refresh failure.",
+        "TestResolveWebBackendRejectsInvalidManagedGatewayScheme proves Hermes-compatible gateway scheme validation.",
+        "TestResolveWebBackendInvalidGatewaySchemeDoesNotBlockDirectFirecrawl proves direct Firecrawl precedence remains Hermes-compatible.",
+        "TestBuildDefaultRegistryUsesNousAuthStoreForManagedWebGateway proves registry-level managed gateway routing.",
+        "TestResolveWebBackendStatusReportsManagedRouteAndToolset proves status metadata.",
+        "TestDoctorWebToolsStatusReportsManagedGateway proves operator status rendering.",
+        "TestWebLiveProviderSmoke provides opt-in live provider smoke coverage."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 13,
+    "item": {
+      "name": "Brave Search + DDGS web search provider parity",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes web backend matrix and config resolver (5.C[7]) supports Brave Search API and DDGS as first-class search providers. Brave uses the Brave Search API with a configurable API key and optional free-tier constraints; DDGS uses the duckduckgo_search Python package pattern adapted to Go. Both providers integrate through the existing internal/tools/web_tools.go backend interface so web_search tool wrappers select them transparently by name.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing or invalid API keys for Brave/DDGS degrade to provider_disabled in the web backend matrix; web_search falls back to the next configured provider. Gateway status reports disabled search providers without exposing keys.",
+      "fixture": "internal/tools/web_tools_test.go",
+      "source_refs": [
+        "./hermes-agent/tools/web_providers/brave_free.py@04193cf71 (Brave Search API provider)",
+        "./hermes-agent/tools/web_providers/ddgs.py@04193cf71 (DDGS provider)",
+        "./hermes-agent/tools/web_providers/base.py (WebSearchProvider ABC)",
+        "internal/tools/web_tools.go (Go backend matrix + Brave/DuckDuckGo execution methods)",
+        "internal/tools/web_tools_test.go (TestWebSearchToolCallsBraveBackend, TestWebSearchToolCallsDuckDuckGoBackend, TestBraveProvider_DegradedWhenNoKey)",
+        "internal/config/config.go (search provider config fields)"
+      ],
+      "ready_when": [
+        "Go-native Hermes web backend matrix and config resolver (5.C[7]) is complete.",
+        "Go-native Hermes web_search tool wrappers (5.C[6]) are complete.",
+        "Tests use fake HTTP transports; no live Brave or DDGS API keys required."
+      ],
+      "acceptance": [
+        "TestBraveSearchProvider_ResolvesViaAPI → TestWebSearchToolCallsBraveBackend (web_tools_test.go:701): proves Brave Search config with fake API key endpoint returns results through webSearchResponse schema.",
+        "TestDDGSSearchProvider_ResolvesViaLibrary → TestWebSearchToolCallsDuckDuckGoBackend (web_tools_test.go:781): proves DuckDuckGo search returns results through standard schema.",
+        "TestWebBackendMatrix_IncludesBraveAndDDGS → TestResolveWebBackendSupportsAdditionalSearchBackends (web_tools_test.go:178): proves 'brave' and 'ddg' backend keys resolve to correct backends.",
+        "TestWebSearchTool_UsesBraveProvider → TestWebSearchToolCallsBraveBackend: proves web_search routes through Brave adapter.",
+        "TestWebSearchTool_UsesDDGSProvider → TestWebSearchToolCallsDuckDuckGoBackend: proves web_search routes through DuckDuckGo adapter.",
+        "TestBraveProvider_DegradedWhenNoKey (web_tools_test.go:743): proves missing BRAVE_API_KEY returns unavailable backend without panicking.",
+        "TestDDGSProvider_FreeTierNoKeyRequired → DuckDuckGo backend always available without API key (tested in TestResolveWebBackendSupportsAdditionalSearchBackends with empty env)."
+      ],
+      "note": "Implementation shipped in internal/tools/web_tools.go (WebBackendBrave + WebBackendDuckDuckGo backends, executeBraveSearch + executeDuckDuckGoSearch methods) and internal/tools/web_tools_test.go (recordingWebHTTPClient fixtures). The originally planned internal/tools/websearch/ sub-package was not needed — provider dispatch lives in the existing webTool struct alongside Firecrawl/Tavily/Exa/Parallel/SearXNG/Perplexity backends.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "internal/config/config.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestWebSearchToolCallsBraveBackend|TestWebSearchToolCallsDuckDuckGoBackend|TestBraveProvider_DegradedWhenNoKey|TestResolveWebBackendSupportsAdditionalSearchBackends' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Web backend matrix resolves brave and ddgs provider keys; fake-HTTP fixtures prove search result delivery through the standard SearchResult schema; DDGS works without API key; missing Brave key degrades gracefully."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:04193cf71 hermes/tools/web_providers/brave_free.py + hermes/tools/web_providers/ddgs.py",
+        "note": "Hermes v0.13.0 added Brave Search API (free tier) and DuckDuckGo Search (DDGS) as web search providers. Implementation shipped in internal/tools/web_tools.go (not the originally planned websearch/ package) as part of rows 5.C[6] (web_search tool wrappers) and 5.C[7] (web backend matrix). All acceptance tests pass with recordingWebHTTPClient fake transports."
+      },
+      "blocked_by": [],
+      "not_ready_when": [],
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 14,
+    "item": {
+      "name": "Browser artifact and console render contract",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Browser tool results expose bounded screenshot paths, DOM snapshots, console logs, page errors, and artifact metadata in a channel-neutral envelope; renderers show safe previews without raw bytes, base64 blobs, private URLs, CDP secrets, or unbounded provider output.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "system",
+        "gateway",
+        "operator"
+      ],
+      "degraded_mode": "Oversized or missing artifacts render browser_artifact_unavailable or browser_artifact_truncated evidence and keep the turn readable.",
+      "fixture": "internal/tools/browser_artifact_test.go + internal/gateway/render_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/browser_camofox.py:300",
+        "../hermes-agent/tools/browser_camofox.py:493",
+        "../hermes-agent/tools/browser_camofox.py:583",
+        "../hermes-agent/tools/browser_tool.py",
+        "internal/tools/browser_contract.go",
+        "internal/tools/result_budget.go",
+        "internal/gateway/render.go"
+      ],
+      "ready_when": [
+        "Hermes browser tool artifact/result behavior and Gormes browser harness result envelopes are source-mapped.",
+        "Pure internal/tools fixtures can prove artifact budgeting, console/error metadata, and redacted evidence without starting Chrome or cloud browser services."
+      ],
+      "acceptance": [
+        "Tool fixtures cover screenshot path, DOM snapshot excerpt, console logs, and page errors.",
+        "Artifact budgets truncate large snapshots with evidence.",
+        "Gateway renderer emits channel-safe artifact summaries without raw image bytes or base64.",
+        "Secrets, cookies, CDP URLs, and private URLs are redacted."
+      ],
+      "write_scope": [
+        "internal/tools/browser_contract.go",
+        "internal/tools/browser_harness_tools.go",
+        "internal/tools/result_budget.go",
+        "internal/tools/browser_artifact_test.go",
+        "internal/gateway/render.go",
+        "internal/gateway/render_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/gateway -run 'Browser.*Artifact|Browser.*Console|Render' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Browser artifact fixtures prove bounded screenshot/snapshot/console/error envelopes, artifact-pointer behavior, private URL/CDP/token redaction, and channel-safe Hermes-style tool rendering without live browser or provider calls."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-30T09:05:00Z",
+        "last_success": "2026-04-30T09:05:00Z",
+        "backends_tried": [
+          "openai-codex"
+        ]
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:tools/browser_camofox.py + tools/browser_tool.py",
+        "note": "Hermes defines artifact semantics; Gormes adapts them to Go browser harness envelopes and shared renderers."
+      },
+      "evidence": [
+        "TestBrowserArtifactEnvelopeSanitizesPreviewAndState proves browser result envelopes redact private/local URLs, CDP websocket URLs, token-like console/error/output text, and local screenshot paths before channel or prompt rendering.",
+        "TestBrowserArtifactEnvelopePersistsOversizedSnapshotsWithConsoleMetadata proves oversized DOM snapshots persist through ToolResultBudget artifacts while preserving bounded title/console/error/interactive metadata.",
+        "Focused row gate passed: GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/gateway -run 'Browser.*Artifact|Browser.*Console|Render' -count=1."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 15,
+    "item": {
+      "name": "Browser console expression CDP result shaping",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes browser_console(expression=...) mirrors Hermes' current CDP-supervisor fast-path result contract: Runtime.evaluate runs through the existing Go CDP backend without spawning a legacy subprocess, primitive/object/JSON-string results are returned as structured data with success/result/result_type/method evidence, and JavaScript exceptions surface as success=false tool data instead of retrying or hiding the error.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "If no CDP backend is configured or the transport fails, the existing browser_harness_* unavailable/failed evidence is preserved; JS-side exceptions remain ordinary browser_console result data and do not become transport failures.",
+      "fixture": "internal/tools/browser_use_harness_bridge_test.go",
+      "source_refs": [
+        "./hermes-agent/tools/browser_tool.py@d4b26df89:_browser_eval",
+        "./hermes-agent/tools/browser_supervisor.py@d4b26df89:CDPSupervisor.evaluate_runtime",
+        "./hermes-agent/tests/tools/test_browser_eval_supervisor_path.py@d4b26df89",
+        "internal/tools/browser_harness_backend.go:BrowserHarnessChromedpBackend.runConsole",
+        "internal/tools/browser_harness_tools.go:BrowserToolConsole",
+        "internal/tools/browser_use_harness_bridge_test.go"
+      ],
+      "ready_when": [
+        "Go browser-harness Hermes browser_* tool wrappers is complete.",
+        "go-browser-harness Chromedp action backend is complete.",
+        "Tests can inject fake CDP Runtime.evaluate responses without Chrome, Browserbase, Firecrawl, Camofox, Python browser-harness, or network access."
+      ],
+      "not_ready_when": [
+        "The slice changes navigation/session lifecycle, Browserbase/Firecrawl/Camofox provider creation, live Chrome startup, or browser_console no-expression log-buffer collection.",
+        "The implementation shells out to agent-browser/browser-harness for the default expression path.",
+        "JavaScript exceptions are returned as Go transport errors instead of structured browser_console success=false data."
+      ],
+      "blocked_by": [
+        "Go browser-harness Hermes browser_* tool wrappers",
+        "go-browser-harness Chromedp action backend"
+      ],
+      "unblocks": [
+        "Browser artifact and console render contract revisit"
+      ],
+      "acceptance": [
+        "A fake CDP transport test proves browser_console(expression) sends Runtime.evaluate with returnByValue=true and returns method=cdp_supervisor with structured result/result_type data for primitives and objects.",
+        "A JSON-string expression result is parsed into structured data so the model receives an object/list instead of an opaque string, matching Hermes' _browser_eval behavior.",
+        "A Runtime.evaluate exceptionDetails response returns success=false error data without returning a Go error or invoking any subprocess fallback.",
+        "Existing browser harness wrapper tests still prove browser_console action JSON generation and default internal-backend routing."
+      ],
+      "note": "Complete 2026-05-10: TDD added fake-CDP Runtime.evaluate fixtures for the Hermes d4b26df89 browser_console(expression) fast-path contract. Gormes now shapes console expression data with success/result/result_type/method=cdp_supervisor, parses JSON-string results into structured objects/lists, and treats JS exceptionDetails as success=false browser_console data without a Go transport error or subprocess fallback. The slice stayed inside the existing Go CDP backend; no browser lifecycle, provider creation, or no-expression log-buffer behavior changed.",
+      "write_scope": [
+        "internal/tools/browser_harness_backend.go",
+        "internal/tools/browser_use_harness_bridge_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestBrowserHarnessChromedpBackendConsoleExpression' -count=1",
+        "go test ./internal/tools -run '^TestBrowserHarness' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Browser console expression fixtures prove CDP Runtime.evaluate result-shaping parity, JSON-string parsing, JS-exception data, and no default subprocess path."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:d4b26df89 browser_console expression fast path",
+        "note": "2026-05-10 all-topic weakness sweep refreshed Hermes from 40a4bfa71 to d4b26df89 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Focused gates for non-browser surfaces were green or row-backed. The concrete source-backed stale-complete gap is Hermes' new browser_console(expression) CDP-supervisor result-shape contract, which extends the previously completed Gormes browser artifact/console row."
+      },
+      "evidence": [
+        "RED: go test ./internal/tools -run 'TestBrowserHarnessChromedpBackendConsoleExpression' -count=1 failed because browser_console returned the raw Runtime.evaluate payload string in data.result.",
+        "GREEN: go test ./internal/tools -run 'TestBrowserHarnessChromedpBackendConsoleExpression' -count=1 passed after browserHarnessConsoleExpressionData shaped primitive, object, JSON-string, and JS-exception responses.",
+        "GREEN: go test ./internal/tools -run '^TestBrowserHarness' -count=1 passed.",
+        "GREEN: go run ./cmd/progress validate passed."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 16,
+    "item": {
+      "name": "Telegram browser artifact rendering",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Telegram rendering for browser results is mobile-readable and Hermes/Sidon-compatible: screenshot/artifact pointers, DOM excerpts, console errors, and browser progress traces are MarkdownV2-safe, bounded, reply-threaded, and separate from final answers.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "browser",
+      "trust_class": [
+        "gateway",
+        "system",
+        "operator"
+      ],
+      "degraded_mode": "If Telegram media delivery is unavailable, Gormes sends a text artifact pointer with browser_artifact_text_fallback evidence.",
+      "fixture": "internal/gateway/telegram_browser_render_test.go + internal/tools/browser_artifact_test.go",
+      "source_refs": [
+        "../hermes-agent/gateway/platforms/telegram.py",
+        "../hermes-agent/tools/browser_tool.py",
+        "internal/gateway/render.go",
+        "internal/channels/telegram/bot.go",
+        "internal/tools/browser_harness_tools.go"
+      ],
+      "ready_when": [
+        "The browser artifact result envelope and Telegram renderer seams are identified.",
+        "Fake Telegram/render fixtures can prove screenshot/link/console presentation without live Telegram, Chrome, or cloud browser services."
+      ],
+      "acceptance": [
+        "Telegram renderer escapes browser artifact text and code blocks correctly.",
+        "Screenshots/artifact pointers are shown without raw bytes or local secret paths.",
+        "Browser progress/tool traces remain distinct from final answer text.",
+        "Reply metadata is preserved when browser output is sent as part of a Telegram turn."
+      ],
+      "write_scope": [
+        "internal/gateway/render.go",
+        "internal/gateway/telegram_browser_render_test.go",
+        "internal/channels/telegram/",
+        "internal/tools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram ./internal/tools -run 'Telegram.*Browser|Browser.*Artifact|Render' -count=1",
+        "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Telegram browser rendering fixtures prove bounded, escaped, reply-safe artifact output."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:gateway/platforms/telegram.py + tools/browser_tool.py",
+        "note": "Keeps browser/tool rendering channel-neutral first, then adapts the visible Telegram surface."
+      },
+      "evidence": [
+        "RED: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway -run TestFormatBrowserArtifactTelegram -count=1 failed on undefined FormatBrowserArtifactTelegram.",
+        "GREEN: FormatBrowserArtifactTelegram renders MarkdownV2-safe, bounded browser artifact notices with title/URL/artifact/screenshot/console/error/preview/evidence fields and browser_artifact_text_fallback degraded evidence; Telegram SendReply fixture preserves reply threading for the rendered artifact.",
+        "VALIDATION: GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/channels/telegram ./internal/tools -run 'Telegram.*Browser|Browser.*Artifact|Render' -count=1 passed."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 17,
+    "item": {
+      "name": "Browser hybrid private-URL local sidecar routing",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Pure routing helper internal/tools/browser_hybrid_routing.go exposes type BrowserRoute struct{SessionKey string; ForceLocal bool; Reason string}, IsPrivateBrowserHost(host string) bool, and RouteBrowserNavigation(taskID, rawURL string, cloudConfigured, autoLocalForPrivateURLs, cdpOverride, camofoxMode bool) BrowserRoute. When cloudConfigured && autoLocalForPrivateURLs && !cdpOverride && !camofoxMode and rawURL's host is localhost, loopback, RFC1918 IPv4, IPv6 loopback, IPv4 link-local, or suffix .local/.lan/.internal, return SessionKey=\"<taskID-or-default>::local\", ForceLocal=true, Reason=\"private_url_local_sidecar\". Public URLs and disabled/override cases return the bare taskID/default, ForceLocal=false. No browser startup, DNS resolution, network calls, chromedp/Rod imports, global session maps, cleanup logic, or config loading in this slice.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until browser runtime exists, browser status can report hybrid_routing_unavailable; once wired, private URLs must never be sent to cloud providers when auto-local routing is enabled.",
+      "fixture": "internal/tools/browser_hybrid_routing_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/browser_tool.py@42c076d3:_navigation_session_key",
+        "../hermes-agent/tests/tools/test_browser_hybrid_routing.py@42c076d3",
+        "../hermes-agent/hermes_cli/config.py@42c076d3:browser.auto_local_for_private_urls",
+        "../hermes-agent/website/docs/user-guide/features/browser.md@42c076d3"
+      ],
+      "ready_when": [
+        "internal/tools is the current home for tool helper contracts, and no native browser runtime has to exist before a pure route decision helper can land.",
+        "The worker can use synthetic URLs and booleans; no live Chromium, Browserbase, Firecrawl, Camofox, DNS, or network dependency is required."
+      ],
+      "not_ready_when": [
+        "The slice starts a browser, resolves hostnames over DNS, adds browser config loading, stores session state, edits cleanup behavior, or chooses chromedp/Rod.",
+        "The slice weakens post-redirect SSRF blocking; this row only decides the pre-navigation session key for the initial URL."
+      ],
+      "unblocks": [
+        "Browser provider bridge + Firecrawl fallback"
+      ],
+      "acceptance": [
+        "TestRouteBrowserNavigation_PrivateHostsUseLocalSidecar covers localhost, 127.0.0.1, 10.x, 172.16-31.x, 192.168.x, 169.254.x, ::1, and *.local/*.lan/*.internal returning default::local or task::local.",
+        "TestRouteBrowserNavigation_PublicURLsUseCloudKey covers github.com and 8.8.8.8 returning the bare task ID with ForceLocal=false.",
+        "TestRouteBrowserNavigation_DisabledOrOverrideCases covers no cloud provider, autoLocalForPrivateURLs=false, cdpOverride=true, and camofoxMode=true all returning the bare task ID.",
+        "TestRouteBrowserNavigation_DefaultTaskID proves empty task IDs normalize to default and local sidecars use default::local.",
+        "The helper uses net/url, net/netip or net.ParseIP, and strings only; no browser runtime package or network/DNS call appears in the file."
+      ],
+      "note": "Hermes 42c076d3 added hybrid browser routing so cloud browser providers never receive LAN/localhost URLs and a local Chromium sidecar handles those navigations. Gormes should first freeze the pure route-key decision before choosing a native browser backend.",
+      "write_scope": [
+        "internal/tools/browser_hybrid_routing.go",
+        "internal/tools/browser_hybrid_routing_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run '^(TestRouteBrowserNavigation|TestIsPrivateBrowserHost)' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Browser hybrid routing fixtures prove private/LAN hosts select a ::local sidecar only in cloud+auto-local mode, while public and override cases keep the bare session key without starting a browser."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-26T18:43:58Z",
+        "last_success": "2026-04-26T18:43:58Z"
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:42c076d3 tools/browser_tool.py",
+        "note": "Direct upstream browser behavior drift; Gormes keeps it as a small Go tool-routing helper before native browser runtime work."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 18,
+    "item": {
+      "name": "Browser SSRF quoted-false guard",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Browser and URL safety helpers coerce quoted false-like config values (`\"false\"`, `'false'`, `0`, `no`, `off`) to disabled booleans before private/local URL SSRF guards decide whether cloud navigation is allowed",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Browser safety status reports ssrf_guard_config_invalid or private_url_blocked instead of treating quoted false as truthy and sending private URLs to a cloud/browser provider.",
+      "fixture": "internal/tools/browser_ssrf_guard_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/browser_tool.py@7317d69f",
+        "../hermes-agent/tools/url_safety.py@7317d69f",
+        "../hermes-agent/tests/tools/test_browser_ssrf_local.py@7317d69f",
+        "../hermes-agent/tests/tools/test_url_safety.py@7317d69f",
+        "internal/tools/browser_hybrid_routing.go"
+      ],
+      "ready_when": [
+        "Browser hybrid private-URL local sidecar routing is complete and already classifies private/LAN hosts without DNS or browser startup.",
+        "The worker can add a pure config coercion and guard decision helper under internal/tools; no browser runtime, network, DNS, Chromedp, Rod, Browserbase, Firecrawl, or Camofox dependency is required."
+      ],
+      "not_ready_when": [
+        "The slice starts a browser, performs DNS resolution, follows redirects, or changes cloud/local routing behavior beyond quoted-false coercion.",
+        "The slice weakens private host classification already validated by Browser hybrid private-URL local sidecar routing.",
+        "The slice implements provider bridges or screenshot/navigation actions."
+      ],
+      "acceptance": [
+        "TestBrowserSSRFGuard_CoercesQuotedFalseValues covers `\"false\"`, `'false'`, `0`, `no`, and `off` as disabled while true/yes/on remain enabled.",
+        "TestBrowserSSRFGuard_PrivateURLBlockedWhenCloudWouldReceiveIt proves localhost/RFC1918 URLs return private_url_blocked when cloud routing is enabled and auto-local routing is disabled.",
+        "TestBrowserSSRFGuard_PublicURLAllowed covers a public URL and proves no private_url_blocked evidence is emitted.",
+        "Tests use synthetic strings only and do not start a browser, resolve DNS, or open network sockets."
+      ],
+      "note": "Complete: TDD landed pure Browser SSRF guard helpers in internal/tools/browser_ssrf_guard.go. Fixtures prove quoted false-like config values are disabled before guard decisions, localhost/RFC1918 URLs return private_url_blocked when cloud routing would receive them, public URLs pass without private_url_blocked evidence, and tests use only synthetic strings without browser, network, DNS, Chromedp, Rod, Browserbase, Firecrawl, or Camofox runtime dependencies.",
+      "write_scope": [
+        "internal/tools/browser_ssrf_guard.go",
+        "internal/tools/browser_ssrf_guard_test.go",
+        "internal/tools/browser_hybrid_routing.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run '^TestBrowserSSRFGuard_' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Browser SSRF guard fixtures prove quoted false values disable cloud routing guards correctly, private URLs are blocked when they would reach cloud providers, and no browser/network runtime is used."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-27T05:21:31Z",
+        "last_success": "2026-04-27T05:21:31Z"
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:7317d69f tools/url_safety.py",
+        "note": "Direct browser security drift from Hermes; Gormes ports it as a pure Go safety helper before browser runtime work."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 19,
+    "item": {
+      "name": "Go browser harness binary repo + integration lane (placeholder)",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Reserves the integration slot for the future Go browser harness binary repository so Gormes can drop in the runtime backend without re-doing the contract. The Gormes side already ships internal/tools/browser_harness_tools.go (12 browser_* tool wrappers) and internal/tools/browser_contract.go (BrowserAction validation, SSRF guard) that exec a configured Command via BrowserHarnessBridge.Run. This umbrella row tracks: (1) the future sibling Go repo that hosts the binary, (2) the JSON action contract version pinned at gormes.browser.action.v1, (3) the integration test that proves the contract still validates after the binary materializes, and (4) the install/discovery path Gormes uses to find the binary (PATH lookup vs vendored path).",
+      "contract_status": "validated",
+      "slice_size": "umbrella",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Until the binary exists, every browser_* tool execution returns ErrBrowserHarnessUnavailable evidence (already implemented and tested by browser_harness_tools_test.go). The umbrella does not change runtime behavior; it documents the integration surface so the future repo lands cleanly.",
+      "fixture": "internal/tools/browser_harness_tools_test.go + internal/tools/browser_contract_test.go",
+      "source_refs": [
+        "internal/tools/browser_harness_tools.go:13-110",
+        "internal/tools/browser_harness_tools.go:browserHarnessActionSchemaVersion",
+        "internal/tools/browser_contract.go:BrowserAction",
+        "internal/tools/browser_contract.go:ValidateBrowserAction",
+        "internal/tools/browser_ssrf_guard.go",
+        "../hermes-agent/agent/browser_tools.py",
+        "../hermes-agent/tools/browser_tools.py"
+      ],
+      "ready_when": [
+        "internal/tools/browser_harness_tools.go is shipped with the 12 browser_* tool wrappers and a deterministic ErrBrowserHarnessUnavailable degraded path.",
+        "internal/tools/browser_contract.go::ValidateBrowserAction enforces SSRF + private-URL routing for every BrowserAction kind.",
+        "Phase 5.C umbrella exists and references this row as the integration slot."
+      ],
+      "not_ready_when": [
+        "The slice attempts to vendor or embed Chromium / Rod / chromedp directly inside Gormes; the harness binary is the architectural decoupling point.",
+        "The slice changes the JSON action contract before the future repo's first integration test exists.",
+        "The slice removes ErrBrowserHarnessUnavailable degraded behavior."
+      ],
+      "unblocks": [
+        "go-browser-harness Chromedp action backend",
+        "Browser provider bridge + Firecrawl fallback",
+        "Browser Use cloud + Go browser harness bridge"
+      ],
+      "acceptance": [
+        "Documentation row in docs/content/building-gormes/architecture_plan/hermes-gormes-parity-matrix.md cites this row as the lane G integration slot.",
+        "JSON contract version constant browserHarnessActionSchemaVersion stays pinned at gormes.browser.action.v1 until the future repo's first integration test ships.",
+        "The umbrella stays inventory-only — no runtime code under cmd/, internal/runtime/, or internal/tools/browser_harness_tools.go changes as part of this row.",
+        "Once the sibling repo materializes, this row's done_signal closes when an end-to-end test in this repo can exec the harness binary against gormes.browser.action.v1 and observe a PageSnapshot or ErrBrowserHarnessUnavailable."
+      ],
+      "note": "Placeholder umbrella reserved by the parity matrix audit (2026-04-29). The Gormes-side contract and degraded path are already complete; the missing piece is the Go binary that consumes the JSON action stream. Until that binary lands, browser_* tools degrade deterministically. Treating this as an umbrella avoids creating runtime work today but keeps lane G's integration plan visible in the dispatch surface.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/hermes-gormes-parity-matrix.md",
+        "docs/content/building-gormes/architecture_plan/parity-lane-coordinator-brief.md",
+        "www.gormes.ai/internal/site/data/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate",
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'BrowserHarness|BrowserContract|SSRF' -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Umbrella row is referenced by lane G builders and the sibling go-browser-harness repo's bring-up plan; closes when an integration test against the harness binary lands."
+      ],
+      "provenance": {
+        "origin_type": "owned",
+        "upstream_ref": "gormes-owned:internal/tools/browser_harness_tools.go (Go-native action contract)",
+        "note": "The harness binary is a Gormes-owned architectural choice — Hermes embeds Playwright/CDP directly in Python. Splitting the binary into a sibling Go repo lets Gormes ship the contract surface today and bind a runtime backend later without coupling Chromium versioning to the agent release."
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 20,
+    "item": {
+      "name": "Browser session inactivity cleanup thread",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes mirrors Hermes' browser session inactivity cleanup: a background goroutine reaps sessions that have been idle longer than BROWSER_SESSION_INACTIVITY_TIMEOUT (default 300s, overridable via GORMES_BROWSER_INACTIVITY_TIMEOUT env var). Cleanup closes the harness process for timed-out sessions and records redacted inactivity_cleanup evidence. The goroutine starts once at manager/service init and sleeps between reap cycles (default 60s interval) using a clock seam so tests stay hermetic.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If the cleanup goroutine cannot start or the reap encounters a locked process, it records redacted evidence and continues the next cycle. A nil or absent browser backend does not prevent the goroutine from starting — it simply has nothing to reap.",
+      "fixture": "internal/tools/browser_inactivity_cleanup_test.go",
+      "source_refs": [
+        "hermes-agent/tools/browser_tool.py:700 BROWSER_SESSION_INACTIVITY_TIMEOUT",
+        "hermes-agent/tools/browser_tool.py:777 inactivity check",
+        "hermes-agent/tools/browser_tool.py:935 idle_sessions tracking",
+        "hermes-agent/tools/browser_tool.py:970 cleanup thread start",
+        "internal/tools/browser_harness_tools.go (harness session lifecycle)",
+        "internal/tools/browser_provider_bridge.go (cloud session lifecycle)"
+      ],
+      "ready_when": [
+        "Browser harness tools and provider bridge already manage sessions via internal/tools/.",
+        "A fake clock seam and a fake session tracker make reap behavior observable without real Chromium or cloud provider connections.",
+        "Tests only need a hermetic session registry and a fake clock — no live browser, CDP, or provider network."
+      ],
+      "not_ready_when": [
+        "The slice changes browser action tool execution, navigation routing, SSRF guard behavior, or cloud provider session creation.",
+        "The cleanup goroutine kills a session that is still in active use (the reap check must verify idle_duration >= timeout, not just that a session exists).",
+        "The goroutine is started inside a browser action handler instead of once at service init.",
+        "Tests require a real Chromium binary, cloud provider credentials, or network access."
+      ],
+      "unblocks": [
+        "Browser harvest telemetry via inactivity cleanup events"
+      ],
+      "acceptance": [
+        "TestBrowserInactivityCleanup_ReapsIdleSession: a session idle for 350s with timeout=300s is reaped (harness process closed, session removed from registry).",
+        "TestBrowserInactivityCleanup_KeepsActiveSession: a session with last activity 30s ago is NOT reaped.",
+        "TestBrowserInactivityCleanup_ReapInterval: after one reap cycle, the goroutine sleeps for the configured interval before reaping again (fake clock advances).",
+        "TestBrowserInactivityCleanup_EnvOverride: GORMES_BROWSER_INACTIVITY_TIMEOUT=120 overrides the 300s default and sessions idle for 150s are reaped.",
+        "TestBrowserInactivityCleanup_NilBackendNoPanic: a nil or empty session registry does not panic or block the cleanup goroutine.",
+        "TestBrowserInactivityCleanup_ReapFailureEvidence: a session whose harness process cannot be closed records redacted inactivity_cleanup_failed evidence and does not block reaping other sessions."
+      ],
+      "note": "Complete 2026-05-07: TDD landed BrowserSessionTracker with fake-clock fixtures for idle reaping, active-session preservation, reap-interval ticking, GORMES_BROWSER_INACTIVITY_TIMEOUT env override, nil-backend safety, and close-failure evidence recording. The RunCleanup goroutine runs a configurable reap-interval loop (default 60s) with ctx cancellation support. Wired into the existing internal/tools package alongside browser harness and provider bridge code.",
+      "write_scope": [
+        "internal/tools/browser_inactivity_cleanup.go",
+        "internal/tools/browser_inactivity_cleanup_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run TestBrowserInactivityCleanup -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Six inactivity cleanup fixtures pass; the goroutine is tested with a fake clock and fake session registry; no live browser, CDP, or provider is required."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:b816fd4e2 tools/browser_tool.py BROWSER_SESSION_INACTIVITY_TIMEOUT",
+        "note": "Hermes reaps idle browser sessions with a 300s default timeout and a background cleanup thread. Gormes has no equivalent — this is a direct upstream parity gap that prevents the browser harness from cleaning up stale sessions during long-running gateway processes."
+      },
+      "evidence": {
+        "implementation": [
+          "internal/tools/browser_inactivity_cleanup.go:BrowserSessionTracker (tracker with Register/Touch/Unregister/Len/reapInactive)",
+          "internal/tools/browser_inactivity_cleanup.go:BrowserSessionBackend (interface for session close)",
+          "internal/tools/browser_inactivity_cleanup.go:ReapEntry (reap outcome record)",
+          "internal/tools/browser_inactivity_cleanup.go:RunCleanup (background goroutine with ticker, ctx cancellation, inactivityTimeout from GORMES_BROWSER_INACTIVITY_TIMEOUT env var or 300s default)",
+          "internal/tools/browser_inactivity_cleanup.go:NewBrowserSessionTracker (constructor with injectable clock)"
+        ],
+        "tests": [
+          "internal/tools/browser_inactivity_cleanup_test.go:TestBrowserInactivityCleanup_ReapsIdleSession",
+          "internal/tools/browser_inactivity_cleanup_test.go:TestBrowserInactivityCleanup_KeepsActiveSession",
+          "internal/tools/browser_inactivity_cleanup_test.go:TestBrowserInactivityCleanup_ReapInterval",
+          "internal/tools/browser_inactivity_cleanup_test.go:TestBrowserInactivityCleanup_EnvOverride",
+          "internal/tools/browser_inactivity_cleanup_test.go:TestBrowserInactivityCleanup_NilBackendNoPanic",
+          "internal/tools/browser_inactivity_cleanup_test.go:TestBrowserInactivityCleanup_ReapFailureEvidence"
+        ],
+        "verification": [
+          "go test ./internal/tools -run TestBrowserInactivityCleanup -count=1 -> ok (6/6 pass)",
+          "go test ./internal/tools -count=1 -> ok",
+          "go test ./... -count=1 -> ok (all packages)",
+          "go run ./cmd/progress validate -> ok (7 phases)",
+          "git diff --check -> ok"
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 51,
+    "item": {
+      "name": "Gormes mcp login browser callback flow",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "Implements `MCPLoginFlow.Login` over a localhost callback server (ephemeral `http.Server` bound to 127.0.0.1 with an OS-assigned port), a browser launch hook (default `os.exec` opens the system browser; tests inject a recording fake), and a code-for-token exchange transport (tests inject a fake `http.RoundTripper` so no live token endpoint is contacted). On success, the resulting MCP session is stored through row 15458's interface; on failure, the OAuth state store is left byte-identical. Donor pattern (pattern-only, not copied verbatim): `references/go-agent-os/goclaw/internal/oauth/openai.go` localhost-callback shape; donor pattern (Hermes-side): `hermes-agent/hermes_cli/auth.py:_make_spotify_callback_handler`.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Port collision returns `mcp_login_port_collision`; callback timeout returns `mcp_login_callback_timeout`; token exchange error returns `mcp_login_token_exchange_failed`; redirect-URI mismatch returns `mcp_login_redirect_uri_mismatch`. None of these failure modes panic, hang, or leak access tokens / refresh tokens / authorization codes into stdout/stderr.",
+      "fixture": "internal/tools/mcp_login_browser_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/auth.py:_make_spotify_callback_handler",
+        "../hermes-agent/hermes_cli/mcp_config.py:582-636:mcp_login_handler",
+        "references/go-agent-os/goclaw/internal/oauth/openai.go",
+        "internal/tools/mcp_login.go",
+        "internal/plugins/mcp_oauth_state.go"
+      ],
+      "ready_when": [
+        "Gormes mcp login interface seam + noninteractive default row is complete and exposes `MCPLoginFlow`.",
+        "Tests can inject a fake browser-open hook (records URL only), a fake code-for-token transport, and a fake clock; no live MCP server, real browser, or live token endpoint is contacted.",
+        "Localhost server lifecycle is testable through context cancellation and explicit shutdown."
+      ],
+      "not_ready_when": [
+        "The slice opens a real browser or makes a live token-exchange call in tests.",
+        "The redirect-URI is not validated against the launched URL.",
+        "Port collision or callback timeout panics or hangs the process."
+      ],
+      "blocked_by": [
+        "Gormes mcp login interface seam + noninteractive default"
+      ],
+      "acceptance": [
+        "TestMCPLoginBrowserLifecycleStartsAndShutsDown proves the localhost server acquires a port, accepts the test callback request, and shuts down on completion and on context-cancel without leaking goroutines.",
+        "TestMCPLoginBrowserHookRecordsLaunchURL proves the injected fake browser-open hook records the launched URL and the URL contains the redirect_uri matching the localhost listener; the URL is not opened in a real browser.",
+        "TestMCPLoginBrowserTokenExchangeStoresSession proves a successful fake code-for-token exchange writes the resulting MCP session through row 15458's interface and emits no raw token text.",
+        "TestMCPLoginBrowserRedirectURIMismatchTypedEvidence proves a callback whose redirect_uri does not match the launched URL returns `mcp_login_redirect_uri_mismatch` and leaves the OAuth state store byte-identical.",
+        "TestMCPLoginBrowserPortCollisionTypedEvidence proves a fixture forcing port collision returns `mcp_login_port_collision` without panic and without leaking ports.",
+        "TestMCPLoginBrowserCallbackTimeoutTypedEvidence proves an injected slow-callback fixture returns `mcp_login_callback_timeout` after the configured deadline without leaking goroutines or tokens."
+      ],
+      "note": "Complete: BrowserMCPLoginFlow now implements a Go-native localhost callback OAuth seam for gormes mcp login follow-up wiring, with injectable browser-open, listener, HTTP client, timeout, and clock seams. Focused tests prove authorize URL/redirect_uri construction, fake browser callback lifecycle, token exchange session persistence through RunMCPLogin, redirect_uri mismatch evidence with byte-equivalent existing store preservation, port-collision evidence, and callback-timeout evidence without live browsers, live MCP servers, token endpoints, or Hermes runtime services.",
+      "write_scope": [
+        "internal/tools/mcp_login_browser.go",
+        "internal/tools/mcp_login_browser_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run '^TestMCPLoginBrowser' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Browser-callback fixtures prove server lifecycle (acquire/shutdown, ctx-cancel), recorded launch URL, fake token-exchange success path through row 15458, redirect-URI mismatch typed evidence, port-collision typed evidence, and callback-timeout typed evidence — all without leaking secrets."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:hermes_cli/auth.py _make_spotify_callback_handler (Hermes-side localhost-callback parity); references/go-agent-os/goclaw/internal/oauth/openai.go (Go donor pattern)",
+        "note": "Q3C decision split: this row captures the future localhost-callback browser flow as a separate P3 row so the interface seam can land first and stay green without forcing the full browser implementation."
+      },
+      "references": [
+        "references/go-agent-os/goclaw/internal/oauth/openai.go",
+        "hermes-agent/hermes_cli/auth.py:_make_spotify_callback_handler"
+      ],
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.T",
+    "pos": 0,
+    "item": {
+      "name": "go-browser-harness doctor subcommand",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "go-browser-harness doctor subcommand with endpoint health checks, env reporting, redacted diagnostics",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Doctor prints what it can without CDP; missing endpoint is reported clearly",
+      "fixture": "go-browser-harness/pkg/harness/doctor_test.go",
+      "source_refs": [
+        "go-browser-harness/docs/parity-matrix.md",
+        "browser-harness/src/browser_harness/admin.py"
+      ],
+      "ready_when": [
+        "go-browser-harness CLI scaffold exists"
+      ],
+      "not_ready_when": [
+        "No go-browser-harness binary exists"
+      ],
+      "acceptance": [
+        "Probes CHROME_REMOTE_DEBUGGING_URL",
+        "Prints redacted env + endpoint health",
+        "No CDP required"
+      ],
+      "note": "Cross-project adoption from browser-harness/go-browser-harness: doctor is the suggested first slice for browser parity.",
+      "write_scope": [
+        "cmd/go-browser-harness/doctor.go",
+        "go-browser-harness/pkg/harness/doctor.go"
+      ],
+      "test_commands": [
+        "go test ./go-browser-harness -run TestDoctor -count=1"
+      ],
+      "done_signal": [
+        "Doctor tests prove endpoint probing and redacted diagnostics"
+      ],
+      "evidence": {
+        "implementation": [
+          "go-browser-harness/pkg/harness/doctor.go implements RunDoctor, DoctorReport, probeEndpoint, collectRedactedEnv, redactURL, PrintDoctorReport, PrintDoctorReportJSON",
+          "go-browser-harness/cmd/go-browser-harness/main.go wires -doctor and -doctor-json flags"
+        ],
+        "tests": [
+          "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_NoEnv",
+          "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_UnreachableEndpoint",
+          "go-browser-harness/pkg/harness/doctor_test.go:TestRunDoctor_HealthyEndpoint",
+          "go-browser-harness/pkg/harness/doctor_test.go:TestRedactURL",
+          "go-browser-harness/pkg/harness/doctor_test.go:TestCollectRedactedEnv"
+        ],
+        "verification": [
+          "go test ./... -count=1 in go-browser-harness -> ok",
+          "go run ./cmd/progress validate -> 7 phases validated"
+        ]
+      }
+    }
+  }
+]

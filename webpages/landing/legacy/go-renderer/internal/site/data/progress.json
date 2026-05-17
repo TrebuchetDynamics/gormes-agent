@@ -3741,7 +3741,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -4803,10 +4803,6 @@
             },
             {
               "name": "",
-              "status": "planned"
-            },
-            {
-              "name": "",
               "status": "complete"
             },
             {
@@ -4843,7 +4839,27 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ]
         },

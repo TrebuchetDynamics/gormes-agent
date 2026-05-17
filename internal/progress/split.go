@@ -80,12 +80,13 @@ type skelPhase struct {
 }
 
 type skelSubphase struct {
-	ID         string      `json:"id"`
-	Name       string      `json:"name"`
-	Priority   string      `json:"priority,omitempty"`
-	Status     Status      `json:"status,omitempty"`
-	DriftState *DriftState `json:"drift_state,omitempty"`
-	ItemCount  int         `json:"item_count,omitempty"`
+	ID         string                     `json:"id"`
+	Name       string                     `json:"name"`
+	Priority   string                     `json:"priority,omitempty"`
+	Status     Status                     `json:"status,omitempty"`
+	DriftState *DriftState                `json:"drift_state,omitempty"`
+	ItemCount  int                        `json:"item_count,omitempty"`
+	Extra      map[string]json.RawMessage `json:"extra,omitempty"`
 }
 
 // moduleRow is one item body plus the coordinates that place it back into its
@@ -196,7 +197,7 @@ func writeSplitByModule(dir string, sl *SplitLayout) error {
 			sks := skelSubphase{
 				ID: subID, Name: sub.Name, Priority: sub.Priority,
 				Status: sub.Status, DriftState: sub.DriftState,
-				ItemCount: len(sub.Items),
+				ItemCount: len(sub.Items), Extra: cloneRawMap(sub.Extra),
 			}
 			for pos, it := range sub.Items {
 				m := Module(it, sp.ID, subID)
@@ -311,6 +312,7 @@ func loadSplitByModule(dir string, idx splitIndex) (*Progress, error) {
 			sub := Subphase{
 				Name: sks.Name, Priority: sks.Priority,
 				Status: sks.Status, DriftState: sks.DriftState,
+				Extra: cloneRawMap(sks.Extra),
 			}
 			if sks.ItemCount > 0 {
 				slot := bodies[coord{skp.ID, sks.ID}]
@@ -330,6 +332,17 @@ func loadSplitByModule(dir string, idx splitIndex) (*Progress, error) {
 		sl.Phases = append(sl.Phases, SplitPhase{ID: skp.ID, Phase: ph})
 	}
 	return Merge(sl)
+}
+
+func cloneRawMap(in map[string]json.RawMessage) map[string]json.RawMessage {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]json.RawMessage, len(in))
+	for key, value := range in {
+		out[key] = append(json.RawMessage(nil), value...)
+	}
+	return out
 }
 
 // encodeStable mirrors SaveProgress's encoder settings (no HTML escaping,

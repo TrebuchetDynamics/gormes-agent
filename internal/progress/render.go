@@ -75,7 +75,7 @@ func RenderDocsChecklist(p *Progress) string {
 				if it.Status == StatusComplete {
 					box = "[x]"
 				}
-				fmt.Fprintf(&b, "- %s %s\n", box, it.Name)
+				fmt.Fprintf(&b, "- %s `%s` %s\n", box, Module(it, key, spKey), it.Name)
 			}
 			b.WriteString("\n")
 		}
@@ -259,6 +259,89 @@ func RenderBuilderLoopHandoff(p *Progress) string {
 	return b.String()
 }
 
+// RenderModuleRoadmapIndex returns the generated index for module-scoped
+// roadmap review pages. It is a view over the single logical backlog, not a
+// second queue.
+func RenderModuleRoadmapIndex(p *Progress) string {
+	var b strings.Builder
+	b.WriteString("---\n")
+	b.WriteString(`title: "Module Roadmaps"` + "\n")
+	b.WriteString("weight: 35\n")
+	b.WriteString("---\n\n")
+	b.WriteString("# Module Roadmaps\n\n")
+	b.WriteString("Generated from the single logical backlog. These pages are scoped review views; `progress.json` remains canonical.\n\n")
+	b.WriteString("| Module | Rows | Complete | In progress | Planned | Priorities |\n")
+	b.WriteString("|---|---:|---:|---:|---:|---|\n")
+	for _, module := range AllowedModules() {
+		counts := countModuleRows(moduleRoadmapRows(p, module))
+		fmt.Fprintf(&b, "| [%s](%s/) | %d | %d | %d | %d | %s |\n",
+			moduleDisplayName(module),
+			module,
+			counts.Total,
+			counts.Status[StatusComplete],
+			counts.Status[StatusInProgress],
+			counts.Status[StatusPlanned],
+			formatPriorityCounts(counts.Priority),
+		)
+	}
+	return b.String()
+}
+
+// RenderModuleRoadmapPage returns one generated module page grouped by the
+// original phase/subphase coordinates so physical module review does not lose
+// the unified roadmap context.
+func RenderModuleRoadmapPage(p *Progress, module string) string {
+	display := moduleDisplayName(module)
+	rows := moduleRoadmapRows(p, module)
+	counts := countModuleRows(rows)
+
+	var b strings.Builder
+	b.WriteString("---\n")
+	fmt.Fprintf(&b, "title: %q\n", display+" Module Roadmap")
+	b.WriteString("---\n\n")
+	fmt.Fprintf(&b, "# %s Module Roadmap\n\n", display)
+	b.WriteString("Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.\n\n")
+	fmt.Fprintf(&b, "**Module:** `%s`\n", module)
+	fmt.Fprintf(&b, "**Rows:** %d\n", counts.Total)
+	fmt.Fprintf(&b, "**Status counts:** `complete`: %d · `in_progress`: %d · `planned`: %d\n",
+		counts.Status[StatusComplete], counts.Status[StatusInProgress], counts.Status[StatusPlanned])
+	fmt.Fprintf(&b, "**Priority counts:** %s\n\n", formatPriorityCounts(counts.Priority))
+
+	if len(rows) == 0 {
+		fmt.Fprintf(&b, "_No rows currently assigned to `%s`._\n", module)
+		return b.String()
+	}
+
+	lastPhase := ""
+	lastSubphase := ""
+	for _, row := range rows {
+		if row.PhaseKey != lastPhase {
+			if lastPhase != "" {
+				b.WriteString("\n")
+			}
+			fmt.Fprintf(&b, "## %s\n\n", row.PhaseName)
+			lastPhase = row.PhaseKey
+			lastSubphase = ""
+		}
+		if row.SubphaseKey != lastSubphase {
+			if lastSubphase != "" {
+				b.WriteString("\n")
+			}
+			fmt.Fprintf(&b, "### %s — %s\n\n", row.SubphaseKey, row.Subphase)
+			b.WriteString("| Status | Priority | Module | Row |\n")
+			b.WriteString("|---|---|---|---|\n")
+			lastSubphase = row.SubphaseKey
+		}
+		priority := row.Item.Priority
+		if priority == "" {
+			priority = "unset"
+		}
+		fmt.Fprintf(&b, "| `%s` | `%s` | `%s` | %s |\n",
+			row.Item.Status, priority, Module(row.Item, row.PhaseKey, row.SubphaseKey), mdCell(row.Item.Name))
+	}
+	return b.String()
+}
+
 // RenderProgressSchema returns the operator-facing schema reference for
 // contract-aware progress rows.
 func RenderProgressSchema() string {
@@ -340,6 +423,7 @@ generic notes without bounded tests or write scope do not.
 - `+"`docs/content/building-gormes/builder-loop/agent-queue.md`"+` lists only unblocked, non-umbrella contract rows with owner, size, readiness, degraded mode, fixture, write scope, test commands or a no-test-required reason, done signal, acceptance, and source references.
 - `+"`docs/content/building-gormes/builder-loop/blocked-slices.md`"+` keeps blocked rows out of the execution queue while preserving their unblock condition.
 - `+"`docs/content/building-gormes/builder-loop/umbrella-cleanup.md`"+` lists broad inventory rows that must be split before assignment.
+- `+"`docs/content/building-gormes/modules/`"+` contains generated module-scoped roadmap review pages. These are views over the single logical backlog, not side queues.
 
 ## Good Row
 
@@ -386,6 +470,55 @@ type contractRow struct {
 	SubphaseKey string
 	Subphase    string
 	Item        Item
+}
+
+type moduleRowCounts struct {
+	Total    int
+	Status   map[Status]int
+	Priority map[string]int
+}
+
+func countModuleRows(rows []contractRow) moduleRowCounts {
+	counts := moduleRowCounts{
+		Status:   map[Status]int{StatusComplete: 0, StatusInProgress: 0, StatusPlanned: 0},
+		Priority: map[string]int{},
+	}
+	for _, row := range rows {
+		counts.Total++
+		counts.Status[row.Item.Status]++
+		priority := row.Item.Priority
+		if priority == "" {
+			priority = "unset"
+		}
+		counts.Priority[priority]++
+	}
+	return counts
+}
+
+func moduleRoadmapRows(p *Progress, module string) []contractRow {
+	if p == nil {
+		return nil
+	}
+	var rows []contractRow
+	for _, phKey := range sortedMapKeys(p.Phases) {
+		ph := p.Phases[phKey]
+		for _, spKey := range sortedMapKeys(ph.Subphases) {
+			sp := ph.Subphases[spKey]
+			for _, it := range sp.Items {
+				if Module(it, phKey, spKey) != module {
+					continue
+				}
+				rows = append(rows, contractRow{
+					PhaseKey:    phKey,
+					PhaseName:   ph.Name,
+					SubphaseKey: spKey,
+					Subphase:    sp.Name,
+					Item:        it,
+				})
+			}
+		}
+	}
+	return rows
 }
 
 func contractRows(p *Progress) []contractRow {
@@ -521,6 +654,44 @@ func joinCodeOrDash(values []string) string {
 		quoted = append(quoted, "`"+value+"`")
 	}
 	return strings.Join(quoted, ", ")
+}
+
+func formatPriorityCounts(counts map[string]int) string {
+	if len(counts) == 0 {
+		return "-"
+	}
+	var parts []string
+	for _, priority := range []string{"P0", "P1", "P2", "P3", "P4", "unset"} {
+		if n := counts[priority]; n > 0 {
+			parts = append(parts, fmt.Sprintf("`%s`: %d", priority, n))
+		}
+	}
+	for _, priority := range sortedMapKeys(counts) {
+		switch priority {
+		case "P0", "P1", "P2", "P3", "P4", "unset":
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("`%s`: %d", priority, counts[priority]))
+	}
+	if len(parts) == 0 {
+		return "-"
+	}
+	return strings.Join(parts, " · ")
+}
+
+func moduleDisplayName(module string) string {
+	switch module {
+	case ModuleCLI, ModuleSTT, ModuleTTS, ModuleTUI:
+		return strings.ToUpper(module)
+	}
+	parts := strings.Split(module, "-")
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	return strings.Join(parts, " ")
 }
 
 func mdCell(s string) string {

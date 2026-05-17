@@ -1,0 +1,1184 @@
+[
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 0,
+    "item": {
+      "name": "Python-free normal agent turn e2e harness",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "A normal CLI/API/gateway agent turn can execute entirely in Go from input through prompt/context assembly, fake provider tool call, Go tool execution, Goncho memory recall/persistence, and final response/audit evidence, with no Python bridge or hosted Honcho dependency.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "The e2e harness reports python_bridge_used, provider_step_missing, tool_loop_missing, goncho_step_missing, or audit_evidence_missing instead of passing a partial Go turn as complete.",
+      "fixture": "internal/e2e/normal_turn_test.go::TestPythonFreeNormalAgentTurn",
+      "source_refs": [
+        "../hermes-agent/run_agent.py",
+        "../hermes-agent/agent/",
+        "../hermes-agent/plugins/memory/honcho/__init__.py",
+        "internal/hermes/",
+        "internal/kernel/",
+        "internal/tools/",
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "internal/memory/"
+      ],
+      "ready_when": [
+        "The worker can create a hermetic e2e package with fake provider events and temp state.",
+        "Provider adapters, kernel tool loop, in-process tool registry, Goncho service, and audit/status packages are importable from Go tests.",
+        "The test can assert absence of Python bridge usage without shelling out to Python."
+      ],
+      "not_ready_when": [
+        "The slice calls live providers, live gateways, hosted Honcho, Python scripts, or external network services.",
+        "The slice only tests a helper function and does not cross provider, tool, memory, and final-response boundaries.",
+        "The slice treats missing Goncho recall/persistence as success without explicit degraded evidence."
+      ],
+      "unblocks": [
+        "Goncho memory integration into normal agent turn",
+        "Provider-tool-memory golden transcript suite"
+      ],
+      "acceptance": [
+        "TestPythonFreeNormalAgentTurn seeds temp Goncho/memory state, sends one user input, consumes a fake provider tool-call event, executes a Go tool, resumes the fake provider, and returns a final assistant response.",
+        "The test proves no internal/pybridge path, Python executable, or hosted Honcho client was invoked.",
+        "The test records recall, tool execution, persistence, final response, and audit/status evidence with stable field names.",
+        "A degraded subtest disables Goncho and proves the turn reports explicit goncho_step_missing evidence while preserving transcript integrity."
+      ],
+      "write_scope": [
+        "internal/e2e/",
+        "internal/kernel/",
+        "internal/hermes/",
+        "internal/goncho/",
+        "internal/gonchotools/",
+        "internal/memory/",
+        "internal/tools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/e2e -run '^TestPythonFreeNormalAgentTurn$' -count=1",
+        "go test ./internal/e2e ./internal/kernel ./internal/hermes ./internal/goncho ./internal/gonchotools ./internal/memory ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "A hermetic e2e test proves the first Python-free normal Gormes agent turn across provider, tool, Goncho memory, final response, and audit/status evidence."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes run_agent.py normal turn + honcho memory plugin",
+        "note": "This is the product-level closure test for Hermes-in-Go parity, adapted to Gormes' Go package boundaries."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 6,
+    "item": {
+      "name": "Nested feature-level coverage test matrix for swarm gaps",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Docs tests verify selected nested upstream feature classes from the swarm audit, including Hermes provider transports/tools/plugins/skills/ACP/MCP and Honcho SDK/MCP/CLI/OpenAPI/deploy/test fixtures, so broad top-level source-class globs cannot hide unmapped behavior.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "docs",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If a nested upstream path is not represented in the feature map, swarm audit, or progress row, the test reports nested_feature_unmapped with the upstream path and expected ledger evidence.",
+      "fixture": "docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage",
+      "source_refs": [
+        "docs/upstream_coverage_test.go",
+        "docs/upstream_coverage_test.go::TestNestedUpstreamFeatureCoverage",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "../hermes-agent/agent/transports/",
+        "../hermes-agent/tools/yuanbao_tools.py",
+        "../hermes-agent/acp_adapter/",
+        "../hermes-agent/mcp_serve.py",
+        "../hermes-agent/plugins/",
+        "../hermes-agent/skills/",
+        "../honcho/docs/v3/openapi.json",
+        "../honcho/src/routers/",
+        "../honcho/src/deriver/queue_manager.py",
+        "../honcho/mcp/src/tools/",
+        "../honcho/honcho-cli/src/honcho_cli/",
+        "../honcho/tests/sdk/",
+        "../honcho/sdks/typescript/__tests__/",
+        "../honcho/tests/live_llm/README.md"
+      ],
+      "ready_when": [
+        "Swarm Feature Parity Audit exists and names nested paths that broad source-class coverage missed.",
+        "The test can skip absent sibling upstream repos while failing when present repos have unmapped nested feature paths.",
+        "The pass updates docs/progress only."
+      ],
+      "not_ready_when": [
+        "The test requires implementing runtime parity before it can detect docs coverage drift.",
+        "The test uses broad top-level globs instead of named nested feature paths.",
+        "The pass marks feature parity complete without resolving missing or vague swarm findings."
+      ],
+      "acceptance": [
+        "A focused docs test fails when named nested upstream paths from the swarm audit have no feature-map, swarm-audit, runtime-plan, or progress evidence.",
+        "The nested matrix includes Hermes transports, runtime, Yuanbao tools, ACP, MCP, plugins, skills, and Honcho SDK/OpenAPI/routes/MCP/CLI/deriver/vector/live-LLM/deploy/test paths.",
+        "The test rejects broad-only evidence such as tests/**, agent/**, tools/**, src/**, sdks/**, and mcp/**.",
+        "The test verifies key docs progress rows have source_refs, write_scope, acceptance, done_signal, and test_commands or no_test_required.",
+        "The test preserves normal CI behavior by skipping absent sibling upstream repos."
+      ],
+      "note": "Complete in the 2026-04-28 gormes-planner swarm pass: TestNestedUpstreamFeatureCoverage now checks representative nested Hermes/Honcho paths against the feature map, runtime plan, swarm audit, upstream ledger, and progress.json, rejecting broad-only evidence and proving the nested matrix is executable.",
+      "write_scope": [
+        "docs/upstream_coverage_test.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "docs/content/building-gormes/architecture_plan/swarm-feature-parity-audit.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestNestedUpstreamFeatureCoverage' -count=1",
+        "go run ./cmd/progress validate",
+        "go test ./docs -count=1"
+      ],
+      "done_signal": [
+        "Nested upstream feature paths from the swarm audit are protected by docs tests, making feature-level mapping drift visible before builder selection."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "swarm feature-level parity audit gaps",
+        "note": "Follows up on the top-level ledger test, which intentionally cannot prove nested feature-level coverage by itself."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 7,
+    "item": {
+      "name": "Hermes website docs mirror coverage gate",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes docs keep the upstream Hermes documentation mirror source-backed from the active nested Hermes repo: docs tests discover `./hermes-agent/website/docs` before legacy sibling paths, compare every active public-safe Hermes Markdown/category docs file against `webpages/docs/content/upstream-hermes`, and report missing, extra, or unsanitized pages with exact paths so operator docs drift cannot hide behind a skipped mirror test. Existing Gormes public-docs safety policy excludes high-risk upstream godmode/red-team skill pages from the published mirror and catalog.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Docs validation reports hermes_docs_source_missing, hermes_docs_mirror_missing, hermes_docs_mirror_extra, hermes_docs_docusaurus_syntax, or hermes_docs_link_unresolved evidence instead of silently skipping when Hermes is checked out under `./hermes-agent`; high-risk upstream skill docs remain excluded by the public-docs safety gate.",
+      "fixture": "webpages/docs/docs_test.go::TestMirroredDocsCoverage",
+      "source_refs": [
+        "./hermes-agent/website/docs@242da9db9",
+        "./hermes-agent/docs@242da9db9",
+        "webpages/docs/docs_test.go:selectedSourceDocsRoot",
+        "webpages/docs/docs_test.go:isExcludedUpstreamMirrorSource",
+        "webpages/docs/content/upstream-hermes/"
+      ],
+      "ready_when": [
+        "The local Hermes checkout exists at `./hermes-agent` and contains `website/docs`.",
+        "The builder can update docs tests and mirror pages without changing Gormes runtime behavior.",
+        "The pass can sanitize Docusaurus category/frontmatter/admonition syntax into the Astro/Starlight-compatible Gormes mirror."
+      ],
+      "not_ready_when": [
+        "The slice copies upstream docs without preserving the `upstream-hermes/` namespace.",
+        "The slice weakens `TestMirroredDocsCoverage` or turns missing pages into a permanent allowlist.",
+        "The slice treats stale mirrored Gormes docs as active upstream evidence when `./hermes-agent/website/docs` is available.",
+        "The slice introduces root-relative links, raw React components, Docusaurus admonitions, or broken internal links into the Gormes docs site."
+      ],
+      "blocked_by": [
+        "Skill control-plane docs and Hugo navigation closeout"
+      ],
+      "acceptance": [
+        "TestMirroredDocsCoverage discovers active upstream docs from `./hermes-agent/website/docs` first, then falls back to `../hermes-agent/website/docs`, `references/hermes-agent/website/docs`, and the legacy `../../../website/docs` path only when needed.",
+        "The mirror includes active upstream operator docs that are currently absent from Gormes, including `developer-guide/browser-supervisor.md`, `user-guide/configuring-models.md`, `user-guide/features/curator.md`, `user-guide/features/goals.md`, `user-guide/features/kanban.md`, `user-guide/features/kanban-tutorial.md`, `user-guide/features/spotify.md`, `reference/model-catalog.md`, `guides/azure-foundry.md`, `guides/cron-script-only.md`, `guides/github-pr-review-agent.md`, `guides/minimax-oauth.md`, `guides/webhook-github-pr-review.md`, `guides/operate-teams-meeting-pipeline.md`, `user-guide/messaging/teams.md`, `user-guide/messaging/teams-meetings.md`, and `user-guide/messaging/yuanbao.md`.",
+        "Generated category pages map upstream `_category_.json` files to Gormes `_index.md` pages, and copied Markdown passes the existing portability hazard and internal-link tests.",
+        "The failure message lists the first missing/extra paths plus the selected upstream source root, so future Hermes docs additions are immediately actionable.",
+        "`go test ./webpages/docs -run TestMirroredDocsCoverage -count=1` fails before the mirror refresh and passes after the mirror refresh without network access.",
+        "The mirror preserves the existing public-docs safety gate by excluding upstream godmode/red-team skill pages and scrubbing high-risk catalog rows while still failing on ordinary missing upstream docs."
+      ],
+      "note": "Completed 2026-05-06: TestMirroredDocsCoverage now uses the active nested Hermes checkout and the mirror has been refreshed under upstream-hermes/. Existing Gormes public-docs safety policy excludes high-risk upstream godmode/red-team skill docs and catalog rows; all other active Hermes website Markdown/MDX/category docs are covered by the mirror test. Refreshed 2026-05-08 against Hermes 242da9db9 after upstream split the Microsoft Teams meeting setup and operator runbook into `user-guide/messaging/teams-meetings.md` and `guides/operate-teams-meeting-pipeline.md`; the row remains the source-backed docs mirror drift gate rather than a new runtime Teams pipeline row.",
+      "write_scope": [
+        "webpages/docs/docs_test.go",
+        "webpages/docs/content/upstream-hermes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run TestMirroredDocsCoverage -count=1",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Docs mirror coverage resolves the nested Hermes docs source, mirrored upstream-Hermes pages match the active public-safe source inventory, and docs tests fail on future missing pages with exact path evidence."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:242da9db9 website/docs/**",
+        "note": "Hermes owns the operator documentation contract; Gormes mirrors it under `upstream-hermes/` while keeping Gormes-native docs separate."
+      },
+      "completed_at": "2026-05-06T00:39:52Z",
+      "evidence": {
+        "implementation": [
+          "webpages/docs/docs_test.go:selectedSourceDocsRoot discovers ./hermes-agent/website/docs before sibling/reference/legacy fallbacks.",
+          "webpages/docs/docs_test.go:TestMirroredDocsCoverage now reports selected source root plus first missing/extra mirrored paths.",
+          "webpages/docs/docs_test.go strips inline code spans before link resolution so code examples like `[link](url)` are not treated as docs links.",
+          "webpages/docs/content/upstream-hermes mirrors the active Hermes website docs inventory with Docusaurus category files mapped to _index.md pages.",
+          "The mirror sanitizer removed Docusaurus admonition fences, root-relative non-image markdown links, MDX imports/components, stale dashboard-plugins.md, and high-risk godmode catalog/page entries.",
+          "2026-05-08 refresh added the upstream Teams meeting setup and operator runbook mirror pages from Hermes 242da9db9 with Starlight-safe relative links and warning markdown."
+        ],
+        "tests": [
+          "go test ./webpages/docs -run TestMirroredDocsCoverage -count=1",
+          "go test ./webpages/docs -run 'TestMirroredDocsCoverage|TestPublicDocsExcludeHighRiskUpstreamSkill|TestDocsContentAvoidsPortabilityHazards|TestDocsInternalLinksResolve|TestDocsContentRendersViaGoldmark' -count=1",
+          "go test ./webpages/docs -count=1"
+        ],
+        "verification": [
+          "go test ./webpages/docs -run TestMirroredDocsCoverage -count=1 -> failed before mirror refresh: missing 167 active upstream-Hermes pages and stale dashboard-plugins.md extra.",
+          "go test ./webpages/docs -run 'TestMirroredDocsCoverage|TestPublicDocsExcludeHighRiskUpstreamSkill|TestDocsContentAvoidsPortabilityHazards|TestDocsInternalLinksResolve|TestDocsContentRendersViaGoldmark' -count=1 -> pass",
+          "go test ./webpages/docs -count=1 -> pass",
+          "go run ./cmd/progress validate -> pass",
+          "git diff --check -> pass",
+          "go test ./... -count=1 -> pass",
+          "2026-05-08 RED: go test ./webpages/docs -run TestMirroredDocsCoverage -count=1 failed against Hermes 242da9db9 with missing upstream-hermes/guides/operate-teams-meeting-pipeline.md and upstream-hermes/user-guide/messaging/teams-meetings.md.",
+          "2026-05-08 GREEN: go test ./webpages/docs -run TestMirroredDocsCoverage -count=1 passed after adding both mirror pages.",
+          "2026-05-08 verification: go test ./webpages/docs -count=1 passed after relative-link cleanup."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 10,
+    "item": {
+      "name": "Hermes compatibility namespace retirement boundary",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes splits the current `internal/hermes` parity staging package into durable Gormes-owned runtime packages and a narrow Hermes compatibility namespace after provider/model/tool-call/context fixtures are stable. Hermes-specific import, drift, command/config, provider/platform inventory, and deprecated-shim evidence moves to `internal/compat/hermes`; provider transport/routing, model metadata, tool-call parsing/repair, account usage, prompt/context/compression helpers, and normal-turn runtime contracts move to Gormes-owned packages. `internal/hermes` is allowed only as a temporary import shim during the migration and must be removed or reduced to no public runtime ownership before release readiness.",
+      "contract_status": "validated",
+      "slice_size": "large",
+      "execution_owner": "provider",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If a caller still imports `internal/hermes` for Gormes-owned runtime behavior after the migration, package-boundary tests report hermes_namespace_runtime_leak with the importing package and the target replacement package. Hermes compatibility docs and drift manifests remain available under `internal/compat/hermes` so removing the staging namespace does not hide upstream parity evidence.",
+      "fixture": "internal/compat/hermes/namespace_contract_test.go::TestHermesCompatibilityBoundaryOwnsOnlyCompatibilitySurfaces",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/boundaries.md:Hermes Compatibility Namespace Boundary",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Namespace note",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Gormes-Native Pending Decisions",
+        "internal/hermes/",
+        "internal/kernel/",
+        "internal/runtime/",
+        "internal/config/",
+        "internal/e2e/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "ready_when": [
+        "Hermes provider registry and alias manifest is complete so provider IDs, aliases, auth modes, and model metadata have one source-backed table before package movement.",
+        "Python-free normal agent turn e2e harness and Provider-tool-memory golden transcript suite remain green, proving provider/tool/memory behavior through public runtime fixtures before and after package movement.",
+        "Native runtime provider gateway binding is complete so gateway callers can depend on a Gormes runtime seam rather than `internal/hermes` package names.",
+        "The builder can move Go files with mechanical import rewrites and focused boundary tests without changing provider behavior, command spelling, config precedence, or live credential flows."
+      ],
+      "not_ready_when": [
+        "The slice starts before provider registry coverage is complete or while major provider/runtime fixtures are missing.",
+        "The implementation renames packages without first defining which surfaces are compatibility-only versus Gormes-owned runtime.",
+        "The migration removes Hermes import/config/command drift evidence, deprecated redirect behavior, or upstream fixture provenance.",
+        "The slice changes provider request/stream semantics, model selection, auth behavior, prompt assembly, or tool-call repair while moving packages."
+      ],
+      "blocked_by": [
+        "Hermes provider registry and alias manifest",
+        "Python-free normal agent turn e2e harness",
+        "Provider-tool-memory golden transcript suite",
+        "Native runtime provider gateway binding"
+      ],
+      "unblocks": [
+        "Hermes/Honcho Go runtime plan second-wave reconciliation",
+        "Gormes-owned runtime docs/API naming cleanup"
+      ],
+      "acceptance": [
+        "`internal/compat/hermes` contains only upstream compatibility surfaces: config/import compatibility, command-surface/drift manifests, provider/platform inventory provenance, fixture metadata, and explicit deprecated shims.",
+        "Gormes-owned runtime code has package names that describe product architecture rather than donor origin: provider transport/routing, model registry, tool-call parser/repair, account usage, prompt/context/compression, and runtime bridge seams no longer live in `internal/hermes`.",
+        "Package-boundary tests fail if a new runtime package imports `internal/hermes` for non-compat behavior or if compat code imports live provider/gateway runtimes directly.",
+        "Normal-turn, provider transcript, tool-call parser, model registry, account usage, config/auth, and gateway native runtime tests pass with no behavior drift.",
+        "Docs explain that Hermes remains a compatibility contract and donor reference, while Gormes-owned runtime architecture no longer carries the Hermes package name."
+      ],
+      "note": "Long-term namespace plan added 2026-04-29 after the package-boundary review concluded that `internal/hermes` is an honest parity staging name but a poor permanent home for Gormes-owned runtime architecture. This row is intentionally blocked until registry and normal-turn fixtures are stable, so the rename is a behavior-preserving split rather than churn.",
+      "write_scope": [
+        "internal/compat/hermes/",
+        "internal/provider/",
+        "internal/modelregistry/",
+        "internal/toolcall/",
+        "internal/contextengine/",
+        "internal/runtime/",
+        "internal/kernel/",
+        "internal/hermes/",
+        "docs/content/building-gormes/architecture_plan/boundaries.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/compat/hermes ./internal/provider ./internal/modelregistry ./internal/toolcall ./internal/contextengine ./internal/runtime ./internal/kernel ./internal/e2e -count=1",
+        "go test ./internal/hermes -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermes compatibility evidence lives under `internal/compat/hermes`, Gormes-owned runtime imports no longer depend on `internal/hermes`, and full normal-turn/provider/tool-call/config/gateway tests prove behavior stayed stable."
+      ],
+      "wired": true,
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes owns the package boundary decision; Hermes remains the compatibility contract and upstream drift source, not the permanent internal architecture name."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.L",
+    "pos": 0,
+    "item": {
+      "name": "Plan gate hook in agent turn loop",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Before tool execution, the agent loop invokes a plan-gate safety check. Unsafe plans are refused with explanation. Safe plans proceed. This mirrors MOSAIC (2025) plan->check->act/refuse pattern.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "source_refs": [
+        "docs/content/papers/safety-and-deployment.md",
+        "internal/hermes/turn.go",
+        "internal/hermes/agent_loop.go"
+      ],
+      "ready_when": [
+        "Agent turn loop has a hook point before tool dispatch",
+        "Tool registry exposes safety-relevant metadata per tool"
+      ],
+      "not_ready_when": [
+        "Agent loop is not refactorable to add pre-tool hooks",
+        "Tool registry has no permission/safety metadata"
+      ],
+      "acceptance": [
+        "Plan gate evaluates agent plan before any tool executes",
+        "Unsafe plans are refused with structured explanation",
+        "Safe plans pass through with zero added latency >10ms P99",
+        "Plan gate is testable with mock tool sets"
+      ],
+      "note": "Complete: internal/hermes/safety_plan_gate.go defines a default plan gate with trust-class validation and custom rule injection; fixtures prove safe plans pass, unsafe plans produce structured refusal reasons, single unsafe calls block the plan, empty plans pass, and custom/multiple rules are honored.",
+      "write_scope": [
+        "internal/hermes/safety_plan_gate.go",
+        "internal/hermes/safety_plan_gate_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/hermes -run TestPlanGate -count=1"
+      ],
+      "done_signal": [
+        "Plan gate tests prove safe plans pass and unsafe plans are refused"
+      ],
+      "evidence": {
+        "implementation": "internal/hermes/safety_plan_gate.go",
+        "tests": "go test ./internal/hermes -run TestPlanGate -count=1",
+        "note": "Plan gate behavior is verified by TestPlanGate_* fixtures and participates in the ReAct safety adapter integration tests."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.L",
+    "pos": 2,
+    "item": {
+      "name": "Refusal-as-action in ReAct cycle",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "The agent loop supports 'refuse' as a first-class action in the ReAct cycle. When safety gates reject a planned action, the agent can refuse and explain why, rather than silently failing or hallucinating a different action.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator"
+      ],
+      "source_refs": [
+        "docs/content/papers/safety-and-deployment.md",
+        "internal/hermes/turn.go"
+      ],
+      "ready_when": [
+        "Plan gate or tool gate exists (4.L rows 1-2)"
+      ],
+      "not_ready_when": [
+        "No safety gate to produce refusal signals"
+      ],
+      "acceptance": [
+        "ReAct cycle accepts RefuseAction alongside ToolAction",
+        "Refused actions produce user-visible explanation",
+        "Agent can recover and try alternative approach after refusal",
+        "Refusal does not count as an error in session stats"
+      ],
+      "note": "Complete: internal/hermes/refuse_action.go models refusal as a first-class ReAct action and adapts plan/tool gate denials into refusal decisions with redacted JSON evidence while allowing the turn to continue for recovery.",
+      "write_scope": [
+        "internal/hermes/refuse_action.go",
+        "internal/hermes/refuse_action_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/hermes -run TestRefuseAction -count=1"
+      ],
+      "done_signal": [
+        "Refusal tests prove the agent can refuse, explain, and recover"
+      ],
+      "evidence": {
+        "implementation": "internal/hermes/refuse_action.go",
+        "tests": "go test ./internal/hermes -run TestRefuseAction -count=1",
+        "note": "Refusal fixtures prove plan refusal, tool refusal, safe proceed/execute decisions, and MarshalEvidence output."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.L",
+    "pos": 3,
+    "item": {
+      "name": "Safety loop end-to-end integration",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Integration test proving plan-gate + tool-gate + refusal work together in a complete agent turn. Covers: safe turn passes, unsafe plan blocked, tool drift blocked, multi-step chain with mixed safe/unsafe steps.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "source_refs": [
+        "docs/content/papers/safety-and-deployment.md",
+        "internal/hermes/safety_plan_gate.go",
+        "internal/tools/safety_tool_gate.go",
+        "internal/hermes/refuse_action.go"
+      ],
+      "ready_when": [
+        "Plan gate, tool gate, and refusal all exist (4.L rows 1-3)"
+      ],
+      "not_ready_when": [
+        "Any safety component not yet implemented"
+      ],
+      "acceptance": [
+        "Full turn with safe actions completes successfully",
+        "Unsafe plan is caught before any tool executes",
+        "Tool drift in multi-step chain is detected mid-chain",
+        "Agent recovers after refusal and completes alternative approach"
+      ],
+      "note": "Complete: internal/hermes/safety_loop_integration_test.go proves the plan gate, tool gate, and refusal action work together across safe turns, unsafe plans, tool drift, and recovery after refusal.",
+      "write_scope": [
+        "internal/hermes/safety_loop_integration_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/hermes -run TestSafetyLoop -count=1"
+      ],
+      "done_signal": [
+        "Integration tests prove end-to-end safety loop handles safe, unsafe, drift, and recovery scenarios"
+      ],
+      "evidence": {
+        "implementation": "internal/hermes/safety_plan_gate.go, internal/hermes/safety_tool_gate.go, internal/hermes/refuse_action.go",
+        "tests": "go test ./internal/hermes -run TestSafetyLoop -count=1",
+        "note": "Safety loop fixtures prove safe actions pass, unsafe plans are caught before tool execution, tactical tool drift is refused, and a later safe action can execute after refusal."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.J",
+    "pos": 18,
+    "item": {
+      "name": "Secrets Runtime Controls",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Port OpenClaw's secrets runtime control surface: secrets apply for deploying previously generated plans, secrets audit to detect plaintext secrets/unresolved refs/precedence drift, secrets configure for interactive provider setup with SecretRef mapping and preflight validation, and secrets reload to re-resolve secret references and atomically swap the runtime snapshot.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "runtime",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Unresolved SecretRef, missing provider, or reload failure reports secrets_unavailable with exact ref path rather than silently falling back or leaking plaintext secrets.",
+      "fixture": "internal/tools/secrets_test.go; cmd/gormes/secrets_command_test.go",
+      "source_refs": [
+        "openclaw secrets apply/audit/configure/reload CLI surface",
+        "docs/content/building-gormes/openclaw-platform-parity-audit.md",
+        "docs/content/building-gormes/fleet-operational-patterns.md"
+      ],
+      "ready_when": [
+        "Hermes credential/oauth store migration (5.O) is validated.",
+        "SecretRef resolution layer is defined."
+      ],
+      "not_ready_when": [
+        "The row ships without audit/reload atomicity.",
+        "The row stores secrets in plaintext outside the secrets provider."
+      ],
+      "unblocks": [
+        "Security audit (5.J)",
+        "Provider auth parity"
+      ],
+      "acceptance": [
+        "gormes secrets audit detects plaintext secrets, unresolved refs, and precedence drift.",
+        "gormes secrets reload atomically swaps runtime snapshot without restart.",
+        "SecretRef format matches OpenClaw's typed {source, provider, id} object convention."
+      ],
+      "note": "Validated 2026-05-03: TDD added internal/tools secrets runtime controls with typed SecretRef targets, plaintext/unresolved/precedence-drift audit findings, configure preflight, apply, reload, atomic last-good in-memory snapshots, and redacted JSON-safe evidence. The gormes secrets CLI now ships apply/audit/configure/reload over plan files with a redacted secrets-runtime.json metadata snapshot under GORMES_HOME; failed reloads return secrets_unavailable and preserve the last good snapshot without storing resolved secret values. Focused commands passed: go test ./internal/tools -run TestSecrets -count=1; go test ./cmd/gormes -run TestSecrets -count=1.",
+      "write_scope": [
+        "internal/tools/secrets.go",
+        "internal/tools/secrets_test.go",
+        "cmd/gormes/secrets.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run TestSecrets -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "gormes secrets ships with audit, configure, and reload commands."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 116,
+    "item": {
+      "name": "Agent lifecycle hooks (agent:start, agent:step, agent:end)",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes gateway hook system fires agent:start, agent:step, and agent:end HookPoints around kernel turn processing, mirroring Hermes' gateway/hooks.py agent lifecycle event types at lines 9-17 (event definitions) and lines 35-210 (HookRegistry class with emit/emit_collect, wildcard matching, async/sync handler support, and error isolation). agent:start fires when the kernel begins processing a message (Hermes dispatch: gateway/run.py lines 6734-6741, context keys: platform, user_id, session_id, message); agent:step fires after each tool-calling turn iteration (Hermes dispatch: gateway/run.py lines 13585-13614 via step_callback bridge, context keys: platform, user_id, session_id, iteration, tool_names); agent:end fires when the kernel completes processing (Hermes dispatch: gateway/run.py lines 6876-6880, context keys: platform, user_id, session_id, message, response). Hook errors during agent lifecycle events are logged but do not abort the turn, matching Hermes' try/except-per-handler pattern at hooks.py lines 174-181.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "runtime",
+      "trust_class": [
+        "system"
+      ],
+      "source_refs": [
+        "./hermes-agent/gateway/hooks.py:9-17 (event type list), 35-210 (HookRegistry class, emit/emit_collect, wildcard matching, error isolation)",
+        "./hermes-agent/gateway/run.py:1240-1241 (HookRegistry instantiation), 6734-6741 (agent:start dispatch), 6876-6880 (agent:end dispatch), 13585-13614 (agent:step via step_callback bridge)",
+        "./hermes-agent/tests/gateway/test_hooks.py (318 lines, comprehensive hook registry tests)",
+        "internal/gateway/hooks.go:HookPoint, Hooks struct, constants, Fire method",
+        "internal/gateway/hook_loader.go:allHookPoints, expandHookEvents",
+        "internal/kernel/kernel.go:100-126 (Kernel struct), 304-310 (runTurn signature), 464 (toolLoop label), 604-606 (tool loop exit), 626 (executeToolCallsInterruptible)",
+        "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible"
+      ],
+      "ready_when": [
+        "HookPoint constants for HookAgentStart, HookAgentStep, HookAgentEnd are added to internal/gateway/hooks.go alongside existing HookBeforeReceive et al.",
+        "Kernel.Run fires HookAgentStart in runTurn after turn admission and before the toolLoop (kernel.go ~line 464).",
+        "Kernel.runTurn fires HookAgentStep after each executeToolCallsInterruptible outcome (kernel.go ~line 626), carrying iteration index and tool result summary in HookEvent.",
+        "Kernel.runTurn fires HookAgentEnd in the finalisation block (kernel.go ~line 662), on every exit path (normal end, error, cancelled, iteration limit).",
+        "Tests prove registry callbacks receive HookEvent with agent_name, session_id, platform context."
+      ],
+      "not_ready_when": [
+        "Hook errors abort the turn instead of being logged.",
+        "The implementation adds hook points without corresponding kernel fire sites."
+      ],
+      "acceptance": [
+        "HookAgentStart fires exactly once per agent turn, before any tool calls.",
+        "HookAgentStep fires after each tool-batch outcome, carrying iteration index and tool result summary.",
+        "HookAgentEnd fires exactly once per agent turn, even when the turn errors or hits iteration limit.",
+        "All three hook points are exercised by gateway-level integration tests with fake hook callbacks."
+      ],
+      "write_scope": [
+        "internal/gateway/hooks.go",
+        "internal/gateway/hooks_test.go",
+        "internal/kernel/kernel.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'HookAgent' -count=1",
+        "go test ./internal/kernel -run 'AgentLifecycle' -count=1"
+      ],
+      "done_signal": [
+        "go test ./internal/gateway ./internal/kernel -count=1 passes with agent lifecycle hook coverage.",
+        "go run ./cmd/progress validate passes."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/gateway/hooks.go: HookAgentStart, HookAgentStep, HookAgentEnd constants; SessionID/Iteration/ToolNames fields on HookEvent",
+          "internal/gateway/hook_loader.go: agent lifecycle points added to allHookPoints",
+          "internal/kernel/kernel.go: AgentLifecycleHook callback on Config, AgentLifecyclePoint/Event types, agent:start fire before toolLoop, agent:step fire after executeToolCallsInterruptible, agent:end deferred fire on all exit paths"
+        ],
+        "tests": [
+          "internal/kernel/agent_lifecycle_test.go: TestAgentLifecycleHook_StartEndFiresOnSimpleTurn, TestAgentLifecycleHook_StepFiresOnToolTurn, TestAgentLifecycleHook_EndFiresOnStreamError, TestAgentLifecycleHook_NilHookNoPanic",
+          "internal/gateway/hooks_test.go: TestHookAgentLifecycle_StartStepEndFireWithContext, TestHookAgentLifecycle_MultipleHandlersFireInOrder"
+        ],
+        "verification": [
+          "go test ./internal/kernel -run 'TestAgentLifecycle' -count=1 -> PASS",
+          "go test ./internal/gateway -run 'HookAgent' -count=1 -> PASS",
+          "go run ./cmd/progress validate -> 8 phases validated",
+          "git diff --check -> clean"
+        ]
+      },
+      "last_updated": "2026-05-07T19:30:00Z",
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.S",
+    "pos": 0,
+    "item": {
+      "name": "5-type loop detector",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Hard loop, failing loop, text repetition, no-action, same-tool detection with configurable thresholds",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Loop events are emitted with type and evidence; agent can break loops or escalate to operator",
+      "fixture": "internal/agent/loop_detector_test.go",
+      "source_refs": [
+        "mercury-agent/src/core/loop_detection.ts",
+        "hermes-agent/agent/auxiliary_client.py"
+      ],
+      "ready_when": [
+        "Agent turn loop exists to instrument"
+      ],
+      "not_ready_when": [
+        "Agent turn loop is still in design"
+      ],
+      "acceptance": [
+        "Detects each of 5 loop types",
+        "Configurable thresholds per loop type",
+        "Emits loop_detected event with type and evidence"
+      ],
+      "note": "Cross-project adoption from mercury-agent: runaway loop prevention is a real production problem.",
+      "write_scope": [
+        "internal/agent/loop_detector.go"
+      ],
+      "test_commands": [
+        "go test ./internal/agent -run TestLoopDetection -count=1"
+      ],
+      "done_signal": [
+        "Loop detection tests prove all 5 types with threshold configuration"
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/agent/loop_detector.go:LoopDetector, TurnRecord, LoopDetectionResult",
+          "internal/agent/loop_detector.go:checkHardLoop, checkFailingLoop, checkTextRepetition, checkNoAction, checkSameTool"
+        ],
+        "tests": [
+          "internal/agent/loop_detector_test.go:TestLoopDetector_HardLoop",
+          "internal/agent/loop_detector_test.go:TestLoopDetector_FailingLoop",
+          "internal/agent/loop_detector_test.go:TestLoopDetector_TextRepetition",
+          "internal/agent/loop_detector_test.go:TestLoopDetector_NoAction",
+          "internal/agent/loop_detector_test.go:TestLoopDetector_SameTool",
+          "internal/agent/loop_detector_test.go:TestLoopDetector_ConfigurableThresholds",
+          "internal/agent/loop_detector_test.go:TestLoopDetector_EvidenceContainsType"
+        ],
+        "verification": [
+          "go test ./internal/agent -count=1 -> ok",
+          "go run ./cmd/progress validate -> 7 phases validated"
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.V",
+    "pos": 0,
+    "item": {
+      "name": "Event bus core: pub/sub interface + in-process implementation",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "A unified pub/sub event bus decoupling all subsystems (TUI, gateway channels, agent loop, tools, memory). Events are typed, timestamped, and carry provenance. Core implementation is in-process with topic-based routing. No external dependency (no Kafka/Redis required for default).",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "system"
+      ],
+      "source_refs": [
+        "docs/content/papers/agentic-os-design.md",
+        "docs/content/papers/safety-and-deployment.md",
+        "OpenCode event bus architecture",
+        "internal/gateway/router.go",
+        "internal/hermes/turn.go"
+      ],
+      "ready_when": [
+        "Minimal viable: at least two subsystems that would benefit from decoupling"
+      ],
+      "not_ready_when": [
+        "No clear subscriber needs identified"
+      ],
+      "acceptance": [
+        "EventBus interface: Publish(topic, event) and Subscribe(topic, handler)",
+        "In-process implementation with topic-based routing",
+        "Events carry: type, timestamp, source, payload, trace_id",
+        "Subscriber backpressure: slow consumers do not block publishers",
+        "Zero external dependencies for default implementation",
+        "Pluggable backend (future: NATS/Kafka) via interface"
+      ],
+      "note": "Complete: `internal/events` already contained the in-process, topic-based `EventBus` interface and implementation, plus gateway/hermes turn emitter integration. This pass added row-named `TestEventBusCore_*` coverage so the progress command directly proves typed event provenance (`type`, timestamp, source, payload, trace_id), topic isolation, unsubscribe behavior, and nonblocking publication under slow-subscriber backpressure. The default remains pure in-process with no Kafka/Redis/NATS dependency, while the interface keeps a future backend replaceable.",
+      "write_scope": [
+        "internal/events/bus.go",
+        "internal/events/bus_test.go",
+        "internal/events/types.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/events -run TestEventBus -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Event bus tests prove pub/sub routing, backpressure handling, and typed event delivery"
+      ],
+      "evidence": {
+        "implementation": "internal/events/bus.go, internal/events/types.go",
+        "tests": "go test ./internal/events -run TestEventBus -count=1",
+        "note": "EventBusCore fixtures prove typed event provenance, topic routing/isolation, unsubscribe behavior, and nonblocking publication under slow-subscriber backpressure."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.W",
+    "pos": 0,
+    "item": {
+      "name": "Hermes i18n static-message port",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes ports Hermes' lightweight i18n system for static user-facing messages: approval prompts, gateway slash command replies, and restart-drain notices. Agent-generated output, log lines, error tracebacks, tool outputs, and slash-command descriptions remain English-only. Language resolution: explicit lang arg → GORMES_LANGUAGE env var → display.language config key → en fallback. Supported languages: en, zh, ja, de, es, fr, tr, uk. Missing catalog keys fall back to English; broken catalogs return key paths without crashing. Catalog files live at locales/<lang>.yaml as flat dotted-path keyed dicts.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "source_refs": [
+        "./hermes-agent/agent/i18n.py",
+        "./hermes-agent/locales/en.yaml",
+        "./hermes-agent/locales/zh.yaml",
+        "./hermes-agent/locales/ja.yaml",
+        "./hermes-agent/locales/de.yaml",
+        "./hermes-agent/locales/es.yaml",
+        "./hermes-agent/locales/fr.yaml",
+        "./hermes-agent/locales/tr.yaml",
+        "./hermes-agent/locales/uk.yaml",
+        "./hermes-agent/tests/agent/test_i18n.py"
+      ],
+      "ready_when": [
+        "Gormes config supports display.language key with validated enum of supported language codes.",
+        "YAML catalog loader exists with fallback chain: requested lang → en → key path literal.",
+        "At minimum, approval prompt static strings (dangerous_header, choose_long/prompt_long, timeout, allowed_once/denied, blocklist_message) are translatable and tested across all 8 languages.",
+        "Gateway /kanban and restart-drain reply strings are translatable."
+      ],
+      "not_ready_when": [
+        "Agent-generated natural language, tool output, or model responses are translated (explicitly out of scope per Hermes i18n contract).",
+        "Missing locale keys crash the agent; they must degrade to en or key path.",
+        "The YAML loader reads live ~/.gormes or ~/.hermes without sanitized fixture paths."
+      ],
+      "acceptance": [
+        "Approval prompt tests prove t('approval.dangerous_header') returns localized strings for all 8 languages.",
+        "Missing key tests prove missing keys fall back to en, and missing en keys return the dotted key path.",
+        "Config resolution tests prove GORMES_LANGUAGE env var and display.language config key resolve correctly.",
+        "Gateway slash command tests prove /kanban and restart-drain replies are localized when a non-en language is active.",
+        "Catalog parity assertion proves all 8 locale files contain the same key set."
+      ],
+      "note": "Complete 2026-05-08: core i18n package landed with language resolution, YAML catalog loading, 8 locale files ported from Hermes, config language support via SetConfigLanguage(), and 15 passing tests covering fallback chain, format substitution, catalog parity, env/config resolution, and edge cases (missing file, broken YAML). 2026-05-10 all-topic parity sweep refreshed Hermes to d4b26df89 and found upstream agent/i18n.py now lists 16 supported languages. The child row `Hermes i18n expanded locale catalog parity` owns that source-backed stale-complete closure.",
+      "write_scope": [
+        "internal/i18n/",
+        "locales/",
+        "internal/config/",
+        "internal/gateway/",
+        "internal/tui/",
+        "internal/tools/approval/",
+        "cmd/gormes/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/i18n -count=1",
+        "go test ./internal/config -run TestI18n -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Approval prompts, gateway slash replies, and restart-drain notices are localized when a non-en language is configured; locale catalogs are in parity with Hermes en.yaml key set; tests prove fallback chain and catalog parity."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:agent/i18n.py + locales/",
+        "note": "Hermes defines the i18n scope as static user-facing messages only; Gormes ports the same scope, catalog format, and language resolution priority."
+      },
+      "evidence": {
+        "implementation": [
+          "internal/i18n/i18n.go: T(), getLanguage(), SetConfigLanguage(), normalizeLang(), loadCatalog(), flatten(), SupportedLanguages(), DefaultLanguage(), ResetLanguageCache()",
+          "internal/i18n/i18n_test.go: 15 tests covering language resolution, fallback chain, catalog parity, format substitution, env var override, config language, explicit lang override, missing locale file, broken YAML",
+          "internal/config/config.go: DisplayCfg.Language field added for display.language config key",
+          "locales/en.yaml: English baseline catalog (approval + gateway keys)",
+          "locales/zh.yaml: Chinese catalog",
+          "locales/ja.yaml: Japanese catalog",
+          "locales/de.yaml: German catalog",
+          "locales/es.yaml: Spanish catalog",
+          "locales/fr.yaml: French catalog",
+          "locales/tr.yaml: Turkish catalog",
+          "locales/uk.yaml: Ukrainian catalog"
+        ],
+        "tests": "go test ./internal/i18n -count=1 (15 tests pass)",
+        "note": "Core i18n package ported from hermes-agent/agent/i18n.py. Language resolution priority: explicit lang arg -> GORMES_LANGUAGE env var -> SetConfigLanguage() -> en default. Supported languages: en, zh, ja, de, es, fr, tr, uk with full alias table. Catalog loading uses YAML flattening matching Hermes dotted-key convention. Missing keys fall back to en then to key path literal. Integration into gateway/TUI/approval surfaces is deferred to follow-up slices that reference internal/i18n.T()."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.W",
+    "pos": 1,
+    "item": {
+      "name": "Hermes i18n expanded locale catalog parity",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes updates the completed static-message i18n port to match current Hermes' expanded locale catalog: supported languages are en, zh, zh-hant, ja, de, es, fr, tr, uk, af, ko, it, ga, pt, ru, and hu; aliases normalize the same current Hermes regional/common names; and every bundled locale file has the same key set with English fallback behavior unchanged.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "source_refs": [
+        "./hermes-agent/agent/i18n.py:SUPPORTED_LANGUAGES",
+        "./hermes-agent/agent/i18n.py:_LANGUAGE_ALIASES",
+        "./hermes-agent/locales/af.yaml",
+        "./hermes-agent/locales/ga.yaml",
+        "./hermes-agent/locales/hu.yaml",
+        "./hermes-agent/locales/it.yaml",
+        "./hermes-agent/locales/ko.yaml",
+        "./hermes-agent/locales/pt.yaml",
+        "./hermes-agent/locales/ru.yaml",
+        "./hermes-agent/locales/zh-hant.yaml",
+        "./hermes-agent/tests/agent/test_i18n.py"
+      ],
+      "ready_when": [
+        "The core i18n loader, fallback chain, and eight-locale static-message row are complete.",
+        "Hermes agent/i18n.py declares the expanded language tuple and matching locale files exist in ./hermes-agent/locales/.",
+        "The slice stays limited to locale catalog support and alias normalization; no gateway/TUI copy rewrite is required."
+      ],
+      "not_ready_when": [
+        "The row broadens into translating agent-generated output, logs, tool output, or dashboard-wide localization.",
+        "A builder reads live ~/.gormes or ~/.hermes state instead of bundled locale files and temp fixture dirs.",
+        "Catalog parity is asserted only by file presence rather than matching key sets and sample translations."
+      ],
+      "acceptance": [
+        "SupportedLanguages returns the same ordered language set as current Hermes agent/i18n.py.",
+        "normalizeLang maps current Hermes aliases for zh-hant, af, ko, it, ga, pt, ru, and hu.",
+        "Bundled Gormes locales include af, ga, hu, it, ko, pt, ru, and zh-hant copied from current Hermes static-message catalogs.",
+        "Catalog parity tests prove every supported bundled locale has the same key set as en.yaml and representative translations load without falling back to the key path."
+      ],
+      "note": "Complete 2026-05-10: Gormes static-message i18n now exposes the current Hermes 16-language catalog set and alias normalization, with bundled catalog parity tests proving every supported locale has the English key set and representative translations load without key-path fallback.",
+      "write_scope": [
+        "internal/i18n/",
+        "locales/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/i18n -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Gormes static-message i18n exposes all 16 current Hermes locale catalogs and alias normalizations with passing internal/i18n tests and progress evidence."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:d4b26df89 agent/i18n.py + locales/",
+        "note": "2026-05-10 all-topic Hermes parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing high-priority runtime gaps are complete or row-backed, while the completed 5.W i18n row was stale against current Hermes' expanded locale tuple. Planned rows were 15, below the 90-row cap, so one source-backed P2 child row was added."
+      },
+      "evidence": {
+        "implementation": [
+          "internal/i18n/i18n.go: supportedLanguages expanded to the current Hermes 16-language tuple and languageAliases updated for zh-hant, af, ko, it, ga, pt, ru, and hu aliases.",
+          "internal/i18n/i18n_test.go: RED/GREEN tests now assert current Hermes language ordering, alias normalization, bundled catalog key parity, and representative approval.denied lookup for every supported locale.",
+          "locales/af.yaml, locales/ga.yaml, locales/hu.yaml, locales/it.yaml, locales/ko.yaml, locales/pt.yaml, locales/ru.yaml, locales/zh-hant.yaml: copied from current Hermes static-message catalogs."
+        ],
+        "tests": "go test ./internal/i18n -count=1",
+        "note": "Completed 2026-05-10 after RED failure showed Gormes still exposed eight languages and mapped new aliases to en or zh. The slice stays limited to static-message locale catalogs; broader dashboard/localized command-copy work remains out of scope."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.A",
+    "pos": 0,
+    "item": {
+      "name": "Agent middleware chain framework",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes gains a declarative middleware chain framework for the agent runtime (internal/hermes + internal/agent), inspired by DeerFlow's 19-middleware ordered chain with @Next/@Prev positioning and RuntimeFeatures-style toggle flags. Each middleware implements a single concern: thread-data setup, sandbox lifecycle, tool error handling, loop detection, memory injection, title generation, token usage tracking, clarification interception. Middlewares are assembled into an ordered chain by a factory that accepts a RuntimeFeatures struct where each feature = enabled (use built-in), disabled, or a custom Middleware instance. The middleware ordering is deterministic, and the chain is inspectable (dump to string for debugging).",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without the middleware chain, the agent runtime uses hardcoded turn lifecycle without inspection, ordering, or feature toggles. Individual agents can still run but cannot customize their behavior pipeline.",
+      "fixture": "internal/agent/middleware_test.go",
+      "source_refs": [
+        "./deer-flow/backend/packages/harness/deerflow/agents/factory.py",
+        "./deer-flow/backend/packages/harness/deerflow/agents/features.py",
+        "./deer-flow/backend/packages/harness/deerflow/agents/middlewares/",
+        "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+      ],
+      "ready_when": [
+        "internal/agent/ has a Middleware interface and a MiddlewareChain type with deterministic ordering.",
+        "A RuntimeFeatures struct exists in internal/config or internal/agent/.",
+        "At least 3 built-in middlewares are implemented and tested (e.g. ThreadData, ToolErrorHandling, LoopDetection).",
+        "The existing internal/agent/loop_detector.go is refactored into a middleware.",
+        "go test ./internal/agent/ -count=1 is green after each middleware addition."
+      ],
+      "not_ready_when": [
+        "The middleware chain replaces or duplicates existing internal/hermes agent flow without clear migration path.",
+        "The row tries to port all 19 DeerFlow middlewares in one slice — aim for 3-5 core middlewares first.",
+        "The RuntimeFeatures struct uses Go generics for the bool|Middleware union; use a wrapper type instead.",
+        "Existing internal/hermes tests break without a validation plan."
+      ],
+      "acceptance": [
+        "MiddlewareChain assemblages middlewares in deterministic, inspectable order.",
+        "RuntimeFeatures correctly maps enabled/disabled/custom to middleware inclusion.",
+        "The LoopDetection feature toggles correctly between enabled, disabled, and custom instance.",
+        "Tests prove the chain can be dumped as a human-readable ordering string.",
+        "Integration into hermes.Client or kernel.Config allows turn-level Before/After hooks."
+      ],
+      "write_scope": [
+        "internal/agent/middleware.go",
+        "internal/agent/middleware_test.go",
+        "internal/agent/features.go",
+        "internal/agent/features_test.go",
+        "internal/agent/builtin.go",
+        "internal/hermes/",
+        "internal/kernel/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/agent -count=1",
+        "go test ./internal/hermes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Middleware interface, MiddlewareChain, RuntimeFeatures, and 3+ built-in middlewares are implemented and tested; the chain is integrated into the turn lifecycle."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/agent/middleware.go: Middleware interface, MiddlewareChain type with Add/Names/Dump/Before/After",
+          "internal/agent/features.go: RuntimeFeatures struct, FeatureFlag enum, AssembleFromFeatures() factory",
+          "internal/agent/builtin.go: 5 built-in middlewares (thread_data, tool_error, loop_detector, memory, subagent)",
+          "internal/agent/loop_detector.go: existing LoopDetector wrapped via loopDetectAdapter (unchanged core logic)",
+          "internal/agent/middleware_test.go: 11 tests covering empty chain, ordering, Before/After lifecycle, abort-on-error, Add, loop detector adapter, RuntimeFeatures assembly, disabled/custom features, context data propagation, Dump()"
+        ],
+        "tests": "go test ./internal/agent -count=1 (20 tests pass)"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.G",
+    "pos": 0,
+    "item": {
+      "name": "PicoClaw-derived channel media and identity regression matrix",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add a fake-adapter regression matrix, sourced from current PicoClaw channel reports, that proves Gormes preserves sender identity, allowlist decisions, durable rich-media envelopes, voice transcript text, PDF/document attachment metadata, Feishu-style tool-progress notifications, and same-agent final delivery semantics through the channel-neutral gateway path.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Unsupported channel/media combinations return redacted typed evidence, unknown senders fail closed, and final answers are sent through the existing fresh-final or coalescer fallback without editing placeholder/tool-feedback messages into user-visible finals.",
+      "fixture": "internal/gateway/picoclaw_channel_regression_test.go",
+      "source_refs": [
+        "https://github.com/sipeed/picoclaw/issues/2855",
+        "https://github.com/sipeed/picoclaw/issues/2843",
+        "https://github.com/sipeed/picoclaw/issues/2839",
+        "https://github.com/sipeed/picoclaw/issues/2817",
+        "https://github.com/sipeed/picoclaw/issues/2816",
+        "https://github.com/sipeed/picoclaw/issues/2815",
+        "https://github.com/sipeed/picoclaw/issues/2798",
+        "https://github.com/sipeed/picoclaw/issues/2785",
+        "https://github.com/sipeed/picoclaw/issues/2702",
+        "internal/gateway/channel.go",
+        "internal/gateway/coalesce.go",
+        "internal/gateway/session_context.go",
+        "internal/gateway/media_delivery.go",
+        "internal/channels/threadtext/contract.go"
+      ],
+      "ready_when": [
+        "Cross-platform image/document MEDIA delivery routing, Telegram voice/audio STT ingress, Gateway fresh-final send/delete fallback, and SessionContext prompt injection remain complete.",
+        "The worker can use fake gateway channels and synthetic attachments only; no Telegram, Matrix, Feishu, Slack, Discord, PDF parser, or live provider credential is required."
+      ],
+      "not_ready_when": [
+        "The slice adds a new live channel adapter, changes provider media content-part serialization, or rewrites existing channel authorization semantics instead of freezing the shared gateway invariants.",
+        "The fixture stores prompt text, file contents, bot tokens, chat IDs beyond synthetic test IDs, or raw local filesystem paths in evidence."
+      ],
+      "acceptance": [
+        "TestPicoClawChannelRegression_SenderIdentityAndAllowlist proves Matrix/thread-text-style events inject sender identity into session context and deny disallowed senders before provider submission.",
+        "TestPicoClawChannelRegression_RichMediaEnvelopePersists proves image, PDF/document, and voice-transcript attachments keep durable metadata and transcript text through the gateway event and final response path.",
+        "TestPicoClawChannelRegression_FinalDeliveryDoesNotEditToolPlaceholder proves steering-heavy finals are emitted as final messages or fresh-final fallbacks, not as edits to tool-feedback placeholders.",
+        "TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete proves multi-tool progress events produce complete notification-center evidence for channels that cannot edit every intermediate message."
+      ],
+      "write_scope": [
+        "internal/gateway/picoclaw_channel_regression_test.go",
+        "internal/gateway/",
+        "internal/channels/threadtext/",
+        "internal/channels/telegram/",
+        "internal/channels/feishu/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run '^TestPicoClawChannelRegression_' -count=1",
+        "go test ./internal/gateway ./internal/channels/threadtext -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "The PicoClaw-derived channel regression fixture proves sender identity, allowlist, durable media envelope, voice transcript, tool-progress notification, and final-delivery invariants without live channels."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-15",
+        "note": "External issue radar row. PicoClaw is not the Hermes parity contract; these reports identify Gormes-owned regression guards around already-row-backed gateway behavior."
+      },
+      "completed_at": "2026-05-15T16:52:33-06:00",
+      "evidence": {
+        "implementation": [
+          "internal/gateway/picoclaw_channel_regression_test.go adds fake-adapter regression coverage for sender identity and allowlist, durable image/PDF/voice-transcript attachment projection, fresh-final delivery, and Feishu-style tool progress notifications.",
+          "internal/channels/threadtext/contract.go preserves source MessageID alongside MsgID for Matrix/Mattermost-style normalized events.",
+          "internal/gateway/session_context.go falls back to source MsgID for Discord and thread-text platforms when MessageID is not populated."
+        ],
+        "tests": [
+          "internal/gateway/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_SenderIdentityAndAllowlist",
+          "internal/gateway/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_RichMediaEnvelopePersists",
+          "internal/gateway/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_FinalDeliveryDoesNotEditToolPlaceholder",
+          "internal/gateway/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete",
+          "internal/channels/threadtext/picoclaw_channel_regression_test.go:TestPicoClawChannelRegression_NormalizeInboundPreservesSourceMessageID"
+        ],
+        "verification": [
+          "RED: go test ./internal/gateway -run '^TestPicoClawChannelRegression_' -count=1 failed because Matrix session context omitted Message ID when the event only supplied MsgID.",
+          "RED: go test ./internal/channels/threadtext -run '^TestPicoClawChannelRegression_NormalizeInboundPreservesSourceMessageID$' -count=1 failed because NormalizeInbound left MessageID empty.",
+          "GREEN: go test ./internal/gateway -run '^TestPicoClawChannelRegression_' -count=1 passed.",
+          "GREEN: go test ./internal/gateway ./internal/channels/threadtext -count=1 passed."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.G",
+    "pos": 5,
+    "item": {
+      "name": "Dynamic agent identity inheritance regression matrix",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Add a dynamic-agent identity regression matrix that proves spawned or delegated agents keep explicit parent linkage while receiving their own SOUL/persona, tool policy, AGENTS.md scope, and memory/search scope, so child agents do not silently inherit the root agent role as their own identity.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "If a child identity cannot be resolved, delegation refuses with child_identity_unresolved evidence and leaves the parent turn untouched rather than running as an ambiguous root persona.",
+      "fixture": "internal/subagent/picoclaw_identity_regression_test.go",
+      "source_refs": [
+        "https://github.com/sipeed/picoclaw/issues/1934",
+        "https://github.com/sipeed/picoclaw/issues/2148",
+        "https://github.com/sipeed/picoclaw/issues/2775",
+        "https://github.com/sipeed/picoclaw/issues/294",
+        "https://github.com/sipeed/picoclaw/issues/284",
+        "internal/subagent/",
+        "internal/goncho/dynamic_agents.go",
+        "internal/agent/middleware.go",
+        "internal/skills/"
+      ],
+      "ready_when": [
+        "Goncho-backed dynamic agent registry, deterministic subagent runtime, durable job ledger, and tool allowlist policy remain complete.",
+        "Tests can use fake child runners, temp Goncho state, and synthetic AGENTS.md/SOUL.md fixtures; no real Codex, Claude, opencode, or provider child process is required."
+      ],
+      "not_ready_when": [
+        "The slice changes live coding-agent execution, starts child CLIs, or introduces agent-to-agent messaging semantics beyond identity and scope fixtures.",
+        "The implementation treats child agents as fully independent users or erases parent lineage in the durable job ledger."
+      ],
+      "acceptance": [
+        "TestDynamicAgentIdentity_ChildPersonaOverridesRootRole proves child SOUL/persona is rendered as the active identity while parent identity remains lineage metadata.",
+        "TestDynamicAgentIdentity_AGENTSScopesDoNotBleedAcrossChild proves child AGENTS.md/project context is selected by child workspace scope and does not overwrite the parent turn.",
+        "TestDynamicAgentIdentity_ToolPolicyInheritedOnlyWhenExplicit proves allow/deny/glob tool policy inheritance is explicit and visible in child launch evidence.",
+        "TestDynamicAgentIdentity_MemoryScopeIsChildAware proves child memory/search scope names both child agent ID and parent lineage without merging unrelated root-agent facts."
+      ],
+      "write_scope": [
+        "internal/subagent/picoclaw_identity_regression_test.go",
+        "internal/subagent/",
+        "internal/goncho/",
+        "internal/agent/",
+        "internal/skills/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1",
+        "go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Dynamic-agent identity fixtures prove child persona, AGENTS scope, explicit tool-policy inheritance, and child-aware memory scope without launching live child CLIs."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-15",
+        "note": "External issue radar row. Gormes already owns dynamic agents and subagent runtime; this adds a focused identity-inheritance guard before broader multi-agent UX expansion."
+      },
+      "completed_at": "2026-05-15T17:38:28-06:00",
+      "evidence": {
+        "implementation": [
+          "internal/subagent/picoclaw_identity_regression_test.go adds hermetic fixtures that resolve dynamic agents from the Goncho registry, assert child persona/project/tool/memory scope, and prove unresolved child identities refuse launch without mutating the parent turn.",
+          "internal/subagent/dynamic_identity.go adds a pure launch-plan resolver that keeps parent identity as lineage metadata, uses child persona as the active identity, selects child AGENTS/workspace scope, requires explicit parent tool-policy inheritance, emits child-aware memory/search namespaces, and returns child_identity_unresolved evidence for ambiguous launches."
+        ],
+        "tests": [
+          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_ChildPersonaOverridesRootRole",
+          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_AGENTSScopesDoNotBleedAcrossChild",
+          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_ToolPolicyInheritedOnlyWhenExplicit",
+          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_MemoryScopeIsChildAware",
+          "internal/subagent/picoclaw_identity_regression_test.go:TestDynamicAgentIdentity_UnresolvedChildRefusesLaunch"
+        ],
+        "verification": [
+          "RED: go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1 failed because ResolveDynamicAgentIdentity and identity evidence types did not exist.",
+          "GREEN: go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1 passed.",
+          "GREEN: go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -count=1 passed."
+        ]
+      }
+    }
+  }
+]

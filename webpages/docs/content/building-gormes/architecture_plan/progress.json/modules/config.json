@@ -1,0 +1,2225 @@
+[
+  {
+    "phase": "3",
+    "subphase": "3.A",
+    "pos": 2,
+    "item": {
+      "name": "Schema migrations v3a->v3d",
+      "status": "complete",
+      "module": "config"
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.E.1",
+    "pos": 0,
+    "item": {
+      "name": "Read-only bbolt sessions.db -> index.yaml mirror",
+      "status": "complete",
+      "module": "config",
+      "note": "TDD: shipped internal/session SessionIndexMirror with fixed YAML shape, lexically ordered bbolt key export, and atomic temp-file rewrite semantics."
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.A",
+    "pos": 12,
+    "item": {
+      "name": "Stateful tool migration queue",
+      "status": "complete",
+      "contract": "Gormes defines the migration queue and execution guard for stateful Hermes tools before exposing write-capable tools to the native loop: file, session, checkpoint, and process tools declare state domains, XDG roots, rollback/audit behavior, concurrency policy, and degraded evidence; the first implementation is a registry/read-model contract that lets builders add one stateful tool at a time without bypassing path isolation.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Stateful tools without a validated queue entry return tool_state_contract_missing, tool_path_denied, tool_rollback_unavailable, or tool_concurrency_blocked evidence instead of mutating files, sessions, checkpoints, or processes.",
+      "fixture": "internal/tools/stateful_migration_queue_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/file_tools.py",
+        "../hermes-agent/tools/terminal_tool.py",
+        "../hermes-agent/tools/process_registry.py",
+        "../hermes-agent/tools/checkpoint_manager.py",
+        "../hermes-agent/tests/tools/test_file_tools.py",
+        "../hermes-agent/tests/tools/test_watch_patterns.py",
+        "internal/tools/registry.go",
+        "internal/tools/environment_contract.go",
+        "internal/cli/pty_bridge.go",
+        "references/go-agent-os/engram/internal/mcp/write_queue.go",
+        "references/go-agent-os/axe/internal/artifact/tracker.go",
+        "references/go-agent-os/nanobot/pkg/tools/flows.go"
+      ],
+      "ready_when": [
+        "Side-effect-light tool rows such as Todo and Debug helpers remain separately planned so this queue can focus only on write/process state contracts.",
+        "Environment and path-denial contracts under internal/tools are green.",
+        "The slice does not port the full file/process/checkpoint tools; it only freezes queue metadata and guard decisions for future rows."
+      ],
+      "not_ready_when": [
+        "The slice implements write_file, patch, restore, terminal process spawning, live checkpoint restoration, or shell execution.",
+        "A tool can declare write/process behavior without a state domain, rollback policy, and focused test command.",
+        "Paths outside the injected Gormes roots can be accepted in tests."
+      ],
+      "acceptance": [
+        "TestStatefulToolMigrationQueueRegistersDomains proves file/session/checkpoint/process tool plans declare state domain, root policy, rollback policy, concurrency policy, and owner row.",
+        "TestStatefulToolMigrationQueueRejectsMissingRollback proves write-capable tools cannot become selectable without rollback/audit evidence.",
+        "TestStatefulToolMigrationQueuePathIsolation proves injected XDG roots are the only accepted mutation roots and traversal/absolute foreign paths return tool_path_denied.",
+        "TestStatefulToolMigrationQueueSerializedWrites proves write-domain tools run through one deterministic queue while read-only tools can remain concurrent.",
+        "TestStatefulToolMigrationQueueNoRuntimePort proves the queue contract does not execute shell/file/process mutations."
+      ],
+      "note": "Implemented internal/tools/stateful_migration_queue.go with a pure stateful tool migration queue/read-model. RED/GREEN fixtures in internal/tools/stateful_migration_queue_test.go prove domain registration, rollback-contract rejection, injected-root path isolation, serialized write execution vs concurrent read-only execution, and deterministic runtime-not-ported evidence. Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestStatefulToolMigrationQueue -count=1.",
+      "write_scope": [
+        "internal/tools/stateful_migration_queue.go",
+        "internal/tools/stateful_migration_queue_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run TestStatefulToolMigrationQueue -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Stateful tool queue fixtures prove domains, path isolation, rollback requirements, serialized write policy, and no hidden runtime mutations."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/file_tools.py",
+          "hermes:tools/terminal_tool.py",
+          "hermes:tools/process_registry.py",
+          "hermes:tools/checkpoint_manager.py",
+          "engram:internal/mcp/write_queue.go",
+          "axe:internal/artifact/tracker.go",
+          "nanobot:pkg/tools/flows.go"
+        ],
+        "note": "Hermes defines stateful tool behavior; Engram/Axe/Nanobot provide queue, artifact, and registry pattern references."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.G",
+    "pos": 2,
+    "item": {
+      "name": "MCP server config/env resolver",
+      "status": "complete",
+      "contract": "Gormes parses Hermes-compatible mcp_servers config into safe stdio/HTTP server definitions with env validation, timeout defaults, header redaction, and Honcho MCP self-hosted URL support before any live MCP connection starts",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "MCP status reports disabled, invalid transport, invalid env, missing SDK, or secret-redacted config errors instead of launching partial servers.",
+      "fixture": "internal/tools/mcp_config_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/mcp_config.py@edc78e25",
+        "../hermes-agent/tools/mcp_tool.py@edc78e25",
+        "../hermes-agent/tests/hermes_cli/test_mcp_config.py@edc78e25",
+        "../honcho/mcp/src/config.ts@51497f1",
+        "../honcho/mcp/README.md@51497f1",
+        "internal/cli/toolset_config.go"
+      ],
+      "ready_when": [
+        "Platform toolset config persistence + MCP sentinel is validated on main, so unknown MCP server names and no_mcp suppression already round-trip safely.",
+        "This slice can use in-memory YAML/JSON fixtures and must not import an MCP SDK or spawn subprocesses."
+      ],
+      "not_ready_when": [
+        "The slice opens stdio/HTTP transports, performs OAuth, probes tools, starts managed gateways, or treats HONCHO_API_URL as global Goncho configuration instead of a server-local MCP env binding."
+      ],
+      "unblocks": [
+        "MCP stdio transport + tool/list discovery",
+        "MCP HTTP transport + tool/list discovery",
+        "MCP OAuth state store + noninteractive auth errors"
+      ],
+      "acceptance": [
+        "Config fixtures parse stdio servers with command, args, env, timeout, connect_timeout, and sampling fields.",
+        "HTTP fixtures parse url, headers, timeout, and connect_timeout while redacting Authorization and token-like values from status/errors.",
+        "Invalid env var names, servers with both command and url, and servers with neither command nor url fail before runtime startup.",
+        "A Honcho MCP fixture preserves HONCHO_API_URL only as the configured server env value and never exposes it as a request header or Goncho memory setting."
+      ],
+      "note": "Complete: TDD added a pure internal/tools MCP config resolver without SDK imports or runtime startup. Fixtures prove Hermes-compatible YAML/JSON parsing for stdio command/args/env/sampling and timeout defaults, HTTP url/header parsing with Authorization/token-like redaction, fail-closed invalid env/transport/missing env/missing SDK statuses without valid server output, and Honcho HONCHO_API_URL preserved only as a server-local MCP env binding while config.Load keeps Goncho memory defaults independent.",
+      "write_scope": [
+        "internal/tools/mcp_config.go",
+        "internal/tools/mcp_config_test.go",
+        "internal/config/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools ./internal/config -run 'Test.*MCP.*Config|Test.*MCP.*Env|Test.*Honcho.*MCP' -count=1",
+        "go test ./internal/tools ./internal/config -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "MCP config fixtures prove transport/env parsing, redaction, invalid-config degradation, no live SDK startup, and HONCHO_API_URL server-local handling."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-26T00:27:35Z",
+        "last_success": "2026-04-26T00:27:35Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:edc78e25 hermes_cli/mcp_config.py",
+        "note": "Hermes defines the MCP server config shape; Honcho contributes the self-hosted MCP env drift; Gormes owns the Go config resolver."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.J",
+    "pos": 4,
+    "item": {
+      "name": "Approval mode config normalization",
+      "status": "complete",
+      "contract": "Pure approval-mode parser normalizes config-loaded values before dangerous-command prompting is wired: bool false maps to off to preserve YAML 1.1 bare `off`, bool true maps to manual, strings trim/lowercase with empty and unknown values behaving as manual, and only manual, smart, and off are returned to GuardCommand callers; hardline blocks remain non-bypassable and recoverable dangerous commands use the normalized mode without starting prompts or auxiliary LLM review in this slice.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Invalid, empty, unsupported, or non-scalar approval config records approval_mode_defaulted evidence and falls back to manual; a bool false/off value bypasses only recoverable approvals and never bypasses hardline blocks.",
+      "fixture": "internal/tools/approval_mode_test.go",
+      "source_refs": [
+        "../hermes-agent/tools/approval.py:_normalize_approval_mode",
+        "../hermes-agent/tools/approval.py:_get_approval_mode",
+        "../hermes-agent/tools/approval.py:check_command_approval",
+        "../hermes-agent/tests/tools/test_approval.py:TestApprovalModeParsing",
+        "internal/tools/dangerous_command.go",
+        "internal/tools/dangerous_command_test.go",
+        "references/go-agent-os/axe/internal/budget/budget.go"
+      ],
+      "ready_when": [
+        "Hardline command pattern table + DetectHardline function and Recoverable dangerous patterns + blocked-result schema are complete.",
+        "The slice can table-test config values as plain Go types and call the existing pure GuardCommand path; no prompt UI, gateway slash command, cron runner, or smart LLM is required.",
+        "Workers keep the parser reusable for later CLI/TUI/gateway config loaders."
+      ],
+      "not_ready_when": [
+        "The slice adds interactive prompts, /approve handling, cron policy, smart auxiliary model calls, config-file IO, or execute_code boundary wiring.",
+        "Hardline commands can be bypassed by off/yolo/manual/smart mode in tests.",
+        "Unknown strings, arrays, maps, or integer-like scalars are treated as opt-in/off instead of defaulting to manual with evidence."
+      ],
+      "blocked_by": [
+        "Hardline command pattern table + DetectHardline function",
+        "Recoverable dangerous patterns + blocked-result schema"
+      ],
+      "unblocks": [
+        "Subagent dangerous-command non-interactive approval policy",
+        "Cron dangerous-command approval mode",
+        "Wire GuardCommand into execute_code boundary"
+      ],
+      "acceptance": [
+        "TestNormalizeApprovalMode_YAMLBooleanOff proves bool false maps to off while bool true maps to manual.",
+        "TestNormalizeApprovalMode_StringModes proves manual, smart, off, whitespace, and case folding produce stable modes.",
+        "TestNormalizeApprovalMode_Defaults proves empty strings, unknown strings, nil, numbers, slices, and maps default to manual with approval_mode_defaulted evidence.",
+        "TestApprovalModeDoesNotBypassHardline proves GuardCommand('rm -rf /', mode off/smart/manual) remains hardline blocked.",
+        "TestApprovalModeOffBypassesRecoverable proves GuardCommand('git reset --hard', mode off) bypasses only recoverable approval while manual/smart still mark approval_required for later prompt/smart rows."
+      ],
+      "note": "Complete: current HEAD already contains the row-local TDD implementation in internal/tools/approval_mode.go and internal/tools/approval_mode_test.go. Focused validation proves YAML boolean false maps to off, bool true maps to manual, string modes trim/lowercase, unsupported values default to manual with approval_mode_defaulted evidence, off bypasses only recoverable dangerous commands, and hardline commands remain non-bypassable across off/smart/manual.",
+      "write_scope": [
+        "internal/tools/approval_mode.go",
+        "internal/tools/approval_mode_test.go",
+        "internal/tools/dangerous_command.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestNormalizeApprovalMode|TestApprovalMode' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Approval-mode fixtures prove YAML boolean off, string mode folding, invalid-value defaulting, hardline non-bypassability, and recoverable off-mode behavior without prompts or LLM calls.",
+        "Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/tools -run 'TestNormalizeApprovalMode|TestApprovalMode' -count=1."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/approval.py",
+          "hermes:tests/tools/test_approval.py",
+          "references/go-agent-os/axe/internal/budget/budget.go"
+        ],
+        "note": "Hermes supplies the approval-mode parsing parity; the Go donor reference only reinforces keeping policy state explicit and bounded."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.J",
+    "pos": 11,
+    "item": {
+      "name": "Cron approval mode config normalizer",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes ports Hermes' cron-specific approval mode parser as a pure helper: cron approvals default to deny, and only approve/off/allow/yes opt cron jobs into recoverable dangerous-command auto-approval; ambiguous, empty, unsupported, or non-scalar values stay deny with stable degraded evidence.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Invalid cron approval config reports cron_approval_mode_defaulted evidence and remains deny; approve-mode never bypasses hardline command blocks.",
+      "fixture": "internal/tools/approval_mode_test.go::TestNormalizeCronApprovalMode*",
+      "source_refs": [
+        "./hermes-agent/tools/approval.py@242da9db9:_get_cron_approval_mode",
+        "./hermes-agent/tools/approval.py@242da9db9:check_dangerous_command cron session branch",
+        "./hermes-agent/tools/approval.py@242da9db9:check_all_command_guards cron session branch",
+        "internal/tools/approval_mode.go",
+        "internal/tools/approval_mode_test.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approval and security policy"
+      ],
+      "ready_when": [
+        "Approval mode config normalization, Recoverable dangerous patterns + blocked-result schema, and hardline detection are complete.",
+        "The slice is parser-only and can be table-tested without config file IO, cron scheduler execution, prompt UI, gateway callbacks, or shell execution."
+      ],
+      "not_ready_when": [
+        "The slice wires cron executor policy, starts a kernel turn, changes terminal execution, or prompts on stdin.",
+        "Unsupported values such as true, false, deny, manual, arrays, maps, numbers, or empty strings opt cron jobs into approval."
+      ],
+      "blocked_by": [
+        "Approval mode config normalization",
+        "Recoverable dangerous patterns + blocked-result schema"
+      ],
+      "unblocks": [
+        "Cron dangerous-command approval mode"
+      ],
+      "acceptance": [
+        "TestNormalizeCronApprovalMode_DefaultDeny proves nil, empty, deny, manual, true, false, arrays, maps, and numbers normalize to deny with default evidence where applicable.",
+        "TestNormalizeCronApprovalMode_ApproveAliases proves approve, off, allow, and yes trim/lowercase to approve without default evidence.",
+        "TestCronApprovalModeApproveDoesNotBypassHardline proves approve-mode cannot authorize GuardCommand('rm -rf /').",
+        "Existing TestNormalizeApprovalMode and TestApprovalMode fixtures remain green."
+      ],
+      "note": "Complete 2026-05-08: all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 30. P1 rows are operator-gated/draft release-publication work, P2 rows are mostly umbrella, blocked, or large. This parser split was the smallest source-backed P2 runtime safety gap from Hermes' cron approval contract. TDD added NormalizeCronApprovalMode with deny-by-default parsing, approve/off/allow/yes aliases, unsupported-value default evidence, and hardline non-bypassability; cron executor policy wiring remains row-backed by the umbrella.",
+      "write_scope": [
+        "internal/tools/approval_mode.go",
+        "internal/tools/approval_mode_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode|TestNormalizeApprovalMode|TestApprovalMode' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Cron approval-mode fixtures prove deny-by-default parsing, approve aliases, unsupported-value default evidence, and hardline non-bypassability without config IO, prompts, cron execution, or shell commands."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:242da9db9 tools/approval.py _get_cron_approval_mode",
+        "note": "Hermes supplies the cron-specific deny/approve parser; this child row lands the Go helper before the larger cron executor policy binding."
+      },
+      "evidence": {
+        "implementation": [
+          "internal/tools/approval_mode.go: NormalizeCronApprovalMode defaults cron approvals to deny, accepts approve/off/allow/yes aliases as approve, and emits cron_approval_mode_defaulted evidence for unsupported values.",
+          "internal/tools/approval_mode_test.go: TestNormalizeCronApprovalModeDefaultDeny, TestNormalizeCronApprovalModeApproveAliases, and TestCronApprovalModeApproveDoesNotBypassHardline lock the parser contract."
+        ],
+        "verification": [
+          "RED: go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1 failed on undefined NormalizeCronApprovalMode.",
+          "GREEN: go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1 passed.",
+          "GREEN: go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode|TestNormalizeApprovalMode|TestApprovalMode' -count=1 passed."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.L",
+    "pos": 11,
+    "item": {
+      "name": "Terminal cwd config bridge",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "`gormes config set terminal.cwd <path>` persists the Hermes-compatible terminal working-directory setting, `config.Load` reads `[terminal].cwd`, and the default terminal tool starts foreground commands from that configured workspace while `terminal.cwd = \".\"` remains the launch-directory placeholder",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Missing or placeholder terminal.cwd falls back to the process launch directory; missing explicit directories return the terminal tool's existing resolve-working-directory error instead of silently running elsewhere.",
+      "fixture": "cmd/gormes/config_command_test.go::TestConfigCommand_SetTerminalCWDWritesTOMLAndLoads + cmd/gormes/registry_test.go::TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool + internal/tools/terminal_tool_test.go::TestTerminalToolDefaultWorkdirExpandsTilde",
+      "source_refs": [
+        "user transcript: Hermes profile has `terminal.cwd: \".\"`; `hermes config set terminal.cwd /absolute/path/to/project`; gateway restart after config change",
+        "../hermes-agent/website/docs/user-guide/configuration.md:terminal.cwd",
+        "../hermes-agent/website/docs/user-guide/profiles.md:terminal.cwd profile/workspace distinction",
+        "../hermes-agent/tests/gateway/test_config_cwd_bridge.py",
+        "../hermes-agent/tests/tools/test_init_session_cwd_respect.py",
+        "internal/config/config.go",
+        "internal/config/writer.go",
+        "internal/tools/terminal_tool.go",
+        "cmd/gormes/registry.go"
+      ],
+      "ready_when": [
+        "Native file task tool surface is complete and terminal foreground execution already accepts an injected default Workdir.",
+        "The slice can use temp directories and fake config homes only; no live gateway, service process, or private Hermes/Gormes profile files are needed."
+      ],
+      "not_ready_when": [
+        "The command rejects `terminal.cwd` as an unknown section, writes it only to a side-channel env file, or terminal tool calls ignore the configured cwd.",
+        "The slice tries to port Docker/SSH/Modal/Daytona/Vercel/Singularity backends, background process registries, PTY sessions, or checkpoint restore."
+      ],
+      "blocked_by": [
+        "Native file task tool surface"
+      ],
+      "unblocks": [
+        "Gateway working-directory operator parity"
+      ],
+      "acceptance": [
+        "`gormes config set terminal.cwd <temp-project>` writes a `[terminal]` table into `config.toml` and a subsequent `config.Load(nil)` returns that cwd.",
+        "A terminal tool obtained from `buildDefaultRegistry` with `cfg.Terminal.CWD=<temp-project>` runs `pwd` in that project even when the Gormes process was launched from a different directory.",
+        "Default terminal workdir values beginning with `~/` expand before subprocess launch so configured home-relative workspaces do not reach `exec.Command.Dir` literally."
+      ],
+      "note": "Closed from the terminal.cwd Hermes parity transcript: Gormes now accepts the same `config set terminal.cwd` operator command and wires the loaded cwd into the terminal tool. Broader backend parity remains row-backed.",
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/config/writer.go",
+        "cmd/gormes/config_command_test.go",
+        "cmd/gormes/registry.go",
+        "cmd/gormes/registry_test.go",
+        "internal/tools/terminal_tool.go",
+        "internal/tools/terminal_tool_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestConfigCommand_SetTerminalCWDWritesTOMLAndLoads|TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool' -count=1",
+        "go test ./internal/tools -run '^TestTerminalToolDefaultWorkdirExpandsTilde$' -count=1",
+        "go test ./internal/config ./cmd/gormes ./internal/tools -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Config and registry fixtures prove `terminal.cwd` persists, loads, and controls terminal tool pwd from temp workspaces without live profiles or services."
+      ],
+      "provenance": {
+        "origin_type": "operator_transcript",
+        "upstream_ref": "Hermes terminal.cwd docs + gateway cwd bridge tests",
+        "note": "The operator supplied sanitized Hermes guidance for terminal.cwd behavior. Upstream docs/tests confirm the canonical config key and cwd-vs-profile distinction; Gormes implements the local foreground tool slice only."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 27,
+    "item": {
+      "name": "Cross-agent config isolation",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Enforce the 2026-05-03 hard rule that normal Gormes runtime, doctor, gateway, onboard, setup, config, status, and MCP login paths never read or write other agents' config/state paths. `gormes migrate hermes` and `gormes migrate openclaw` are the only commands allowed to read Hermes/OpenClaw/Clawdbot/Moltbot source paths, and those commands must copy supported values into Gormes-native config/dotenv/state so there is no live post-migration dependency.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Foreign config residue is ignored by normal commands and reported only through explicit migration guidance where relevant. Missing native MCP/server/provider config degrades to Gormes-native unknown/unconfigured evidence instead of falling back to `HERMES_HOME`, `~/.hermes`, `~/.openclaw`, `~/.clawdbot`, or `~/.moltbot`.",
+      "fixture": "internal/config/config_test.go::TestLoad_IgnoresHermesConfigYAML; cmd/gormes/gateway_test.go::TestGatewayVerbosePersistsGormesDisplayPlatformOnly; cmd/gormes/mcp_login_command_test.go::TestMCPLoginDefaultIgnoresHermesConfig; internal/migrate/hermes/manifest_test.go::TestHermesMigrationManifest*; internal/migrate/openclaw/manifest_test.go::TestOpenClawMigrationManifest*",
+      "source_refs": [
+        "2026-05-03 operator hard rule: only `gormes migrate hermes` and `gormes migrate openclaw` may read cross-agent config",
+        "internal/config/config.go:Load",
+        "internal/config/hermes_display_writer.go:SetGormesDisplayPlatformToolProgress",
+        "internal/config/token_vault.go:NewTokenVault",
+        "internal/memory/mirror.go:DefaultMirrorConfig",
+        "cmd/gormes/gateway.go:gatewayManagerConfig",
+        "cmd/gormes/main.go:runResolvedTUIWithRuntime",
+        "cmd/gormes/telegram.go:runTelegram",
+        "internal/gateway/manager.go:handleVerboseCommand",
+        "cmd/gormes/mcp_login.go:loadDefaultMCPConfig",
+        "internal/migrate/hermes/manifest.go:BuildManifest",
+        "internal/migrate/hermes/writer.go:ApplyManifest",
+        "internal/migrate/openclaw/manifest.go:BuildManifest",
+        "cmd/gormes/migrate.go"
+      ],
+      "ready_when": [
+        "Interactive Onboarding closeout has recorded the current first-run status/wizard-plan scope so P0 config isolation can be selected next.",
+        "The builder treats `gormes migrate hermes` and `gormes migrate openclaw` as the only allowed cross-product readers.",
+        "The builder preserves injected seams for tests and future native MCP/config rows instead of inventing a new broad config schema."
+      ],
+      "not_ready_when": [
+        "The implementation adds an environment flag, config option, or profile mode that restores live Hermes/OpenClaw config fallback for normal commands.",
+        "The implementation changes SecretRef runtime activation before the isolation invariant is green.",
+        "The implementation deletes migration mapping coverage instead of moving useful bridge behavior into explicit migrate tests."
+      ],
+      "unblocks": [
+        "SecretRef runtime snapshot activation",
+        "Secrets Runtime Controls"
+      ],
+      "acceptance": [
+        "config.Load ignores `HERMES_HOME/config.yaml` and `~/.hermes/config.yaml` for model, provider, endpoint, platform tokens, display, browser, web, and security settings.",
+        "Normal doctor, gateway, onboard, setup, config show/status, and MCP login paths ignore poisoned `HERMES_HOME`, `~/.hermes`, `~/.openclaw`, `~/.clawdbot`, and `~/.moltbot` sources.",
+        "`/verbose` keeps per-platform behavior but persists to Gormes-native TOML under `display.platforms.<platform>.tool_progress`, and its help text names Gormes `config.toml` / `[display]` rather than Hermes YAML.",
+        "`gormes mcp login <server>` remains registered; without an injected or future native MCP config it returns `mcp_server_unknown` and does not scan Hermes profile/config YAML.",
+        "`gormes migrate hermes --dry-run` and `gormes migrate hermes --yes` remain the explicit Hermes import paths and preserve useful mapping coverage by writing native Gormes destinations, including `display` -> `[display]` and `model.default` / `model.provider` -> `[hermes].model` / `[hermes].provider`.",
+        "`gormes migrate openclaw --dry-run`, `gormes migrate openclaw --yes`, and `gormes migrate openclaw cleanup` remain the explicit OpenClaw/Clawdbot/Moltbot source readers; typo-like requests keep suggestion-only behavior and do not silently import.",
+        "Completed Hermes config bridge rows remain historical evidence, with this row superseding their live-runtime fallback behavior under the 2026-05-03 hard rule."
+      ],
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "internal/config/hermes_display_writer.go",
+        "internal/config/token_vault.go",
+        "internal/config/token_vault_test.go",
+        "internal/config/writer.go",
+        "internal/config/writer_test.go",
+        "internal/memory/mirror.go",
+        "internal/memory/mirror_config_test.go",
+        "internal/cli/openclaw_residue.go",
+        "internal/cli/openclaw_residue_test.go",
+        "cmd/gormes/gateway.go",
+        "cmd/gormes/gateway_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/telegram.go",
+        "internal/gateway/manager.go",
+        "internal/gateway/manager_test.go",
+        "cmd/gormes/mcp_login.go",
+        "cmd/gormes/mcp_login_command_test.go",
+        "internal/migrate/hermes/manifest.go",
+        "internal/migrate/hermes/manifest_test.go",
+        "internal/migrate/hermes/writer.go",
+        "internal/migrate/hermes/writer_test.go",
+        "cmd/gormes/migrate_hermes_test.go",
+        "cmd/gormes/migrate_hermes_writer_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -run 'TestLoad_.*Hermes|TestSetGormesDisplayPlatformToolProgress|TestTokenVaultDefaultUsesGormesHomeNotHermesHome|TestConfigWriter' -count=1",
+        "go test ./internal/memory -run TestDefaultMirrorConfigUsesGormesHome -count=1",
+        "go test ./cmd/gormes -run 'Test.*MCPLogin.*Hermes|Test.*Verbose|TestMigrateHermes|TestOnboard|TestSetup' -count=1",
+        "go test ./internal/migrate/hermes -run 'TestHermesMigrationManifest|TestHermesConfigWriter' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Focused fixtures prove normal Gormes commands ignore all foreign config/state paths, `/verbose` persists to native Gormes TOML, MCP login no longer scans Hermes YAML by default, and only migrate hermes/openclaw read cross-product sources while preserving native import mappings."
+      ],
+      "evidence": {
+        "implementation": [
+          "Removed normal startup Hermes home probes from cmd/gormes/main.go and cmd/gormes/telegram.go.",
+          "Removed internal/config config.yaml bridge loading from config.Load, leaving explicit migration as the supported Hermes import path.",
+          "Changed /verbose persistence from Hermes YAML writeback to native Gormes config.toml display.platforms.<platform>.tool_progress writes.",
+          "Changed default MCP login resolution so it no longer scans Hermes profile/config YAML without an injected native MCP config.",
+          "Kept `gormes migrate hermes` as the explicit Hermes reader and mapped useful legacy values into native Gormes destinations, including [display] and [hermes].model/provider.",
+          "Removed the unused non-migrate OpenClaw residue filesystem probe and changed token-vault/memory defaults to native Gormes home paths."
+        ],
+        "tests": [
+          "internal/config/config_test.go:TestLoad_IgnoresHermesConfigYAML",
+          "internal/config/config_test.go:TestSetGormesDisplayPlatformToolProgressWritesNativePlatformOverride",
+          "internal/config/token_vault_test.go:TestTokenVaultDefaultUsesGormesHomeNotHermesHome",
+          "internal/memory/mirror_config_test.go:TestDefaultMirrorConfigUsesGormesHome",
+          "cmd/gormes/gateway_test.go:TestGatewayVerbosePersistsGormesDisplayPlatformOnly",
+          "cmd/gormes/mcp_login_command_test.go:TestMCPLoginDefaultIgnoresHermesConfig",
+          "internal/migrate/hermes/manifest_test.go:TestHermesMigrationManifest_ModelProviderAndDisplayNativeTargets",
+          "internal/migrate/hermes/writer_test.go:TestHermesConfigWriter_MapsModelObjectAndDisplayToNativeConfig"
+        ],
+        "verification": [
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/config -run 'TestLoad_.*Hermes|TestSetGormesDisplayPlatformToolProgress|TestTokenVaultDefaultUsesGormesHomeNotHermesHome|TestConfigWriter' -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/memory -run TestDefaultMirrorConfigUsesGormesHome -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./cmd/gormes -run 'Test.*MCPLogin.*Hermes|Test.*Verbose|TestMigrateHermes|TestOnboard|TestSetup' -count=1 -> ok",
+          "GOCACHE=/tmp/gormes-go-cache go test ./internal/migrate/hermes -run 'TestHermesMigrationManifest|TestHermesConfigWriter' -count=1 -> ok"
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 11,
+    "item": {
+      "name": "CLI onboarding seen-state map helpers",
+      "priority": "P3",
+      "status": "complete",
+      "contract": "internal/cli exposes pure OnboardingSeen and MarkOnboardingSeen helpers over an in-memory map shape compatible with config onboarding.seen without reading or writing real config files",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Malformed onboarding config maps are treated as unseen and never block CLI startup; command wiring can persist the corrected map in a later row.",
+      "fixture": "internal/cli/onboarding_state_test.go::TestOnboardingSeen*",
+      "source_refs": [
+        "../hermes-agent/agent/onboarding.py@e63929d4:OPENCLAW_RESIDUE_FLAG,is_seen,mark_seen",
+        "../hermes-agent/tests/agent/test_onboarding.py@e63929d4:TestOpenClawResidue",
+        "internal/config/config.go:onboarding.seen"
+      ],
+      "ready_when": [
+        "CLI OpenClaw residue detection and hint text is complete or fixture-ready; this row only adds the in-memory seen-state contract.",
+        "Tests build map[string]any fixtures directly and do not read or write config.yaml.",
+        "The helper key remains openclaw_residue_cleanup so later startup wiring can share the same flag."
+      ],
+      "not_ready_when": [
+        "The slice edits cmd/gormes startup, persists config files, inspects HOME, or prints the OpenClaw hint.",
+        "The helper removes unrelated onboarding.seen flags or panics on malformed config shapes.",
+        "The slice migrates OpenClaw data or writes upstream Hermes paths."
+      ],
+      "blocked_by": [
+        "CLI OpenClaw residue detection and hint text"
+      ],
+      "unblocks": [
+        "OpenClaw residue startup banner binding",
+        "CLI contextual first-touch onboarding hint renderers"
+      ],
+      "acceptance": [
+        "TestOnboardingSeen_MalformedConfigUnseen covers missing onboarding, non-map onboarding, non-map seen, false values, and unrelated flags.",
+        "TestOnboardingSeen_OpenClawResidueTrue proves openclaw_residue_cleanup=true is recognized.",
+        "TestMarkOnboardingSeen_InMemoryPreservesOtherFlags sets openclaw_residue_cleanup=true without removing existing seen flags.",
+        "No test reads the real user config or writes config.yaml."
+      ],
+      "note": "Complete: TDD added pure internal/cli onboarding seen-state helpers for the stable openclaw_residue_cleanup key. Fixtures prove malformed config maps are unseen, true flags are recognized, MarkOnboardingSeen repairs the in-memory onboarding.seen shape, and unrelated seen flags are preserved without config file I/O, HOME probing, startup wiring, hint printing, or migration writes.",
+      "write_scope": [
+        "internal/cli/onboarding_state.go",
+        "internal/cli/onboarding_state_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli -run '^TestOnboardingSeen|^TestMarkOnboardingSeen' -count=1",
+        "go test ./internal/cli -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "CLI onboarding-state fixtures prove malformed config tolerance, true-flag detection, in-memory mark behavior, and preservation of unrelated seen flags."
+      ],
+      "health": {
+        "attempt_count": 2,
+        "last_attempt": "2026-04-27T13:21:45Z",
+        "last_success": "2026-04-27T13:21:45Z"
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:e63929d4 agent/onboarding.py",
+        "note": "Hermes defines the one-time onboarding seen flag; Gormes keeps it as a pure map helper before startup persistence."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 12,
+    "item": {
+      "name": "CLI contextual first-touch onboarding hint renderers",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "internal/cli exposes pure constants and renderers for Hermes-compatible contextual onboarding hints: BusyInputPromptFlag = `busy_input_prompt`, ToolProgressPromptFlag = `tool_progress_prompt`, BusyInputHint(surface, mode string) string for interrupt/queue/steer modes, and ToolProgressHint(surface string) string for long-running tool progress. CLI text is plain ASCII and gateway text may use channel-friendly wording, but both preserve the operator contract: explain what just happened, name `/busy` or `/verbose` follow-up commands, and state that the tip only shows once.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Unknown busy-input modes fall back to interrupt wording; unknown surfaces return CLI/plain text. The helpers do not read or write config and do not decide whether a hint has already been seen.",
+      "fixture": "internal/cli/onboarding_hints_test.go",
+      "source_refs": [
+        "../hermes-agent/agent/onboarding.py:BUSY_INPUT_FLAG,TOOL_PROGRESS_FLAG,busy_input_hint_gateway,busy_input_hint_cli,tool_progress_hint_gateway,tool_progress_hint_cli,is_seen,mark_seen",
+        "../hermes-agent/tests/agent/test_onboarding.py",
+        "internal/cli/onboarding_state.go",
+        "internal/cli/onboarding_state_test.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
+      ],
+      "ready_when": [
+        "CLI onboarding seen-state map helpers are complete and preserve arbitrary onboarding.seen flags.",
+        "This row only adds pure hint constants/renderers; gateway/TUI/CLI startup binding remains row-backed.",
+        "Tests use string fixtures and do not require config files, TTYs, channels, gateway managers, active turns, or tool execution."
+      ],
+      "not_ready_when": [
+        "The slice persists onboarding.seen flags, reads config.toml, starts a gateway, inspects active turns, or emits channel messages.",
+        "The slice changes busy-input policy, tool-progress rendering, slash-command behavior, or TUI state machines.",
+        "The helper text mentions Hermes product commands or upstream config paths instead of Gormes-compatible operator guidance."
+      ],
+      "unblocks": [
+        "Busy-input first-touch hint binding",
+        "Tool-progress first-touch hint binding"
+      ],
+      "acceptance": [
+        "TestOnboardingHintFlagsMatchHermes proves BusyInputPromptFlag is `busy_input_prompt`, ToolProgressPromptFlag is `tool_progress_prompt`, and OpenClawResidueCleanupFlag remains `openclaw_residue_cleanup`.",
+        "TestBusyInputHintCLIByMode proves interrupt, queue, and steer CLI hints mention the actual behavior, `/busy` follow-up commands, and `only shows once` without markdown-only wording.",
+        "TestBusyInputHintGatewayByMode proves gateway hints for interrupt, queue, and steer are channel-safe, mention `/busy status` or the relevant `/busy` mode command, and do not include raw config keys.",
+        "TestToolProgressHintCLIAndGateway proves tool-progress hints mention `/verbose`, the mode cycle `all -> new -> off`, and one-time display behavior.",
+        "TestOnboardingHintsUnknownInputsDegrade proves unknown mode and surface inputs return non-empty CLI-safe fallback text without panic.",
+        "Existing TestOnboardingSeen and TestMarkOnboardingSeen fixtures remain green, proving renderers do not change seen-state semantics."
+      ],
+      "note": "Complete 2026-05-03: internal/cli now exposes pure first-touch hint constants and renderers for busy-input and tool-progress guidance. BusyInputHint covers interrupt, queue, steer, and unknown-mode fallback for CLI and channel-safe gateway surfaces; ToolProgressHint covers CLI/gateway /verbose guidance and the all -> new -> off cycle. The helpers are dependency-free, do not mention Hermes or raw config keys, do not read/write config, and do not mutate onboarding.seen state.",
+      "write_scope": [
+        "internal/cli/onboarding_hints.go",
+        "internal/cli/onboarding_hints_test.go",
+        "internal/cli/onboarding_state.go",
+        "internal/cli/onboarding_state_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli -run '^TestOnboardingHint|^TestBusyInputHint|^TestToolProgressHint' -count=1",
+        "go test ./internal/cli -run '^TestOnboardingSeen|^TestMarkOnboardingSeen' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/cli fixtures prove busy-input and tool-progress onboarding flag constants plus CLI/gateway hint text for all modes, with no config, TTY, gateway, or tool-execution side effects."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:agent/onboarding.py BUSY_INPUT_FLAG, TOOL_PROGRESS_FLAG, busy_input_hint_*, tool_progress_hint_*",
+        "note": "Hermes defines contextual first-touch hints separately from blocking first-run setup. Gormes ports the pure text/flag contract first, then later rows bind it to gateway/TUI events and persistence."
+      },
+      "blocked_by": [],
+      "evidence": {
+        "implementation": [
+          "internal/cli/onboarding_hints.go defines BusyInputPromptFlag and ToolProgressPromptFlag while preserving OpenClawResidueCleanupFlag in onboarding_state.go.",
+          "internal/cli/onboarding_hints.go:BusyInputHint renders CLI-safe or gateway-safe hints for interrupt, queue, steer, and unknown busy-input modes.",
+          "internal/cli/onboarding_hints.go:ToolProgressHint renders CLI/gateway /verbose guidance with the all -> new -> off mode cycle.",
+          "internal/cli/onboarding_hints.go contains no config, TTY, gateway, active-turn, or tool execution dependencies."
+        ],
+        "tests": [
+          "internal/cli/onboarding_hints_test.go:TestOnboardingHintFlagsMatchHermes",
+          "internal/cli/onboarding_hints_test.go:TestBusyInputHintCLIByMode",
+          "internal/cli/onboarding_hints_test.go:TestBusyInputHintGatewayByMode",
+          "internal/cli/onboarding_hints_test.go:TestToolProgressHintCLIAndGateway",
+          "internal/cli/onboarding_hints_test.go:TestOnboardingHintsUnknownInputsDegrade",
+          "internal/cli/onboarding_state_test.go:TestOnboardingSeen_*",
+          "internal/cli/onboarding_state_test.go:TestMarkOnboardingSeen_InMemoryPreservesOtherFlags"
+        ],
+        "verification": [
+          "go test ./internal/cli -run '^TestOnboardingHint|^TestBusyInputHint|^TestToolProgressHint' -count=1 -> ok",
+          "go test ./internal/cli -run '^TestOnboardingSeen|^TestMarkOnboardingSeen' -count=1 -> ok",
+          "go test ./internal/cli -count=1 -> ok"
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 40,
+    "item": {
+      "name": "Gormes setup minimal sectioned wizard slice",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "`gormes setup [section] [--non-interactive] [--quick]` preserves the original sectioned setup foundations: `section=provider` writes provider endpoint/model to config.toml and the API key to the Gormes dotenv file; `section=model` dispatches to the shared model picker (same path as `gormes model`); `section=workspace` and `section=bindings` return bounded operator guidance/defaults without mutating unsupported nested config; unknown sections return setup_section_unsupported and the operator-facing recommended command. `--non-interactive` uses defaults/env and never prompts. Later setup rows supersede the original no-section, agent, tts, terminal, gateway, tools, reset, and reconfigure behavior.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown sections return setup_section_unsupported with the canonical section list (provider|model|agent|workspace|bindings|tts|terminal|gateway|tools); non-TTY provider/model setup without --non-interactive returns setup_requires_tty with a deterministic noninteractive path.",
+      "fixture": "cmd/gormes/setup_minimal_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/main.py:8089-8123:setup_parser",
+        "../hermes-agent/hermes_cli/main.py:1438-1442:cmd_setup",
+        "../hermes-agent/hermes_cli/setup.py:667+:setup_model_provider",
+        "../hermes-agent/hermes_cli/setup.py:1165+:setup_tts",
+        "../hermes-agent/hermes_cli/setup.py:1175+:setup_terminal",
+        "../hermes-agent/hermes_cli/setup.py:1541+:setup_agent",
+        "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+      ],
+      "ready_when": [
+        "Gormes model interactive provider/model picker row exposes the shared picker entry point so the setup model section delegates rather than re-implementing.",
+        "Gormes config command surface is complete so config-mutation paths exist for the model section to persist into.",
+        "Tests can inject a fake TTY/menu seam and a fake config writer; no live provider, browser, or terminal probing is required."
+      ],
+      "not_ready_when": [
+        "The slice writes provider/model credentials outside the supported config/dotenv paths.",
+        "The slice writes provider tokens to config.toml, auth.json entries, or platform-keychain values during a setup invocation; API keys must route to the Gormes dotenv file.",
+        "The slice duplicates the model picker code path instead of delegating to the `Gormes model interactive provider/model picker` row."
+      ],
+      "unblocks": [
+        "Gormes setup top-level chooser menu",
+        "Gormes uninstall dry-run command contract",
+        "Hermes config migration dry-run manifest"
+      ],
+      "acceptance": [
+        "TestSetupNoSectionNonTTYPrintsSectionList proves non-TTY `gormes setup` with no positional argument prints the canonical section list and exits 0 without invoking the model picker.",
+        "TestSetupProviderNonInteractiveWritesConfigAndDotenv proves `gormes setup provider --non-interactive` reads GORMES_ENDPOINT/GORMES_API_KEY plus optional GORMES_MODEL, writes endpoint/model to config.toml, routes the API key to .env, and redacts command output.",
+        "TestSetupProviderInteractiveWritesSelectedProvider proves `gormes setup provider` writes the selected provider, endpoint, default model, and dotenv secret without leaking the raw key.",
+        "TestSetupProviderRequiresTTYWithoutNonInteractive proves non-TTY provider setup returns setup_requires_tty with a noninteractive env-var path.",
+        "TestSetupModelSectionDelegatesToPicker proves `gormes setup model` invokes the same picker entry point as `gormes model` with the same redaction and TTY guards.",
+        "TestSetupAgentWorkspaceBindingsSectionsAreImplemented proves workspace/bindings still return safe operator guidance without invoking model picker work or writing unsupported nested TOML.",
+        "TestSetupUnknownSectionReturnsUnsupported proves unknown sections return setup_section_unsupported with exit code 2 and the canonical section list.",
+        "TestSetupNonInteractiveUsesDefaults proves `gormes setup model --non-interactive` falls back to env/config defaults without prompting and does not invoke the menu seam.",
+        "TestSetupModelRequiresTTYWithoutNonInteractive proves `gormes setup model` without a TTY returns setup_requires_tty and points operators at --non-interactive instead of leaking lower-level picker evidence."
+      ],
+      "note": "Complete 2026-04-30 and extended 2026-05-03: added `cmd/gormes setup` with Hermes-compatible section flags, provider setup for endpoint/model plus dotenv secret storage, Anthropic Messages client routing for configured anthropic provider setup, model-section delegation to the shared model picker, noninteractive env/config default resolution, safe workspace/bindings guidance, and typed unsupported evidence for unknown sections. Later rows now own interactive no-section chooser, full-wizard/reset/reconfigure behavior, agent settings, TTS, terminal, gateway, and tools surfaces.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "cmd/gormes/provider_client.go",
+        "cmd/gormes/provider_client_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/hermes_cli_parity.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run '^(TestSetup|TestProviderHTTPClient_AnthropicProviderUsesMessagesAPI)' -count=1",
+        "go test ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Setup minimal-slice fixtures prove non-TTY section-list guidance, provider config/dotenv writes, Anthropic Messages routing, model-section delegation, safe workspace/bindings guidance, unknown-section evidence, non-interactive defaults, and TTY guidance."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:hermes_cli/main.py:8089-8123 setup_parser + hermes_cli/setup.py setup_model_provider",
+        "note": "Hermes ships a full sectioned wizard; this row landed provider/model plus safe workspace/bindings guidance first. Follow-up rows now own the broader chooser, full wizard, and section surfaces."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 41,
+    "item": {
+      "name": "Gormes setup top-level chooser menu",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "`gormes setup` with no section in an interactive TTY renders a Gormes-owned top-level setup chooser before running any work. The menu presents Quick Setup, Full Setup, Model & Provider, Terminal Backend, Messaging Platforms (Gateway), Tools, Agent Settings, and Exit with a Quick Setup default. Selection routes through the current setup section handlers, and Exit returns success without mutating config. Non-TTY invocations keep deterministic text guidance and never launch an interactive menu. Current upstream Hermes returning-user entry-mode behavior is tracked separately by `Hermes setup entry-mode and reset semantics`.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the terminal menu helper receives an invalid selection, `gormes setup` exits with setup_menu_invalid_selection evidence and leaves config untouched. Non-TTY and --non-interactive invocations print canonical section commands instead of launching the chooser.",
+      "fixture": "cmd/gormes/setup_minimal_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/setup.py:217-253:prompt_choice",
+        "../hermes-agent/hermes_cli/setup.py:2944-2950:SETUP_SECTIONS",
+        "../hermes-agent/hermes_cli/setup.py:2953-3245:run_setup_wizard,_run_quick_setup",
+        "../hermes-agent/hermes_cli/main.py:8369-8403:setup_parser",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
+      ],
+      "ready_when": [
+        "The completed `Gormes setup minimal sectioned wizard slice` owns provider/model/agent/workspace/bindings handlers and TTY guards.",
+        "The completed `Gormes model interactive provider/model picker` row exposes the shared model picker used by Model & Provider.",
+        "The row can use an injected setup-menu seam in tests; no live provider credentials, gateway process, browser, or terminal backend probe is required."
+      ],
+      "not_ready_when": [
+        "The slice starts live providers, gateway processes, browser sessions, TTS downloads, or terminal backends while rendering the chooser.",
+        "The slice changes provider credential storage rules, writes API keys to config.toml, or bypasses the existing provider/model setup handlers.",
+        "The slice launches an interactive menu in non-TTY or --non-interactive tests.",
+        "The slice removes the explicit section commands such as `gormes setup provider` or `gormes setup model`."
+      ],
+      "blocked_by": [
+        "Gormes setup minimal sectioned wizard slice",
+        "Gormes model interactive provider/model picker"
+      ],
+      "unblocks": [
+        "Gormes setup full-wizard shell and branded summary",
+        "Gormes setup tools checklist command binding",
+        "Gormes setup gateway platform checklist command binding",
+        "Gormes setup terminal TTS and agent-settings section bindings",
+        "Interactive Onboarding"
+      ],
+      "acceptance": [
+        "TestSetupNoSectionInteractiveMenuShowsTopLevelChoices proves a TTY no-argument invocation asks `What would you like to do?`, defaults to Quick Setup, lists Quick Setup, Full Setup, Model & Provider, Terminal Backend, Messaging Platforms (Gateway), Tools, Agent Settings, and Exit, and choosing Exit returns code 0 without invoking model picker or config writes.",
+        "TestSetupTopLevelFullWizardRoutesThroughWizardAndSummary proves choosing Full Setup routes through the full-wizard seam and prints the Gormes summary.",
+        "TestSetupNoSectionNonTTYPrintsSectionList proves non-TTY `gormes setup` does not render a menu and keeps deterministic guidance with canonical section commands.",
+        "TestSetupModelSectionDelegatesToPicker and provider setup fixtures continue to prove explicit section commands preserve existing model/provider behavior and provider secret redaction.",
+        "TestSetupHermesParitySectionsAreImplementedNonInteractive proves the chooser targets have concrete command bindings for TTS, terminal, gateway, tools, and agent settings."
+      ],
+      "note": "Complete 2026-05-03: `gormes setup` now renders a Gormes-owned top-level chooser in TTY mode, keeps non-TTY deterministic guidance, supports an injected menu seam for tests, routes choices to current section handlers, and proves Exit does not mutate config. The implementation does not start live providers, gateways, browser sessions, terminal backends, or TTS downloads. The 2026-05-05 setup parity sweep found that current Hermes returning-user `setup` no longer shows this chooser by default; the dedicated entry-mode row owns that correction without reopening this completed Gormes shell.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "cmd/gormes/setup_menu_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run '^TestSetup' -count=1",
+        "go test ./cmd/gormes -run '^TestSetup' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Setup menu fixtures prove TTY top-level chooser rendering/routing, exit-without-mutation, non-TTY deterministic guidance, and unchanged explicit-section setup behavior."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:hermes_cli/setup.py prompt_choice + SETUP_SECTIONS + run_setup_wizard",
+        "note": "Hermes defines sectioned setup behavior and prompt mechanics; Gormes owns the broader top-level chooser as an operator shell over existing Go-native setup slices, while current Hermes entry-mode parity is tracked by `Hermes setup entry-mode and reset semantics`."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 42,
+    "item": {
+      "name": "Gormes setup full-wizard shell and branded summary",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "`gormes setup` Full Setup and the compatibility `--reset`/`--reconfigure` flags run a sectioned full-wizard shell, then render a Gormes-branded completion summary. The summary names Gormes config/state through `GORMES_HOME`/`~/.gormes`, `config.toml`, the Gormes dotenv file, Gormes data directories, and `gormes ...` follow-up commands. Interactive Full Setup then offers a Gormes-branded chat launch prompt. It must never print `~/.hermes`, `config.yaml`, `hermes setup`, `hermes gateway`, `Launch hermes chat now?`, or an upstream install dir in Gormes output.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the full wizard runs in compatibility/non-interactive mode, it renders each section with keep-current/default behavior and still prints the Gormes completion summary without entering live provider/gateway/backend flows.",
+      "fixture": "cmd/gormes/setup_minimal_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/setup.py:348-430:_print_setup_summary",
+        "../hermes-agent/hermes_cli/setup.py:2953-3245:run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup,_offer_launch_chat",
+        "../hermes-agent/tests/hermes_cli/test_setup_reconfigure.py",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#gateway-channels-cron-api-tui-and-cli"
+      ],
+      "ready_when": [
+        "The `Gormes setup top-level chooser menu` row defines Full Setup/Quick Setup routing and cancellation behavior.",
+        "Existing section commands can be invoked through injected section-runner seams; tests do not need live provider credentials, gateway processes, browser sessions, or terminal backend probes.",
+        "The Gormes config path helpers expose ConfigPath, EnvPath, and GormesHome for summary rendering."
+      ],
+      "not_ready_when": [
+        "The slice starts live providers, gateway processes, TTS downloads, or terminal backends while sequencing setup sections.",
+        "The summary copies upstream Hermes paths, product labels, docs URLs, or command names into Gormes output.",
+        "The slice requires the full wizard to reach live network/provider/gateway code in unit tests."
+      ],
+      "blocked_by": [
+        "Gormes setup top-level chooser menu",
+        "Gormes setup minimal sectioned wizard slice"
+      ],
+      "unblocks": [
+        "Hermes setup entry-mode and reset semantics",
+        "Interactive Onboarding"
+      ],
+      "acceptance": [
+        "TestSetupTopLevelFullWizardRoutesThroughWizardAndSummary proves Full Setup invokes the full-wizard seam and the summary mentions config.toml, the Gormes dotenv file, Gormes data roots, and `gormes` follow-up commands.",
+        "TestSetupTopLevelFullWizardRoutesThroughWizardAndSummary proves the summary does not contain `~/.hermes`, `config.yaml`, `hermes setup`, `hermes gateway`, or upstream install-dir guidance.",
+        "TestSetupFullWizardOffersGormesLaunchPromptAfterSummary proves interactive Full Setup prints `Launch gormes chat now? [Y/n]:` after the summary and never prints the upstream `Launch hermes chat now?` prompt.",
+        "TestSetupResetReconfigureRunsFullWizard proves compatibility `--reset` and `--reconfigure` flags now enter the full-wizard summary path instead of returning the earlier unsupported error.",
+        "TestSetupHermesParitySectionsAreImplementedNonInteractive proves the full-wizard shell can render the current TTS, terminal, agent settings, messaging gateway, and tools sections without live external services."
+      ],
+      "note": "Complete 2026-05-04: Gormes now has a full-wizard shell, compatibility reset/reconfigure entry, a Gormes-branded setup-complete summary using config.ConfigPath, config.EnvPath, and config.GormesHome, and an interactive Gormes-branded post-setup chat launch prompt. Tests prove the summary and launch prompt avoid upstream Hermes paths/config filenames/commands.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run '^TestSetup' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Setup fixtures prove full-wizard routing, compatibility reset/reconfigure behavior, section rendering, a Gormes-branded summary, and a Gormes-branded post-setup launch prompt with no Hermes path/command leakage."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:hermes_cli/setup.py run_setup_wizard + _print_setup_summary + _offer_launch_chat",
+        "note": "Hermes defines the section order, summary shape, post-setup chat-launch prompt, and entry-mode flags; this completed row covers the Gormes full-wizard shell/branding, while `Hermes setup entry-mode and reset semantics` owns current returning-user/fresh-install/quick/reconfigure/reset behavior."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 44,
+    "item": {
+      "name": "Hermes setup entry-mode and reset semantics",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Align `gormes setup` entry-mode semantics with current Hermes where upstream owns behavior. For an existing install, bare `gormes setup` and `gormes setup --reconfigure` run the full setup wizard directly without the Gormes-owned top-level chooser; `--quick` runs only the missing-items quick path. For a fresh install, bare setup, `--reconfigure`, and `--quick` enter the first-time quick-vs-full choice. `--reset` rewrites default config before any noninteractive/no-TTY guidance. `--non-interactive` or no TTY must not prompt. Gormes-owned `provider`, `workspace`, `bindings`, and `onboard` surfaces remain documented extensions rather than Hermes section parity.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If an entry mode cannot proceed interactively, the command prints deterministic setup guidance with the relevant section commands and returns without reading stdin, launching a provider/gateway/backend, or mutating credentials. Reset failures surface the config path and preserve the previous file when the default write cannot complete.",
+      "fixture": "cmd/gormes/setup_entry_mode_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/main.py@b816fd4e2:8411-8445:setup_parser",
+        "../hermes-agent/hermes_cli/setup.py@b816fd4e2:2968-3245:SETUP_SECTIONS,run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup",
+        "../hermes-agent/tests/hermes_cli/test_setup_reconfigure.py@b816fd4e2",
+        "../hermes-agent/tests/hermes_cli/test_setup_noninteractive.py@b816fd4e2",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_entry_mode_test.go",
+        "cmd/gormes/setup_minimal_test.go"
+      ],
+      "ready_when": [
+        "The completed setup section rows provide fakeable full-wizard, quick-setup, model/provider, gateway, tools, TTS, terminal, and agent-settings seams.",
+        "Tests can isolate HOME/XDG/GORMES_HOME and config/env paths in temp directories with no live provider, gateway, browser, TTS, or backend calls.",
+        "The implementation can classify Hermes-owned sections (`model`, `tts`, `terminal`, `gateway`, `tools`, `agent`) separately from Gormes-owned setup extensions (`provider`, `workspace`, `bindings`, `onboard`)."
+      ],
+      "not_ready_when": [
+        "The slice preserves the Gormes-owned top-level chooser as the default existing-install `gormes setup` behavior while claiming Hermes parity.",
+        "`--reset` only routes through the full wizard without first restoring default config.",
+        "`--reconfigure` behaves differently from bare `setup` for an existing install.",
+        "The slice removes Gormes-owned provider/workspace/bindings/onboard surfaces instead of classifying and documenting them as extensions.",
+        "Tests depend on a real TTY, real HOME, live provider credentials, or live gateway/platform setup."
+      ],
+      "blocked_by": [
+        "Gormes setup full-wizard shell and branded summary",
+        "Gormes setup terminal TTS and agent-settings section bindings",
+        "Gormes setup tools checklist command binding",
+        "Gormes setup gateway platform checklist command binding"
+      ],
+      "unblocks": [
+        "CLI setup/onboard/help text fidelity matrix"
+      ],
+      "acceptance": [
+        "TestSetupEntryMode_ExistingBareRunsFullWizardNoChooser proves an existing install runs the full-wizard seam directly and never calls the top-level chooser seam.",
+        "TestSetupEntryMode_ReconfigureMatchesExistingBare proves `--reconfigure` has the same existing-install behavior as bare setup.",
+        "TestSetupEntryMode_QuickExistingRunsMissingItemsOnly proves `--quick` runs the missing-items quick path and does not run the full wizard or chooser.",
+        "TestSetupEntryMode_FreshInstallPromptsQuickVsFull proves fresh bare setup, `--reconfigure`, and `--quick` all enter the first-time quick/full choice path.",
+        "TestSetupEntryMode_ResetWritesDefaultsBeforeHeadlessGuidance proves `--reset --non-interactive` restores default config before printing no-prompt guidance.",
+        "TestSetupEntryMode_NoTTYAndNonInteractiveNeverPrompt proves no-TTY and explicit non-interactive runs do not call input/menu/password seams.",
+        "TestSetupSections_HermesOwnedVsGormesOwned proves Hermes six section choices and Gormes-owned extension sections are separately classified in help/text fixtures."
+      ],
+      "note": "Added by the 2026-05-05 setup parity sweep at Gormes 9620cd4ae against Hermes b816fd4e2. Upstream tests now pin returning-user bare setup and `--reconfigure` as direct full-wizard paths, `--quick` as missing-items only, fresh install as quick/full choice, and `--reset` as default-config rewrite before headless guidance. Gormes' completed chooser remains useful but must be treated as an owned shell, not the current Hermes default entry mode. 2026-05-06 all-topic parity sweep promoted this row to P0 because setup entry semantics blocks CLI text fidelity and public setup/channel/provider docs; TDD then shipped cmd/gormes/setup_entry_mode_test.go plus setup.go routing/reset helpers. Evidence: go test ./cmd/gormes -run 'TestSetupEntryMode|TestSetupSections_HermesOwnedVsGormesOwned|TestSetupPromptSecret' -count=1 PASS; go test ./cmd/gormes -run '^TestSetup' -count=1 PASS.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_entry_mode_test.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/development-skills/gormes-hermes-parity/references/active-upstream-contracts.md"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestSetupEntryMode|TestSetupSections_HermesOwnedVsGormesOwned|TestSetupPromptSecret' -count=1",
+        "go test ./cmd/gormes -run '^TestSetup' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Setup entry-mode fixtures prove current Hermes returning-user/fresh-install/quick/reconfigure/reset/no-TTY behavior, while help/text fixtures classify Gormes-owned setup extensions separately from Hermes section parity."
+      ],
+      "provenance": {
+        "origin_type": "upstream_reconciliation",
+        "upstream_ref": "hermes:hermes_cli/main.py setup_parser + hermes_cli/setup.py run_setup_wizard + tests/hermes_cli/test_setup_reconfigure.py + tests/hermes_cli/test_setup_noninteractive.py",
+        "note": "Current Hermes tests are the active contract for setup entry modes. Gormes may keep its top-level chooser as an owned shell, but it cannot be cited as current Hermes default setup behavior."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 45,
+    "item": {
+      "name": "Gormes setup tools checklist command binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "`gormes setup tools` and the top-level Tools choice render Hermes-compatible tool/provider checklists over the existing Go toolset helpers. The command shows configurable toolsets for the CLI platform, preselects current defaults minus default-off rows, persists selected toolsets through the platform toolset config helper, preserves MCP server names/no_mcp semantics, and then offers provider/API-key configuration rows for selected tools without making live vendor calls.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unavailable provider-key setup returns setup_tools_provider_row_backed with the provider/toolset key. Restricted platform toolsets are hidden or disabled with restricted_toolset evidence instead of being persisted for CLI.",
+      "fixture": "cmd/gormes/setup_tools_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/setup.py:2526-2538:setup_tools",
+        "../hermes-agent/hermes_cli/tools_config.py:52-84:CONFIGURABLE_TOOLSETS,_DEFAULT_OFF_TOOLSETS",
+        "../hermes-agent/hermes_cli/tools_config.py:2040-2108:tools_command first-install checklist path",
+        "../hermes-agent/tests/hermes_cli/test_tools_config.py",
+        "internal/cli/toolset_config.go",
+        "internal/cli/effective_toolsets.go",
+        "internal/tools/testdata/upstream_tool_parity_manifest.json"
+      ],
+      "ready_when": [
+        "Platform toolset config persistence + MCP sentinel is validated.",
+        "Effective toolset picker dedupes bundled plugin keys is validated.",
+        "Tool parity manifest refresh captures current Hermes toolset names, default-off rows, provider requirements, and platform restrictions."
+      ],
+      "not_ready_when": [
+        "The slice calls Exa, Parallel, Firecrawl, Tavily, Browserbase, Browser Use, FAL, Tinker, Weights & Biases, OpenAI, ElevenLabs, Mistral, GitHub, Honcho, Home Assistant, Spotify, or Discord live APIs.",
+        "The slice changes model-visible tool descriptors or runtime registry behavior instead of binding setup UI to existing helpers.",
+        "The slice persists restricted Discord/Yuanbao toolsets for the CLI platform or drops unknown MCP server names."
+      ],
+      "blocked_by": [
+        "Platform toolset config persistence + MCP sentinel",
+        "Effective toolset picker dedupes bundled plugin keys",
+        "Tool parity manifest refresh for Hermes b35d692f"
+      ],
+      "unblocks": [
+        "Gormes setup full-wizard shell and branded summary",
+        "Interactive Onboarding"
+      ],
+      "acceptance": [
+        "TestSetupToolsChecklistShowsCLIConfigurableToolsets proves the CLI checklist includes web, browser, terminal, file, code_execution, vision, image_gen, moa, tts, skills, todo, memory, session_search, clarify, delegation, cronjob, messaging, rl, and homeassistant with Hermes-compatible labels.",
+        "TestSetupToolsChecklistPreselectsDefaultsMinusDefaultOff proves default selections exclude default-off rows such as moa, homeassistant, rl, spotify, discord, and discord_admin unless explicitly enabled.",
+        "TestSetupToolsPersistsViaPlatformToolsetConfig proves selected toolsets are saved through the platform toolset helper and preserve MCP/no_mcp behavior.",
+        "TestSetupToolsProviderRowsAreRowBacked proves provider/API-key checklist rows for web, browser, image generation, RL, voice/TTS, GitHub Skills Hub, Honcho, and Home Assistant return typed row-backed evidence without live network calls.",
+        "Existing internal/cli toolset config and effective-toolset fixtures still pass."
+      ],
+      "note": "Complete 2026-05-03: `gormes setup tools` now renders source-backed CLI toolset rows from the existing effective-toolset picker, preselects the CLI platform runtime defaults minus default-off rows, accepts simple comma-separated number/key selections in interactive mode, persists through PlatformToolsetConfig while preserving custom MCP server names and clearing no_mcp as typed evidence, rejects restricted Discord toolsets for CLI, and renders provider/API-key setup as row-backed evidence only. No vendor/provider calls or runtime tool descriptor changes landed.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_tools_test.go",
+        "internal/cli/toolset_config.go",
+        "internal/cli/effective_toolsets.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run '^TestSetupTools' -count=1",
+        "go test ./internal/cli -run 'Toolset|EffectiveToolset' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Setup tools fixtures prove CLI toolset checklist rendering, default-off filtering, persistence through existing helpers, row-backed provider/API-key setup, and no live vendor calls."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:hermes_cli/setup.py setup_tools + hermes_cli/tools_config.py tools_command",
+        "note": "Hermes defines the toolset/provider checklist UX; Gormes adapts it through already-validated Go-native toolset config helpers."
+      },
+      "evidence": {
+        "implementation": [
+          "cmd/gormes/setup.go:runSetupToolsSection loads config.toml, renders CLI toolset rows from cli.EffectiveToolsetPickerOptions, and keeps non-interactive mode render-only.",
+          "cmd/gormes/setup.go:parseSetupToolSelection accepts comma/space-separated numbers or toolset keys and delegates persistence to cli.PlatformToolsetConfig.SavePlatformSelection(\"cli\", ...).",
+          "cmd/gormes/setup.go:renderSetupToolsProviderRows emits setup_tools_provider_row_backed evidence for selected web, browser, image_gen, rl, tts, skills, memory, and homeassistant toolsets without calling providers."
+        ],
+        "tests": [
+          "cmd/gormes/setup_tools_test.go:TestSetupToolsChecklistShowsCLIConfigurableToolsets",
+          "cmd/gormes/setup_tools_test.go:TestSetupToolsChecklistPreselectsDefaultsMinusDefaultOff",
+          "cmd/gormes/setup_tools_test.go:TestSetupToolsPersistsViaPlatformToolsetConfig",
+          "cmd/gormes/setup_tools_test.go:TestSetupToolsProviderRowsAreRowBacked"
+        ],
+        "verification": [
+          "go test ./cmd/gormes -run '^TestSetupTools' -count=1 -> ok",
+          "go test ./internal/cli -run 'Toolset|EffectiveToolset' -count=1 -> ok",
+          "go run ./cmd/progress validate -> ok"
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 56,
+    "item": {
+      "name": "Gormes config command surface",
+      "status": "complete",
+      "contract": "cmd/gormes exposes `gormes config show`, `path`, `env-path`, and `set <key> <value>` over the native XDG config surfaces: non-secret dotpaths write config.toml, secret aliases such as api_key and *_API_KEY/*_TOKEN write the Gormes .env file, and show output redacts every secret.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Malformed keys, unknown top-level sections, and invalid boolean/int values return typed operator errors without partially writing either file.",
+      "fixture": "cmd/gormes/config_command_test.go; internal/config/writer_test.go",
+      "source_refs": [
+        "internal/config/config.go:ConfigPath,loadFile,loadEnv,loadFlags,CurrentConfigVersion",
+        "internal/config/dotenv.go:dotenvCandidatePaths,parseDotenv",
+        "../hermes-agent/hermes_cli/config.py:config_command,set_config_value,save_env_value,show_config",
+        "../hermes-agent/tests/hermes_cli/test_set_config_value.py",
+        "../hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+      ],
+      "ready_when": [
+        "The provider endpoint/API-key flag row has established runtime precedence and redaction vocabulary.",
+        "The first implementation can support the current Gormes schema only: hermes.endpoint, hermes.model, gateway.*, tui.*, input.*, telegram.*, discord.*, slack.*, cron.*, skills.*, delegation.*, and goncho.*.",
+        "Config writes may use an internal writer helper; no setup wizard or provider validation prompt is required."
+      ],
+      "not_ready_when": [
+        "The slice attempts to port the full Hermes setup wizard, profile system, OAuth auth stores, or uninstall behavior.",
+        "The slice changes the canonical Gormes config format from TOML/XDG to JSON or ~/.gormes.",
+        "The slice persists raw secrets in config.toml."
+      ],
+      "blocked_by": [
+        "Hermes CLI command-tree parity manifest",
+        "Provider endpoint/API-key root flags + runtime resolution"
+      ],
+      "unblocks": [
+        "Gormes config edit/check/native schema-migrate closeout",
+        "Hermes config migration writer",
+        "OpenClaw migration writer and cleanup command"
+      ],
+      "acceptance": [
+        "`gormes config path` prints config.ConfigPath() and `gormes config env-path` prints the Gormes dotenv path under XDG_CONFIG_HOME.",
+        "`gormes config set endpoint https://example.invalid/v1` and `gormes config set model test-model` update the [hermes] TOML fields without writing dotenv.",
+        "`gormes config set api_key sk-test` writes GORMES_API_KEY to the Gormes .env file, not config.toml.",
+        "`gormes config show` prints endpoint/model and redacted credential status without exposing raw secret bytes.",
+        "Empty strings and falsy values behave like Hermes config set: missing value is an error, but an explicit empty string is accepted."
+      ],
+      "note": "Complete: TDD added cmd/gormes/config.go (cobra subtree show/path/env-path/set), cmd/gormes/config_command_test.go, internal/config/writer.go (EnvPath, IsSecretKey, SecretEnvName, WriteTOMLValue, WriteEnvValue), and internal/config/writer_test.go; wired newConfigCommand into cmd/gormes/main.go's root.AddCommand. Locked invariants: bare keys map to [hermes]; only the closed allow-list of TOML sections (hermes/gateway/tui/input/telegram/discord/slack/cron/skills/delegation/goncho) accepts writes; api_key alias, *_API_KEY, and *_TOKEN suffixes always route to the XDG dotenv at $XDG_CONFIG_HOME/gormes/.env (0o600, 0o700 parent dir); explicit empty string is persisted but a missing value argument is rejected by cobra Args; show prints endpoint/model/provider plus redacted api_key/GORMES_API_KEY status without exposing raw secret bytes.",
+      "write_scope": [
+        "cmd/gormes/config.go",
+        "cmd/gormes/config_command_test.go",
+        "cmd/gormes/main.go",
+        "internal/config/writer.go",
+        "internal/config/writer_test.go",
+        "internal/config/dotenv.go",
+        "internal/config/dotenv_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes ./internal/config -run 'TestConfigCommand|TestConfigWriter|TestLoad_' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Config command fixtures prove XDG paths, TOML writes, dotenv secret routing, redacted show output, explicit-empty handling, and no full-Hermes setup/auth coupling."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 57,
+    "item": {
+      "name": "Gormes config set comment-preserving TOML writes",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes preserves operator-authored comments and readable Unicode in config.toml when `gormes config set` mutates non-secret values, matching Hermes' current round-trip config mutation behavior while keeping Gormes' native TOML/XDG schema and atomic write guarantees.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Malformed TOML, unknown sections, or invalid typed values still fail before mutation; successful writes update only the selected key and preserve unrelated comments/values.",
+      "fixture": "internal/config/writer_test.go::TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode",
+      "source_refs": [
+        "./hermes-agent/cli.py@85383c636:save_config_value uses round-trip config mutation",
+        "./hermes-agent/utils.py@85383c636:atomic_roundtrip_yaml_update",
+        "./hermes-agent/tests/cli/test_cli_save_config_value.py@85383c636:test_preserves_comments_after_config_mutation",
+        "./hermes-agent/tests/cli/test_cli_save_config_value.py@85383c636:test_preserves_readable_unicode_after_config_mutation",
+        "cmd/gormes/config.go:newConfigSetCommand",
+        "internal/config/writer.go:WriteTOMLValue,writeTOMLAtomic",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree and Config command and provider overrides"
+      ],
+      "ready_when": [
+        "Gormes config command surface and native config closeout are complete.",
+        "The refreshed Hermes source shows comment-preserving config mutation as the active upstream CLI contract.",
+        "The slice can stay inside the config writer and focused config command tests without changing config format or setup behavior."
+      ],
+      "not_ready_when": [
+        "The implementation imports live ~/.hermes state or rewrites Gormes config.toml into Hermes config.yaml.",
+        "The implementation strips existing TOML comments, rewrites unrelated sections, or inlines secret values.",
+        "The slice changes setup wizard, profile, migration, or provider-auth behavior."
+      ],
+      "blocked_by": [
+        "Gormes config command surface",
+        "Gormes config edit/check/native schema-migrate closeout"
+      ],
+      "acceptance": [
+        "WriteTOMLValue updates an existing key while preserving top-of-file, table-adjacent, and inline TOML comments.",
+        "WriteTOMLValue preserves unrelated readable Unicode strings and does not escape them through a full-document remarshal.",
+        "`gormes config set <non-secret-key> <value>` exercises the same writer path and leaves comments intact in an isolated GORMES_HOME fixture.",
+        "Atomic write and symlink preservation behavior from existing writer tests remains green.",
+        "Unknown-section and explicit-empty behavior remains unchanged."
+      ],
+      "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes to da086a015. Planned rows were 21, below the 90-row cap, so adding one source-backed P1 row was allowed. Recent Hermes 85383c636 changed config writes to preserve comments and readable Unicode; Gormes' native TOML writer still remarshal-stripped comments. RED: `go test ./internal/config -run 'TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode' -count=1` and `go test ./cmd/gormes -run 'TestConfigCommand_SetPreservesTOMLComments' -count=1` failed because comments disappeared. GREEN: `internal/config.WriteTOMLValue` now updates or inserts TOML keys in-place where possible, validates the resulting TOML, preserves existing atomic/symlink behavior, and `gormes config set` leaves operator comments and readable Unicode intact.",
+      "write_scope": [
+        "internal/config/writer.go",
+        "internal/config/writer_test.go",
+        "cmd/gormes/config_command_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -run 'TestConfigWriter_WriteTOMLValue(PreservesCommentsAndUnicode|PreservesSymlink|RejectsUnknownSection|AcceptsExplicitEmpty)' -count=1",
+        "go test ./cmd/gormes -run 'TestConfigCommand.*Comment|TestConfigCommand' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Config writer and command fixtures prove `gormes config set` updates the requested TOML value without stripping comments or readable Unicode, while preserving existing atomic/symlink/secret-routing invariants."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:85383c636 fix(cli): preserve config comments on setting writes",
+        "note": "Added by the 2026-05-10 bounded all-topic parity sweep after refreshing Hermes to da086a015; this is the single new row for the cycle."
+      },
+      "implementation_evidence": [
+        "internal/config/writer.go: WriteTOMLValue now uses a comment-preserving raw TOML update/insert path before falling back to full-document marshal for new files.",
+        "internal/config/writer_test.go: TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode pins top-of-file, table-adjacent, inline comments, updated value, and readable Unicode preservation.",
+        "cmd/gormes/config_command_test.go: TestConfigCommand_SetPreservesTOMLComments proves the public config set command exercises the same preservation path."
+      ],
+      "validation_evidence": [
+        "RED: go test ./internal/config -run 'TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode' -count=1 failed before implementation.",
+        "RED: go test ./cmd/gormes -run 'TestConfigCommand_SetPreservesTOMLComments' -count=1 failed before implementation.",
+        "GREEN: go test ./internal/config -run 'TestConfigWriter_WriteTOMLValue(PreservesCommentsAndUnicode|PreservesSymlink|RejectsUnknownSection|AcceptsExplicitEmpty)' -count=1 passed.",
+        "GREEN: go test ./cmd/gormes -run 'TestConfigCommand.*Comment|TestConfigCommand' -count=1 passed."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 58,
+    "item": {
+      "name": "Gormes config edit/check/native schema-migrate closeout",
+      "status": "complete",
+      "contract": "cmd/gormes completes Hermes config-command parity for the native Gormes config surface by adding `gormes config edit`, `gormes config check`, and `gormes config migrate` over XDG TOML/dotenv files, while keeping `gormes migrate hermes` and `gormes migrate openclaw` as the only cross-product import commands.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing editor binaries, malformed config files, future _config_version values, and invalid dotenv entries produce typed operator evidence without mutating files unless the migrate subcommand can write atomically.",
+      "fixture": "cmd/gormes/config_closeout_test.go; internal/config/check_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/config.py:edit_config,config_command",
+        "../hermes-agent/hermes_cli/config.py:check_config_version,validate_config_structure,migrate_config",
+        "../hermes-agent/tests/hermes_cli/test_config.py",
+        "../hermes-agent/tests/hermes_cli/test_config_validation.py",
+        "../hermes-agent/tests/hermes_cli/test_config_drift.py",
+        "internal/config/config.go:CurrentConfigVersion,migrateConfig,validateConfig,ConfigPath",
+        "cmd/gormes/main.go:newRootCommandWithRuntime"
+      ],
+      "ready_when": [
+        "Gormes config command surface is complete for show/path/env-path/set and owns the writer helpers.",
+        "The Hermes CLI command-tree parity manifest classifies config edit/check/migrate as row-backed until this closeout lands.",
+        "The first native migrate implementation may be a no-op when CurrentConfigVersion is already current, but it must still report version and missing/default status deterministically."
+      ],
+      "not_ready_when": [
+        "The slice imports ~/.hermes or ~/.openclaw state; those are handled only by `gormes migrate hermes` and `gormes migrate openclaw` rows.",
+        "The slice launches a real editor in tests instead of using an injected command runner.",
+        "The slice writes default values over user-specified config or stores secrets in config.toml."
+      ],
+      "blocked_by": [
+        "Gormes config command surface",
+        "Hermes CLI command-tree parity manifest"
+      ],
+      "unblocks": [
+        "Hermes config migration writer",
+        "OpenClaw migration writer and cleanup command"
+      ],
+      "acceptance": [
+        "`gormes config edit` creates the native config file if missing, chooses EDITOR/VISUAL or common editor fallback through an injected runner, and reports no-editor with the config path when unavailable.",
+        "`gormes config check` reports native _config_version, missing required provider fields, optional dotenv availability, and future-version errors without writing files.",
+        "`gormes config migrate` applies only Gormes-native schema/default migrations with atomic writes and reports no-op when the file is current.",
+        "The command help distinguishes `config migrate` (native schema update) from `migrate hermes` and `migrate openclaw` (cross-product imports).",
+        "All output redacts dotenv/API-key values and keeps explicit-empty values visible as configured-but-empty evidence."
+      ],
+      "note": "Complete: TDD added `cmd/gormes/config_closeout_test.go` (edit/check/migrate cobra fixtures swap a `stubEditorRunner` into the package-level `configEditorRunner` injection seam via `withConfigEditorRunner`, so no real shell ever spawns) and `internal/config/check_test.go` (Check return-value table tests against `t.TempDir()` XDG sandboxes). Production code lives in `internal/config/check.go` (`Check`, `CheckReport`, `MigrateConfigFile`, `MigrateResult`), with atomic temp-file-then-rename helpers `writeTOMLAtomic` and `EnsureConfigFile` added to `internal/config/writer.go`, and the new cobra subtree wired in `cmd/gormes/config.go` (`newConfigEditCommand`, `newConfigCheckCommand`, `newConfigMigrateCommand`, `pickEditor`, `osEditorRunner`). Locked invariants: `config edit` ensures config.toml exists before delegating to EDITOR>VISUAL>nano|vim|vi|code|notepad through the injected runner and falls back to a no-editor message that includes the config path; `config check` is read-only, surfaces _config_version vs CurrentConfigVersion, dotenv presence, missing vs configured-but-empty issues per [hermes].endpoint and [hermes].model, redacts dotenv/api_key bytes, and exits non-zero on errors; `config migrate` is bit-identical no-op at CurrentConfigVersion, atomically stamps unversioned files, and rejects future-version files without rewriting them; the migrate help long-form names native scope and points operators at `gormes migrate hermes`/`gormes migrate openclaw` for cross-product imports.",
+      "write_scope": [
+        "cmd/gormes/config.go",
+        "cmd/gormes/config_closeout_test.go",
+        "internal/config/check.go",
+        "internal/config/check_test.go",
+        "internal/config/writer.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes ./internal/config -run 'TestConfig(Edit|Check|Migrate|Closeout)|TestConfigCheck' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Config closeout fixtures prove edit/check/native schema-migrate parity, redaction, atomic/no-op behavior, and clear separation from `gormes migrate hermes/openclaw`."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:hermes_cli/config.py config_command",
+        "note": "Hermes defines the config subcommand set; Gormes owns the XDG TOML/dotenv schema and separates native schema migration from product-state imports."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 59,
+    "item": {
+      "name": "Hermes config migration dry-run manifest",
+      "status": "complete",
+      "contract": "internal/migrate/hermes builds a deterministic dry-run manifest for `gormes migrate hermes` by reading an explicit source directory, $HERMES_HOME, or ~/.hermes, parsing config.yaml and .env, classifying every supported key as importable, skipped, conflict, or archived, and printing a report without writing Gormes state.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing Hermes homes, invalid YAML, unreadable .env files, and newer unknown schema versions produce report items instead of panics or partial imports.",
+      "fixture": "internal/migrate/hermes/manifest_test.go; cmd/gormes/migrate_hermes_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_constants.py:get_hermes_home",
+        "./hermes-agent/hermes_cli/config.py:DEFAULT_CONFIG,load_config,load_env,migrate_config",
+        "./hermes-agent/gateway/config.py:_apply_env_overrides",
+        "./hermes-agent/hermes_cli/setup.py:_setup_telegram",
+        "./hermes-agent/hermes_cli/gateway.py:_PLATFORMS telegram",
+        "./hermes-agent/hermes_state.py",
+        "./hermes-agent/tests/hermes_cli/test_config.py",
+        "./hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
+        "./hermes-agent/website/docs/user-guide/messaging/telegram.md",
+        "internal/config/config.go:LegacyHermesHome,ConfigPath,MemoryDBPath,SessionDBPath",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Hermes state/config migration command"
+      ],
+      "ready_when": [
+        "The Gormes config command row defines the target config/dotenv write contract.",
+        "This slice can be implemented as read-only manifest generation with temp fixture directories.",
+        "State import for sessions/memory can remain archived/skipped in this dry-run row."
+      ],
+      "not_ready_when": [
+        "The slice writes config.toml, .env, memory.db, sessions.db, or archives.",
+        "The slice tries to port the full Hermes migration chain or setup wizard before the manifest vocabulary is fixture-locked.",
+        "The slice reads ~/.hermes from tests instead of injected temp directories."
+      ],
+      "blocked_by": [
+        "Gormes config command surface",
+        "Hermes CLI command-tree parity manifest"
+      ],
+      "unblocks": [
+        "Hermes config migration writer"
+      ],
+      "acceptance": [
+        "Source discovery prefers --source, then HERMES_HOME, then ~/.hermes, and all paths are represented in the manifest.",
+        "config.yaml model/provider/custom-provider/terminal/display/gateway/memory keys are classified into importable Gormes paths or explicit skipped/archived reasons.",
+        ".env keys are classified into Gormes dotenv targets with redacted values and conflict evidence.",
+        "The dry-run command prints migrated/skipped/conflict/error counts and exits non-zero only for an unreadable or invalid requested source.",
+        "No file under XDG_CONFIG_HOME, XDG_DATA_HOME, or XDG_STATE_HOME changes during dry-run tests."
+      ],
+      "note": "Complete: TDD added internal/migrate/hermes/manifest.go, internal/migrate/hermes/manifest_test.go, cmd/gormes/migrate.go, and cmd/gormes/migrate_hermes_test.go. BuildManifest resolves Hermes home in the order --source, $HERMES_HOME, ~/.hermes and records every candidate path with a Found flag, classifies config.yaml model/providers/custom_provider/terminal/display/gateway/memory as importable into hermes.model/hermes.providers/hermes.custom_provider/terminal/tui.display/gateway/memory, archives _config_version, marks unsupported top-level sections as skipped with explicit reason text, classifies .env keys against a Telegram/Discord/Slack and *_API_KEY/*_TOKEN target map, never serializes raw secret bytes (RedactedValue=[REDACTED]), reports conflict_with_existing when a Gormes target env is already set, and surfaces invalid YAML as an Errors entry instead of panicking. The migrate cobra command requires --dry-run, errors non-zero on missing/non-directory --source, prints the manifest as indented JSON, and writes nothing under XDG_CONFIG_HOME/XDG_DATA_HOME/XDG_STATE_HOME. 2026-05-05 parity refresh maps Hermes Telegram dotenv keys TELEGRAM_BOT_TOKEN, TELEGRAM_HOME_CHANNEL, and TELEGRAM_ALLOWED_USERS into GORMES_TELEGRAM_TOKEN, GORMES_TELEGRAM_CHAT_ID, and GORMES_TELEGRAM_ALLOWED_USERS with redacted manifest output. Locked invariants: read-only filesystem behavior, redacted-only env values, deterministic config-key sorting, and explicit candidate-path reporting for every discovery origin. Root command wiring is deferred to the writer slice, which already owns cmd/gormes/migrate.go in its write_scope.",
+      "write_scope": [
+        "cmd/gormes/migrate.go",
+        "cmd/gormes/migrate_hermes_test.go",
+        "internal/migrate/hermes/manifest.go",
+        "internal/migrate/hermes/manifest_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/migrate/hermes ./cmd/gormes -run 'TestHermesMigrationManifest|TestMigrateHermesDryRun' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermes migration manifest fixtures prove source discovery, config/dotenv classification, redacted report output, explicit skip/archive reasons, and zero writes in dry-run mode."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 60,
+    "item": {
+      "name": "Hermes config migration writer",
+      "status": "complete",
+      "contract": "`gormes migrate hermes --yes` applies the validated Hermes migration manifest into Gormes config.toml and .env with backups, conflict handling, redaction, and an import report; session and memory imports remain archived/skipped unless their target rows are complete.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Conflicting existing Gormes keys are skipped by default and reported with --overwrite guidance; no partial write is allowed if backup creation fails.",
+      "fixture": "internal/migrate/hermes/writer_test.go; cmd/gormes/migrate_hermes_writer_test.go",
+      "source_refs": [
+        "internal/migrate/hermes/manifest.go",
+        "internal/config/writer.go",
+        "./hermes-agent/hermes_cli/config.py:save_config,save_env_value,migrate_config",
+        "./hermes-agent/hermes_cli/setup.py:_setup_telegram",
+        "./hermes-agent/hermes_cli/gateway.py:_PLATFORMS telegram",
+        "./hermes-agent/tests/hermes_cli/test_set_config_value.py",
+        "./hermes-agent/tests/hermes_cli/test_config_drift.py",
+        "internal/config/config.go:ConfigPath,CurrentConfigVersion"
+      ],
+      "ready_when": [
+        "Hermes config migration dry-run manifest is complete.",
+        "Gormes config command surface is complete and owns target-file writer semantics.",
+        "The first writer slice is allowed to import config/dotenv only; memory/session migration requires dependent rows."
+      ],
+      "not_ready_when": [
+        "The slice imports Hermes SQLite/session state before those import contracts are split.",
+        "The slice overwrites existing Gormes values without --overwrite or backup evidence.",
+        "The slice writes secrets into config.toml."
+      ],
+      "blocked_by": [
+        "Hermes config migration dry-run manifest",
+        "Gormes config command surface",
+        "Gormes config edit/check/native schema-migrate closeout"
+      ],
+      "acceptance": [
+        "--yes applies importable config keys into config.toml and importable secrets into Gormes .env.",
+        "Existing conflicting values are skipped unless --overwrite is set, and conflicts appear in the report.",
+        "A backup directory under XDG_STATE_HOME/gormes/migrations/hermes/<timestamp>/ is created before writes.",
+        "The report redacts all secret values and includes counts matching the manifest.",
+        "Session/memory source files are reported as archived/skipped with explicit follow-up row names, not silently copied."
+      ],
+      "note": "Complete: TDD added the backup-first Hermes migration writer over the manifest structs. 2026-05-05 parity refresh proves Hermes Telegram dotenv keys TELEGRAM_BOT_TOKEN, TELEGRAM_HOME_CHANNEL, and TELEGRAM_ALLOWED_USERS are written to GORMES_TELEGRAM_TOKEN, GORMES_TELEGRAM_CHAT_ID, and GORMES_TELEGRAM_ALLOWED_USERS without leaking raw secret bytes in the JSON outcome. Conflict handling still skips existing Gormes target env keys unless --overwrite is set, and session/memory imports remain explicitly deferred.",
+      "write_scope": [
+        "cmd/gormes/migrate.go",
+        "cmd/gormes/migrate_hermes_writer_test.go",
+        "internal/migrate/hermes/writer.go",
+        "internal/migrate/hermes/writer_test.go",
+        "internal/config/writer.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/migrate/hermes ./cmd/gormes ./internal/config -run 'TestHermesConfigWriter|TestMigrateHermesWriter|TestConfigWriter' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermes migration apply fixtures prove backup-first writes, conflict handling, dotenv secret routing, redacted reports, and explicit state-import deferral."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 61,
+    "item": {
+      "name": "OpenClaw migration dry-run manifest",
+      "status": "complete",
+      "contract": "internal/migrate/openclaw builds a deterministic dry-run manifest for `gormes migrate openclaw` by reading ~/.openclaw, ~/.clawdbot, ~/.moltbot, or --source, mapping OpenClaw config, .env, memory, skills, MCP, channels, model providers, TTS, tools, approvals, session reset, and archive-only surfaces into Gormes destinations without writing state.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown OpenClaw keys, SecretRef file/exec sources, running OpenClaw processes, and platform token conflicts are reported as skipped/conflict/warning items instead of being dropped.",
+      "fixture": "internal/migrate/openclaw/manifest_test.go; cmd/gormes/migrate_openclaw_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/claw.py:claw_command,_cmd_migrate,_cmd_cleanup",
+        "../hermes-agent/optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py:Migrator,MIGRATION_OPTION_METADATA,MIGRATION_PRESETS",
+        "../hermes-agent/website/docs/guides/migrate-from-openclaw.md",
+        "internal/cli/openclaw_residue.go",
+        "internal/cli/onboarding_state.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:OpenClaw migration command"
+      ],
+      "ready_when": [
+        "Gormes config command surface defines the target config/dotenv write contract.",
+        "The manifest row is read-only and can use compact JSON fixtures rather than a real OpenClaw install.",
+        "The command name is `gormes migrate openclaw`; the misspelled `ooenclaw` is not accepted as an alias and must produce a user-facing suggestion for `gormes migrate openclaw`."
+      ],
+      "not_ready_when": [
+        "The slice copies files, writes config, archives directories, or migrates secrets.",
+        "The slice relies on the Python openclaw_to_hermes.py script at runtime instead of porting the mapping to Go.",
+        "The slice treats broad optional-skills coverage as proof without field-level manifest fixtures."
+      ],
+      "unblocks": [
+        "OpenClaw migration writer and cleanup command"
+      ],
+      "acceptance": [
+        "Source discovery checks --source, ~/.openclaw, ~/.clawdbot, and ~/.moltbot in Hermes-compatible order.",
+        "Fixtures cover default model, custom providers, provider keys, channel tokens/allowlists, MCP servers, TTS settings, approvals, exec timeout, session reset, memory files, skills, and archive-only surfaces.",
+        "SecretRef env templates are resolved only from OpenClaw .env for manifest evidence; file/exec SecretRefs are reported as manual.",
+        "The dry-run report includes migrated/skipped/conflict/archived/error counts and redacts all secret values.",
+        "`gormes claw migrate --dry-run --source <dir>` preserves the upstream Hermes command spelling and delegates to the same Gormes-native OpenClaw manifest path as `gormes migrate openclaw --dry-run`.",
+        "`gormes migrate ooenclaw --dry-run` exits through the unknown-command path with a deterministic `gormes migrate openclaw` suggestion and no source/config probing.",
+        "No Gormes XDG path changes during dry-run tests."
+      ],
+      "note": "Added by planner pass 2026-04-28. Hermes hides a large OpenClaw migration contract under hermes_cli/claw.py plus optional-skills/migration/openclaw-migration; this row makes that hidden broad-glob surface explicit for Gormes. 2026-05-07 parity follow-up: a source-backed Reddit drift report highlighted `hermes claw migrate --dry-run`; TDD added the exact `gormes claw migrate --dry-run` compatibility spelling as a shim over the existing Gormes-native `migrate openclaw` manifest while leaving preview-then-prompt UX and exact cleanup spelling as documented residuals.",
+      "write_scope": [
+        "cmd/gormes/main.go",
+        "cmd/gormes/migrate.go",
+        "cmd/gormes/hermes_cli_parity.go",
+        "cmd/gormes/command_alias_fidelity_test.go",
+        "cmd/gormes/migrate_openclaw_test.go",
+        "internal/migrate/openclaw/manifest.go",
+        "internal/migrate/openclaw/manifest_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/migrate/openclaw ./cmd/gormes -run 'TestOpenClawMigrationManifest|TestMigrateOpenClawDryRun' -count=1",
+        "go test ./cmd/gormes -run 'TestHermesCommandAliasFidelity|TestHermesCLIParityManifest' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "OpenClaw dry-run fixtures prove source discovery, field-level mapping coverage, redacted report output, explicit archive/manual reasons, and zero writes."
+      ],
+      "blocked_by": [],
+      "evidence": {
+        "implementation": "cmd/gormes/main.go, cmd/gormes/migrate.go, cmd/gormes/hermes_cli_parity.go, cmd/gormes/command_alias_fidelity_test.go, cmd/gormes/migrate_openclaw_test.go, internal/migrate/openclaw/manifest.go, internal/migrate/openclaw/manifest_test.go",
+        "tests": "go test ./internal/migrate/hermes ./internal/migrate/openclaw ./cmd/gormes -run 'Migrate|OpenClaw' -count=1; go test ./cmd/gormes -run 'TestHermesCommandAliasFidelity|TestHermesCLIParityManifest' -count=1; go run ./cmd/progress validate; git diff --check",
+        "note": "Gormes-native OpenClaw dry-run manifest now covers source discovery, config/env/file classification, manual SecretRef evidence, redacted counts, dry-run-only CLI behavior, exact `gormes claw migrate --dry-run` compatibility spelling, and ooenclaw typo rejection without invoking Hermes/OpenClaw Python runtime."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 62,
+    "item": {
+      "name": "OpenClaw migration writer and cleanup command",
+      "status": "complete",
+      "contract": "`gormes migrate openclaw --yes` applies the validated OpenClaw manifest into Gormes config, dotenv, memories, skills, and archive report directories with backups and conflict policies; `gormes migrate openclaw cleanup` archives leftover OpenClaw directories after warning about running processes. The Hermes-compatible spellings `gormes claw cleanup` and alias `gormes claw clean` delegate to the same cleanup engine, preserve JSON build provenance, and do not shell out to Hermes or OpenClaw Python.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Running OpenClaw or active Gormes gateway channels produce warnings and require --yes before token-bearing migrations; cleanup refuses noninteractive destructive renames without --yes.",
+      "fixture": "internal/migrate/openclaw/apply_test.go; cmd/gormes/migrate_openclaw_apply_test.go; cmd/gormes/hermes_cli_parity_test.go",
+      "source_refs": [
+        "internal/migrate/openclaw/manifest.go",
+        "../hermes-agent/hermes_cli/claw.py:_detect_openclaw_processes,_warn_if_openclaw_running,_cmd_cleanup",
+        "../hermes-agent/hermes_cli/main.py:claw_subparsers cleanup aliases=[clean]",
+        "cmd/gormes/migrate.go:newClawCleanupCommand",
+        "cmd/gormes/hermes_cli_parity.go:hermesClawCommands",
+        "../hermes-agent/optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py:Migrator.migrate,generate_migration_notes",
+        "../hermes-agent/website/docs/guides/migrate-from-openclaw.md:After migration,Troubleshooting"
+      ],
+      "ready_when": [
+        "OpenClaw migration dry-run manifest is complete.",
+        "Gormes config command surface is complete and owns target-file writer semantics.",
+        "The writer applies only manifest-backed items; any unmapped OpenClaw surface remains archived/manual with report evidence."
+      ],
+      "not_ready_when": [
+        "The slice shells out to Python or imports Hermes optional skills at runtime.",
+        "The slice renames ~/.openclaw during the import step instead of requiring the explicit cleanup command.",
+        "The slice imports secrets when the manifest says secrets are disabled or unresolved."
+      ],
+      "blocked_by": [
+        "OpenClaw migration dry-run manifest",
+        "Gormes config command surface",
+        "Gormes config edit/check/native schema-migrate closeout"
+      ],
+      "acceptance": [
+        "--yes applies config/dotenv/memory/skill items exactly from the manifest and writes a report under XDG_STATE_HOME/gormes/migrations/openclaw/<timestamp>/.",
+        "Conflicts are skipped by default, overwritten only with --overwrite, and all backups are recorded.",
+        "Secrets migrate only with explicit secret opt-in and are redacted in reports.",
+        "cleanup --dry-run previews archive names; cleanup --yes renames .openclaw/.clawdbot/.moltbot to .pre-migration variants without deleting data.",
+        "`gormes claw cleanup --dry-run` and `gormes claw clean --dry-run` emit the same build-provenance JSON cleanup envelope as `gormes migrate openclaw cleanup --dry-run`.",
+        "The Hermes CLI parity manifest marks `claw cleanup` implemented and `claw clean` as an implemented alias instead of a row-backed residual.",
+        "Running-process warnings are testable through injected detectors, not live pgrep/systemctl calls."
+      ],
+      "note": "Complete 2026-05-09: bounded all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 14, below the 90-row cap. Existing P1 docs/public rows were operator-blocked and the P1 release parent was too broad, so the highest safe builder target was this stale complete Phase 5.O row: current Hermes exposes `hermes claw cleanup` with alias `clean`, while Gormes only exposed `gormes migrate openclaw cleanup` and the CLI parity manifest still marked the exact claw spelling row-backed. TDD wired `gormes claw cleanup` and `gormes claw clean` to the same Gormes-native cleanup engine and updated the manifest to implemented.",
+      "write_scope": [
+        "cmd/gormes/migrate.go",
+        "cmd/gormes/migrate_openclaw_apply_test.go",
+        "cmd/gormes/hermes_cli_parity.go",
+        "cmd/gormes/hermes_cli_parity_test.go",
+        "internal/migrate/openclaw/apply.go",
+        "internal/migrate/openclaw/apply_test.go",
+        "internal/config/writer.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifest' -count=1",
+        "go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "OpenClaw apply/cleanup fixtures prove manifest-only writes, backup/conflict policy, secret opt-in, explicit archive reports, migrate and claw cleanup dry-run/apply behavior, and injected running-process warnings."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-04-29T00:00:00Z",
+        "last_success": "2026-04-29T00:00:00Z"
+      },
+      "evidence": {
+        "implementation": [
+          "cmd/gormes/migrate.go registers `claw cleanup` plus alias `clean` over the shared OpenClaw cleanup command factory, preserving `--dry-run`, `--yes`, error labels, and build-provenance JSON.",
+          "cmd/gormes/hermes_cli_parity.go marks `claw cleanup` implemented with target `cmd/gormes claw cleanup` and `claw clean` as an implemented alias for the same target.",
+          "cmd/gormes/migrate_openclaw_apply_test.go verifies both compatibility spellings emit the same JSON cleanup envelope as the existing migration cleanup path."
+        ],
+        "verification": [
+          "RED: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifestClawCleanupImplemented' -count=1` failed because `gormes claw cleanup` and `gormes claw clean` were unknown commands and the manifest row was row_backed.",
+          "GREEN: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifestClawCleanupImplemented' -count=1` passed after command wiring and manifest update.",
+          "GREEN: `timeout 10m go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1` passed.",
+          "GREEN: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifest' -count=1` passed."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 70,
+    "item": {
+      "name": "Platform toolset config persistence + MCP sentinel",
+      "status": "complete",
+      "contract": "CLI setup/tools configuration persists per-platform toolset choices without preserving platform-default supersets, losing MCP server names, or leaking restricted Discord toolsets",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "CLI config status reports ignored default supersets, invalid numeric keys, no_mcp suppression, and restricted toolsets instead of silently enabling extra tools.",
+      "fixture": "internal/cli/toolset_config_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/tools_config.py@b35d692f",
+        "../hermes-agent/hermes_cli/config.py@b35d692f",
+        "../hermes-agent/tests/hermes_cli/test_tools_config.py@b35d692f",
+        "internal/cli/",
+        "internal/config/config.go",
+        "internal/tools/testdata/upstream_tool_parity_manifest.json"
+      ],
+      "ready_when": [
+        "Tool parity manifest refresh for Hermes b35d692f captures current donor toolset names and platform restrictions.",
+        "Config, profile, auth, and setup command surfaces has established the config file read/write seam or this slice owns a pure helper under internal/cli without command wiring."
+      ],
+      "not_ready_when": [
+        "The slice launches interactive TUI setup, configures live API keys, or ports provider setup prompts in the same change."
+      ],
+      "blocked_by": [
+        "Tool parity manifest refresh for Hermes b35d692f"
+      ],
+      "acceptance": [
+        "Saving a platform selection strips platform-default supersets such as hermes-cli/hermes-telegram while preserving unknown MCP server names.",
+        "Numeric YAML keys and list entries are normalized to strings so sorting and persistence cannot panic.",
+        "A no_mcp sentinel suppresses MCP servers only for the configured platform and is not exposed as a runtime toolset.",
+        "Restricted toolsets such as discord and discord_admin cannot be saved for non-Discord platforms."
+      ],
+      "note": "Complete: TDD added internal/cli platform toolset config helpers without command wiring. Fixtures prove platform-default supersets such as hermes-cli/hermes-telegram are stripped while unknown MCP server names survive, YAML-shaped numeric keys/list entries normalize to strings before sorting/persistence, no_mcp suppresses MCP only for its platform without becoming a runtime toolset, and manifest-backed Discord restrictions prevent discord/discord_admin from being saved outside the Discord platform.",
+      "write_scope": [
+        "internal/cli/",
+        "internal/config/",
+        "internal/tools/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/cli ./internal/config ./internal/tools -run TestPlatformToolsetConfig -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Toolset config fixtures prove platform-default stripping, MCP preservation/no_mcp, numeric normalization, and Discord platform restrictions."
+      ],
+      "health": {
+        "attempt_count": 2,
+        "last_attempt": "2026-04-25T13:38:33Z",
+        "last_success": "2026-04-25T13:38:33Z"
+      },
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:b35d692f hermes_cli/tools_config.py",
+        "note": "Hermes defines the persistence edge cases; Gormes should keep the first port as pure config logic before command UI wiring."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 99,
+    "item": {
+      "name": "gormes setup <section> boxed header + completion footer (UX parity)",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "`gormes setup <section>` must present the same boxed section chrome as upstream `hermes setup <section>` and as the gormes FULL wizard, instead of the ad-hoc plain `cli.PrintHeader`/`cli.ClearScreen` text each section currently prints. Upstream hermes_cli/main.py:1709 cmd_setup → hermes_cli/setup.py:3132 run_setup_wizard wraps every section run in a boxed header (setup.py:3199): a 59-wide box `┌───┐` / `│     ⚕ Hermes Setup — {label:<34s} │` / `└───┘`, then runs the section, then a `print_success(f\"{label} configuration complete!\")` footer. The gormes full wizard already has parity chrome (cmd/gormes/setup.go:755-760 boxed `│ Gormes Agent Setup Wizard │`, `◆ <Section>` headers, boxed `✓ Setup Complete!` :1146), but runSetupSection (cmd/gormes/setup.go:528) dispatches `gormes setup <section>` straight into each runSetup<X>Section with NO boxed header and NO uniform completion footer (e.g. runSetupModelSection cmd/gormes/setup.go:1547 only calls cli.ClearScreen + cli.PrintHeader(out, \"Setup section: model\")). Centralize, in runSetupSection, a boxed `│ Gormes Setup — <Label> │` header (reusing the existing 59-wide box shape used by printSetupWizardHeader / the shipped doctor RenderDoctorHeader — do NOT add a third chrome variant) printed before the section func runs, and a uniform `<Label> configuration complete!` success footer printed after a section completes without error, for every entry in setupSections (provider|model|agent|workspace|bindings|tts|terminal|gateway|tools). Section logic/prompts are unchanged — this is presentation only. Owned divergence: the section→label map is gormes-owned (provider→Provider, model→Model, agent→Agent Settings, workspace→Workspace, bindings→Channel Bindings, tts→Text-to-Speech, terminal→Terminal Backend, gateway→Messaging Gateway, tools→Tools) and documented as intentional, not silently derived. Non-interactive / no-TTY section paths keep working (header may still print; no new prompts; errSetupRequiresTTY/cancel paths must not emit a false 'configuration complete!'). All wording Gormes-owned (`gormes setup`, `~/.gormes`), never `hermes setup`/`~/.hermes`. Out of scope: full-wizard chrome (already covered) and the divergent legacy internal/cli/setup_wizard.go `⚕ Gormes Setup Wizard`/`✅ Setup complete!` path (separate deferred follow-up note).",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "degraded_mode": "If a section returns errSetupRequiresTTY, is cancelled, or errors, the uniform `<Label> configuration complete!` footer is NOT printed (no false success); the boxed header may still print since it precedes the section. An unknown section keeps the existing setupSectionUnsupported behavior. Non-interactive sections print the header then their existing non-interactive output, no prompts.",
+      "fixture": "cmd/gormes/setup_section_test.go",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/main.py@55c9f3206:1709:cmd_setup",
+        "../hermes-agent/hermes_cli/setup.py@55c9f3206:3132:run_setup_wizard; :3199:boxed `│ ⚕ Hermes Setup — {label} │` per-section header + `{label} configuration complete!` footer; :155:`◆ {title}` section helper; :3358-3392:Step-1..4 full-wizard labels",
+        "cmd/gormes/setup.go:34 setupSections; :528 runSetupSection (no per-section box); :755-760 printSetupWizardHeader (existing 59-wide box to reuse); :1146-1148 boxed Setup Complete; :1547 runSetupModelSection (plain cli.PrintHeader evidence of the gap)",
+        "internal/doctor RenderDoctorHeader (shipped this session — same box shape; reuse the pattern, do not duplicate a third chrome)",
+        "internal/cli/setup_wizard.go:20/:107 divergent legacy `⚕ Gormes Setup Wizard`/`✅ Setup complete!` — OUT of scope, deferred follow-up note only"
+      ],
+      "ready_when": [
+        "cmd/gormes/setup.go runSetupSection + setupSections already exist and the full wizard already renders the 59-wide box (helper to reuse is present).",
+        "Tests can drive `gormes setup <section> --non-interactive` (or seam IsTTY=false) through cobra with a temp GORMES_HOME and assert header/footer text without real credentials or prompts.",
+        "Doctor RenderDoctorHeader box shape shipped, so the shared chrome shape is settled."
+      ],
+      "not_ready_when": [
+        "The slice changes any section's prompts, persistence, or logic (presentation only).",
+        "A third box/header chrome variant is introduced instead of reusing the existing 59-wide shape.",
+        "A cancelled / TTY-refused / errored section still prints `<Label> configuration complete!`.",
+        "Any header/footer text prints `hermes setup`/`~/.hermes` instead of Gormes-owned wording.",
+        "The full-wizard chrome or the legacy internal/cli/setup_wizard.go path is reworked in this slice."
+      ],
+      "acceptance": [
+        "`gormes setup model` (and every section in setupSections) prints a boxed `│ Gormes Setup — <Label> │` header (59-wide box, same shape as the full wizard / doctor header) before the section runs.",
+        "On successful section completion a uniform `<Label> configuration complete!` footer prints; on errSetupRequiresTTY/cancel/error it does NOT.",
+        "The gormes-owned section→label map is applied (provider→Provider, model→Model, agent→Agent Settings, workspace→Workspace, bindings→Channel Bindings, tts→Text-to-Speech, terminal→Terminal Backend, gateway→Messaging Gateway, tools→Tools).",
+        "No section's prompts/logic/persistence change; non-interactive section paths still produce their existing output.",
+        "All header/footer wording is Gormes-owned — never `hermes setup`/`~/.hermes`.",
+        "Full-wizard chrome and the legacy setup_wizard.go path are unchanged by this slice."
+      ],
+      "note": "Planner pass 2026-05-16 (gormes-hermes-parity -> gormes-planner): highest-value `gormes setup` UX-parity gap. The full wizard already matches hermes chrome; the gap is `gormes setup <section>` using ad-hoc plain headers instead of the boxed per-section chrome hermes setup and the gormes full wizard use. Smallest vertical slice: centralize a reused boxed header + uniform completion footer in runSetupSection over the existing setupSections, presentation-only. Analogous to the just-shipped doctor RenderDoctorHeader/◆-section consistency win — reuse that box shape, do not add a third chrome. Owned-divergence section→label map is documented in the contract and must be asserted by tests. Deferred follow-up (note only, not an umbrella): internal/cli/setup_wizard.go:20/:107 is a divergent legacy `⚕ Gormes Setup Wizard`/`✅ Setup complete!` surface — a future row should reconcile or retire it. Recommended chain: gormes-tdd-slice (tracer-bullet: shared boxed header in runSetupSection first, then success-only completion footer, then label-map + degraded TTY/cancel assertions). hermes-agent already at 55c9f3206 (no re-bump this pass). SHIPPED 2026-05-16 (gormes-tdd-slice): tracer-bullet RED→GREEN. cmd/gormes/setup.go: added setupSectionLabels gormes-owned section→label map + setupSectionLabel(); rewrote runSetupSection as a chrome wrapper — unknown section → setupSectionUnsupported with NO box (degraded); else cli.ClearScreen + fmt.Fprint(doctor.RenderDoctorHeader(\"Gormes Setup — \"+label)) (REUSES the shipped 59-wide doctor box, no third chrome) before dispatchSetupSection (extracted switch, section logic unchanged), then a uniform `<Label> configuration complete!` footer only when err==nil AND setupSectionOutputCancelled()==false (tees section output via io.MultiWriter to suppress the footer on clean cancel without changing section logic; errSetupRequiresTTY/errors suppress via err!=nil). Removed the now-redundant inner cli.ClearScreen+cli.PrintHeader(\"Setup section: provider\"/\"model\") from runSetupProviderSection/runSetupModelSection (the ad-hoc chrome the row replaces). Tests GREEN: cmd/gormes/setup_section_test.go (5: boxed-header+label-map for model & gateway w/ no Hermes wording; success footer; cancel suppresses footer; TTY-refused suppresses footer; unknown section no box). write_scope correction (recorded): also updated 2 stale fixtures in cmd/gormes/setup_minimal_test.go (TestSetupModelSectionDelegatesToPicker, TestSetupProviderNonInteractiveWritesConfigAndDotenv) that asserted the replaced `Setup section: model`/`provider` text → now assert `Gormes Setup — Model`/`Provider` (legitimate fixture update per tdd-slice rule; the row write_scope under-specified these existing tests). Gates: `go test ./cmd/gormes -run Setup -count=1` ok, `go test ./cmd/gormes -count=1` ok (10.5s), `go run ./cmd/progress validate` ok (9 phases), `git diff --check` clean. Deferred follow-up unchanged: internal/cli/setup_wizard.go:20/:107 legacy divergent chrome (note only). tdd-slice does not commit.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_section_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'Setup' -count=1",
+        "go test ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Setup fixtures prove every `gormes setup <section>` renders the boxed `│ Gormes Setup — <Label> │` header (shared 59-wide shape), the uniform completion footer prints only on success (not on TTY-refused/cancel/error), the gormes-owned label map is applied, no section logic changed, and wording is Gormes-owned — with source evidence citing hermes 55c9f3206 setup.py:3199."
+      ],
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_refs": [
+          "hermes:55c9f3206 hermes_cli/setup.py:3199 per-section boxed header + `{label} configuration complete!` footer; :3132 run_setup_wizard; main.py:1709 cmd_setup"
+        ],
+        "note": "skill_origin: 2026-05-16 gormes-hermes-parity setup UX sweep (gormes setup <section> plain header vs hermes setup boxed per-section chrome) -> gormes-planner. User ask: 'test gormes setup … must be similar ux ui to hermes setup'. Deferred half of the same request whose doctor half shipped this session."
+      },
+      "blocked_by": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 109,
+    "item": {
+      "name": "Interactive Onboarding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Keep the first-run readiness status and deterministic wizard plan as an internal onboarding helper: model/provider selection -> auth setup -> gateway channel configuration -> browser/CDP checks -> skill discovery -> dashboard launch. Public CLI entrypoints are `gormes setup` for guided setup and `gormes doctor --offline --target <target> --json` for machine-readable readiness; top-level `gormes onboard` is not registered.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "The internal onboarding helper reports first-run status, runtime skills root, bundled/local skill counts, and partial learning-loop state with next-step commands. Public setup/doctor surfaces report missing provider credentials, gateway config gaps, or browser unavailability per step and keep skip warnings explicit.",
+      "fixture": "cmd/gormes/skills_onboard_test.go::TestOnboardExplainsRuntimeSkillsAndLearningState,TestOnboardShowsConfiguredProviderDetails,TestOnboardWizardNonInteractiveShowsOrderedPlanAndSkipWarnings,TestOnboardWizardPrefillsConfiguredProviderAndAuth; internal/cli/onboard_test.go::TestOnboardPlanWalksFirstRunWizardStepsWithSkipWarnings,TestOnboardPlanPrefillsConfiguredRuntime; future full wizard prompts remain row-backed",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/main.py:8369-8403:setup_parser",
+        "../hermes-agent/hermes_cli/setup.py:2953-3245:run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup",
+        "../hermes-agent/agent/onboarding.py:BUSY_INPUT_FLAG,TOOL_PROGRESS_FLAG,OPENCLAW_RESIDUE_FLAG",
+        "openclaw onboard command",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/onboard.go",
+        "internal/cli/onboard.go",
+        "docs/content/building-gormes/fleet-operational-patterns.md",
+        "docs/content/building-gormes/fleet-integration-plan.md"
+      ],
+      "ready_when": [
+        "QMD Hybrid Search (5.N) is operational for skill discovery step.",
+        "Setup wizard alias exists as scaffold."
+      ],
+      "not_ready_when": [
+        "The row requires live credentials for testing.",
+        "The row replaces existing setup without migration path."
+      ],
+      "acceptance": [
+        "Top-level `gormes onboard` is not registered; removed-command guidance points operators to `gormes setup` or `gormes doctor --offline --target terminal --json`.",
+        "Current output separates runtime skills from docs/development-skills and points users to gormes skills list.",
+        "Current output states that skill capture is manual/prompted and full automatic distill/promote/maintain is partial.",
+        "Configured provider output shows provider id, endpoint, and model instead of collapsing the setup state into one URL.",
+        "The internal onboarding wizard seam walks model -> provider -> auth -> gateway -> browser -> skills -> dashboard without prompts, probes, launches, or live credentials.",
+        "Each wizard-plan step carries an explicit skip warning.",
+        "Already-configured wizard-plan steps are detected and pre-filled.",
+        "The remaining interactive action runner is tracked by `Internal onboarding interactive action runner` and must stay testable without live credentials, gateway starts, browser launches, or dashboard launches."
+      ],
+      "write_scope": [
+        "cmd/gormes/main.go",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/onboard.go",
+        "cmd/gormes/skills.go",
+        "cmd/gormes/skills_onboard_test.go",
+        "internal/skills/list.go",
+        "internal/cli/onboard.go",
+        "internal/cli/onboard_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestRootSkills|TestOnboard|TestSetup|TestHermesCLIParityManifest' -count=1",
+        "go test ./internal/cli -run TestOnboard -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "The internal onboarding helper ships first-run status plus deterministic wizard-plan fixtures, while public first-run setup/readiness flows use `gormes setup` and `gormes doctor --offline --target <target> --json`."
+      ],
+      "wired": true,
+      "evidence": {
+        "implementation": "cmd/gormes/onboard.go, cmd/gormes/skills.go, cmd/gormes/main.go, cmd/gormes/setup.go, internal/skills/list.go, internal/cli/onboard.go",
+        "tests": "go test ./cmd/gormes -run 'TestRootSkills|TestOnboard|TestSetup|TestHermesCLIParityManifest' -count=1; go test ./internal/cli -run TestOnboard -count=1",
+        "note": "Updated 2026-05-15: active Hermes has `hermes setup` plus first-touch onboarding hints, not a top-level `onboard` command, so Gormes removed the public top-level `gormes onboard` entrypoint. The internal onboarding helper still provides first-run status JSON and deterministic wizard-plan fixtures over Hermes-compatible setup/auth/gateway/browser/skills/dashboard guidance. The plan walks model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard, prints skip warnings for every step, detects and pre-fills configured provider/model/auth/gateway/browser state, and is testable without live credentials or external launches. Public setup/readiness surfaces are `gormes setup` and `gormes doctor --offline --target <target> --json`."
+      },
+      "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 110,
+    "item": {
+      "name": "Internal onboarding interactive action runner",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "The internal onboarding wizard seam turns the existing deterministic first-run plan into an action runner for tests and setup integration. It renders the same model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard steps, shows each step's configured/missing status and skip warning before any action, and lets the operator run, skip, or review each step through injected seams. Public CLI must not register top-level `gormes onboard`; selected actions delegate through fakeable command seams to existing setup/model/auth/gateway/browser/skills/dashboard surfaces.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Non-TTY or `--non-interactive` invocations keep the current deterministic plan output and do not prompt. If an action seam is unavailable, the wizard returns onboard_action_row_backed with the step id and recommended command while preserving the remaining plan.",
+      "fixture": "cmd/gormes/onboard_wizard_test.go; internal/cli/onboard_test.go::TestOnboardPlan*",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/main.py:8369-8403:setup_parser",
+        "../hermes-agent/hermes_cli/setup.py:217-253:prompt_choice",
+        "../hermes-agent/hermes_cli/setup.py:2953-3245:run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup",
+        "../hermes-agent/agent/onboarding.py:busy_input_hint_cli,tool_progress_hint_cli,openclaw_residue_hint_cli",
+        "cmd/gormes/onboard.go",
+        "internal/cli/onboard.go",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/auth.go",
+        "cmd/gormes/dashboard.go"
+      ],
+      "ready_when": [
+        "Interactive Onboarding has the deterministic onboarding wizard-plan builder and configured-state prefill fixtures.",
+        "Gormes setup top-level chooser menu and full-wizard shell rows are complete so model/provider/setup steps have existing command targets.",
+        "Tests can inject action seams, prompt answers, configured-state input, and output buffers without relying on a real TTY, provider credential, gateway process, browser, or dashboard server."
+      ],
+      "not_ready_when": [
+        "The slice starts live external services, opens a browser, contacts a provider, probes Browser/CDP, launches the dashboard server, or starts a messaging gateway in tests.",
+        "The slice duplicates provider/model/auth setup logic instead of delegating to existing command seams.",
+        "The slice removes or changes the noninteractive wizard plan output already used for CI diagnostics.",
+        "The slice registers top-level `gormes onboard`; upstream has `hermes setup`, and Gormes public first-run paths are setup/doctor."
+      ],
+      "unblocks": [
+        "Interactive Onboarding"
+      ],
+      "acceptance": [
+        "TestOnboardWizardInteractivePromptsForStepActions proves the internal onboarding wizard seam renders all seven plan steps in order and asks run/skip/review for each step through an injected prompt seam.",
+        "TestOnboardWizardSkipWarningsBeforeSkip proves skipping a missing step prints that step's skip warning before continuing.",
+        "TestOnboardWizardConfiguredStepsArePrefilled proves configured provider/model/auth/gateway/browser state changes the step status/detail and defaults the action to review or skip instead of blindly reconfiguring.",
+        "TestOnboardWizardDelegatesSelectedActions proves selected model/provider/auth/gateway/browser/skills/dashboard steps call injected action handlers with the step id and recommended command.",
+        "TestOnboardWizardRowBackedActionEvidence proves unavailable handlers return onboard_action_row_backed with the step id and recommended command without aborting the whole plan.",
+        "TestOnboardWizardNonInteractiveStillDoesNotPrompt proves `--non-interactive` and non-TTY invocations keep the deterministic plan and never invoke prompt or action seams.",
+        "Existing TestOnboardWizardNonInteractiveShowsOrderedPlanAndSkipWarnings and internal/cli TestOnboardPlan* fixtures remain green."
+      ],
+      "note": "Updated 2026-05-15: the internal onboarding wizard seam uses fakeable command seams to run an interactive action runner over the existing deterministic first-run plan, but top-level `gormes onboard` is no longer registered. It renders the seven model/provider/auth/gateway/browser/CDP/skills/dashboard steps, shows each status/detail/skip warning before action, applies status-aware defaults, supports run/skip/review, delegates selected run actions through an injected seam, defaults unavailable actions to onboard_action_row_backed evidence, and preserves non-TTY/--non-interactive plan-only output. No live providers, gateway starts, browser probes, dashboard launches, TTS downloads, or vendor calls are started by the row fixtures.",
+      "write_scope": [
+        "cmd/gormes/onboard.go",
+        "cmd/gormes/onboard_wizard_test.go",
+        "cmd/gormes/skills_onboard_test.go",
+        "internal/cli/onboard.go",
+        "internal/cli/onboard_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run '^TestOnboardWizard' -count=1",
+        "go test ./internal/cli -run TestOnboard -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Onboard wizard fixtures prove interactive action prompting, skip-warning rendering, configured-state defaults, delegated/row-backed step handlers, and noninteractive no-prompt behavior without live external services."
+      ],
+      "provenance": {
+        "origin_type": "upstream_reconciliation",
+        "upstream_ref": "hermes:hermes_cli/setup.py run_setup_wizard + agent/onboarding.py contextual first-touch hints",
+        "note": "Hermes owns the setup wizard and contextual hints; Gormes keeps onboarding as an internal first-run diagnostic/action helper while public operators use setup/doctor surfaces."
+      },
+      "blocked_by": [],
+      "evidence": {
+        "implementation": [
+          "cmd/gormes/onboard.go:newOnboardCommandWithSeams exposes IsTTY, PromptAction, and RunAction seams for hermetic wizard tests.",
+          "cmd/gormes/onboard.go:runOnboardWizard renders the existing cli.BuildOnboardPlan output, prompts run/review/skip per step, prints review-only details, and emits skip warnings for missing skipped steps.",
+          "cmd/gormes/onboard.go:runOnboardActionRowBacked returns onboard_action_row_backed evidence with the step id and recommended command while continuing the remaining plan.",
+          "cmd/gormes/onboard.go keeps --non-interactive and non-TTY wizard invocations on the deterministic plan path without invoking prompt or action seams."
+        ],
+        "tests": [
+          "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardInteractivePromptsForStepActions",
+          "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardSkipWarningsBeforeSkip",
+          "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardConfiguredStepsArePrefilled",
+          "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardDelegatesSelectedActions",
+          "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardRowBackedActionEvidence",
+          "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardNonInteractiveStillDoesNotPrompt"
+        ],
+        "verification": [
+          "go test ./cmd/gormes -run '^TestOnboardWizard' -count=1 -> ok",
+          "go test ./internal/cli -run TestOnboard -count=1 -> ok",
+          "go test ./cmd/gormes ./internal/cli -count=1 -> ok"
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 111,
+    "item": {
+      "name": "CLI setup/onboard/help text fidelity matrix",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Add a deterministic operator-visible text matrix for `gormes setup`, setup entry modes, setup sections, internal onboarding helper output, removed `gormes onboard` guidance, provider/model setup guidance, root help, unknown-command suggestions, and non-TTY fallbacks. The matrix must keep Hermes-compatible setup behavior where upstream owns the flow, preserve Gormes-owned first-run readiness wording where it intentionally differs, and prevent regressions such as parent setup arguments leaking into delegated model/provider commands, arrow-key escape bytes being treated as selections, Hermes paths appearing in Gormes summaries, or interactive-only navigation copy appearing in line-input fallback mode.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When a setup/onboarding-helper action is not wired yet, output must include a row-backed command name and actionable next step instead of panic text, raw Cobra errors, or silent no-ops.",
+      "fixture": "cmd/gormes/setup_text_fidelity_test.go::TestSetupTextFidelity_* + cmd/gormes/onboard_wizard_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/main.py@b816fd4e2:setup_parser",
+        "./hermes-agent/hermes_cli/setup.py@b816fd4e2:prompt_choice,run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup",
+        "./hermes-agent/agent/onboarding.py@b816fd4e2:busy_input_hint_cli,tool_progress_hint_cli,openclaw_residue_hint_cli",
+        "./hermes-agent/ui-tui/src/content/setup.ts@b816fd4e2",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/onboard.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "cmd/gormes/onboard_wizard_test.go",
+        "internal/cli/onboard.go"
+      ],
+      "ready_when": [
+        "Gormes setup top-level chooser, full-wizard shell/summary, provider/model delegation, gateway/tools/TTS/agent sections, and onboard action runner rows are complete.",
+        "The `Hermes setup entry-mode and reset semantics` row has pinned existing-install, fresh-install, quick, reconfigure, reset, non-TTY, and non-interactive setup behavior.",
+        "Tests can run with fake command seams, stdin buffers, temp config/env roots, and no live provider, browser, dashboard, gateway, or credential prompts.",
+        "The fixture table can mark each line as Hermes-owned, Gormes-owned, or deliberate Gormes branding divergence."
+      ],
+      "not_ready_when": [
+        "The slice contacts providers, writes real HOME config, starts a gateway/dashboard/browser, or relies on terminal arrow-key support in CI.",
+        "The slice rewrites setup command behavior broadly instead of pinning the visible strings and fixing only failing text/routing edges.",
+        "The slice hides raw errors by swallowing exit codes; failures must remain machine-testable."
+      ],
+      "blocked_by": [
+        "Hermes setup entry-mode and reset semantics",
+        "Gormes setup top-level chooser menu",
+        "Gormes setup full-wizard shell and branded summary",
+        "Internal onboarding interactive action runner"
+      ],
+      "acceptance": [
+        "TestSetupTextFidelity_TopLevelTTYMenuAndLineFallback proves the TTY menu copy and the line-input fallback do not promise unsupported key navigation, and escape sequences before a numeric/text selection are ignored deterministically.",
+        "TestSetupTextFidelity_EntryModes proves returning-user bare setup/reconfigure, quick setup, fresh-install first run, reset, no-TTY, and non-interactive guidance use the current Hermes-owned wording or an explicitly documented Gormes-branded equivalent.",
+        "TestSetupTextFidelity_QuickSetupDelegatesMissingProviderModel proves quick setup routes to provider/model seams without constructing `model setup` or leaking parent arguments.",
+        "TestSetupTextFidelity_BrandedSummaryAndPaths proves the completion summary says Gormes, points to Gormes config/env paths, and never prints stale Hermes install/config edit commands.",
+        "TestSetupTextFidelity_OnboardPlanAndWizard proves internal onboarding helper output keeps the seven-step first-run plan, skip warnings, configured-state details, and row-backed action evidence stable.",
+        "TestSetupTextFidelity_UnknownCommandGuidance proves typo suggestions and unsupported setup sections produce actionable stderr/stdout without raw Cobra-only `unknown command` text."
+      ],
+      "note": "Added by the 2026-05-04 behavioral parity audit after setup/onboarding-helper behavior was functionally fixed but spread across many tests. Updated 2026-05-15: top-level `gormes onboard` is removed, so the public text matrix locks setup/doctor replacements and unknown-command guidance while internal onboarding helper fixtures keep the first-run plan stable. Complete: TDD added cmd/gormes/setup_text_fidelity_test.go and tightened unsupported setup-section output in cmd/gormes/setup.go so unknown setup sections emit deterministic row-backed guidance with recommended_command=\"gormes setup\" and no raw Cobra unknown-command text. The same fixture file locks first-run quick/full line-input fallback, escape-sequence stripping, root help setup/provider/gateway path copy, and stale Hermes setup/path absence. Evidence: go test ./cmd/gormes -run '^TestSetupTextFidelity' -count=1 PASS; go test ./cmd/gormes -run 'TestSetupTextFidelity|TestSetup|TestOnboardWizard|TestRootHelp|TestHermesCLIParityManifest' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS; go run ./cmd/progress validate PASS.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/onboard.go",
+        "cmd/gormes/setup_text_fidelity_test.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "cmd/gormes/onboard_wizard_test.go",
+        "internal/cli/onboard.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestSetupTextFidelity|TestSetup|TestOnboardWizard|TestRootHelp|TestHermesCLIParityManifest' -count=1",
+        "go test ./cmd/gormes ./internal/cli -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Text fixtures prove setup, internal onboarding helper, help, and unknown-command visible output is stable, Gormes-branded, Hermes-compatible where applicable, and resilient to non-TTY/line-input fallback edge cases."
+      ],
+      "provenance": {
+        "origin_type": "upstream_reconciliation",
+        "upstream_ref": "hermes:b816fd4e2 hermes_cli/setup.py + agent/onboarding.py + ui-tui/src/content/setup.ts",
+        "note": "Hermes defines setup wizard/onboarding hint behavior; Gormes owns additional first-run text and must keep the divergence explicit. 2026-05-06 sweep selected this as the next builder slice because it prevents stale setup/provider/gateway/docs/operator guidance across completed runtime rows."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.R",
+    "pos": 0,
+    "item": {
+      "name": "Execution-mode resolver + config precedence",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Gormes exposes a pure execute-code mode resolver that returns Hermes-compatible `project` or `strict` from config value and default in that precedence order; unknown, empty, or nil-like values fall back to the default with redacted warning evidence, and the token set is frozen before cwd/interpreter/runtime wiring lands.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Unknown, empty, or nil-like mode values produce execute_code_mode_invalid evidence and fall back to the configured default without constructing a sandbox, opening files, or running code.",
+      "fixture": "internal/tools/execute_code_mode_test.go",
+      "source_refs": [
+        "../hermes-agent/tests/tools/test_code_execution_modes.py@b816fd4e2",
+        "../hermes-agent/tests/tools/test_local_shell_init.py@b816fd4e2",
+        "../hermes-agent/tests/tools/test_shared_container_task_id.py@b816fd4e2",
+        "../hermes-agent/tests/tools/test_modal_sandbox_fixes.py@b816fd4e2",
+        "../hermes-agent/tools/code_execution_tool.py@b816fd4e2:_get_execution_mode",
+        "internal/tools/execute_code.go",
+        "internal/tools/terminal_tool.go"
+      ],
+      "ready_when": [
+        "Sandboxed exec is complete and currently blocks code execution through a stable envelope; this row only adds a pure resolver and cannot relax that guard.",
+        "Tests can inject config/default values without reading operator config, starting containers, creating cwd sandboxes, or invoking interpreters.",
+        "The follow-up strict/project/default rows remain planned for cwd/interpreter/runtime binding after the token/precedence contract is locked."
+      ],
+      "not_ready_when": [
+        "The slice changes execute_code runtime behavior, runs Python/shell, creates containers, changes filesystem/network access, or selects cwd/interpreter paths.",
+        "The slice adds modes beyond project/strict, introduces an env override, or adds an `off` mode without a new source-backed planner row.",
+        "The slice changes the 5.K Sandboxed exec blocked-result envelope."
+      ],
+      "acceptance": [
+        "TestExecuteCodeModeResolverConfigValue proves config accepts project, strict, case-insensitive values, and surrounding whitespace.",
+        "TestExecuteCodeModeResolverDefaultFallback proves the default is used when config is empty, absent, or nil-like.",
+        "TestExecuteCodeModeResolverInvalidValuesWarnAndDefault proves unknown config/default values return execute_code_mode_invalid evidence and the safe default mode without leaking raw secrets.",
+        "TestExecuteCodeModeResolverFreezesTokenSet proves only project and strict are accepted tokens.",
+        "Existing Sandboxed exec tests remain byte-stable because the resolver is not wired into runtime execution in this slice."
+      ],
+      "note": "Complete: TDD landed a pure execute-code mode resolver in internal/tools/execute_code.go, corrected against current Hermes b816fd4e2 where `_get_execution_mode` reads `code_execution.mode` from config only and accepts project/strict. Fixtures in internal/tools/execute_code_mode_test.go prove config value normalization, default fallback for absent/empty/nil-like config, invalid config/default evidence without raw value leakage, and a frozen project/strict token set. The slice intentionally did not wire the resolver into runtime execution, add env override/off-mode, select cwd/interpreter/container behavior, or change the completed 5.K blocked-result sandbox envelope.",
+      "write_scope": [
+        "internal/tools/execute_code.go",
+        "internal/tools/execute_code_mode_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestExecuteCodeModeResolver|TestExecuteCode' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Execute-code mode resolver fixtures prove config/default precedence, invalid-value evidence, and frozen project/strict tokens without runtime execution changes."
+      ],
+      "provenance": {
+        "origin_type": "upstream_reconciliation",
+        "upstream_ref": "hermes:b816fd4e2 tests/tools/test_code_execution_modes.py",
+        "note": "Gormes' code-execution policy rows were placeholders; Hermes has active config/default mode behavior that should be ported as a small pure helper before runtime semantics."
+      },
+      "evidence": {
+        "implementation": [
+          "internal/tools/execute_code.go:ResolveExecuteCodeMode",
+          "internal/tools/execute_code.go:ValidExecuteCodeModes",
+          "internal/tools/execute_code.go:IsValidExecuteCodeMode"
+        ],
+        "tests": [
+          "internal/tools/execute_code_mode_test.go:TestExecuteCodeModeResolverConfigValue",
+          "internal/tools/execute_code_mode_test.go:TestExecuteCodeModeResolverDefaultFallback",
+          "internal/tools/execute_code_mode_test.go:TestExecuteCodeModeResolverInvalidValuesWarnAndDefault",
+          "internal/tools/execute_code_mode_test.go:TestExecuteCodeModeResolverFreezesTokenSet"
+        ],
+        "verification": [
+          "2026-05-06: go test ./internal/tools -run 'TestExecuteCodeModeResolver|TestExecuteCode' -count=1 -> ok"
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.R",
+    "pos": 3,
+    "item": {
+      "name": "Default mode selection + config cut-over",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Gormes cuts execute_code over to config-driven project/strict mode selection without exposing Python execution: [code_execution].mode in config.toml (or code_execution.mode in config.yaml fallback) selects project or strict via the existing resolver, the built-in default is Gormes-owned strict for the current shell-only sandbox, project mode remains opt-in, invalid config falls back to strict with redacted evidence, and the 5.K blocked-result envelope stays byte-identical across modes.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Invalid or empty code_execution.mode values select strict mode with execute_code_mode_invalid evidence; no tool execution, cwd selection, interpreter probing, or live config mutation is needed to report the degraded state.",
+      "fixture": "internal/tools/execute_code_mode_cutover_test.go; internal/config/config_test.go; cmd/gormes/registry_test.go",
+      "source_refs": [
+        "./hermes-agent/tools/code_execution_tool.py@a54cae60d:_get_execution_mode",
+        "./hermes-agent/tools/code_execution_tool.py@a54cae60d:build_execute_code_schema",
+        "./hermes-agent/tools/code_execution_tool.py@a54cae60d:_resolve_child_cwd",
+        "./hermes-agent/tests/tools/test_code_execution_modes.py@a54cae60d:TestGetExecutionMode",
+        "./hermes-agent/tests/tools/test_code_execution_modes.py@a54cae60d:TestModeAwareSchema",
+        "internal/tools/execute_code.go:ResolveExecuteCodeMode",
+        "internal/tools/execute_code_strict_mode.go:StrictModeBlockedEnvelopeShape",
+        "internal/tools/execute_code_project_mode.go:NewProjectModeSandbox",
+        "cmd/gormes/registry.go:buildDefaultRegistry",
+        "docs/content/building-gormes/core-systems/tool-execution.md"
+      ],
+      "ready_when": [
+        "Execution-mode resolver + config precedence is complete.",
+        "Strict-mode CWD + interpreter parity is complete and the 5.K blocked-result envelope is fixture-locked.",
+        "Project-mode CWD + active venv detection is complete.",
+        "Tests can inject config values, cwd hooks, and fake shell lookup without reading live operator homes or running Python."
+      ],
+      "not_ready_when": [
+        "The slice exposes Python execution, changes the hardline Python-runtime block, adds an env-var override, or starts a container/cloud sandbox.",
+        "The slice changes filesystem/network guard wording or removes status/error/filesystem_access/network_access from blocked results.",
+        "The slice treats Hermes' project default as mandatory instead of recording Gormes' strict-by-default divergence for the current shell-only implementation."
+      ],
+      "acceptance": [
+        "TestLoad_CodeExecutionModeConfig proves [code_execution].mode loads from config.toml and code_execution.mode loads from config.yaml fallback, with no env override.",
+        "TestExecuteCodeToolModeCutoverDefaultStrict proves NewExecuteCodeTool defaults to strict and reports strict mode evidence without changing the blocked-result envelope.",
+        "TestExecuteCodeToolModeCutoverProjectOptIn proves a project config selects ProjectModeSandbox and executes from TERMINAL_CWD through injected hooks.",
+        "TestExecuteCodeToolModeCutoverInvalidConfigFallsBackStrict proves invalid config records execute_code_mode_invalid evidence and keeps strict sandbox behavior.",
+        "TestBuildDefaultRegistryPassesExecuteCodeMode proves buildDefaultRegistry threads config.CodeExecution.Mode into the registered execute_code tool.",
+        "tool-execution.md explains strict is the Gormes default while project remains an opt-in parity mode."
+      ],
+      "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a54cae60d and progress.json. Planned rows were 31, so no new row was needed. P1 docs/release rows remain operator- or infra-gated; most P2 rows are umbrella-only or blocked. This row was selected as the highest-priority builder-ready parity slice because its resolver, strict-mode, and project-mode prerequisite rows were complete, and current Hermes test_code_execution_modes.py still makes code_execution.mode the active project/strict contract. TDD added [code_execution].mode config loading, strict-by-default ExecuteCodeTool mode selection, project-mode opt-in through the default registry, invalid-mode redacted evidence, and docs for the Gormes-owned strict default. Python execution, env-var mode overrides, cloud/container backends, and filesystem/network guard changes remain out of scope.",
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "internal/tools/execute_code.go",
+        "internal/tools/execute_code_mode_cutover_test.go",
+        "cmd/gormes/registry.go",
+        "cmd/gormes/registry_test.go",
+        "docs/content/building-gormes/core-systems/tool-execution.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -run TestLoad_CodeExecutionModeConfig -count=1",
+        "go test ./internal/tools -run 'TestExecuteCodeToolModeCutover|TestStrictMode|TestProjectMode|TestExecuteCodeModeResolver' -count=1",
+        "go test ./cmd/gormes -run TestBuildDefaultRegistryPassesExecuteCodeMode -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Execute-code mode selection is config-driven in the default registry, strict is the current safe default, project mode remains opt-in and tested, invalid config is redacted, and docs record the Gormes-owned default-mode divergence."
+      ],
+      "evidence": {
+        "implementation": [
+          "internal/config/config.go:CodeExecutionCfg",
+          "internal/tools/execute_code.go:ExecuteCodeToolConfig",
+          "internal/tools/execute_code.go:NewExecuteCodeTool",
+          "cmd/gormes/registry.go:buildDefaultRegistry",
+          "docs/content/building-gormes/core-systems/tool-execution.md"
+        ],
+        "tests": [
+          "internal/config/config_test.go:TestLoad_CodeExecutionModeConfig",
+          "internal/tools/execute_code_mode_cutover_test.go:TestExecuteCodeToolModeCutoverDefaultStrict",
+          "internal/tools/execute_code_mode_cutover_test.go:TestExecuteCodeToolModeCutoverProjectOptIn",
+          "internal/tools/execute_code_mode_cutover_test.go:TestExecuteCodeToolModeCutoverInvalidConfigFallsBackStrict",
+          "cmd/gormes/registry_test.go:TestBuildDefaultRegistryPassesExecuteCodeMode"
+        ],
+        "verification": [
+          "RED: go test ./internal/config -run TestLoad_CodeExecutionModeConfig -count=1 failed on missing Config.CodeExecution.",
+          "RED: go test ./internal/tools -run 'TestExecuteCodeToolModeCutover|TestStrictMode|TestProjectMode|TestExecuteCodeModeResolver' -count=1 failed on missing ExecuteCodeToolConfig and Mode fields.",
+          "RED: go test ./cmd/gormes -run TestBuildDefaultRegistryPassesExecuteCodeMode -count=1 failed on missing registry config wiring.",
+          "GREEN: go test ./internal/config -run TestLoad_CodeExecutionModeConfig -count=1 -> ok.",
+          "GREEN: go test ./internal/tools -run 'TestExecuteCodeToolModeCutover|TestStrictMode|TestProjectMode|TestExecuteCodeModeResolver' -count=1 -> ok.",
+          "GREEN: go test ./cmd/gormes -run TestBuildDefaultRegistryPassesExecuteCodeMode -count=1 -> ok.",
+          "GREEN: go test ./internal/config ./internal/tools ./cmd/gormes -count=1 -> ok."
+        ]
+      }
+    }
+  }
+]
