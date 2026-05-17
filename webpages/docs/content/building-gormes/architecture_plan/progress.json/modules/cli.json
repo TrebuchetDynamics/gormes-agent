@@ -2142,5 +2142,225 @@
         "Focused CLI fixtures prove send stdin/file decoding, session targeting, TUI resume safety, and sanitized errors without live provider credentials."
       ]
     }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 123,
+    "item": {
+      "name": "CLI module contract registry and manifest gate",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add an importable Gormes CLI contract registry outside cmd/gormes that declares approved module ownership for visible Cobra command roots, setup sections, and slash commands; the live cmd/gormes tree must derive an exact command-path manifest from this registry and fail tests when any command, setup section, or slash command lacks a feature-module owner.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "cli",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Unknown or unowned command/setup/slash surfaces fail closed in tests with bounded ownership errors instead of drifting inside cmd/gormes without a module contract.",
+      "fixture": "internal/app/gormescli/contract_test.go and cmd/gormes/cli_contract_manifest_test.go",
+      "source_refs": [
+        "cmd/gormes/main.go:newRootCommandWithRuntime",
+        "cmd/gormes/setup.go:setupSections",
+        "internal/cli/command_registry.go:CommandRegistry",
+        "internal/progress/module.go:AllowedModules",
+        "docs/content/building-gormes/modules/profiles.md"
+      ],
+      "ready_when": [
+        "The approved fine module taxonomy is available through internal/progress.ValidModule.",
+        "cmd/gormes still owns the live Cobra tree, setupSections list, and slash registry while the contract package lands.",
+        "The next profile migration row needs a gate that prevents setup/profile/provider/channel ownership from drifting back into one broad command package."
+      ],
+      "not_ready_when": [
+        "The slice moves command implementations or rewrites runtime behavior instead of adding the ownership gate.",
+        "The manifest is a static hand-written list that can pass while the live Cobra tree, setupSections, or slash registry drift.",
+        "New ownership buckets outside the approved progress module taxonomy are accepted."
+      ],
+      "unblocks": [
+        "gormes setup profiles richer profile TUI migration",
+        "Feature-package migration of cmd/gormes profile/provider/channel/setup surfaces"
+      ],
+      "acceptance": [
+        "internal/app/gormescli exposes NewRegistry, DefaultContracts, and a CommandManifest read model without importing cmd/gormes.",
+        "Invalid modules, overlapping command ownership, unowned Cobra paths, unowned setup sections, and unowned slash commands fail with deterministic errors.",
+        "cmd/gormes tests derive visible command paths from newRootCommandWithRuntime and validate them against DefaultContracts.",
+        "setupSections and internal/cli.CommandRegistry are validated against feature-module owners, including profiles, providers, gateway, tools, tts, and tui.",
+        "Existing cmd/gormes runtime behavior is unchanged; the slice only adds contracts and drift tests."
+      ],
+      "note": "Complete 2026-05-17: added internal/app/gormescli as the importable command/control-plane contract registry and pinned DefaultContracts to the approved progress module taxonomy. The registry normalizes command/setup/slash names, rejects invalid modules and overlapping command owners, derives a live Cobra command manifest, and fails closed for unowned Cobra paths, setup sections, or slash commands. cmd/gormes now has a drift test that derives visible paths from newRootCommandWithRuntime(rootRuntime{}), validates setupSections, and validates every internal/cli.CommandRegistry slash name. This intentionally does not move feature command implementations yet; it creates the guard for the next profiles/provider/channel package migration.",
+      "write_scope": [
+        "internal/app/gormescli/contracts.go",
+        "internal/app/gormescli/default_contracts.go",
+        "internal/app/gormescli/contract_test.go",
+        "cmd/gormes/cli_contract_manifest_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli ./cmd/gormes -run 'TestDefaultContractsValidate|TestRegistryRejects|TestCommandManifestRejects|TestSetupAndSlashValidationReject|TestCLIContractRegistryOwns' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli ./internal/cli ./internal/progress -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "CLI contract registry fixtures prove every visible Cobra command path, setup section, and slash command has a valid approved module owner; ownership drift fails before profile/provider/channel migrations can proceed."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned command-package architecture guard derived from the approved feature-module split plan."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 124,
+    "item": {
+      "name": "cmd/gormes profile command package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move the profile command surface from cmd/gormes into an importable feature-owned gormescli profile module while preserving every existing command, flag, JSON output, setup interaction, exit-code intent, and profile test fixture.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "cli",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the extracted module cannot receive binary build provenance, cmd/gormes injects it through module options; row-backed lifecycle commands still return an ExitCode-capable error without importing cmd/gormes.",
+      "fixture": "internal/app/gormescli/modules/profiles/profile_command_test.go plus existing cmd/gormes profile command tests",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
+        "cmd/gormes/profile.go",
+        "internal/app/gormescli/modules/profiles/profile.go",
+        "cmd/gormes/profile_command_test.go",
+        "cmd/gormes/setup.go:runSetupProfilesInteractive",
+        "cmd/gormes/doctor.go:doctorProfilesStatus"
+      ],
+      "ready_when": [
+        "CLI module contract registry and manifest gate is complete.",
+        "Existing profile command tests cover profile show/list/use/set/create/info JSON and human output contracts.",
+        "Setup and doctor profile surfaces can continue using cmd/gormes shim aliases until their own extraction rows land."
+      ],
+      "not_ready_when": [
+        "The slice changes public profile command behavior, JSON field names, exit codes, or redaction semantics.",
+        "The extracted package imports cmd/gormes or main-package build globals directly.",
+        "The slice also rewrites setup profile TUI registration or provider/channel command packages."
+      ],
+      "unblocks": [
+        "setup section registration extraction",
+        "gormes setup profiles richer profile TUI migration",
+        "provider-owned command package extraction"
+      ],
+      "acceptance": [
+        "internal/app/gormescli/modules/profiles exposes NewCommandWithSeams, Seams, and Options so profile command behavior can be tested without importing cmd/gormes.",
+        "cmd/gormes/profile.go becomes a thin adapter that injects build provenance and keeps existing unexported shim names for setup, doctor, skills, and profile tests.",
+        "Profile JSON reports still include the cmd/gormes Version and resolved git commit through injected gormescli.BuildProvenance.",
+        "Row-backed profile lifecycle commands still emit status row_backed and return an error implementing ExitCode.",
+        "Existing cmd/gormes profile tests and the new module-level seam/provenance test pass without live GORMES_HOME state."
+      ],
+      "note": "Complete 2026-05-17: extracted the `gormes profile` command implementation to internal/app/gormescli/modules/profiles while leaving cmd/gormes/profile.go as a compatibility shim for root registration and existing setup/doctor/skills tests. Added gormescli.BuildProvenance and gormescli.ExitCodeError so importable modules can emit JSON provenance and exit-code intent without importing cmd/gormes. The new module test proves seams and build provenance are injected; existing cmd/gormes profile tests continue to validate public behavior through the shim.",
+      "write_scope": [
+        "cmd/gormes/profile.go",
+        "internal/app/gormescli/runtime.go",
+        "internal/app/gormescli/modules/profiles/profile.go",
+        "internal/app/gormescli/modules/profiles/profile_command_test.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/profiles -run TestProfileModuleCommandUsesInjectedSeamsAndBuildProvenance -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/cli -run 'Profile|CLIContract' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/cli ./internal/progress -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Profile command behavior is owned by an importable gormescli module; cmd/gormes only adapts build provenance and legacy package-local seam names."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned command-package architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 125,
+    "item": {
+      "name": "cmd/gormes setup section registry extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Replace the global cmd/gormes setup section list with an importable gormescli setup registry validated by the module contract gate while preserving section order, boxed chrome, and existing setup section behavior.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "cli",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Setup sections without a valid feature-module owner fail the contract test before they can drift inside cmd/gormes.",
+      "fixture": "internal/app/gormescli/setup_registry_test.go and cmd/gormes/cli_contract_manifest_test.go",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
+        "cmd/gormes/setup.go:setupRegistry",
+        "internal/app/gormescli/setup_registry.go",
+        "internal/app/gormescli/modules/profiles/setup.go",
+        "internal/app/gormescli/default_contracts.go"
+      ],
+      "ready_when": [
+        "CLI module contract registry and manifest gate is complete.",
+        "Profile command package extraction is complete enough for the profiles setup section to be module-owned.",
+        "Existing setup command tests can exercise setup behavior through cmd/gormes while the registry lives in importable app code."
+      ],
+      "not_ready_when": [
+        "The slice rewrites setup wizard prompt behavior, provider credential handling, or boxed setup chrome.",
+        "The registry accepts unknown modules or setup sections not declared by DefaultContracts.",
+        "The profiles setup section still lives only as a cmd/gormes string constant."
+      ],
+      "unblocks": [
+        "gormes setup profiles richer profile TUI migration",
+        "provider-owned setup section extraction",
+        "root command assembly extraction"
+      ],
+      "acceptance": [
+        "Existing setup section order stays stable through gormescli.SetupRegistry.",
+        "Setup labels are available through a defensive registry copy for existing boxed setup chrome.",
+        "profiles exports its setup section from the profile module instead of cmd/gormes owning the literal alone.",
+        "cmd/gormes CLI contract tests validate setup section names and their module owners against DefaultContracts."
+      ],
+      "note": "Complete 2026-05-17: added gormescli.SetupRegistry and moved the profiles setup-section declaration into internal/app/gormescli/modules/profiles. cmd/gormes/setup.go now derives setupSections and setupSectionLabels from the registry while preserving the existing order and labels. The CLI contract manifest test validates both setup section ownership and matching module owners, so new setup sections fail closed unless DefaultContracts assigns a valid progress module.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/cli_contract_manifest_test.go",
+        "internal/app/gormescli/setup_registry.go",
+        "internal/app/gormescli/setup_registry_test.go",
+        "internal/app/gormescli/modules/profiles/setup.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./cmd/gormes -run 'SetupRegistry|Setup|Profile|CLIContract' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/cli -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Setup registry fixtures prove setup section order, labels, valid module ownership, and contract mismatch failures while cmd/gormes preserves existing setup behavior."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned command-package architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
   }
 ]

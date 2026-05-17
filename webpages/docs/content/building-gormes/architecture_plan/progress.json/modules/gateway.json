@@ -7590,6 +7590,74 @@
   },
   {
     "phase": "5",
+    "subphase": "5.O",
+    "pos": 128,
+    "item": {
+      "name": "cmd/gormes gateway row-backed command package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move row-backed gateway-adjacent command trees for `webhook`, `hooks`, and `pairing` into an importable gateway module while preserving command spelling, aliases, destructive flags, row-backed JSON shape, build provenance, and exit-code behavior.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Commands remain row-backed with structured unavailable JSON and exit code 2 until the underlying gateway management rows ship.",
+      "fixture": "internal/app/gormescli/modules/gateway/rowbacked_test.go plus cmd/gormes Hermes row-backed parity tests",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
+        "internal/app/gormescli/modules/gateway/rowbacked.go",
+        "cmd/gormes/gateway_rowbacked.go",
+        "cmd/gormes/hermes_rowbacked_commands.go"
+      ],
+      "ready_when": [
+        "Shared gormescli row-backed command helper exists.",
+        "Gateway webhook/hooks/pairing command trees are currently row-backed command surfaces independent from the live gateway manager runtime."
+      ],
+      "not_ready_when": [
+        "The slice changes live gateway manager behavior, platform service lifecycle behavior, or webhook/hook/pairing implementation status.",
+        "The row-backed JSON shape, command paths, aliases, destructive flags, or exit code changes."
+      ],
+      "unblocks": [
+        "live gateway command package extraction",
+        "root command assembly extraction"
+      ],
+      "acceptance": [
+        "gateway.NewWebhookCommand owns subscribe/add, list/ls, remove/rm, and test row-backed command construction.",
+        "gateway.NewHooksCommand owns list/ls, test, revoke/remove/rm, and doctor row-backed command construction.",
+        "gateway.NewPairingCommand owns list, approve, revoke, and clear-pending row-backed command construction.",
+        "cmd/gormes only injects build provenance through gatewayCommandOptions."
+      ],
+      "note": "Complete 2026-05-17: moved webhook, hooks, and pairing row-backed command construction to internal/app/gormescli/modules/gateway using the shared gormescli row-backed helper. cmd/gormes/gateway_rowbacked.go now only injects build provenance. This does not move live gateway manager/runtime behavior yet.",
+      "write_scope": [
+        "cmd/gormes/gateway_rowbacked.go",
+        "cmd/gormes/hermes_rowbacked_commands.go",
+        "internal/app/gormescli/modules/gateway/rowbacked.go",
+        "internal/app/gormescli/modules/gateway/rowbacked_test.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/gateway -run TestGatewayRowBacked -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli/modules/gateway -run 'HermesCLIParityRowBacked|CLIContract|Webhook|Hooks|Pairing' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Gateway row-backed webhook/hooks/pairing command trees are importable and module-owned; cmd/gormes only adapts build provenance."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned gateway command-package architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.Q",
     "pos": 1,
     "item": {

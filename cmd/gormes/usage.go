@@ -2,158 +2,43 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
-	"strings"
-	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/spf13/cobra"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/providers"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
-// usageReportJSON is the wire shape for `gormes usage --json`.
-// Fleet automation tracking provider account usage across machines
-// parses this to plot dashboards. Build provenance leads — same
-// convention as the rest of the `--json` arc. The snapshot embeds
-// the AccountUsageSnapshot which already has json tags.
-type usageReportJSON struct {
-	Build buildProvenanceJSON         `json:"build"`
-	hermes.AccountUsageSnapshot
-}
-
-func newUsageCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "usage",
-		Short: "Show runtime/provider account usage",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			provider, _ := cmd.Flags().GetString("provider")
-			apiKey, _ := cmd.Flags().GetString("api-key")
-			baseURL, _ := cmd.Flags().GetString("base-url")
-			accountID, _ := cmd.Flags().GetString("account-id")
-			return runUsageCommand(cmd, usageInvocation{Provider: provider, APIKey: apiKey, BaseURL: baseURL, AccountID: accountID})
-		},
-	}
-	cmd.Flags().String("provider", "", "provider account usage to query (openai-codex, anthropic, openrouter)")
-	cmd.Flags().String("api-key", "", "provider API/OAuth token for account usage; defaults to configured hermes api_key")
-	cmd.Flags().String("base-url", "", "provider account usage base URL override")
-	cmd.Flags().String("account-id", "", "provider account identifier when required")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, provider, account_id, plan, source, fetched_at, windows: [...], details, unavailable}")
-	return cmd
-}
-
-type usageInvocation struct {
-	Provider  string
-	APIKey    string
-	BaseURL   string
-	AccountID string
-}
-
-// usageHTTPClient bounds the provider account-usage fetch so an
-// unresponsive provider can't hang the operator's terminal. 30s gives
-// slow providers room to respond while preventing indefinite hangs;
-// http.DefaultClient has no timeout at all.
-var usageHTTPClient = &http.Client{Timeout: 30 * time.Second}
-
-func runUsageCommand(cmd *cobra.Command, invocation usageInvocation) error {
-	cfg, err := config.Load(nil)
-	if err != nil {
-		return err
-	}
-	provider := strings.TrimSpace(invocation.Provider)
-	if provider == "" {
-		resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes usage"})
-		provider = inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))
-	}
-	key := firstUsageString(invocation.APIKey, cfg.Hermes.APIKey)
-	baseURL := firstUsageString(invocation.BaseURL, cfg.Hermes.Endpoint)
-	fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
-	snapshot, err := fetcher.Fetch(cmd.Context(), hermes.AccountUsageFetchRequest{
-		Provider:  provider,
-		BaseURL:   baseURL,
-		APIKey:    key,
-		AccountID: invocation.AccountID,
-	})
-	if err != nil {
-		return err
-	}
-	asJSON, _ := cmd.Flags().GetBool("json")
-	if asJSON {
-		body, marshalErr := json.MarshalIndent(usageReportJSON{
-			Build:                newBuildProvenance(),
-			AccountUsageSnapshot: snapshot,
-		}, "", "  ")
-		if marshalErr != nil {
-			return marshalErr
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), string(body))
-		return nil
-	}
-	for _, line := range hermes.RenderAccountUsageLines(snapshot, hermes.AccountUsageRenderOptions{}) {
-		fmt.Fprintln(cmd.OutOrStdout(), line)
-	}
-	return nil
-}
+type usageInvocation = providermodule.UsageInvocation
 
 type accountUsageHTTPClient struct{ client *http.Client }
 
+var usageHTTPClient = providermodule.UsageHTTPClient
+var inferUsageProvider = providermodule.InferUsageProvider
+var firstUsageString = providermodule.FirstUsageString
+
 func (c accountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req hermes.AccountUsageHTTPRequest) (hermes.AccountUsageHTTPResponse, error) {
-	client := c.client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, req.URL, nil)
-	if err != nil {
-		return hermes.AccountUsageHTTPResponse{}, err
-	}
-	for key, value := range req.Headers {
-		if strings.TrimSpace(value) != "" {
-			httpReq.Header.Set(key, value)
-		}
-	}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return hermes.AccountUsageHTTPResponse{}, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return hermes.AccountUsageHTTPResponse{}, err
-	}
-	return hermes.AccountUsageHTTPResponse{StatusCode: resp.StatusCode, Body: body}, nil
+	return providermodule.AccountUsageHTTPClient{Client: c.client}.DoAccountUsageRequest(ctx, req)
 }
 
-func inferUsageProvider(configuredProvider, model string) string {
-	provider := strings.TrimSpace(configuredProvider)
-	if provider != "" {
-		return provider
-	}
-	model = strings.TrimSpace(model)
-	if model == "" {
-		return ""
-	}
-	for _, candidate := range []string{"openai-codex", "anthropic", "openai", "openrouter"} {
-		if metadata := hermes.LookupModelMetadata(hermes.ModelRegistryQuery{Provider: candidate, Model: model}); metadata.Found {
-			return metadata.Provider
-		}
-	}
-	lower := strings.ToLower(model)
-	if strings.HasPrefix(lower, "gpt-") || strings.HasPrefix(lower, "o1") || strings.HasPrefix(lower, "o3") || strings.HasPrefix(lower, "o4") {
-		return "openai-codex"
-	}
-	if strings.Contains(lower, "claude") {
-		return "anthropic"
-	}
-	return ""
+func newUsageCommand() *cobra.Command {
+	return providermodule.NewUsageCommand(providerCommandOptions())
 }
 
-func firstUsageString(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
+func runUsageCommand(cmd *cobra.Command, invocation usageInvocation) error {
+	return providermodule.RunUsageCommand(cmd, invocation, providerCommandOptions())
+}
+
+func providerCommandOptions() providermodule.Options {
+	return providermodule.Options{
+		BuildProvenance: func() gormescli.BuildProvenance {
+			build := newBuildProvenance()
+			return gormescli.BuildProvenance{
+				Version:   build.Version,
+				GitCommit: build.GitCommit,
+			}
+		},
 	}
-	return ""
 }

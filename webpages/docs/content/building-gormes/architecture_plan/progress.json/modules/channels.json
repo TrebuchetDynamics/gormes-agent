@@ -5285,6 +5285,72 @@
   },
   {
     "phase": "5",
+    "subphase": "5.O",
+    "pos": 129,
+    "item": {
+      "name": "cmd/gormes channels capabilities command package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move `gormes channels capabilities` command construction and rendering into an importable channels module while preserving configured-state redaction, unknown-channel exit code, human output, JSON shape, and build provenance.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Unknown channels still return exit code 1 with typed `unknown_channel` evidence; configured details are supplied through cmd/gormes seams until channel runtime modules own each platform's config summary.",
+      "fixture": "internal/app/gormescli/modules/channels/capabilities_test.go plus cmd/gormes/channels_capabilities_test.go",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
+        "internal/app/gormescli/modules/channels/capabilities.go",
+        "cmd/gormes/channels_capabilities.go",
+        "internal/channels/capabilities.go"
+      ],
+      "ready_when": [
+        "CLI module contract registry assigns `channels` to the channels module.",
+        "Existing channel capability fixtures cover Telegram, Teams, JSON build provenance, redaction, and unknown-channel behavior."
+      ],
+      "not_ready_when": [
+        "The slice moves Telegram, Slack, or WhatsApp service command runtimes.",
+        "The slice changes capability metadata, redaction details, JSON shape, or exit code semantics."
+      ],
+      "unblocks": [
+        "telegram/slack/whatsapp command package extraction",
+        "root command assembly extraction"
+      ],
+      "acceptance": [
+        "channels.NewCommandWithSeams owns `channels capabilities` command construction and text/JSON rendering.",
+        "cmd/gormes only injects config loading, configured channel details, and build provenance.",
+        "Existing channel capability command fixtures continue to pass through the root command."
+      ],
+      "note": "Complete 2026-05-17: moved `gormes channels capabilities` construction and renderers to internal/app/gormescli/modules/channels with config/detail/build seams. cmd/gormes/channels_capabilities.go now adapts configured platform details. Telegram, Slack, and WhatsApp service command runtimes remain separate future channel slices.",
+      "write_scope": [
+        "cmd/gormes/channels_capabilities.go",
+        "internal/app/gormescli/modules/channels/capabilities.go",
+        "internal/app/gormescli/modules/channels/capabilities_test.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/channels -run TestCapabilitiesCommandUsesInjectedConfigAndBuildProvenance -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli/modules/channels -run 'ChannelsCapabilities|CLIContract' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "`gormes channels capabilities` is importable and module-owned; existing root command fixtures prove redacted human/JSON behavior did not drift."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned channels command-package architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.V",
     "pos": 1,
     "item": {

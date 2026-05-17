@@ -616,7 +616,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. The second 2026-05-05 sweep also found missing sessions CLI ergonomics: MRU continue by last_active, prefix-safe delete/prune confirmation, browse fallback, and multi-word session argument coalescing. Keep update and sessions as dedicated CLI slices instead of mixing them into broad diagnostics/status inventory."
           },
-          "item_count": 123,
+          "item_count": 130,
           "extra": {
             "rows": [
               {

@@ -1151,6 +1151,13 @@ classification and row-backed implementation queue.
 - [ ] `profiles` Profile workspace allow-list enforcement policy
 - [ ] `profiles` Profile-local subprocess HOME parity
 - [ ] `profiles` Long-term plan: profile fleet supervisor and single control-plane gateway
+- [x] `cli` CLI module contract registry and manifest gate
+- [x] `cli` cmd/gormes profile command package extraction
+- [x] `cli` cmd/gormes setup section registry extraction
+- [x] `providers` cmd/gormes provider usage command package extraction
+- [x] `providers` cmd/gormes provider command surface package extraction
+- [x] `gateway` cmd/gormes gateway row-backed command package extraction
+- [x] `channels` cmd/gormes channels capabilities command package extraction
 
 ### 5.P — Docker / Packaging ✅
 
