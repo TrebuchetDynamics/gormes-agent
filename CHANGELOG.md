@@ -8,6 +8,30 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.14] - 2026-05-17
+
+Date alias: `v2026.5.17`.
+
+> **Provider setup repairs, module-split progress storage, and gateway audio replies.**
+
+### Added
+- Gateway text-to-speech reply synthesis for audio-requested turns and `/tts on`
+  sessions, including usable default Edge TTS selection when audio mode is
+  enabled.
+- Split progress backlog storage materialized by module while preserving the
+  single logical backlog contract through `internal/progress.Load` and
+  `SaveProgress`.
+
+### Changed
+- OpenAI Codex setup now routes through the OAuth-style account flow instead
+  of incorrectly asking for an API key.
+- OpenRouter setup/model selection now fetches the live model catalog instead
+  of showing only a static subset.
+
+### Fixed
+- Discord gateway smoke coverage now accepts final sends that arrive after
+  partial responses, matching observed manager behavior in CI.
+
 ## [0.2.13] - 2026-05-16
 
 Date alias: `v2026.5.16`.
@@ -983,7 +1007,10 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.11...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.14...HEAD
+[0.2.14]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.13...v0.2.14
+[0.2.13]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.12...v0.2.13
+[0.2.12]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.11...v0.2.12
 [0.2.11]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.10...v0.2.11
 [0.2.10]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.8...v0.2.9
