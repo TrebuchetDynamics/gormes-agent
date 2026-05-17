@@ -57,16 +57,34 @@ type MemoryTool struct {
 }
 
 type MemoryToolResult struct {
-	Success        bool     `json:"success"`
-	Target         string   `json:"target,omitempty"`
-	Entries        []string `json:"entries,omitempty"`
-	CurrentEntries []string `json:"current_entries,omitempty"`
-	Usage          string   `json:"usage,omitempty"`
-	EntryCount     int      `json:"entry_count"`
-	Message        string   `json:"message,omitempty"`
-	Evidence       string   `json:"evidence,omitempty"`
-	Error          string   `json:"error,omitempty"`
-	Matches        []string `json:"matches,omitempty"`
+	Success        bool                       `json:"success"`
+	Target         string                     `json:"target,omitempty"`
+	Entries        []string                   `json:"entries,omitempty"`
+	CurrentEntries []string                   `json:"current_entries,omitempty"`
+	Usage          string                     `json:"usage,omitempty"`
+	EntryCount     int                        `json:"entry_count"`
+	Message        string                     `json:"message,omitempty"`
+	Evidence       string                     `json:"evidence,omitempty"`
+	Error          string                     `json:"error,omitempty"`
+	Matches        []string                   `json:"matches,omitempty"`
+	Provenance     *MemoryInventoryProvenance `json:"provenance,omitempty"`
+}
+
+type MemoryInventoryProvenance struct {
+	SelectedSource string                  `json:"selected_source"`
+	Sources        []MemoryInventorySource `json:"sources"`
+}
+
+type MemoryInventorySource struct {
+	Source     string `json:"source"`
+	Kind       string `json:"kind,omitempty"`
+	Target     string `json:"target,omitempty"`
+	Included   bool   `json:"included"`
+	State      string `json:"state,omitempty"`
+	EntryCount int    `json:"entry_count"`
+	Usage      string `json:"usage,omitempty"`
+	ReadWith   string `json:"read_with,omitempty"`
+	Note       string `json:"note,omitempty"`
 }
 
 type memoryToolArgs struct {
@@ -127,7 +145,7 @@ func (t *MemoryTool) execute(in memoryToolArgs) MemoryToolResult {
 		if err != nil {
 			return memoryError(MemoryEvidenceStoreUnavailable, "read durable memory store")
 		}
-		return memorySuccess(target, entries, t.limitFor(target), "Entries read.")
+		return memoryReadSuccess(target, entries, t.limitFor(target), "Entries read.", t.inventoryProvenance(target, entries))
 	case "add", "replace", "remove":
 		return withMemoryFileLock(path, func() MemoryToolResult {
 			entries, err := readMemoryEntries(path)
@@ -384,6 +402,124 @@ func memorySuccess(target string, entries []string, limit int, message string) M
 		EntryCount: len(entries),
 		Message:    message,
 	}
+}
+
+func memoryReadSuccess(target string, entries []string, limit int, message string, provenance MemoryInventoryProvenance) MemoryToolResult {
+	result := memorySuccess(target, entries, limit, message)
+	result.Provenance = &provenance
+	return result
+}
+
+func (t *MemoryTool) inventoryProvenance(selectedTarget string, selectedEntries []string) MemoryInventoryProvenance {
+	selectedSource := memoryInventorySourceID(selectedTarget)
+	sources := make([]MemoryInventorySource, 0, 6)
+	for _, target := range []string{"memory", "user"} {
+		entries := selectedEntries
+		if target != selectedTarget {
+			if path, err := t.pathFor(target); err == nil {
+				if read, readErr := readMemoryEntries(path); readErr == nil {
+					entries = read
+				} else {
+					sources = append(sources, MemoryInventorySource{
+						Source:   memoryInventorySourceID(target),
+						Kind:     "durable_markdown_file",
+						Target:   target,
+						Included: false,
+						State:    "error",
+						ReadWith: memoryInventoryReadWith(target),
+						Note:     "read failed for this durable markdown target",
+					})
+					continue
+				}
+			}
+		}
+		included := target == selectedTarget
+		sources = append(sources, MemoryInventorySource{
+			Source:     memoryInventorySourceID(target),
+			Kind:       "durable_markdown_file",
+			Target:     target,
+			Included:   included,
+			State:      t.memoryFileState(target, entries),
+			EntryCount: len(entries),
+			Usage:      memoryUsage(entries, t.limitFor(target)),
+			ReadWith:   memoryInventoryReadWith(target),
+			Note:       memoryInventoryDurableNote(target, included),
+		})
+	}
+	sources = append(sources,
+		MemoryInventorySource{
+			Source:   "goncho_db_active_items",
+			Kind:     "sqlite_memory_items",
+			Included: false,
+			State:    "not_queried",
+			ReadWith: "retrieve_memory or summarize_memories",
+			Note:     "agent-controlled Goncho memory items live in SQLite and are not returned by the Hermes-compatible memory file read",
+		},
+		MemoryInventorySource{
+			Source:   "loaded_context_files",
+			Kind:     "prompt_context",
+			Included: false,
+			State:    "not_queried",
+			ReadWith: "live prompt context evidence",
+			Note:     "SOUL.md, AGENTS.md, HERMES.md, and related project context are prompt inputs, not durable memory entries",
+		},
+		MemoryInventorySource{
+			Source:   "profile_state",
+			Kind:     "profile_config",
+			Included: false,
+			State:    "not_queried",
+			ReadWith: "profile/config commands",
+			Note:     "profile identity, workspace, channel, and tool settings are configuration state, not memory entries",
+		},
+		MemoryInventorySource{
+			Source:   "session_transcripts",
+			Kind:     "session_history",
+			Included: false,
+			State:    "not_queried",
+			ReadWith: "session_search",
+			Note:     "past conversation facts and corrections live in transcript/session search unless explicitly saved to durable memory",
+		},
+	)
+	return MemoryInventoryProvenance{SelectedSource: selectedSource, Sources: sources}
+}
+
+func memoryInventorySourceID(target string) string {
+	if target == "user" {
+		return "durable_markdown_user"
+	}
+	return "durable_markdown_memory"
+}
+
+func memoryInventoryReadWith(target string) string {
+	return "memory action=read target=" + target
+}
+
+func memoryInventoryDurableNote(target string, included bool) string {
+	if included {
+		return "selected Hermes-compatible durable markdown target"
+	}
+	return "other Hermes-compatible durable markdown target; call memory read with this target to return its entries"
+}
+
+func (t *MemoryTool) memoryFileState(target string, entries []string) string {
+	if len(entries) > 0 {
+		return "available"
+	}
+	path, err := t.pathFor(target)
+	if err != nil {
+		return "unavailable"
+	}
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return "missing"
+	}
+	if err != nil {
+		return "error"
+	}
+	if info.IsDir() {
+		return "error"
+	}
+	return "empty"
 }
 
 func memoryUsage(entries []string, limit int) string {
