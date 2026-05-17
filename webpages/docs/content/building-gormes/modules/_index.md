@@ -16,7 +16,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Config](config/) | 29 | 29 | 0 | 0 | `P0`: 3 · `P1`: 6 · `P2`: 7 · `P3`: 1 · `unset`: 12 |
 | [Cross Cutting](cross-cutting/) | 0 | 0 | 0 | 0 | - |
 | [Doctor](doctor/) | 16 | 16 | 0 | 0 | `P1`: 5 · `P2`: 7 · `P3`: 2 · `unset`: 2 |
-| [Docs](docs/) | 10 | 7 | 0 | 3 | `P1`: 6 · `P2`: 2 · `P3`: 2 |
+| [Docs](docs/) | 11 | 7 | 0 | 4 | `P1`: 7 · `P2`: 2 · `P3`: 2 |
 | [Fleet](fleet/) | 21 | 21 | 0 | 0 | `P0`: 2 · `P1`: 5 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
 | [Gateway](gateway/) | 154 | 152 | 0 | 2 | `P0`: 14 · `P1`: 45 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
 | [Goncho](goncho/) | 33 | 33 | 0 | 0 | `P0`: 5 · `P1`: 5 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
@@ -25,9 +25,9 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Landing](landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |
 | [Learning Loop](learning-loop/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |
 | [Memory](memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
-| [Navivox](navivox/) | 22 | 13 | 0 | 9 | `P0`: 2 · `P1`: 12 · `P2`: 1 · `P3`: 1 · `unset`: 6 |
+| [Navivox](navivox/) | 22 | 12 | 0 | 10 | `P0`: 2 · `P1`: 12 · `P2`: 1 · `P3`: 1 · `unset`: 6 |
 | [Planner](planner/) | 9 | 9 | 0 | 0 | `P0`: 1 · `P1`: 3 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
-| [Profiles](profiles/) | 19 | 18 | 0 | 1 | `P0`: 2 · `P1`: 7 · `P2`: 4 · `unset`: 6 |
+| [Profiles](profiles/) | 21 | 18 | 0 | 3 | `P0`: 2 · `P1`: 9 · `P2`: 4 · `unset`: 6 |
 | [Progress](progress/) | 17 | 17 | 0 | 0 | `P1`: 2 · `P2`: 15 |
 | [Providers](providers/) | 115 | 115 | 0 | 0 | `P0`: 9 · `P1`: 46 · `P2`: 23 · `P3`: 2 · `unset`: 35 |
 | [Release](release/) | 11 | 10 | 0 | 1 | `P0`: 1 · `P1`: 10 |

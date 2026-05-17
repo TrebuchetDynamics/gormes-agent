@@ -79,10 +79,10 @@ What makes it different?
 - Run a local agent UI with zero runtime dependencies on the offline path: `gormes --offline`.
 - Open provider-backed terminal chat: `gormes chat`.
 - Validate your environment before spending tokens: `gormes doctor --offline`, `gormes setup --quick`.
-- Configure providers, models, agents, workspaces, and bindings from the CLI: `gormes setup [section]`.
+- Configure providers, models, agents, workspaces, profiles, and bindings from the CLI: `gormes setup [section]`.
 - Inspect and edit the native config: `gormes config show`, `gormes config get`, `gormes config set`, `gormes config check`.
 - Operate configured Telegram, Discord, or Slack agents from one binary: `gormes gateway`, `gormes gateway status`, `gormes gateway reload`.
-- Isolate work by named profile: `gormes profile create`, `gormes profile use`, `gormes --profile <name>`.
+- Separate state by named profile: `gormes profile create`, `gormes profile use`, `gormes --profile <name>`.
 - Inspect memory, sessions, skills, logs, security, and durable task boards from local operator commands.
 - Browse sessions, config, skills, logs, and audits in local operator surfaces.
 

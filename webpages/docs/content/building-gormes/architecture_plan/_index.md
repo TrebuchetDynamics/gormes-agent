@@ -1128,7 +1128,7 @@ classification and row-backed implementation queue.
 - [x] `doctor` gormes doctor ◆ Profiles section content
 - [x] `doctor` gormes doctor ◆ Security Advisories section content
 - [x] `config` gormes setup <section> boxed header + completion footer (UX parity)
-- [x] `navivox` gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
+- [ ] `navivox` gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
 - [x] `profiles` gormes setup profiles — section scaffold + per-profile workspace list
 - [x] `profiles` gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
 - [ ] `navivox` gormes setup profiles — all profiles navivox-accessible by default
@@ -1148,6 +1148,8 @@ classification and row-backed implementation queue.
 - [x] `providers` Nous OAuth device code + refresh token + agent key provisioning
 - [ ] `cli` Hermes send command stdin/file payload parity
 - [ ] `sessions` Hermes session recap command surface
+- [ ] `profiles` Profile workspace allow-list enforcement policy
+- [ ] `profiles` Profile-local subprocess HOME parity
 - [ ] `profiles` Long-term plan: profile fleet supervisor and single control-plane gateway
 
 ### 5.P — Docker / Packaging ✅
@@ -1415,6 +1417,7 @@ classification and row-backed implementation queue.
 
 - [ ] `docs` Engineering writeup #1: autonomous Hermes-porting loop
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
+- [ ] `docs` Hermes contract inventory gate
 
 ### 8.D — Sharp v1.0 🔨
 
