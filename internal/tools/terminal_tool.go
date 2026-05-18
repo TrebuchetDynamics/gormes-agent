@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
 )
 
 const (
@@ -25,12 +26,13 @@ const (
 // TerminalToolConfig configures the local terminal tool. This initial Go port
 // supports foreground commands and Hermes-style dangerous command guardrails.
 type TerminalToolConfig struct {
-	Workdir        string
-	ApprovalMode   string
-	DefaultTimeout time.Duration
-	MaxOutputBytes int
-	SubprocessHome SubprocessHomeResolver
-	WorkspaceScope *ProfileWorkspaceScope
+	Workdir          string
+	ApprovalMode     string
+	DefaultTimeout   time.Duration
+	MaxOutputBytes   int
+	SubprocessHome   SubprocessHomeResolver
+	WorkspaceScope   *ProfileWorkspaceScope
+	OutputCompaction toolcompact.Config
 }
 
 type TerminalTool struct {
@@ -48,7 +50,7 @@ func (*TerminalTool) Description() string {
 }
 
 func (*TerminalTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Command to execute."},"background":{"type":"boolean","description":"Run as a background process. This Go port currently rejects background=true; use tmux or a shell-managed daemon command when needed.","default":false},"timeout":{"type":"integer","description":"Maximum seconds to wait. Defaults to 180.","minimum":1},"workdir":{"type":"string","description":"Working directory for this command."},"pty":{"type":"boolean","description":"Accepted for Hermes schema compatibility. PTY execution is not available in this initial Go port.","default":false}},"required":["command"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Command to execute."},"background":{"type":"boolean","description":"Run as a background process. This Go port currently rejects background=true; use tmux or a shell-managed daemon command when needed.","default":false},"timeout":{"type":"integer","description":"Maximum seconds to wait. Defaults to 180.","minimum":1},"workdir":{"type":"string","description":"Working directory for this command."},"pty":{"type":"boolean","description":"Accepted for Hermes schema compatibility. PTY execution is not available in this initial Go port.","default":false},"full_output":{"type":"boolean","description":"return exact stdout/stderr without model-visible compaction"}},"required":["command"]}`)
 }
 
 func (t *TerminalTool) Timeout() time.Duration {
@@ -62,6 +64,7 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		Timeout    int    `json:"timeout"`
 		Workdir    string `json:"workdir"`
 		PTY        bool   `json:"pty"`
+		FullOutput bool   `json:"full_output"`
 	}
 	if err := json.Unmarshal(defaultJSONArgs(args), &in); err != nil {
 		return marshalToolPayload(terminalResult{Status: "error", ExitCode: -1, Error: "invalid terminal args: " + err.Error()})
@@ -176,29 +179,70 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		result.Error = err.Error()
 	}
 	result.Output = strings.TrimSpace(strings.TrimSpace(result.Stdout) + "\n" + strings.TrimSpace(result.Stderr))
+	result = redactTerminalResult(result)
+	t.applyOutputCompaction(&result, in.FullOutput)
 	result.Output, result.Truncated = truncateText(result.Output, maxOutput)
 	result.Stdout, _ = truncateText(result.Stdout, maxOutput)
 	result.Stderr, _ = truncateText(result.Stderr, maxOutput)
-	result = redactTerminalResult(result)
 	return marshalToolPayload(result)
 }
 
 type terminalResult struct {
-	Status       string            `json:"status"`
-	Command      string            `json:"command,omitempty"`
-	Workdir      string            `json:"workdir,omitempty"`
-	Output       string            `json:"output,omitempty"`
-	Stdout       string            `json:"stdout,omitempty"`
-	Stderr       string            `json:"stderr,omitempty"`
-	ExitCode     int               `json:"exit_code"`
-	Error        string            `json:"error,omitempty"`
-	Description  string            `json:"description,omitempty"`
-	Evidence     map[string]string `json:"evidence,omitempty"`
-	DurationMs   int64             `json:"duration_ms,omitempty"`
-	Truncated    bool              `json:"truncated,omitempty"`
-	PTYNote      string            `json:"pty_note,omitempty"`
-	CWDRecovered bool              `json:"cwd_recovered,omitempty"`
-	CWDRecovery  string            `json:"cwd_recovery,omitempty"`
+	Status       string                    `json:"status"`
+	Command      string                    `json:"command,omitempty"`
+	Workdir      string                    `json:"workdir,omitempty"`
+	Output       string                    `json:"output,omitempty"`
+	Stdout       string                    `json:"stdout,omitempty"`
+	Stderr       string                    `json:"stderr,omitempty"`
+	ExitCode     int                       `json:"exit_code"`
+	Error        string                    `json:"error,omitempty"`
+	Description  string                    `json:"description,omitempty"`
+	Evidence     map[string]string         `json:"evidence,omitempty"`
+	DurationMs   int64                     `json:"duration_ms,omitempty"`
+	Truncated    bool                      `json:"truncated,omitempty"`
+	PTYNote      string                    `json:"pty_note,omitempty"`
+	CWDRecovered bool                      `json:"cwd_recovered,omitempty"`
+	CWDRecovery  string                    `json:"cwd_recovery,omitempty"`
+	Compaction   *terminalOutputCompaction `json:"compaction,omitempty"`
+}
+
+type terminalOutputCompaction struct {
+	Stdout *CodeStreamCompaction `json:"stdout,omitempty"`
+	Stderr *CodeStreamCompaction `json:"stderr,omitempty"`
+}
+
+func (t *TerminalTool) applyOutputCompaction(result *terminalResult, fullOutput bool) {
+	if result == nil || fullOutput {
+		return
+	}
+	stdout := toolcompact.Compact(toolcompact.Request{
+		ToolName: "terminal",
+		Command:  result.Command,
+		Stream:   "stdout",
+		Text:     result.Stdout,
+		ExitCode: result.ExitCode,
+	}, t.cfg.OutputCompaction)
+	stderr := toolcompact.Compact(toolcompact.Request{
+		ToolName: "terminal",
+		Command:  result.Command,
+		Stream:   "stderr",
+		Text:     result.Stderr,
+		ExitCode: result.ExitCode,
+	}, t.cfg.OutputCompaction)
+
+	var evidence terminalOutputCompaction
+	if stdout.Applied {
+		result.Stdout = stdout.Text
+		evidence.Stdout = codeStreamCompaction(stdout)
+	}
+	if stderr.Applied {
+		result.Stderr = stderr.Text
+		evidence.Stderr = codeStreamCompaction(stderr)
+	}
+	if evidence.Stdout != nil || evidence.Stderr != nil {
+		result.Output = strings.TrimSpace(strings.TrimSpace(result.Stdout) + "\n" + strings.TrimSpace(result.Stderr))
+		result.Compaction = &evidence
+	}
 }
 
 func redactTerminalResult(result terminalResult) terminalResult {

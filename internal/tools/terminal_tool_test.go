@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
 )
 
 func TestTerminalToolRunsForegroundCommand(t *testing.T) {
@@ -145,6 +147,76 @@ func TestTerminalToolRedactsSecretsFromCommandOutput(t *testing.T) {
 	}
 	if !strings.Contains(rendered, "[redacted]") {
 		t.Fatalf("terminal output missing redacted marker:\n%s", rendered)
+	}
+}
+
+func TestTerminalTool_CompactsLargeStdoutWhenOptedIn(t *testing.T) {
+	var stdout strings.Builder
+	for i := 0; i < 30; i++ {
+		stdout.WriteString("ok  \tgithub.com/example/project/pkg\t0.001s\n")
+	}
+	stdout.WriteString("--- FAIL: TestWidgetHandlesOverflow (0.00s)\n")
+	stdout.WriteString("    widget_test.go:42: got overflow=false, want true\n")
+	stdout.WriteString("FAIL\n")
+	stdout.WriteString("FAIL\tgithub.com/example/project/widget\t0.123s\n")
+	tool := NewTerminalTool(TerminalToolConfig{
+		Workdir:        t.TempDir(),
+		DefaultTimeout: 5 * time.Second,
+		OutputCompaction: toolcompact.Config{
+			Mode:           toolcompact.ModeAuto,
+			ThresholdBytes: 128,
+			HeadLines:      2,
+			TailLines:      2,
+		},
+	})
+
+	out := executeTerminalToolArgs(t, tool, map[string]any{
+		"command": "cat <<'EOF'\n" + stdout.String() + "EOF\n",
+	})
+
+	if out["status"] != "completed" {
+		t.Fatalf("status = %v, want completed: %#v", out["status"], out)
+	}
+	rendered := mustJSONMap(t, out)
+	for _, want := range []string{"TestWidgetHandlesOverflow", "widget_test.go:42", "compaction"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("compacted terminal output missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(asString(out["stdout"]), "github.com/example/project/pkg\t0.001s") {
+		t.Fatalf("compacted stdout kept noisy package wall:\n%s", asString(out["stdout"]))
+	}
+	compaction, ok := out["compaction"].(map[string]any)
+	if !ok {
+		t.Fatalf("compaction = %#v, want object", out["compaction"])
+	}
+	stdoutEvidence, ok := compaction["stdout"].(map[string]any)
+	if !ok || stdoutEvidence["reducer"] != toolcompact.ReducerGoTest {
+		t.Fatalf("stdout compaction = %#v, want go_test reducer", compaction["stdout"])
+	}
+}
+
+func TestTerminalTool_FullOutputBypassesCompaction(t *testing.T) {
+	stdout := strings.Repeat("ok  \tgithub.com/example/project/pkg\t0.001s\n", 30)
+	tool := NewTerminalTool(TerminalToolConfig{
+		Workdir:        t.TempDir(),
+		DefaultTimeout: 5 * time.Second,
+		OutputCompaction: toolcompact.Config{
+			Mode:           toolcompact.ModeAuto,
+			ThresholdBytes: 128,
+		},
+	})
+
+	out := executeTerminalToolArgs(t, tool, map[string]any{
+		"command":     "cat <<'EOF'\n" + stdout + "EOF\n",
+		"full_output": true,
+	})
+
+	if out["stdout"] != stdout {
+		t.Fatalf("stdout changed under full_output: got %q want %q", out["stdout"], stdout)
+	}
+	if _, ok := out["compaction"]; ok {
+		t.Fatalf("compaction should be omitted under full_output: %#v", out["compaction"])
 	}
 }
 
@@ -331,4 +403,13 @@ func executeTerminalToolWithContext(t *testing.T, ctx context.Context, tool *Ter
 		t.Fatalf("unmarshal %s: %v", raw, err)
 	}
 	return out
+}
+
+func executeTerminalToolArgs(t *testing.T, tool *TerminalTool, args map[string]any) map[string]any {
+	t.Helper()
+	raw, err := json.Marshal(args)
+	if err != nil {
+		t.Fatalf("marshal args: %v", err)
+	}
+	return executeTerminalTool(t, tool, string(raw))
 }

@@ -659,9 +659,6 @@
         "The surface hides failed runs because there is no successful briefing content.",
         "Raw error text leaks API keys, token-bearing URLs, or unredacted home paths."
       ],
-      "blocked_by": [
-        "Durable operator run report for unattended jobs"
-      ],
       "acceptance": [
         "gormes status text output includes latest unattended run status, job/run id, delivery state, degraded reason, and recommended next command when a report exists.",
         "gormes status --json includes a stable operator_run_report object with empty/absent fields normalized for automation.",

@@ -330,7 +330,7 @@ classification and row-backed implementation queue.
 - [x] `fleet` Heartbeat [SYSTEM:] + [SILENT] delivery contract
 - [x] `planner` Architecture planner tasks manager script
 - [x] `gateway` Cron no-agent script-only short-circuit
-- [ ] `fleet` Durable operator run report for unattended jobs
+- [x] `fleet` Durable operator run report for unattended jobs
 - [ ] `fleet` Scheduled briefing job emits operator run report
 
 ### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅

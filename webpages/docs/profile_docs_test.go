@@ -108,7 +108,9 @@ func TestSetupAndConfigDocsDescribeProfileWorkspaceListPolicy(t *testing.T) {
 	})
 
 	nextSlices := readDoc(t, "content/building-gormes/builder-loop/next-slices.md")
-	assertContainsAll(t, "content/building-gormes/builder-loop/next-slices.md", nextSlices, []string{
+	profilesProgress := readDoc(t, "content/building-gormes/architecture_plan/progress.json/modules/profiles.json")
+	assertContainsAll(t, "content/building-gormes/architecture_plan/progress.json/modules/profiles.json", profilesProgress, []string{
+		"Long-term plan: profile fleet supervisor and single control-plane gateway",
 		"preserving Hermes-compatible profile state separation",
 		"profile-scoped workers",
 	})

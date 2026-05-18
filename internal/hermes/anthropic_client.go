@@ -37,6 +37,7 @@ type anthropicAuthMode int
 const (
 	anthropicAuthAuto anthropicAuthMode = iota
 	anthropicAuthXAPIKey
+	anthropicAuthBearer
 )
 
 type AzureAnthropicClientConfig struct {
@@ -117,7 +118,7 @@ func NewAzureAnthropicClient(cfg AzureAnthropicClientConfig) Client {
 		baseURL:      baseURL,
 		apiKey:       apiKey,
 		defaultQuery: query,
-		authMode:     anthropicAuthXAPIKey,
+		authMode:     anthropicAuthBearer,
 		azure:        true,
 		apiVersion:   apiVersion,
 		http:         &http.Client{Timeout: 0, Transport: transport},
@@ -211,6 +212,10 @@ func (c *anthropicClient) applyAuth(req *http.Request) {
 		req.Header.Set("x-api-key", c.apiKey)
 		return
 	}
+	if c.authMode == anthropicAuthBearer {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		return
+	}
 	if strings.HasPrefix(c.apiKey, "sk-ant-api") {
 		req.Header.Set("x-api-key", c.apiKey)
 		return
@@ -265,7 +270,7 @@ func (c *anthropicClient) requireReady() error {
 func (c *anthropicClient) azureProviderStatus() ProviderStatus {
 	evidence := []string{
 		"azure_api_version_query: api-version=" + c.apiVersion,
-		"azure_oauth_bypassed: static Azure API key auth",
+		"azure_oauth_bypassed: static Azure bearer auth",
 	}
 	keyReady := strings.TrimSpace(c.apiKey) != ""
 	if !keyReady {

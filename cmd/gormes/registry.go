@@ -13,6 +13,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/sessionsearchtool"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -45,12 +46,14 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(&tools.EchoTool{})
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
+	outputCompaction := toolcompact.Config{Mode: toolcompact.ModeAuto}
 	reg.MustRegister(tools.NewExecuteCodeTool(tools.ExecuteCodeToolConfig{
-		ConfigSet:      cfg.CodeExecution.Mode != "",
-		ConfigValue:    cfg.CodeExecution.Mode,
-		DefaultMode:    tools.DefaultExecuteCodeMode,
-		SubprocessHome: config.SubprocessHome,
-		WorkspaceScope: workspaceScope,
+		ConfigSet:        cfg.CodeExecution.Mode != "",
+		ConfigValue:      cfg.CodeExecution.Mode,
+		DefaultMode:      tools.DefaultExecuteCodeMode,
+		SubprocessHome:   config.SubprocessHome,
+		WorkspaceScope:   workspaceScope,
+		OutputCompaction: outputCompaction,
 	}))
 	fileTools := tools.FileTaskToolConfig{
 		Root:           workspaceScope.DefaultRoot(),
@@ -64,9 +67,10 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewWriteFileTool(fileTools))
 	reg.MustRegister(tools.NewPatchTool(fileTools))
 	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{
-		Workdir:        cfg.Terminal.CWD,
-		SubprocessHome: config.SubprocessHome,
-		WorkspaceScope: workspaceScope,
+		Workdir:          cfg.Terminal.CWD,
+		SubprocessHome:   config.SubprocessHome,
+		WorkspaceScope:   workspaceScope,
+		OutputCompaction: outputCompaction,
 	}))
 	reg.MustRegister(tools.NewClarifyTool(nil))
 	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{

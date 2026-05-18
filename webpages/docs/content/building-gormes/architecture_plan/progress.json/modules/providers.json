@@ -643,7 +643,7 @@
       "name": "Azure Anthropic Messages endpoint contract",
       "priority": "P2",
       "status": "complete",
-      "contract": "Azure Anthropic endpoints use static Azure API keys, strip trailing /v1 before Messages requests, and pass api-version through query parameters without invoking Anthropic OAuth refresh",
+      "contract": "Azure Anthropic endpoints use static Azure keys as Authorization: Bearer credentials, strip trailing /v1 before Messages requests, and pass api-version through query parameters without invoking Anthropic OAuth refresh",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
@@ -655,6 +655,7 @@
       "degraded_mode": "Provider status reports azure_anthropic_key_missing, azure_api_version_query, or azure_oauth_bypassed evidence before any live Messages request is attempted.",
       "fixture": "internal/hermes/azure_anthropic_transport_test.go",
       "source_refs": [
+        "../hermes-agent/agent/anthropic_adapter.py@73407b1e3",
         "../hermes-agent/agent/anthropic_adapter.py@c15064fa",
         "../hermes-agent/hermes_cli/runtime_provider.py@7bfa9442",
         "../hermes-agent/hermes_cli/runtime_provider.py@d8e4c721",
@@ -675,10 +676,10 @@
       "acceptance": [
         "A https://.../anthropic/v1 base URL stores and uses the Azure Anthropic base stripped to /anthropic before appending /v1/messages.",
         "Azure Anthropic requests include api-version=2025-04-15 as query/default_query and never produce /anthropic?api-version=.../v1/messages.",
-        "Azure Anthropic auth uses AZURE_ANTHROPIC_KEY or a configured static key before any Anthropic OAuth refresh path and reports missing keys clearly.",
+        "Azure Anthropic auth sends AZURE_ANTHROPIC_KEY or a configured static key as Authorization: Bearer before any Anthropic OAuth refresh path and reports missing keys clearly.",
         "Non-Azure Anthropic requests keep existing x-api-key and bearer behavior."
       ],
-      "note": "Complete: TDD added `internal/hermes/azure_anthropic_transport_test.go` and a native Azure Anthropic client seam. Fixtures prove `/anthropic/v1` base URLs are stored as `/anthropic` before appending `/v1/messages`, `api-version=2025-04-15` is carried as a query parameter, static Azure keys use `x-api-key`, `AZURE_ANTHROPIC_KEY` is preferred without hosted Anthropic OAuth, missing keys report `azure_anthropic_key_missing` before any live request, and normal Anthropic x-api-key/bearer behavior remains intact.",
+      "note": "Complete: TDD added `internal/hermes/azure_anthropic_transport_test.go` and a native Azure Anthropic client seam. Fixtures prove `/anthropic/v1` base URLs are stored as `/anthropic` before appending `/v1/messages`, `api-version=2025-04-15` is carried as a query parameter, static Azure keys are sent as Authorization: Bearer per Hermes 73407b1e3, `AZURE_ANTHROPIC_KEY` is preferred without hosted Anthropic OAuth, missing keys report `azure_anthropic_key_missing` before any live request, and normal Anthropic x-api-key/bearer behavior remains intact.",
       "write_scope": [
         "internal/hermes/anthropic_client.go",
         "internal/hermes/azure_anthropic_transport_test.go",
@@ -691,7 +692,7 @@
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "Azure Anthropic fixtures prove base-URL cleanup, api-version query handling, static Azure-key auth, hosted-OAuth bypass, and no regression to normal Anthropic requests."
+        "Azure Anthropic fixtures prove base-URL cleanup, api-version query handling, static Azure-key bearer auth, hosted-OAuth bypass, and no regression to normal Anthropic requests."
       ],
       "health": {
         "attempt_count": 1,
@@ -700,8 +701,8 @@
       },
       "provenance": {
         "origin_type": "upstream",
-        "upstream_ref": "hermes:c15064fa agent/anthropic_adapter.py",
-        "note": "Hermes fixed Azure Anthropic request construction and auth resolution; Gormes should preserve the behavior through native Anthropic adapter fixtures."
+        "upstream_ref": "hermes:73407b1e3 agent/anthropic_adapter.py",
+        "note": "Hermes fixed Azure Anthropic request construction/auth resolution and later switched Azure Foundry Anthropic Messages endpoints from x-api-key to Authorization: Bearer; Gormes should preserve the behavior through native Anthropic adapter fixtures."
       }
     }
   },
@@ -6571,9 +6572,6 @@
         "The implementation opens live provider clients, performs OAuth, probes network endpoints, or writes credentials.",
         "Preflight errors are only surfaced as raw provider errors without stable readiness codes.",
         "The preflight cannot feed OperatorRunReport degraded_reason and recommended_next_command fields."
-      ],
-      "blocked_by": [
-        "Durable operator run report for unattended jobs"
       ],
       "acceptance": [
         "Pure fixtures classify ready, missing provider, missing model, missing credential, missing endpoint, and native runtime unavailable paths.",

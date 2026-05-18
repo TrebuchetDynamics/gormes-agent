@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Durable operator run report for unattended jobs
-
-- Phase: 2 / 2.D
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Add a Gormes-owned durable OperatorRunReport artifact for unattended cron/fleet jobs. The report is produced from existing cron run, provider/runtime readiness, delivery, session, and release-ledger evidence and records job_id, run_id, profile/workspace, provider/model, delivery target, start/end/status, degraded_reason, transcript/session refs, redacted error/log summary, and recommended_next_command without running a real provider, gateway, or scheduler loop.
-- Trust class: operator, system
-- Ready when: Cron run audit records, delivery planning evidence, and runtime binding status evidence already exist., The first slice can build reports from hermetic fixtures without live providers, gateways, schedulers, or network access., The report schema is scoped to unattended operator jobs and does not replace existing cron_runs storage.
-- Not ready when: The implementation tries to run real scheduled jobs, call providers, send gateway messages, or introduce email/CRM integrations., The report is tied only to Telegram/gateway delivery and cannot represent local or suppressed cron runs., Errors are stored only as prose without stable status/degraded_reason/recommended_next_command fields.
-- Degraded mode: When a run is suppressed, times out, fails provider/auth readiness, or cannot deliver, the report remains written with status=degraded or failed, a stable degraded_reason, redacted detail, and a recommended repair command rather than disappearing into logs.
-- Fixture: `internal/cron/operator_run_report_test.go::TestOperatorRunReportBuildsSuccessAndDegradedArtifacts`
-- Write scope: `internal/cron/operator_run_report.go`, `internal/cron/operator_run_report_test.go`, `internal/cron/run_store.go`, `internal/cron/run_store_test.go`
-- Test commands: `go test ./internal/cron -run 'TestOperatorRunReport' -count=1`, `go test ./internal/cron -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Builder reports stable OperatorRunReport JSON fixtures for success and degraded unattended runs, redaction evidence, recommended repair commands, and no live provider/gateway/scheduler dependency.
-- Acceptance: A pure report builder maps successful cron run evidence into a stable JSON artifact with job/run identity, provider/model, delivery target, timestamps, status, and session/transcript refs., A degraded fixture maps provider/auth missing, timeout, suppressed, and delivery-failed evidence into stable degraded_reason codes plus recommended_next_command values., Report JSON never includes raw API keys, full secret refs, provider response bodies, or unredacted filesystem home paths., The builder can write/read the artifact under a temp GORMES_HOME-style path without starting cron, gateway, kernel, or provider clients.
-- Source refs: internal/cron/run_store.go, internal/cron/run_completion.go, internal/cron/executor.go, internal/cron/delivery_plan.go, internal/subagent/durable_ledger.go, internal/runtime/binding.go, cmd/gormes/status.go
-- Unblocks: Scheduled briefing job emits operator run report, Morning degraded-status summary over latest run report, Gateway delivery evidence in operator run report, Provider/auth readiness preflight for unattended jobs
-- Why now: Unblocks Scheduled briefing job emits operator run report, Morning degraded-status summary over latest run report, Gateway delivery evidence in operator run report, Provider/auth readiness preflight for unattended jobs.
-
-## 2. Hermes tool tail strict-fidelity source-pair expansion
+## 1. Hermes tool tail strict-fidelity source-pair expansion
 
 - Phase: 5 / 5.A
 - Owner: `docs`
@@ -68,7 +47,7 @@ selection.
 - Source refs: hermes-agent/tools/x_search_tool.py, hermes-agent/tools/web_tools.py, hermes-agent/tools/tts_tool.py, hermes-agent/tools/transcription_tools.py, hermes-agent/tools/video_generation_tool.py, hermes-agent/tools/environments/vercel_sandbox.py, hermes-agent/tests/tools/test_x_search_tool.py, internal/tools
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Strict-fidelity upstream test-suite classifier
+## 2. Strict-fidelity upstream test-suite classifier
 
 - Phase: 8 / 8.C
 - Owner: `docs`
@@ -87,6 +66,27 @@ selection.
 - Acceptance: The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes., `go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence., `go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits., `go run ./cmd/progress validate` passes and generated docs show the row in the correct module.
 - Source refs: webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json, internal/fidelity/report.go:buildUnmappedUpstreamInventory, internal/repoctl/hermes_contract_inventory.go:RenderHermesContractInventoryMarkdown, hermes-agent/tests/agent/lsp/test_workspace.py, hermes-agent/tests/tools/test_x_search_tool.py, hermes-agent/ui-tui/src/__tests__/slashParity.test.ts
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 3. Scheduled briefing job emits operator run report
+
+- Phase: 2 / 2.D
+- Owner: `orchestrator`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Wire scheduled briefing cron/fleet jobs so every unattended run writes an OperatorRunReport after completion. The slice should cover local delivery, suppressed/no-agent/script-only jobs, provider-backed runs, timeout/error paths, and repeat/terminal completion evidence while preserving existing cron_runs and CRON.md mirror behavior.
+- Trust class: operator, system
+- Ready when: Durable operator run report for unattended jobs is complete., Existing cron executor tests can inject fake kernel, run store, sink, and clock dependencies., Briefing jobs can be represented as normal cron Job fixtures without adding email/CRM integrations.
+- Not ready when: The slice changes scheduler parsing, job storage semantics, or CRON.md format before the report artifact exists., It requires live provider calls, live gateway adapters, or wall-clock sleeps., It only writes reports for successful runs and drops timeout/suppressed/error paths.
+- Degraded mode: If the briefing cannot execute or cannot produce user content, the cron executor still writes a report with status=degraded or failed, run completion evidence, redacted error summary, and next repair command.
+- Fixture: `internal/cron/operator_briefing_report_test.go::TestScheduledBriefingWritesOperatorRunReport`
+- Write scope: `internal/cron/executor.go`, `internal/cron/operator_run_report.go`, `internal/cron/operator_briefing_report_test.go`, `internal/cron/run_store.go`
+- Test commands: `go test ./internal/cron -run 'TestScheduledBriefingWritesOperatorRunReport\|TestOperatorRunReport' -count=1`, `go test ./internal/cron -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Builder reports cron executor success/degraded fixtures writing OperatorRunReport artifacts for scheduled briefings while preserving cron_runs and CRON.md evidence.
+- Acceptance: Executor fixtures prove successful scheduled briefing runs write an OperatorRunReport linked to cron run identity and output preview., Timeout, kernel submit error, suppressed, and no-agent/script-only fixtures each write a report with stable degraded status/evidence., Existing cron_runs audit and CRON.md mirror tests still pass without schema-breaking changes., No live provider, scheduler goroutine, gateway adapter, or network dependency is required.
+- Source refs: internal/cron/executor.go, internal/cron/run_completion.go, internal/cron/run_store.go, internal/cron/mirror.go, internal/cron/job.go, internal/subagent/durable_ledger.go
+- Unblocks: Morning degraded-status summary over latest run report
+- Why now: Unblocks Morning degraded-status summary over latest run report.
 
 ## 4. Hermes gateway platform strict-fidelity source-pair expansion
 
@@ -108,7 +108,27 @@ selection.
 - Source refs: hermes-agent/gateway/platforms/base.py, hermes-agent/gateway/platforms/api_server.py, hermes-agent/gateway/platforms/telegram.py, hermes-agent/gateway/platforms/yuanbao.py, hermes-agent/tui_gateway/server.py, hermes-agent/tui_gateway/render.py, internal/channels, internal/gateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Hermes agent runtime strict-fidelity source-pair expansion
+## 5. Gateway delivery evidence in operator run report
+
+- Phase: 2 / 2.F.4
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Join gateway/cron delivery results into OperatorRunReport artifacts so unattended jobs record target platform, chat/thread identity, delivery path, delivered boolean, fallback path, and stable failure evidence for live adapter, standalone sender, and fallback sink paths. The slice must reuse existing cron delivery planning/outcome evidence and never require a live Telegram/Discord/Slack bot in tests.
+- Trust class: operator, system
+- Ready when: Durable operator run report for unattended jobs is complete., Existing cron delivery plan and delivery outcome fixtures cover live, standalone, fallback, local, and parse-failed paths.
+- Not ready when: Tests require real channel credentials, live gateway processes, or network sends., Delivery evidence is only written to logs and not joined into the report artifact., The implementation treats local-only delivery as failure instead of an explicit local target.
+- Degraded mode: If every delivery path fails, the report remains written with delivered=false, channel_degraded evidence, redacted target detail, and a recommended gateway status command.
+- Fixture: `internal/cron/operator_delivery_report_test.go::TestOperatorRunReportIncludesDeliveryEvidence`
+- Write scope: `internal/cron/operator_run_report.go`, `internal/cron/operator_delivery_report_test.go`, `internal/cron/delivery_plan.go`, `cmd/gormes/gateway_status.go`
+- Test commands: `go test ./internal/cron -run 'TestOperatorRunReportIncludesDeliveryEvidence\|TestPlanCronDelivery\|TestCronDelivery' -count=1`, `go test ./cmd/gormes -run 'TestGatewayStatus' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Builder reports report fixtures for live/standalone/fallback/local delivery evidence, failed-delivery degradation, normalized targets, and gateway repair guidance.
+- Acceptance: Report fixtures include delivered=true for successful live/standalone/fallback paths and delivered=false with stable evidence for adapter unavailable/failure paths., Target values are normalized and redacted consistently with existing delivery target rules., Gateway status recommended command appears when delivery fails or runtime status is missing., Existing cron delivery plan tests still pass.
+- Source refs: internal/cron/delivery_plan.go, internal/cron/executor.go, internal/gateway/status.go, cmd/gormes/gateway_status.go, cmd/gormes/send.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 6. Hermes agent runtime strict-fidelity source-pair expansion
 
 - Phase: 4 / 4.I
 - Owner: `docs`
@@ -128,7 +148,7 @@ selection.
 - Source refs: hermes-agent/agent/conversation_loop.py, hermes-agent/agent/tool_executor.py, hermes-agent/agent/context_engine.py, hermes-agent/agent/transports/codex.py, hermes-agent/agent/transports/chat_completions.py, hermes-agent/agent/lsp/manager.py, hermes-agent/tests/agent/lsp/test_lifecycle.py, internal/runtime, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes plugin catalog strict-fidelity classifier
+## 7. Hermes plugin catalog strict-fidelity classifier
 
 - Phase: 5 / 5.I
 - Owner: `docs`
@@ -148,7 +168,7 @@ selection.
 - Source refs: hermes-agent/plugins/model-providers/openrouter/plugin.yaml, hermes-agent/plugins/model-providers/openai-codex/plugin.yaml, hermes-agent/plugins/memory/honcho/plugin.yaml, hermes-agent/plugins/platforms/simplex/adapter.py, hermes-agent/plugins/google_meet/meet_bot.py, internal/plugins, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Hermes LSP write-time semantic diagnostics
+## 8. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -168,7 +188,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Hermes x_search tool and auth surface
+## 9. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -188,44 +208,24 @@ selection.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Hermes session recap command surface
+## 10. Morning degraded-status summary over latest run report
 
-- Phase: 5 / 5.O
+- Phase: 5 / 5.N
 - Owner: `orchestrator`
 - Size: `small`
 - Status: `planned`
-- Priority: `P2`
-- Contract: Port Hermes' session recap command as a Gormes-native read-only session summarizer over local session/transcript storage, preserving output modes, missing-session diagnostics, and provider-free degraded behavior.
-- Trust class: -
-- Ready when: Gormes session list/export storage helpers are available for hermetic temp-store tests.
-- Not ready when: The slice calls a live model to summarize instead of first proving the read-only recap envelope and degraded provider-free path., The slice mutates session history while generating a recap.
-- Degraded mode: -
-- Fixture: `cmd/gormes session recap fixtures`
-- Write scope: `cmd/gormes`, `internal/session`, `internal/store`
-- Test commands: `go test ./cmd/gormes -run 'TestSessionRecap\|TestSession' -count=1`, `go test ./internal/session ./internal/store -run Recap -count=1`, `go run ./cmd/progress validate`
-- Done signal: Session recap fixtures prove read-only transcript loading, bounded output, missing-session diagnostics, and no live provider dependency.
-- Acceptance: Known session transcripts render a deterministic recap envelope in human and JSON modes., Missing or empty sessions return explicit diagnostics without panics or live provider calls., Long transcripts are bounded with visible truncation evidence.
-- Source refs: ../hermes-agent/hermes_cli/session_recap.py, ../hermes-agent/hermes_cli/main.py, internal/session, internal/store
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Long-term plan: profile fleet supervisor and single control-plane gateway
-
-- Phase: 5 / 5.O
-- Owner: `orchestrator`
-- Size: `large`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Define Gormes' long-term profile-fleet runtime so operators get one control surface for all named profiles while preserving Hermes-compatible profile state separation. The near-term per-profile gateway services remain a compatibility bridge; the target is a fleet supervisor that can enumerate configured profiles, start/stop/restart profile-scoped workers or a proven profile-scoped in-process equivalent, validate token ownership, surface per-profile health, and coordinate update/restart-all flows without sharing config, auth, sessions, memory, tool state, or kernels across profiles.
-- Trust class: operator, gateway, system
-- Ready when: The current per-profile gateway-service bridge is documented as migration/runtime compatibility, not the final operator model., Gormes-owned profile workspace/channel config and token-scoped gateway locks are available as inputs., The implementation shape chooses either isolated worker processes or a tested profile-scoped in-process runtime, with the same operator-facing fleet contract.
-- Not ready when: The design treats a single gateway process as permission to reuse one GORMES_HOME, one auth store, one session DB, one memory DB, or one kernel across multiple named profiles., The slice deletes or disables the per-profile service bridge before the fleet supervisor can prove profile/token isolation and restart-all behavior., Tests require live Telegram tokens, live systemd units, or Juan's real profile directories.
-- Degraded mode: If fleet supervision is unavailable, Gormes must keep the Hermes-compatible per-profile service/process bridge and report exact per-profile service state instead of collapsing profiles into the default GORMES_HOME.
-- Fixture: `internal/gateway/fleet_supervisor_test.go; cmd/gormes/gateway_fleet_test.go`
-- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_fleet_test.go`, `internal/gateway/fleet_supervisor.go`, `internal/gateway/fleet_supervisor_test.go`, `internal/config/agents.go`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`, `webpages/docs/content/building-gormes/modules/profiles.md`
-- Test commands: `go test ./internal/gateway -run 'TestFleetSupervisor\|TestGatewayFleet' -count=1`, `go test ./cmd/gormes -run 'TestGatewayFleet' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: The profiles module documents one operator-facing fleet gateway/supervisor target, preserves profile isolation as non-negotiable, and makes the current per-profile services an explicit compatibility bridge rather than silent architecture drift.
-- Acceptance: Fleet status JSON lists every configured profile with desired channels, runtime owner, version, health, last error, and token-lock evidence., Start/stop/restart-all paths operate on all configured profiles while preserving isolated GORMES_HOME, config, auth, session, memory, and tool state per profile., A duplicate Telegram token across profiles is detected and reported as a per-profile conflict rather than racing two pollers., Update/release restart hooks can target the fleet through one operator-facing command or service instead of requiring hand-managed unit names., Regression tests use fake profile roots and fake supervisors only; no live systemd, Telegram, or provider credentials are required.
-- Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
+- Priority: `P1`
+- Contract: Add a read-only operator summary surface that renders the latest OperatorRunReport into text and JSON for morning review. The summary must show whether the unattended run succeeded, degraded, or failed; include job/run identity, delivery status, provider/auth readiness, redacted error details, and a recommended next command; and integrate with existing gormes status-style output without mutating cron or gateway state.
+- Trust class: operator, system
+- Ready when: Durable operator run report for unattended jobs is complete., The status command already has text/JSON degraded-output conventions., The first version reads only local report files and does not query live gateways/providers.
+- Not ready when: The implementation starts cron, gateway, or provider clients to compute status., The surface hides failed runs because there is no successful briefing content., Raw error text leaks API keys, token-bearing URLs, or unredacted home paths.
+- Degraded mode: If no report exists or the latest report cannot be decoded, the command returns status=operator_report_unavailable with the path/reason redacted and points operators to the scheduler/doctor command rather than failing with raw filesystem errors.
+- Fixture: `cmd/gormes/status_operator_report_test.go::TestStatusRendersLatestOperatorRunReport`
+- Write scope: `cmd/gormes/status.go`, `cmd/gormes/status_operator_report_test.go`, `internal/cli/status.go`, `internal/cron/operator_run_report.go`
+- Test commands: `go test ./cmd/gormes -run 'TestStatusRendersLatestOperatorRunReport\|TestStatusJSON' -count=1`, `go test ./cmd/gormes ./internal/cron -run 'Test(Status\|OperatorRunReport)' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Builder reports status text/JSON fixtures for latest operator run report, unavailable-report degradation, redaction, and unchanged existing status output.
+- Acceptance: gormes status text output includes latest unattended run status, job/run id, delivery state, degraded reason, and recommended next command when a report exists., gormes status --json includes a stable operator_run_report object with empty/absent fields normalized for automation., Missing, unreadable, or malformed reports render operator_report_unavailable evidence without non-zero exit for read-only status., Existing status progress/system output remains present.
+- Source refs: cmd/gormes/status.go, internal/cli/status.go, internal/cron/operator_run_report.go, internal/doctor/durable_ledger.go, internal/gateway/status.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
