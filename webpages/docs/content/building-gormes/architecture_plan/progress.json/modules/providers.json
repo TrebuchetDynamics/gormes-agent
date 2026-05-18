@@ -6572,9 +6572,6 @@
         "Preflight errors are only surfaced as raw provider errors without stable readiness codes.",
         "The preflight cannot feed OperatorRunReport degraded_reason and recommended_next_command fields."
       ],
-      "blocked_by": [
-        "Durable operator run report for unattended jobs"
-      ],
       "acceptance": [
         "Pure fixtures classify ready, missing provider, missing model, missing credential, missing endpoint, and native runtime unavailable paths.",
         "Readiness evidence redacts API keys, token paths, and secret-bearing URLs.",

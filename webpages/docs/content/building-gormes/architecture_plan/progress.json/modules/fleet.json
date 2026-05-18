@@ -404,9 +404,9 @@
     "item": {
       "name": "Durable operator run report for unattended jobs",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add a Gormes-owned durable OperatorRunReport artifact for unattended cron/fleet jobs. The report is produced from existing cron run, provider/runtime readiness, delivery, session, and release-ledger evidence and records job_id, run_id, profile/workspace, provider/model, delivery target, start/end/status, degraded_reason, transcript/session refs, redacted error/log summary, and recommended_next_command without running a real provider, gateway, or scheduler loop.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "orchestrator",
       "module": "fleet",
@@ -447,7 +447,7 @@
         "Report JSON never includes raw API keys, full secret refs, provider response bodies, or unredacted filesystem home paths.",
         "The builder can write/read the artifact under a temp GORMES_HOME-style path without starting cron, gateway, kernel, or provider clients."
       ],
-      "note": "Gormes-owned works-first local-ownership reliability layer; no Hermes upstream analog.",
+      "note": "Complete 2026-05-18: pure OperatorRunReport builder writes stable success/degraded JSON, redacts secrets/home paths, and round-trips temp-home artifacts without live cron/gateway/provider clients.",
       "write_scope": [
         "internal/cron/operator_run_report.go",
         "internal/cron/operator_run_report_test.go",
@@ -506,9 +506,6 @@
         "The slice changes scheduler parsing, job storage semantics, or CRON.md format before the report artifact exists.",
         "It requires live provider calls, live gateway adapters, or wall-clock sleeps.",
         "It only writes reports for successful runs and drops timeout/suppressed/error paths."
-      ],
-      "blocked_by": [
-        "Durable operator run report for unattended jobs"
       ],
       "unblocks": [
         "Morning degraded-status summary over latest run report"

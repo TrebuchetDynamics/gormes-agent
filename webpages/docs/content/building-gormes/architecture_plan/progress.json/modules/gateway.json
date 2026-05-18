@@ -5302,9 +5302,6 @@
         "Delivery evidence is only written to logs and not joined into the report artifact.",
         "The implementation treats local-only delivery as failure instead of an explicit local target."
       ],
-      "blocked_by": [
-        "Durable operator run report for unattended jobs"
-      ],
       "acceptance": [
         "Report fixtures include delivered=true for successful live/standalone/fallback paths and delivered=false with stable evidence for adapter unavailable/failure paths.",
         "Target values are normalized and redacted consistently with existing delivery target rules.",
