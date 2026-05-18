@@ -148,13 +148,12 @@ func doctorApplyFix(class string) doctor.DoctorFixOutcome {
 			}
 		}
 		if res.Wrote {
-			// FromVersion == ToVersion + Wrote means the `_config_version`
-			// key was absent and has now been stamped (not a version bump);
-			// rendering that as "v1→v1" looks like a no-op. Reserve the
-			// "migrated vX→vY" wording for an actual version increase.
-			detail := fmt.Sprintf("stamped _config_version=%d (was unset)", res.ToVersion)
+			// FromVersion == ToVersion + Wrote means the current-version
+			// file was missing default v2 tables. Reserve the "migrated
+			// vX→vY" wording for an actual version increase.
+			detail := fmt.Sprintf("updated config_version=%d defaults", res.ToVersion)
 			if res.FromVersion != res.ToVersion {
-				detail = fmt.Sprintf("migrated _config_version v%d→v%d", res.FromVersion, res.ToVersion)
+				detail = fmt.Sprintf("migrated config_version v%d→v%d", res.FromVersion, res.ToVersion)
 			}
 			return doctor.DoctorFixOutcome{
 				Class:  class,
@@ -167,7 +166,7 @@ func doctorApplyFix(class string) doctor.DoctorFixOutcome {
 			Class:     class,
 			Name:      "config schema",
 			AlreadyOK: true,
-			Detail:    fmt.Sprintf("_config_version v%d", res.ToVersion),
+			Detail:    fmt.Sprintf("config_version v%d", res.ToVersion),
 		}
 	}
 	return doctor.DoctorFixOutcome{Class: class, Name: class, AlreadyOK: true}

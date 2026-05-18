@@ -29,9 +29,9 @@ type CheckReport struct {
 }
 
 // Check inspects the on-disk Gormes config without mutating it. It returns
-// the resolved _config_version, the latest version this binary writes, the
+// the resolved config_version, the latest version this binary writes, the
 // dotenv presence flag, and a list of structural issues. A non-nil error is
-// returned when the loaded _config_version is from a newer binary; the
+// returned when the loaded config_version is from a newer binary; the
 // report is still populated with the raw version for operator evidence.
 func Check() (CheckReport, error) {
 	report := CheckReport{
@@ -70,7 +70,7 @@ func Check() (CheckReport, error) {
 	report.ConfigVersion = readConfigVersion(raw)
 	if report.ConfigVersion > CurrentConfigVersion {
 		return report, fmt.Errorf(
-			"config: _config_version=%d is from a newer binary (this binary knows up to v%d); upgrade gormes or hand-edit the file",
+			"config: config_version=%d is from a newer binary (this binary knows up to v%d); upgrade gormes or hand-edit the file",
 			report.ConfigVersion, CurrentConfigVersion)
 	}
 	if report.ConfigVersion == 0 {
@@ -82,7 +82,10 @@ func Check() (CheckReport, error) {
 }
 
 func readConfigVersion(raw map[string]any) int {
-	v, ok := raw["_config_version"]
+	v, ok := raw["config_version"]
+	if !ok {
+		v, ok = raw["_config_version"]
+	}
 	if !ok {
 		return 0
 	}
@@ -135,7 +138,7 @@ func hermesProviderIssues(raw map[string]any) []CheckIssue {
 
 // MigrateResult is the structured outcome of MigrateConfigFile.
 type MigrateResult struct {
-	Path       string
+	Path        string
 	FromVersion int
 	ToVersion   int
 	NoOp        bool
@@ -169,23 +172,57 @@ func MigrateConfigFile(path string) (MigrateResult, error) {
 
 	if from > CurrentConfigVersion {
 		return result, fmt.Errorf(
-			"config: _config_version=%d is from a newer binary (this binary knows up to v%d); upgrade gormes or hand-edit the file",
+			"config: config_version=%d is from a newer binary (this binary knows up to v%d); upgrade gormes or hand-edit the file",
 			from, CurrentConfigVersion)
 	}
 
 	if from == CurrentConfigVersion {
-		// Stamp via writeTOMLAtomic only when the key is absent, so a
-		// well-formed file at the current version is bit-for-bit unchanged.
-		if _, present := raw["_config_version"]; present {
+		// Well-formed v2 files are bit-for-bit unchanged.
+		if _, present := raw["config_version"]; present && hasMainProfile(raw) {
 			result.NoOp = true
 			return result, nil
 		}
 	}
 
-	raw["_config_version"] = int64(CurrentConfigVersion)
+	delete(raw, "_config_version")
+	raw["config_version"] = int64(CurrentConfigVersion)
+	ensureMainProfile(raw)
 	if err := writeTOMLAtomic(path, raw); err != nil {
 		return result, err
 	}
 	result.Wrote = true
 	return result, nil
+}
+
+func hasMainProfile(raw map[string]any) bool {
+	profiles, ok := raw["profiles"].(map[string]any)
+	if !ok {
+		return false
+	}
+	main, ok := profiles[DefaultProfileID].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, hasEnabled := main["enabled"]
+	_, hasName := main["name"]
+	return hasEnabled && hasName
+}
+
+func ensureMainProfile(raw map[string]any) {
+	profiles, ok := raw["profiles"].(map[string]any)
+	if !ok {
+		profiles = map[string]any{}
+	}
+	main, ok := profiles[DefaultProfileID].(map[string]any)
+	if !ok {
+		main = map[string]any{}
+	}
+	if _, ok := main["enabled"]; !ok {
+		main["enabled"] = true
+	}
+	if _, ok := main["name"]; !ok {
+		main["name"] = ""
+	}
+	profiles[DefaultProfileID] = main
+	raw["profiles"] = profiles
 }

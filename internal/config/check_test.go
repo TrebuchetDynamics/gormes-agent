@@ -19,7 +19,7 @@ func TestConfigCheck_ReportsCurrentVersionWhenComplete(t *testing.T) {
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	body := []byte(`_config_version = 1
+	body := []byte(`config_version = 2
 
 [hermes]
 endpoint = "https://example.invalid/v1"

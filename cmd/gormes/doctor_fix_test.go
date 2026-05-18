@@ -11,7 +11,7 @@ import (
 )
 
 // `gormes doctor --fix` auto-remediates the config-version class: an
-// on-disk config missing the `_config_version` stamp is migrated to the
+// on-disk config missing the `config_version` stamp is migrated to the
 // current schema via the real config.MigrateConfigFile seam, and the run
 // reports the fix in Gormes-owned wording. `--offline` keeps the provider
 // health network check SKIPped, and the config migrate is a pure local
@@ -39,10 +39,10 @@ api_key = "sk-doctor-fix-test"
 	if !strings.Contains(out, "✓ Fixed: config schema") {
 		t.Fatalf("doctor --fix must report the config-version remediation as Fixed:\n%s", out)
 	}
-	// Clarity: stamping a missing key is described as "stamped ... (was
-	// unset)", never the confusing no-op-looking "v1→v1" form.
-	if !strings.Contains(out, "stamped _config_version=1 (was unset)") {
-		t.Fatalf("unset-stamp remediation must read 'stamped _config_version=1 (was unset)', got:\n%s", out)
+	// Clarity: an unversioned legacy file is described as a real v1→v2
+	// migration, never the confusing no-op-looking "v1→v1" form.
+	if !strings.Contains(out, "migrated config_version v1→v2") {
+		t.Fatalf("unstamped remediation must read 'migrated config_version v1→v2', got:\n%s", out)
 	}
 	if strings.Contains(out, "v1→v1") {
 		t.Fatalf("unset-stamp must not render the confusing no-op-looking 'v1→v1' detail:\n%s", out)
@@ -60,8 +60,8 @@ api_key = "sk-doctor-fix-test"
 	if err != nil {
 		t.Fatalf("read migrated config: %v", err)
 	}
-	if !strings.Contains(string(body), "_config_version") {
-		t.Fatalf("doctor --fix must have written the _config_version stamp to config.toml, got:\n%s", string(body))
+	if !strings.Contains(string(body), "config_version = 2") || !strings.Contains(string(body), "[profiles.main]") {
+		t.Fatalf("doctor --fix must have written the v2 config seed to config.toml, got:\n%s", string(body))
 	}
 }
 
@@ -71,12 +71,16 @@ api_key = "sk-doctor-fix-test"
 func TestDoctorFixIsIdempotentOnAlreadyCurrentConfig(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	writeOneshotFlagConfig(t, []byte(`
-_config_version = 1
+config_version = 2
 
 [hermes]
 endpoint = "https://example.test/v1"
 model = "configured-model"
 api_key = "sk-doctor-fix-test"
+
+[profiles.main]
+enabled = true
+name = ""
 `))
 
 	cmd := newRootCommand()

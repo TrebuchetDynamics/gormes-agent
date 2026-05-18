@@ -1696,7 +1696,7 @@ func TestLoad_ConfigVersionFromFutureBinaryErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for config from future binary")
 	}
-	if !strings.Contains(err.Error(), "_config_version=9999") {
+	if !strings.Contains(err.Error(), "config_version=9999") {
 		t.Errorf("err = %v, want mention of version 9999", err)
 	}
 }

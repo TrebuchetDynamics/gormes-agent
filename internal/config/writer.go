@@ -23,32 +23,34 @@ func EnvPath() string {
 // writes. Hermes parity work that introduces a new section must add it here.
 // Keep in sync with the Config struct in config.go.
 var allowedTOMLSections = map[string]struct{}{
-	"hermes":     {},
-	"runtime":    {},
-	"tts":        {},
-	"image_gen":  {},
-	"terminal":   {},
-	"gateway":    {},
-	"tui":        {},
-	"input":      {},
-	"voice":      {},
-	"telegram":   {},
-	"discord":    {},
-	"slack":      {},
-	"yuanbao":    {},
-	"web":        {},
-	"navivox":    {},
-	"browser":    {},
-	"security":   {},
-	"secrets":    {},
-	"agents":     {},
-	"bindings":   {},
-	"cron":       {},
-	"skills":     {},
-	"delegation": {},
-	"goncho":     {},
-	"display":    {},
-	"updates":    {},
+	"hermes":      {},
+	"profiles":    {},
+	"credentials": {},
+	"runtime":     {},
+	"tts":         {},
+	"image_gen":   {},
+	"terminal":    {},
+	"gateway":     {},
+	"tui":         {},
+	"input":       {},
+	"voice":       {},
+	"telegram":    {},
+	"discord":     {},
+	"slack":       {},
+	"yuanbao":     {},
+	"web":         {},
+	"navivox":     {},
+	"browser":     {},
+	"security":    {},
+	"secrets":     {},
+	"agents":      {},
+	"bindings":    {},
+	"cron":        {},
+	"skills":      {},
+	"delegation":  {},
+	"goncho":      {},
+	"display":     {},
+	"updates":     {},
 }
 
 // secretAliases maps user-typed secret aliases (e.g. `api_key`) to the
@@ -583,18 +585,16 @@ func findTOMLCommentStart(s string) int {
 	return -1
 }
 
-// EnsureConfigFile creates an empty TOML file at path stamped with the
-// current schema version when it does not exist. It is a no-op when path
-// already exists. Used by `gormes config edit` so operators never open a
-// missing file.
+// EnsureConfigFile creates a root v2 TOML file when it does not exist. It is
+// a no-op when path already exists. Used by `gormes config edit` so operators
+// never open a missing file.
 func EnsureConfigFile(path string) error {
 	if _, err := os.Stat(path); err == nil {
 		return nil
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("config: stat %s: %w", path, err)
 	}
-	doc := map[string]any{"_config_version": int64(CurrentConfigVersion)}
-	return writeTOMLAtomic(path, doc)
+	return writeTOMLAtomic(path, DefaultConfigDocumentV2())
 }
 
 func coerceTOMLValue(section string, fields []string, value string) (any, error) {
