@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
 )
 
 type fakeCodeSandbox struct {
@@ -93,6 +95,83 @@ func TestExecuteCodeToolRejectsPythonLanguage(t *testing.T) {
 	}
 	if !strings.Contains(out.Error, "Python runtime execution is disabled") {
 		t.Fatalf("error = %q, want Python disabled message", out.Error)
+	}
+}
+
+func TestExecuteCodeTool_CompactsLargeStdoutWhenOptedIn(t *testing.T) {
+	var stdout strings.Builder
+	for i := 0; i < 30; i++ {
+		stdout.WriteString("ok  \tgithub.com/example/project/pkg\t0.001s\n")
+	}
+	stdout.WriteString("--- FAIL: TestWidgetHandlesOverflow (0.00s)\n")
+	stdout.WriteString("    widget_test.go:42: got overflow=false, want true\n")
+	stdout.WriteString("FAIL\n")
+	stdout.WriteString("FAIL\tgithub.com/example/project/widget\t0.123s\n")
+
+	sandbox := &fakeCodeSandbox{
+		result: CodeExecutionResult{Status: "error", Language: "sh", ExitCode: 1, Stdout: stdout.String()},
+	}
+	tool := &ExecuteCodeTool{
+		Sandbox: sandbox,
+		OutputCompaction: toolcompact.Config{
+			Mode:           toolcompact.ModeAuto,
+			ThresholdBytes: 128,
+			HeadLines:      2,
+			TailLines:      2,
+		},
+	}
+
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"code":"go test ./..."}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var out CodeExecutionResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal %s: %v", raw, err)
+	}
+	if !strings.Contains(out.Stdout, "TestWidgetHandlesOverflow") || !strings.Contains(out.Stdout, "widget_test.go:42") {
+		t.Fatalf("compacted stdout lost diagnostics:\n%s", out.Stdout)
+	}
+	if strings.Contains(out.Stdout, "github.com/example/project/pkg\t0.001s") {
+		t.Fatalf("compacted stdout kept noisy passing package wall:\n%s", out.Stdout)
+	}
+	if out.Compaction == nil || out.Compaction.Stdout == nil {
+		t.Fatalf("compaction evidence missing: %#v", out.Compaction)
+	}
+	if !out.Compaction.Stdout.Applied || out.Compaction.Stdout.Reducer != toolcompact.ReducerGoTest {
+		t.Fatalf("stdout compaction = %#v, want applied go_test", out.Compaction.Stdout)
+	}
+	if out.Compaction.Stdout.OriginalBytes <= out.Compaction.Stdout.CompactedBytes {
+		t.Fatalf("stdout bytes = %#v, want reduction", out.Compaction.Stdout)
+	}
+}
+
+func TestExecuteCodeTool_FullOutputBypassesCompaction(t *testing.T) {
+	stdout := strings.Repeat("ok  \tgithub.com/example/project/pkg\t0.001s\n", 30)
+	sandbox := &fakeCodeSandbox{
+		result: CodeExecutionResult{Status: "success", Language: "sh", Stdout: stdout},
+	}
+	tool := &ExecuteCodeTool{
+		Sandbox: sandbox,
+		OutputCompaction: toolcompact.Config{
+			Mode:           toolcompact.ModeAuto,
+			ThresholdBytes: 128,
+		},
+	}
+
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"code":"go test ./...","full_output":true}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var out CodeExecutionResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal %s: %v", raw, err)
+	}
+	if out.Stdout != stdout {
+		t.Fatal("full_output changed stdout")
+	}
+	if out.Compaction != nil {
+		t.Fatalf("compaction = %#v, want nil for full_output bypass", out.Compaction)
 	}
 }
 

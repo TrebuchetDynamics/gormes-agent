@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
 )
 
 const (
@@ -32,13 +34,14 @@ const (
 const DefaultExecuteCodeMode = ExecuteCodeModeStrict
 
 type ExecuteCodeToolConfig struct {
-	ConfigSet      bool
-	ConfigValue    any
-	DefaultMode    ExecuteCodeMode
-	StrictSandbox  CodeSandbox
-	ProjectSandbox CodeSandbox
-	SubprocessHome SubprocessHomeResolver
-	WorkspaceScope *ProfileWorkspaceScope
+	ConfigSet        bool
+	ConfigValue      any
+	DefaultMode      ExecuteCodeMode
+	StrictSandbox    CodeSandbox
+	ProjectSandbox   CodeSandbox
+	SubprocessHome   SubprocessHomeResolver
+	WorkspaceScope   *ProfileWorkspaceScope
+	OutputCompaction toolcompact.Config
 }
 
 type ExecuteCodeModeResolverInput struct {
@@ -132,18 +135,32 @@ type CodeExecutionRequest struct {
 
 // CodeExecutionResult is the structured response returned by execute_code.
 type CodeExecutionResult struct {
-	Status           string `json:"status"`
-	Language         string `json:"language,omitempty"`
-	ExitCode         int    `json:"exit_code"`
-	Stdout           string `json:"stdout,omitempty"`
-	Stderr           string `json:"stderr,omitempty"`
-	StdoutTruncated  bool   `json:"stdout_truncated,omitempty"`
-	StderrTruncated  bool   `json:"stderr_truncated,omitempty"`
-	DurationMs       int64  `json:"duration_ms"`
-	Error            string `json:"error,omitempty"`
-	Evidence         string `json:"evidence,omitempty"`
-	FilesystemAccess bool   `json:"filesystem_access"`
-	NetworkAccess    bool   `json:"network_access"`
+	Status           string                `json:"status"`
+	Language         string                `json:"language,omitempty"`
+	ExitCode         int                   `json:"exit_code"`
+	Stdout           string                `json:"stdout,omitempty"`
+	Stderr           string                `json:"stderr,omitempty"`
+	StdoutTruncated  bool                  `json:"stdout_truncated,omitempty"`
+	StderrTruncated  bool                  `json:"stderr_truncated,omitempty"`
+	DurationMs       int64                 `json:"duration_ms"`
+	Error            string                `json:"error,omitempty"`
+	Evidence         string                `json:"evidence,omitempty"`
+	FilesystemAccess bool                  `json:"filesystem_access"`
+	NetworkAccess    bool                  `json:"network_access"`
+	Compaction       *CodeOutputCompaction `json:"compaction,omitempty"`
+}
+
+type CodeOutputCompaction struct {
+	Stdout *CodeStreamCompaction `json:"stdout,omitempty"`
+	Stderr *CodeStreamCompaction `json:"stderr,omitempty"`
+}
+
+type CodeStreamCompaction struct {
+	Applied        bool     `json:"applied"`
+	Reducer        string   `json:"reducer,omitempty"`
+	OriginalBytes  int      `json:"original_bytes"`
+	CompactedBytes int      `json:"compacted_bytes"`
+	Evidence       []string `json:"evidence,omitempty"`
 }
 
 // CodeSandbox executes a code snippet under Gormes's guardrails.
@@ -160,6 +177,7 @@ type ExecuteCodeTool struct {
 	DefaultStdoutCap int
 	DefaultStderrCap int
 	WorkspaceScope   *ProfileWorkspaceScope
+	OutputCompaction toolcompact.Config
 }
 
 func NewExecuteCodeTool(configs ...ExecuteCodeToolConfig) *ExecuteCodeTool {
@@ -184,6 +202,7 @@ func NewExecuteCodeTool(configs ...ExecuteCodeToolConfig) *ExecuteCodeTool {
 		DefaultStdoutCap: defaultExecuteCodeStdoutLimit,
 		DefaultStderrCap: defaultExecuteCodeStderrLimit,
 		WorkspaceScope:   cfg.WorkspaceScope,
+		OutputCompaction: cfg.OutputCompaction,
 	}
 }
 
@@ -199,7 +218,7 @@ func (t *ExecuteCodeTool) Description() string {
 }
 
 func (*ExecuteCodeTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"language":{"type":"string","enum":["sh","shell"],"description":"optional runtime to use (defaults to sh)"},"code":{"type":"string","description":"POSIX shell snippet to execute"},"timeout_ms":{"type":"integer","description":"optional per-run timeout in milliseconds"},"stdout_limit_bytes":{"type":"integer","description":"optional stdout capture cap in bytes"},"stderr_limit_bytes":{"type":"integer","description":"optional stderr capture cap in bytes"}},"required":["code"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"language":{"type":"string","enum":["sh","shell"],"description":"optional runtime to use (defaults to sh)"},"code":{"type":"string","description":"POSIX shell snippet to execute"},"timeout_ms":{"type":"integer","description":"optional per-run timeout in milliseconds"},"stdout_limit_bytes":{"type":"integer","description":"optional stdout capture cap in bytes"},"stderr_limit_bytes":{"type":"integer","description":"optional stderr capture cap in bytes"},"full_output":{"type":"boolean","description":"return exact stdout/stderr without model-visible compaction"}},"required":["code"]}`)
 }
 
 func sandboxForExecuteCodeMode(mode ExecuteCodeMode, cfg ExecuteCodeToolConfig) CodeSandbox {
@@ -231,6 +250,7 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 		TimeoutMS        int    `json:"timeout_ms"`
 		StdoutLimitBytes int    `json:"stdout_limit_bytes"`
 		StderrLimitBytes int    `json:"stderr_limit_bytes"`
+		FullOutput       bool   `json:"full_output"`
 	}
 	if err := json.Unmarshal(args, &in); err != nil {
 		return nil, fmt.Errorf("execute_code: invalid args: %w", err)
@@ -277,7 +297,51 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 	if err != nil {
 		return nil, err
 	}
+	t.applyOutputCompaction(&result, in.Code, in.FullOutput)
 	return json.Marshal(result)
+}
+
+func (t *ExecuteCodeTool) applyOutputCompaction(result *CodeExecutionResult, code string, fullOutput bool) {
+	if result == nil || fullOutput {
+		return
+	}
+	stdout := toolcompact.Compact(toolcompact.Request{
+		ToolName: "execute_code",
+		Command:  code,
+		Stream:   "stdout",
+		Text:     result.Stdout,
+		ExitCode: result.ExitCode,
+	}, t.OutputCompaction)
+	stderr := toolcompact.Compact(toolcompact.Request{
+		ToolName: "execute_code",
+		Command:  code,
+		Stream:   "stderr",
+		Text:     result.Stderr,
+		ExitCode: result.ExitCode,
+	}, t.OutputCompaction)
+
+	var evidence CodeOutputCompaction
+	if stdout.Applied {
+		result.Stdout = stdout.Text
+		evidence.Stdout = codeStreamCompaction(stdout)
+	}
+	if stderr.Applied {
+		result.Stderr = stderr.Text
+		evidence.Stderr = codeStreamCompaction(stderr)
+	}
+	if evidence.Stdout != nil || evidence.Stderr != nil {
+		result.Compaction = &evidence
+	}
+}
+
+func codeStreamCompaction(result toolcompact.Result) *CodeStreamCompaction {
+	return &CodeStreamCompaction{
+		Applied:        result.Applied,
+		Reducer:        result.Reducer,
+		OriginalBytes:  result.OriginalBytes,
+		CompactedBytes: result.CompactedBytes,
+		Evidence:       append([]string(nil), result.Evidence...),
+	}
 }
 
 func executeCodeShellLanguage(language string) bool {
