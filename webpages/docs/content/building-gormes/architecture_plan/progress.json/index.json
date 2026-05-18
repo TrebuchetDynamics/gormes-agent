@@ -161,7 +161,7 @@
         {
           "id": "2.D",
           "name": "Cron / Scheduled Automations",
-          "item_count": 5
+          "item_count": 7
         },
         {
           "id": "2.E.0",
@@ -224,7 +224,7 @@
           "id": "2.F.4",
           "name": "Home Channel + Operator Surfaces",
           "priority": "P3",
-          "item_count": 6
+          "item_count": 7
         },
         {
           "id": "2.F.5",
@@ -606,7 +606,7 @@
             "last_upstream_check": "2026-05-06T15:30:05Z",
             "origin_decision": "The 2026-05-06 all-topic parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows against Hermes b816fd4e2 plus Honcho e659b6b. CLI/setup, provider/auth, gateway live-turn, tool-loop, memory/Goncho, install/runtime, browser, docs, and release surfaces have either complete rows or lower-priority planned slices. The strongest builder-ready weakness remains cron execution: Gormes has native cron store/scheduler/action rows, but Hermes b816fd4e2 tests still cover unshipped script execution, workdir/TERMINAL_CWD binding, inactivity timeout, Codex 401 refresh, and owner-only cron file modes. Promote `Cron script/workdir/inactivity execution binding` to P0 before no-agent script-only watchdog mode."
           },
-          "item_count": 59
+          "item_count": 63
         },
         {
           "id": "5.O",

@@ -2416,11 +2416,11 @@
       }
     }
   },
-    {
-      "phase": "5",
-      "subphase": "5.N",
-      "pos": 57,
-      "item": {
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 57,
+    "item": {
       "name": "Goncho replayable retrieval traces",
       "priority": "P1",
       "status": "complete",
@@ -2569,6 +2569,154 @@
         "origin_type": "gormes",
         "owned_since": "2026-05-18T00:00:00Z",
         "note": "Gormes-owned proof harness for the Goncho memory subsystem; it consumes existing Honcho-compatible contracts and local RecallTrace evidence without introducing new runtime behavior."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 61,
+    "item": {
+      "name": "Goncho golden transcript e2e harness",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add one deterministic end-to-end Goncho memory transcript that runs through the real kernel turn path with temp SQLite and a deterministic fake provider: turn one captures a user memory, deterministic local extraction writes it into Goncho, turn two recalls it through a durable RecallTrace projection, and the final provider answer proves the injected context. This patch must not add diagnostics CLI, replay UI, benchmark corpus, scoped grants, agent-as-tool, resumable checkpoints, learning-loop behavior, public Honcho API changes, live providers, network calls, or external DB/backends.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "The e2e harness uses only temp SQLite, temp GORMES_HOME, deterministic fake provider output, deterministic Goncho capture, and a golden JSON fixture. Missing recall context or negative-control leakage makes the fake provider return sentinel failure text and the test fails. No live provider, network, hosted Honcho, external vector DB, benchmark corpus, replay UI, or Hermes learning-loop dependency is required.",
+      "fixture": "internal/e2e/goncho_memory_turn_test.go",
+      "source_refs": [
+        "internal/e2e/normal_turn_test.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/goncho/service.go",
+        "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_diagnostics.go",
+        "internal/goncho/recall_replay.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+      ],
+      "ready_when": [
+        "Goncho durable RecallTrace, diagnostics, replay, proof matrix, and normal-turn memory integration rows are complete.",
+        "The e2e package already has real-kernel golden transcript scaffolding and temp SQLite memory fixtures.",
+        "The slice can remain one transcript with a deterministic fake provider and local Goncho capture rather than adding new runtime surfaces."
+      ],
+      "not_ready_when": [
+        "The slice attempts to implement diagnostics CLI, replay UI, benchmark corpus, scoped grants, agent-as-tool, resumable checkpoints, transcript importers, learning-loop behavior, public API changes, live provider calls, hosted Honcho, network calls, or external DB/backends.",
+        "The second turn can project recall context without a RecallTrace.",
+        "The test passes when recalled context is missing, negative control memory leaks into the prompt, or stable transcript output changes without updating the golden fixture."
+      ],
+      "unblocks": [
+        "Goncho retrieval benchmark corpus",
+        "Goncho transcript importer fixtures",
+        "Goncho provenance UI over RecallTrace"
+      ],
+      "acceptance": [
+        "`TestGonchoGoldenTranscriptE2E` runs two real kernel turns over temp SQLite and temp GORMES_HOME with a deterministic fake provider and no live provider/network dependency.",
+        "Turn one persists the user/assistant transcript, then deterministic local capture writes a Goncho profile and conclusion for the user preference.",
+        "Turn two obtains recall through a durable RecallTrace, projects context only from that trace, injects the context into the provider request, and produces the expected final answer.",
+        "The golden transcript records persisted turns, captured memory IDs, provider recall-injection evidence, selected/rejected trace evidence, diagnostics invariant, replay event kinds, stable TraceID, and StableJSON hash.",
+        "A negative-control memory in another workspace is rejected and never appears in the injected provider context.",
+        "The test fails if context is missing, the negative control leaks, StableJSON is nondeterministic, projection bypasses RecallTrace, or the golden transcript drifts."
+      ],
+      "note": "Complete 2026-05-18: added `TestGonchoGoldenTranscriptE2E` plus a byte-stable `internal/e2e/testdata/goncho_memory_turn/golden.json` fixture. The harness runs two real kernel turns with temp SQLite/temp GORMES_HOME, deterministic fake provider responses, deterministic Goncho capture, trace-only recall projection, operator diagnostics/replay summaries, and a negative-control leak check. It deliberately excludes learning-loop scope, benchmark corpus, CLI/UI work, public API changes, live providers, network, hosted Honcho, and external backends.",
+      "write_scope": [
+        "internal/e2e/goncho_memory_turn_test.go",
+        "internal/e2e/testdata/goncho_memory_turn/golden.json",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/e2e -run 'TestGonchoGoldenTranscriptE2E' -count=1",
+        "go test ./internal/e2e ./internal/goncho ./internal/memory -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports one deterministic Goncho golden transcript over the real kernel, temp SQLite/temp home only, trace-only projection, code-first trace evidence, negative-control rejection, stable fixture output, and no diagnostics CLI/replay UI/benchmark/importer/learning-loop/public-API/backend scope."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned evidence harness consuming the durable RecallTrace seam inside the normal agent turn; no direct Honcho upstream analog."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 62,
+    "item": {
+      "name": "Goncho retrieval benchmark corpus",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add a narrow internal retrieval benchmark corpus for Goncho that consumes existing durable RecallTrace artifacts and deterministic fixture traces to produce repeatable R@5/R@10, context-hit, token-budget, latency-shape, warning-code, and per-case evidence. This row must not add a benchmark CLI, replay UI, new retrieval algorithm, live provider/network path, external database/backend, hosted Honcho dependency, or public Honcho API change.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Benchmark cases evaluate only supplied RecallTrace data and deterministic latency metadata. Missing trace IDs or missing relevant memory IDs emit stable code-first warnings in the report instead of silently passing. The corpus uses golden fixtures and no live provider, network, hosted Honcho, external vector DB, or storage backend.",
+      "fixture": "internal/goncho/recall_benchmark_test.go",
+      "source_refs": [
+        "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "internal/e2e/testdata/goncho_memory_turn/golden.json",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+      ],
+      "ready_when": [
+        "Goncho durable RecallTrace, diagnostics, replay, proof matrix, and golden transcript e2e rows are complete.",
+        "Stable RecallTrace and normal-turn golden fixtures exist for corpus evidence.",
+        "The implementation can consume traces without running retrieval, embeddings, graph traversal, providers, hosted Honcho, or external databases."
+      ],
+      "not_ready_when": [
+        "The slice attempts to add a benchmark CLI, replay UI, web UI, new retrieval algorithm, scoped grants, transcript importers, learning-loop behavior, public API changes, live provider calls, network calls, hosted Honcho, or external DB/backends.",
+        "The benchmark evaluates projected Honcho responses without access to the underlying RecallTrace evidence.",
+        "Missing trace/relevant-ID cases pass without stable warning codes."
+      ],
+      "unblocks": [
+        "Goncho provenance UI over RecallTrace",
+        "Goncho transcript importer fixtures",
+        "Goncho retrieval tuning evidence"
+      ],
+      "acceptance": [
+        "`EvaluateRecallBenchmark` consumes `[]RecallBenchmarkCase` containing `RecallTrace` values and returns a deterministic report with service, corpus_version, case_count, recall_at_5, recall_at_10, context_hit_rate, token_budget_pass_rate, latency summary, warnings, and per-case evidence.",
+        "Per-case evidence records trace_id, pipeline_version, scoring_config_version, relevant IDs, ranked candidate IDs, selected IDs, R@5/R@10, context satisfaction, selected token count, token budget, latency_ms, and trace warning codes.",
+        "Context-hit evaluation uses trace-only projection through `RecallProjector`, not raw candidate projection or live search.",
+        "Token-budget evaluation uses the query max_tokens or versioned scoring config token budget and selected candidate token estimates.",
+        "Latency summary is deterministic from fixture metadata and includes min, p50, p95, and max milliseconds.",
+        "Missing trace IDs and missing relevant memory IDs emit code-first benchmark warnings.",
+        "A stable golden report fixture proves the corpus over the existing RecallTrace fixture plus the Goncho golden-turn preference trace."
+      ],
+      "note": "Complete 2026-05-18: added an internal `EvaluateRecallBenchmark` artifact over RecallTrace inputs plus `TestRecallBenchmarkCorpusReportFixture` and `internal/goncho/testdata/recall_benchmark/report.golden.json`. The report captures R@5/R@10, context-hit rate, token-budget pass rate, deterministic latency shape, per-case ranked/selected IDs, trace warning codes, and code-first benchmark warnings for missing evidence. The row deliberately avoids CLI/UI/backend/provider/network/retrieval-algorithm/public-API scope.",
+      "write_scope": [
+        "internal/goncho/recall_benchmark.go",
+        "internal/goncho/recall_benchmark_test.go",
+        "internal/goncho/testdata/recall_benchmark/report.golden.json",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestRecallBenchmark' -count=1",
+        "go test ./internal/goncho ./internal/memory -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports deterministic RecallTrace-consuming benchmark corpus, stable report fixture, R@5/R@10/context/token/latency metrics, code-first benchmark warnings, and no CLI/UI/backend/provider/network/public-API scope."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned evaluation substrate consuming durable RecallTrace evidence; no direct Honcho upstream analog."
       }
     }
   }

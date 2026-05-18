@@ -1,0 +1,102 @@
+{
+  "fixture": "goncho_memory_turn",
+  "final_assistant": "Use evidence-first reports and mention RecallTrace when retrieval is involved.",
+  "capture": {
+    "profile_card": [
+      "Prefers evidence-first reports",
+      "Mention RecallTrace when retrieval is involved"
+    ],
+    "conclusion_id": 1,
+    "negative_control_id": 2
+  },
+  "provider_requests": [
+    {
+      "index": 1,
+      "model": "goncho-golden-model",
+      "session_id": "sess-goncho-golden",
+      "last_user_message": "When answering me about Goncho, prefer evidence-first reports and mention RecallTrace when retrieval is involved.",
+      "recall_injected": false,
+      "negative_control_leaked": false
+    },
+    {
+      "index": 2,
+      "model": "goncho-golden-model",
+      "session_id": "sess-goncho-golden",
+      "last_user_message": "How should you answer me about Goncho RecallTrace evidence?",
+      "recall_injected": true,
+      "recall_terms": [
+        "Goncho memory context",
+        "evidence-first reports",
+        "RecallTrace",
+        "goncho-golden-scoring-v1"
+      ],
+      "negative_control_leaked": false
+    }
+  ],
+  "persisted_turns": [
+    {
+      "role": "user",
+      "content": "When answering me about Goncho, prefer evidence-first reports and mention RecallTrace when retrieval is involved.",
+      "memory_sync_status": "ready"
+    },
+    {
+      "role": "assistant",
+      "content": "Captured the Goncho recall preference for later use.",
+      "memory_sync_status": "ready"
+    },
+    {
+      "role": "user",
+      "content": "How should you answer me about Goncho RecallTrace evidence?",
+      "memory_sync_status": "ready"
+    },
+    {
+      "role": "assistant",
+      "content": "Use evidence-first reports and mention RecallTrace when retrieval is involved.",
+      "memory_sync_status": "ready"
+    }
+  ],
+  "memory": {
+    "search_result_ids": [
+      1
+    ],
+    "search_terms": [
+      "Goncho",
+      "RecallTrace",
+      "evidence-first"
+    ],
+    "negative_leaked": false
+  },
+  "trace": {
+    "trace_id": "ddf2baf4ee7de8545b926e4cbdab0cdd7d14f166321c57774d1601a1d32f3211",
+    "pipeline_version": "goncho-golden-e2e-v1",
+    "scoring_config_version": "goncho-golden-scoring-v1",
+    "selected_memory_ids": [
+      "1"
+    ],
+    "rejected_reasons": [
+      "scope_mismatch"
+    ],
+    "warning_codes": [],
+    "stable_json_sha256": "d11f2653ca147d2db53a375ef0a9b906d4cde9d32cc3592b0f38114755cf275c",
+    "stable_json_deterministic": true
+  },
+  "diagnostics": {
+    "status": "ok",
+    "selected_count": 1,
+    "rejected_count": 1,
+    "warning_count": 0,
+    "projection_invariant": "no_projection_without_recall_trace"
+  },
+  "replay": {
+    "event_count": 5,
+    "event_kinds": [
+      "recall_query",
+      "candidate_scored",
+      "selected",
+      "rejected",
+      "projection_ready"
+    ],
+    "projection_invariant": "no_projection_without_recall_trace",
+    "replay_contract": "deterministic_replay_from_recall_trace"
+  }
+}

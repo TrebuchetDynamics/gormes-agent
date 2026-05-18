@@ -23,5 +23,6 @@ Start with:
 - [Runtime model](runtime-model/)
 - [Gateway pipeline](gateway-pipeline/)
 - [Tool execution](tool-execution/)
+- [TOON context encoding](toon-context-encoding/)
 - [Memory and sessions](memory-and-sessions/)
 - [Hermes parity](hermes-parity/)

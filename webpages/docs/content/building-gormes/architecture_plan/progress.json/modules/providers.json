@@ -6537,6 +6537,75 @@
   },
   {
     "phase": "5",
+    "subphase": "5.N",
+    "pos": 60,
+    "item": {
+      "name": "Provider/auth readiness preflight for unattended jobs",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add a pure provider/auth readiness preflight for unattended cron/fleet jobs that resolves provider, model, endpoint, credential-pool availability, and native-runtime binding before execution. It returns redacted readiness evidence for OperatorRunReport writers and blocks the run early with recommended setup/auth commands when provider credentials or endpoints are missing.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When provider, model, endpoint, or credential resolution is incomplete, the preflight returns provider_auth_unready evidence and a recommended command such as gormes setup provider, gormes auth status, or gormes config check --json without opening a provider client or mutating config.",
+      "fixture": "internal/runtime/operator_preflight_test.go::TestOperatorPreflightClassifiesProviderAuthReadiness",
+      "source_refs": [
+        "internal/runtime/binding.go",
+        "cmd/gormes/provider_client.go",
+        "internal/config/config.go",
+        "cmd/gormes/auth_status_command_test.go",
+        "cmd/gormes/config_command_test.go",
+        "cmd/gormes/setup.go"
+      ],
+      "ready_when": [
+        "Durable operator run report for unattended jobs is complete.",
+        "Runtime binding status evidence and provider credential resolution errors already expose stable redacted codes.",
+        "The first version can be pure and fixture-backed without opening network clients."
+      ],
+      "not_ready_when": [
+        "The implementation opens live provider clients, performs OAuth, probes network endpoints, or writes credentials.",
+        "Preflight errors are only surfaced as raw provider errors without stable readiness codes.",
+        "The preflight cannot feed OperatorRunReport degraded_reason and recommended_next_command fields."
+      ],
+      "blocked_by": [
+        "Durable operator run report for unattended jobs"
+      ],
+      "acceptance": [
+        "Pure fixtures classify ready, missing provider, missing model, missing credential, missing endpoint, and native runtime unavailable paths.",
+        "Readiness evidence redacts API keys, token paths, and secret-bearing URLs.",
+        "Each unready state maps to a stable degraded_reason and recommended next command for OperatorRunReport.",
+        "No config mutation, OAuth flow, provider health call, or network request occurs."
+      ],
+      "note": "Gormes-owned works-first local-ownership reliability layer; no Hermes upstream analog.",
+      "write_scope": [
+        "internal/runtime/operator_preflight.go",
+        "internal/runtime/operator_preflight_test.go",
+        "cmd/gormes/provider_client.go",
+        "internal/cron/operator_run_report.go"
+      ],
+      "test_commands": [
+        "go test ./internal/runtime -run 'TestOperatorPreflight' -count=1",
+        "go test ./cmd/gormes -run 'TestAuthStatus|TestConfigCheck|TestProviderHTTPClient' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports pure provider/auth readiness fixtures feeding OperatorRunReport degraded reasons, recommended setup/auth commands, and redaction evidence with no live network/provider calls."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned operator reliability behavior; no Hermes upstream analog."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.O",
     "pos": 4,
     "item": {

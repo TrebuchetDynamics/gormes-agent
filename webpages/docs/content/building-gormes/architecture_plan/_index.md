@@ -91,12 +91,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 90/110 subphases shipped · 20 in progress · 0 planned
+**Overall:** 88/110 subphases shipped · 22 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 19/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 16/23 subphases |
@@ -323,13 +323,15 @@ classification and row-backed implementation queue.
 - [x] `gateway` bbolt session resume
 - [x] `gateway` (platform, chat_id) -> session_id
 
-### 2.D — Cron / Scheduled Automations ✅
+### 2.D — Cron / Scheduled Automations 🔨
 
 - [x] `fleet` robfig/cron scheduler + bbolt job store
 - [x] `fleet` SQLite cron_runs audit + CRON.md mirror
 - [x] `fleet` Heartbeat [SYSTEM:] + [SILENT] delivery contract
 - [x] `planner` Architecture planner tasks manager script
 - [x] `gateway` Cron no-agent script-only short-circuit
+- [ ] `fleet` Durable operator run report for unattended jobs
+- [ ] `fleet` Scheduled briefing job emits operator run report
 
 ### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅
 
@@ -395,7 +397,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Session expiry hook cleanup retry evidence
 - [x] `gateway` Channel lifecycle writers into status model
 
-### 2.F.4 — Home Channel + Operator Surfaces ✅
+### 2.F.4 — Home Channel + Operator Surfaces 🔨
 
 - [x] `gateway` Home channel ownership resolver fixtures
 - [x] `gateway` Notify-to delivery routing
@@ -403,6 +405,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Channel directory refresh + stale-target invalidation
 - [x] `gateway` Manager remember-source hook
 - [x] `gateway` Mirror + sticker cache surfaces
+- [ ] `gateway` Gateway delivery evidence in operator run report
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ✅
 
@@ -1035,6 +1038,10 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho recall diagnostics CLI over RecallTrace
 - [x] `goncho` Goncho replayable retrieval traces
 - [x] `goncho` Goncho proof matrix and fixture harness
+- [ ] `runtime` Morning degraded-status summary over latest run report
+- [ ] `providers` Provider/auth readiness preflight for unattended jobs
+- [x] `goncho` Goncho golden transcript e2e harness
+- [x] `goncho` Goncho retrieval benchmark corpus
 
 ### 5.O — Hermes CLI Parity 🔨
 

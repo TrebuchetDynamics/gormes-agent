@@ -7,9 +7,9 @@ title: "Runtime Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `runtime`
-**Rows:** 17
-**Status counts:** `complete`: 16 · `in_progress`: 0 · `planned`: 1
-**Priority counts:** `P0`: 2 · `P1`: 9 · `P2`: 6
+**Rows:** 18
+**Status counts:** `complete`: 16 · `in_progress`: 0 · `planned`: 2
+**Priority counts:** `P0`: 2 · `P1`: 10 · `P2`: 6
 
 ## Phase 4 — The Brain Transplant
 
@@ -38,6 +38,12 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P0` | `runtime` | Secrets Runtime Controls |
+
+### 5.N — Misc Operator Tools
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `planned` | `P1` | `runtime` | Morning degraded-status summary over latest run report |
 
 ### 5.O — Hermes CLI Parity
 
