@@ -91,12 +91,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 93/110 subphases shipped · 17 in progress · 0 planned
+**Overall:** 94/110 subphases shipped · 16 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
@@ -163,7 +163,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux real-device smoke evidence
 - [x] `install` Termux remote execution guidance
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -209,7 +209,7 @@ classification and row-backed implementation queue.
 - [x] `channels` WhatsApp outbound pairing gate + raw peer mapping
 - [x] `channels` WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing 🔨
+### 2.B.5 — Session Context + Delivery Routing ✅
 
 - [x] `gateway` Gateway session store + SessionSource parity
 - [x] `gateway` Gateway manual reset session-boundary hooks
@@ -292,7 +292,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway platform reconnect isolation + channel health limits
 - [x] `gateway` Gateway per-platform circuit breaker + /platform pause/resume/list command
 - [x] `gateway` Gateway /model interactive provider/model picker
-- [ ] `gateway` Gateway memory monitor pressure policy
+- [x] `gateway` Gateway memory monitor pressure policy
 
 ### 2.B.10 — WeChat Adapter ✅
 

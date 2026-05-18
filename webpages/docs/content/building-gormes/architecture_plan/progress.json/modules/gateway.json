@@ -2951,17 +2951,19 @@
     "item": {
       "name": "Gateway memory monitor pressure policy",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Port Hermes gateway memory monitor behavior into Gormes as a typed pressure policy that samples process memory, reports WARN/CRITICAL evidence, and can request bounded shutdown/restart action without killing unrelated operator processes.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
       "module": "gateway",
       "fixture": "internal/gateway memory monitor fake sampler fixtures",
       "source_refs": [
-        "../hermes-agent/gateway/memory_monitor.py",
-        "../hermes-agent/tests/gateway/test_memory_monitor.py",
+        "./hermes-agent/gateway/memory_monitor.py",
+        "./hermes-agent/tests/gateway/test_memory_monitor.py",
         "internal/gateway/status.go",
+        "internal/gateway/statusview.go",
+        "internal/gateway/memory_monitor.go",
         "cmd/gormes/gateway_status.go"
       ],
       "ready_when": [
@@ -2988,6 +2990,9 @@
       ],
       "done_signal": [
         "Gateway status fixtures prove memory pressure classification and bounded action evidence with fake process data."
+      ],
+      "evidence": [
+        "Validated 2026-05-18: added gateway.MemoryMonitor with fakeable MemorySampler, MemoryPressurePolicy threshold classification, runtime-status memory_pressure evidence, bounded critical restart-request targets, human status rendering, and gateway startup wiring. Focused commands passed: go test ./internal/gateway -run 'TestMemoryMonitor|TestGatewayStatus' -count=1; go test ./cmd/gormes -run 'TestGateway.*Memory|TestGatewayStatus' -count=1."
       ]
     }
   },

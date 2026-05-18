@@ -47,27 +47,7 @@ selection.
 - Source refs: internal/config/agents.go:AgentDefaultsCfg.Workspaces, cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces, cmd/gormes/registry.go:buildDefaultRegistry registers file, execute_code, terminal tools, internal/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files, internal/tools/filesystem_scope.go:NewFilesystemScope, internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase, internal/tools/terminal_tool.go:TerminalTool.Execute / terminalWorkdir, internal/tools/execute_code.go:LocalCodeSandbox.Execute, internal/codingagents/workspace.go:WorkspaceGuard.Resolve, hermes-agent/website/docs/user-guide/profiles.md:Profiles vs workspaces vs sandboxing (upstream says profiles do not sandbox; this row is Gormes-owned)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Gateway memory monitor pressure policy
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Port Hermes gateway memory monitor behavior into Gormes as a typed pressure policy that samples process memory, reports WARN/CRITICAL evidence, and can request bounded shutdown/restart action without killing unrelated operator processes.
-- Trust class: -
-- Ready when: Gateway status can report degraded evidence with a fake memory sampler.
-- Not ready when: The slice reads or kills real system processes in tests., The slice makes memory pressure a generic provider error instead of gateway runtime evidence.
-- Degraded mode: -
-- Fixture: `internal/gateway memory monitor fake sampler fixtures`
-- Write scope: `internal/gateway`, `cmd/gormes/gateway_status.go`, `cmd/gormes/gateway.go`
-- Test commands: `go test ./internal/gateway -run 'TestMemoryMonitor\|TestGatewayStatus' -count=1`, `go test ./cmd/gormes -run 'TestGateway.*Memory\|TestGatewayStatus' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gateway status fixtures prove memory pressure classification and bounded action evidence with fake process data.
-- Acceptance: Fake sampler thresholds produce OK/WARN/CRITICAL gateway status evidence., Critical policy requests are bounded to the current gateway process owner and never target unrelated PIDs., Human and JSON status redact environment details while preserving pressure numbers.
-- Source refs: ../hermes-agent/gateway/memory_monitor.py, ../hermes-agent/tests/gateway/test_memory_monitor.py, internal/gateway/status.go, cmd/gormes/gateway_status.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. ACP setup-browser bootstrap parity
+## 2. ACP setup-browser bootstrap parity
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -87,7 +67,7 @@ selection.
 - Source refs: ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.sh, ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.ps1, ../hermes-agent/acp_adapter/entry.py, cmd/gormes/acp.go, internal/acp
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Hermes LSP write-time semantic diagnostics
+## 3. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -107,7 +87,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Hermes x_search tool and auth surface
+## 4. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -127,7 +107,7 @@ selection.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes send command stdin/file payload parity
+## 5. Hermes send command stdin/file payload parity
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -147,7 +127,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/send_cmd.py, ../hermes-agent/tests/hermes_cli/test_send_cmd.py, ../hermes-agent/tests/hermes_cli/test_tui_resume_flow.py, cmd/gormes
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Hermes session recap command surface
+## 6. Hermes session recap command surface
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -167,7 +147,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/session_recap.py, ../hermes-agent/hermes_cli/main.py, internal/session, internal/store
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Long-term plan: profile fleet supervisor and single control-plane gateway
+## 7. Long-term plan: profile fleet supervisor and single control-plane gateway
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -187,7 +167,7 @@ selection.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Native TUI Terminal.app truecolor and ANSI sanitizer parity
+## 8. Native TUI Terminal.app truecolor and ANSI sanitizer parity
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -207,7 +187,7 @@ selection.
 - Source refs: ../hermes-agent/ui-tui/src/lib/forceTruecolor.ts, ../hermes-agent/ui-tui/src/lib/text.ts, ../hermes-agent/ui-tui/src/components/textInput.tsx, ../hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts, ../hermes-agent/ui-tui/src/__tests__/text.test.ts, ../hermes-agent/ui-tui/src/__tests__/textInputFastEcho.test.ts, internal/tui
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Hermes v0.14 optional skill catalog refresh
+## 9. Hermes v0.14 optional skill catalog refresh
 
 - Phase: 6 / 6.C
 - Owner: `skills`
@@ -225,6 +205,26 @@ selection.
 - Done signal: Optional skill fixtures prove v0.14 metadata/catalog visibility and guarded unsupported-script handling.
 - Acceptance: New optional skills parse with frontmatter, loaded/when metadata, references, and script/template inventories., Unsupported scripts remain catalog evidence with explicit dependency/degraded status., Skill hub/search output surfaces these skills with category and safety metadata.
 - Source refs: ../hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md, ../hermes-agent/optional-skills/research/darwinian-evolver/SKILL.md, ../hermes-agent/optional-skills/research/osint-investigation/SKILL.md, ../hermes-agent/skills/productivity/notion/SKILL.md, internal/skills
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. SimpleX Chat platform plugin parity
+
+- Phase: 7 / 7.E
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Port Hermes' SimpleX Chat platform plugin into Gormes behind the shared channel adapter contract: local daemon/WebSocket configuration, allowlist admission, opaque contact IDs, DM pairing, outbound delivery, command routing, and status/degraded evidence.
+- Trust class: -
+- Ready when: Gateway platform manifest already classifies SimpleX as row-backed., Shared channel adapter fixtures can run without a live SimpleX daemon.
+- Not ready when: The slice requires a real SimpleX account, daemon, or network socket in tests., The slice bypasses shared gateway admission/delivery abstractions.
+- Degraded mode: -
+- Fixture: `internal/channels/simplex fake WebSocket fixtures`
+- Write scope: `internal/channels/simplex`, `internal/gateway`, `cmd/gormes/gateway.go`
+- Test commands: `go test ./internal/channels/simplex ./internal/gateway -run 'SimpleX\|PlatformManifest\|Connected' -count=1`, `go run ./cmd/progress validate`
+- Done signal: SimpleX fake-daemon fixtures prove config/status, inbound admission, outbound delivery, DM pairing, and command routing without live credentials.
+- Acceptance: Config/status checks distinguish disabled, missing ws_url, unauthorized, and connected fake-daemon states., Inbound fake events produce normalized PlatformEvent values with opaque contact identity preserved., Outbound fake delivery and DM pairing preserve Hermes-visible SimpleX behavior and degraded errors.
+- Source refs: ../hermes-agent/plugins/platforms/simplex/plugin.yaml, ../hermes-agent/plugins/platforms/simplex/adapter.py, internal/gateway/platform_manifest.go, internal/gateway/platform_connected_checkers.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

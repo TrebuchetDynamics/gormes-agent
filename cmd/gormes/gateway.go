@@ -395,6 +395,19 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], [slack], [yuanbao], or [navivox] in config.toml")
 	}
 
+	memoryMonitor := gateway.NewMemoryMonitor(gateway.MemoryMonitorConfig{
+		Status: runtimeStatus,
+	})
+	if memoryMonitor.Start(rootCtx) {
+		defer func() {
+			stopCtx, cancelStop := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancelStop()
+			if err := memoryMonitor.Stop(stopCtx); err != nil {
+				slog.Debug("gateway memory monitor stop", "err", err)
+			}
+		}()
+	}
+
 	go k.Run(rootCtx)
 	bootPath := config.BootPath()
 	bootQueued := gateway.StartBootHook(rootCtx, gateway.BootHookConfig{
