@@ -58,6 +58,8 @@ func newSendCommand(runtime rootRuntime) *cobra.Command {
 				return runSendListCommand(cmd, filter, jsonMode)
 			}
 
+			var targetMeta cli.TerminalResponseSanitizerMeta
+			target, targetMeta = cli.StripLeakedTerminalResponsesWithMeta(strings.TrimSpace(target))
 			target = strings.TrimSpace(target)
 			if target == "" {
 				return newExitCodeError(2, errors.New("gormes send: --to PLATFORM[:channel[:thread]] is required"))
@@ -73,8 +75,10 @@ func newSendCommand(runtime rootRuntime) *cobra.Command {
 				return newExitCodeError(2, fmt.Errorf("gormes send: %w", err))
 			}
 			message := body.Text
-			if strings.TrimSpace(subject) != "" {
-				message = strings.TrimSpace(subject) + "\n\n" + strings.TrimLeftFunc(message, unicode.IsSpace)
+			subjectText, subjectMeta := cli.StripLeakedTerminalResponsesWithMeta(strings.TrimSpace(subject))
+			subjectText = strings.TrimSpace(subjectText)
+			if subjectText != "" {
+				message = subjectText + "\n\n" + strings.TrimLeftFunc(message, unicode.IsSpace)
 			}
 
 			if dryRun {
@@ -85,7 +89,7 @@ func newSendCommand(runtime rootRuntime) *cobra.Command {
 					Target:   target,
 					Message:  message,
 					Source:   body.Source,
-					Evidence: body.SanitizerMeta.Evidence,
+					Evidence: sendCommandSanitizerEvidence(body.SanitizerMeta, subjectMeta, targetMeta),
 					Note:     fmt.Sprintf("dry run: would send %d byte(s) to %s", len([]byte(message)), target),
 				}
 				return emitSendCommandResult(cmd.OutOrStdout(), cmd.ErrOrStderr(), result, jsonMode, quiet)
@@ -146,6 +150,7 @@ func defaultSendCommandBackend(_ context.Context, target, _ string) (sendCommand
 }
 
 func emitSendCommandResult(stdout, stderr io.Writer, result sendCommandResult, jsonMode, quiet bool) error {
+	result = sanitizeSendCommandResult(result)
 	if result.Error != "" {
 		result.Success = false
 	}
@@ -166,6 +171,26 @@ func emitSendCommandResult(stdout, stderr io.Writer, result sendCommandResult, j
 		return newExitCodeError(1, errors.New(result.Error))
 	}
 	return nil
+}
+
+func sendCommandSanitizerEvidence(metas ...cli.TerminalResponseSanitizerMeta) string {
+	for _, meta := range metas {
+		if meta.Evidence != "" {
+			return meta.Evidence
+		}
+	}
+	return ""
+}
+
+func sanitizeSendCommandResult(result sendCommandResult) sendCommandResult {
+	result.Target = cli.StripLeakedTerminalResponses(result.Target)
+	result.Message = cli.StripLeakedTerminalResponses(result.Message)
+	result.MessageID = cli.StripLeakedTerminalResponses(result.MessageID)
+	result.Note = cli.StripLeakedTerminalResponses(result.Note)
+	result.Error = cli.StripLeakedTerminalResponses(result.Error)
+	result.Evidence = cli.StripLeakedTerminalResponses(result.Evidence)
+	result.Source = cli.StripLeakedTerminalResponses(result.Source)
+	return result
 }
 
 func runSendListCommand(cmd *cobra.Command, platformFilter string, jsonMode bool) error {

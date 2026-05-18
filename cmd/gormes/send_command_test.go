@@ -130,6 +130,28 @@ func TestSendCommandDryRunJSONSanitizesTerminalResponses(t *testing.T) {
 	}
 }
 
+func TestSendCommandDryRunJSONSanitizesSubjectAndTarget(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "send", "--to", "telegram\x1b[53;1R", "--subject", "[CI]\x1b[53;1R", "--dry-run", "--json", "body")
+	if err != nil {
+		t.Fatalf("dry-run error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got sendCommandResult
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode dry-run JSON %q: %v", stdout, err)
+	}
+	if got.Target != "telegram" {
+		t.Fatalf("dry-run target = %q, want sanitized target", got.Target)
+	}
+	if got.Message != "[CI]\n\nbody" {
+		t.Fatalf("dry-run message = %q, want sanitized subject and body", got.Message)
+	}
+	if strings.Contains(stdout, "\x1b[53;1R") {
+		t.Fatalf("dry-run JSON leaked terminal control response: %q", stdout)
+	}
+}
+
 func TestSendCommandListsChannelDirectory(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	home := config.GormesHome()
