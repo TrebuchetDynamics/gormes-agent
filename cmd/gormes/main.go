@@ -269,6 +269,7 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 		"logout":      newLogoutCommand,
 		"config":      newConfigCommand,
 		"fallback":    newFallbackCommand,
+		"fidelity":    newFidelityCommand,
 		"secrets":     newSecretsCommand,
 		"security":    newSecurityCommand,
 		"migrate":     newMigrateCommand,

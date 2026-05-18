@@ -59,6 +59,10 @@ func DefaultContracts() []ModuleContract {
 			Commands: commands("doctor"),
 		},
 		{
+			Module:   progress.ModuleDocs,
+			Commands: commands("fidelity"),
+		},
+		{
 			Module:        progress.ModuleFleet,
 			Commands:      commands("cron"),
 			SlashCommands: slashCommands("background", "cron", "goal"),
