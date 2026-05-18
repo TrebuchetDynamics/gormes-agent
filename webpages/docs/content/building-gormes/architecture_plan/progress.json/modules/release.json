@@ -539,7 +539,7 @@
       "acceptance": [
         "TestReleaseWorkflowAttestsSBOMsForArchives fails before the workflow has a dedicated SBOM attestation step and passes after it uses actions/attest@v4.",
         "The SBOM attestation step uses the matrix-specific tar.gz path as subject-path and the matching `.sbom.json` file as sbom-path.",
-        "The SBOM attestation runs after Generate SBOM and before actions/upload-artifact@v4.",
+        "The SBOM attestation runs after Generate SBOM and before actions/upload-artifact@v7.",
         "Existing release workflow tests for target slugs, build-date provenance, SHA-256 sidecars, SBOM generation, size cap, release-note sizes, install-script assets, and tag-only publication remain green."
       ],
       "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 23, below the 90-row cap, so adding one P1 source-backed child row was allowed. Current Hermes a7e7921db runtime deltas were complete or row-backed; release/operator flow was the highest-priority unblocked closure because the parent release contract still treats unsigned artifacts as a blocker while the workflow generated SPDX SBOM files without a GitHub SBOM attestation binding. TDD added a dedicated actions/attest@v4 SBOM attestation step that binds each matrix tar.gz archive to its matching SPDX JSON before artifact upload while preserving build-provenance attestation, SHA-256 sidecars, SBOM upload, and release notes.",
@@ -563,7 +563,7 @@
       "evidence": {
         "implementation": [
           ".github/workflows/release.yml: Attest SBOM step uses actions/attest@v4 with the matrix-specific tar.gz as subject-path and matching .sbom.json as sbom-path.",
-          ".github/workflows/release.yml: SBOM attestation runs after Generate SBOM and before actions/upload-artifact@v4; existing Attest build provenance remains in place for release archives.",
+          ".github/workflows/release.yml: SBOM attestation runs after Generate SBOM and before actions/upload-artifact@v7; existing Attest build provenance remains in place for release archives.",
           "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowAttestsSBOMsForArchives pins the action, paths, and ordering."
         ],
         "verification": [
@@ -613,7 +613,7 @@
       "acceptance": [
         "TestReleaseWorkflowAttestsBuildProvenanceForArchives fails before the workflow uses `actions/attest@v4` for build provenance and passes after the current action shape is pinned.",
         "The build-provenance attestation step uses the matrix-specific tar.gz path as `subject-path` and has no `sbom-path`.",
-        "The build-provenance attestation runs after the SBOM attestation and before actions/upload-artifact@v4.",
+        "The build-provenance attestation runs after the SBOM attestation and before actions/upload-artifact@v7.",
         "Existing release workflow tests for target slugs, build-date metadata, SHA-256 sidecars, size cap, SBOM generation/attestation, release-note sizes, install-script assets, and tag-only publication remain green."
       ],
       "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 20 before this planner pass, below the 90-row cap, so adding one P1 source-backed child row was allowed. Runtime parity areas were complete or row-backed; TD blog/writeup rows remain operator-blocked; the broad P1 release parent remains too large to assign directly. Context7 current GitHub Actions docs show binary artifact provenance uses `actions/attest@v4` with `subject-path`, while the local release workflow still used the older `actions/attest-build-provenance@v1` and no focused test pinned build-provenance subject or ordering. TDD migrated the workflow to actions/attest@v4 for the matrix tar.gz subject and moved build-provenance attestation before upload.",
@@ -637,7 +637,7 @@
       "evidence": {
         "implementation": [
           ".github/workflows/release.yml: Attest build provenance now uses actions/attest@v4 with the matrix-specific tar.gz archive as subject-path.",
-          ".github/workflows/release.yml: build-provenance attestation now runs after SBOM attestation and before actions/upload-artifact@v4.",
+          ".github/workflows/release.yml: build-provenance attestation now runs after SBOM attestation and before actions/upload-artifact@v7.",
           "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowAttestsBuildProvenanceForArchives pins action, subject-path, no sbom-path, and ordering."
         ],
         "verification": [
@@ -758,7 +758,7 @@
       ],
       "acceptance": [
         "TestReleaseWorkflowEnforcesMaxArchiveSize fails before the workflow contains an explicit 31,457,280-byte archive cap and passes after the release workflow checks each tar.gz before artifact upload.",
-        "The size check runs in the build job after `sha256sum` has generated the archive checksum and before `actions/upload-artifact@v4`.",
+        "The size check runs in the build job after `sha256sum` has generated the archive checksum and before `actions/upload-artifact@v7`.",
         "The workflow failure message includes the target archive name and both observed and maximum byte counts.",
         "The existing release workflow contract test stays green for all seven target slugs, SHA-256 files, SBOM generation, artifact upload, and tag-only publication."
       ],

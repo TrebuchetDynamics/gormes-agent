@@ -434,7 +434,7 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 		"paths:",
 		"- 'webpages/docs/**'",
 		"workflow_dispatch:",
-		"actions/setup-node@v4",
+		"actions/setup-node@v6",
 		"cache-dependency-path: webpages/docs/package-lock.json",
 		"actions/setup-go@v6",
 		"go-version-file: go.mod",
@@ -448,7 +448,8 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 		`! grep -E 'https://gormes[.]ai/install[.]sh' dist/index.html >/dev/null`,
 		`! grep -F "https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh" dist/index.html >/dev/null`,
 		`! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null`,
-		"cloudflare/wrangler-action@v3",
+		"cloudflare/wrangler-action@v4",
+		"wranglerVersion: '3.90.0'",
 		"command: pages project create gormes-docs --production-branch=main",
 		"command: pages deploy webpages/docs/dist --project-name=gormes-docs --branch=main --commit-dirty=true",
 		"domain=docs.gormes.ai",
@@ -495,7 +496,7 @@ func TestCIWorkflowInstallsDocsNodeDependenciesBeforeGoTests(t *testing.T) {
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"actions/setup-node@v4",
+		"actions/setup-node@v6",
 		"node-version: '22'",
 		"webpages/docs/package-lock.json",
 		"webpages/blog/package-lock.json",

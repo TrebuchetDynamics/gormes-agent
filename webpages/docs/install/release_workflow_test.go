@@ -39,9 +39,9 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"archive=\"dist/${target}.tar.gz\"",
 		"tar -C dist -czf \"$archive\"",
 		"sha256sum \"$archive\"",
-		"actions/upload-artifact@v4",
-		"actions/download-artifact@v4",
-		"softprops/action-gh-release@v2",
+		"actions/upload-artifact@v7",
+		"actions/download-artifact@v8",
+		"softprops/action-gh-release@v3",
 		"if: startsWith(github.ref, 'refs/tags/v')",
 	}
 	for _, want := range wantAll {
@@ -210,7 +210,7 @@ func TestReleaseWorkflowAttestsSBOMsForArchives(t *testing.T) {
 	}
 
 	assertWorkflowOrder(t, workflow, "- name: Generate SBOM", "- name: Attest SBOM")
-	assertWorkflowOrder(t, workflow, "- name: Attest SBOM", "actions/upload-artifact@v4")
+	assertWorkflowOrder(t, workflow, "- name: Attest SBOM", "actions/upload-artifact@v7")
 	assertWorkflowOrder(t, workflow, sbomStep, attestStep)
 }
 
@@ -232,7 +232,7 @@ func TestReleaseWorkflowAttestsBuildProvenanceForArchives(t *testing.T) {
 	}
 
 	assertWorkflowOrder(t, workflow, "- name: Attest SBOM", "- name: Attest build provenance")
-	assertWorkflowOrder(t, workflow, "- name: Attest build provenance", "actions/upload-artifact@v4")
+	assertWorkflowOrder(t, workflow, "- name: Attest build provenance", "actions/upload-artifact@v7")
 }
 
 func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
@@ -263,7 +263,7 @@ func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
 	)
 	assertWorkflowOrder(t, workflow,
 		"max_archive_bytes=31457280",
-		"actions/upload-artifact@v4",
+		"actions/upload-artifact@v7",
 	)
 }
 
@@ -325,7 +325,7 @@ func TestReleaseWorkflowReleaseNotesNameSBOMAttestations(t *testing.T) {
 func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
 	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
 	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
-	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v2")
+	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v3")
 
 	wantInNotesStep := []string{
 		"id: release_notes",
@@ -378,7 +378,7 @@ func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
 // landing site.
 func TestReleaseWorkflowPublishesInstallScripts(t *testing.T) {
 	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
-	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v2")
+	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v3")
 
 	wantInUploadGlob := []string{
 		"install.sh",
