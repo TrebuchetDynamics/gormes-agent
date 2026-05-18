@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,6 +57,10 @@ func newMemoryStatusCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path := config.MemoryDBPath()
+			inventory, err := readMemoryInventory(cmd.Context(), nil)
+			if err != nil {
+				return err
+			}
 			if _, err := os.Stat(path); err != nil {
 				if errors.Is(err, os.ErrNotExist) {
 					// Fresh install: goncho memory.db is created
@@ -63,9 +68,9 @@ func newMemoryStatusCommand() *cobra.Command {
 					// inventory command absence of state is the empty
 					// state, not an error.
 					if asJSON {
-						return emitMemoryStatusJSON(cmd, memory.ExtractorStatus{}, goncho.QueueStatus{})
+						return emitMemoryStatusJSON(cmd, memory.ExtractorStatus{}, goncho.QueueStatus{}, inventory)
 					}
-					_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(memory.ExtractorStatus{}, goncho.QueueStatus{}))
+					_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(memory.ExtractorStatus{}, goncho.QueueStatus{}, inventory))
 					return err
 				}
 				return err
@@ -76,6 +81,10 @@ func newMemoryStatusCommand() *cobra.Command {
 				return fmt.Errorf("open memory db: %w", err)
 			}
 			defer db.Close()
+			inventory, err = readMemoryInventory(cmd.Context(), db)
+			if err != nil {
+				return err
+			}
 
 			status, err := memory.ReadExtractorStatus(context.Background(), db, 0)
 			if err != nil {
@@ -85,9 +94,9 @@ func newMemoryStatusCommand() *cobra.Command {
 				// as the missing-file path.
 				if strings.Contains(err.Error(), "no such table: turns") {
 					if asJSON {
-						return emitMemoryStatusJSON(cmd, memory.ExtractorStatus{}, goncho.QueueStatus{})
+						return emitMemoryStatusJSON(cmd, memory.ExtractorStatus{}, goncho.QueueStatus{}, inventory)
 					}
-					_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(memory.ExtractorStatus{}, goncho.QueueStatus{}))
+					_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(memory.ExtractorStatus{}, goncho.QueueStatus{}, inventory))
 					return err
 				}
 				return err
@@ -107,13 +116,13 @@ func newMemoryStatusCommand() *cobra.Command {
 				return err
 			}
 			if asJSON {
-				return emitMemoryStatusJSON(cmd, status, queueStatus)
+				return emitMemoryStatusJSON(cmd, status, queueStatus, inventory)
 			}
-			_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(status, queueStatus))
+			_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(status, queueStatus, inventory))
 			return err
 		},
 	}
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, extractor, goncho_queue}` JSON document (suitable for SRE alerting on memory backlog)")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, inventory, extractor, goncho_queue}` JSON document (suitable for SRE alerting on memory backlog)")
 	return cmd
 }
 
@@ -124,6 +133,7 @@ func newMemoryStatusCommand() *cobra.Command {
 // types tag-free and isolates the JSON wire contract here.
 type memoryStatusReportJSON struct {
 	Build       buildProvenanceJSON `json:"build"`
+	Inventory   memory.Inventory    `json:"inventory"`
 	Extractor   memoryExtractorJSON `json:"extractor"`
 	GonchoQueue goncho.QueueStatus  `json:"goncho_queue"`
 }
@@ -138,7 +148,18 @@ type memoryExtractorJSON struct {
 	RecentSkippedSyncs []memory.SkippedSyncSummary     `json:"recent_skipped_syncs"`
 }
 
-func emitMemoryStatusJSON(cmd *cobra.Command, extractor memory.ExtractorStatus, queue goncho.QueueStatus) error {
+func readMemoryInventory(ctx context.Context, db *sql.DB) (memory.Inventory, error) {
+	cwd, _ := os.Getwd()
+	return memory.ReadInventory(ctx, memory.InventoryOptions{
+		ProfileRoot:         config.GormesHome(),
+		MemoryDBPath:        config.MemoryDBPath(),
+		CWD:                 cwd,
+		ContextMemoryDirEnv: os.Getenv("GORMES_CONTEXT_MEMORY_DIR"),
+		DB:                  db,
+	})
+}
+
+func emitMemoryStatusJSON(cmd *cobra.Command, extractor memory.ExtractorStatus, queue goncho.QueueStatus, inventory memory.Inventory) error {
 	// Normalize nil slices/maps to empty containers so JSON consumers
 	// iterate without nil-checks. Same convention enforced for
 	// session list, kanban list/boards, gateway probe/discover/status.
@@ -155,7 +176,8 @@ func emitMemoryStatusJSON(cmd *cobra.Command, extractor memory.ExtractorStatus, 
 		queue.WorkUnits = map[string]goncho.QueueWorkUnitStatus{}
 	}
 	body, err := json.MarshalIndent(memoryStatusReportJSON{
-		Build: newBuildProvenance(),
+		Build:     newBuildProvenance(),
+		Inventory: inventory,
 		Extractor: memoryExtractorJSON{
 			WorkerHealth:       extractor.WorkerHealth,
 			QueueDepth:         extractor.QueueDepth,
@@ -174,8 +196,35 @@ func emitMemoryStatusJSON(cmd *cobra.Command, extractor memory.ExtractorStatus, 
 	return err
 }
 
-func formatMemoryStatus(status memory.ExtractorStatus, queueStatus goncho.QueueStatus) string {
-	return formatExtractorStatus(status) + formatGonchoQueueStatus(queueStatus)
+func formatMemoryStatus(status memory.ExtractorStatus, queueStatus goncho.QueueStatus, inventory memory.Inventory) string {
+	return formatExtractorStatus(status) + formatMemoryInventory(inventory) + formatGonchoQueueStatus(queueStatus)
+}
+
+func formatMemoryInventory(inventory memory.Inventory) string {
+	var b strings.Builder
+	b.WriteString("Memory inventory\n")
+	b.WriteString(fmt.Sprintf("goncho.database: %s\n", inventory.Goncho.Database.State))
+	b.WriteString(fmt.Sprintf("goncho.active_items: %d\n", inventory.Goncho.ActiveItems))
+	b.WriteString(fmt.Sprintf("goncho.turns_total: %d\n", inventory.Goncho.TurnsTotal))
+	b.WriteString(fmt.Sprintf("goncho.eval_artifacts: %d\n", inventory.Goncho.EvalArtifacts))
+	b.WriteString(fmt.Sprintf("durable_markdown_dir: %s files=%d\n", inventory.DurableMarkdown.Directory.State, inventory.DurableMarkdown.Directory.Files))
+	b.WriteString(fmt.Sprintf("durable_markdown_user: %s size_bytes=%d\n", inventory.DurableMarkdown.User.State, inventory.DurableMarkdown.User.SizeBytes))
+	b.WriteString(fmt.Sprintf("durable_markdown_memory: %s size_bytes=%d\n", inventory.DurableMarkdown.Memory.State, inventory.DurableMarkdown.Memory.SizeBytes))
+	b.WriteString(fmt.Sprintf("legacy_hermes_dir: %s files=%d\n", inventory.LegacyHermes.Directory.State, inventory.LegacyHermes.Directory.Files))
+	b.WriteString(fmt.Sprintf("legacy_hermes_user: %s size_bytes=%d\n", inventory.LegacyHermes.User.State, inventory.LegacyHermes.User.SizeBytes))
+	b.WriteString(fmt.Sprintf("legacy_hermes_memory: %s size_bytes=%d\n", inventory.LegacyHermes.Memory.State, inventory.LegacyHermes.Memory.SizeBytes))
+	b.WriteString(fmt.Sprintf("selected_prompt_memory_dir: %s\n", inventory.SelectedPromptMemoryDir))
+	b.WriteString(fmt.Sprintf("legacy_import_needed: %t\n", inventory.LegacyImportNeeded))
+	b.WriteString(fmt.Sprintf("session_transcripts: files=%d\n", inventory.SessionTranscripts.Files))
+	if len(inventory.ContextFiles) == 0 {
+		b.WriteString("context_files: none\n")
+		return b.String()
+	}
+	b.WriteString("context_files:\n")
+	for _, item := range inventory.ContextFiles {
+		b.WriteString(fmt.Sprintf("- %s: %s size_bytes=%d\n", item.RelativePath, item.State, item.SizeBytes))
+	}
+	return b.String()
 }
 
 func formatExtractorStatus(status memory.ExtractorStatus) string {
