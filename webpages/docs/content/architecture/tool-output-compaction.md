@@ -20,13 +20,14 @@ This is separate from both:
 The first Gormes slice is intentionally narrow:
 
 - reducer code lives in `internal/toolcompact`
-- only `execute_code` stdout/stderr is wired
-- compaction is opt-in through internal tool configuration
+- `execute_code` and `terminal` stdout/stderr are wired
+- compaction is enabled for the built-in registry through internal tool
+  configuration
 - `full_output: true` bypasses compaction for exact output
 - provider HTTP bodies, public APIs, persisted storage, and config formats stay
   JSON and unchanged
 
-The model-visible `execute_code` result keeps the existing result shape and adds
+The model-visible tool result keeps the existing result shape and adds
 structured `compaction` evidence only when a stream is reduced. Evidence records
 the reducer, original byte count, compacted byte count, and stable reason codes.
 
@@ -51,5 +52,5 @@ be added after reducer knobs, evidence codes, and safety boundaries stabilize.
 
 Compaction is not a substitute for exact bytes. Callers that need exact command
 output must request `full_output: true` before execution. Raw artifact storage
-is deferred for `execute_code` until a session-scoped output directory is
-available at the call site.
+is deferred for these terminal-style tools until a session-scoped output
+directory is available at the call site.
