@@ -21,47 +21,51 @@ import (
 // CurrentConfigVersion is the schema version this binary writes + accepts.
 // When a breaking change to the TOML schema lands, bump this constant and
 // add a migration in runMigrations() so older files stay readable.
-const CurrentConfigVersion = 1
+const CurrentConfigVersion = 2
 
 type Config struct {
-	// ConfigVersion is the schema version of the loaded TOML file. Read
-	// before any struct fields so migrations can run against the raw
-	// document. Absent in TOML = treated as 1.
-	ConfigVersion int `toml:"_config_version" yaml:"_config_version"`
+	// ConfigVersion is the canonical schema version of the loaded TOML file.
+	// Absent in TOML is treated as legacy v1. LegacyConfigVersion keeps
+	// `_config_version` readable as a fallback, but new writes use
+	// `config_version`.
+	ConfigVersion       int `toml:"config_version" yaml:"config_version"`
+	LegacyConfigVersion int `toml:"_config_version,omitempty" yaml:"_config_version,omitempty"`
 
-	Hermes        HermesCfg         `toml:"hermes" yaml:"hermes"`
-	Agent         AgentRuntimeCfg   `toml:"agent" yaml:"agent"`
-	Runtime       RuntimeCfg        `toml:"runtime" yaml:"runtime"`
-	TTS           map[string]any    `toml:"tts" yaml:"tts"`
-	ImageGen      map[string]any    `toml:"image_gen" yaml:"image_gen"`
-	Gateway       GatewayCfg        `toml:"gateway" yaml:"gateway"`
-	Terminal      TerminalCfg       `toml:"terminal" yaml:"terminal"`
-	CodeExecution CodeExecutionCfg  `toml:"code_execution" yaml:"code_execution"`
-	Display       DisplayCfg        `toml:"display" yaml:"display"`
-	TUI           TUICfg            `toml:"tui" yaml:"tui"`
-	Input         InputCfg          `toml:"input" yaml:"input"`
-	Approvals     ApprovalsCfg      `toml:"approvals" yaml:"approvals"`
-	Voice         VoiceCfg          `toml:"voice" yaml:"voice"`
-	STT           STTCfg            `toml:"stt" yaml:"stt"`
-	Auxiliary     AuxiliaryCfg      `toml:"auxiliary" yaml:"auxiliary"`
-	Curator       CuratorCfg        `toml:"curator" yaml:"curator"`
-	Telegram      TelegramCfg       `toml:"telegram" yaml:"telegram"`
-	Discord       DiscordCfg        `toml:"discord" yaml:"discord"`
-	Slack         SlackCfg          `toml:"slack" yaml:"slack"`
-	Teams         TeamsCfg          `toml:"teams" yaml:"teams"`
-	Yuanbao       YuanbaoCfg        `toml:"yuanbao" yaml:"yuanbao"`
-	Web           WebCfg            `toml:"web" yaml:"web"`
-	Navivox       NavivoxCfg        `toml:"navivox" yaml:"navivox"`
-	Browser       BrowserCfg        `toml:"browser" yaml:"browser"`
-	Security      SecurityCfg       `toml:"security" yaml:"security"`
-	Secrets       SecretsCfg        `toml:"secrets" yaml:"secrets"`
-	Agents        AgentsCfg         `toml:"agents" yaml:"agents"`
-	Bindings      []AgentBindingCfg `toml:"bindings" yaml:"bindings"`
-	Cron          CronCfg           `toml:"cron" yaml:"cron"`
-	Skills        SkillsCfg         `toml:"skills" yaml:"skills"`
-	Delegation    DelegationCfg     `toml:"delegation" yaml:"delegation"`
-	Goncho        GonchoCfg         `toml:"goncho" yaml:"goncho"`
-	Updates       UpdatesCfg        `toml:"updates" yaml:"updates"`
+	Hermes        HermesCfg                `toml:"hermes" yaml:"hermes"`
+	Profiles      map[string]ProfileCfg    `toml:"profiles" yaml:"profiles"`
+	Credentials   map[string]CredentialCfg `toml:"credentials" yaml:"credentials"`
+	Agent         AgentRuntimeCfg          `toml:"agent" yaml:"agent"`
+	Runtime       RuntimeCfg               `toml:"runtime" yaml:"runtime"`
+	TTS           map[string]any           `toml:"tts" yaml:"tts"`
+	ImageGen      map[string]any           `toml:"image_gen" yaml:"image_gen"`
+	Gateway       GatewayCfg               `toml:"gateway" yaml:"gateway"`
+	Terminal      TerminalCfg              `toml:"terminal" yaml:"terminal"`
+	CodeExecution CodeExecutionCfg         `toml:"code_execution" yaml:"code_execution"`
+	Display       DisplayCfg               `toml:"display" yaml:"display"`
+	TUI           TUICfg                   `toml:"tui" yaml:"tui"`
+	Input         InputCfg                 `toml:"input" yaml:"input"`
+	Approvals     ApprovalsCfg             `toml:"approvals" yaml:"approvals"`
+	Voice         VoiceCfg                 `toml:"voice" yaml:"voice"`
+	STT           STTCfg                   `toml:"stt" yaml:"stt"`
+	Auxiliary     AuxiliaryCfg             `toml:"auxiliary" yaml:"auxiliary"`
+	Curator       CuratorCfg               `toml:"curator" yaml:"curator"`
+	Telegram      TelegramCfg              `toml:"telegram" yaml:"telegram"`
+	Discord       DiscordCfg               `toml:"discord" yaml:"discord"`
+	Slack         SlackCfg                 `toml:"slack" yaml:"slack"`
+	Teams         TeamsCfg                 `toml:"teams" yaml:"teams"`
+	Yuanbao       YuanbaoCfg               `toml:"yuanbao" yaml:"yuanbao"`
+	Web           WebCfg                   `toml:"web" yaml:"web"`
+	Navivox       NavivoxCfg               `toml:"navivox" yaml:"navivox"`
+	Browser       BrowserCfg               `toml:"browser" yaml:"browser"`
+	Security      SecurityCfg              `toml:"security" yaml:"security"`
+	Secrets       SecretsCfg               `toml:"secrets" yaml:"secrets"`
+	Agents        AgentsCfg                `toml:"agents" yaml:"agents"`
+	Bindings      []AgentBindingCfg        `toml:"bindings" yaml:"bindings"`
+	Cron          CronCfg                  `toml:"cron" yaml:"cron"`
+	Skills        SkillsCfg                `toml:"skills" yaml:"skills"`
+	Delegation    DelegationCfg            `toml:"delegation" yaml:"delegation"`
+	Goncho        GonchoCfg                `toml:"goncho" yaml:"goncho"`
+	Updates       UpdatesCfg               `toml:"updates" yaml:"updates"`
 	// Resume is set only via the --resume CLI flag; intentionally not
 	// a TOML field. Empty means "use whatever internal/session had
 	// persisted for this binary's default key."
@@ -896,23 +900,23 @@ func loadFile(cfg *Config) error {
 		if yamlErr != nil {
 			return fmt.Errorf("read %s: %w", yamlPath, yamlErr)
 		}
+		cfg.ConfigVersion = 0
+		cfg.LegacyConfigVersion = 0
 		if err := yaml.NewDecoder(bytes.NewReader(yamlData)).Decode(cfg); err != nil {
 			return fmt.Errorf("decode %s: %w", yamlPath, err)
 		}
-		if cfg.ConfigVersion == 0 {
-			cfg.ConfigVersion = 1
-		}
+		normalizeDecodedConfigVersion(cfg)
 		return migrateConfig(cfg)
 	}
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
+	cfg.ConfigVersion = 0
+	cfg.LegacyConfigVersion = 0
 	if err := toml.NewDecoder(bytes.NewReader(data)).EnableUnmarshalerInterface().Decode(cfg); err != nil {
 		return err
 	}
-	if cfg.ConfigVersion == 0 {
-		cfg.ConfigVersion = 1
-	}
+	normalizeDecodedConfigVersion(cfg)
 	return migrateConfig(cfg)
 }
 
@@ -1096,16 +1100,24 @@ func firstNonEmpty(values ...string) string {
 func migrateConfig(cfg *Config) error {
 	if cfg.ConfigVersion > CurrentConfigVersion {
 		return fmt.Errorf(
-			"config: _config_version=%d is from a newer binary (this binary knows up to v%d); upgrade gormes or hand-edit the file",
+			"config: config_version=%d is from a newer binary (this binary knows up to v%d); upgrade gormes or hand-edit the file",
 			cfg.ConfigVersion, CurrentConfigVersion)
 	}
-	// No migrations defined yet (v1 is the first version). When a v1->v2
-	// schema change ships, add:
-	//   if cfg.ConfigVersion == 1 { migrate1to2(cfg); cfg.ConfigVersion = 2 }
-	// Each step is idempotent because it only runs when ConfigVersion
-	// matches its source version.
+	// v1 remains read-compatible in memory. On-disk migration to v2 is owned
+	// by MigrateConfigFile so loading old configs never writes or implicitly
+	// creates canonical profile tables.
 	cfg.ConfigVersion = CurrentConfigVersion
+	cfg.LegacyConfigVersion = 0
 	return nil
+}
+
+func normalizeDecodedConfigVersion(cfg *Config) {
+	if cfg.ConfigVersion == 0 {
+		cfg.ConfigVersion = cfg.LegacyConfigVersion
+	}
+	if cfg.ConfigVersion == 0 {
+		cfg.ConfigVersion = 1
+	}
 }
 
 func loadEnv(cfg *Config) error {
@@ -1623,6 +1635,9 @@ func validateConfig(cfg *Config) error {
 	}
 	cfg.Bindings = normalizeAgentBindings(cfg.Bindings)
 	if err := normalizeAgentsConfig(GormesHome(), &cfg.Agents, cfg.Bindings); err != nil {
+		return err
+	}
+	if err := normalizeProfileConfigV2(cfg); err != nil {
 		return err
 	}
 	cfg.Goncho.Workspace = strings.TrimSpace(cfg.Goncho.Workspace)

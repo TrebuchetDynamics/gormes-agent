@@ -37,7 +37,7 @@ func TestConfigEdit_NoEditorReportsConfigPath(t *testing.T) {
 
 // TestConfigEdit_CreatesConfigFileBeforeOpening: when config.toml does not
 // exist, edit must materialize the file with at least the current schema
-// _config_version stamped, then dispatch the injected runner against the
+// config_version stamped, then dispatch the injected runner against the
 // resolved EDITOR.
 func TestConfigEdit_CreatesConfigFileBeforeOpening(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
@@ -65,8 +65,8 @@ func TestConfigEdit_CreatesConfigFileBeforeOpening(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config.toml not created: %v", err)
 	}
-	if !strings.Contains(string(body), "_config_version") {
-		t.Fatalf("created config.toml missing _config_version:\n%s", body)
+	if !strings.Contains(string(body), "config_version = 2") || !strings.Contains(string(body), "[profiles.main]") {
+		t.Fatalf("created config.toml missing v2 seed:\n%s", body)
 	}
 }
 
@@ -120,12 +120,16 @@ func TestConfigEdit_FallsBackToCommonEditorWhenEnvUnset(t *testing.T) {
 }
 
 // TestConfigCheck_ReportsConfigVersionAndDotenvAvailability: native check
-// must surface _config_version and report whether a dotenv file is present
+// must surface config_version and report whether a dotenv file is present
 // at the resolved env path. It must not write anything.
 func TestConfigCheck_ReportsConfigVersionAndDotenvAvailability(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	writeOneshotFlagConfig(t, []byte(`
-_config_version = 1
+config_version = 2
+
+[profiles.main]
+enabled = true
+name = ""
 
 [hermes]
 endpoint = "https://example.invalid/v1"
@@ -138,8 +142,8 @@ provider = "openai"
 	if err != nil {
 		t.Fatalf("Execute: %v stderr=%s", err, stderr)
 	}
-	if !strings.Contains(stdout, "_config_version") || !strings.Contains(stdout, "1") {
-		t.Fatalf("check stdout missing _config_version=1:\n%s", stdout)
+	if !strings.Contains(stdout, "config_version") || !strings.Contains(stdout, "2") {
+		t.Fatalf("check stdout missing config_version=2:\n%s", stdout)
 	}
 	if !strings.Contains(strings.ToLower(stdout), "dotenv") {
 		t.Fatalf("check stdout missing dotenv evidence:\n%s", stdout)
@@ -155,7 +159,7 @@ provider = "openai"
 func TestConfigCheck_ReportsMissingProviderFields(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	writeOneshotFlagConfig(t, []byte(`
-_config_version = 1
+config_version = 2
 
 [hermes]
 endpoint = ""
@@ -177,12 +181,12 @@ model = ""
 }
 
 // TestConfigCheck_FutureVersionFails: a config.toml stamped with a
-// _config_version greater than CurrentConfigVersion must be reported as a
+// config_version greater than CurrentConfigVersion must be reported as a
 // future-version error and exit non-zero.
 func TestConfigCheck_FutureVersionFails(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	writeOneshotFlagConfig(t, []byte(`
-_config_version = 99
+config_version = 99
 
 [hermes]
 endpoint = "https://example.invalid/v1"
@@ -205,7 +209,7 @@ model = "test-model"
 func TestConfigCheck_RedactsSecrets(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	writeOneshotFlagConfig(t, []byte(`
-_config_version = 1
+config_version = 2
 
 [hermes]
 endpoint = "https://example.invalid/v1"
@@ -234,11 +238,15 @@ api_key = "sk-leaky-toml-1234"
 // bytes unchanged.
 func TestConfigMigrate_NoOpWhenCurrent(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
-	body := []byte(`_config_version = 1
+	body := []byte(`config_version = 2
 
 [hermes]
 endpoint = "https://example.invalid/v1"
 model = "test-model"
+
+[profiles.main]
+enabled = true
+name = ""
 `)
 	writeOneshotFlagConfig(t, body)
 	before, err := os.ReadFile(config.ConfigPath())
@@ -264,7 +272,7 @@ model = "test-model"
 }
 
 // TestConfigMigrate_StampsVersionOnUnversionedConfig: a pre-version-1 file
-// (no _config_version key) must be migrated to CurrentConfigVersion via
+// (no config_version key) must be migrated to CurrentConfigVersion via
 // atomic write — never a partial write.
 func TestConfigMigrate_StampsVersionOnUnversionedConfig(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
@@ -285,8 +293,8 @@ model = "test-model"
 	if err != nil {
 		t.Fatalf("read post: %v", err)
 	}
-	if !strings.Contains(string(body), "_config_version") {
-		t.Fatalf("migrated config.toml missing _config_version:\n%s", body)
+	if !strings.Contains(string(body), "config_version = 2") || !strings.Contains(string(body), "[profiles.main]") {
+		t.Fatalf("migrated config.toml missing v2 seed:\n%s", body)
 	}
 	// No stale temp file from atomic rename.
 	dir := filepath.Dir(config.ConfigPath())
@@ -307,7 +315,7 @@ model = "test-model"
 // version must be rejected without rewriting the file.
 func TestConfigMigrate_RejectsFutureVersion(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
-	body := []byte(`_config_version = 99
+	body := []byte(`config_version = 99
 
 [hermes]
 endpoint = "https://example.invalid/v1"
@@ -358,6 +366,6 @@ type stubEditorRunner struct {
 }
 
 func (s stubEditorRunner) LookPath(name string) (string, bool) { return s.lookPath(name) }
-func (s stubEditorRunner) Run(editor, path string) error        { return s.run(editor, path) }
+func (s stubEditorRunner) Run(editor, path string) error       { return s.run(editor, path) }
 
 var _ editorRunner = stubEditorRunner{}

@@ -411,7 +411,7 @@ func resetSetupDefaultConfig() (string, error) {
 	} else if !os.IsNotExist(readErr) {
 		return "", fmt.Errorf("setup reset: read prior %s: %w", path, readErr)
 	}
-	body, err := toml.Marshal(map[string]any{"_config_version": int64(config.CurrentConfigVersion)})
+	body, err := toml.Marshal(config.DefaultConfigDocumentV2())
 	if err != nil {
 		return "", fmt.Errorf("setup reset: marshal defaults: %w", err)
 	}

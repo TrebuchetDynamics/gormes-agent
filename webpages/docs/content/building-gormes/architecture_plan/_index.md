@@ -1145,10 +1145,10 @@ classification and row-backed implementation queue.
 - [x] `doctor` gormes doctor ◆ Profiles section content
 - [x] `doctor` gormes doctor ◆ Security Advisories section content
 - [x] `config` gormes setup <section> boxed header + completion footer (UX parity)
-- [ ] `navivox` gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
+- [ ] `profiles` Profile Control Center v2 umbrella — single root config and active services
 - [x] `profiles` gormes setup profiles — section scaffold + per-profile workspace list
 - [x] `profiles` gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
-- [ ] `navivox` gormes setup profiles — all profiles navivox-accessible by default
+- [ ] `navivox` Navivox multi-server profile routing config model
 - [x] `providers` Custom provider model-switch credential preservation
 - [x] `providers` Custom provider model-switch key_env write guard
 - [x] `cli` CLI log redactor for known secret shapes
@@ -1178,6 +1178,12 @@ classification and row-backed implementation queue.
 - [x] `gateway` cmd/gormes live gateway command package extraction
 - [x] `channels` cmd/gormes channel service command package extraction
 - [x] `cli` cmd/gormes root command assembly extraction
+- [x] `config` Root config.toml v2 profile service schema
+- [ ] `config` Legacy profile config v2 migration planner
+- [ ] `profiles` Profile Control Center read model
+- [ ] `profiles` Profile Control Center TUI shell and draft apply flow
+- [ ] `providers` Per-profile provider credential readiness
+- [ ] `channels` Per-profile channel credential readiness and allow-lists
 
 ### 5.P — Docker / Packaging ✅
 
@@ -1447,6 +1453,7 @@ classification and row-backed implementation queue.
 - [ ] `channels` Channel capability matrix with stable/fixture/planned labels
 - [x] `learning-loop` Learning-loop proof demo for skills, memory, and curator
 - [ ] `install` No-stack first-run proof path from install to offline doctor
+- [x] `docs` Canonical config.toml v2 profile schema docs
 
 ### 8.C — Engineering Writeups 🔨
 

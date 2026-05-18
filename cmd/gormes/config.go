@@ -503,7 +503,7 @@ func pickEditor(runner editorRunner) string {
 func newConfigCheckCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check",
-		Short: "Validate config.toml schema without writing — reports _config_version, missing/empty fields, and dotenv presence",
+		Short: "Validate config.toml schema without writing — reports config_version, missing/empty fields, and dotenv presence",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			report, err := config.Check()
 			out := cmd.OutOrStdout()
@@ -552,7 +552,7 @@ func newConfigCheckCommand() *cobra.Command {
 			fmt.Fprintln(out, "Paths")
 			fmt.Fprintf(out, "  config: %s\n", report.ConfigPath)
 			fmt.Fprintf(out, "  env:    %s\n", report.EnvPath)
-			fmt.Fprintf(out, "_config_version: %d (latest known: %d)\n", report.ConfigVersion, report.LatestVersion)
+			fmt.Fprintf(out, "config_version: %d (latest known: %d)\n", report.ConfigVersion, report.LatestVersion)
 			fmt.Fprintf(out, "dotenv present: %t\n", report.DotenvPresent)
 			if err != nil {
 				fmt.Fprintf(out, "error: %s\n", err.Error())
@@ -585,7 +585,7 @@ func newConfigMigrateCommand() *cobra.Command {
 		Short: "Apply native Gormes config.toml schema/default migrations",
 		Long: `Apply native Gormes config.toml schema/default migrations.
 
-This command updates only the native Gormes config schema (TOML _config_version
+This command updates only the native Gormes config schema (TOML config_version
 and any default fill-ins). It is a no-op when the file is already at the
 current version. Atomic writes guarantee the file is never left half-written.
 
@@ -614,10 +614,10 @@ Importing upstream Hermes or OpenClaw state is a separate concern; use
 				return nil
 			}
 			if result.NoOp {
-				fmt.Fprintf(out, "no-op: %s already at _config_version=%d\n", result.Path, result.ToVersion)
+				fmt.Fprintf(out, "no-op: %s already at config_version=%d\n", result.Path, result.ToVersion)
 				return nil
 			}
-			fmt.Fprintf(out, "migrated %s: _config_version %d -> %d (wrote=%t)\n",
+			fmt.Fprintf(out, "migrated %s: config_version %d -> %d (wrote=%t)\n",
 				result.Path, result.FromVersion, result.ToVersion, result.Wrote)
 			return nil
 		},

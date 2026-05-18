@@ -196,7 +196,10 @@ func TestBot_ToInboundEvent_TopicCommandPreservesPrivateMetadata(t *testing.T) {
 
 func TestBot_ToInboundEvent_VoiceMessageIsNotBlank(t *testing.T) {
 	mc := newMockClient()
-	b := New(Config{AllowedChatID: 42}, mc, nil)
+	mc.telegramFiles["voice-file-id"] = tgbotapi.File{FileID: "voice-file-id", FilePath: "voice/file_0.oga"}
+	mc.downloads["voice/file_0.oga"] = []byte("ogg bytes")
+	cacheDir := t.TempDir()
+	b := New(Config{AllowedChatID: 42, AttachmentCacheDir: cacheDir}, mc, nil)
 	inbox := make(chan gateway.InboundEvent, 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -228,9 +231,24 @@ func TestBot_ToInboundEvent_VoiceMessageIsNotBlank(t *testing.T) {
 		if !strings.Contains(submit, "audio transcription is not configured") {
 			t.Fatalf("SubmitText() = %q, want sanitized STT configuration marker", submit)
 		}
-		for _, forbidden := range []string{"voice-file-id", "sourceId=", ".cache/gormes", "~/.cache/gormes"} {
+		if len(ev.Attachments) != 1 || ev.Attachments[0].URL == "" {
+			t.Fatalf("attachments = %+v, want cached local audio path for transcribe_audio fallback", ev.Attachments)
+		}
+		if !strings.HasPrefix(ev.Attachments[0].URL, cacheDir) {
+			t.Fatalf("cached voice path = %q, want under cache dir %q", ev.Attachments[0].URL, cacheDir)
+		}
+		if !strings.HasSuffix(ev.Attachments[0].URL, ".ogg") {
+			t.Fatalf("cached voice path = %q, want .ogg extension for transcribe_audio compatibility", ev.Attachments[0].URL)
+		}
+		if !strings.Contains(submit, ev.Attachments[0].URL) {
+			t.Fatalf("SubmitText() = %q, want cached audio path %q", submit, ev.Attachments[0].URL)
+		}
+		if _, err := os.Stat(ev.Attachments[0].URL); err != nil {
+			t.Fatalf("cached voice path not readable: %v", err)
+		}
+		for _, forbidden := range []string{"voice-file-id", "sourceId="} {
 			if strings.Contains(submit, forbidden) {
-				t.Fatalf("SubmitText() leaks transport/cache detail %q: %q", forbidden, submit)
+				t.Fatalf("SubmitText() leaks transport detail %q: %q", forbidden, submit)
 			}
 		}
 	case <-time.After(200 * time.Millisecond):

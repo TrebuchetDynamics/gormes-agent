@@ -312,6 +312,148 @@ func TestMemoryStatusCommand_JSONEmitsStructuredSnapshot(t *testing.T) {
 	}
 }
 
+func TestMemoryStatusCommand_JSONEmitsProfileAwareInventory(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	gormesHome := filepath.Join(dataHome, "gormes")
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	store, err := memory.OpenSqlite(config.MemoryDBPath(), 8, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer store.Close(context.Background())
+
+	mustWriteInventoryTestFile(t, filepath.Join(gormesHome, "memory", "USER.md"), "native user memory\n")
+	mustWriteInventoryTestFile(t, filepath.Join(gormesHome, "memories", "USER.md"), "legacy Hermes user memory\n")
+	mustWriteInventoryTestFile(t, filepath.Join(gormesHome, "SOUL.md"), "profile soul\n")
+	mustWriteInventoryTestFile(t, filepath.Join(gormesHome, "sessions", "index.yaml"), "sessions: {}\n")
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status --json: %v\nstderr=%s", err, stderr.String())
+	}
+
+	var got struct {
+		Inventory struct {
+			SelectedPromptMemoryDir string `json:"selected_prompt_memory_dir"`
+			LegacyImportNeeded      bool   `json:"legacy_import_needed"`
+			Goncho                  struct {
+				ActiveItems int `json:"active_items"`
+			} `json:"goncho"`
+			DurableMarkdown struct {
+				User struct {
+					State string `json:"state"`
+				} `json:"user"`
+			} `json:"durable_markdown"`
+			LegacyHermes struct {
+				User struct {
+					State string `json:"state"`
+				} `json:"user"`
+			} `json:"legacy_hermes"`
+			ContextFiles []struct {
+				RelativePath string `json:"relative_path"`
+				State        string `json:"state"`
+			} `json:"context_files"`
+			SessionTranscripts struct {
+				Files int `json:"files"`
+			} `json:"session_transcripts"`
+		} `json:"inventory"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Inventory.Goncho.ActiveItems != 0 {
+		t.Fatalf("inventory.goncho.active_items = %d, want 0 for empty Goncho DB", got.Inventory.Goncho.ActiveItems)
+	}
+	if got.Inventory.DurableMarkdown.User.State != "present" {
+		t.Fatalf("durable_markdown.user.state = %q, want present", got.Inventory.DurableMarkdown.User.State)
+	}
+	if got.Inventory.LegacyHermes.User.State != "present" {
+		t.Fatalf("legacy_hermes.user.state = %q, want present", got.Inventory.LegacyHermes.User.State)
+	}
+	if got.Inventory.SelectedPromptMemoryDir != "memory" {
+		t.Fatalf("selected_prompt_memory_dir = %q, want memory", got.Inventory.SelectedPromptMemoryDir)
+	}
+	if got.Inventory.LegacyImportNeeded {
+		t.Fatal("legacy_import_needed = true, want false because native durable markdown exists")
+	}
+	if got.Inventory.SessionTranscripts.Files != 1 {
+		t.Fatalf("session_transcripts.files = %d, want 1", got.Inventory.SessionTranscripts.Files)
+	}
+	if !memoryStatusContextFilePresent(got.Inventory.ContextFiles, "SOUL.md") {
+		t.Fatalf("context_files = %+v, want present SOUL.md evidence", got.Inventory.ContextFiles)
+	}
+}
+
+func TestMemoryStatusCommand_HumanOutputDoesNotFlattenDurableMemoryIntoZeroGonchoItems(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	gormesHome := filepath.Join(dataHome, "gormes")
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	store, err := memory.OpenSqlite(config.MemoryDBPath(), 8, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer store.Close(context.Background())
+
+	mustWriteInventoryTestFile(t, filepath.Join(gormesHome, "memory", "USER.md"), "native user memory\n")
+	mustWriteInventoryTestFile(t, filepath.Join(gormesHome, "memories", "MEMORY.md"), "legacy Hermes memory\n")
+	mustWriteInventoryTestFile(t, filepath.Join(gormesHome, "sessions", "index.yaml"), "sessions: {}\n")
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status: %v\nstderr=%s", err, stderr.String())
+	}
+
+	out := stdout.String()
+	for _, want := range []string{
+		"Memory inventory",
+		"goncho.active_items: 0",
+		"durable_markdown_user: present",
+		"legacy_hermes_memory: present",
+		"selected_prompt_memory_dir: memory",
+		"session_transcripts: files=1",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func memoryStatusContextFilePresent(items []struct {
+	RelativePath string `json:"relative_path"`
+	State        string `json:"state"`
+}, rel string) bool {
+	for _, item := range items {
+		if item.RelativePath == rel && item.State == "present" {
+			return true
+		}
+	}
+	return false
+}
+
+func mustWriteInventoryTestFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create parent for %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
 func seedMemoryStatusDB(t *testing.T) {
 	t.Helper()
 

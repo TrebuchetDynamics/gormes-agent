@@ -400,24 +400,42 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 	var markers []string
 	if msg.Voice != nil {
 		marker, attachment := telegramVoiceAttachment(msg.Voice)
-		if b.cfg.AudioTranscriber == nil {
-			attachment.Error = "audio transcription is not configured"
-			markers = append(markers, telegramAudioUnavailableMarker("voice", attachment.Error))
-		} else if transcript, err := b.transcribeTelegramAudio(ctx, AudioInput{
+		audioInput, cachedPath, size, err := b.materializeTelegramAudio(ctx, AudioInput{
 			Kind:      "voice",
 			FileID:    attachment.SourceID,
 			MediaType: attachment.MediaType,
 			Duration:  time.Duration(msg.Voice.Duration) * time.Second,
-		}); err == nil && strings.TrimSpace(transcript) != "" {
-			markers = append(markers, telegramAudioTranscriptMarker("voice", transcript))
-		} else if err != nil {
+		})
+		if err != nil {
 			attachment.Error = sanitizeTelegramAudioError(err)
 			markers = append(markers, telegramAudioUnavailableMarker("voice", attachment.Error))
-			b.log.Warn("telegram audio transcription unavailable",
+			b.log.Warn("telegram audio unavailable",
 				"kind", "voice",
 				"err", attachment.Error,
 				"diagnostic", telegramAudioErrorDiagnostic(err),
 				"detail", telegramAudioErrorRedactedDetail(err))
+		} else {
+			attachment.URL = cachedPath
+			attachment.FileName = audioInput.FileName
+			attachment.MediaType = audioInput.MediaType
+			attachment.SizeBytes = size
+		}
+		if err == nil && b.cfg.AudioTranscriber == nil {
+			attachment.Error = "audio transcription is not configured"
+			markers = append(markers, telegramAudioUnavailableMarker("voice", attachment.Error))
+		} else if err == nil {
+			transcript, err := b.transcribeTelegramAudio(ctx, audioInput)
+			if err == nil && strings.TrimSpace(transcript) != "" {
+				markers = append(markers, telegramAudioTranscriptMarker("voice", transcript))
+			} else if err != nil {
+				attachment.Error = sanitizeTelegramAudioError(err)
+				markers = append(markers, telegramAudioUnavailableMarker("voice", attachment.Error))
+				b.log.Warn("telegram audio transcription unavailable",
+					"kind", "voice",
+					"err", attachment.Error,
+					"diagnostic", telegramAudioErrorDiagnostic(err),
+					"detail", telegramAudioErrorRedactedDetail(err))
+			}
 		}
 		attachment = redactTelegramAudioTransportID(attachment)
 		markers = append(markers, marker)
@@ -425,25 +443,43 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 	}
 	if msg.Audio != nil {
 		marker, attachment := telegramAudioAttachment(msg.Audio)
-		if b.cfg.AudioTranscriber == nil {
-			attachment.Error = "audio transcription is not configured"
-			markers = append(markers, telegramAudioUnavailableMarker("audio", attachment.Error))
-		} else if transcript, err := b.transcribeTelegramAudio(ctx, AudioInput{
+		audioInput, cachedPath, size, err := b.materializeTelegramAudio(ctx, AudioInput{
 			Kind:      "audio",
 			FileID:    attachment.SourceID,
 			MediaType: attachment.MediaType,
 			FileName:  attachment.FileName,
 			Duration:  time.Duration(msg.Audio.Duration) * time.Second,
-		}); err == nil && strings.TrimSpace(transcript) != "" {
-			markers = append(markers, telegramAudioTranscriptMarker("audio", transcript))
-		} else if err != nil {
+		})
+		if err != nil {
 			attachment.Error = sanitizeTelegramAudioError(err)
 			markers = append(markers, telegramAudioUnavailableMarker("audio", attachment.Error))
-			b.log.Warn("telegram audio transcription unavailable",
+			b.log.Warn("telegram audio unavailable",
 				"kind", "audio",
 				"err", attachment.Error,
 				"diagnostic", telegramAudioErrorDiagnostic(err),
 				"detail", telegramAudioErrorRedactedDetail(err))
+		} else {
+			attachment.URL = cachedPath
+			attachment.FileName = audioInput.FileName
+			attachment.MediaType = audioInput.MediaType
+			attachment.SizeBytes = size
+		}
+		if err == nil && b.cfg.AudioTranscriber == nil {
+			attachment.Error = "audio transcription is not configured"
+			markers = append(markers, telegramAudioUnavailableMarker("audio", attachment.Error))
+		} else if err == nil {
+			transcript, err := b.transcribeTelegramAudio(ctx, audioInput)
+			if err == nil && strings.TrimSpace(transcript) != "" {
+				markers = append(markers, telegramAudioTranscriptMarker("audio", transcript))
+			} else if err != nil {
+				attachment.Error = sanitizeTelegramAudioError(err)
+				markers = append(markers, telegramAudioUnavailableMarker("audio", attachment.Error))
+				b.log.Warn("telegram audio transcription unavailable",
+					"kind", "audio",
+					"err", attachment.Error,
+					"diagnostic", telegramAudioErrorDiagnostic(err),
+					"detail", telegramAudioErrorRedactedDetail(err))
+			}
 		}
 		attachment = redactTelegramAudioTransportID(attachment)
 		markers = append(markers, marker)

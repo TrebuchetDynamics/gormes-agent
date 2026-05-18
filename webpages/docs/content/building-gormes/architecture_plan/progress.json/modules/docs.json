@@ -393,6 +393,69 @@
   },
   {
     "phase": "8",
+    "subphase": "8.B",
+    "pos": 8,
+    "item": {
+      "name": "Canonical config.toml v2 profile schema docs",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Document the accepted v2 profile config shape as a planning contract: single `$GORMES_HOME/config.toml`, `config_version = 2`, seed `[profiles.main] enabled=true name=\"\"`, stable profile ids separate from display names, all enabled profiles active, no `active_profile`/`default_profile`, global credential registry with owner metadata, per-profile provider/channel credential references, Navivox multi-server routing, legacy fallback/migration rules, and Profile Control Center UX boundaries.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until runtime rows ship, the docs are explicitly marked as the v2 target architecture and do not claim current shipped config behavior.",
+      "fixture": "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "docs/content/configure/config-file.md#planned-v2-profile-schema",
+        "webpages/docs/content/configure/config-file.md#planned-v2-profile-schema"
+      ],
+      "ready_when": [
+        "The operator-approved schema decisions from the grill session are captured in one architecture doc and referenced from config docs."
+      ],
+      "not_ready_when": [
+        "The docs imply v2 runtime is already fully shipped.",
+        "The example includes a default_profile/active_profile field, canonical per-profile config.toml files, or inline raw secrets."
+      ],
+      "acceptance": [
+        "Docs show a fuller TOML example with profiles, credentials, providers, channels, Navivox servers, gateway routing, and no active/default profile key.",
+        "Docs state that profile key is stable id and `name` is display name; fresh install seeds `main` with blank name.",
+        "Docs state that all enabled profiles are active services and Navivox manages multiple profiles/servers.",
+        "Docs keep legacy fallback/migration separate from the new write target."
+      ],
+      "note": "Completed by this planner pass; runtime implementation remains in the child rows.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "docs/content/configure/config-file.md",
+        "webpages/docs/content/configure/config-file.md",
+        "webpages/docs/profile_docs_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run 'TestProfile|TestDocsContent|TestDocsInternalLinksResolve' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Planning docs and config docs contain the v2 profile schema example and generated roadmap rows point builders at the child implementation slices."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "Docs-only closeout for the accepted schema plan."
+      }
+    }
+  },
+  {
+    "phase": "8",
     "subphase": "8.C",
     "pos": 0,
     "item": {

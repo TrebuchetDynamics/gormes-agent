@@ -7,9 +7,9 @@ title: "Navivox Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `navivox`
-**Rows:** 22
-**Status counts:** `complete`: 14 · `in_progress`: 0 · `planned`: 8
-**Priority counts:** `P0`: 2 · `P1`: 12 · `P2`: 1 · `P3`: 1 · `unset`: 6
+**Rows:** 21
+**Status counts:** `complete`: 14 · `in_progress`: 0 · `planned`: 7
+**Priority counts:** `P0`: 2 · `P1`: 13 · `unset`: 6
 
 ## Phase 2 — The Gateway
 
@@ -33,8 +33,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `planned` | `P2` | `navivox` | gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned) |
-| `planned` | `P3` | `navivox` | gormes setup profiles — all profiles navivox-accessible by default |
+| `planned` | `P1` | `navivox` | Navivox multi-server profile routing config model |
 
 ## Phase 9 — Design & Security Hardening
 

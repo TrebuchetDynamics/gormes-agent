@@ -82,6 +82,10 @@ func TestSetupAndConfigDocsDescribeProfileWorkspaceListPolicy(t *testing.T) {
 
 	config := readDoc(t, "content/configure/config-file.md")
 	assertContainsAll(t, "content/configure/config-file.md", config, []string{
+		"## Planned v2 profile schema",
+		"config_version = 2",
+		"There is no `active_profile` or `default_profile` field in config v2.",
+		"Navivox manages multiple profiles and servers",
 		"| `agents.defaults.workspaces` | Per-profile project workspace list persisted by `gormes setup profiles`.",
 		"Empty list means operator home; non-empty list is the model-facing project read/write allow-list",
 		"model-facing profile edits are limited to explicit profile-owned content such as `SOUL.md`, `IDENTITY.md`, and `skills/`",
@@ -113,6 +117,8 @@ func TestSetupAndConfigDocsDescribeProfileWorkspaceListPolicy(t *testing.T) {
 		"Long-term plan: profile fleet supervisor and single control-plane gateway",
 		"preserving Hermes-compatible profile state separation",
 		"profile-scoped workers",
+		"Profile Control Center v2 umbrella",
+		"single root config",
 	})
 	if strings.Contains(nextSlices, "Profile workspace allow-list enforcement policy") {
 		t.Fatal("completed profile workspace allow-list row must not remain in next slices")
@@ -124,23 +130,38 @@ func TestSetupAndConfigDocsDescribeProfileWorkspaceListPolicy(t *testing.T) {
 }
 
 func TestWebsiteRoadmapDoesNotMarkPartialSetupProfilesUmbrellaComplete(t *testing.T) {
+	profileConfigV2 := readDoc(t, "content/building-gormes/architecture_plan/profile-config-v2.md")
+	assertContainsAll(t, "content/building-gormes/architecture_plan/profile-config-v2.md", profileConfigV2, []string{
+		"config_version = 2",
+		"[profiles.main]",
+		"name = \"\"",
+		"All `enabled = true` profiles are active services.",
+		"There is no\n  `active_profile` or `default_profile` field in config v2.",
+		"[credentials.main-openrouter]",
+		"[navivox.servers.local]",
+		"Navivox manages a profile fleet.",
+		"Credential sharing is legal only when another profile references the same id",
+	})
+
 	navivox := readDoc(t, "content/building-gormes/modules/navivox.md")
 	assertContainsAll(t, "content/building-gormes/modules/navivox.md", navivox, []string{
-		"| `planned` | `P2` | `navivox` | gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned) |",
-		"| `planned` | `P3` | `navivox` | gormes setup profiles — all profiles navivox-accessible by default |",
+		"| `planned` | `P1` | `navivox` | Navivox multi-server profile routing config model |",
 	})
-	if strings.Contains(navivox, "| `complete` | `P2` | `navivox` | gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned) |") {
-		t.Fatal("navivox module roadmap must not mark setup-profiles umbrella complete while navivox child remains planned")
+	if strings.Contains(navivox, "default_profile") ||
+		strings.Contains(navivox, "navivox-accessible by default") ||
+		strings.Contains(navivox, "navivox-default") {
+		t.Fatal("navivox module roadmap must use the multi-server/profile routing model, not default-profile wording")
 	}
 
 	roadmap := readDoc(t, "content/building-gormes/architecture_plan/_index.md")
 	assertContainsAll(t, "content/building-gormes/architecture_plan/_index.md", roadmap, []string{
-		"- [ ] `navivox` gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)",
+		"- [ ] `profiles` Profile Control Center v2 umbrella — single root config and active services",
 		"- [x] `profiles` gormes setup profiles — section scaffold + per-profile workspace list",
 		"- [x] `profiles` gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)",
-		"- [ ] `navivox` gormes setup profiles — all profiles navivox-accessible by default",
+		"- [ ] `navivox` Navivox multi-server profile routing config model",
 	})
-	if strings.Contains(roadmap, "- [x] `navivox` gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)") {
-		t.Fatal("architecture roadmap must not check off the setup-profiles umbrella while navivox child remains planned")
+	if strings.Contains(roadmap, "navivox-default") ||
+		strings.Contains(roadmap, "default_profile") {
+		t.Fatal("architecture roadmap must not retain superseded navivox default-profile wording")
 	}
 }

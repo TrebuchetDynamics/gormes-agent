@@ -52,30 +52,97 @@ func (b *Bot) transcribeTelegramAudio(ctx context.Context, input AudioInput) (st
 	if b == nil || b.cfg.AudioTranscriber == nil {
 		return "", nil
 	}
-	if b.client == nil {
-		return "", errors.New("telegram client unavailable")
+	if len(input.Data) == 0 {
+		var err error
+		input, _, _, err = b.materializeTelegramAudio(ctx, input)
+		if err != nil {
+			return "", err
+		}
 	}
-	fileID := strings.TrimSpace(input.FileID)
-	if fileID == "" {
-		return "", errors.New("telegram file id missing")
-	}
-	file, err := b.client.GetFile(tgbotapi.FileConfig{FileID: fileID})
-	if err != nil {
-		return "", fmt.Errorf("telegram getFile failed: %w", err)
-	}
-	filePath := strings.TrimSpace(file.FilePath)
-	if filePath == "" {
-		return "", errors.New("telegram file path missing")
-	}
-	data, err := b.client.DownloadFile(ctx, filePath)
-	if err != nil {
-		return "", fmt.Errorf("telegram download failed: %w", err)
-	}
-	if len(data) == 0 {
-		return "", errors.New("telegram download returned empty audio")
-	}
-	input.Data = data
 	return b.cfg.AudioTranscriber.Transcribe(ctx, input)
+}
+
+func (b *Bot) materializeTelegramAudio(ctx context.Context, input AudioInput) (AudioInput, string, int64, error) {
+	if b.client == nil {
+		return input, "", 0, errors.New("telegram client unavailable")
+	}
+	filePath := ""
+	if len(input.Data) == 0 {
+		fileID := strings.TrimSpace(input.FileID)
+		if fileID == "" {
+			return input, "", 0, errors.New("telegram file id missing")
+		}
+		file, err := b.client.GetFile(tgbotapi.FileConfig{FileID: fileID})
+		if err != nil {
+			return input, "", 0, fmt.Errorf("telegram getFile failed: %w", err)
+		}
+		filePath = strings.TrimSpace(file.FilePath)
+		if filePath == "" {
+			return input, "", 0, errors.New("telegram file path missing")
+		}
+		data, err := b.client.DownloadFile(ctx, filePath)
+		if err != nil {
+			return input, "", 0, fmt.Errorf("telegram download failed: %w", err)
+		}
+		if len(data) == 0 {
+			return input, "", 0, errors.New("telegram download returned empty audio")
+		}
+		input.Data = data
+	}
+	if input.MediaType = cleanTelegramMediaType(input.MediaType); input.MediaType == "" {
+		input.MediaType = "audio/ogg"
+	}
+	if input.FileName = telegramAudioCacheFileName(input, filePath); input.FileName == "" {
+		input.FileName = "audio.ogg"
+	}
+	path, err := b.cacheTelegramBytes("audio", input.FileName, input.Data)
+	if err != nil {
+		return input, "", int64(len(input.Data)), fmt.Errorf("telegram audio cache failed: %w", err)
+	}
+	return input, path, int64(len(input.Data)), nil
+}
+
+func telegramAudioCacheFileName(input AudioInput, filePath string) string {
+	if fileName := telegramSafeFileName(input.FileName); fileName != "" {
+		if ext := telegramAudioCacheExtension(input.MediaType, fileName); ext != "" {
+			return strings.TrimSuffix(fileName, filepath.Ext(fileName)) + ext
+		}
+		return fileName
+	}
+	ext := telegramAudioCacheExtension(input.MediaType, filePath)
+	if base := telegramSafeFileName(filepath.Base(strings.TrimSpace(filePath))); base != "" && base != "." {
+		return strings.TrimSuffix(base, filepath.Ext(base)) + ext
+	}
+	kind := strings.ToLower(strings.TrimSpace(input.Kind))
+	if kind == "" {
+		kind = "audio"
+	}
+	return kind + ext
+}
+
+func telegramAudioCacheExtension(mediaType, filePath string) string {
+	switch ext := strings.ToLower(filepath.Ext(strings.TrimSpace(filePath))); ext {
+	case ".oga", ".opus":
+		return ".ogg"
+	case ".aac", ".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".ogg", ".wav", ".webm":
+		return ext
+	}
+	switch cleanTelegramMediaType(mediaType) {
+	case "audio/ogg", "audio/opus":
+		return ".ogg"
+	case "audio/mpeg", "audio/mp3":
+		return ".mp3"
+	case "audio/mp4", "audio/aac":
+		return ".m4a"
+	case "audio/flac":
+		return ".flac"
+	case "audio/wav", "audio/wave", "audio/x-wav":
+		return ".wav"
+	case "audio/webm":
+		return ".webm"
+	default:
+		return ".ogg"
+	}
 }
 
 func sanitizeTelegramAudioError(err error) string {

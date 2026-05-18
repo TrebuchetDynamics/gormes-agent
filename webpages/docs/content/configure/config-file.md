@@ -40,6 +40,38 @@ Every section below is read by `internal/config`. Defaults are the values the
 binary applies when the key is missing. Boolean values default to `false`
 unless noted.
 
+## Planned v2 profile schema
+
+Gormes is moving profile setup toward a single-root `config.toml` shape where
+all enabled profiles are service declarations in one file. This is the target
+architecture for the next profile-control-center slices; the current shipped
+runtime still reads the v1 sections documented below.
+
+The v2 seed is:
+
+```toml
+config_version = 2
+
+[profiles.main]
+enabled = true
+name = ""
+```
+
+Key rules:
+
+- `profiles.<id>` is the stable profile id; `name` is display text.
+- All `enabled = true` profiles are active services.
+- There is no `active_profile` or `default_profile` field in config v2.
+- New setup writes only `$GORMES_HOME/config.toml`, not canonical per-profile
+  config files.
+- Provider and channel credentials are referenced per profile through a global
+  `[credentials.<id>]` registry with owner metadata and secret refs.
+- Navivox manages multiple profiles and servers; it does not ask for one
+  startup-selected profile.
+
+See [Profile config v2](../../building-gormes/architecture_plan/profile-config-v2/)
+for the full planning example and migration rules.
+
 ### `[hermes]`
 
 Provider and model identity for the default agent.
