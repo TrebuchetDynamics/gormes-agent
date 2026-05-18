@@ -42,12 +42,13 @@ var (
 
 // FileTaskToolConfig constrains local file tools to a workspace root.
 type FileTaskToolConfig struct {
-	Root          string
-	ReadGuard     *FileReadGuard
-	StateRegistry *FileStateRegistry
-	TaskID        string
-	CWDResolver   func() string
-	MaxReadChars  int
+	Root           string
+	WorkspaceScope *ProfileWorkspaceScope
+	ReadGuard      *FileReadGuard
+	StateRegistry  *FileStateRegistry
+	TaskID         string
+	CWDResolver    func() string
+	MaxReadChars   int
 }
 
 type structuredLintResult struct {
@@ -122,7 +123,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	if err := json.Unmarshal(defaultJSONArgs(args), &in); err != nil {
 		return marshalToolPayload(map[string]any{"error": "invalid read_file args: " + err.Error()})
 	}
-	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskReadPath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
@@ -346,7 +347,7 @@ func (t *SearchFilesTool) Execute(ctx context.Context, args json.RawMessage) (js
 	if strings.TrimSpace(searchPath) == "" {
 		searchPath = "."
 	}
-	base, relBase, root, _, err := resolveFileTaskPath(t.cfg, searchPath)
+	base, relBase, root, _, err := resolveFileTaskReadPath(t.cfg, searchPath)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": searchPath, "error": err.Error()})
 	}
@@ -568,7 +569,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err := json.Unmarshal(defaultJSONArgs(args), &in); err != nil {
 		return marshalToolPayload(map[string]any{"error": "invalid write_file args: " + err.Error()})
 	}
-	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskWritePath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
@@ -657,7 +658,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if isFileReadGuardStatusText([]byte(in.NewString)) {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": ErrFileReadGuardStatusContent.Error()})
 	}
-	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskWritePath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
@@ -1316,7 +1317,7 @@ func v4aPatchSnapshotRoot(actions []v4aPatchAction) (string, error) {
 
 func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, *fileStateCheck, error) {
 	action := v4aPatchAction{kind: op.kind}
-	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, op.path)
+	resolved, rel, root, cwd, err := resolveFileTaskWritePath(t.cfg, op.path)
 	action.abs, action.rel, action.root, action.cwd = resolved, rel, root, cwd
 	if err != nil {
 		return action, nil, err
@@ -1374,7 +1375,7 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		if info.IsDir() {
 			return action, nil, fmt.Errorf("move file %s: expected a file, got a directory", rel)
 		}
-		newAbs, newRel, newRoot, newCWD, err := resolveFileTaskPath(t.cfg, op.newPath)
+		newAbs, newRel, newRoot, newCWD, err := resolveFileTaskWritePath(t.cfg, op.newPath)
 		if err != nil {
 			return action, nil, err
 		}
@@ -1898,7 +1899,43 @@ func resolveWorkspaceFile(root, rawPath string) (string, string, error) {
 	return resolveWorkspacePath(workspaceRoot, rawPath)
 }
 
+func resolveFileTaskReadPath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
+	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessRead)
+}
+
+func resolveFileTaskWritePath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
+	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessWrite)
+}
+
 func resolveFileTaskPath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
+	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessWrite)
+}
+
+func resolveFileTaskPathForAccess(cfg FileTaskToolConfig, rawPath string, access ProfileWorkspaceAccess) (string, string, string, string, error) {
+	if cfg.WorkspaceScope != nil {
+		base, err := resolveProfileWorkspaceBase(cfg)
+		if err != nil {
+			return "", "", "", "", err
+		}
+		decision := cfg.WorkspaceScope.Resolve(rawPath, base, access)
+		if !decision.Allowed {
+			message := decision.Message
+			if message == "" {
+				message = "path is outside configured profile workspace roots"
+			}
+			return "", "", "", "", fmt.Errorf("%s: %s", decision.Evidence, message)
+		}
+		root := decision.Root
+		if root == "" {
+			root = cfg.WorkspaceScope.DefaultRoot()
+		}
+		cwdRel := "."
+		if root != "" && pathWithinRoot(root, base) {
+			cwdRel = workspaceRel(root, base)
+		}
+		return decision.Normalized, decision.Relative, root, cwdRel, nil
+	}
+
 	workspaceRoot, err := resolveWorkspaceRoot(cfg.Root)
 	if err != nil {
 		return "", "", "", "", err
@@ -1912,6 +1949,36 @@ func resolveFileTaskPath(cfg FileTaskToolConfig, rawPath string) (string, string
 		return "", "", "", "", err
 	}
 	return resolved, rel, workspaceRoot, cwdRel, nil
+}
+
+func resolveProfileWorkspaceBase(cfg FileTaskToolConfig) (string, error) {
+	raw := ""
+	if cfg.CWDResolver != nil {
+		raw = strings.TrimSpace(cfg.CWDResolver())
+	} else if strings.TrimSpace(cfg.Root) == "" {
+		raw = strings.TrimSpace(os.Getenv("TERMINAL_CWD"))
+	}
+	if raw == "" || terminalCWDPlaceholder(raw) {
+		if cfg.WorkspaceScope != nil && !cfg.WorkspaceScope.Configured() {
+			if cwd, err := os.Getwd(); err == nil {
+				raw = cwd
+			}
+		}
+	}
+	if raw == "" || terminalCWDPlaceholder(raw) {
+		raw = strings.TrimSpace(cfg.Root)
+	}
+	if raw == "" || terminalCWDPlaceholder(raw) {
+		raw = cfg.WorkspaceScope.DefaultRoot()
+	}
+	if raw == "" {
+		var err error
+		raw, err = os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("resolve task cwd: %w", err)
+		}
+	}
+	return normalizeWorkspacePath(raw, cfg.WorkspaceScope.DefaultRoot())
 }
 
 func resolveFileTaskCWD(cfg FileTaskToolConfig, root string) (string, string, error) {

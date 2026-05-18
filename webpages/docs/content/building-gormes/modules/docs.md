@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `docs`
 **Rows:** 13
-**Status counts:** `complete`: 8 · `in_progress`: 0 · `planned`: 5
+**Status counts:** `complete`: 9 · `in_progress`: 0 · `planned`: 4
 **Priority counts:** `P1`: 9 · `P2`: 2 · `P3`: 2
 
 ## Phase 8 — Reputation & Publication
@@ -35,7 +35,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 |---|---|---|---|
 | `planned` | `P1` | `docs` | Engineering writeup #1: autonomous Hermes-porting loop |
 | `complete` | `P1` | `docs` | Hermes v0.14 release feature-to-module pairing ledger |
-| `planned` | `P1` | `docs` | Hermes contract inventory gate |
+| `complete` | `P1` | `docs` | Hermes contract inventory gate |
 
 ### 8.E — Toolkit Extraction
 

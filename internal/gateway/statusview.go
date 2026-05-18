@@ -27,6 +27,10 @@ func RenderStatusSummary(summary StatusSummary) string {
 	b.WriteString("Gateway status\n")
 	b.WriteString(renderRuntimeLine(summary.Runtime))
 	b.WriteByte('\n')
+	if memoryLine := FormatMemoryPressureEvidence(summary.Runtime.MemoryPressure); memoryLine != "" {
+		b.WriteString(memoryLine)
+		b.WriteByte('\n')
+	}
 
 	channels := sortedStatusChannels(summary.Channels)
 	if len(channels) == 0 {
@@ -144,9 +148,27 @@ func runtimeStatusMissing(runtime RuntimeStatus) bool {
 		len(runtime.TakeoverMarkers) == 0 &&
 		len(runtime.DuplicateRestarts) == 0 &&
 		len(runtime.ServiceManagerUnavailable) == 0 &&
+		memoryPressureEvidenceEmpty(runtime.MemoryPressure) &&
 		runtime.ConfigReload == (RuntimeConfigReloadEvidence{}) &&
 		runtime.Proxy == (ProxyRuntimeStatus{}) &&
 		runtime.UpdatedAt == ""
+}
+
+func memoryPressureEvidenceEmpty(evidence RuntimeMemoryPressureEvidence) bool {
+	return evidence.Status == "" &&
+		evidence.RSSMB == 0 &&
+		evidence.WarnRSSMB == 0 &&
+		evidence.CriticalRSSMB == 0 &&
+		evidence.UptimeSeconds == 0 &&
+		evidence.GoRoutines == 0 &&
+		evidence.GCCollections == 0 &&
+		evidence.Action == "" &&
+		evidence.TargetPID == 0 &&
+		evidence.TargetStartTime == 0 &&
+		len(evidence.Evidence) == 0 &&
+		evidence.Message == "" &&
+		evidence.CheckedAt == "" &&
+		!evidence.Redacted
 }
 
 func renderChannelLine(channel StatusChannel, runtime RuntimeStatus, pairing PairingPlatformStatus) string {

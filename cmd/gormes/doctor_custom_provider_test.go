@@ -365,6 +365,47 @@ func TestDoctorWebToolsStatusReportsManagedGateway(t *testing.T) {
 	}
 }
 
+func TestDoctorWebToolsStatusExplainsGoscraplingBrowserExtractOnly(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+
+	got := doctorWebToolsStatus(config.Config{
+		Web: config.WebCfg{Backend: "goscrapling_browser"},
+	})
+	if got.Name != "Web tools" || got.Status != doctor.StatusPass {
+		t.Fatalf("doctor web status = %+v, want Web tools PASS", got)
+	}
+	for _, want := range []string{"backend=goscrapling_browser", "route=local", "source=config"} {
+		if !strings.Contains(got.Summary, want) {
+			t.Fatalf("summary = %q, want %q", got.Summary, want)
+		}
+	}
+	toolset, ok := findItem(got.Items, "toolset")
+	if !ok {
+		t.Fatalf("missing toolset item in %+v", got.Items)
+	}
+	if strings.TrimSpace(toolset.Note) != "web_extract" {
+		t.Fatalf("toolset note = %q, want only web_extract", toolset.Note)
+	}
+	requiresEnv, ok := findItem(got.Items, "requires_env")
+	if !ok {
+		t.Fatalf("missing requires_env item in %+v", got.Items)
+	}
+	if requiresEnv.Note != "none (browser runtime checked separately)" {
+		t.Fatalf("requires_env note = %q, want no provider env for local browser backend", requiresEnv.Note)
+	}
+	formatted := got.Format()
+	for _, want := range []string{"local browser extraction", "extract only", "web_extract"} {
+		if !strings.Contains(formatted, want) {
+			t.Fatalf("doctor web status missing %q:\n%s", want, formatted)
+		}
+	}
+	for _, forbidden := range []string{"web_search", "web_crawl", "secret-token"} {
+		if strings.Contains(formatted, forbidden) {
+			t.Fatalf("doctor web status contains unsupported or secret text %q:\n%s", forbidden, formatted)
+		}
+	}
+}
+
 func findItem(items []doctor.ItemInfo, name string) (doctor.ItemInfo, bool) {
 	for _, it := range items {
 		if it.Name == name {

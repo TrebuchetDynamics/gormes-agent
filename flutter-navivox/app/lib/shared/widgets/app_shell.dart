@@ -16,6 +16,7 @@ class AppShell extends StatelessWidget {
       _Destination(AppRoutes.servers, Icons.dns, 'Servers'),
       _Destination(AppRoutes.agents, Icons.smart_toy, 'Agents'),
       _Destination(AppRoutes.config, Icons.settings, 'Config'),
+      _Destination(AppRoutes.settings, Icons.keyboard_voice, 'Settings'),
     ];
     final selectedIndex = destinations.indexWhere(
       (destination) => location.startsWith(destination.path),

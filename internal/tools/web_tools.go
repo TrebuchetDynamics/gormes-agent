@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/goscrapling"
+	goscraplingbrowser "github.com/TrebuchetDynamics/goscrapling/engines/browser"
 )
 
 const (
@@ -48,15 +49,16 @@ const (
 type WebBackend string
 
 const (
-	WebBackendFirecrawl  WebBackend = "firecrawl"
-	WebBackendParallel   WebBackend = "parallel"
-	WebBackendTavily     WebBackend = "tavily"
-	WebBackendExa        WebBackend = "exa"
-	WebBackendCDP        WebBackend = "cdp"
-	WebBackendBrave      WebBackend = "brave"
-	WebBackendSearXNG    WebBackend = "searxng"
-	WebBackendPerplexity WebBackend = "perplexity"
-	WebBackendDuckDuckGo WebBackend = "duckduckgo"
+	WebBackendFirecrawl          WebBackend = "firecrawl"
+	WebBackendParallel           WebBackend = "parallel"
+	WebBackendTavily             WebBackend = "tavily"
+	WebBackendExa                WebBackend = "exa"
+	WebBackendCDP                WebBackend = "cdp"
+	WebBackendBrave              WebBackend = "brave"
+	WebBackendSearXNG            WebBackend = "searxng"
+	WebBackendPerplexity         WebBackend = "perplexity"
+	WebBackendDuckDuckGo         WebBackend = "duckduckgo"
+	WebBackendGoscraplingBrowser WebBackend = "goscrapling_browser"
 )
 
 type WebEvidence string
@@ -77,6 +79,16 @@ const (
 // wiring supplies its own adapter.
 type WebHTTPClient interface {
 	Do(*http.Request) (*http.Response, error)
+}
+
+type GoscraplingBrowserFetcher interface {
+	Fetch(context.Context, string, goscraplingbrowser.BrowserOptions) (*goscrapling.Response, error)
+}
+
+type GoscraplingBrowserConfig struct {
+	Fetcher GoscraplingBrowserFetcher
+	Timeout time.Duration
+	Wait    time.Duration
 }
 
 // WebBackendResolution is the credential/provider state used by web tools.
@@ -123,17 +135,18 @@ type WebBackendConfig struct {
 // WebToolsConfig wires web_search, web_extract, and web_crawl. Leave Resolution
 // zero in production to resolve from environment; tests provide explicit values.
 type WebToolsConfig struct {
-	Client           WebHTTPClient
-	Browser          BrowserHarnessToolsConfig
-	Backend          WebBackendConfig
-	Policy           WebWebsitePolicy
-	Processing       WebContentProcessingConfig
-	ContentProcessor WebContentProcessor
-	Resolution       WebBackendResolution
-	Timeout          time.Duration
-	MaxSearch        int
-	MaxExtract       int
-	DefaultLimit     int
+	Client             WebHTTPClient
+	Browser            BrowserHarnessToolsConfig
+	Backend            WebBackendConfig
+	GoscraplingBrowser GoscraplingBrowserConfig
+	Policy             WebWebsitePolicy
+	Processing         WebContentProcessingConfig
+	ContentProcessor   WebContentProcessor
+	Resolution         WebBackendResolution
+	Timeout            time.Duration
+	MaxSearch          int
+	MaxExtract         int
+	DefaultLimit       int
 }
 
 // WebWebsitePolicy mirrors Hermes' security.website_blocklist policy in the
@@ -195,7 +208,18 @@ type webExtractResult struct {
 	Content         string            `json:"content"`
 	Error           string            `json:"error,omitempty"`
 	Evidence        WebEvidence       `json:"evidence,omitempty"`
+	Extraction      *webExtraction    `json:"extraction,omitempty"`
 	BlockedByPolicy map[string]string `json:"blocked_by_policy,omitempty"`
+}
+
+type webExtraction struct {
+	Engine       string `json:"engine,omitempty"`
+	Mode         string `json:"mode,omitempty"`
+	StatusCode   int    `json:"status_code,omitempty"`
+	ContentType  string `json:"content_type,omitempty"`
+	CSSSelector  string `json:"css_selector,omitempty"`
+	FinalURL     string `json:"final_url,omitempty"`
+	WaitEvidence string `json:"wait_evidence,omitempty"`
 }
 
 type webErrorResponse struct {
@@ -243,7 +267,7 @@ func ResolveWebBackendStatus(env map[string]string, cfg WebBackendConfig) WebBac
 	if resolved.Available {
 		if resolved.Managed {
 			route = "managed"
-		} else if resolved.Backend == WebBackendCDP {
+		} else if resolved.Backend == WebBackendCDP || resolved.Backend == WebBackendGoscraplingBrowser {
 			route = "local"
 		} else {
 			route = "direct"
@@ -345,6 +369,8 @@ func resolveConfiguredWebBackend(backend WebBackend, cfg WebBackendConfig, read 
 		return unavailableWebBackend(WebBackendPerplexity, webDefaultPerplexityBaseURL)
 	case WebBackendCDP:
 		return resolveCDPBackend(read)
+	case WebBackendGoscraplingBrowser:
+		return resolveGoscraplingBrowserBackend(explicit)
 	case WebBackendDuckDuckGo:
 		return duckDuckGoBackendResolution(read)
 	default:
@@ -375,6 +401,19 @@ func resolveCDPBackend(read func(string) string) WebBackendResolution {
 		Evidence:  WebEvidenceOK,
 		Source:    "env",
 		Note:      "extract only — no search or crawl; pair with DuckDuckGo or SearXNG for search",
+	}
+}
+
+func resolveGoscraplingBrowserBackend(explicit bool) WebBackendResolution {
+	if !explicit {
+		return unavailableWebBackend(WebBackendGoscraplingBrowser, "")
+	}
+	return WebBackendResolution{
+		Backend:   WebBackendGoscraplingBrowser,
+		Available: true,
+		Evidence:  WebEvidenceOK,
+		Source:    "config",
+		Note:      "extract only — goscrapling browser renderer selected by web.backend",
 	}
 }
 
@@ -460,6 +499,8 @@ func normalizeWebBackend(raw string) WebBackend {
 		return WebBackendTavily
 	case string(WebBackendExa):
 		return WebBackendExa
+	case string(WebBackendGoscraplingBrowser), "goscrapling-browser", "browser_goscrapling":
+		return WebBackendGoscraplingBrowser
 	case string(WebBackendCDP), "browser", "browser_cdp", "chrome":
 		return WebBackendCDP
 	case string(WebBackendBrave), "brave_search":
@@ -550,7 +591,7 @@ func (t *webTool) executeSearch(ctx context.Context, args json.RawMessage) (json
 	if !t.cfg.Resolution.Available {
 		return webSearchFailure(webProviderUnavailableMessage(), WebEvidenceProviderUnavailable)
 	}
-	if t.cfg.Resolution.Backend == WebBackendCDP {
+	if t.cfg.Resolution.Backend == WebBackendCDP || t.cfg.Resolution.Backend == WebBackendGoscraplingBrowser {
 		return webSearchFailure("web_search requires an indexed search backend; CDP/browser backend only supports web_extract for known URLs.", WebEvidenceBackendUnsupported)
 	}
 
@@ -722,6 +763,15 @@ func (t *webTool) executeExtract(ctx context.Context, args json.RawMessage) (jso
 			Success: false,
 			Error:   "Blocked: URL contains what appears to be an API key or token. Secrets must not be sent in URLs.",
 		})
+	}
+	if t.cfg.Resolution.Backend == WebBackendGoscraplingBrowser {
+		if !t.cfg.Resolution.Available {
+			return json.Marshal(webExtractResponse{Results: []webExtractResult{{
+				Error:    webProviderUnavailableMessage(),
+				Evidence: WebEvidenceProviderUnavailable,
+			}}})
+		}
+		return t.executeGoscraplingBrowserExtract(ctx, in.URLs, in.CSSSelector)
 	}
 	if strings.TrimSpace(in.CSSSelector) != "" {
 		return t.executeGoscraplingExtract(ctx, in.URLs, in.CSSSelector)
@@ -966,6 +1016,30 @@ func (t *webTool) executeGoscraplingExtract(ctx context.Context, urls []string, 
 	return marshalWebExtractResponse(webExtractResponse{Results: results})
 }
 
+func (t *webTool) executeGoscraplingBrowserExtract(ctx context.Context, urls []string, selector string) (json.RawMessage, error) {
+	selector = strings.TrimSpace(selector)
+	results := make([]webExtractResult, 0, len(urls))
+	for _, rawURL := range urls {
+		trimmed := strings.TrimSpace(rawURL)
+		if errResult, blocked := t.blockedWebExtractRequestResult(trimmed); blocked {
+			results = append(results, errResult)
+			continue
+		}
+		result, err := t.goscraplingBrowserExtractURL(ctx, trimmed, selector)
+		if err != nil {
+			results = append(results, webExtractResult{
+				URL:        trimmed,
+				Error:      "Error extracting web page with goscrapling browser: " + redactWebError(err.Error(), t.cfg.Resolution.APIKey),
+				Evidence:   WebEvidenceRequestFailed,
+				Extraction: t.goscraplingBrowserExtractionEvidence(trimmed, selector, nil),
+			})
+			continue
+		}
+		results = append(results, t.processWebExtractResult(ctx, t.applyWebExtractPostPolicy(result)))
+	}
+	return marshalWebExtractResponse(webExtractResponse{Results: results})
+}
+
 func (t *webTool) goscraplingExtractURL(ctx context.Context, rawURL, selector string) (webExtractResult, error) {
 	selector = strings.TrimSpace(selector)
 	reqCtx, cancel := context.WithTimeout(ctx, t.cfg.timeout())
@@ -1002,15 +1076,23 @@ func (t *webTool) goscraplingExtractURL(ctx context.Context, rawURL, selector st
 
 	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	extraction := &webExtraction{
+		Engine:      "goscrapling",
+		Mode:        "static",
+		StatusCode:  resp.StatusCode,
+		ContentType: mediaType,
+		CSSSelector: selector,
+	}
 	if selector == "" && mediaType != "text/html" && mediaType != "application/xhtml+xml" {
 		if !webDirectTextContentAllowed(mediaType, rawURL, data) {
 			return webExtractResult{}, fmt.Errorf("unsupported direct content type %q", firstNonEmpty(mediaType, http.DetectContentType(data)))
 		}
 		content := strings.TrimPrefix(string(data), "\ufeff")
 		return webExtractResult{
-			URL:     finalURL,
-			Title:   webDirectTextDocumentTitle(finalURL, content),
-			Content: content,
+			URL:        finalURL,
+			Title:      webDirectTextDocumentTitle(finalURL, content),
+			Content:    content,
+			Extraction: extraction,
 		}, nil
 	}
 
@@ -1037,19 +1119,21 @@ func (t *webTool) goscraplingExtractURL(ctx context.Context, rawURL, selector st
 			return webExtractResult{}, fmt.Errorf("empty static HTML content")
 		}
 		return webExtractResult{
-			URL:     finalURL,
-			Title:   webDirectHTMLTitle(finalURL, title, content),
-			Content: content,
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, content),
+			Content:    content,
+			Extraction: extraction,
 		}, nil
 	}
 
 	selection := response.CSS(selector)
 	if selection.Len() == 0 {
 		return webExtractResult{
-			URL:      finalURL,
-			Title:    webDirectHTMLTitle(finalURL, title, ""),
-			Error:    string(WebEvidenceInvalidArguments) + ": css_selector matched no elements",
-			Evidence: WebEvidenceInvalidArguments,
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, ""),
+			Error:      string(WebEvidenceInvalidArguments) + ": css_selector matched no elements",
+			Evidence:   WebEvidenceInvalidArguments,
+			Extraction: extraction,
 		}, nil
 	}
 
@@ -1061,18 +1145,171 @@ func (t *webTool) goscraplingExtractURL(ctx context.Context, rawURL, selector st
 	}
 	if content == "" {
 		return webExtractResult{
-			URL:      finalURL,
-			Title:    webDirectHTMLTitle(finalURL, title, ""),
-			Error:    string(WebEvidenceInvalidArguments) + ": css_selector matched only empty content",
-			Evidence: WebEvidenceInvalidArguments,
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, ""),
+			Error:      string(WebEvidenceInvalidArguments) + ": css_selector matched only empty content",
+			Evidence:   WebEvidenceInvalidArguments,
+			Extraction: extraction,
 		}, nil
 	}
 
 	return webExtractResult{
-		URL:     finalURL,
-		Title:   webDirectHTMLTitle(finalURL, title, content),
-		Content: content,
+		URL:        finalURL,
+		Title:      webDirectHTMLTitle(finalURL, title, content),
+		Content:    content,
+		Extraction: extraction,
 	}, nil
+}
+
+func (t *webTool) goscraplingBrowserExtractURL(ctx context.Context, rawURL, selector string) (webExtractResult, error) {
+	selector = strings.TrimSpace(selector)
+	fetcher := t.goscraplingBrowserFetcher()
+	if fetcher == nil {
+		return webExtractResult{}, fmt.Errorf("goscrapling browser fetcher is not configured")
+	}
+
+	reqCtx, cancel := context.WithTimeout(ctx, t.goscraplingBrowserTimeout())
+	defer cancel()
+	options := t.goscraplingBrowserOptions(selector)
+	response, err := fetcher.Fetch(reqCtx, rawURL, options)
+	if err != nil {
+		return webExtractResult{}, err
+	}
+	extraction := t.goscraplingBrowserExtractionEvidence(rawURL, selector, response)
+	finalURL := firstNonEmpty(response.URL(), rawURL)
+	if result, blocked := t.blockedWebExtractRequestResult(finalURL); blocked {
+		result.Extraction = extraction
+		return result, nil
+	}
+	if status := response.StatusCode(); status < 200 || status >= 300 {
+		return webExtractResult{
+			URL:        finalURL,
+			Error:      fmt.Sprintf("HTTP %d", status),
+			Evidence:   WebEvidenceRequestFailed,
+			Extraction: extraction,
+		}, nil
+	}
+
+	title := webExtractHTMLTitle(response.Text())
+	if selector == "" {
+		contentHTML := goscraplingPreferredHTML(response)
+		_, content := webExtractHTMLToMarkdown([]byte(contentHTML), finalURL)
+		if strings.TrimSpace(content) == "" {
+			return webExtractResult{}, fmt.Errorf("empty browser-rendered HTML content")
+		}
+		return webExtractResult{
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, content),
+			Content:    content,
+			Extraction: extraction,
+		}, nil
+	}
+
+	selection := response.CSS(selector)
+	if selection.Len() == 0 {
+		return webExtractResult{
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, ""),
+			Error:      string(WebEvidenceInvalidArguments) + ": css_selector matched no browser-rendered elements",
+			Evidence:   WebEvidenceInvalidArguments,
+			Extraction: extraction,
+		}, nil
+	}
+
+	content := webCleanMarkdownLines(selection.Text())
+	if content == "" {
+		if htmlContent, err := selection.HTML(); err == nil {
+			content = webCleanMarkdownLines(htmlContent)
+		}
+	}
+	if content == "" {
+		return webExtractResult{
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, ""),
+			Error:      string(WebEvidenceInvalidArguments) + ": css_selector matched only empty browser-rendered content",
+			Evidence:   WebEvidenceInvalidArguments,
+			Extraction: extraction,
+		}, nil
+	}
+
+	return webExtractResult{
+		URL:        finalURL,
+		Title:      webDirectHTMLTitle(finalURL, title, content),
+		Content:    content,
+		Extraction: extraction,
+	}, nil
+}
+
+func (t *webTool) goscraplingBrowserOptions(selector string) goscraplingbrowser.BrowserOptions {
+	headers := http.Header{}
+	headers.Set("Accept", "text/html,application/xhtml+xml,text/*;q=0.9,application/json;q=0.8,*/*;q=0.1")
+	headers.Set("User-Agent", webDefaultUserAgent)
+	options := goscraplingbrowser.BrowserOptions{
+		Headers:          headers,
+		Headless:         true,
+		DisableResources: true,
+		NetworkIdle:      true,
+		LoadDOM:          true,
+		Timeout:          t.goscraplingBrowserTimeout(),
+		Wait:             t.cfg.GoscraplingBrowser.Wait,
+	}
+	if selector = strings.TrimSpace(selector); selector != "" {
+		options.WaitSelector = goscraplingbrowser.BrowserWaitSelector{
+			Selector: selector,
+			State:    goscraplingbrowser.BrowserWaitVisible,
+		}
+	}
+	return options
+}
+
+func (t *webTool) goscraplingBrowserTimeout() time.Duration {
+	if t.cfg.GoscraplingBrowser.Timeout > 0 {
+		return t.cfg.GoscraplingBrowser.Timeout
+	}
+	return t.cfg.timeout()
+}
+
+func (t *webTool) goscraplingBrowserFetcher() GoscraplingBrowserFetcher {
+	if t.cfg.GoscraplingBrowser.Fetcher != nil {
+		return t.cfg.GoscraplingBrowser.Fetcher
+	}
+	return goscraplingbrowser.BrowserFetcher{Engine: goscraplingbrowser.NewChromedpBrowserEngine(goscraplingbrowser.ChromedpBrowserOptions{})}
+}
+
+func (t *webTool) goscraplingBrowserExtractionEvidence(rawURL, selector string, response *goscrapling.Response) *webExtraction {
+	statusCode := 0
+	contentType := ""
+	finalURL := strings.TrimSpace(rawURL)
+	if response != nil {
+		statusCode = response.StatusCode()
+		if response.URL() != "" {
+			finalURL = response.URL()
+		}
+		contentType, _, _ = mime.ParseMediaType(response.Headers().Get("Content-Type"))
+		contentType = strings.ToLower(strings.TrimSpace(contentType))
+	}
+	return &webExtraction{
+		Engine:       "goscrapling",
+		Mode:         "browser",
+		StatusCode:   statusCode,
+		ContentType:  contentType,
+		CSSSelector:  strings.TrimSpace(selector),
+		FinalURL:     finalURL,
+		WaitEvidence: goscraplingBrowserWaitEvidence(t.goscraplingBrowserOptions(selector)),
+	}
+}
+
+func goscraplingBrowserWaitEvidence(options goscraplingbrowser.BrowserOptions) string {
+	if options.WaitSelector.Selector != "" {
+		return "selector_" + string(options.WaitSelector.State)
+	}
+	if options.NetworkIdle {
+		return "network_idle"
+	}
+	if options.Wait > 0 {
+		return "wait_duration"
+	}
+	return ""
 }
 
 func goscraplingPreferredHTML(response *goscrapling.Response) string {
@@ -1484,9 +1721,10 @@ func normalizeWebExtract(requestedURL, format string, raw map[string]any) webExt
 	title := firstNonEmpty(webStringValue(metadata["title"]), webStringValue(payload["title"]))
 	content := webExtractContent(payload, format)
 	result := webExtractResult{
-		URL:     finalURL,
-		Title:   title,
-		Content: content,
+		URL:        finalURL,
+		Title:      title,
+		Content:    content,
+		Extraction: webExtractionFromRaw(payload["extraction"]),
 	}
 	if errMsg := webStringValue(payload["error"]); errMsg != "" {
 		result.Error = errMsg
@@ -1536,9 +1774,10 @@ func normalizeWebExtractDocument(row map[string]any, fallbackURL string, format 
 		content = firstNonEmpty(webStringValue(row["text"]), webStringValue(row["raw_content"]), webStringValue(row["full_content"]), strings.Join(webStringList(row["excerpts"]), "\n\n"))
 	}
 	result := webExtractResult{
-		URL:     firstNonEmpty(webStringValue(row["url"]), webStringValue(metadata["sourceURL"]), webStringValue(metadata["url"]), fallbackURL),
-		Title:   firstNonEmpty(webStringValue(row["title"]), webStringValue(metadata["title"])),
-		Content: content,
+		URL:        firstNonEmpty(webStringValue(row["url"]), webStringValue(metadata["sourceURL"]), webStringValue(metadata["url"]), fallbackURL),
+		Title:      firstNonEmpty(webStringValue(row["title"]), webStringValue(metadata["title"])),
+		Content:    content,
+		Extraction: webExtractionFromRaw(row["extraction"]),
 	}
 	if errMsg := webStringValue(row["error"]); errMsg != "" {
 		result.Error = errMsg
@@ -1900,7 +2139,56 @@ func webExtractResultProviderRow(result webExtractResult) map[string]any {
 	if result.Error != "" {
 		row["error"] = result.Error
 	}
+	if result.Extraction != nil {
+		row["extraction"] = result.Extraction
+	}
 	return row
+}
+
+func webExtractionFromRaw(raw any) *webExtraction {
+	switch value := raw.(type) {
+	case *webExtraction:
+		if value == nil {
+			return nil
+		}
+		clone := *value
+		if webExtractionEmpty(clone) {
+			return nil
+		}
+		return &clone
+	case webExtraction:
+		if webExtractionEmpty(value) {
+			return nil
+		}
+		clone := value
+		return &clone
+	case map[string]any:
+		extraction := webExtraction{
+			Engine:       webStringValue(value["engine"]),
+			Mode:         webStringValue(value["mode"]),
+			StatusCode:   intValue(value["status_code"]),
+			ContentType:  webStringValue(value["content_type"]),
+			CSSSelector:  webStringValue(value["css_selector"]),
+			FinalURL:     webStringValue(value["final_url"]),
+			WaitEvidence: webStringValue(value["wait_evidence"]),
+		}
+		if webExtractionEmpty(extraction) {
+			return nil
+		}
+		return &extraction
+	default:
+		return nil
+	}
+}
+
+func webExtractionEmpty(extraction webExtraction) bool {
+	return extraction.Engine == "" &&
+		extraction.Mode == "" &&
+		extraction.StatusCode == 0 &&
+		extraction.ContentType == "" &&
+		extraction.CSSSelector == "" &&
+		extraction.FinalURL == "" &&
+		extraction.WaitEvidence == ""
 }
 
 var (
@@ -2310,7 +2598,7 @@ func webRequiresEnv(includeManaged bool) []string {
 }
 
 func webBackendToolNames(backend WebBackend) []string {
-	if backend == WebBackendCDP {
+	if backend == WebBackendCDP || backend == WebBackendGoscraplingBrowser {
 		return []string{WebToolExtract}
 	}
 	if backend == WebBackendDuckDuckGo {

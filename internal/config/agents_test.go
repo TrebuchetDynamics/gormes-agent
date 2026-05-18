@@ -63,6 +63,37 @@ skills = ["base"]
 	}
 }
 
+func TestLoad_AgentsDefaultsWorkspaceListRoundTripsCleaned(t *testing.T) {
+	cfgHome := t.TempDir()
+	home := filepath.Join(cfgHome, "gormes")
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", home)
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatalf("mkdir home: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte(`
+[agents.defaults]
+workspaces = [" /srv/gormes/workspaces/project-a ", "", "/srv/gormes/workspaces/project-b"]
+`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := cfg.Agents.Defaults.Workspaces
+	want := []string{"/srv/gormes/workspaces/project-a", "/srv/gormes/workspaces/project-b"}
+	if len(got) != len(want) {
+		t.Fatalf("workspaces = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("workspaces = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestLoad_AgentsAndBindingsFromTOML(t *testing.T) {
 	cfgHome := t.TempDir()
 	home := filepath.Join(cfgHome, "gormes")

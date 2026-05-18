@@ -61,6 +61,7 @@ type RuntimeStatus struct {
 	Proxy                     ProxyRuntimeStatus                         `json:"proxy"`
 	KanbanDispatcher          KanbanDispatcherStatus                     `json:"kanban_dispatcher"`
 	TokenLocks                []TokenLockEvidence                        `json:"token_locks,omitempty"`
+	MemoryPressure            RuntimeMemoryPressureEvidence              `json:"memory_pressure,omitempty"`
 	DrainTimeouts             []RuntimeDrainTimeoutEvidence              `json:"drain_timeouts,omitempty"`
 	ResumePending             []RuntimeResumePendingEvidence             `json:"resume_pending,omitempty"`
 	NonResumable              []RuntimeNonResumableEvidence              `json:"non_resumable,omitempty"`
@@ -272,6 +273,7 @@ type RuntimeStatusUpdate struct {
 	DuplicateRestartEvidence          *RuntimeRestartDuplicateEvidence
 	ServiceManagerUnavailableEvidence *RuntimeServiceManagerUnavailableEvidence
 	ConfigReloadEvidence              *RuntimeConfigReloadEvidence
+	MemoryPressureEvidence            *RuntimeMemoryPressureEvidence
 }
 
 // RuntimeStatusSnapshot is a read-only view of the runtime status file that
@@ -858,6 +860,11 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 		}
 		evidence.Redacted = true
 		status.ConfigReload = evidence
+	}
+	if update.MemoryPressureEvidence != nil {
+		evidence := *update.MemoryPressureEvidence
+		evidence.Redacted = true
+		status.MemoryPressure = evidence
 	}
 	if update.Platform == "" {
 		return

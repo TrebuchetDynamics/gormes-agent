@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navivox/core/channel/gateway_navivox_channel.dart';
+import 'package:navivox/core/channel/navivox_channel.dart';
 import 'package:navivox/core/gateway/navivox_gateway_protocol.dart';
 import 'package:navivox/core/protocol/navivox_event.dart';
 
@@ -72,6 +73,105 @@ void main() {
     expect(metadata['profile_id'], 'default');
     expect(metadata['client'], 'navivox');
   });
+
+  test(
+    'loads profile contacts from snapshot and applies gateway updates',
+    () async {
+      final server = await _FakeGatewayServer.start(
+        contacts: [
+          {
+            'server_id': 'local-gormes',
+            'profile_id': 'mineru',
+            'display_name': 'Mineru Builder',
+            'server_label': 'local',
+            'avatar_seed': 'local-gormes:mineru',
+            'latest_preview': 'Ready to work',
+            'latest_preview_kind': 'status',
+            'latest_preview_at': '2026-05-18T06:30:00Z',
+            'health': 'online',
+            'workspace_root_count': 2,
+            'workspace_roots_ok': true,
+            'workspace_roots_warning': 0,
+            'workspace_roots_error': 0,
+            'attention_badges': ['approval'],
+            'mic_available': true,
+            'active_turn_state': 'idle',
+          },
+        ],
+        streamEvents: (requestId) => [
+          {
+            'type': 'profile_contact_update',
+            'request_id': requestId,
+            'contact': {
+              'server_id': 'local-gormes',
+              'profile_id': 'mineru',
+              'display_name': 'Mineru Builder',
+              'server_label': 'local',
+              'avatar_seed': 'local-gormes:mineru',
+              'latest_preview': 'Checking status',
+              'latest_preview_kind': 'user',
+              'latest_preview_at': '2026-05-18T06:31:00Z',
+              'health': 'warning',
+              'workspace_root_count': 2,
+              'workspace_roots_ok': false,
+              'workspace_roots_warning': 1,
+              'workspace_roots_error': 0,
+              'attention_badges': ['workspace'],
+              'mic_available': false,
+              'active_turn_state': 'active',
+            },
+          },
+        ],
+      );
+      addTearDown(server.close);
+
+      final channel = GatewayNavivoxChannel();
+      addTearDown(channel.dispose);
+
+      await channel.connect(
+        NavivoxGatewayConfig.fromBaseUrl(
+          server.baseUrl,
+          token: _FakeGatewayServer.token,
+        ),
+      );
+
+      expect(channel.state.profileContacts, hasLength(1));
+      expect(channel.state.profileContacts.single.profileId, 'mineru');
+      expect(
+        channel.state.profileContacts.single.latestPreview,
+        'Ready to work',
+      );
+      expect(channel.state.profileContacts.single.workspaceRootCount, 2);
+      expect(channel.state.profileContacts.single.attentionBadges, [
+        'approval',
+      ]);
+
+      final updated = Completer<void>();
+      channel.addListener(() {
+        final contacts = channel.state.profileContacts;
+        if (contacts.length == 1 &&
+            contacts.single.latestPreview == 'Checking status' &&
+            !updated.isCompleted) {
+          updated.complete();
+        }
+      });
+
+      channel.selectProfileContact(
+        serverId: 'local-gormes',
+        profileId: 'mineru',
+      );
+      channel.sendText('Checking status');
+      await server.nextClientMessage;
+      await updated.future.timeout(const Duration(seconds: 2));
+
+      final contact = channel.state.profileContacts.single;
+      expect(contact.health, NavivoxProfileHealth.warning);
+      expect(contact.workspaceRootsOk, isFalse);
+      expect(contact.workspaceRootsWarning, 1);
+      expect(contact.micAvailable, isFalse);
+      expect(contact.activeTurnState, 'active');
+    },
+  );
 
   test(
     'voice transcript renders locally and submits as a gateway turn',
@@ -182,13 +282,19 @@ void main() {
 }
 
 class _FakeGatewayServer {
-  _FakeGatewayServer._(this._server, this.port, this._streamEvents);
+  _FakeGatewayServer._(
+    this._server,
+    this.port,
+    this._streamEvents,
+    this._contacts,
+  );
 
   static const token = 'nvbx_test_token';
 
   final HttpServer _server;
   final int port;
   final List<Map<String, Object?>> Function(String requestId)? _streamEvents;
+  final List<Map<String, Object?>>? _contacts;
   final Completer<Map<String, Object?>> _nextClientMessage = Completer();
 
   String get baseUrl => 'http://127.0.0.1:$port';
@@ -197,9 +303,15 @@ class _FakeGatewayServer {
 
   static Future<_FakeGatewayServer> start({
     List<Map<String, Object?>> Function(String requestId)? streamEvents,
+    List<Map<String, Object?>>? contacts,
   }) async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    final fake = _FakeGatewayServer._(server, server.port, streamEvents);
+    final fake = _FakeGatewayServer._(
+      server,
+      server.port,
+      streamEvents,
+      contacts,
+    );
     server.listen(fake._handle);
     return fake;
   }
@@ -220,6 +332,31 @@ class _FakeGatewayServer {
     }
     if (request.uri.path == '/v1/navivox/status') {
       _writeJson(request.response, {'enabled': true});
+      return;
+    }
+    if (request.uri.path == '/v1/navivox/profile-contacts') {
+      _writeJson(request.response, {
+        'contacts':
+            _contacts ??
+            [
+              {
+                'server_id': 'navivox-gateway',
+                'profile_id': 'default',
+                'display_name': 'Default profile',
+                'server_label': 'Gormes Gateway',
+                'health': 'online',
+                'latest_preview': 'Gateway online',
+                'latest_preview_kind': 'status',
+                'workspace_root_count': 1,
+                'workspace_roots_ok': true,
+                'workspace_roots_warning': 0,
+                'workspace_roots_error': 0,
+                'attention_badges': <String>[],
+                'mic_available': true,
+                'active_turn_state': 'idle',
+              },
+            ],
+      });
       return;
     }
     if (request.uri.path == '/v1/navivox/stream') {

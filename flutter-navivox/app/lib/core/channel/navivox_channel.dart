@@ -52,11 +52,15 @@ class NavivoxProfileContact {
     required this.serverLabel,
     required this.health,
     required this.latestPreview,
+    this.latestPreviewKind = 'status',
     this.latestAt,
     this.workspaceRootCount = 0,
     this.workspaceRootsOk = true,
+    this.workspaceRootsWarning = 0,
+    this.workspaceRootsError = 0,
     this.attentionBadges = const [],
     this.micAvailable = false,
+    this.activeTurnState = 'idle',
     String? avatarSeed,
   }) : avatarSeed = avatarSeed ?? '$serverId:$profileId';
 
@@ -66,11 +70,15 @@ class NavivoxProfileContact {
   final String serverLabel;
   final NavivoxProfileHealth health;
   final String latestPreview;
+  final String latestPreviewKind;
   final DateTime? latestAt;
   final int workspaceRootCount;
   final bool workspaceRootsOk;
+  final int workspaceRootsWarning;
+  final int workspaceRootsError;
   final List<String> attentionBadges;
   final bool micAvailable;
+  final String activeTurnState;
   final String avatarSeed;
 
   String get key => '$serverId::$profileId';
@@ -146,6 +154,8 @@ abstract interface class NavivoxChannel implements Listenable {
     required Duration duration,
     required double confidence,
   });
+  void cancelActiveTurn();
+  void stopActiveTurn();
   void respondToApproval({required String approvalId, required bool approved});
   void requestAgentList();
   void selectAgent(String agentId);

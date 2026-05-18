@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
 func TestRunProgressSeedRoutesToSeedCatalog(t *testing.T) {
@@ -13,6 +15,60 @@ func TestRunProgressSeedRoutesToSeedCatalog(t *testing.T) {
 	err := run(&stdout, &stderr, []string{"--repo-root", t.TempDir(), "progress", "seed", "fleet"})
 	if err == nil || !strings.Contains(err.Error(), "progress: read") {
 		t.Fatalf("run progress seed error = %v, want progress load error proving route exists", err)
+	}
+}
+
+func TestRunHermesContractInventoryWritesReports(t *testing.T) {
+	root := t.TempDir()
+	progressPath := filepath.Join(root, "webpages/docs/content/building-gormes/architecture_plan/progress.json")
+	if err := os.MkdirAll(filepath.Dir(progressPath), 0o755); err != nil {
+		t.Fatalf("mkdir progress: %v", err)
+	}
+	if err := progress.SaveProgress(progressPath, &progress.Progress{
+		Meta:   progress.Meta{Version: "test"},
+		Phases: map[string]progress.Phase{},
+	}); err != nil {
+		t.Fatalf("write progress: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run(&stdout, &stderr, []string{"--repo-root", root, "hermes-contract-inventory", "--hermes-sha", "abc123"})
+	if err != nil {
+		t.Fatalf("run hermes-contract-inventory error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "repoctl: hermes-contract-inventory report updated") {
+		t.Fatalf("stdout = %q, want inventory summary", stdout.String())
+	}
+	for _, rel := range []string{
+		"webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
+		"webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md",
+	} {
+		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
+			t.Fatalf("expected report %s: %v", rel, err)
+		}
+	}
+}
+
+func TestRunHermesContractInventoryStrictFailsAfterWritingReports(t *testing.T) {
+	root := t.TempDir()
+	progressPath := filepath.Join(root, "webpages/docs/content/building-gormes/architecture_plan/progress.json")
+	if err := os.MkdirAll(filepath.Dir(progressPath), 0o755); err != nil {
+		t.Fatalf("mkdir progress: %v", err)
+	}
+	if err := progress.SaveProgress(progressPath, &progress.Progress{
+		Meta:   progress.Meta{Version: "test"},
+		Phases: map[string]progress.Phase{},
+	}); err != nil {
+		t.Fatalf("write progress: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run(&stdout, &stderr, []string{"--repo-root", root, "hermes-contract-inventory", "--hermes-sha", "abc123", "--strict"})
+	if err == nil || !strings.Contains(err.Error(), "strict failed") {
+		t.Fatalf("strict error = %v, want strict failure\nstdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "repoctl: hermes-contract-inventory report updated") {
+		t.Fatalf("strict stdout = %q, want report written before failure", stdout.String())
 	}
 }
 

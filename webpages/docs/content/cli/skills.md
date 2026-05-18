@@ -28,8 +28,15 @@ gormes skills [command]
 |---|---|---|
 | `-h`, `--help` | | help for skills |
 
+## Learning loop role
+
+Skills hold reusable "how" knowledge for the learning loop. Use `gormes skills
+list` to confirm that a repeated workflow became an inspectable SKILL.md
+surface instead of staying buried in one chat transcript.
+
 ## See also
 
 - [CLI reference](../)
 - [`gormes curator`](../curator/)
 - [`gormes plugins`](../plugins/)
+- [Learning loop proof](../../building-gormes/core-systems/learning-loop/)

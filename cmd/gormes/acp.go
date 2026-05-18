@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/acp"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
@@ -24,15 +26,97 @@ type acpClientReportJSON struct {
 	acp.ClientResult
 }
 
+type acpBrowserBootstrapReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	acp.BrowserBootstrapReport
+}
+
+var acpBrowserBootstrapRunner cmdrunner.Runner = cmdrunner.ExecRunner{}
+
 func newACPCommand() *cobra.Command {
+	var (
+		setupBrowser bool
+		jsonOut      bool
+		opts         acp.BrowserBootstrapOptions
+	)
 	cmd := &cobra.Command{
 		Use:   "acp",
 		Short: "Run ACP bridge tools",
 		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if setupBrowser {
+				opts.HomeDir = config.GormesHome()
+				opts.Runner = acpBrowserBootstrapRunner
+				return runACPSetupBrowserCommand(cmd, opts, jsonOut)
+			}
+			return cmd.Help()
+		},
 	}
+	cmd.Flags().BoolVar(&setupBrowser, "setup-browser", false, "plan or run browser tool bootstrap for ACP registry installs")
+	cmd.Flags().BoolVar(&opts.DryRun, "dry-run", false, "preview ACP browser bootstrap without installing packages")
+	cmd.Flags().BoolVarP(&opts.AssumeYes, "yes", "y", false, "approve ACP browser bootstrap package installation")
+	cmd.Flags().BoolVar(&opts.SkipChromium, "skip-chromium", false, "install agent-browser without downloading Playwright Chromium")
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "write machine-readable ACP setup-browser report")
 	cmd.AddCommand(newACPServeCommand())
 	cmd.AddCommand(newACPClientCommand())
 	return cmd
+}
+
+func runACPSetupBrowserCommand(cmd *cobra.Command, opts acp.BrowserBootstrapOptions, jsonOut bool) error {
+	report := acp.RunBrowserBootstrap(cmd.Context(), opts)
+	if jsonOut {
+		envelope := acpBrowserBootstrapReportJSON{
+			Build:                  newBuildProvenance(),
+			Action:                 "acp_setup_browser",
+			BrowserBootstrapReport: report,
+		}
+		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(envelope); err != nil {
+			return err
+		}
+	} else {
+		writeACPSetupBrowserText(cmd.OutOrStdout(), report)
+	}
+	if !report.OK {
+		msg := report.Message
+		if msg == "" {
+			msg = report.Evidence.Code
+		}
+		return newExitCodeError(1, errors.New(msg))
+	}
+	return nil
+}
+
+func writeACPSetupBrowserText(w io.Writer, report acp.BrowserBootstrapReport) {
+	if report.DryRun {
+		fmt.Fprintln(w, "ACP browser bootstrap dry-run")
+	} else if report.Executed {
+		fmt.Fprintln(w, "ACP browser bootstrap executed")
+	} else {
+		fmt.Fprintln(w, "ACP browser bootstrap")
+	}
+	if report.Evidence.Code != "" {
+		fmt.Fprintf(w, "evidence: %s\n", report.Evidence.Code)
+	}
+	if report.Platform != "" {
+		fmt.Fprintf(w, "platform: %s\n", report.Platform)
+	}
+	if report.NodePrefix != "" {
+		fmt.Fprintf(w, "node_prefix: %s\n", report.NodePrefix)
+	}
+	for _, step := range report.Steps {
+		fmt.Fprintf(w, "- %s: %s", step.Name, step.Status)
+		if len(step.Command) > 0 {
+			fmt.Fprintf(w, " `%s`", strings.Join(step.Command, " "))
+		}
+		if step.Message != "" {
+			fmt.Fprintf(w, " — %s", step.Message)
+		}
+		fmt.Fprintln(w)
+	}
+	if report.Message != "" {
+		fmt.Fprintf(w, "message: %s\n", report.Message)
+	}
 }
 
 func newACPServeCommand() *cobra.Command {

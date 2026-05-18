@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -51,6 +52,49 @@ func TestFetchOpenRouterModelCatalogReadsModelsAPI(t *testing.T) {
 	}
 	if want := []string{"live/first", "live/second"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("models = %#v, want %#v", got, want)
+	}
+}
+
+func TestFetchOpenRouterModelCatalogPreservesLargeModelsAPI(t *testing.T) {
+	var body strings.Builder
+	body.WriteString(`{"data":[`)
+	for i := 1; i <= 64; i++ {
+		if i > 1 {
+			body.WriteString(",")
+		}
+		body.WriteString(fmt.Sprintf(`{"id":"live/model-%02d"}`, i))
+	}
+	body.WriteString(`,{"id":""},{"name":"missing-id"}]}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/models" {
+			t.Fatalf("path = %q, want /api/v1/models", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(body.String()))
+	}))
+	defer server.Close()
+
+	oldURL := openRouterModelsURL
+	oldClient := openRouterModelsHTTPClient
+	openRouterModelsURL = server.URL + "/api/v1/models"
+	openRouterModelsHTTPClient = server.Client()
+	t.Cleanup(func() {
+		openRouterModelsURL = oldURL
+		openRouterModelsHTTPClient = oldClient
+	})
+
+	got, err := fetchOpenRouterModelCatalog(context.Background())
+	if err != nil {
+		t.Fatalf("fetchOpenRouterModelCatalog: %v", err)
+	}
+	if len(got) != 64 {
+		t.Fatalf("models length = %d, want 64: %#v", len(got), got)
+	}
+	for i, model := range got {
+		want := fmt.Sprintf("live/model-%02d", i+1)
+		if model != want {
+			t.Fatalf("models[%d] = %q, want %q", i, model, want)
+		}
 	}
 }
 

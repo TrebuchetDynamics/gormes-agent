@@ -220,31 +220,19 @@ func TestNavivoxWebSocketStartTurnStreamsGatewayResponses(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var delta1 ServerEvent
-	if err := conn.ReadJSON(&delta1); err != nil {
-		t.Fatal(err)
-	}
+	delta1 := readNonProfileContactEvent(t, conn)
 	if delta1.Type != "assistant_delta" || delta1.RequestID != "req-turn" || delta1.Text != "hel" {
 		t.Fatalf("first delta = %+v", delta1)
 	}
-	var delta2 ServerEvent
-	if err := conn.ReadJSON(&delta2); err != nil {
-		t.Fatal(err)
-	}
+	delta2 := readNonProfileContactEvent(t, conn)
 	if delta2.Type != "assistant_delta" || delta2.Text != "lo" {
 		t.Fatalf("second delta = %+v", delta2)
 	}
-	var final ServerEvent
-	if err := conn.ReadJSON(&final); err != nil {
-		t.Fatal(err)
-	}
+	final := readNonProfileContactEvent(t, conn)
 	if final.Type != "assistant_message" || final.Text != "hello" {
 		t.Fatalf("assistant_message = %+v", final)
 	}
-	var done ServerEvent
-	if err := conn.ReadJSON(&done); err != nil {
-		t.Fatal(err)
-	}
+	done := readNonProfileContactEvent(t, conn)
 	if done.Type != "done" || done.SessionID != "s-2" {
 		t.Fatalf("done = %+v", done)
 	}
@@ -304,26 +292,47 @@ func TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var delta ServerEvent
-	if err := conn.ReadJSON(&delta); err != nil {
-		t.Fatal(err)
-	}
+	delta := readNonProfileContactEvent(t, conn)
 	if delta.Type != "assistant_delta" || delta.RequestID != "req-http" || delta.Text != "hello" {
 		t.Fatalf("delta = %+v", delta)
 	}
-	var final ServerEvent
-	if err := conn.ReadJSON(&final); err != nil {
-		t.Fatal(err)
-	}
+	final := readNonProfileContactEvent(t, conn)
 	if final.Type != "assistant_message" || final.RequestID != "req-http" || final.Text != "hello posted turn" {
 		t.Fatalf("assistant_message = %+v", final)
 	}
+	done := readNonProfileContactEvent(t, conn)
+	if done.Type != "done" || done.SessionID != "s-http" {
+		t.Fatalf("done = %+v", done)
+	}
+}
+
+func TestNavivoxWebSocketStopTurnEnqueuesCancel(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "stop_turn", RequestID: "req-stop", SessionID: "s-stop"}); err != nil {
+		t.Fatal(err)
+	}
+
 	var done ServerEvent
 	if err := conn.ReadJSON(&done); err != nil {
 		t.Fatal(err)
 	}
-	if done.Type != "done" || done.SessionID != "s-http" {
-		t.Fatalf("done = %+v", done)
+	if done.Type != "done" || done.RequestID != "req-stop" || done.SessionID != "s-stop" || done.Status != "stopped" {
+		t.Fatalf("stop response = %+v", done)
+	}
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventCancel || ev.ChatID != "s-stop" {
+			t.Fatalf("gateway event = %+v, want cancel for s-stop", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for stop gateway event")
 	}
 }
 
@@ -404,6 +413,21 @@ func dialTestWebSocket(t *testing.T, httpURL string) *websocket.Conn {
 		t.Fatal(err)
 	}
 	return conn
+}
+
+func readNonProfileContactEvent(t *testing.T, conn *websocket.Conn) ServerEvent {
+	t.Helper()
+	for i := 0; i < 8; i++ {
+		var event ServerEvent
+		if err := conn.ReadJSON(&event); err != nil {
+			t.Fatal(err)
+		}
+		if event.Type != "profile_contact_update" {
+			return event
+		}
+	}
+	t.Fatal("only received profile_contact_update events")
+	return ServerEvent{}
 }
 
 func TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed(t *testing.T) {

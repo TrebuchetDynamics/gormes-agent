@@ -173,6 +173,57 @@ func TestGatewayStatusCommand_RendersRuntimePIDValidationEvidence(t *testing.T) 
 	assertGatewayStatusDidNotOpenRuntimeStores(t)
 }
 
+func TestGatewayStatusCommand_RendersMemoryPressureEvidence(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          4242,
+				GatewayState: gateway.GatewayStateRunning,
+				MemoryPressure: gateway.RuntimeMemoryPressureEvidence{
+					Status:          gateway.MemoryPressureWarn,
+					RSSMB:           900,
+					WarnRSSMB:       800,
+					CriticalRSSMB:   1200,
+					UptimeSeconds:   300,
+					GoRoutines:      18,
+					GCCollections:   4,
+					CheckedAt:       "2026-05-18T04:30:00Z",
+					Redacted:        true,
+					Evidence:        []string{"memory_pressure_warn"},
+					Message:         "gateway RSS is above warning threshold",
+					TargetPID:       0,
+					TargetStartTime: 0,
+				},
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status: gateway.RuntimeProcessValidationLive,
+				Live:   true,
+				PID:    4242,
+			},
+		},
+	})
+	defer restoreRuntimeStore()
+
+	stdout, stderr, err := executeGatewayStatusCommand(t)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	for _, want := range []string{
+		"memory_pressure: warn rss=900MB warn=800MB critical=1200MB uptime=300s goroutines=18 gc=4",
+		"evidence=memory_pressure_warn",
+		"gateway RSS is above warning threshold",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "GORMES_HOME") || strings.Contains(stdout, "/home/") {
+		t.Fatalf("memory pressure output leaked environment/path details:\n%s", stdout)
+	}
+}
+
 // TestGatewayStatusCommand_JSONIncludesBuildProvenance proves
 // `gormes gateway status --json` carries the running binary's build
 // version + SHA. Same contract as
@@ -353,6 +404,57 @@ func TestGatewayStatusCommand_JSONRendersStaleCodeEvidence(t *testing.T) {
 	if got.Runtime.StaleCode.BootGitSHA != "1111111111111111111111111111111111111111" ||
 		got.Runtime.StaleCode.CurrentGitSHA != "2222222222222222222222222222222222222222" {
 		t.Fatalf("json stale_code SHAs = %+v", got.Runtime.StaleCode)
+	}
+}
+
+func TestGatewayStatusCommand_JSONRendersMemoryPressureEvidence(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          4242,
+				GatewayState: gateway.GatewayStateRunning,
+				MemoryPressure: gateway.RuntimeMemoryPressureEvidence{
+					Status:          gateway.MemoryPressureCritical,
+					RSSMB:           1300,
+					WarnRSSMB:       800,
+					CriticalRSSMB:   1200,
+					Action:          gateway.MemoryPressureActionRestart,
+					TargetPID:       4242,
+					TargetStartTime: 99,
+					Redacted:        true,
+					Evidence:        []string{"memory_pressure_critical", "memory_pressure_restart_requested"},
+				},
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status: gateway.RuntimeProcessValidationLive,
+				Live:   true,
+				PID:    4242,
+			},
+		},
+	})
+	defer restoreRuntimeStore()
+
+	stdout, stderr, err := executeGatewayStatusCommand(t, "--json")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	var got struct {
+		Runtime struct {
+			MemoryPressure gateway.RuntimeMemoryPressureEvidence `json:"memory_pressure"`
+		} `json:"runtime"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("gateway status --json returned invalid JSON: %v\n%s", err, stdout)
+	}
+	if got.Runtime.MemoryPressure.Status != gateway.MemoryPressureCritical ||
+		got.Runtime.MemoryPressure.RSSMB != 1300 ||
+		got.Runtime.MemoryPressure.Action != gateway.MemoryPressureActionRestart ||
+		got.Runtime.MemoryPressure.TargetPID != 4242 ||
+		got.Runtime.MemoryPressure.TargetStartTime != 99 ||
+		!got.Runtime.MemoryPressure.Redacted {
+		t.Fatalf("json memory_pressure = %+v, want critical bounded restart evidence", got.Runtime.MemoryPressure)
 	}
 }
 

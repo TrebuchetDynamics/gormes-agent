@@ -91,12 +91,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 93/110 subphases shipped · 17 in progress · 0 planned
+**Overall:** 94/110 subphases shipped · 16 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
@@ -163,7 +163,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux real-device smoke evidence
 - [x] `install` Termux remote execution guidance
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -209,7 +209,7 @@ classification and row-backed implementation queue.
 - [x] `channels` WhatsApp outbound pairing gate + raw peer mapping
 - [x] `channels` WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing 🔨
+### 2.B.5 — Session Context + Delivery Routing ✅
 
 - [x] `gateway` Gateway session store + SessionSource parity
 - [x] `gateway` Gateway manual reset session-boundary hooks
@@ -292,7 +292,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway platform reconnect isolation + channel health limits
 - [x] `gateway` Gateway per-platform circuit breaker + /platform pause/resume/list command
 - [x] `gateway` Gateway /model interactive provider/model picker
-- [ ] `gateway` Gateway memory monitor pressure policy
+- [x] `gateway` Gateway memory monitor pressure policy
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -756,7 +756,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Singularity command/preflight contract
 - [x] `tools` Sandbox Policy Explain
 
-### 5.C — Browser Automation ✅
+### 5.C — Browser Automation 🔨
 
 - [x] `browser` Browser action contract + event transcript
 - [x] `browser` go-browser-harness Chromedp action backend
@@ -779,6 +779,8 @@ classification and row-backed implementation queue.
 - [x] `browser` Browser SSRF quoted-false guard
 - [x] `browser` Go browser harness binary repo + integration lane (placeholder)
 - [x] `browser` Browser session inactivity cleanup thread
+- [x] `browser` Goscrapling browser-backed extraction gate for web_extract
+- [ ] `browser` Goscrapling local crawler adapter gate for web_crawl
 
 ### 5.D — Vision + Image Generation ✅
 
@@ -846,14 +848,14 @@ classification and row-backed implementation queue.
 - [x] `tools` Gormes-native MCP host runtime boundary
 - [x] `channels` MCP channels_list tool
 
-### 5.H — ACP Integration 🔨
+### 5.H — ACP Integration ✅
 
 - [x] `tools` ACP server side
 - [x] `tools` ACP Client Bridge Mode
 - [x] `tools` ACP JSON-RPC stdio session/prompt closeout
 - [x] `tools` ACP stdio benign ping/probe suppression
 - [x] `tools` ACP session CWD propagation into prompt runners
-- [ ] `tools` ACP setup-browser bootstrap parity
+- [x] `tools` ACP setup-browser bootstrap parity
 
 ### 5.I — Plugins Architecture ✅
 
@@ -1025,6 +1027,9 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox host setup apply with transient sudo
 - [x] `gateway` Gateway auto-resume on restart
 - [ ] `tools` Hermes x_search tool and auth surface
+- [x] `goncho` Goncho durable recall trace IR + fused ranking pipeline
+- [x] `goncho` Goncho recall diagnostics CLI over RecallTrace
+- [x] `goncho` Goncho replayable retrieval traces
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -1146,10 +1151,10 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway stale-code self-check uses git HEAD SHA
 - [x] `runtime` Agent lifecycle hooks (agent:start, agent:step, agent:end)
 - [x] `providers` Nous OAuth device code + refresh token + agent key provisioning
-- [ ] `cli` Hermes send command stdin/file payload parity
+- [x] `cli` Hermes send command stdin/file payload parity
 - [ ] `sessions` Hermes session recap command surface
-- [ ] `profiles` Profile workspace allow-list enforcement policy
-- [ ] `profiles` Profile-local subprocess HOME parity
+- [x] `profiles` Profile workspace allow-list enforcement policy
+- [x] `profiles` Profile-local subprocess HOME parity
 - [ ] `profiles` Long-term plan: profile fleet supervisor and single control-plane gateway
 - [x] `cli` CLI module contract registry and manifest gate
 - [x] `cli` cmd/gormes profile command package extraction
@@ -1234,7 +1239,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Kernel in-session model-switch seam for the native TUI
 - [ ] `gateway` Kernel cross-provider client swap for in-session model switch
 - [ ] `tui` Native TUI slash handler-port coverage
-- [ ] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
+- [x] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1425,14 +1430,14 @@ classification and row-backed implementation queue.
 - [x] `docs` Gormes market comparison positioning brief
 - [ ] `docs` Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents
 - [ ] `channels` Channel capability matrix with stable/fixture/planned labels
-- [ ] `learning-loop` Learning-loop proof demo for skills, memory, and curator
+- [x] `learning-loop` Learning-loop proof demo for skills, memory, and curator
 - [ ] `install` No-stack first-run proof path from install to offline doctor
 
 ### 8.C — Engineering Writeups 🔨
 
 - [ ] `docs` Engineering writeup #1: autonomous Hermes-porting loop
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
-- [ ] `docs` Hermes contract inventory gate
+- [x] `docs` Hermes contract inventory gate
 
 ### 8.D — Sharp v1.0 🔨
 
@@ -1523,8 +1528,8 @@ classification and row-backed implementation queue.
 
 - [x] `navivox` Navivox HTTP/WS documentation refresh
 - [x] `navivox` Navivox connect-and-talk first screen
-- [ ] `navivox` Navivox profile contact summary API
-- [ ] `navivox` Navivox continuous voice command mode
+- [x] `navivox` Navivox profile contact summary API
+- [x] `navivox` Navivox continuous voice command mode
 - [ ] `navivox` Navivox Telegram-inspired chat polish
 - [ ] `navivox` Navivox natural-language profile seed flow
 - [ ] `navivox` Navivox structured tool event cards

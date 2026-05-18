@@ -36,8 +36,8 @@ difficulty: "S"
    ```
    The interactive flow can select the active profile and persist
    `agents.defaults.workspaces` plus `agents.defaults.channels` into that
-   profile's own `config.toml`. Current releases round-trip the workspace list
-   but do not yet enforce it as an access boundary.
+   profile's own `config.toml`. A non-empty workspace list is enforced as the
+   model-facing project allow-list.
 
 5. **Configure provider and model inside the profile**
    ```bash
@@ -45,16 +45,19 @@ difficulty: "S"
    gormes setup model
    gormes config show
    ```
-   Gormes state commands run against the active profile home. Current profiles
-   are not enforced filesystem sandboxes, and selecting one does not change the
-   project working directory for shell tools. The planned Gormes workspace
-   policy treats an empty `agents.defaults.workspaces` list as the operator
-   home, and a non-empty list as the project read/write allow-list. Runtime
-   internals still own the active profile root for state, but model-facing
-   profile edits are limited to explicit profile-owned content: identity files
-   such as `SOUL.md` and `IDENTITY.md`, plus the active profile's `skills/`
-   directory. Secrets, sessions, memory databases, logs, and sibling profiles
-   are not project workspaces.
+   Gormes state commands run against the active profile home. Profile
+   selection separates config, secrets, sessions, memory, skills, logs, cron,
+   and gateway state. The Gormes workspace policy treats an empty
+   `agents.defaults.workspaces` list as the operator home, and a non-empty list
+   as the project read/write allow-list for file tools, project-mode
+   `execute_code`, and coding-agent delegation. Local terminal and
+   `execute_code` shell subprocesses use the active profile's `home/`
+   directory as `HOME` when that directory exists. Runtime internals still own
+   the active profile root for state, but model-facing profile edits are
+   limited to explicit profile-owned content: identity files such as `SOUL.md`
+   and `IDENTITY.md`, plus the active profile's `skills/` directory. Secrets,
+   sessions, memory databases, logs, and sibling profiles are not project
+   workspaces.
 
 6. **Open chat under a specific profile without switching**
    ```bash
@@ -78,13 +81,15 @@ root: .../client-acme
 
 - **`profile not found`** → Re-run `gormes profile list` to confirm the exact name, or create it with `gormes profile create <name>`.
 - **Wrong profile picked up by a script** → Set the profile per-invocation with `--profile <name>` rather than relying on the persisted active profile.
-- **Shell tools still see the operator home** → Current Gormes profile roots do not yet provide Hermes-style profile-local subprocess `HOME`; that parity slice is planned.
-- **Workspace list does not restrict access yet** → `gormes setup profiles`
-  persists `agents.defaults.workspaces` today, but runtime enforcement is still
-  row-backed. Until that slice ships, do not treat the list as a sandbox.
+- **Shell tools still see the operator home** → Confirm the active profile has a `home/` directory and the command is running under `gormes --profile <name>` or after `gormes profile use <name>`. Legacy profile roots created before this parity slice may need `mkdir -p <profile-root>/home`, using the root printed by `gormes profile show`.
+- **Terminal is blocked after adding workspaces** → A non-empty
+  `agents.defaults.workspaces` list makes the local terminal fail closed until
+  a sandbox-capable terminal backend is configured. Use file tools or
+  project-mode `execute_code` only when the command can be represented through
+  a confined surface.
 - **Profile files are still broad state** → Editing profile identity and skills
-  is intended, but the planned allow-list does not make the whole profile root
-  a model-facing workspace. Keep secrets and runtime state out of normal file
+  is intended, but the allow-list does not make the whole profile root a
+  model-facing workspace. Keep secrets and runtime state out of normal file
   tool workflows.
 
 ## See also

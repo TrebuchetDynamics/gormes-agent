@@ -37,6 +37,8 @@ type ExecuteCodeToolConfig struct {
 	DefaultMode    ExecuteCodeMode
 	StrictSandbox  CodeSandbox
 	ProjectSandbox CodeSandbox
+	SubprocessHome SubprocessHomeResolver
+	WorkspaceScope *ProfileWorkspaceScope
 }
 
 type ExecuteCodeModeResolverInput struct {
@@ -139,6 +141,7 @@ type CodeExecutionResult struct {
 	StderrTruncated  bool   `json:"stderr_truncated,omitempty"`
 	DurationMs       int64  `json:"duration_ms"`
 	Error            string `json:"error,omitempty"`
+	Evidence         string `json:"evidence,omitempty"`
 	FilesystemAccess bool   `json:"filesystem_access"`
 	NetworkAccess    bool   `json:"network_access"`
 }
@@ -156,6 +159,7 @@ type ExecuteCodeTool struct {
 	DefaultTimeout   time.Duration
 	DefaultStdoutCap int
 	DefaultStderrCap int
+	WorkspaceScope   *ProfileWorkspaceScope
 }
 
 func NewExecuteCodeTool(configs ...ExecuteCodeToolConfig) *ExecuteCodeTool {
@@ -179,6 +183,7 @@ func NewExecuteCodeTool(configs ...ExecuteCodeToolConfig) *ExecuteCodeTool {
 		DefaultTimeout:   defaultExecuteCodeTimeout,
 		DefaultStdoutCap: defaultExecuteCodeStdoutLimit,
 		DefaultStderrCap: defaultExecuteCodeStderrLimit,
+		WorkspaceScope:   cfg.WorkspaceScope,
 	}
 }
 
@@ -203,12 +208,12 @@ func sandboxForExecuteCodeMode(mode ExecuteCodeMode, cfg ExecuteCodeToolConfig) 
 		if cfg.ProjectSandbox != nil {
 			return cfg.ProjectSandbox
 		}
-		return NewProjectModeSandbox()
+		return newProjectModeSandboxWithSubprocessHome(cfg.SubprocessHome)
 	default:
 		if cfg.StrictSandbox != nil {
 			return cfg.StrictSandbox
 		}
-		return NewStrictModeSandbox()
+		return newStrictModeSandboxWithSubprocessHome(cfg.SubprocessHome)
 	}
 }
 
@@ -254,6 +259,16 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 		StderrLimitBytes: intOrDefault(in.StderrLimitBytes, t.DefaultStderrCap, defaultExecuteCodeStderrLimit),
 	}
 
+	if t.Mode == ExecuteCodeModeProject && t.WorkspaceScope != nil && t.WorkspaceScope.Configured() {
+		return json.Marshal(CodeExecutionResult{
+			Status:   "blocked",
+			Language: language,
+			ExitCode: -1,
+			Error:    ProfileWorkspaceScopeViolation + ": project-mode execute_code cannot prove confinement for a non-empty profile workspace allow-list; fail closed before spawning",
+			Evidence: ProfileWorkspaceScopeViolation,
+		})
+	}
+
 	sandbox := t.Sandbox
 	if sandbox == nil {
 		sandbox = sandboxForExecuteCodeMode(t.Mode, ExecuteCodeToolConfig{})
@@ -295,9 +310,10 @@ func intOrDefault(v, preferred, fallback int) int {
 }
 
 type LocalCodeSandbox struct {
-	lookPath  func(string) (string, error)
-	languages map[string]runtimeSpec
-	workdir   func(stagingDir string) string
+	lookPath       func(string) (string, error)
+	languages      map[string]runtimeSpec
+	workdir        func(stagingDir string) string
+	subprocessHome SubprocessHomeResolver
 }
 
 type runtimeSpec struct {
@@ -364,7 +380,7 @@ func (s *LocalCodeSandbox) Execute(ctx context.Context, req CodeExecutionRequest
 			cmd.Dir = workdir
 		}
 	}
-	cmd.Env = safeSandboxEnv()
+	cmd.Env = safeSandboxEnv(s.subprocessHome)
 
 	stdout := newLimitedBuffer(req.StdoutLimitBytes)
 	stderr := newLimitedBuffer(req.StderrLimitBytes)
@@ -420,7 +436,7 @@ func exitCode(err error) int {
 	return exitErr.ExitCode()
 }
 
-func safeSandboxEnv() []string {
+func safeSandboxEnv(resolve SubprocessHomeResolver) []string {
 	keys := []string{"PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "TMP", "TEMP"}
 	env := make([]string, 0, len(keys))
 	for _, key := range keys {
@@ -428,7 +444,7 @@ func safeSandboxEnv() []string {
 			env = append(env, key+"="+value)
 		}
 	}
-	return env
+	return envWithSubprocessHome(env, resolve)
 }
 
 var (

@@ -152,3 +152,11 @@ func envValue(env map[string]string, key string) string {
 	}
 	return env[key]
 }
+
+func envHas(env map[string]string, key string) bool {
+	if env == nil {
+		return false
+	}
+	_, ok := env[key]
+	return ok
+}

@@ -74,6 +74,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesImplementedCommand("sessions", "hermes_cli/main.py:sessions", "cmd/gormes session"),
 		hermesRowCommand("insights", "hermes_cli/main.py:insights", "Self-monitoring telemetry", "insights rollup command remains row-backed"),
 		hermesCommandSet("kanban", "hermes_cli/kanban.py:build_parser", "durable board core is implemented in cmd/gormes; multi-board, dispatcher, worker-tool, notification, slash/gateway, and dashboard surfaces remain row-backed", "Hermes Kanban durable board core"),
+		hermesImplementedCommand("send", "hermes_cli/send_cmd.py:register_send_subparser", "cmd/gormes send"),
 		hermesCommandSet("claw", "hermes_cli/claw.py", "`claw migrate` and `claw cleanup` compatibility spellings are implemented over the Gormes-native OpenClaw migration engine", "OpenClaw migration dry-run manifest"),
 		hermesImplementedCommand("version", "hermes_cli/main.py:version", "cmd/gormes version"),
 		hermesImplementedCommand("curator", "hermes_cli/main.py:curator", "cmd/gormes curator"),

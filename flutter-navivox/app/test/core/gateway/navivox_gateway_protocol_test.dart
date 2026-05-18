@@ -25,6 +25,10 @@ void main() {
       'https://gromit.tailnet.test:8765/v1/navivox/turn',
     );
     expect(
+      config.profileContactsUri.toString(),
+      'https://gromit.tailnet.test:8765/v1/navivox/profile-contacts',
+    );
+    expect(
       config.streamUri.toString(),
       'wss://gromit.tailnet.test:8765/v1/navivox/stream',
     );

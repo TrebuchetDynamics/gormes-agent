@@ -37,9 +37,16 @@ goscrapling owns:
 
 The shipped integration is static and hermetic: a Gormes `web_extract` tool
 call fetches a URL locally, optionally applies a CSS selector, and returns
-structured evidence such as URL, status, selected text, and response metadata.
-Browser-backed extraction, crawling, proxy rotation, and stealth behavior
-remain behind later documented capability gates.
+structured result data such as URL, title, selected text, and an `extraction`
+block with `engine`, `mode`, HTTP status, content type, and selector evidence.
+Browser-backed extraction, crawling, proxy rotation, and stealth behavior remain
+behind later documented capability gates.
+
+The next goscrapling tiers are intentionally separate gates: browser-backed
+`web_extract` must prove fakeable browser rendering without changing the public
+tool name, and local `web_crawl` must wait for goscrapling spider robots,
+cache, checkpoint, and session-adapter rows. Provider crawl/search routing stays
+owned by Gormes.
 
 See `goscrapling/docs/content/building-goscrapling/strategy/portfolio-and-gormes-fit.md`
 in this repository for the goscrapling-side boundary.

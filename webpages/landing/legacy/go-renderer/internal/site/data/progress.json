@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-17",
+    "last_updated": "2026-05-18",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -695,7 +695,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -2397,6 +2397,14 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ],
           "drift_state": {
@@ -2686,7 +2694,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -3344,6 +3352,18 @@
             {
               "name": "",
               "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -3829,7 +3849,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -3837,11 +3857,11 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -4172,7 +4192,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -4771,7 +4791,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -4792,7 +4812,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ]
         },
@@ -5077,11 +5097,11 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",

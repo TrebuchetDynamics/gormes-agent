@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `gateway`
 **Rows:** 156
-**Status counts:** `complete`: 154 · `in_progress`: 0 · `planned`: 2
+**Status counts:** `complete`: 155 · `in_progress`: 0 · `planned`: 1
 **Priority counts:** `P0`: 14 · `P1`: 47 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
@@ -77,7 +77,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `gateway` | Gateway platform reconnect isolation + channel health limits |
 | `complete` | `P1` | `gateway` | Gateway per-platform circuit breaker + /platform pause/resume/list command |
 | `complete` | `P1` | `gateway` | Gateway /model interactive provider/model picker |
-| `planned` | `P1` | `gateway` | Gateway memory monitor pressure policy |
+| `complete` | `P1` | `gateway` | Gateway memory monitor pressure policy |
 
 ### 2.B.12 — Channel-Neutral Native Runtime Adapter
 

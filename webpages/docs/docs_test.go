@@ -401,6 +401,46 @@ func TestGatewayDonorMapInvariants(t *testing.T) {
 	}
 }
 
+func TestLearningLoopOperatorProofDocs(t *testing.T) {
+	learningLoop := readDoc(t, "content/building-gormes/core-systems/learning-loop.md")
+	for _, want := range []string{
+		"## Operator Proof",
+		"Task evidence",
+		"Skill creation or improvement",
+		"Memory recall",
+		"Curator maintenance",
+		"Repeated-task proof",
+		"gormes skills list",
+		"gormes memory status",
+		"gormes curator status",
+		"deterministic local proof",
+		"operator review",
+	} {
+		if !strings.Contains(learningLoop, want) {
+			t.Fatalf("learning-loop proof docs missing %q", want)
+		}
+	}
+
+	whyGormes := readDoc(t, "content/why-gormes.md")
+	if !strings.Contains(whyGormes, "building-gormes/core-systems/learning-loop/") ||
+		!strings.Contains(whyGormes, "learning loop") {
+		t.Fatalf("why-gormes page must link to the learning-loop proof without making it the hero")
+	}
+
+	for _, page := range []string{
+		"content/cli/curator.md",
+		"content/cli/skills.md",
+		"content/cli/memory.md",
+	} {
+		raw := readDoc(t, page)
+		for _, want := range []string{"learning loop", "building-gormes/core-systems/learning-loop/"} {
+			if !strings.Contains(raw, want) {
+				t.Fatalf("%s missing learning-loop proof link text %q", page, want)
+			}
+		}
+	}
+}
+
 func selectedSourceDocsRoot(t *testing.T) (string, string) {
 	t.Helper()
 

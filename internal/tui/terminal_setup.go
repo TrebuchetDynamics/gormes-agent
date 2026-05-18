@@ -37,6 +37,7 @@ type TerminalSetupResult struct {
 type TruecolorResult struct {
 	Force    bool
 	Set      map[string]string
+	Unset    []string
 	Evidence string
 }
 
@@ -409,23 +410,43 @@ func ShouldPromptForTerminalSetup(opts TerminalSetupOptions) bool {
 }
 
 func TruecolorDecision(env map[string]string) TruecolorResult {
-	if envValue(env, "NO_COLOR") != "" {
+	if envHas(env, "NO_COLOR") {
 		return TruecolorResult{Evidence: "tui_terminal_truecolor_disabled"}
 	}
-	switch strings.ToLower(envValue(env, "HERMES_TUI_TRUECOLOR")) {
+	switch strings.ToLower(strings.TrimSpace(envValue(env, "HERMES_TUI_TRUECOLOR"))) {
 	case "1", "true", "yes", "on":
+		set := map[string]string{"FORCE_COLOR": "3"}
+		if envValue(env, "COLORTERM") == "" {
+			set["COLORTERM"] = "truecolor"
+		}
 		return TruecolorResult{
 			Force: true,
-			Set: map[string]string{
-				"COLORTERM":   "truecolor",
-				"FORCE_COLOR": "3",
-			},
+			Set:   set,
 		}
 	case "0", "false", "no", "off":
 		return TruecolorResult{Evidence: "tui_terminal_truecolor_disabled"}
 	default:
+		if shouldDowngradeAppleTerminalTruecolor(env) {
+			unset := []string{"COLORTERM"}
+			if envValue(env, "FORCE_COLOR") == "3" {
+				unset = append(unset, "FORCE_COLOR")
+			}
+			return TruecolorResult{Unset: unset, Evidence: "tui_terminal_truecolor_downgraded"}
+		}
 		return TruecolorResult{}
 	}
+}
+
+func shouldDowngradeAppleTerminalTruecolor(env map[string]string) bool {
+	return envValue(env, "TERM_PROGRAM") == "Apple_Terminal" && terminalAdvertisesTruecolor(env)
+}
+
+func terminalAdvertisesTruecolor(env map[string]string) bool {
+	switch strings.ToLower(envValue(env, "COLORTERM")) {
+	case "truecolor", "24bit":
+		return true
+	}
+	return envValue(env, "FORCE_COLOR") == "3"
 }
 
 func TerminalParityHints(env map[string]string, opts TerminalSetupOptions) []TerminalParityHint {

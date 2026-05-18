@@ -3062,9 +3062,9 @@
     "item": {
       "name": "ACP setup-browser bootstrap parity",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "`gormes acp --setup-browser` ports Hermes' ACP browser-tool bootstrap behavior with platform-specific command planning, dry-run/report output, and browser harness dependency checks while keeping actual installs explicit and operator-approved.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
       "module": "tools",
@@ -3088,6 +3088,7 @@
         "Dry-run output is deterministic and secret-free.",
         "Non-dry-run execution requires explicit operator approval and reports each step outcome."
       ],
+      "note": "Complete 2026-05-18: added a native ACP setup-browser bootstrap planner and approved execution seam. Dry-run JSON/text reports platform-specific Node/npm/Playwright commands without touching the machine; non-dry-run execution requires --yes, uses a fakeable runner, reports each step outcome, and fails before npm when Node is missing or older than v20. Row proof: go test ./cmd/gormes ./internal/acp -run 'ACP.*SetupBrowser|ACP.*Bootstrap' -count=1; go run ./cmd/progress validate.",
       "write_scope": [
         "cmd/gormes/acp.go",
         "internal/acp",

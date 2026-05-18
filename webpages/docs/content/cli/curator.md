@@ -37,7 +37,15 @@ gormes curator [command]
 |---|---|---|
 | `-h`, `--help` | | help for curator |
 
+## Learning loop role
+
+The curator is the maintenance surface for agent-created skills in the
+learning loop. Use `gormes curator status` to inspect review state, recent
+summaries, archived skills, backups, and the operator review boundary before
+trusting a skill as durable behavior.
+
 ## See also
 
 - [CLI reference](../)
 - [`gormes skills`](../skills/)
+- [Learning loop proof](../../building-gormes/core-systems/learning-loop/)

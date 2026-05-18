@@ -31,6 +31,7 @@ func DefaultContracts() []ModuleContract {
 				"dump",
 				"import",
 				"logs",
+				"send",
 				"setup",
 				"version",
 			),
@@ -56,6 +57,10 @@ func DefaultContracts() []ModuleContract {
 		{
 			Module:   progress.ModuleDoctor,
 			Commands: commands("doctor"),
+		},
+		{
+			Module:   progress.ModuleDocs,
+			Commands: commands("fidelity"),
 		},
 		{
 			Module:        progress.ModuleFleet,

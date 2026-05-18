@@ -7,9 +7,9 @@ title: "Browser Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `browser`
-**Rows:** 23
-**Status counts:** `complete`: 23 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 14 · `P2`: 5 · `P3`: 1 · `unset`: 3
+**Rows:** 25
+**Status counts:** `complete`: 24 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P1`: 14 · `P2`: 7 · `P3`: 1 · `unset`: 3
 
 ## Phase 5 — The Final Purge
 
@@ -38,6 +38,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `browser` | Browser SSRF quoted-false guard |
 | `complete` | `P2` | `browser` | Go browser harness binary repo + integration lane (placeholder) |
 | `complete` | `P2` | `browser` | Browser session inactivity cleanup thread |
+| `complete` | `P2` | `browser` | Goscrapling browser-backed extraction gate for web_extract |
+| `planned` | `P2` | `browser` | Goscrapling local crawler adapter gate for web_crawl |
 
 ### 5.O — Hermes CLI Parity
 

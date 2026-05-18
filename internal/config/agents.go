@@ -125,6 +125,11 @@ func defaultAgentsCfg(home string) AgentsCfg {
 }
 
 func normalizeAgentsConfig(home string, agents *AgentsCfg, bindings []AgentBindingCfg) error {
+	agents.Defaults.Workspace = strings.TrimSpace(agents.Defaults.Workspace)
+	agents.Defaults.Workspaces = cleanStringSlice(agents.Defaults.Workspaces)
+	agents.Defaults.AgentDir = strings.TrimSpace(agents.Defaults.AgentDir)
+	agents.Defaults.Skills = cleanStringSlice(agents.Defaults.Skills)
+	agents.Defaults.Channels = cleanStringSlice(agents.Defaults.Channels)
 	if len(agents.List) == 0 {
 		defaults := agents.Defaults
 		*agents = defaultAgentsCfg(home)

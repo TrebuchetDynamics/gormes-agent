@@ -2763,9 +2763,9 @@
     "item": {
       "name": "Native TUI Terminal.app truecolor and ANSI sanitizer parity",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Port Hermes Ink TUI Terminal.app/truecolor and ANSI sanitizer behavior into the native Gormes TUI so renderer output keeps cursor/source-of-truth stability, strips malformed CSI safely, and preserves readable color behavior across modern terminals.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tui",
       "module": "tui",
@@ -2791,6 +2791,7 @@
         "Truecolor forcing/degradation is deterministic from injected terminal environment facts.",
         "Fast-echo cursor source-of-truth does not drift after sanitized writes."
       ],
+      "note": "Complete 2026-05-18: ported Hermes Ink TUI truecolor, ANSI text sanitation, and text-input fast-echo fixtures into native internal/tui pure helpers. Row proof: go test ./internal/tui ./internal/tuigateway ./cmd/gormes -run 'Truecolor|ANSI|Terminal|TextInput|Resume' -count=1; go run ./cmd/progress validate.",
       "write_scope": [
         "internal/tui",
         "internal/tuigateway",

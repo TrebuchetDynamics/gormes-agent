@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `navivox`
 **Rows:** 22
-**Status counts:** `complete`: 12 · `in_progress`: 0 · `planned`: 10
+**Status counts:** `complete`: 14 · `in_progress`: 0 · `planned`: 8
 **Priority counts:** `P0`: 2 · `P1`: 12 · `P2`: 1 · `P3`: 1 · `unset`: 6
 
 ## Phase 2 — The Gateway
@@ -55,8 +55,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 |---|---|---|---|
 | `complete` | `P0` | `navivox` | Navivox HTTP/WS documentation refresh |
 | `complete` | `P0` | `navivox` | Navivox connect-and-talk first screen |
-| `planned` | `P1` | `navivox` | Navivox profile contact summary API |
-| `planned` | `P1` | `navivox` | Navivox continuous voice command mode |
+| `complete` | `P1` | `navivox` | Navivox profile contact summary API |
+| `complete` | `P1` | `navivox` | Navivox continuous voice command mode |
 | `planned` | `P1` | `navivox` | Navivox Telegram-inspired chat polish |
 | `planned` | `P1` | `navivox` | Navivox natural-language profile seed flow |
 | `planned` | `P1` | `navivox` | Navivox structured tool event cards |

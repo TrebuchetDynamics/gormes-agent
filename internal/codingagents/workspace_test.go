@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func newGuardOrSkip(t *testing.T, allowed []string) *WorkspaceGuard {
@@ -120,5 +122,41 @@ func TestNewWorkspaceGuard_RejectsAllowedRootOverlapDeny(t *testing.T) {
 	}
 	if _, err := NewWorkspaceGuard([]string{home}); err == nil {
 		t.Fatalf("expected error when allowed root equals denied $HOME")
+	}
+}
+
+func TestWorkspaceGuard_UsesProfileWorkspaceScope(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	project1 := filepath.Join(root, "project1")
+	project2 := filepath.Join(root, "project2")
+	profile := filepath.Join(root, ".gormes", "profiles", "coder")
+	sibling := filepath.Join(root, ".gormes", "profiles", "researcher")
+	for _, dir := range []string{project1, project2, profile, sibling} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	scope, err := tools.NewProfileWorkspaceScope(tools.ProfileWorkspaceScopeOptions{
+		ProjectRoots: []string{project1, project2},
+		ProfileRoot:  profile,
+		OperatorHome: root,
+	})
+	if err != nil {
+		t.Fatalf("NewProfileWorkspaceScope: %v", err)
+	}
+	g, err := NewWorkspaceGuardFromProfileScope(scope)
+	if err != nil {
+		t.Fatalf("NewWorkspaceGuardFromProfileScope: %v", err)
+	}
+
+	if got, err := g.Resolve(project2); err != nil || got != project2 {
+		t.Fatalf("Resolve(project2) = %q, %v; want %q", got, err, project2)
+	}
+	if _, err := g.Resolve(sibling); !errors.Is(err, ErrWorkspaceOutsideAllowed) {
+		t.Fatalf("Resolve(sibling) error = %v, want ErrWorkspaceOutsideAllowed", err)
+	}
+	if _, err := g.Resolve(root); !errors.Is(err, ErrWorkspaceOutsideAllowed) {
+		t.Fatalf("Resolve(root) error = %v, want ErrWorkspaceOutsideAllowed", err)
 	}
 }

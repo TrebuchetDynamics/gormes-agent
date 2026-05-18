@@ -1894,6 +1894,28 @@ func GormesHome() string {
 	return filepath.Join(home, ".gormes")
 }
 
+// SubprocessHome returns the Hermes-compatible subprocess HOME for the active
+// Gormes home. The directory must already exist; this keeps legacy/default
+// profiles from silently redirecting shell tools before profile creation or
+// migration has materialized the profile-local home tree.
+func SubprocessHome() (string, bool) {
+	return SubprocessHomeFor(GormesHome())
+}
+
+// SubprocessHomeFor returns <gormesHome>/home when it exists as a directory.
+func SubprocessHomeFor(gormesHome string) (string, bool) {
+	gormesHome = strings.TrimSpace(gormesHome)
+	if gormesHome == "" {
+		return "", false
+	}
+	candidate := filepath.Join(gormesHome, "home")
+	info, err := os.Stat(candidate)
+	if err != nil || !info.IsDir() {
+		return "", false
+	}
+	return candidate, true
+}
+
 // ConfigPath returns the Gormes TOML config file path.
 func ConfigPath() string {
 	return filepath.Join(GormesHome(), "config.toml")
