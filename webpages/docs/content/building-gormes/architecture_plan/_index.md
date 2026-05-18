@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 93/110 subphases shipped · 17 in progress · 0 planned
+**Overall:** 94/110 subphases shipped · 16 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 17/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
@@ -848,14 +848,14 @@ classification and row-backed implementation queue.
 - [x] `tools` Gormes-native MCP host runtime boundary
 - [x] `channels` MCP channels_list tool
 
-### 5.H — ACP Integration 🔨
+### 5.H — ACP Integration ✅
 
 - [x] `tools` ACP server side
 - [x] `tools` ACP Client Bridge Mode
 - [x] `tools` ACP JSON-RPC stdio session/prompt closeout
 - [x] `tools` ACP stdio benign ping/probe suppression
 - [x] `tools` ACP session CWD propagation into prompt runners
-- [ ] `tools` ACP setup-browser bootstrap parity
+- [x] `tools` ACP setup-browser bootstrap parity
 
 ### 5.I — Plugins Architecture ✅
 

@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. ACP setup-browser bootstrap parity
-
-- Phase: 5 / 5.H
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: `gormes acp --setup-browser` ports Hermes' ACP browser-tool bootstrap behavior with platform-specific command planning, dry-run/report output, and browser harness dependency checks while keeping actual installs explicit and operator-approved.
-- Trust class: -
-- Ready when: ACP server/client rows are complete and command planning can be tested without installing browser tools.
-- Not ready when: The slice downloads browsers or runs package managers during tests., The slice changes ACP JSON-RPC session behavior instead of only adding bootstrap planning.
-- Degraded mode: -
-- Fixture: `cmd/gormes acp setup-browser dry-run fixtures`
-- Write scope: `cmd/gormes/acp.go`, `internal/acp`, `internal/tools`
-- Test commands: `go test ./cmd/gormes ./internal/acp -run 'ACP.*SetupBrowser\|ACP.*Bootstrap' -count=1`, `go run ./cmd/progress validate`
-- Done signal: ACP setup-browser dry-run and approval fixtures prove platform planning without live downloads.
-- Acceptance: Linux/macOS and Windows plans match Hermes script intent and surface missing prerequisites., Dry-run output is deterministic and secret-free., Non-dry-run execution requires explicit operator approval and reports each step outcome.
-- Source refs: ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.sh, ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.ps1, ../hermes-agent/acp_adapter/entry.py, cmd/gormes/acp.go, internal/acp
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Hermes LSP write-time semantic diagnostics
+## 1. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -67,7 +47,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Hermes x_search tool and auth surface
+## 2. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -87,7 +67,7 @@ selection.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Hermes session recap command surface
+## 3. Hermes session recap command surface
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -107,7 +87,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/session_recap.py, ../hermes-agent/hermes_cli/main.py, internal/session, internal/store
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Long-term plan: profile fleet supervisor and single control-plane gateway
+## 4. Long-term plan: profile fleet supervisor and single control-plane gateway
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -127,7 +107,7 @@ selection.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes v0.14 optional skill catalog refresh
+## 5. Hermes v0.14 optional skill catalog refresh
 
 - Phase: 6 / 6.C
 - Owner: `skills`
@@ -147,7 +127,7 @@ selection.
 - Source refs: ../hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md, ../hermes-agent/optional-skills/research/darwinian-evolver/SKILL.md, ../hermes-agent/optional-skills/research/osint-investigation/SKILL.md, ../hermes-agent/skills/productivity/notion/SKILL.md, internal/skills
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. SimpleX Chat platform plugin parity
+## 6. SimpleX Chat platform plugin parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -167,7 +147,7 @@ selection.
 - Source refs: ../hermes-agent/plugins/platforms/simplex/plugin.yaml, ../hermes-agent/plugins/platforms/simplex/adapter.py, internal/gateway/platform_manifest.go, internal/gateway/platform_connected_checkers.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Hermes contract inventory gate
+## 7. Hermes contract inventory gate
 
 - Phase: 8 / 8.C
 - Owner: `docs`
@@ -187,7 +167,7 @@ selection.
 - Source refs: webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json, webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md, webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md, internal/repoctl/source_pairs.go:ValidateSourcePairs, internal/progress/progress.go:Item, cmd/repoctl/main.go, hermes-agent/RELEASE_v0.14.0.md, hermes-agent/hermes_cli/main.py, hermes-agent/tools/x_search_tool.py, hermes-agent/tests/hermes_cli/test_send_cmd.py, webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage, webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho, hermes-agent/tools/memory_tool.py, hermes-agent/agent/memory_manager.py, hermes-agent/agent/skill_commands.py, hermes-agent/agent/skill_preprocessing.py, hermes-agent/agent/skill_utils.py, hermes-agent/tools/skills_tool.py, hermes-agent/tools/skill_manager_tool.py, hermes-agent/tools/skills_sync.py, hermes-agent/agent/curator.py, hermes-agent/hermes_cli/curator.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Agentic-porting-kit public repo scaffold
+## 8. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

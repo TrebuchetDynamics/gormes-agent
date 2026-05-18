@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `tools`
 **Rows:** 142
-**Status counts:** `complete`: 139 · `in_progress`: 0 · `planned`: 3
+**Status counts:** `complete`: 140 · `in_progress`: 0 · `planned`: 2
 **Priority counts:** `P0`: 23 · `P1`: 48 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
@@ -115,7 +115,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P0` | `tools` | ACP JSON-RPC stdio session/prompt closeout |
 | `complete` | `P1` | `tools` | ACP stdio benign ping/probe suppression |
 | `complete` | `P0` | `tools` | ACP session CWD propagation into prompt runners |
-| `planned` | `P2` | `tools` | ACP setup-browser bootstrap parity |
+| `complete` | `P2` | `tools` | ACP setup-browser bootstrap parity |
 
 ### 5.J — Approval / Security Guards
 

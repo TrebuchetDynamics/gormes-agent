@@ -35,6 +35,6 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Sessions](sessions/) | 28 | 27 | 0 | 1 | `P1`: 8 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
 | [Skills](skills/) | 44 | 42 | 0 | 2 | `P0`: 6 · `P1`: 6 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9 |
 | [STT](stt/) | 4 | 4 | 0 | 0 | `P0`: 1 · `P1`: 3 |
-| [Tools](tools/) | 142 | 139 | 0 | 3 | `P0`: 23 · `P1`: 48 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
+| [Tools](tools/) | 142 | 140 | 0 | 2 | `P0`: 23 · `P1`: 48 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
 | [TTS](tts/) | 23 | 23 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 4 · `P3`: 6 · `unset`: 1 |
 | [TUI](tui/) | 46 | 44 | 0 | 2 | `P0`: 3 · `P1`: 11 · `P2`: 21 · `P3`: 1 · `unset`: 10 |
