@@ -51,7 +51,9 @@ Options:
   --dry-run             Build bundle and prompt, but do not invoke codexu.
   --max-turns N         Max recent memory turns per profile. Default: 120.
   --max-tool-lines N    Max tool audit rows per profile. Default: 160.
+  --max-session-lines N Max lines per session file excerpt. Default: 220.
   --max-session-files N Max session files listed per profile. Default: 120.
+  --max-journal-lines N Max user journal lines per profile. Default: 220.
   -h, --help            Show this help.
 USAGE
 }
@@ -143,9 +145,19 @@ while [ "$#" -gt 0 ]; do
       max_tool_lines="$2"
       shift 2
       ;;
+    --max-session-lines)
+      [ "$#" -ge 2 ] || die "--max-session-lines requires a value"
+      max_session_lines="$2"
+      shift 2
+      ;;
     --max-session-files)
       [ "$#" -ge 2 ] || die "--max-session-files requires a value"
       max_session_files="$2"
+      shift 2
+      ;;
+    --max-journal-lines)
+      [ "$#" -ge 2 ] || die "--max-journal-lines requires a value"
+      max_journal_lines="$2"
       shift 2
       ;;
     -h|--help)
@@ -245,6 +257,20 @@ append_section() {
   printf '\n## %s\n\n' "$1" >> "$bundle"
 }
 
+limit_lines() {
+  local limit=$1
+  sed -n "1,${limit}p"
+}
+
+list_command_paths() {
+  local name=$1
+  if command -v which >/dev/null 2>&1; then
+    which -a "$name" 2>/dev/null | sort -u
+  else
+    command -v "$name" 2>/dev/null || true
+  fi
+}
+
 display_path() {
   local path=$1
   if [[ "$path" == "$HOME"* ]]; then
@@ -319,7 +345,7 @@ tool_audit_events() {
         | gsub("\n"; " ")
         | gsub("[[:space:]]+"; " ")
         | .[0:1800];
-      select(epoch >= $cutoff or epoch == 0)
+      select(epoch >= $cutoff)
       | [
           (raw_ts // ""),
           (.source // ""),
@@ -377,6 +403,57 @@ The planner must audit every dimension below for all profile/session evidence in
 - privacy_security: secret redaction, private identifiers, auth files, risky commands, and overexposed logs.
 
 DIMENSIONS
+}
+
+collect_runtime_surface() {
+  append_section "Runtime Surface"
+  local git_status
+  {
+    printf 'Repository working directory: %s\n' "$repo_root"
+    printf 'Git branch: '
+    git -C "$repo_root" branch --show-current 2>/dev/null || printf 'unknown\n'
+    printf 'Git tracked status:\n'
+    git_status=$(git -C "$repo_root" status --porcelain=v1 -uno 2>/dev/null || true)
+    if [ -n "$git_status" ]; then
+      printf '%s\n' "$git_status"
+    else
+      printf '(clean)\n'
+    fi
+    printf '\nEnvironment homes:\n'
+    printf 'GORMES_HOME=%s\n' "${GORMES_HOME:-}"
+    printf 'HERMES_HOME=%s\n' "${HERMES_HOME:-}"
+    printf 'CODEX_HOME=%s\n' "${CODEX_HOME:-}"
+    printf 'XDG_CONFIG_HOME=%s\n' "${XDG_CONFIG_HOME:-}"
+    printf 'XDG_DATA_HOME=%s\n' "${XDG_DATA_HOME:-}"
+    printf '\nGormes command discovery:\n'
+    if command -v gormes >/dev/null 2>&1; then
+      list_command_paths gormes
+      if command -v readlink >/dev/null 2>&1; then
+        while IFS= read -r candidate; do
+          [ -n "$candidate" ] || continue
+          printf 'realpath\t%s\t' "$candidate"
+          readlink -f "$candidate" 2>/dev/null || printf 'unknown\n'
+        done < <(list_command_paths gormes)
+      fi
+    else
+      printf 'gormes not found on PATH\n'
+    fi
+    printf '\nCodexu command discovery:\n'
+    if command -v "$codexu_bin" >/dev/null 2>&1; then
+      command -v "$codexu_bin" 2>/dev/null || true
+      "$codexu_bin" --version 2>/dev/null || true
+    else
+      printf 'codexu not found on PATH: %s\n' "$codexu_bin"
+    fi
+    printf '\nGateway status from discovered gormes command:\n'
+    if command -v gormes >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
+      timeout 5s gormes gateway status --json 2>/dev/null || printf 'gateway status unavailable or timed out\n'
+    elif command -v gormes >/dev/null 2>&1; then
+      printf 'skipped; timeout command unavailable\n'
+    else
+      printf 'skipped; gormes not found on PATH\n'
+    fi
+  } | append_redacted
 }
 
 collect_hermes_refs() {
@@ -526,7 +603,7 @@ collect_session_inventory() {
       ! -name 'request_dump_*' \
       -printf '%TY-%Tm-%Td %TH:%TM %s %p\n' |
       sort |
-      head -n "$max_session_files"
+      limit_lines "$max_session_files"
     if [ "$total" -gt "$max_session_files" ]; then
       printf 'truncated_session_files: %s of %s shown; increase --max-session-files to inspect more within this --hours window.\n' "$max_session_files" "$total"
     fi
@@ -558,7 +635,7 @@ collect_session_inventory() {
               (.cost_status // "")
             ]
           | @tsv
-        ' "$sessions_json" 2>/dev/null | head -n "$max_session_files" || true
+        ' "$sessions_json" 2>/dev/null | limit_lines "$max_session_files" || true
       else
         sed -n '1,120p' "$sessions_json"
       fi
@@ -623,8 +700,10 @@ collect_tool_audit_summary() {
           | if ($t | type) == "number" then $t
             elif ($t | type) == "string" then ($t | fromdateiso8601? // 0)
             else 0 end;
-        [ .[] | select(epoch(.) >= $cutoff or epoch(.) == 0) ] as $rows
+        [ .[] | select(epoch(.) >= $cutoff) ] as $rows
+        | [ .[] | select(epoch(.) == 0) ] as $undated
         | "recent_tool_events\t\($rows | length)",
+          "undated_tool_events_excluded_from_lookback\t\($undated | length)",
           ($rows
             | sort_by(.tool // "unknown")
             | group_by(.tool // "unknown")[]?
@@ -636,7 +715,7 @@ collect_tool_audit_summary() {
                 (((map(.duration_ms // 0) | add) // 0) / (length | if . == 0 then 1 else . end) | floor)
               ]
             | @tsv),
-          "web_search_like_events",
+          "web_search_like_events_within_lookback",
           ($rows[]
             | select((.tool // "") | test("web_search|web_extract|browser|search"; "i"))
             | [
@@ -645,9 +724,19 @@ collect_tool_audit_summary() {
                 (.status // ""),
                 ((.args // {}) | tostring | gsub("\r"; " ") | gsub("\n"; " ") | .[0:500])
               ]
+            | @tsv),
+          "undated_tool_event_samples",
+          ($undated[0:10][]
+            | [
+                (.timestamp // .ts // .created_at // .time // ""),
+                (.tool // ""),
+                (.status // ""),
+                ((.args // .error // {}) | tostring | gsub("\r"; " ") | gsub("\n"; " ") | .[0:500])
+              ]
             | @tsv)
       ' "$file" 2>/dev/null || true
     else
+      printf 'jq not found; showing tail without timestamp filtering.\n'
       tail -n "$max_tool_lines" "$file"
     fi
     printf '\n```\n'
@@ -659,9 +748,12 @@ collect_tool_audit() {
   local file="$root/tools/audit.jsonl"
   [ -f "$file" ] || return 0
 
-  printf '\n### Tool audit events\n\n' >> "$bundle"
+  printf '\n### Tool audit events within lookback\n\n' >> "$bundle"
   {
     printf '```tsv\n'
+    if ! command -v jq >/dev/null 2>&1; then
+      printf 'jq not found; showing tail without timestamp filtering.\n'
+    fi
     tool_audit_events "$file"
     printf '\n```\n'
   } | append_redacted
@@ -780,6 +872,7 @@ fi
 } | append_redacted
 
 collect_audit_dimensions
+collect_runtime_surface
 collect_modules
 collect_hermes_refs
 
