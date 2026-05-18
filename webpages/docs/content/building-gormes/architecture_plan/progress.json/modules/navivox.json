@@ -969,9 +969,9 @@
     "item": {
       "name": "Navivox profile contact summary API",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Expose a safe server-authoritative Navivox profile contact read model before visual chat polish. Gormes returns one contact per `server_id + profile_id`, where the profile is an isolated Gormes home/config/secrets/sessions/memory/skills/runtime state, not a live OpenClaw-style multi-agent router. Provide an HTTP snapshot plus WebSocket updates with display name, deterministic avatar seed, sanitized latest preview, health, compact workspace-root counts, attention badges, mic availability, and active-turn state. Flutter renders/caches this summary but keeps local-only metadata such as pins, aliases, command word, calibration, and trusted-server state out of the API. No raw workspace paths, secrets, tokens, config documents, or session payloads appear in contact rows.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1017,7 +1017,7 @@
         "Latest preview is server-sanitized and redacted; tool JSON, secrets, raw logs, raw config, and raw paths are absent from JSON and Flutter row widgets.",
         "Flutter contact-list tests render a flat profile list with server chips, deterministic avatars, attention badges, workspace counts, disabled offline/unauthorized mic affordances, and local pin ordering that does not affect server data."
       ],
-      "note": "Partial 2026-05-16: shipped the fixture-backed Flutter profiles-as-contacts shell as the UI precursor to the server-authoritative profile contact API. Navivox channel state now carries profile contacts keyed by server_id + profile_id; /chats renders a flat multi-server contact list with deterministic avatars, server chips, health/badge/workspace/mic indicators, add/profile-detail placeholders, and profile tap routing into scoped chat. Chat turns include the selected server_id/profile_id in gateway metadata, and existing connect-and-talk e2e now selects the default profile before sending. Remaining for this row: real HTTP snapshot endpoint and WebSocket contact updates from Gormes.",
+      "note": "Shipped 2026-05-18. Gormes now exposes `/v1/navivox/profile-contacts` as an authenticated HTTP snapshot with one safe contact per `server_id + profile_id`; rows include display name, deterministic avatar seed, sanitized latest preview/kind/timestamp, health, workspace root counts/warnings/errors, attention badges, mic availability, and active-turn state without raw profile homes, workspace paths, config paths, tokens, or secrets. Navivox WebSocket sends `profile_contact_update` events when scoped turns start and assistant responses finish; previews are server-sanitized before broadcast. Flutter now loads contacts from the gateway snapshot, selects the first server-authoritative contact by default, keeps selected `server_id/profile_id` in turn metadata, and applies contact updates without replacing unrelated contacts. Validation: `go test ./internal/channels/navivox ./internal/doctor ./cmd/gormes -run 'Test.*Navivox.*Contact|Test.*Profile|TestDoctorProfiles' -count=1`; `cd flutter-navivox/app && /home/xel/flutter/bin/flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat/profile_contact_list_test.dart`.",
       "write_scope": [
         "internal/channels/navivox/channel.go",
         "internal/channels/navivox/profile_contacts_test.go",

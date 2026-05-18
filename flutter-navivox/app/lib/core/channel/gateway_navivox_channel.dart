@@ -35,6 +35,13 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     await disconnect();
     final client = NavivoxGatewayClient(config: config);
     await client.status();
+    final contactPayloads = await client.profileContacts();
+    final profileContacts = contactPayloads
+        .map(_profileContactFromJson)
+        .toList(growable: false);
+    final contacts = profileContacts.isEmpty
+        ? [_fallbackProfileContact()]
+        : profileContacts;
     final socket = await client.connectStream();
     _socket = socket;
     _events = client
@@ -45,24 +52,11 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
               _appendSystemMessage('Gateway stream error'),
           onDone: () => _setServerStatus('Gateway disconnected'),
         );
-    final server = NavivoxServer(
-      id: 'navivox-gateway',
-      name: 'Gormes Gateway',
-      status: 'Gateway online - ${config.baseUri.host}:${config.baseUri.port}',
-    );
-    final profile = NavivoxProfileContact(
-      serverId: server.id,
-      profileId: 'default',
-      displayName: 'Default profile',
-      serverLabel: server.name,
-      health: NavivoxProfileHealth.online,
-      latestPreview: 'Gateway online',
-      micAvailable: true,
-    );
     _state = _state.copyWith(
-      servers: [server],
-      activeServerId: server.id,
-      profileContacts: [profile],
+      servers: _serversFromProfileContacts(contacts, config),
+      activeServerId: contacts.first.serverId,
+      profileContacts: contacts,
+      selectedProfileContactKey: contacts.first.key,
     );
     notifyListeners();
   }
@@ -227,6 +221,11 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
         _upsertToolCall(event, event.status ?? 'updated');
       case 'tool_call_finished':
         _upsertToolCall(event, event.status ?? 'finished');
+      case 'profile_contact_update':
+        final contact = event.contact;
+        if (contact != null) {
+          _upsertProfileContact(_profileContactFromJson(contact));
+        }
       case 'error':
         _appendSystemMessage(event.message ?? 'Gateway error');
       case 'done':
@@ -336,6 +335,27 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     notifyListeners();
   }
 
+  void _upsertProfileContact(NavivoxProfileContact contact) {
+    final contacts = [..._state.profileContacts];
+    final index = contacts.indexWhere(
+      (existing) => existing.key == contact.key,
+    );
+    if (index >= 0) {
+      contacts[index] = contact;
+    } else {
+      contacts.add(contact);
+    }
+    final servers = _upsertServer(_state.servers, contact);
+    _state = _state.copyWith(
+      servers: servers,
+      activeServerId: _state.activeServerId ?? contact.serverId,
+      profileContacts: contacts,
+      selectedProfileContactKey:
+          _state.selectedProfileContactKey ?? contact.key,
+    );
+    notifyListeners();
+  }
+
   void _appendMessage(NavivoxChatMessage message) {
     _state = _state.copyWith(messages: [..._state.messages, message]);
     notifyListeners();
@@ -357,5 +377,165 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
         'profile_id': profile.profileId,
       },
     };
+  }
+
+  NavivoxProfileContact _fallbackProfileContact() {
+    return NavivoxProfileContact(
+      serverId: 'navivox-gateway',
+      profileId: 'default',
+      displayName: 'Default profile',
+      serverLabel: 'Gormes Gateway',
+      health: NavivoxProfileHealth.online,
+      latestPreview: 'Gateway online',
+      latestPreviewKind: 'status',
+      workspaceRootCount: 1,
+      workspaceRootsOk: true,
+      micAvailable: true,
+    );
+  }
+
+  List<NavivoxServer> _serversFromProfileContacts(
+    List<NavivoxProfileContact> contacts,
+    NavivoxGatewayConfig config,
+  ) {
+    final servers = <String, NavivoxServer>{};
+    for (final contact in contacts) {
+      servers.putIfAbsent(
+        contact.serverId,
+        () => NavivoxServer(
+          id: contact.serverId,
+          name: contact.serverLabel,
+          status: _serverStatus(contact, config),
+        ),
+      );
+    }
+    return servers.values.toList(growable: false);
+  }
+
+  List<NavivoxServer> _upsertServer(
+    List<NavivoxServer> servers,
+    NavivoxProfileContact contact,
+  ) {
+    final index = servers.indexWhere((server) => server.id == contact.serverId);
+    if (index >= 0) return servers;
+    return [
+      ...servers,
+      NavivoxServer(
+        id: contact.serverId,
+        name: contact.serverLabel,
+        status: _profileHealthStatus(contact),
+      ),
+    ];
+  }
+
+  String _serverStatus(
+    NavivoxProfileContact contact,
+    NavivoxGatewayConfig config,
+  ) {
+    if (contact.serverId == 'navivox-gateway') {
+      return 'Gateway online - ${config.baseUri.host}:${config.baseUri.port}';
+    }
+    return _profileHealthStatus(contact);
+  }
+
+  String _profileHealthStatus(NavivoxProfileContact contact) {
+    return switch (contact.health) {
+      NavivoxProfileHealth.online => 'Gateway online',
+      NavivoxProfileHealth.offline => 'Gateway offline',
+      NavivoxProfileHealth.needsAuth => 'Provider auth required',
+      NavivoxProfileHealth.warning => 'Profile warning',
+    };
+  }
+
+  NavivoxProfileContact _profileContactFromJson(Map<String, Object?> json) {
+    final serverId = _stringFromJson(
+      json['server_id'],
+      fallback: 'navivox-gateway',
+    );
+    final profileId = _stringFromJson(json['profile_id'], fallback: 'default');
+    final serverLabel = _stringFromJson(
+      json['server_label'],
+      fallback: 'Gormes Gateway',
+    );
+    return NavivoxProfileContact(
+      serverId: serverId,
+      profileId: profileId,
+      displayName: _stringFromJson(
+        json['display_name'],
+        fallback: profileId == 'default' ? 'Default profile' : profileId,
+      ),
+      serverLabel: serverLabel,
+      health: _profileHealthFromJson(json['health']),
+      latestPreview: _stringFromJson(
+        json['latest_preview'],
+        fallback: 'Profile ready',
+      ),
+      latestPreviewKind: _stringFromJson(
+        json['latest_preview_kind'],
+        fallback: 'status',
+      ),
+      latestAt: _dateFromJson(json['latest_preview_at']),
+      workspaceRootCount: _intFromJson(json['workspace_root_count']),
+      workspaceRootsOk: _boolFromJson(
+        json['workspace_roots_ok'],
+        fallback: true,
+      ),
+      workspaceRootsWarning: _intFromJson(json['workspace_roots_warning']),
+      workspaceRootsError: _intFromJson(json['workspace_roots_error']),
+      attentionBadges: _stringListFromJson(json['attention_badges']),
+      micAvailable: _boolFromJson(json['mic_available']),
+      activeTurnState: _stringFromJson(
+        json['active_turn_state'],
+        fallback: 'idle',
+      ),
+      avatarSeed: _stringFromJson(
+        json['avatar_seed'],
+        fallback: '$serverId:$profileId',
+      ),
+    );
+  }
+
+  NavivoxProfileHealth _profileHealthFromJson(Object? value) {
+    return switch (value?.toString().trim().toLowerCase()) {
+      'offline' => NavivoxProfileHealth.offline,
+      'needs_auth' ||
+      'needsauth' ||
+      'needs-auth' => NavivoxProfileHealth.needsAuth,
+      'warning' => NavivoxProfileHealth.warning,
+      _ => NavivoxProfileHealth.online,
+    };
+  }
+
+  DateTime? _dateFromJson(Object? value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+    return DateTime.tryParse(text);
+  }
+
+  String _stringFromJson(Object? value, {required String fallback}) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return fallback;
+    return text;
+  }
+
+  int _intFromJson(Object? value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool _boolFromJson(Object? value, {bool fallback = false}) {
+    if (value is bool) return value;
+    final text = value?.toString().trim().toLowerCase();
+    if (text == 'true') return true;
+    if (text == 'false') return false;
+    return fallback;
+  }
+
+  List<String> _stringListFromJson(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
   }
 }

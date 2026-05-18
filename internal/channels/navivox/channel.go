@@ -44,11 +44,16 @@ type Channel struct {
 	mu       sync.Mutex
 	sessions map[string]*sessionState
 	clients  map[*client]struct{}
+
+	profileContacts map[string]ProfileContact
+	loadContacts    func(context.Context) ([]ProfileContact, error)
 }
 
 type sessionState struct {
 	ID            string    `json:"session_id"`
 	LastRequestID string    `json:"last_request_id,omitempty"`
+	ProfileServer string    `json:"profile_server,omitempty"`
+	ProfileID     string    `json:"profile_id,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	Subscribers   int       `json:"subscribers"`
@@ -75,16 +80,17 @@ type ClientMessage struct {
 }
 
 type ServerEvent struct {
-	Type       string         `json:"type"`
-	RequestID  string         `json:"request_id,omitempty"`
-	SessionID  string         `json:"session_id,omitempty"`
-	Text       string         `json:"text,omitempty"`
-	Code       string         `json:"code,omitempty"`
-	Message    string         `json:"message,omitempty"`
-	ToolName   string         `json:"tool_name,omitempty"`
-	ToolCallID string         `json:"tool_call_id,omitempty"`
-	Status     string         `json:"status,omitempty"`
-	Metadata   map[string]any `json:"metadata,omitempty"`
+	Type       string          `json:"type"`
+	RequestID  string          `json:"request_id,omitempty"`
+	SessionID  string          `json:"session_id,omitempty"`
+	Text       string          `json:"text,omitempty"`
+	Code       string          `json:"code,omitempty"`
+	Message    string          `json:"message,omitempty"`
+	ToolName   string          `json:"tool_name,omitempty"`
+	ToolCallID string          `json:"tool_call_id,omitempty"`
+	Status     string          `json:"status,omitempty"`
+	Metadata   map[string]any  `json:"metadata,omitempty"`
+	Contact    *ProfileContact `json:"contact,omitempty"`
 }
 
 type turnRequest struct {
@@ -117,12 +123,13 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger) (*Channel, error) {
 		}
 	}
 	return &Channel{
-		cfg:      cfg,
-		log:      log,
-		now:      func() time.Time { return time.Now().UTC() },
-		newID:    randomID,
-		sessions: map[string]*sessionState{},
-		clients:  map[*client]struct{}{},
+		cfg:             cfg,
+		log:             log,
+		now:             func() time.Time { return time.Now().UTC() },
+		newID:           randomID,
+		sessions:        map[string]*sessionState{},
+		clients:         map[*client]struct{}{},
+		profileContacts: map[string]ProfileContact{},
 	}, nil
 }
 
@@ -163,6 +170,7 @@ func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", c.handleHealthz)
 	mux.HandleFunc("/v1/navivox/status", c.withAuth(c.handleStatus))
+	mux.HandleFunc("/v1/navivox/profile-contacts", c.withAuth(c.handleProfileContacts))
 	mux.HandleFunc("/v1/navivox/sessions", c.withAuth(c.handleSessions))
 	mux.HandleFunc("/v1/navivox/sessions/", c.withAuth(c.handleSessionByID))
 	mux.HandleFunc("/v1/navivox/turn", c.withAuth(c.handleTurn(inbox)))
@@ -177,6 +185,7 @@ func (c *Channel) Send(ctx context.Context, chatID, text string) (string, error)
 		SessionID: chatID,
 		Text:      text,
 	})
+	c.updateProfileContactForSession(chatID, text, "assistant", ProfileContactTurnIdle)
 	c.broadcast(chatID, ServerEvent{Type: "done", SessionID: chatID})
 	return msgID, ctx.Err()
 }
@@ -241,6 +250,7 @@ func (c *Channel) edit(chatID, msgID, text string, finalize bool) error {
 		}
 		return nil
 	}
+	c.updateProfileContactForSession(chatID, text, "assistant", ProfileContactTurnIdle)
 	c.broadcast(chatID, ServerEvent{Type: "assistant_message", SessionID: chatID, Text: text})
 	c.broadcast(chatID, ServerEvent{Type: "done", SessionID: chatID})
 	return nil
@@ -275,6 +285,19 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 		"sessions":       sessionCount,
 		"ws_connections": clientCount,
 	})
+}
+
+func (c *Channel) handleProfileContacts(w http.ResponseWriter, r *http.Request, _ string) {
+	if r.Method != http.MethodGet {
+		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+		return
+	}
+	contacts, err := c.profileContactSnapshot(r.Context())
+	if err != nil {
+		writeNavivoxError(w, http.StatusServiceUnavailable, "", "profile_contacts_unavailable", "Profile contacts are unavailable")
+		return
+	}
+	writeNavivoxJSON(w, http.StatusOK, profileContactSnapshot{Contacts: contacts})
 }
 
 func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request, _ string) {
@@ -327,7 +350,7 @@ func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.Respon
 			writeNavivoxError(w, http.StatusBadRequest, "", "bad_request", "Invalid JSON")
 			return
 		}
-		sessionID, err := c.enqueueTurn(r.Context(), inbox, ClientMessage{
+		sessionID, contact, err := c.enqueueTurn(r.Context(), inbox, ClientMessage{
 			Type:      "start_turn",
 			RequestID: req.RequestID,
 			SessionID: req.SessionID,
@@ -343,6 +366,9 @@ func (c *Channel) handleTurn(inbox chan<- gateway.InboundEvent) func(http.Respon
 			"session_id": sessionID,
 			"status":     "queued",
 		})
+		if contact != nil {
+			c.broadcastProfileContact(*contact)
+		}
 	}
 }
 
@@ -409,12 +435,18 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 	case "ping":
 		return cl.write(ServerEvent{Type: "pong", RequestID: msg.RequestID})
 	case "start_turn":
-		sessionID, err := cl.ch.enqueueTurn(ctx, inbox, msg, cl.identity)
+		sessionID, contact, err := cl.ch.enqueueTurn(ctx, inbox, msg, cl.identity)
 		if err != nil {
 			return err
 		}
 		cl.subscribe(sessionID, msg.RequestID)
-		return cl.write(ServerEvent{Type: "session_started", RequestID: msg.RequestID, SessionID: sessionID})
+		if err := cl.write(ServerEvent{Type: "session_started", RequestID: msg.RequestID, SessionID: sessionID}); err != nil {
+			return err
+		}
+		if contact != nil {
+			cl.ch.broadcastProfileContact(*contact)
+		}
+		return nil
 	case "cancel_turn":
 		sessionID := strings.TrimSpace(msg.SessionID)
 		if sessionID == "" {
@@ -446,21 +478,24 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 	}
 }
 
-func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundEvent, msg ClientMessage, identity string) (string, error) {
+func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundEvent, msg ClientMessage, identity string) (string, *ProfileContact, error) {
 	requestID := strings.TrimSpace(msg.RequestID)
 	if requestID == "" {
-		return "", navivoxError{code: "bad_request", message: "request_id is required"}
+		return "", nil, navivoxError{code: "bad_request", message: "request_id is required"}
 	}
 	text := strings.TrimSpace(msg.Text)
 	if text == "" {
-		return "", navivoxError{code: "bad_request", message: "text is required"}
+		return "", nil, navivoxError{code: "bad_request", message: "text is required"}
 	}
 	sessionID := strings.TrimSpace(msg.SessionID)
 	if sessionID == "" {
 		sessionID = "navivox-" + c.newID()
 	}
+	serverID, profileID := profileScopeFromMetadata(msg.Metadata)
 	c.mu.Lock()
-	c.ensureSessionLocked(sessionID, requestID)
+	session := c.ensureSessionLocked(sessionID, requestID)
+	session.ProfileServer = serverID
+	session.ProfileID = profileID
 	c.mu.Unlock()
 	ev := gateway.InboundEvent{
 		Platform:  PlatformName,
@@ -474,10 +509,13 @@ func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundE
 		Text:      text,
 	}
 	if err := enqueue(ctx, inbox, ev); err != nil {
-		return "", err
+		return "", nil, err
 	}
+	c.mu.Lock()
+	contact := c.profileContactRuntimeUpdateLocked(serverID, profileID, text, "user", ProfileContactTurnActive)
+	c.mu.Unlock()
 	c.log.Info("navivox turn queued", "client_identity", identity, "request_id", requestID, "session_id", sessionID, "action", "start_turn", "status", "queued")
-	return sessionID, nil
+	return sessionID, &contact, nil
 }
 
 func enqueue(ctx context.Context, inbox chan<- gateway.InboundEvent, ev gateway.InboundEvent) error {

@@ -10,6 +10,7 @@ class NavivoxGatewayConfig {
 
   Uri get healthUri => _withPath('/healthz');
   Uri get statusUri => _withPath('/v1/navivox/status');
+  Uri get profileContactsUri => _withPath('/v1/navivox/profile-contacts');
   Uri get sessionsUri => _withPath('/v1/navivox/sessions');
   Uri sessionUri(String sessionId) =>
       _withPath('/v1/navivox/sessions/$sessionId');
@@ -100,9 +101,11 @@ class NavivoxGatewayEvent {
     this.toolName,
     this.toolCallId,
     this.status,
+    this.contact,
   });
 
   factory NavivoxGatewayEvent.fromJson(Map<String, Object?> json) {
+    final contact = json['contact'];
     return NavivoxGatewayEvent(
       type: json['type']?.toString() ?? '',
       requestId: json['request_id']?.toString(),
@@ -113,6 +116,7 @@ class NavivoxGatewayEvent {
       toolName: json['tool_name']?.toString(),
       toolCallId: json['tool_call_id']?.toString(),
       status: json['status']?.toString(),
+      contact: contact is Map ? Map<String, Object?>.from(contact) : null,
     );
   }
 
@@ -125,6 +129,7 @@ class NavivoxGatewayEvent {
   final String? toolName;
   final String? toolCallId;
   final String? status;
+  final Map<String, Object?>? contact;
 
   bool get isError => type == 'error';
 }

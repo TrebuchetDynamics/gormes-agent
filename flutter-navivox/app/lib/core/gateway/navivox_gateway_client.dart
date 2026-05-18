@@ -29,6 +29,17 @@ class NavivoxGatewayClient {
 
   Future<Map<String, Object?>> health() => _getJson(config.healthUri);
   Future<Map<String, Object?>> status() => _getJson(config.statusUri);
+  Future<List<Map<String, Object?>>> profileContacts() async {
+    final body = await _getJson(config.profileContactsUri);
+    final contacts = body['contacts'];
+    if (contacts is! List) {
+      return const [];
+    }
+    return contacts
+        .whereType<Map>()
+        .map((contact) => Map<String, Object?>.from(contact))
+        .toList(growable: false);
+  }
 
   Future<NavivoxGatewaySocket> connectStream() {
     return _connectWebSocket(config.streamUri, config.headers);
