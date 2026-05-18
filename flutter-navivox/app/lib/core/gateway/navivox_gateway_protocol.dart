@@ -76,6 +76,17 @@ class NavivoxGatewayMessage {
     });
   }
 
+  factory NavivoxGatewayMessage.stopTurn({
+    required String requestId,
+    required String sessionId,
+  }) {
+    return NavivoxGatewayMessage._({
+      'type': 'stop_turn',
+      'request_id': requestId,
+      'session_id': sessionId,
+    });
+  }
+
   factory NavivoxGatewayMessage.subscribeSession({
     required String requestId,
     required String sessionId,

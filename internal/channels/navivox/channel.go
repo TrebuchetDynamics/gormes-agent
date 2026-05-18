@@ -448,24 +448,9 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 		}
 		return nil
 	case "cancel_turn":
-		sessionID := strings.TrimSpace(msg.SessionID)
-		if sessionID == "" {
-			return navivoxError{code: "bad_request", message: "session_id is required"}
-		}
-		ev := gateway.InboundEvent{
-			Platform:  PlatformName,
-			ChatID:    sessionID,
-			ChatType:  "private",
-			UserID:    "navivox",
-			UserName:  cl.identity,
-			MsgID:     msg.RequestID,
-			MessageID: msg.RequestID,
-			Kind:      gateway.EventCancel,
-		}
-		if err := enqueue(ctx, inbox, ev); err != nil {
-			return err
-		}
-		return cl.write(ServerEvent{Type: "done", RequestID: msg.RequestID, SessionID: sessionID})
+		return cl.enqueueTurnControl(ctx, inbox, msg, "cancelled")
+	case "stop_turn":
+		return cl.enqueueTurnControl(ctx, inbox, msg, "stopped")
 	case "subscribe_session":
 		sessionID := strings.TrimSpace(msg.SessionID)
 		if sessionID == "" {
@@ -476,6 +461,27 @@ func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent,
 	default:
 		return navivoxError{code: "bad_request", message: "unsupported message type"}
 	}
+}
+
+func (cl *client) enqueueTurnControl(ctx context.Context, inbox chan<- gateway.InboundEvent, msg ClientMessage, status string) error {
+	sessionID := strings.TrimSpace(msg.SessionID)
+	if sessionID == "" {
+		return navivoxError{code: "bad_request", message: "session_id is required"}
+	}
+	ev := gateway.InboundEvent{
+		Platform:  PlatformName,
+		ChatID:    sessionID,
+		ChatType:  "private",
+		UserID:    "navivox",
+		UserName:  cl.identity,
+		MsgID:     msg.RequestID,
+		MessageID: msg.RequestID,
+		Kind:      gateway.EventCancel,
+	}
+	if err := enqueue(ctx, inbox, ev); err != nil {
+		return err
+	}
+	return cl.write(ServerEvent{Type: "done", RequestID: msg.RequestID, SessionID: sessionID, Status: status})
 }
 
 func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundEvent, msg ClientMessage, identity string) (string, *ProfileContact, error) {

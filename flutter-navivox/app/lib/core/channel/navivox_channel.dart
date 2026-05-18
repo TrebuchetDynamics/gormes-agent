@@ -154,6 +154,8 @@ abstract interface class NavivoxChannel implements Listenable {
     required Duration duration,
     required double confidence,
   });
+  void cancelActiveTurn();
+  void stopActiveTurn();
   void respondToApproval({required String approvalId, required bool approved});
   void requestAgentList();
   void selectAgent(String agentId);

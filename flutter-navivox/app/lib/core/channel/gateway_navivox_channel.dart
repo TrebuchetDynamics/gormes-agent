@@ -150,6 +150,16 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   }
 
   @override
+  void cancelActiveTurn() {
+    _sendTurnControl(stop: false);
+  }
+
+  @override
+  void stopActiveTurn() {
+    _sendTurnControl(stop: true);
+  }
+
+  @override
   void respondToApproval({required String approvalId, required bool approved}) {
     _appendSystemMessage(
       'Tool approvals are not available on this channel yet.',
@@ -359,6 +369,33 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   void _appendMessage(NavivoxChatMessage message) {
     _state = _state.copyWith(messages: [..._state.messages, message]);
     notifyListeners();
+  }
+
+  void _sendTurnControl({required bool stop}) {
+    final socket = _socket;
+    final sessionId = _activeSessionId;
+    if (socket == null || sessionId == null || sessionId.trim().isEmpty) {
+      _appendSystemMessage(
+        stop ? 'No active turn to stop.' : 'No active turn to cancel.',
+      );
+      return;
+    }
+    final requestId = _uuid.v4();
+    final message = stop
+        ? NavivoxGatewayMessage.stopTurn(
+            requestId: requestId,
+            sessionId: sessionId,
+          )
+        : NavivoxGatewayMessage.cancelTurn(
+            requestId: requestId,
+            sessionId: sessionId,
+          );
+    socket.add(jsonEncode(message.body));
+    _appendSystemMessage(
+      stop
+          ? 'Stop requested. Started side effects may still exist.'
+          : 'Cancel requested. Started side effects may still exist.',
+    );
   }
 
   void _replaceMessage(int index, NavivoxChatMessage message) {

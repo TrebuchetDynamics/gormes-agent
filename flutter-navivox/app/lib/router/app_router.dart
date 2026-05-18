@@ -9,6 +9,7 @@ import '../features/chat/screens/chat_screen.dart';
 import '../features/config/screens/config_screen.dart';
 import '../features/servers/screens/servers_screen.dart';
 import '../features/servers/screens/setup_screen.dart';
+import '../features/settings/screens/settings_screen.dart';
 import '../shared/widgets/app_shell.dart';
 import 'app_routes.dart';
 
@@ -61,6 +62,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.config,
             builder: (context, state) => const ConfigScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.settings,
+            builder: (context, state) => const SettingsScreen(),
           ),
         ],
       ),

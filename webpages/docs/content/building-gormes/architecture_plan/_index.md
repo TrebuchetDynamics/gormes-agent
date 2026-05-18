@@ -1527,7 +1527,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox HTTP/WS documentation refresh
 - [x] `navivox` Navivox connect-and-talk first screen
 - [x] `navivox` Navivox profile contact summary API
-- [ ] `navivox` Navivox continuous voice command mode
+- [x] `navivox` Navivox continuous voice command mode
 - [ ] `navivox` Navivox Telegram-inspired chat polish
 - [ ] `navivox` Navivox natural-language profile seed flow
 - [ ] `navivox` Navivox structured tool event cards

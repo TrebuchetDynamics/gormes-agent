@@ -87,6 +87,12 @@ class ConnectAndTalkChannel extends GatewayNavivoxChannel {
   }) {
     sendText(transcript);
   }
+
+  @override
+  void cancelActiveTurn() {}
+
+  @override
+  void stopActiveTurn() {}
 }
 
 class FailingConnectChannel extends GatewayNavivoxChannel {

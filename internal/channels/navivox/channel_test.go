@@ -306,6 +306,36 @@ func TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket(t *testing.T) {
 	}
 }
 
+func TestNavivoxWebSocketStopTurnEnqueuesCancel(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "stop_turn", RequestID: "req-stop", SessionID: "s-stop"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var done ServerEvent
+	if err := conn.ReadJSON(&done); err != nil {
+		t.Fatal(err)
+	}
+	if done.Type != "done" || done.RequestID != "req-stop" || done.SessionID != "s-stop" || done.Status != "stopped" {
+		t.Fatalf("stop response = %+v", done)
+	}
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventCancel || ev.ChatID != "s-stop" {
+			t.Fatalf("gateway event = %+v, want cancel for s-stop", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for stop gateway event")
+	}
+}
+
 func TestNavivoxSendToolProgressStreamsStructuredToolEvent(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)

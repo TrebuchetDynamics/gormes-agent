@@ -1056,9 +1056,9 @@
     "item": {
       "name": "Navivox continuous voice command mode",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Implement the first continuous voice mode as a local Navivox app mode pointed at one active trusted `server + profile` contact. The row mic starts device STT when mic permission and per-server local trust exist; transcripts auto-send as voice-marked user bubbles with a short visible `Sending...` grace window. The command word defaults to `navi`, is locally configurable and optionally calibrated, is recognized only at utterance start while voice mode is open, and drives local commands before text reaches Gormes: direct `navi <profile>`, `navi cancel`, `navi stop`, `navi settings`, `navi help`, plus a five-second command mode when the word is spoken alone. `navi cancel` follows the voice-turn lifecycle: discard before server commit, request cancel/stop when supported after commit, and never claim side effects were undone.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1102,6 +1102,7 @@
         "Typed `navi <profile>` is recognized only on chat composer submit; search/settings/config fields treat the same text as ordinary input.",
         "After server commit, cancel/stop leaves visible cancelled/stopped/cannot-undo state and never hides that a tool side effect may have started."
       ],
+      "note": "Validated 2026-05-18: Navivox chat gates continuous voice behind local per-server trust and healthy profile state, shows pending voice bubbles with a cancel-before-commit grace window, routes `navi` command-word actions locally for profile switching/settings/help/cancel/stop, emits gateway cancel/stop turn-control messages, and covers the behavior with focused Flutter voice/settings/chat tests plus Navivox Go turn-control tests.",
       "write_scope": [
         "flutter-navivox/app/lib/features/chat/",
         "flutter-navivox/app/lib/features/settings/",

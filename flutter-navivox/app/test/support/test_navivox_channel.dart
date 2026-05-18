@@ -22,6 +22,8 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   final List<({String text, String? serverId, String? profileId})>
   sentTextCalls = [];
   final List<SentVoiceCall> sentVoiceCalls = [];
+  int cancelRequests = 0;
+  int stopRequests = 0;
   final List<({String approvalId, bool approved})> approvalResponses = [];
   final List<({String field, Object? value})> configSetCalls = [];
   final List<({String name, String secret})> configSecretSetCalls = [];
@@ -122,6 +124,16 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
         confidence: confidence,
       ),
     );
+  }
+
+  @override
+  void cancelActiveTurn() {
+    cancelRequests += 1;
+  }
+
+  @override
+  void stopActiveTurn() {
+    stopRequests += 1;
   }
 
   @override
