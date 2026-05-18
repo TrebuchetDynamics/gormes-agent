@@ -18,7 +18,7 @@ func TestHermesCLIParityManifest(t *testing.T) {
 	}
 
 	wantTopLevel := []string{
-		"chat", "model", "fallback", "gateway", "setup", "whatsapp", "slack", "logout", "auth", "status", "cron", "webhook", "hooks", "doctor", "dump", "debug", "backup", "import", "config", "pairing", "skills", "plugins", "memory", "tools", "mcp", "sessions", "insights", "claw", "curator", "version", "update", "uninstall", "acp", "profile", "completion", "dashboard", "logs",
+		"chat", "send", "model", "fallback", "gateway", "setup", "whatsapp", "slack", "logout", "auth", "status", "cron", "webhook", "hooks", "doctor", "dump", "debug", "backup", "import", "config", "pairing", "skills", "plugins", "memory", "tools", "mcp", "sessions", "insights", "claw", "curator", "version", "update", "uninstall", "acp", "profile", "completion", "dashboard", "logs",
 	}
 	for _, path := range wantTopLevel {
 		entry := requireHermesCLIEntry(t, []string{path})

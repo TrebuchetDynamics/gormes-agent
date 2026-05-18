@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 94/110 subphases shipped · 16 in progress · 0 planned
+**Overall:** 93/110 subphases shipped · 17 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 17/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
@@ -756,7 +756,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Singularity command/preflight contract
 - [x] `tools` Sandbox Policy Explain
 
-### 5.C — Browser Automation ✅
+### 5.C — Browser Automation 🔨
 
 - [x] `browser` Browser action contract + event transcript
 - [x] `browser` go-browser-harness Chromedp action backend
@@ -779,6 +779,8 @@ classification and row-backed implementation queue.
 - [x] `browser` Browser SSRF quoted-false guard
 - [x] `browser` Go browser harness binary repo + integration lane (placeholder)
 - [x] `browser` Browser session inactivity cleanup thread
+- [ ] `browser` Goscrapling browser-backed extraction gate for web_extract
+- [ ] `browser` Goscrapling local crawler adapter gate for web_crawl
 
 ### 5.D — Vision + Image Generation ✅
 
@@ -1025,6 +1027,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox host setup apply with transient sudo
 - [x] `gateway` Gateway auto-resume on restart
 - [ ] `tools` Hermes x_search tool and auth surface
+- [ ] `goncho` Goncho durable recall trace IR + fused ranking pipeline
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -1146,7 +1149,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway stale-code self-check uses git HEAD SHA
 - [x] `runtime` Agent lifecycle hooks (agent:start, agent:step, agent:end)
 - [x] `providers` Nous OAuth device code + refresh token + agent key provisioning
-- [ ] `cli` Hermes send command stdin/file payload parity
+- [x] `cli` Hermes send command stdin/file payload parity
 - [ ] `sessions` Hermes session recap command surface
 - [x] `profiles` Profile workspace allow-list enforcement policy
 - [x] `profiles` Profile-local subprocess HOME parity

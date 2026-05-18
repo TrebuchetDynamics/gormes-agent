@@ -31,6 +31,7 @@ func DefaultContracts() []ModuleContract {
 				"dump",
 				"import",
 				"logs",
+				"send",
 				"setup",
 				"version",
 			),

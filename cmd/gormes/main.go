@@ -171,6 +171,7 @@ type rootRuntime struct {
 	tuiProgramFactory      tuiProgramFactory
 	isTTY                  func() bool
 	runFirstRunSetup       func(*cobra.Command) error
+	sendMessage            sendCommandDeliveryFunc
 }
 
 type tuiInvocation struct {
@@ -256,6 +257,7 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 		"goncho":      newGonchoCommand,
 		"kanban":      newKanbanCommand,
 		"chat":        func() *cobra.Command { return newChatCommand(runtime) },
+		"send":        func() *cobra.Command { return newSendCommand(runtime) },
 		"curator":     newCuratorCommand,
 		"acp":         newACPCommand,
 		"system":      newSystemCommand,

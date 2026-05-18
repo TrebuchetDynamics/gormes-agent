@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `cli`
 **Rows:** 33
-**Status counts:** `complete`: 32 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 33 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P1`: 12 · `P2`: 8 · `P3`: 3 · `unset`: 10
 
 ## Phase 5 — The Final Purge
@@ -45,7 +45,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `cli` | CLI log snapshot reader using shared redactor |
 | `complete` | `P2` | `cli` | Hermes CLI alias and suggestion fidelity matrix |
 | `complete` | `P2` | `cli` | Logs Command |
-| `planned` | `P1` | `cli` | Hermes send command stdin/file payload parity |
+| `complete` | `P1` | `cli` | Hermes send command stdin/file payload parity |
 | `complete` | `P1` | `cli` | CLI module contract registry and manifest gate |
 | `complete` | `P1` | `cli` | cmd/gormes profile command package extraction |
 | `complete` | `P1` | `cli` | cmd/gormes setup section registry extraction |

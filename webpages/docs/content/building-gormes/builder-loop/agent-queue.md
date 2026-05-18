@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. ACP setup-browser bootstrap parity
+## 1. Goncho durable recall trace IR + fused ranking pipeline
+
+- Phase: 5 / 5.N
+- Owner: `memory`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Introduce an internal Goncho recall pipeline where `RecallEngine.Run` is the only caller-facing entrypoint, package-local generate/score/select phases produce a durable `RecallTrace`, and Honcho-compatible search/context projections can only be built from that trace. `RecallCandidate` owns facts/content/provenance, `RecallScore` owns scoring components and selection evidence, and `RecallTrace` owns replay/debug/eval state including `TraceID`, `PipelineVersion`, `RecallScoringConfig`, `CreatedAt`, selected/rejected candidates, and code-first warnings for every degraded path.
+- Trust class: operator, system
+- Ready when: The builder restates the invariant: no projection without a RecallTrace., Existing Goncho Search/Context responses remain Honcho-compatible and do not gain new required fields., Trace fixtures can be deterministic without live embeddings, hosted Honcho, external vector databases, or provider calls.
+- Not ready when: The slice rewrites Goncho persistence, adds Qdrant/Postgres/Mongo/Neo4j dependencies, or changes public honcho_* tool/API contracts., The slice exposes package-local generate/score/select phases as the caller-facing interface instead of `RecallEngine.Run`., The implementation permits semantic/graph/FTS failures, scope exclusions, or token-budget truncation without a stable RecallWarning code.
+- Degraded mode: Semantic, graph, FTS, scope, stale-index, and token-budget fallbacks must be recorded in RecallTrace.Warnings instead of silently widening or dropping recall; external Honcho-compatible response shapes stay unchanged.
+- Fixture: `internal/goncho/testdata/recall_trace/*.golden.json`
+- Write scope: `internal/goncho/recall_ir.go`, `internal/goncho/recall_pipeline.go`, `internal/goncho/recall_projector.go`, `internal/goncho/recall_trace_test.go`, `internal/goncho/recall_pipeline_test.go`, `internal/goncho/testdata/recall_trace/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/goncho -run 'TestRecall' -count=1`, `go test ./internal/goncho ./internal/memory -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Builder reports byte-stable recall trace fixtures, stable warning codes, deterministic fused ranking/diversity tests, trace-only projection tests, and no public Honcho API break.
+- Acceptance: Types define RecallQuery, RecallCandidate, RecallScore, ScoredRecallCandidate, RecallScoringConfig, RecallWarning, RecallTrace, and trace-only projectors with no exported constructor path that builds projected Honcho responses from raw candidates., TraceID is deterministic from query, scope, ordered candidate IDs, scoring config version, and pipeline version; identical inputs/config produce byte-stable JSON fixtures., RecallScoringConfig includes Version, Weights, RRFK, MMRLambda, DiversityKeys, and TokenBudget and is copied into every trace., `RecallEngine.Run` always returns a trace containing PipelineVersion, CreatedAt, ScoringConfig, selected candidates, rejected candidates, and warnings; package-local tests may exercise generate/score/select stages directly., Ranking tests cover weighted fusion, RRF-style tie behavior, MMR-style diversity penalties, deterministic tie-breaks, scope filtering, and token-budget truncation., Warning tests cover semantic_unavailable, graph_disabled, stale_embedding_index, fts_unavailable, scope_excluded_all_candidates, and token_budget_truncated as stable codes., Projection tests prove Honcho-compatible search/context output is produced only from RecallTrace and keeps existing external response fields stable.
+- Source refs: https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/engine/engine.go, https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/session/spaces.go, internal/goncho/service.go, internal/goncho/importance_scorer.go, internal/memory/recall.go, internal/memory/semantic_sql.go, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho
+- Unblocks: Goncho recall diagnostics CLI, Goncho replayable retrieval traces, Goncho retrieval benchmark corpus
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. ACP setup-browser bootstrap parity
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -47,7 +68,7 @@ selection.
 - Source refs: ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.sh, ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.ps1, ../hermes-agent/acp_adapter/entry.py, cmd/gormes/acp.go, internal/acp
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Hermes LSP write-time semantic diagnostics
+## 3. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -67,7 +88,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Hermes x_search tool and auth surface
+## 4. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -85,26 +106,6 @@ selection.
 - Done signal: x_search descriptor, auth status, fake-result normalization, and degraded errors are proven without live X credentials.
 - Acceptance: `x_search` appears in the registry with Hermes-compatible schema and toolset availability., OAuth and API-key auth modes produce redacted status and missing-auth diagnostics., Fake search results normalize into a bounded model-visible result envelope; rate-limit and auth failures degrade explicitly.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Hermes send command stdin/file payload parity
-
-- Phase: 5 / 5.O
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: `gormes send` preserves Hermes `hermes send` behavior for stdin/file payload decoding, binary/invalid-text rejection, newline preservation, session targeting, dry/no-agent modes, and TUI resume safety without leaking raw control sequences into terminal output.
-- Trust class: -
-- Ready when: Hermes send_cmd.py and test_send_cmd.py are available in the in-repo Hermes checkout., The Gormes CLI command tree has a send/chat scripted-entry seam to bind without changing provider runtime behavior.
-- Not ready when: The slice changes provider transport, session persistence, or TUI rendering beyond the send command input/output boundary., The implementation accepts undecodable bytes as model-visible text instead of returning bounded operator guidance.
-- Degraded mode: -
-- Fixture: `cmd/gormes send command tests against Hermes send_cmd fixtures`
-- Write scope: `cmd/gormes`, `internal/cli`
-- Test commands: `go test ./cmd/gormes -run 'TestSend\|TestHermesSend\|TestTUIResume' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Focused CLI fixtures prove send stdin/file decoding, session targeting, TUI resume safety, and sanitized errors without live provider credentials.
-- Acceptance: Stdin and file payload paths preserve text and reject undecodable data with a stable, redacted error., Session target and resume behavior match Hermes tests without starting live providers., Terminal control bytes are sanitized before any human-mode output.
-- Source refs: ../hermes-agent/hermes_cli/send_cmd.py, ../hermes-agent/tests/hermes_cli/test_send_cmd.py, ../hermes-agent/tests/hermes_cli/test_tui_resume_flow.py, cmd/gormes
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 ## 5. Hermes session recap command surface

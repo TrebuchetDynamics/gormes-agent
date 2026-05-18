@@ -28,6 +28,7 @@ var RootCommandOrder = []string{
 	"goncho",
 	"kanban",
 	"chat",
+	"send",
 	"curator",
 	"acp",
 	"system",
@@ -126,6 +127,7 @@ Operator workflows:
     gormes gateway status             check gateway runtime state
     gormes gateway reload             reload swappable live gateway config
     gormes gateway stop               stop a running gateway
+    gormes send --to telegram "done"  send or dry-run platform delivery
     gormes whatsapp                   set up WhatsApp Baileys pairing
     gormes telegram                   start Telegram-only mode
     gormes acp client                 connect a debug ACP client to Gormes

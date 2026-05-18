@@ -2104,12 +2104,17 @@
     "item": {
       "name": "Hermes send command stdin/file payload parity",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "`gormes send` preserves Hermes `hermes send` behavior for stdin/file payload decoding, binary/invalid-text rejection, newline preservation, session targeting, dry/no-agent modes, and TUI resume safety without leaking raw control sequences into terminal output.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "orchestrator",
       "module": "cli",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When no standalone platform delivery backend is configured, `gormes send` fails closed with `send_backend_unavailable` instead of pretending a message was sent; `--dry-run` remains available for scripted payload validation without provider, gateway, or TUI startup.",
       "fixture": "cmd/gormes send command tests against Hermes send_cmd fixtures",
       "source_refs": [
         "../hermes-agent/hermes_cli/send_cmd.py",
@@ -2128,18 +2133,25 @@
       "acceptance": [
         "Stdin and file payload paths preserve text and reject undecodable data with a stable, redacted error.",
         "Session target and resume behavior match Hermes tests without starting live providers.",
-        "Terminal control bytes are sanitized before any human-mode output."
+        "Terminal control bytes are sanitized before any human-mode output.",
+        "Without an injected standalone delivery backend, non-dry-run delivery returns typed `send_backend_unavailable` evidence instead of silent success."
       ],
+      "note": "Complete 2026-05-18: added the top-level `gormes send` command, internal payload resolver, command-contract ownership, and Hermes CLI parity manifest entry. The shipped slice proves positional/file/stdin decoding, newline preservation, invalid UTF-8/NUL rejection, subject prepending, target/list handling, dry-run JSON, TUI non-startup behavior, and terminal-control sanitization. Real platform-specific standalone delivery remains fail-closed via `send_backend_unavailable` unless a future backend is injected; the command does not call providers or start a gateway/TUI.",
       "write_scope": [
         "cmd/gormes",
         "internal/cli"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestSend|TestHermesSend|TestTUIResume' -count=1",
+        "go test ./internal/cli -run 'TestResolveSendMessageBody|TestStripLeakedTerminalResponses' -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
         "Focused CLI fixtures prove send stdin/file decoding, session targeting, TUI resume safety, and sanitized errors without live provider credentials."
+      ],
+      "evidence": [
+        "cmd/gormes/send_command_test.go proves positional, file, stdin, list, dry-run JSON, backend-unavailable, backend-error sanitization, and no-TUI startup behavior.",
+        "internal/cli/send_message_test.go proves source precedence, newline preservation, invalid text rejection, missing-message handling, and terminal response stripping."
       ]
     }
   },

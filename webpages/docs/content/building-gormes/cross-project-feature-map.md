@@ -27,7 +27,7 @@ compatibility, and Go donors only shape implementation details.
 |---|---|---|---|
 | Provider adapters | Hermes | Many core providers are implemented; fallback, pricing, and error parity continue | Provider fallback chain, retry-after parsing, model metadata |
 | Browser automation | Hermes + go-browser-harness | Core actions are implemented; daemon/profile diagnostics remain | Browser doctor, profile lifecycle, event drain |
-| Web extraction | Hermes + goscrapling | `web_search`, `web_extract`, and `web_crawl` exist; static goscrapling extraction is embedded behind `web_extract` with structured `extraction` evidence | Browser/crawler gates and richer extraction evidence |
+| Web extraction | Hermes + goscrapling | `web_search`, `web_extract`, and `web_crawl` exist; static goscrapling extraction is embedded behind `web_extract` with structured `extraction` evidence | Builder-ready browser-backed `web_extract` and local `web_crawl` gates once goscrapling prerequisites validate |
 | Tool registry | Hermes | Native registry exists, but broad file/web/MCP/tool safety parity remains | Permission-hardened shell, tool descriptor layer, truncation |
 | Memory | Honcho + Go donors | Goncho exists as the local compatibility lane | Typed memory, provenance, retrieval evaluation, durable write queue |
 | Gateway/channels | Hermes + Picoclaw | Telegram, Discord, and Slack are runtime-ready; wider channels remain row-backed | Channel status labels, adapter parity fixtures |
@@ -44,7 +44,7 @@ compatibility, and Go donors only shape implementation details.
 | P0 | Native prompt builder | `../hermes-agent/agent/prompt_builder.py` | `internal/agenttemplate`, prompt assembly packages |
 | P1 | Provider fallback chain | `mercury-agent/src/core/providers.ts`, `picoclaw/pkg/providers/` | `internal/provider` |
 | P1 | Browser harness doctor | `go-browser-harness` docs and tests | browser harness CLI and Gormes doctor evidence |
-| P1 | goscrapling extraction evidence hardening | `../goscrapling/docs/content/building-goscrapling/strategy/portfolio-and-gormes-fit.md`, `../goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json` | Keep goscrapling behind `web_extract`; expand fixture-backed static evidence before any browser/crawler exposure |
+| P1 | goscrapling browser/crawler gate planning | `../goscrapling/docs/content/building-goscrapling/strategy/portfolio-and-gormes-fit.md`, `../goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json` | Keep goscrapling behind `web_extract`/`web_crawl`; require browser fetcher and spider prerequisite fixtures before dynamic extraction or local crawling |
 | P1 | Loop detection | Mercury loop-detection patterns | `internal/kernel`, `internal/agent` |
 | P2 | Structured memory types | Honcho models, Engram store references | `internal/goncho` |
 | P2 | Skill metadata placement | Space Agent skill metadata patterns, Hermes skills | `internal/skills` |
