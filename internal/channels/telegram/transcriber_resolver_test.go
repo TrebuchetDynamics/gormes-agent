@@ -3,6 +3,8 @@ package telegram
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -85,5 +87,30 @@ func TestResolveAudioTranscriber_PropagatesTranscribeErrors(t *testing.T) {
 	}
 	if _, err := resolved.Transcribe(context.Background(), AudioInput{}); !errors.Is(err, want) {
 		t.Fatalf("expected error %v to propagate, got %v", want, err)
+	}
+}
+
+func TestNewWhisperTranscriberFromEnv_FindsUserLocalBinWhenSystemdPATHOmitsIt(t *testing.T) {
+	home := t.TempDir()
+	binDir := filepath.Join(home, ".local", "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	whisperPath := filepath.Join(binDir, "whisper")
+	if err := os.WriteFile(whisperPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", filepath.Join(t.TempDir(), "missing-bin"))
+	t.Setenv("GORMES_WHISPER_COMMAND", "")
+
+	got := NewWhisperTranscriberFromEnv()
+	transcriber, ok := got.(CommandAudioTranscriber)
+	if !ok {
+		t.Fatalf("NewWhisperTranscriberFromEnv() = %T, want CommandAudioTranscriber", got)
+	}
+	if transcriber.Command != whisperPath {
+		t.Fatalf("Command = %q, want %q", transcriber.Command, whisperPath)
 	}
 }

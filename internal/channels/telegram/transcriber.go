@@ -299,7 +299,10 @@ func NewWhisperTranscriberFromEnv() AudioTranscriber {
 		var err error
 		cmd, err = exec.LookPath("whisper")
 		if err != nil {
-			return nil
+			cmd = defaultUserWhisperCommand()
+			if cmd == "" {
+				return nil
+			}
 		}
 	}
 	model := strings.TrimSpace(os.Getenv("GORMES_WHISPER_MODEL"))
@@ -307,6 +310,19 @@ func NewWhisperTranscriberFromEnv() AudioTranscriber {
 		model = "tiny"
 	}
 	return CommandAudioTranscriber{Command: cmd, Model: model, Timeout: telegramAudioTranscriptionTimeout}
+}
+
+func defaultUserWhisperCommand() string {
+	home := strings.TrimSpace(os.Getenv("HOME"))
+	if home == "" {
+		return ""
+	}
+	candidate := filepath.Join(home, ".local", "bin", "whisper")
+	info, err := os.Stat(candidate)
+	if err != nil || info.IsDir() || info.Mode()&0o111 == 0 {
+		return ""
+	}
+	return candidate
 }
 
 func (t CommandAudioTranscriber) Transcribe(ctx context.Context, audio AudioInput) (string, error) {
