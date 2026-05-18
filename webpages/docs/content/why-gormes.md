@@ -20,6 +20,14 @@ The current `cmd/gormes` build is a single static binary (the Linux release buil
 
 Real systems drop streams. Gormes treats that as a first-class architectural problem. Route-B reconnect keeps a turn alive when the SSE stream goes sideways, and the 16 ms coalescing mailbox prevents a stalled renderer from creating a thundering herd of stale frames. The kernel pushes the latest useful state, not every intermediate twitch.
 
+## Durable Learning
+
+The learning loop is useful only when an operator can audit it. Gormes keeps
+the proof path local: task evidence, skills, memory, curator state, and
+repeated-task behavior can be inspected without trusting a vague "I remembered
+that" response. See the [learning loop proof](../building-gormes/core-systems/learning-loop/)
+for the deterministic operator surface.
+
 ## Surgical Architecture
 
 Gormes ships as one focused `gormes` binary. The terminal TUI and the platform adapters (Telegram, Discord, Slack) are subcommands of that single binary (`gormes`, `gormes telegram`, `gormes gateway`), not separate artifacts that drag in unrelated dependency graphs at runtime. This is a surgical-strike architecture: clear ownership, one binary to copy and audit, cleaner crash boundaries, and less hidden weight.

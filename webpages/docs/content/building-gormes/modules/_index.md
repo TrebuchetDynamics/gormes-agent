@@ -23,7 +23,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Install](install/) | 28 | 27 | 0 | 1 | `P0`: 2 · `P1`: 15 · `P2`: 4 · `P3`: 3 · `unset`: 4 |
 | [Kanban](kanban/) | 33 | 33 | 0 | 0 | `P1`: 14 · `P2`: 19 |
 | [Landing](landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |
-| [Learning Loop](learning-loop/) | 5 | 4 | 0 | 1 | `P1`: 3 · `P2`: 2 |
+| [Learning Loop](learning-loop/) | 5 | 5 | 0 | 0 | `P1`: 3 · `P2`: 2 |
 | [Memory](memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
 | [Navivox](navivox/) | 22 | 12 | 0 | 10 | `P0`: 2 · `P1`: 12 · `P2`: 1 · `P3`: 1 · `unset`: 6 |
 | [Planner](planner/) | 9 | 9 | 0 | 0 | `P0`: 1 · `P1`: 3 · `P2`: 1 · `P3`: 1 · `unset`: 3 |

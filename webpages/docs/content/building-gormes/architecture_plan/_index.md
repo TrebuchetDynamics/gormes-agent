@@ -1425,7 +1425,7 @@ classification and row-backed implementation queue.
 - [x] `docs` Gormes market comparison positioning brief
 - [ ] `docs` Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents
 - [ ] `channels` Channel capability matrix with stable/fixture/planned labels
-- [ ] `learning-loop` Learning-loop proof demo for skills, memory, and curator
+- [x] `learning-loop` Learning-loop proof demo for skills, memory, and curator
 - [ ] `install` No-stack first-run proof path from install to offline doctor
 
 ### 8.C — Engineering Writeups 🔨

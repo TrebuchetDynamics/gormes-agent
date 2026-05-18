@@ -264,7 +264,7 @@
     "item": {
       "name": "Learning-loop proof demo for skills, memory, and curator",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Make the Hermes-compatible learning loop visible as an operator proof: document or demo the path from task evidence to skill creation/improvement, memory/recall persistence, curator status, and improved repeated-task behavior. The proof must use local fixtures or deterministic screenshots/output, avoid live-model hype, and link the existing skills, curator, and memory command surfaces.",
       "contract_status": "validated",
       "slice_size": "small",
@@ -300,11 +300,12 @@
         "The landing or Why Gormes page links to the learning-loop proof without making methodology the hero.",
         "Docs tests pin the presence of skills, memory, curator, and repeated-task proof language."
       ],
-      "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. Hermes owns the learning-loop perception; Gormes has row-backed substrate and needs public proof.",
+      "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. Hermes owns the learning-loop perception; Gormes has row-backed substrate and needs public proof. Completed 2026-05-18 with a deterministic operator proof section that ties task evidence, skills, memory, curator state, and repeated-task proof together without live-model claims. RED evidence: `go test ./webpages/docs -run TestLearningLoopOperatorProofDocs -count=1` failed on the missing proof section. GREEN evidence: the focused docs test passes after the proof page and CLI/Why cross-links landed.",
       "write_scope": [
         "webpages/docs/content/building-gormes/core-systems/learning-loop.md",
         "webpages/docs/content/cli/curator.md",
         "webpages/docs/content/cli/skills.md",
+        "webpages/docs/content/cli/memory.md",
         "webpages/docs/content/why-gormes.md",
         "webpages/docs/docs_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
@@ -320,6 +321,17 @@
       "provenance": {
         "origin_type": "gormes",
         "note": "Gormes-owned public proof row over already row-backed learning-loop substrate."
+      },
+      "evidence": {
+        "implementation": [
+          "webpages/docs/content/building-gormes/core-systems/learning-loop.md: added an Operator Proof section with task evidence, skill creation/improvement, memory recall, curator maintenance, and repeated-task proof surfaces.",
+          "webpages/docs/content/cli/curator.md, webpages/docs/content/cli/skills.md, and webpages/docs/content/cli/memory.md: linked each CLI surface back to the learning-loop proof.",
+          "webpages/docs/content/why-gormes.md: linked to the proof path without making learning-loop methodology the page hero."
+        ],
+        "verification": [
+          "RED: go test ./webpages/docs -run TestLearningLoopOperatorProofDocs -count=1 failed because the proof section did not exist.",
+          "GREEN: go test ./webpages/docs -run TestLearningLoopOperatorProofDocs -count=1 passed after the docs updates."
+        ]
       }
     }
   }

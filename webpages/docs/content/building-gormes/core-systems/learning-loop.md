@@ -86,3 +86,37 @@ Hermes is now the source of truth for background review and curator behavior.
 Use `provenance.origin_type: upstream` for those rows. Gormes-native detector,
 scoring, and promotion rows should keep `provenance.origin_type: gormes` unless
 a later Hermes source introduces a stricter public contract.
+
+## Operator Proof
+
+This is the deterministic local proof for the learning loop. It does not claim
+that every repeated task improves automatically, and it does not require a live
+model, hosted memory service, or network call. The proof is five linked
+surfaces that an operator can inspect after a real or fixture-backed task.
+
+| Surface | Command | What it proves |
+|---|---|---|
+| Task evidence | `gormes session list` and the audit log for the turn | The task had a traceable session, tool calls, edits, failures, and operator feedback instead of an ungrounded story. |
+| Skill creation or improvement | `gormes skills list` | Reusable procedure knowledge lives in a SKILL.md surface, separate from raw chat history. New or changed skills stay reviewable before prompt injection. |
+| Memory recall | `gormes memory status` | Durable facts and extractor state are visible as memory state, not hidden inside the assistant's latest answer. |
+| Curator maintenance | `gormes curator status` | Agent-created skills have lifecycle state, review reports, archive/restore paths, and operator review boundaries. |
+| Repeated-task proof | Run the same fixture after the skill or memory update | The second run should use the durable skill or recalled memory instead of rediscovering the same procedure from scratch. |
+
+Read the loop as a trust boundary:
+
+1. A task produces evidence: transcript, tool audit, edit diff, attachment
+   metadata, or explicit operator correction.
+2. The background review may propose memory or skill changes, but durable
+   changes must remain attributable to the source session.
+3. Skill creation or improvement records reusable "how" knowledge; memory
+   records durable "what" facts.
+4. Curator maintenance keeps agent-created skills reviewable by archiving,
+   restoring, pinning, or consolidating them under operator review.
+5. Repeated-task proof is only accepted when a deterministic local fixture or
+   transcript shows the next run using the durable artifact.
+
+The failure mode to watch for is a fake learning loop: an assistant says it
+will remember something, but `gormes memory status` shows no durable state,
+`gormes skills list` has no reusable procedure, and `gormes curator status`
+has no review trail. That is a product bug, not just a wording bug, because the
+operator cannot distinguish durable learning from session-local narration.

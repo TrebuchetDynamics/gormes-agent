@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `learning-loop`
 **Rows:** 5
-**Status counts:** `complete`: 4 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 5 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P1`: 3 · `P2`: 2
 
 ## Phase 6 — The Learning Loop (Soul)
@@ -38,4 +38,4 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `planned` | `P1` | `learning-loop` | Learning-loop proof demo for skills, memory, and curator |
+| `complete` | `P1` | `learning-loop` | Learning-loop proof demo for skills, memory, and curator |
