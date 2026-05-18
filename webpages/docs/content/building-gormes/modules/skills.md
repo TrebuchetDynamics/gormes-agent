@@ -7,9 +7,9 @@ title: "Skills Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `skills`
-**Rows:** 44
-**Status counts:** `complete`: 42 · `in_progress`: 0 · `planned`: 2
-**Priority counts:** `P0`: 6 · `P1`: 6 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9
+**Rows:** 46
+**Status counts:** `complete`: 42 · `in_progress`: 0 · `planned`: 4
+**Priority counts:** `P0`: 6 · `P1`: 8 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9
 
 ## Phase 1 — The Dashboard
 
@@ -53,6 +53,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `skills` | Agent Hooks Registry |
 | `complete` | `P2` | `skills` | Extension Lifecycle Hook System |
 | `complete` | `P2` | `skills` | Plugin lifecycle hook: transform_llm_output |
+| `planned` | `P1` | `skills` | Hermes plugin catalog strict-fidelity classifier |
 
 ### 5.N — Misc Operator Tools
 
@@ -82,6 +83,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P3` | `skills` | Hermes creative skill metadata compatibility |
 | `complete` | `unset` | `skills` | Portable SKILL.md format |
 | `planned` | `P2` | `skills` | Hermes v0.14 optional skill catalog refresh |
+| `planned` | `P1` | `skills` | Hermes skill catalog strict-fidelity classifier |
 
 ### 6.D — Skill Retrieval + Matching
 

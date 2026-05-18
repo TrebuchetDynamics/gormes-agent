@@ -4356,6 +4356,74 @@
   },
   {
     "phase": "2",
+    "subphase": "2.B.12",
+    "pos": 9,
+    "item": {
+      "name": "Hermes gateway platform strict-fidelity source-pair expansion",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Expand strict-fidelity mappings for Hermes gateway platform implementations and TUI gateway bridge files. The pass must classify platform adapters, platform helper modules, API-server platform surface, TUI gateway websocket/render/protocol bridge, and platform docs into completed channel rows, planned adapter rows, or explicit exclusions.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "docs",
+      "module": "channels",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.",
+      "fixture": "internal/channels strict-fidelity gateway platform mapping fixtures",
+      "source_refs": [
+        "hermes-agent/gateway/platforms/base.py",
+        "hermes-agent/gateway/platforms/api_server.py",
+        "hermes-agent/gateway/platforms/telegram.py",
+        "hermes-agent/gateway/platforms/yuanbao.py",
+        "hermes-agent/tui_gateway/server.py",
+        "hermes-agent/tui_gateway/render.py",
+        "internal/channels",
+        "internal/gateway"
+      ],
+      "ready_when": [
+        "`webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA.",
+        "The row uses exact Hermes files/tests as evidence, not only broad directory globs.",
+        "The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests."
+      ],
+      "not_ready_when": [
+        "The implementation treats low-confidence taxonomy matches as proof of coverage.",
+        "The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping.",
+        "The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first."
+      ],
+      "acceptance": [
+        "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
+        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
+        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
+        "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
+      ],
+      "note": "draft_until: classifier pass narrows this strict-fidelity bucket into exact child rows, source-pair mappings, or exclusions; strict_fidelity_origin: 2026-05-18 report shows 59 unmapped `gateway` source files and 8 unmapped `tui_gateway` source files.",
+      "write_scope": [
+        "internal/channels",
+        "internal/gateway",
+        "internal/tuigateway",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/channels ./internal/gateway ./internal/tuigateway -count=1",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/repoctl hermes-contract-inventory --repo-root ."
+      ],
+      "done_signal": [
+        "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
+        "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
+      }
+    }
+  },
+  {
+    "phase": "2",
     "subphase": "2.H",
     "pos": 2,
     "item": {

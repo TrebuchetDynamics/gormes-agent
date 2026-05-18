@@ -1628,6 +1628,73 @@
   },
   {
     "phase": "5",
+    "subphase": "5.I",
+    "pos": 14,
+    "item": {
+      "name": "Hermes plugin catalog strict-fidelity classifier",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Classify Hermes first-party plugin families into Gormes plugin/provider/channel/memory rows or explicit exclusions. The classifier must cover model-provider plugin manifests, memory plugins, web/browser/image/video plugins, platform plugins, Google Meet, Teams pipeline, Spotify, and plugin docs so strict fidelity can distinguish runtime gaps from catalog-only compatibility evidence.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "docs",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.",
+      "fixture": "internal/plugins hermes plugin catalog strict-fidelity fixtures",
+      "source_refs": [
+        "hermes-agent/plugins/model-providers/openrouter/plugin.yaml",
+        "hermes-agent/plugins/model-providers/openai-codex/plugin.yaml",
+        "hermes-agent/plugins/memory/honcho/plugin.yaml",
+        "hermes-agent/plugins/platforms/simplex/adapter.py",
+        "hermes-agent/plugins/google_meet/meet_bot.py",
+        "internal/plugins",
+        "internal/provider"
+      ],
+      "ready_when": [
+        "`webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA.",
+        "The row uses exact Hermes files/tests as evidence, not only broad directory globs.",
+        "The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests."
+      ],
+      "not_ready_when": [
+        "The implementation treats low-confidence taxonomy matches as proof of coverage.",
+        "The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping.",
+        "The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first."
+      ],
+      "acceptance": [
+        "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
+        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
+        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
+        "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
+      ],
+      "note": "draft_until: classifier pass narrows this strict-fidelity bucket into exact child rows, source-pair mappings, or exclusions; strict_fidelity_origin: 2026-05-18 report shows 113 unmapped `plugins` source files and 17 unmapped plugin docs.",
+      "write_scope": [
+        "internal/plugins",
+        "internal/provider",
+        "internal/channels",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/plugins ./internal/provider ./internal/channels -count=1",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/repoctl hermes-contract-inventory --repo-root ."
+      ],
+      "done_signal": [
+        "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
+        "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.N",
     "pos": 23,
     "item": {
@@ -2105,6 +2172,70 @@
       "done_signal": [
         "Optional skill fixtures prove v0.14 metadata/catalog visibility and guarded unsupported-script handling."
       ]
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.C",
+    "pos": 4,
+    "item": {
+      "name": "Hermes skill catalog strict-fidelity classifier",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Classify Hermes bundled and optional skill catalog files into Gormes skill-store rows, catalog-copy rows, unsupported-skill exclusions, or owned-divergence notes. The classifier must preserve SKILL.md metadata, support-file/reference layout, DESCRIPTION.md category docs, optional-skill install status, and docs-site generation boundaries without blindly copying Python-only examples into runtime packages.",
+      "contract_status": "draft",
+      "slice_size": "large",
+      "execution_owner": "docs",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.",
+      "fixture": "internal/skills optional skill strict-fidelity catalog fixtures",
+      "source_refs": [
+        "hermes-agent/skills/yuanbao/SKILL.md",
+        "hermes-agent/skills/creative/popular-web-designs/SKILL.md",
+        "hermes-agent/skills/productivity/notion/SKILL.md",
+        "hermes-agent/optional-skills/research/osint-investigation/SKILL.md",
+        "hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md",
+        "internal/skills"
+      ],
+      "ready_when": [
+        "`webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA.",
+        "The row uses exact Hermes files/tests as evidence, not only broad directory globs.",
+        "The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests."
+      ],
+      "not_ready_when": [
+        "The implementation treats low-confidence taxonomy matches as proof of coverage.",
+        "The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping.",
+        "The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first."
+      ],
+      "acceptance": [
+        "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
+        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
+        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
+        "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
+      ],
+      "note": "draft_until: classifier pass narrows this strict-fidelity bucket into exact child rows, source-pair mappings, or exclusions; strict_fidelity_origin: 2026-05-18 report shows 378 unmapped `skills` docs, 224 unmapped `optional-skills` docs, and 86 combined skill source files.",
+      "write_scope": [
+        "internal/skills",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/skills -count=1",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/repoctl hermes-contract-inventory --repo-root ."
+      ],
+      "done_signal": [
+        "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
+        "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
+      }
     }
   },
   {

@@ -151,7 +151,7 @@
           "id": "2.B.12",
           "name": "Channel-Neutral Native Runtime Adapter",
           "priority": "P0",
-          "item_count": 9
+          "item_count": 10
         },
         {
           "id": "2.C",
@@ -448,7 +448,7 @@
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Phase 4 needed an explicit closure subphase for the full Go-native agent turn. Provider, context, retry, and prompt rows remain useful, but Gormes is not Hermes in Go until the e2e turn proves provider, tool, Goncho memory, final response, and audit/status evidence together."
           },
-          "item_count": 11
+          "item_count": 12
         },
         {
           "id": "4.J",
@@ -491,7 +491,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes still leads terminal/process and platform-toolset behavior. The 97d54f0e watch-pattern flood-control fix, 4921b269 HASS_TOKEN carveout, and b288934d Discord limit coercion are validated. The 2026-05-05 parity sweep found that Gormes only toggles Home Assistant toolset availability and owns a gateway channel adapter; Hermes b816fd4e2 exposes four active ha_* control handlers with safety tests, now tracked as `Home Assistant tool handlers + service safety validation` before Gormes claims Home Assistant tool parity."
           },
-          "item_count": 16
+          "item_count": 17
         },
         {
           "id": "5.B",
@@ -571,7 +571,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes still leads plugin and dashboard-extension contracts. af22421e/cf2fabc4 page-scoped built-in slots, 64a497bf Hindsight setup preservation, and df3c9593 Google Meet metadata are validated. The 2026-05-05 parity sweep found two plugin-facing gaps: Gormes has metadata/discovery rows and CLI command-tree inventory but no operator-facing `plugins install/update/remove/list/enable/disable` lifecycle behavior, and Hermes b816fd4e2 honcho_plugin tests cover session config, async write, and pinPeerName behavior beyond core Goncho memory. Those gaps are now captured as `Hermes plugin CLI lifecycle parity` and `Goncho Honcho plugin session config + async write compatibility` without executing plugin runtime code."
           },
-          "item_count": 14
+          "item_count": 15
         },
         {
           "id": "5.J",
@@ -606,7 +606,7 @@
             "last_upstream_check": "2026-05-06T15:30:05Z",
             "origin_decision": "The 2026-05-06 all-topic parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows against Hermes b816fd4e2 plus Honcho e659b6b. CLI/setup, provider/auth, gateway live-turn, tool-loop, memory/Goncho, install/runtime, browser, docs, and release surfaces have either complete rows or lower-priority planned slices. The strongest builder-ready weakness remains cron execution: Gormes has native cron store/scheduler/action rows, but Hermes b816fd4e2 tests still cover unshipped script execution, workdir/TERMINAL_CWD binding, inactivity timeout, Codex 401 refresh, and owner-only cron file modes. Promote `Cron script/workdir/inactivity execution binding` to P0 before no-agent script-only watchdog mode."
           },
-          "item_count": 58
+          "item_count": 59
         },
         {
           "id": "5.O",
@@ -688,7 +688,7 @@
             "last_upstream_check": "2026-05-09T00:00:00Z",
             "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, `ui-tui/packages/hermes-ink`, and `ui-tui/src/__tests__`) remains the TUI source of truth. The 2026-05-09 all-topic weakness sweep refreshed Hermes to a7e7921db and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Provider/auth, gateway/channel, tools, memory/Goncho, browser, docs/public, and release/operator gaps stayed complete, owned, blocked, or row-backed; the newly refreshed active Ink change was markdown/prose wrap-trim behavior, now tracked by `Native TUI markdown soft-wrap boundary trim`. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits TUI drift into narrow renderer rows rather than reopening completed chat-completions, cron-admin, keybinding, slash, or websocket rows."
           },
-          "item_count": 56
+          "item_count": 58
         },
         {
           "id": "5.R",
@@ -756,7 +756,7 @@
             "last_upstream_check": "2026-04-27T05:26:06Z",
             "origin_decision": "Gormes-owned.22.4 adds shared frontmatter validation, audit, migration, doctor, and hook flows. Hermes 8c5d3a99 adds claude-design, while 55be5323/7d586ddb clarify design-skill routing and short descriptions. Gormes should adapt the validation-code contract first, then fixture-lock real creative skill metadata/routing, then keep broader reviewed skill storage metadata as a dependent row; do not import Gormes-owned CLI, auto-fix, PGLite/Postgres, pre-commit workflow, or Hermes' HTML artifact runtime."
           },
-          "item_count": 4
+          "item_count": 5
         },
         {
           "id": "6.D",
@@ -889,7 +889,7 @@
         {
           "id": "8.C",
           "name": "Engineering Writeups",
-          "item_count": 3
+          "item_count": 4
         },
         {
           "id": "8.D",
