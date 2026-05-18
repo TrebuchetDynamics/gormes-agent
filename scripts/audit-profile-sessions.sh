@@ -1,7 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+if [ "${AUDIT_PROFILE_SESSIONS_SNAPSHOT:-0}" != "1" ]; then
+  real_script=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/$(basename -- "${BASH_SOURCE[0]}")
+  snapshot=$(mktemp "${TMPDIR:-/tmp}/audit-profile-sessions.XXXXXX.sh")
+  cp "$real_script" "$snapshot"
+  chmod +x "$snapshot"
+  export AUDIT_PROFILE_SESSIONS_SNAPSHOT=1
+  export AUDIT_PROFILE_SESSIONS_REAL_SCRIPT="$real_script"
+  export AUDIT_PROFILE_SESSIONS_SNAPSHOT_PATH="$snapshot"
+  exec bash "$snapshot" "$@"
+fi
+
+if [ -n "${AUDIT_PROFILE_SESSIONS_SNAPSHOT_PATH:-}" ]; then
+  trap 'rm -f "$AUDIT_PROFILE_SESSIONS_SNAPSHOT_PATH"' EXIT
+fi
+
+script_path="${AUDIT_PROFILE_SESSIONS_REAL_SCRIPT:-${BASH_SOURCE[0]}}"
+script_dir=$(CDPATH= cd -- "$(dirname -- "$script_path")" && pwd)
 repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
 
 hours=12
@@ -240,6 +256,9 @@ redact_stream() {
     s/\bbot[0-9]{8,10}:[A-Za-z0-9_-]{30,}\b/bot[REDACTED_TELEGRAM_TOKEN]/g;
     s/\b[0-9]{8,10}:[A-Za-z0-9_-]{30,}\b/[REDACTED_TELEGRAM_TOKEN]/g;
     s/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/[REDACTED_JWT]/g;
+    s/"([A-Za-z0-9_]*(?:chat_id|user_id)|peer_id|workspace_id|observer_peer_id)"([[:space:]]*:[[:space:]]*)"[^"]*"/"$1"$2"[REDACTED_ID]"/gi;
+    s/"code"([[:space:]]*:[[:space:]]*)"[A-Z0-9]{6,12}"/"code"$1"[REDACTED_PAIRING_CODE]"/gi;
+    s/\b((?:pairing|paired|navivox)[A-Za-z0-9_-]*(?:code|token|secret|user|id)[A-Za-z0-9_-]*)([":[:space:]=]+)"?[^,}\s"]+/${1}${2}[REDACTED_PAIRING]/gi;
     s/\b(agent:[A-Za-z0-9_:-]*telegram:[A-Za-z0-9_:-]*:)[0-9]{6,}\b/${1}[REDACTED_ID]/g;
     s/\b(telegram:[A-Za-z0-9_:-]*:)[0-9]{6,}\b/${1}[REDACTED_ID]/g;
     s/\b(telegram:)[0-9]{6,}\b/${1}[REDACTED_ID]/g;
@@ -303,10 +322,13 @@ jsonl_events() {
   if command -v jq >/dev/null 2>&1; then
     if jq -r --argjson cutoff "$cutoff_epoch" '
       def raw_ts: (.timestamp // .ts // .created_at // .time // null);
+      def parse_time_string:
+        sub("\\.[0-9]+Z$"; "Z")
+        | fromdateiso8601?;
       def epoch:
         raw_ts as $t
         | if ($t | type) == "number" then $t
-          elif ($t | type) == "string" then ($t | fromdateiso8601? // 0)
+          elif ($t | type) == "string" then (($t | parse_time_string) // 0)
           else 0 end;
       def compact:
         tostring
@@ -334,10 +356,13 @@ tool_audit_events() {
   if command -v jq >/dev/null 2>&1; then
     if jq -r --argjson cutoff "$cutoff_epoch" '
       def raw_ts: (.timestamp // .ts // .created_at // .time // null);
+      def parse_time_string:
+        sub("\\.[0-9]+Z$"; "Z")
+        | fromdateiso8601?;
       def epoch:
         raw_ts as $t
         | if ($t | type) == "number" then $t
-          elif ($t | type) == "string" then ($t | fromdateiso8601? // 0)
+          elif ($t | type) == "string" then (($t | parse_time_string) // 0)
           else 0 end;
       def compact:
         tostring
@@ -513,6 +538,55 @@ collect_memory_markdown() {
         printf '\n```\n'
       } | append_redacted
     done
+}
+
+provenance_file_record() {
+  local kind=$1
+  local path=$2
+  if [ -e "$path" ]; then
+    local size mtime
+    size=$(stat -c '%s' "$path" 2>/dev/null || printf 'unknown')
+    mtime=$(stat -c '%y' "$path" 2>/dev/null || printf 'unknown')
+    printf '%s\tpresent\tsize_bytes=%s\t%s\t%s\n' "$kind" "$size" "$mtime" "$(display_path "$path")"
+  else
+    printf '%s\tmissing\tsize_bytes=0\t\t%s\n' "$kind" "$(display_path "$path")"
+  fi
+}
+
+provenance_dir_record() {
+  local kind=$1
+  local path=$2
+  if [ -d "$path" ]; then
+    local total recent mtime
+    total=$(find "$path" -maxdepth 1 -type f ! -name 'request_dump_*' 2>/dev/null | wc -l | tr -d ' ')
+    recent=$(find "$path" -maxdepth 1 -type f -mmin "-$minutes" ! -name 'request_dump_*' 2>/dev/null | wc -l | tr -d ' ')
+    mtime=$(stat -c '%y' "$path" 2>/dev/null || printf 'unknown')
+    printf '%s\tpresent\tfiles=%s recent_files=%s\t%s\t%s\n' "$kind" "$total" "$recent" "$mtime" "$(display_path "$path")"
+  else
+    printf '%s\tmissing\tfiles=0 recent_files=0\t\t%s\n' "$kind" "$(display_path "$path")"
+  fi
+}
+
+collect_memory_provenance() {
+  local root=$1
+
+  printf '\n### Memory provenance inventory\n\n' >> "$bundle"
+  {
+    printf '```tsv\n'
+    printf 'kind\tstate\tdetails\tmtime\tpath\n'
+    provenance_file_record "goncho_memory_db" "$root/memory.db"
+    provenance_dir_record "durable_markdown_memory_dir" "$root/memory"
+    provenance_file_record "durable_markdown_user" "$root/memory/USER.md"
+    provenance_file_record "durable_markdown_memory" "$root/memory/MEMORY.md"
+    provenance_dir_record "legacy_hermes_memories_dir" "$root/memories"
+    provenance_file_record "legacy_hermes_user" "$root/memories/USER.md"
+    provenance_file_record "legacy_hermes_memory" "$root/memories/MEMORY.md"
+    provenance_file_record "profile_config" "$root/config.json"
+    provenance_file_record "profile_state" "$root/state.json"
+    provenance_dir_record "session_transcripts" "$root/sessions"
+    provenance_dir_record "tool_audits" "$root/tools"
+    printf '```\n'
+  } | append_redacted
 }
 
 collect_memory_db() {
@@ -695,10 +769,13 @@ collect_tool_audit_summary() {
     printf '```tsv\n'
     if command -v jq >/dev/null 2>&1; then
       jq -rs --argjson cutoff "$cutoff_epoch" '
+        def parse_time_string:
+          sub("\\.[0-9]+Z$"; "Z")
+          | fromdateiso8601?;
         def epoch($r):
           ($r.timestamp // $r.ts // $r.created_at // $r.time // null) as $t
           | if ($t | type) == "number" then $t
-            elif ($t | type) == "string" then ($t | fromdateiso8601? // 0)
+            elif ($t | type) == "string" then (($t | parse_time_string) // 0)
             else 0 end;
         [ .[] | select(epoch(.) >= $cutoff) ] as $rows
         | [ .[] | select(epoch(.) == 0) ] as $undated
@@ -823,6 +900,7 @@ collect_profile() {
   collect_session_files "$root"
   collect_tool_audit_summary "$root"
   collect_tool_audit "$root"
+  collect_memory_provenance "$root"
   collect_memory_db "$root"
   collect_memory_markdown "$root"
   collect_journal "$label"
