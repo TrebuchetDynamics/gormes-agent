@@ -181,6 +181,7 @@ func TestNewHTTPAudioTranscriberFromEnv_ReturnsGroqAdapterWhenOnlyGroqKeySet(t *
 func TestResolveTelegramAudioTranscriber_FallsBackToHTTPWhenNoLocalCLI(t *testing.T) {
 	// Force NewWhisperTranscriberFromEnv to return nil by clearing the env
 	// override and ensuring no whisper binary is on PATH for this test.
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("GORMES_WHISPER_COMMAND", "")
 	t.Setenv("GORMES_WASI_WHISPER_MODEL", "")
 	t.Setenv("PATH", "/nonexistent")
@@ -199,6 +200,7 @@ func TestResolveTelegramAudioTranscriber_FallsBackToHTTPWhenNoLocalCLI(t *testin
 }
 
 func TestResolveTelegramAudioTranscriber_ReturnsNilWhenNeitherLocalNorHTTPConfigured(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("GORMES_WHISPER_COMMAND", "")
 	t.Setenv("GORMES_WASI_WHISPER_MODEL", "")
 	t.Setenv("PATH", "/nonexistent")

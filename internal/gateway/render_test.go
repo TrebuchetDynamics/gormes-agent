@@ -119,6 +119,8 @@ func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 		{name: "todo", event: "tool: todo: planning 5 task(s)", want: `📋 todo: "planning 5 task(s)"`},
 		{name: "execute_code", event: "tool: execute_code: printf shell-output", want: `💻 execute_code: "printf shell-output"`},
 		{name: "cronjob", event: "tool: cronjob: run", want: `⏰ cronjob: "run"`},
+		{name: "transcribe_audio", event: "tool: transcribe_audio: audio_path=/tmp/voice.ogg", want: `🎙️ transcribe_audio...`},
+		{name: "text_to_speech", event: "tool: text_to_speech: voice reply", want: `🔊 text_to_speech...`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
