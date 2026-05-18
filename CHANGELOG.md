@@ -8,6 +8,34 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.16] - 2026-05-18
+
+Date alias: `v2026.5.18`.
+
+> **Profile config v2 groundwork, memory provenance inventory, and Telegram audio hardening.**
+
+### Added
+- Root `config.toml` v2 profile service schema with `config_version = 2`,
+  `[profiles.main]` seed data, all-enabled profile enumeration, per-profile
+  provider/channel references, and a global SecretRef-backed credential
+  registry.
+- Memory provenance inventory in `gormes memory status`, separating Goncho
+  state, durable Markdown memory, legacy Hermes memory, context files, and
+  session transcript evidence.
+
+### Changed
+- Setup, config edit/check/migrate, and doctor schema-fix flows now write and
+  report canonical `config_version` v2 data while keeping legacy
+  `_config_version` files readable.
+- Profile control center planning and generated progress docs now reflect the
+  single-root config design with no global active/default profile key.
+
+### Fixed
+- Telegram inbound audio/transcription handling now preserves source-backed
+  audio evidence for STT/TTS workflows.
+- Profile-session audit bundles now capture recent agent response issues more
+  reliably for memory, learning-loop, tool, and response-quality review.
+
 ## [0.2.15] - 2026-05-18
 
 Date alias: `v2026.5.18`.
@@ -1040,7 +1068,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.15...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.16...HEAD
+[0.2.16]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.15...v0.2.16
 [0.2.15]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.14...v0.2.15
 [0.2.14]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.13...v0.2.14
 [0.2.13]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.12...v0.2.13
