@@ -2043,6 +2043,163 @@
   },
   {
     "phase": "5",
+    "subphase": "5.O",
+    "pos": 133,
+    "item": {
+      "name": "Root config.toml v2 profile service schema",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add typed `internal/config` support for the v2 root profile schema in `$GORMES_HOME/config.toml`: `config_version = 2`, `[profiles.<id>]` map entries, seed `[profiles.main] enabled=true name=\"\"` on fresh install/migrate, no `active_profile` or `default_profile` config keys, stable id validation for `<id>`, mutable display `name`, per-profile workspaces/settings/providers/channels references, and a global `[credentials.<id>]` registry whose secret values are represented only by SecretRef/env/file/exec references. All `enabled=true` profiles are active service declarations.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If v2 schema is absent, config loading keeps the legacy v1 fallback read path and reports profile_config_v2_unavailable readiness evidence without writing per-profile canonical config.",
+      "fixture": "internal/config/profile_config_v2_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
+        "internal/config/config.go",
+        "internal/config/agents.go",
+        "internal/config/writer.go",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_profiles_tui.go"
+      ],
+      "ready_when": [
+        "The profile-config-v2 planning doc is present and the legacy v1 profile setup rows remain historical evidence, not target architecture.",
+        "Tests can use temp GORMES_HOME and synthetic config.toml files; no provider, channel, Navivox, or gateway process is required."
+      ],
+      "not_ready_when": [
+        "The implementation stores canonical profile config under `$GORMES_HOME/profiles/<id>/config.toml`.",
+        "The implementation adds a v2 `default_profile`, `active_profile`, or implicit credential-sharing rule.",
+        "The seed `main` profile is forced to have a non-empty display name before first setup/runtime prompt."
+      ],
+      "unblocks": [
+        "Legacy profile config v2 migration planner",
+        "Profile Control Center read model",
+        "Per-profile provider credential readiness",
+        "Per-profile channel credential readiness and allow-lists",
+        "Navivox multi-server profile routing config model"
+      ],
+      "acceptance": [
+        "Fresh config initialization writes `config_version = 2` and `[profiles.main] enabled = true name = \"\"` without writing any canonical per-profile config.toml.",
+        "Profile ids reject invalid TOML table keys/path traversal but do not have to equal display names.",
+        "All enabled profiles are returned by the config read model; there is no single active/default profile in v2 config.",
+        "Credential records keep owner metadata and secret refs; raw API keys/tokens are not serialized into config.toml.",
+        "Legacy top-level `[hermes]`, channel, `[agents.defaults]`, and active-profile state remain read-compatible fallbacks only."
+      ],
+      "note": "SHIPPED 2026-05-18: v2 root config.toml schema is typed in internal/config with config_version=2 seed, [profiles.main] enabled/name defaults, stable profile-id validation, all-enabled profile service enumeration, credential owner + SecretRef registry, legacy _config_version fallback, and setup/config/doctor migration coverage. Evidence: go test ./internal/config -count=1; go test ./cmd/gormes -count=1.",
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/config/profile_config_v2.go",
+        "internal/config/profile_config_v2_test.go",
+        "internal/config/writer.go",
+        "internal/config/check.go",
+        "internal/config/check_test.go",
+        "internal/config/config_test.go",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/config.go",
+        "cmd/gormes/config_closeout_test.go",
+        "cmd/gormes/doctor.go",
+        "cmd/gormes/doctor_fix_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -run 'TestProfileConfigV2|TestConfigMigrate|TestConfigDefaults' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupProfiles|TestConfig' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Temp-home fixtures prove config v2 seed, stable ids, all-enabled profile enumeration, credential refs, and legacy fallback without per-profile canonical config writes."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "Operator rejected global active/default profile and per-profile canonical config files; Gormes v2 config owns this shape."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 134,
+    "item": {
+      "name": "Legacy profile config v2 migration planner",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add an `internal/config` migration planner/apply path that converts legacy Gormes profile state into the v2 single-root schema with a previewable diff. Inputs include top-level v1 `[hermes]`, `[telegram]`, `[discord]`, `[slack]`, `[agents.defaults]`, legacy `$GORMES_HOME/active_profile`, and existing `$GORMES_HOME/profiles/<id>/config.toml` files. Output is one `$GORMES_HOME/config.toml` with `[profiles.<id>]`, `[credentials.<id>]`, per-profile provider/channel references, and migration notes; profile directories remain runtime data homes only.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "config",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If migration cannot classify a legacy secret or profile file, the planner leaves it unmigrated with typed manual_action_required evidence and never deletes the source.",
+      "fixture": "internal/config/profile_migration_v2_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+        "internal/config/config.go:migrateConfig",
+        "cmd/gormes/config.go:config migrate",
+        "cmd/gormes/setup_profiles_tui.go",
+        "cmd/gormes/profile.go"
+      ],
+      "ready_when": [
+        "Root config.toml v2 profile service schema is complete or the migration tests can construct the same target structs without command wiring.",
+        "Sample legacy profile roots are represented by tempdir fixtures with no real operator secrets."
+      ],
+      "not_ready_when": [
+        "The planner mutates files during preview or deletes/moves legacy profile directories.",
+        "The migration collapses several legacy profiles into one default/active profile.",
+        "The migration copies raw secrets into config.toml instead of refs/env entries."
+      ],
+      "blocked_by": [
+        "Root config.toml v2 profile service schema"
+      ],
+      "unblocks": [
+        "Profile Control Center read model",
+        "Profile Control Center TUI shell and draft apply flow"
+      ],
+      "acceptance": [
+        "Dry-run returns a deterministic migration plan with profile additions, credential additions, fallback reads, conflicts, and redacted secret movement.",
+        "Apply creates a backup, writes only root config.toml, preserves profile runtime directories, and is idempotent.",
+        "Legacy active-profile state is reported as compatibility state, not promoted into v2 config.",
+        "Conflicting credential/profile ids require explicit rename/skip decisions and never silently overwrite."
+      ],
+      "note": "Setup should call this planner for inline migration preview; command wiring can be a follow-up, but the planner/apply logic belongs in internal/config.",
+      "write_scope": [
+        "internal/config/profile_migration_v2.go",
+        "internal/config/profile_migration_v2_test.go",
+        "internal/config/config.go",
+        "cmd/gormes/config.go",
+        "cmd/gormes/setup_profiles_tui.go",
+        "cmd/gormes/setup_profiles_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config -run 'TestProfileMigrationV2' -count=1",
+        "go test ./cmd/gormes -run 'TestConfigMigrate|TestSetupProfilesMigration' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Migration fixtures prove dry-run/apply, backup, redaction, active-profile compatibility handling, and idempotence from v1 roots into single-root v2 config."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "Gormes-specific migration from the already shipped v1 per-profile setup surface into the accepted v2 root config."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.R",
     "pos": 0,
     "item": {

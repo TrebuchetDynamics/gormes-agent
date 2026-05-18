@@ -5491,6 +5491,86 @@
   },
   {
     "phase": "5",
+    "subphase": "5.O",
+    "pos": 138,
+    "item": {
+      "name": "Per-profile channel credential readiness and allow-lists",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add channel setup/readiness for v2 profiles: each `[profiles.<id>.channels.<channel>]` block references an explicit credential id, enabled flag, channel-specific allow-lists, mention/thread/tool-progress settings, and optional runtime labels; each channel credential in `[credentials.<id>]` records kind/channel/owner_profile/secret_ref. Telegram, Slack, Discord, WhatsApp, and future channel adapters must resolve credentials through the profile/channel binding rather than top-level global token fields, while legacy top-level channel config remains a fallback/migration input.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "When a profile channel lacks a credential, the gateway skips only that profile-channel binding with channel_credential_missing evidence and leaves other profile services available.",
+      "fixture": "internal/gateway/profile_channel_config_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#channels",
+        "internal/config/config.go:TelegramCfg DiscordCfg SlackCfg",
+        "internal/gateway/channel_setup.go",
+        "internal/gateway/token_lock_test.go",
+        "cmd/gormes/setup_profiles_tui.go",
+        "cmd/gormes/setup_gateway.go"
+      ],
+      "ready_when": [
+        "Root config.toml v2 profile service schema exists.",
+        "Gateway/channel config tests can use synthetic profile-channel configs and fake credentials without starting real platform clients."
+      ],
+      "not_ready_when": [
+        "The slice stores raw bot tokens in config.toml or uses one top-level token for all profiles without an explicit credential id.",
+        "Allowed chats/channels are global-only and cannot differ per profile.",
+        "The implementation starts Telegram/Slack/Discord/WhatsApp clients in unit tests."
+      ],
+      "blocked_by": [
+        "Root config.toml v2 profile service schema"
+      ],
+      "unblocks": [
+        "Profile Control Center read model",
+        "Profile Control Center TUI shell and draft apply flow",
+        "Navivox multi-server profile routing config model"
+      ],
+      "acceptance": [
+        "Fixtures prove two profiles can use the same channel type with different credentials and allow-lists.",
+        "Duplicate token hashes across profiles produce token ownership conflict evidence before a second poller starts.",
+        "Legacy top-level `[telegram]`, `[discord]`, `[slack]`, and WhatsApp state are read as fallback/migration inputs but new setup writes only v2 profile/channel blocks.",
+        "Readiness output redacts all tokens, secret refs, chat ids where configured as sensitive, and local session paths."
+      ],
+      "note": "This row implements the user's correction that channels need credentials per profile; channel list alone is not setup.",
+      "write_scope": [
+        "internal/config/profile_config_v2.go",
+        "internal/gateway/",
+        "internal/channels/telegram/",
+        "internal/channels/discord/",
+        "internal/channels/whatsapp/",
+        "internal/slack/",
+        "cmd/gormes/setup_gateway.go",
+        "internal/app/gormescli/modules/profiles/",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway ./internal/channels/telegram ./internal/channels/discord ./internal/channels/whatsapp ./internal/slack -run 'TestProfileChannel|TestTokenLock|TestWhitelist' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupGateway|TestSetupProfiles' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Channel fixtures prove per-profile credential refs, distinct allow-lists, duplicate-token conflict detection, redacted readiness, and legacy fallback/migration behavior without live channel clients."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "Gormes v2 profile config owns channel credential scoping; Hermes has profile-home isolation but no single-root profile/channel registry."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.V",
     "pos": 1,
     "item": {

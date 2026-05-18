@@ -809,6 +809,78 @@
   {
     "phase": "5",
     "subphase": "5.O",
+    "pos": 100,
+    "item": {
+      "name": "Profile Control Center v2 umbrella — single root config and active services",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Inventory parent for the Gormes-owned v2 profile-control-center direction. Gormes moves profile setup away from per-profile canonical config files and global active/default profile semantics toward one root `$GORMES_HOME/config.toml` with `config_version = 2`, a stable `[profiles.<id>]` service map, a global credential registry referenced by profiles, and a screen-reader-first `gormes setup profiles` control center. All enabled profiles are active services; `profiles.<id>.name` is the mutable display name and may be blank for the seed `main` profile until setup/runtime asks the operator. This umbrella is not builder-selectable; child rows own schema, migration, read model, TUI, provider credentials, channel credentials, Navivox routing, and docs.",
+      "contract_status": "draft",
+      "slice_size": "umbrella",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until child rows ship, legacy `gormes profile` and `gormes setup profiles` behavior remains available but is explicitly a compatibility surface, not the target config architecture.",
+      "fixture": "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "cmd/gormes/setup_profiles_tui.go",
+        "internal/app/gormescli/modules/profiles/setup.go",
+        "internal/config/config.go",
+        "internal/config/writer.go",
+        "webpages/docs/content/building-gormes/modules/profiles.md"
+      ],
+      "ready_when": [
+        "Child rows remain present and ordered so builders can implement one narrow behavior at a time.",
+        "The accepted v2 invariants are documented: single root config.toml, stable profile ids, no global active/default profile field, per-profile credential references, and Navivox multi-profile routing."
+      ],
+      "not_ready_when": [
+        "This umbrella is assigned as one implementation slice.",
+        "A child row writes canonical config under `$GORMES_HOME/profiles/<id>/config.toml`, introduces `active_profile` or `default_profile` in config v2, or silently shares credentials across profiles."
+      ],
+      "unblocks": [
+        "Root config.toml v2 profile service schema",
+        "Legacy profile config v2 migration planner",
+        "Profile Control Center read model",
+        "Profile Control Center TUI shell and draft apply flow",
+        "Per-profile provider credential readiness",
+        "Per-profile channel credential readiness and allow-lists",
+        "Navivox multi-server profile routing config model",
+        "Canonical config.toml v2 profile schema docs"
+      ],
+      "acceptance": [
+        "The umbrella stays planned and non-selectable while every executable child row has concrete write scope, tests, and acceptance.",
+        "Generated module pages and roadmap surfaces show the v2 direction instead of the superseded navivox-default/default-profile framing.",
+        "Completed legacy rows remain historical evidence only; new setup writes only the v2 root config shape once the child rows ship."
+      ],
+      "note": "Planner decision 2026-05-18 after operator grill: profiles are first-class services, all enabled profiles are active, the stable TOML key is the profile id, display name is `profiles.<id>.name`, new installs seed `[profiles.main] enabled=true name=\"\"`, and Navivox manages multiple profiles/servers instead of selecting one startup profile.",
+      "write_scope": [
+        "internal/config/",
+        "internal/app/gormescli/modules/profiles/",
+        "cmd/gormes/setup_profiles_tui.go",
+        "cmd/gormes/setup_profiles_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md"
+      ],
+      "no_test_required": "Inventory-only umbrella; executable child rows carry focused tests.",
+      "done_signal": [
+        "The umbrella remains planned/non-selectable and all v2 profile-control-center implementation intent lives in child rows."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "Gormes-owned profile fleet/control-center architecture; Hermes profile homes remain upstream evidence but do not dictate the v2 root TOML shape."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
     "pos": 101,
     "item": {
       "name": "gormes setup profiles — section scaffold + per-profile workspace list",
@@ -1176,6 +1248,153 @@
         "origin_type": "hybrid",
         "upstream_ref": "Hermes profile-scoped gateway processes + Gormes-owned fleet supervisor target",
         "note": "Hermes permits concurrent profile gateways as isolated processes; Gormes keeps that as the compatibility baseline while planning a single operator control plane."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 135,
+    "item": {
+      "name": "Profile Control Center read model",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Move profile setup state projection out of `cmd/gormes` into `internal/app/gormescli/modules/profiles` as a pure read model for a Profile Control Center. The model enumerates all enabled and disabled v2 profiles, shows profile id, display name status, Runtime/Readiness/Activity lanes, workspaces, provider readiness, channel readiness, credential ownership/share warnings, legacy migration warnings, and action availability from a typed catalog. It must not require a live gateway, provider, channel token, or Navivox server.",
+      "contract_status": "fixture_ready",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If v2 config is missing, the read model surfaces legacy_config_detected/migration_available rows instead of pretending the old per-profile config shape is current.",
+      "fixture": "internal/app/gormescli/modules/profiles/control_center_model_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "internal/app/gormescli/modules/profiles/setup.go",
+        "cmd/gormes/setup_profiles_tui.go",
+        "internal/config/config.go",
+        "internal/doctor/",
+        "internal/gateway/token_lock_test.go"
+      ],
+      "ready_when": [
+        "Root config v2 structs exist or are faked behind a test seam.",
+        "Legacy migration planner can be injected or represented by a fake warning source."
+      ],
+      "not_ready_when": [
+        "The read model starts/stops processes, probes live providers, logs into channels, or reads raw secret values.",
+        "The model reduces the fleet to one active/default profile."
+      ],
+      "blocked_by": [
+        "Root config.toml v2 profile service schema",
+        "Legacy profile config v2 migration planner"
+      ],
+      "unblocks": [
+        "Profile Control Center TUI shell and draft apply flow"
+      ],
+      "acceptance": [
+        "Fixtures with `main`, `tulin`, and a disabled profile render all profiles with stable order and no single active marker.",
+        "Blank `profiles.main.name` produces a name-needed readiness warning, not an invalid profile id.",
+        "Duplicate provider/channel credential references produce explicit sharing/conflict evidence with owner_profile visible and secrets redacted.",
+        "Readiness lanes distinguish missing workspace, missing provider credential, missing channel credential, and legacy migration available.",
+        "The action catalog is typed and finite; no arbitrary command launcher appears in the model."
+      ],
+      "note": "This is the non-visual contract that makes the richer TUI testable and screen-reader friendly before layout work.",
+      "write_scope": [
+        "internal/app/gormescli/modules/profiles/control_center_model.go",
+        "internal/app/gormescli/modules/profiles/control_center_model_test.go",
+        "internal/app/gormescli/modules/profiles/setup.go",
+        "cmd/gormes/setup_profiles_tui.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterModel' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupProfiles' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Pure read-model fixtures prove all-profile service visibility, readiness lanes, redacted credentials, legacy migration warnings, and typed action availability without live runtime dependencies."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "Gormes setup profiles is becoming an operator control center rather than a narrow line-input wizard."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 136,
+    "item": {
+      "name": "Profile Control Center TUI shell and draft apply flow",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Replace the current narrow `gormes setup profiles` flow with a screen-reader-first Profile Control Center TUI over the read model. First screen lists every profile service with status lanes; detail view exposes workspaces, providers, channels, credentials, and migration state; edits are staged as a draft, summarized as a redacted diff, and only written on explicit Apply. Add-profile creates a staged stable id plus display name; naming the seed `main` profile is a staged edit. Slice excludes live start/stop/reset/restart, arbitrary command launchers, and secret echoing.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "profiles",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If terminal capabilities are limited, the TUI falls back to deterministic list/input screens with the same read-model labels and draft/apply semantics.",
+      "fixture": "internal/app/gormescli/modules/profiles/control_center_tui_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "cmd/gormes/setup_profiles_tui.go",
+        "internal/app/gormescli/modules/profiles/control_center_model.go",
+        "internal/tui/wizard/",
+        "cmd/gormes/setup.go:runSetupSection"
+      ],
+      "ready_when": [
+        "Profile Control Center read model is complete and exposes typed rows/actions.",
+        "The draft writer can target config v2 and migration planner APIs through injected seams."
+      ],
+      "not_ready_when": [
+        "The TUI writes immediately on navigation instead of staging changes until Apply.",
+        "The TUI performs live service operations or uses command strings as the action catalog.",
+        "The visual layout is tested only with sighted snapshots and lacks stable screen-reader text."
+      ],
+      "blocked_by": [
+        "Profile Control Center read model"
+      ],
+      "acceptance": [
+        "Initial render lists all enabled profiles plus disabled profiles in a separate section, with stable profile ids and display names.",
+        "Keyboard-only flows can rename `main`, add a profile, edit workspaces, assign provider/channel credentials, preview migration, Apply, and Discard.",
+        "Draft summary shows non-secret before/after fields and secret status changes only as redacted refs.",
+        "Cancel/escape does not write config; Apply writes one root config.toml transaction through `internal/config`.",
+        "Non-TTY path returns deterministic setup_requires_tty/help text and no false success footer."
+      ],
+      "note": "This row owns UI/UX only after the read model exists; it intentionally keeps live runtime controls for a later fleet supervisor row.",
+      "write_scope": [
+        "cmd/gormes/setup_profiles_tui.go",
+        "cmd/gormes/setup_profiles_test.go",
+        "internal/app/gormescli/modules/profiles/control_center_tui.go",
+        "internal/app/gormescli/modules/profiles/control_center_tui_test.go",
+        "internal/tui/wizard/",
+        "webpages/docs/profile_docs_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterTUI|TestProfileDraft' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupProfiles' -count=1",
+        "go test ./webpages/docs -run 'TestProfile|TestSetup' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "TUI fixtures prove all-profile first screen, staged edits, redacted diff, apply/discard, no live ops, and screen-reader text stability."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "User requested a rich setup profiles TUI/UX; accepted design is dashboard plus guided edit flows."
       }
     }
   },

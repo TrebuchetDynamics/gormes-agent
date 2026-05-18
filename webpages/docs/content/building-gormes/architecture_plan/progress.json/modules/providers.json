@@ -8116,6 +8116,83 @@
     }
   },
   {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 137,
+    "item": {
+      "name": "Per-profile provider credential readiness",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add provider setup/readiness for v2 profiles: each `[profiles.<id>.providers.<provider>]` block references an explicit credential id, default model, optional endpoint/base URL, and allowed model list; each `[credentials.<id>]` provider credential records kind/provider/owner_profile/secret_ref. Setup must never ask for provider credentials globally when editing a profile, must not silently share credentials across profiles, and must surface provider catalog/model-picker readiness so OpenRouter and other aggregators show their available model set instead of a truncated static list.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "When a provider catalog cannot be fetched or a credential is missing, readiness returns provider_models_unavailable or provider_credential_missing and keeps manual model entry available without live token use.",
+      "fixture": "internal/provider/profile_provider_config_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#providers",
+        "internal/hermes/provider_registry_manifest.go",
+        "internal/provider/",
+        "cmd/gormes/setup_model.go",
+        "cmd/gormes/auth.go",
+        "internal/config/config.go"
+      ],
+      "ready_when": [
+        "Root config.toml v2 profile service schema exists.",
+        "Provider registry/model picker seams are fakeable; no live OpenRouter/OpenAI/Anthropic call is required for tests."
+      ],
+      "not_ready_when": [
+        "The slice stores raw API keys in config.toml or reuses one global API key without an explicit credential reference.",
+        "The model picker relies only on a hard-coded short list for OpenRouter when a catalog seam is available.",
+        "Provider setup changes channel credentials or profile runtime service state."
+      ],
+      "blocked_by": [
+        "Root config.toml v2 profile service schema"
+      ],
+      "unblocks": [
+        "Profile Control Center read model",
+        "Profile Control Center TUI shell and draft apply flow"
+      ],
+      "acceptance": [
+        "Fixtures prove `main` and `tulin` can both configure OpenRouter with separate credential ids and different default/allowed model sets.",
+        "Explicit credential sharing between profiles is represented as a shared credential reference with owner metadata and a warning; implicit env fallback does not count as sharing.",
+        "Missing/invalid provider credential and provider catalog failure produce redacted readiness evidence.",
+        "OpenRouter model catalog fixtures render all returned models in stable order with search/filter, not just a static hand-picked subset."
+      ],
+      "note": "This row directly covers the reported provider setup issues: wrong API-key prompts for OAuth providers and incomplete OpenRouter model display must be impossible in the v2 profile editor.",
+      "write_scope": [
+        "internal/config/profile_config_v2.go",
+        "internal/provider/",
+        "internal/hermes/provider_registry_manifest.go",
+        "cmd/gormes/setup_model.go",
+        "cmd/gormes/auth.go",
+        "internal/app/gormescli/modules/profiles/",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/provider ./internal/hermes ./internal/config -run 'TestProfileProvider|TestOpenRouter|TestProviderRegistry' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupModel|TestAuth|TestSetupProfiles' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Provider fixtures prove per-profile credential ownership, explicit sharing warnings, redacted readiness, OAuth/API-key prompt correctness, and full OpenRouter model catalog display."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "Gormes v2 profile config owns provider credential scoping; upstream Hermes profiles provide isolation evidence but not this root TOML layout."
+      }
+    }
+  },
+  {
     "phase": "6",
     "subphase": "6.E",
     "pos": 0,

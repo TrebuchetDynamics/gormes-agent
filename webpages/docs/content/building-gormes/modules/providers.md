@@ -7,9 +7,9 @@ title: "Providers Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `providers`
-**Rows:** 118
-**Status counts:** `complete`: 117 · `in_progress`: 0 · `planned`: 1
-**Priority counts:** `P0`: 9 · `P1`: 49 · `P2`: 23 · `P3`: 2 · `unset`: 35
+**Rows:** 119
+**Status counts:** `complete`: 117 · `in_progress`: 0 · `planned`: 2
+**Priority counts:** `P0`: 9 · `P1`: 50 · `P2`: 23 · `P3`: 2 · `unset`: 35
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -210,6 +210,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `providers` | Nous OAuth device code + refresh token + agent key provisioning |
 | `complete` | `P1` | `providers` | cmd/gormes provider usage command package extraction |
 | `complete` | `P1` | `providers` | cmd/gormes provider command surface package extraction |
+| `planned` | `P1` | `providers` | Per-profile provider credential readiness |
 
 ## Phase 6 — The Learning Loop (Soul)
 

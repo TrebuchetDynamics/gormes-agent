@@ -308,106 +308,74 @@
   {
     "phase": "5",
     "subphase": "5.O",
-    "pos": 100,
-    "item": {
-      "name": "gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)",
-      "priority": "P2",
-      "status": "planned",
-      "contract": "Umbrella inventory parent for a NEW Gormes-owned `gormes setup profiles` interactive setup section that manages profiles and configures, PER PROFILE: (a) MULTIPLE workspace directories, (b) MULTIPLE messaging channels (telegram/whatsapp/discord/slack), and (c) navivox accessibility (all profiles reachable through navivox by default). OWNED DIVERGENCE: Hermes has NO `hermes setup profiles` section — Hermes profiles are separate ~/.hermes-<name> homes via hermes_cli/profiles.py, never a setup section, and Hermes has no per-profile multi-workspace / per-profile multi-channel / navivox-default-routing concept. This whole section is intentionally Gormes-owned (cite hermes_cli/setup.py [no profiles section] + hermes_cli/profiles.py as owned-divergence reference, NOT a parity port). It must REUSE existing Gormes seams, not reimplement: the profile command seams (cmd/gormes/profile.go defaultProfileCommandSeams: ListKnownProfiles/CreateProfile/ReadActiveProfileName/ResolveProfileRoot/WriteActiveProfile), the shipped `gormes setup <section>` boxed-header/footer chrome (runSetupSection — REUSE, do NOT add a third chrome variant), the real config TOML round-trip writer (internal/config/writer.go), and the existing channel/navivox config + setup surfaces (internal/config TelegramCfg/DiscordCfg/SlackCfg + Bindings []AgentBindingCfg + NavivoxCfg; cmd/gormes/setup_navivox.go, internal/gateway/channel_setup.go, runSetupGatewaySection navivox platform). Per-profile config persists into the SELECTED profile's OWN config.toml (default profile → config.GormesHome() config; named → filepath.Join(config.GormesHome(),\"profiles\",name)/config.toml), list-shaped fields as TOML arrays. Goncho.Workspace (memory workspace ID) is a DIFFERENT concept from the agents filesystem workspace and must NOT be conflated. SPLIT into builder-ready children; this parent is NOT builder-selectable.",
-      "contract_status": "validated",
-      "slice_size": "umbrella",
-      "execution_owner": "tools",
-      "module": "navivox",
-      "source_refs": [
-        "cmd/gormes/setup.go:36 setupSections / :43 setupSectionLabels / :528 runSetupSection (shipped boxed-header+footer chrome to reuse) / :562 dispatch / :615 runSetupBindingsSection / :1726 runSetupGatewaySection (navivox platform)",
-        "cmd/gormes/profile.go profileCommandSeams/defaultProfileCommandSeams (ListKnownProfiles/CreateProfile/ResolveProfileRoot/ReadActiveProfileName); config.GormesHome()+\"profiles\"/<name>",
-        "internal/config/config.go Agents AgentsCfg (agents.defaults workspace ~:356) + Bindings []AgentBindingCfg + TelegramCfg/DiscordCfg/SlackCfg + NavivoxCfg (~:54/:1737) + flexibleStringList; internal/config/writer.go (real TOML config round-trip)",
-        "cmd/gormes/setup_navivox.go, cmd/gormes/navivox_connect_info.go, internal/gateway/channel_setup.go (navivox + channel wiring to reuse)",
-        "../hermes-agent/hermes_cli/setup.py@55c9f3206 (NO profiles section — owned-divergence reference), ../hermes-agent/hermes_cli/profiles.py@55c9f3206 (Hermes ~/.hermes-<name> profile model — what NOT to port)"
-      ],
-      "ready_when": [
-        "Child rows remain present and status reflects the real aggregate: workspace-list and channel-list children are complete; navivox-default remains planned until its routing semantics are refined and shipped."
-      ],
-      "not_ready_when": [
-        "Implemented as one slice, or reimplements profile CRUD / setup chrome / config writing instead of reusing the existing seams, or ports a Hermes setup-profiles section (none exists)."
-      ],
-      "acceptance": [
-        "All child rows shipped: (1) `gormes setup profiles` section scaffold + per-profile workspace LIST; (2) per-profile channels (telegram/whatsapp/discord/slack, many per profile); (3) all profiles navivox-accessible by default. Each reuses the profile seams + shipped setup chrome + config round-trip, Gormes-owned wording, hermetic, no Hermes/~/.hermes wording."
-      ],
-      "note": "Umbrella (Gormes-owned, no Hermes parity port). Children 1-2 are complete/validated: the profiles setup section persists per-profile workspace lists and channel lists. Child 3 (navivox-default) remains planned/draft and must be refined after confirming the navivox routing model; do not show this umbrella as complete until that child ships.",
-      "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json"
-      ],
-      "no_test_required": "umbrella inventory parent; child rows carry the tests",
-      "done_signal": [
-        "All 3 children complete/validated with tests; `gormes setup profiles` manages profiles and persists per-profile workspaces + channels + navivox-default into each profile's own config.toml via a real round-trip."
-      ],
-      "provenance": {
-        "origin_type": "owned",
-        "upstream_refs": [
-          "hermes:55c9f3206 hermes_cli/setup.py (no profiles section), hermes_cli/profiles.py (owned-divergence reference)"
-        ],
-        "note": "skill_origin: 2026-05-16 user request via gormes-planner: 'gormes setup profiles. to manage add profiles and set their workspaces(plural). also add their channels, a profile can have many channels (telegram, whatsapp, discord...) all profiles can be accessed tru navivox by default'. Workspace cardinality + bind target clarified via AskUserQuestion: MULTIPLE workspaces per profile, persisted to that profile's own config.toml (no symlink farm). Owned divergence — Hermes has no equivalent."
-      },
-      "blocked_by": []
-    }
-  },
-  {
-    "phase": "5",
-    "subphase": "5.O",
     "pos": 103,
     "item": {
-      "name": "gormes setup profiles — all profiles navivox-accessible by default",
-      "priority": "P3",
+      "name": "Navivox multi-server profile routing config model",
+      "priority": "P1",
       "status": "planned",
-      "contract": "Child 3/3 of the setup-profiles umbrella (specified, NOT yet builder-ready — refine after children 1-2 ship). Make ALL profiles reachable through navivox by default: `gormes setup profiles` should ensure each managed profile is navivox-accessible without per-profile manual navivox wiring (a sensible Gormes-owned default), reusing the existing navivox subsystem (internal/config NavivoxCfg, cmd/gormes/setup_navivox.go, cmd/gormes/navivox_connect_info.go, internal/gateway/channel_setup.go, runSetupGatewaySection navivox platform) — do NOT reimplement navivox. Decide & document the exact 'navivox-accessible by default' semantics against the real navivox routing model (single navivox endpoint multiplexing profiles vs per-profile navivox config) before builder-ready. OWNED DIVERGENCE: navivox + profile-default routing is entirely Gormes-owned (no Hermes equivalent). Gormes-owned wording, hermetic, config round-trip for any persisted default.",
-      "contract_status": "draft",
+      "contract": "Replace the superseded `navivox-default` plan with a v2 Navivox config model that can manage many profiles and many Navivox servers from the single root config. `[navivox.servers.<id>]` declares bind/transport/allowed profile ids/capabilities, while `[profiles.<id>.channels.navivox]` opts a profile into one or more servers and voice profiles. Navivox must not prompt for or persist one startup-selected/default profile; routing/profile selection is an in-app/server capability over the configured profile fleet.",
+      "contract_status": "fixture_ready",
       "slice_size": "medium",
-      "execution_owner": "tools",
+      "execution_owner": "gateway",
       "module": "navivox",
-      "degraded_mode": "navivox disabled/unconfigured → the default is a recorded intent, not a fabricated live endpoint; --offline → config-only, no network; surfaced typed errors, never a panic.",
-      "fixture": "cmd/gormes/setup_profiles_test.go",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If a server references a missing or disabled profile, Navivox reports navivox_profile_unavailable for that route and keeps other configured profiles/servers available.",
+      "fixture": "internal/channels/navivox/profile_routing_config_test.go",
       "source_refs": [
-        "internal/config/config.go NavivoxCfg (~:54/:1737-:1767 validation) ; cmd/gormes/setup_navivox.go ; cmd/gormes/navivox_connect_info.go ; internal/gateway/channel_setup.go ; cmd/gormes/setup.go:1726 runSetupGatewaySection (navivox platform)",
-        "internal/config/writer.go round-trip",
-        "../hermes-agent (no navivox / no per-profile-default routing — fully owned)"
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#navivox",
+        "internal/channels/navivox/",
+        "cmd/gormes/navivox.go",
+        "cmd/gormes/navivox_connect_info.go",
+        "internal/config/config.go:NavivoxCfg",
+        "internal/gateway/channel_setup.go"
       ],
       "ready_when": [
-        "Children 1-2 shipped; the navivox routing model + exact 'all profiles accessible by default' semantics confirmed and the row refined to builder-ready."
+        "Root config.toml v2 profile service schema exists.",
+        "Per-profile channel credential/readiness rows provide the profile channel model Navivox references.",
+        "Tests use fake server/config routing and never start live HTTP, WS, VPN, SSH, STT, or TTS processes."
       ],
       "not_ready_when": [
-        "Built before children 1-2; reimplements navivox; fabricates navivox reachability without a real config/routing basis; ports a non-existent Hermes navivox-profile concept."
+        "The config uses `default_profile` or asks the operator to select one profile at session startup.",
+        "Navivox can only expose one profile or one server per root config.",
+        "The implementation stores Navivox profile routing outside root config.toml as the canonical source."
       ],
       "blocked_by": [
-        "gormes setup profiles — section scaffold + per-profile workspace list",
-        "gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)"
+        "Root config.toml v2 profile service schema",
+        "Per-profile channel credential readiness and allow-lists"
       ],
       "acceptance": [
-        "All managed profiles are navivox-accessible by a documented Gormes-owned default (reusing the navivox subsystem, persisted via the config round-trip where applicable); hermetic; Gormes-owned; no fabricated navivox state; no Hermes parity port."
+        "Fixtures prove one Navivox server can route to `main` and `tulin`, and two servers can expose different profile subsets.",
+        "Navivox status/connect-info returns server id, profile ids, display names, readiness, and redacted credential/voice evidence without a default-profile field.",
+        "Missing/disabled profile references are per-route warnings, not fatal to unrelated profiles or servers.",
+        "Existing Navivox HTTP/WS connect-and-talk behavior remains compatible when the config contains only one profile/server."
       ],
-      "note": "Child 3/3 (specified, refine after children 1-2). Before builder-ready: confirm the navivox routing model + exact 'all profiles accessible by default' semantics. Recommended chain: gormes-planner refine -> gormes-tdd-slice.",
+      "note": "Supersedes the older `all profiles navivox-accessible by default` row language. The accepted model is explicit multi-server/multi-profile routing, not startup profile selection.",
       "write_scope": [
-        "cmd/gormes/setup.go",
-        "cmd/gormes/setup_profiles_test.go",
-        "internal/config/writer.go",
-        "internal/config/writer_test.go",
+        "internal/config/profile_config_v2.go",
+        "internal/channels/navivox/",
+        "cmd/gormes/navivox.go",
+        "cmd/gormes/navivox_connect_info.go",
+        "internal/app/gormescli/modules/profiles/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./cmd/gormes -run 'Setup|Profile|Navivox' -count=1",
-        "go test ./cmd/gormes -count=1",
+        "go test ./internal/channels/navivox ./internal/config -run 'TestNavivoxProfileRouting|TestProfileConfigV2' -count=1",
+        "go test ./cmd/gormes -run 'TestNavivox' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
       "done_signal": [
-        "Fixtures prove all managed profiles are navivox-accessible by a documented Gormes-owned default, reusing the navivox subsystem — owned, hermetic, no fabricated state, no Hermes port."
+        "Navivox fixtures prove multi-server/multi-profile routing, no default-profile prompt/config, per-route degraded evidence, and backward-compatible single-profile behavior."
       ],
       "provenance": {
-        "origin_type": "owned",
-        "upstream_refs": [
-          "hermes:55c9f3206 (no navivox / no per-profile-default routing — fully Gormes-owned)"
-        ],
-        "note": "skill_origin: 2026-05-16 user request -> gormes-planner. Child 3/3 of the setup-profiles umbrella. Specified; refine to builder-ready after children 1-2 ship."
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18",
+        "note": "Navivox is Gormes-owned; the operator rejected startup profile selection and default_profile."
       }
     }
   },
