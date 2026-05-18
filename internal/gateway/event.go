@@ -264,13 +264,18 @@ func (e InboundEvent) SubmitText() string {
 	if len(attachmentLines) == 0 {
 		return text
 	}
+	audioHintLines := audioTranscriptionHintLines(e.Attachments)
 
-	lines := make([]string, 0, len(attachmentLines)+3)
+	lines := make([]string, 0, len(attachmentLines)+len(audioHintLines)+5)
 	if text != "" {
 		lines = append(lines, text, "")
 	}
 	lines = append(lines, "Attachments:")
 	lines = append(lines, attachmentLines...)
+	if len(audioHintLines) > 0 {
+		lines = append(lines, "", "Audio transcription:")
+		lines = append(lines, audioHintLines...)
+	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
 
@@ -337,4 +342,67 @@ func (a Attachment) submitLine() string {
 		line += " (" + strings.Join(meta, ", ") + ")"
 	}
 	return line
+}
+
+func audioTranscriptionHintLines(attachments []Attachment) []string {
+	lines := make([]string, 0, len(attachments))
+	for _, att := range attachments {
+		if line := att.audioTranscriptionHintLine(); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines
+}
+
+func (a Attachment) audioTranscriptionHintLine() string {
+	if !a.isAudioAttachment() {
+		return ""
+	}
+	audioPath := strings.TrimSpace(a.URL)
+	if audioPath == "" || !isLocalAttachmentPath(audioPath) {
+		return ""
+	}
+
+	var meta []string
+	if kind := strings.TrimSpace(a.Kind); kind != "" {
+		meta = append(meta, "kind="+kind)
+	}
+	if fileName := strings.TrimSpace(a.FileName); fileName != "" {
+		meta = append(meta, "fileName="+fileName)
+	}
+	if mediaType := strings.TrimSpace(a.MediaType); mediaType != "" {
+		meta = append(meta, "mediaType="+mediaType)
+	}
+
+	line := "- transcribe_audio audio_path=" + strconv.Quote(audioPath)
+	if len(meta) > 0 {
+		line += " (" + strings.Join(meta, ", ") + ")"
+	}
+	return line
+}
+
+func (a Attachment) isAudioAttachment() bool {
+	switch strings.ToLower(strings.TrimSpace(a.Kind)) {
+	case "audio", "voice", "voice_message", "voice_note":
+		return true
+	}
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(a.MediaType)), "audio/")
+}
+
+func isLocalAttachmentPath(target string) bool {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return false
+	}
+	lower := strings.ToLower(target)
+	if strings.Contains(lower, "://") || strings.HasPrefix(lower, "data:") || strings.HasPrefix(lower, "transcript:") {
+		return false
+	}
+	if strings.HasPrefix(target, "/") || strings.HasPrefix(target, "./") || strings.HasPrefix(target, "../") || strings.HasPrefix(target, "~") {
+		return true
+	}
+	if len(target) >= 3 && target[1] == ':' && (target[2] == '\\' || target[2] == '/') {
+		return true
+	}
+	return strings.ContainsAny(target, `/\`)
 }
