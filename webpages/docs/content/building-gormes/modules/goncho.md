@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `goncho`
 **Rows:** 34
-**Status counts:** `complete`: 33 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 34 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 6 · `P1`: 5 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1
 
 ## Phase 2 — The Gateway
@@ -96,4 +96,4 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P1` | `goncho` | Goncho serialized write queue + relation candidates |
-| `planned` | `P0` | `goncho` | Goncho durable recall trace IR + fused ranking pipeline |
+| `complete` | `P0` | `goncho` | Goncho durable recall trace IR + fused ranking pipeline |

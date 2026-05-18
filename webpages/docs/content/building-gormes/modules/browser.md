@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `browser`
 **Rows:** 25
-**Status counts:** `complete`: 23 · `in_progress`: 0 · `planned`: 2
+**Status counts:** `complete`: 24 · `in_progress`: 0 · `planned`: 1
 **Priority counts:** `P1`: 14 · `P2`: 7 · `P3`: 1 · `unset`: 3
 
 ## Phase 5 — The Final Purge
@@ -38,7 +38,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `browser` | Browser SSRF quoted-false guard |
 | `complete` | `P2` | `browser` | Go browser harness binary repo + integration lane (placeholder) |
 | `complete` | `P2` | `browser` | Browser session inactivity cleanup thread |
-| `planned` | `P2` | `browser` | Goscrapling browser-backed extraction gate for web_extract |
+| `complete` | `P2` | `browser` | Goscrapling browser-backed extraction gate for web_extract |
 | `planned` | `P2` | `browser` | Goscrapling local crawler adapter gate for web_crawl |
 
 ### 5.O — Hermes CLI Parity

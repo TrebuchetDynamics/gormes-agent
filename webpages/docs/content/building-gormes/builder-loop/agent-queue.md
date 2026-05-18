@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Goncho durable recall trace IR + fused ranking pipeline
-
-- Phase: 5 / 5.N
-- Owner: `memory`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Introduce an internal Goncho recall pipeline where `RecallEngine.Run` is the only caller-facing entrypoint, package-local generate/score/select phases produce a durable `RecallTrace`, and Honcho-compatible search/context projections can only be built from that trace. `RecallCandidate` owns facts/content/provenance, `RecallScore` owns scoring components and selection evidence, and `RecallTrace` owns replay/debug/eval state including `TraceID`, `PipelineVersion`, `RecallScoringConfig`, `CreatedAt`, selected/rejected candidates, and code-first warnings for every degraded path.
-- Trust class: operator, system
-- Ready when: The builder restates the invariant: no projection without a RecallTrace., Existing Goncho Search/Context responses remain Honcho-compatible and do not gain new required fields., Trace fixtures can be deterministic without live embeddings, hosted Honcho, external vector databases, or provider calls.
-- Not ready when: The slice rewrites Goncho persistence, adds Qdrant/Postgres/Mongo/Neo4j dependencies, or changes public honcho_* tool/API contracts., The slice exposes package-local generate/score/select phases as the caller-facing interface instead of `RecallEngine.Run`., The implementation permits semantic/graph/FTS failures, scope exclusions, or token-budget truncation without a stable RecallWarning code.
-- Degraded mode: Semantic, graph, FTS, scope, stale-index, and token-budget fallbacks must be recorded in RecallTrace.Warnings instead of silently widening or dropping recall; external Honcho-compatible response shapes stay unchanged.
-- Fixture: `internal/goncho/testdata/recall_trace/*.golden.json`
-- Write scope: `internal/goncho/recall_ir.go`, `internal/goncho/recall_pipeline.go`, `internal/goncho/recall_projector.go`, `internal/goncho/recall_trace_test.go`, `internal/goncho/recall_pipeline_test.go`, `internal/goncho/testdata/recall_trace/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/goncho -run 'TestRecall' -count=1`, `go test ./internal/goncho ./internal/memory -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Builder reports byte-stable recall trace fixtures, stable warning codes, deterministic fused ranking/diversity tests, trace-only projection tests, and no public Honcho API break.
-- Acceptance: Types define RecallQuery, RecallCandidate, RecallScore, ScoredRecallCandidate, RecallScoringConfig, RecallWarning, RecallTrace, and trace-only projectors with no exported constructor path that builds projected Honcho responses from raw candidates., TraceID is deterministic from query, scope, ordered candidate IDs, scoring config version, and pipeline version; identical inputs/config produce byte-stable JSON fixtures., RecallScoringConfig includes Version, Weights, RRFK, MMRLambda, DiversityKeys, and TokenBudget and is copied into every trace., `RecallEngine.Run` always returns a trace containing PipelineVersion, CreatedAt, ScoringConfig, selected candidates, rejected candidates, and warnings; package-local tests may exercise generate/score/select stages directly., Ranking tests cover weighted fusion, RRF-style tie behavior, MMR-style diversity penalties, deterministic tie-breaks, scope filtering, and token-budget truncation., Warning tests cover semantic_unavailable, graph_disabled, stale_embedding_index, fts_unavailable, scope_excluded_all_candidates, and token_budget_truncated as stable codes., Projection tests prove Honcho-compatible search/context output is produced only from RecallTrace and keeps existing external response fields stable.
-- Source refs: https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/engine/engine.go, https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/session/spaces.go, internal/goncho/service.go, internal/goncho/importance_scorer.go, internal/memory/recall.go, internal/memory/semantic_sql.go, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho
-- Unblocks: Goncho recall diagnostics CLI, Goncho replayable retrieval traces, Goncho retrieval benchmark corpus
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. ACP setup-browser bootstrap parity
+## 1. ACP setup-browser bootstrap parity
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -68,7 +47,7 @@ selection.
 - Source refs: ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.sh, ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.ps1, ../hermes-agent/acp_adapter/entry.py, cmd/gormes/acp.go, internal/acp
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Hermes LSP write-time semantic diagnostics
+## 2. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -88,7 +67,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Hermes x_search tool and auth surface
+## 3. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -108,7 +87,7 @@ selection.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Hermes session recap command surface
+## 4. Hermes session recap command surface
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -128,7 +107,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/session_recap.py, ../hermes-agent/hermes_cli/main.py, internal/session, internal/store
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Long-term plan: profile fleet supervisor and single control-plane gateway
+## 5. Long-term plan: profile fleet supervisor and single control-plane gateway
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -148,7 +127,7 @@ selection.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Native TUI Terminal.app truecolor and ANSI sanitizer parity
+## 6. Native TUI Terminal.app truecolor and ANSI sanitizer parity
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -168,7 +147,7 @@ selection.
 - Source refs: ../hermes-agent/ui-tui/src/lib/forceTruecolor.ts, ../hermes-agent/ui-tui/src/lib/text.ts, ../hermes-agent/ui-tui/src/components/textInput.tsx, ../hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts, ../hermes-agent/ui-tui/src/__tests__/text.test.ts, ../hermes-agent/ui-tui/src/__tests__/textInputFastEcho.test.ts, internal/tui
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Hermes v0.14 optional skill catalog refresh
+## 7. Hermes v0.14 optional skill catalog refresh
 
 - Phase: 6 / 6.C
 - Owner: `skills`
@@ -188,7 +167,7 @@ selection.
 - Source refs: ../hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md, ../hermes-agent/optional-skills/research/darwinian-evolver/SKILL.md, ../hermes-agent/optional-skills/research/osint-investigation/SKILL.md, ../hermes-agent/skills/productivity/notion/SKILL.md, internal/skills
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. SimpleX Chat platform plugin parity
+## 8. SimpleX Chat platform plugin parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -208,7 +187,7 @@ selection.
 - Source refs: ../hermes-agent/plugins/platforms/simplex/plugin.yaml, ../hermes-agent/plugins/platforms/simplex/adapter.py, internal/gateway/platform_manifest.go, internal/gateway/platform_connected_checkers.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Hermes contract inventory gate
+## 9. Hermes contract inventory gate
 
 - Phase: 8 / 8.C
 - Owner: `docs`
@@ -226,6 +205,26 @@ selection.
 - Done signal: Hermes contract inventory JSON and Markdown reports are generated for the current Hermes SHA, unclassified gaps are visible by severity, agent-continuity categories are first-class in the report, and normal validation remains report-only green unless strict mode is explicitly requested.
 - Acceptance: `repoctl` can generate `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` and `.md` for the current Hermes SHA., The JSON records Hermes SHA, generated timestamp, source/docs/tests inventory counts, unmapped lists, extracted CLI/tool/provider/channel candidates, matched progress rows, matched source-pair rows, confidence, and gap severity., The Markdown records headline completion counts, critical blockers, per-module gap tables, release-checkpoint links, and a note that progress.json remains the only backlog., Default report mode surfaces gaps without failing progress validation or CI; a strict mode is explicit and can be promoted later., Docs state that Gormes may claim all Hermes features/architecture are paired only when every inventory gap is classified as covered, partial, planned, excluded, or owned_divergence for the current Hermes SHA., Upstream tests and docs pages with no mapped progress row or explicit exclusion appear as blockers, not as silently ignored files., The inventory has explicit sections or typed categories for sessions, Memory/Goncho/Honcho compatibility, workspace/peer/profile identity boundaries, context retrieval and prompt budget, summaries/conclusions/search, skills templates and skills UX, skill precedence/sync/update/reset, learning-loop curator behavior, candidate memory/skill updates, feedback/outcome scoring, audit trail, mutation safety, insertion ordering, and profile-scoped isolation., Agent-continuity gaps are reported separately from CLI/tool/channel gaps so planner passes can prioritize Memory/Goncho, skills UX, and learning-loop fidelity without creating a side backlog.
 - Source refs: webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json, webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md, webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md, internal/repoctl/source_pairs.go:ValidateSourcePairs, internal/progress/progress.go:Item, cmd/repoctl/main.go, hermes-agent/RELEASE_v0.14.0.md, hermes-agent/hermes_cli/main.py, hermes-agent/tools/x_search_tool.py, hermes-agent/tests/hermes_cli/test_send_cmd.py, webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage, webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho, hermes-agent/tools/memory_tool.py, hermes-agent/agent/memory_manager.py, hermes-agent/agent/skill_commands.py, hermes-agent/agent/skill_preprocessing.py, hermes-agent/agent/skill_utils.py, hermes-agent/tools/skills_tool.py, hermes-agent/tools/skill_manager_tool.py, hermes-agent/tools/skills_sync.py, hermes-agent/agent/curator.py, hermes-agent/hermes_cli/curator.py
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Agentic-porting-kit public repo scaffold
+
+- Phase: 8 / 8.E
+- Owner: `skills`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Create the public TrebuchetDynamics/agentic-porting-kit repository from the extraction spec with README, LICENSE, progress schema, validation script, six renamed porting skills, and a tiny Python-greeter-to-Go example. The copied skills must load in a fresh Codex or Claude Code session without depending on the Gormes checkout.
+- Trust class: operator
+- Ready when: Agentic-porting-kit extraction spec is complete., GitHub authentication can create or push to TrebuchetDynamics/agentic-porting-kit, or the operator has created the empty repo., The public repo name is confirmed as agentic-porting-kit or an equivalent name before the first push.
+- Not ready when: No authenticated path exists to create or update the public TrebuchetDynamics repo., The builder plans to edit Gormes' repo-local skills in place instead of copied kit skills., The standalone example still requires cloning Gormes or running cmd/progress.
+- Degraded mode: Without the public scaffold, the methodology remains inspectable only inside Gormes and cannot be cited or reused by other teams.
+- Fixture: `TrebuchetDynamics/agentic-porting-kit:examples/python-greeter-to-go/progress.json`
+- Write scope: `(separate repo) README.md`, `(separate repo) LICENSE`, `(separate repo) schemas/progress.schema.json`, `(separate repo) scripts/validate-example.sh`, `(separate repo) skills/`, `(separate repo) examples/python-greeter-to-go/`, `README.md`, `docs/content/building-gormes/strategy/success-plan.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `cd ${AGENTIC_PORTING_KIT_REPO:-../agentic-porting-kit} && ./scripts/validate-example.sh`, `go run ./cmd/progress validate`, `go test ./webpages/docs -count=1`
+- Done signal: Public repo URL, standalone validation output, and Gormes backlink updates are recorded in the completed row note.
+- Acceptance: Public repo exists with README.md, LICENSE, schemas/progress.schema.json, scripts/validate-example.sh, skills/, and examples/python-greeter-to-go/., README.md explains the kit independent of Gormes/Hermes and includes Codex plus Claude Code loading instructions., Each copied skill uses the porting-* name from the extraction spec and replaces hard-coded Gormes paths with target-repo variables., scripts/validate-example.sh validates the example progress file and runs the example tests without cloning Gormes., Gormes README.md and success-plan.md record the public repo URL after the repo is reachable.
+- Source refs: docs/content/building-gormes/strategy/agentic-porting-kit.md, docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/goscrapling"
+	goscraplingbrowser "github.com/TrebuchetDynamics/goscrapling/engines/browser"
 )
 
 func TestWebToolsExposeHermesNamesAndSchemas(t *testing.T) {
@@ -172,6 +176,21 @@ func TestResolveWebBackendSupportsCDPExtractFallback(t *testing.T) {
 	}, WebBackendConfig{Backend: "cdp"})
 	if !browserAlias.Available || browserAlias.Backend != WebBackendCDP || browserAlias.BaseURL != "http://127.0.0.1:9223" {
 		t.Fatalf("browserAlias = %+v, want explicit CDP backend from BROWSER_CDP_URL", browserAlias)
+	}
+}
+
+func TestResolveWebBackendSupportsGoscraplingBrowserExtractBackend(t *testing.T) {
+	resolved := ResolveWebBackendWithConfig(nil, WebBackendConfig{Backend: "goscrapling_browser"})
+	if !resolved.Available || resolved.Backend != WebBackendGoscraplingBrowser || resolved.Source != "config" {
+		t.Fatalf("resolved = %+v, want explicit goscrapling browser backend", resolved)
+	}
+	status := ResolveWebBackendStatus(nil, WebBackendConfig{Backend: "goscrapling-browser"})
+	if !status.Available || status.Route != "local" || strings.Join(status.ToolNames, ",") != WebToolExtract {
+		t.Fatalf("status = %+v, want local extract-only goscrapling browser backend", status)
+	}
+	auto := ResolveWebBackendWithConfig(nil, WebBackendConfig{})
+	if auto.Backend == WebBackendGoscraplingBrowser {
+		t.Fatalf("auto = %+v, goscrapling browser must be explicit", auto)
 	}
 }
 
@@ -1191,6 +1210,145 @@ func TestWebExtractToolUsesGoscraplingCSSSelectorForStaticPages(t *testing.T) {
 	}
 	if !strings.Contains(string(tool.Schema()), `"css_selector"`) {
 		t.Fatalf("web_extract schema missing css_selector: %s", tool.Schema())
+	}
+}
+
+func TestWebExtractToolUsesGoscraplingBrowserFetcher(t *testing.T) {
+	const appURL = "https://example.test/app"
+	const finalURL = "https://example.test/app#ready"
+	fetcher := &recordingGoscraplingBrowserFetcher{}
+	fetcher.response = newTestGoscraplingResponse(t, finalURL, http.StatusOK, "text/html; charset=utf-8", `<html>
+<head><title>Rendered App</title></head>
+<body>
+  <main>
+    <article class="rendered" data-ready="true">
+      <h1>Rendered App</h1>
+      <p>Loaded by JavaScript after hydration.</p>
+    </article>
+    <article class="fallback">Static shell should not be returned.</article>
+  </main>
+</body>
+</html>`)
+	tool := NewWebExtractTool(WebToolsConfig{
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendGoscraplingBrowser,
+			Available: true,
+			Source:    "config",
+		},
+		GoscraplingBrowser: GoscraplingBrowserConfig{
+			Fetcher: fetcher,
+			Wait:    25 * time.Millisecond,
+		},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["`+appURL+`"],"css_selector":"article.rendered"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if fetcher.rawURL != appURL {
+		t.Fatalf("fetcher URL = %q, want %s", fetcher.rawURL, appURL)
+	}
+	if got := fetcher.options.Headers.Get("User-Agent"); !strings.Contains(got, "GormesAgent") {
+		t.Fatalf("User-Agent = %q, want Gormes user agent", got)
+	}
+	if fetcher.options.Wait != 25*time.Millisecond || !fetcher.options.Headless || !fetcher.options.LoadDOM || !fetcher.options.NetworkIdle {
+		t.Fatalf("browser options = %+v, want headless DOM/network-idle wait", fetcher.options)
+	}
+	if fetcher.options.WaitSelector.Selector != "article.rendered" || fetcher.options.WaitSelector.State != goscraplingbrowser.BrowserWaitVisible {
+		t.Fatalf("wait selector = %+v, want visible article.rendered", fetcher.options.WaitSelector)
+	}
+
+	var payload webExtractResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results len = %d, want one browser result", len(payload.Results))
+	}
+	got := payload.Results[0]
+	if got.URL != finalURL || got.Title != "Rendered App" {
+		t.Fatalf("result metadata = %+v, want final URL and title", got)
+	}
+	for _, want := range []string{"Rendered App", "Loaded by JavaScript after hydration."} {
+		if !strings.Contains(got.Content, want) {
+			t.Fatalf("browser content missing %q:\n%s", want, got.Content)
+		}
+	}
+	if strings.Contains(got.Content, "Static shell should not be returned") {
+		t.Fatalf("browser selector leaked non-selected shell content:\n%s", got.Content)
+	}
+	if got.Extraction == nil {
+		t.Fatal("missing extraction evidence")
+	}
+	if got.Extraction.Engine != "goscrapling" || got.Extraction.Mode != "browser" || got.Extraction.StatusCode != http.StatusOK || got.Extraction.ContentType != "text/html" || got.Extraction.CSSSelector != "article.rendered" {
+		t.Fatalf("extraction evidence = %+v, want goscrapling browser selector evidence", got.Extraction)
+	}
+	if got.Extraction.FinalURL != finalURL || got.Extraction.WaitEvidence != "selector_visible" {
+		t.Fatalf("extraction final/wait evidence = %+v, want final URL and selector_visible", got.Extraction)
+	}
+	if tool.Name() != WebToolExtract {
+		t.Fatalf("tool name = %q, want existing public web_extract tool", tool.Name())
+	}
+	if strings.Contains(string(tool.Schema()), "goscrapling_browser") || strings.Contains(string(tool.Schema()), "browser_backend") {
+		t.Fatalf("web_extract schema exposed browser-backend-specific public detail: %s", tool.Schema())
+	}
+}
+
+func TestWebExtractToolGoscraplingBrowserFailureReturnsDegradedEvidence(t *testing.T) {
+	fetcher := &recordingGoscraplingBrowserFetcher{err: errors.New("chromium unavailable")}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendGoscraplingBrowser,
+			Available: true,
+			Source:    "config",
+		},
+		GoscraplingBrowser: GoscraplingBrowserConfig{Fetcher: fetcher},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["https://example.test/app"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var payload webExtractResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("results len = %d, want one degraded result", len(payload.Results))
+	}
+	got := payload.Results[0]
+	if got.Evidence != WebEvidenceRequestFailed || !strings.Contains(got.Error, "chromium unavailable") {
+		t.Fatalf("degraded result = %+v, want request-failed browser evidence", got)
+	}
+	if got.Extraction == nil || got.Extraction.Engine != "goscrapling" || got.Extraction.Mode != "browser" || got.Extraction.FinalURL != "https://example.test/app" || got.Extraction.WaitEvidence != "network_idle" {
+		t.Fatalf("degraded extraction evidence = %+v, want browser extraction metadata", got.Extraction)
+	}
+}
+
+func TestWebExtractToolBlocksPrivateURLBeforeGoscraplingBrowserFetcher(t *testing.T) {
+	fetcher := &recordingGoscraplingBrowserFetcher{}
+	tool := NewWebExtractTool(WebToolsConfig{
+		Resolution: WebBackendResolution{
+			Backend:   WebBackendGoscraplingBrowser,
+			Available: true,
+			Source:    "config",
+		},
+		GoscraplingBrowser: GoscraplingBrowserConfig{Fetcher: fetcher},
+	})
+
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["http://127.0.0.1/admin"]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if fetcher.rawURL != "" {
+		t.Fatalf("fetcher URL = %q, want no browser call for private URL", fetcher.rawURL)
+	}
+	var payload webExtractResponse
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out, err)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Evidence != WebEvidencePrivateURLBlocked {
+		t.Fatalf("payload = %+v, want private URL block evidence", payload)
 	}
 }
 
@@ -2265,6 +2423,40 @@ type recordingWebHTTPClient struct {
 	responses []recordedWebResponse
 	requests  []*http.Request
 	bodies    [][]byte
+}
+
+type recordingGoscraplingBrowserFetcher struct {
+	rawURL   string
+	options  goscraplingbrowser.BrowserOptions
+	response *goscrapling.Response
+	err      error
+}
+
+func (f *recordingGoscraplingBrowserFetcher) Fetch(_ context.Context, rawURL string, opts goscraplingbrowser.BrowserOptions) (*goscrapling.Response, error) {
+	f.rawURL = rawURL
+	f.options = opts
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.response, nil
+}
+
+func newTestGoscraplingResponse(t *testing.T, rawURL string, statusCode int, contentType string, body string) *goscrapling.Response {
+	t.Helper()
+	headers := http.Header{}
+	if contentType != "" {
+		headers.Set("Content-Type", contentType)
+	}
+	response, err := goscrapling.NewResponse(strings.NewReader(body), goscrapling.ResponseOptions{
+		URL:        rawURL,
+		StatusCode: statusCode,
+		Reason:     http.StatusText(statusCode),
+		Headers:    headers,
+	})
+	if err != nil {
+		t.Fatalf("NewResponse: %v", err)
+	}
+	return response
 }
 
 type recordingWebContentProcessor struct {

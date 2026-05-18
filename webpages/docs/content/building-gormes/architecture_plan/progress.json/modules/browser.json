@@ -1767,6 +1767,170 @@
   },
   {
     "phase": "5",
+    "subphase": "5.C",
+    "pos": 21,
+    "item": {
+      "name": "Goscrapling browser-backed extraction gate for web_extract",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Extend the existing Hermes-compatible `web_extract` tool with an explicit operator-selected goscrapling browser extraction backend for dynamic pages. The model-visible tool name and schema stay unchanged; Gormes owns backend selection, URL/secret/website-policy checks, result budgeting, unavailable evidence, and channel rendering. goscrapling owns the BrowserFetcher response contract. Browser extraction returns the existing `{results[]}` envelope with structured `extraction` evidence (`engine: goscrapling`, `mode: browser`, status/content-type/wait evidence) and falls back or degrades without launching a browser in tests.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "If the goscrapling browser backend is not configured, the browser runtime is unavailable, a wait condition fails, or JavaScript rendering times out, `web_extract` returns per-result typed degraded evidence and keeps the existing static goscrapling/CDP/provider routes intact. No new model-visible goscrapling tool name is exposed.",
+      "fixture": "internal/tools/web_tools_test.go::TestWebExtractToolUsesGoscraplingBrowserFetcher",
+      "source_refs": [
+        "goscrapling/engines/browser/browser.go",
+        "goscrapling/engines/browser/browser_adapter.go",
+        "goscrapling/engines/browser/browser_test.go",
+        "internal/tools/web_tools.go",
+        "internal/tools/browser_harness_tools.go",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md"
+      ],
+      "ready_when": [
+        "Goscrapling local extraction for web_extract is complete and evidence-bearing.",
+        "goscrapling BrowserFetcher contract and real browser adapter rows are validated.",
+        "The Gormes browser harness/CDP readiness checks can report unavailable browser runtime without panics or live browser requirements.",
+        "Tests can inject a fake goscrapling browser engine and fake WebHTTPClient; no live Chromium, provider credentials, DNS, or external website is required."
+      ],
+      "not_ready_when": [
+        "The implementation adds a new public `goscrapling_*` tool instead of extending `web_extract` behind backend config.",
+        "Browser extraction bypasses private/internal URL blocking, secret URL blocking, website policy, redirect/final URL checks, result budgeting, or channel-safe rendering.",
+        "The slice attempts stealth, proxy rotation, Cloudflare bypass, crawling, screenshots, or arbitrary browser actions in the same pass.",
+        "Tests require a real browser binary or live JavaScript website."
+      ],
+      "unblocks": [
+        "Dynamic-page web_extract without a Python sidecar",
+        "Future goscrapling crawler session adapters for dynamic pages"
+      ],
+      "acceptance": [
+        "The public `web_extract` descriptor remains the existing urls/css_selector contract; no model-visible goscrapling-specific tool is registered.",
+        "An operator-selected goscrapling browser backend fetches a local JavaScript fixture through a fake browser engine and returns rendered selected content in `{results[]}`.",
+        "The result includes structured extraction evidence with `engine: goscrapling`, `mode: browser`, status/content-type, final URL, and wait/degraded evidence where applicable.",
+        "Private/internal URLs, secret-bearing URLs, and website-blocklisted URLs are blocked before browser execution.",
+        "Unavailable browser runtime and wait-timeout fixtures return typed per-result degraded evidence without falling through to provider calls unexpectedly.",
+        "Existing static goscrapling, provider, DuckDuckGo/free, and CDP extraction tests remain green."
+      ],
+      "note": "Complete 2026-05-18: added an explicit goscrapling browser backend behind the existing Hermes-compatible web_extract tool. The backend is selected through web.backend=goscrapling_browser, uses a fakeable goscrapling BrowserFetcher seam, preserves private URL/secret/website-policy guards before browser execution, returns rendered content in the existing {results[]} envelope, and records structured extraction evidence with engine=goscrapling, mode=browser, status/content-type, final_url, css_selector, and wait/degraded evidence. Unit fixtures prove success, runtime-unavailable degradation, private URL blocking, resolver/status routing, and no browser-specific public tool/schema surface; the implementation does not add stealth/proxy/crawler scope or require live Chromium in tests.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "internal/config/",
+        "cmd/gormes/registry.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json",
+        "webpages/docs/content/architecture/tool-execution.md"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestResolveWebBackendSupportsGoscraplingBrowserExtractBackend|TestWebExtractTool.*GoscraplingBrowser' -count=1",
+        "go test ./internal/tools -run 'TestWebExtractTool|TestResolveWebBackend|TestWebSearchToolRejectsCDPBackend|TestWebToolsExposeHermesNamesAndSchemas' -count=1",
+        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+        "(cd goscrapling && go test ./engines/browser -count=1)",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic fixtures prove goscrapling browser extraction through the existing web_extract contract, including rendered local content, policy blocking, structured extraction evidence, and typed unavailable/wait-timeout degradation without live browser or provider dependencies."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned single-binary enhancement using goscrapling as a local browser extraction engine; Hermes still defines the public web_extract tool shape."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.C",
+    "pos": 22,
+    "item": {
+      "name": "Goscrapling local crawler adapter gate for web_crawl",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Add an explicit local goscrapling crawler backend behind Gormes' existing `web_crawl` tool only after goscrapling spider robots, cache, checkpoint, and session-adapter primitives are validated. The public tool name stays `web_crawl`; Gormes owns URL policy, crawl limits, result budgeting, channel rendering, and unavailable evidence. goscrapling owns spider scheduling, robots/cache/checkpoint/session behavior, and response extraction.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "browser",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Until goscrapling spider prerequisites are complete, local crawl remains unavailable and `web_crawl` keeps the current Firecrawl/Tavily provider behavior. Missing robots/cache/checkpoint support, blocked robots policy, max-page exhaustion, or unavailable local crawler runtime returns bounded typed evidence and does not silently bypass policy.",
+      "fixture": "internal/tools/web_tools_test.go::TestWebCrawlToolUsesGoscraplingLocalCrawler",
+      "source_refs": [
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "internal/tools/web_tools.go",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md"
+      ],
+      "ready_when": [
+        "Gormes' current web_crawl Firecrawl/Tavily adapter and safety policy rows are complete.",
+        "goscrapling spider robots, response cache, checkpoint, and session-adapter rows are validated or explicitly scoped out by a fresh planner pass.",
+        "A local httptest site can prove crawl discovery, robots allow/deny, max pages, duplicate skipping, and result normalization without live network access.",
+        "The product decision remains that local crawling is an operator-selected backend behind `web_crawl`, not an automatic replacement for provider crawl APIs."
+      ],
+      "not_ready_when": [
+        "The implementation replaces Firecrawl/Tavily crawl routing wholesale or changes the public `web_crawl` schema without a compatibility row.",
+        "The slice depends on live websites, live robots.txt, external search indexes, browser rendering, stealth, proxy rotation, or Cloudflare bypass.",
+        "The crawler ignores robots/cache/checkpoint prerequisites, crawl limits, website policy, private/internal URL blocking, final URL checks, or result budgeting.",
+        "The row tries to implement goscrapling spider primitives inside Gormes instead of consuming validated goscrapling APIs."
+      ],
+      "blocked_by": [
+        "Go-native Hermes web_crawl tool adapter",
+        "Robots.txt manager and delay directives",
+        "Development response cache",
+        "Checkpoint pause and resume",
+        "Spider static, dynamic, stealth, and proxy session adapters"
+      ],
+      "unblocks": [
+        "Local no-provider research crawls",
+        "Crawler-backed research workflows on Termux and locked-down corp Linux"
+      ],
+      "acceptance": [
+        "The public `web_crawl` descriptor remains stable and no goscrapling-specific model-visible crawl tool is registered.",
+        "A local httptest crawl fixture returns normalized `{results:[{url,title,content,error,extraction}]}` pages with `engine: goscrapling` and `mode: crawler` evidence.",
+        "Robots-denied, website-blocklisted, private/internal, and secret-bearing URLs are blocked before local crawl execution.",
+        "Max-page and duplicate-skip fixtures prove bounded crawling and deterministic result order.",
+        "Checkpoint/cache fixture coverage proves a failed or cancelled crawl can report resumable/degraded evidence without corrupting state.",
+        "Existing Firecrawl/Tavily web_crawl fixtures remain green."
+      ],
+      "note": "Planner pass 2026-05-18: local crawling is valuable, but only after goscrapling's spider runtime graduates beyond core scheduler fixtures. This row records the gate so future builders do not conflate static extraction, browser rendering, crawler primitives, and provider crawl parity in one slice.",
+      "write_scope": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_tools_test.go",
+        "internal/config/",
+        "cmd/gormes/registry.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json",
+        "webpages/docs/content/architecture/tool-execution.md"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run TestWebCrawlToolUsesGoscraplingLocalCrawler -count=1",
+        "go test ./internal/tools -run 'TestWebCrawlTool|TestWebExtractToolUsesGoscrapling' -count=1",
+        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermetic crawl fixtures prove a local goscrapling backend behind web_crawl, including normalized results, extraction evidence, robots/policy blocking, bounded duplicate-safe traversal, and no regression to existing Firecrawl/Tavily crawl behavior."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned local-crawl backend decision; goscrapling supplies spider primitives once its own roadmap rows validate them."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.O",
     "pos": 51,
     "item": {
@@ -1897,174 +2061,6 @@
           "go test ./... -count=1 in go-browser-harness -> ok",
           "go run ./cmd/progress validate -> 7 phases validated"
         ]
-      }
-    }
-  },
-  {
-    "phase": "5",
-    "subphase": "5.C",
-    "pos": 21,
-    "item": {
-      "name": "Goscrapling browser-backed extraction gate for web_extract",
-      "priority": "P2",
-      "status": "planned",
-      "contract": "Extend the existing Hermes-compatible `web_extract` tool with an explicit operator-selected goscrapling browser extraction backend for dynamic pages. The model-visible tool name and schema stay unchanged; Gormes owns backend selection, URL/secret/website-policy checks, result budgeting, unavailable evidence, and channel rendering. goscrapling owns the BrowserFetcher response contract. Browser extraction returns the existing `{results[]}` envelope with structured `extraction` evidence (`engine: goscrapling`, `mode: browser`, status/content-type/wait evidence) and falls back or degrades without launching a browser in tests.",
-      "contract_status": "draft",
-      "slice_size": "medium",
-      "execution_owner": "tools",
-      "module": "browser",
-      "trust_class": [
-        "operator",
-        "gateway",
-        "child-agent",
-        "system"
-      ],
-      "degraded_mode": "If the goscrapling browser backend is not configured, the browser runtime is unavailable, a wait condition fails, or JavaScript rendering times out, `web_extract` returns per-result typed degraded evidence and keeps the existing static goscrapling/CDP/provider routes intact. No new model-visible goscrapling tool name is exposed.",
-      "fixture": "internal/tools/web_tools_test.go::TestWebExtractToolUsesGoscraplingBrowserFetcher",
-      "source_refs": [
-        "goscrapling/engines/browser/browser.go",
-        "goscrapling/engines/browser/browser_adapter.go",
-        "goscrapling/engines/browser/browser_test.go",
-        "internal/tools/web_tools.go",
-        "internal/tools/browser_harness_tools.go",
-        "webpages/docs/content/building-gormes/cross-project-feature-map.md"
-      ],
-      "ready_when": [
-        "Goscrapling local extraction for web_extract is complete and evidence-bearing.",
-        "goscrapling BrowserFetcher contract and real browser adapter rows are validated.",
-        "The Gormes browser harness/CDP readiness checks can report unavailable browser runtime without panics or live browser requirements.",
-        "Tests can inject a fake goscrapling browser engine and fake WebHTTPClient; no live Chromium, provider credentials, DNS, or external website is required."
-      ],
-      "not_ready_when": [
-        "The implementation adds a new public `goscrapling_*` tool instead of extending `web_extract` behind backend config.",
-        "Browser extraction bypasses private/internal URL blocking, secret URL blocking, website policy, redirect/final URL checks, result budgeting, or channel-safe rendering.",
-        "The slice attempts stealth, proxy rotation, Cloudflare bypass, crawling, screenshots, or arbitrary browser actions in the same pass.",
-        "Tests require a real browser binary or live JavaScript website."
-      ],
-      "blocked_by": [
-        "Goscrapling local extraction for web_extract",
-        "BrowserFetcher interface and chromedp/playwright adapter decision",
-        "Real browser adapter with JavaScript fixture"
-      ],
-      "unblocks": [
-        "Dynamic-page web_extract without a Python sidecar",
-        "Future goscrapling crawler session adapters for dynamic pages"
-      ],
-      "acceptance": [
-        "The public `web_extract` descriptor remains the existing urls/css_selector contract; no model-visible goscrapling-specific tool is registered.",
-        "An operator-selected goscrapling browser backend fetches a local JavaScript fixture through a fake browser engine and returns rendered selected content in `{results[]}`.",
-        "The result includes structured extraction evidence with `engine: goscrapling`, `mode: browser`, status/content-type, final URL, and wait/degraded evidence where applicable.",
-        "Private/internal URLs, secret-bearing URLs, and website-blocklisted URLs are blocked before browser execution.",
-        "Unavailable browser runtime and wait-timeout fixtures return typed per-result degraded evidence without falling through to provider calls unexpectedly.",
-        "Existing static goscrapling, provider, DuckDuckGo/free, and CDP extraction tests remain green."
-      ],
-      "note": "Planner pass 2026-05-18: static goscrapling extraction is complete, so the next browser tier is deliberately gated. This row is builder-ready only after goscrapling's browser fetcher contract and real adapter stay validated; it keeps Gormes' public web_extract surface stable and rejects stealth/proxy/crawler scope.",
-      "write_scope": [
-        "internal/tools/web_tools.go",
-        "internal/tools/web_tools_test.go",
-        "internal/config/",
-        "cmd/gormes/registry.go",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json",
-        "webpages/docs/content/architecture/tool-execution.md"
-      ],
-      "test_commands": [
-        "go test ./internal/tools -run TestWebExtractToolUsesGoscraplingBrowserFetcher -count=1",
-        "go test ./internal/tools -run 'TestWebExtractTool.*(Goscrapling|CDP|Browser)' -count=1",
-        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
-        "go run ./cmd/progress validate",
-        "git diff --check"
-      ],
-      "done_signal": [
-        "Hermetic fixtures prove goscrapling browser extraction through the existing web_extract contract, including rendered local content, policy blocking, structured extraction evidence, and typed unavailable/wait-timeout degradation without live browser or provider dependencies."
-      ],
-      "provenance": {
-        "origin_type": "gormes",
-        "note": "Gormes-owned single-binary enhancement using goscrapling as a local browser extraction engine; Hermes still defines the public web_extract tool shape."
-      }
-    }
-  },
-  {
-    "phase": "5",
-    "subphase": "5.C",
-    "pos": 22,
-    "item": {
-      "name": "Goscrapling local crawler adapter gate for web_crawl",
-      "priority": "P2",
-      "status": "planned",
-      "contract": "Add an explicit local goscrapling crawler backend behind Gormes' existing `web_crawl` tool only after goscrapling spider robots, cache, checkpoint, and session-adapter primitives are validated. The public tool name stays `web_crawl`; Gormes owns URL policy, crawl limits, result budgeting, channel rendering, and unavailable evidence. goscrapling owns spider scheduling, robots/cache/checkpoint/session behavior, and response extraction.",
-      "contract_status": "draft",
-      "slice_size": "medium",
-      "execution_owner": "tools",
-      "module": "browser",
-      "trust_class": [
-        "operator",
-        "gateway",
-        "child-agent",
-        "system"
-      ],
-      "degraded_mode": "Until goscrapling spider prerequisites are complete, local crawl remains unavailable and `web_crawl` keeps the current Firecrawl/Tavily provider behavior. Missing robots/cache/checkpoint support, blocked robots policy, max-page exhaustion, or unavailable local crawler runtime returns bounded typed evidence and does not silently bypass policy.",
-      "fixture": "internal/tools/web_tools_test.go::TestWebCrawlToolUsesGoscraplingLocalCrawler",
-      "source_refs": [
-        "goscrapling/spiders/crawler.go",
-        "goscrapling/spiders/scheduler.go",
-        "goscrapling/spiders/session.go",
-        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
-        "internal/tools/web_tools.go",
-        "webpages/docs/content/building-gormes/cross-project-feature-map.md"
-      ],
-      "ready_when": [
-        "Gormes' current web_crawl Firecrawl/Tavily adapter and safety policy rows are complete.",
-        "goscrapling spider robots, response cache, checkpoint, and session-adapter rows are validated or explicitly scoped out by a fresh planner pass.",
-        "A local httptest site can prove crawl discovery, robots allow/deny, max pages, duplicate skipping, and result normalization without live network access.",
-        "The product decision remains that local crawling is an operator-selected backend behind `web_crawl`, not an automatic replacement for provider crawl APIs."
-      ],
-      "not_ready_when": [
-        "The implementation replaces Firecrawl/Tavily crawl routing wholesale or changes the public `web_crawl` schema without a compatibility row.",
-        "The slice depends on live websites, live robots.txt, external search indexes, browser rendering, stealth, proxy rotation, or Cloudflare bypass.",
-        "The crawler ignores robots/cache/checkpoint prerequisites, crawl limits, website policy, private/internal URL blocking, final URL checks, or result budgeting.",
-        "The row tries to implement goscrapling spider primitives inside Gormes instead of consuming validated goscrapling APIs."
-      ],
-      "blocked_by": [
-        "Go-native Hermes web_crawl tool adapter",
-        "Robots.txt manager and delay directives",
-        "Development response cache",
-        "Checkpoint pause and resume",
-        "Spider static, dynamic, stealth, and proxy session adapters"
-      ],
-      "unblocks": [
-        "Local no-provider research crawls",
-        "Crawler-backed research workflows on Termux and locked-down corp Linux"
-      ],
-      "acceptance": [
-        "The public `web_crawl` descriptor remains stable and no goscrapling-specific model-visible crawl tool is registered.",
-        "A local httptest crawl fixture returns normalized `{results:[{url,title,content,error,extraction}]}` pages with `engine: goscrapling` and `mode: crawler` evidence.",
-        "Robots-denied, website-blocklisted, private/internal, and secret-bearing URLs are blocked before local crawl execution.",
-        "Max-page and duplicate-skip fixtures prove bounded crawling and deterministic result order.",
-        "Checkpoint/cache fixture coverage proves a failed or cancelled crawl can report resumable/degraded evidence without corrupting state.",
-        "Existing Firecrawl/Tavily web_crawl fixtures remain green."
-      ],
-      "note": "Planner pass 2026-05-18: local crawling is valuable, but only after goscrapling's spider runtime graduates beyond core scheduler fixtures. This row records the gate so future builders do not conflate static extraction, browser rendering, crawler primitives, and provider crawl parity in one slice.",
-      "write_scope": [
-        "internal/tools/web_tools.go",
-        "internal/tools/web_tools_test.go",
-        "internal/config/",
-        "cmd/gormes/registry.go",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/browser.json",
-        "webpages/docs/content/architecture/tool-execution.md"
-      ],
-      "test_commands": [
-        "go test ./internal/tools -run TestWebCrawlToolUsesGoscraplingLocalCrawler -count=1",
-        "go test ./internal/tools -run 'TestWebCrawlTool|TestWebExtractToolUsesGoscrapling' -count=1",
-        "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
-        "go run ./cmd/progress validate",
-        "git diff --check"
-      ],
-      "done_signal": [
-        "Hermetic crawl fixtures prove a local goscrapling backend behind web_crawl, including normalized results, extraction evidence, robots/policy blocking, bounded duplicate-safe traversal, and no regression to existing Firecrawl/Tavily crawl behavior."
-      ],
-      "provenance": {
-        "origin_type": "gormes",
-        "note": "Gormes-owned local-crawl backend decision; goscrapling supplies spider primitives once its own roadmap rows validate them."
       }
     }
   }

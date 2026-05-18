@@ -9,7 +9,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 
 | Module | Rows | Complete | In progress | Planned | Priorities |
 |---|---:|---:|---:|---:|---|
-| [Browser](browser/) | 25 | 23 | 0 | 2 | `P1`: 14 · `P2`: 7 · `P3`: 1 · `unset`: 3 |
+| [Browser](browser/) | 25 | 24 | 0 | 1 | `P1`: 14 · `P2`: 7 · `P3`: 1 · `unset`: 3 |
 | [Builder](builder/) | 12 | 12 | 0 | 0 | `P0`: 1 · `P1`: 6 · `P2`: 3 · `unset`: 2 |
 | [Channels](channels/) | 133 | 129 | 0 | 4 | `P0`: 7 · `P1`: 45 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47 |
 | [CLI](cli/) | 33 | 33 | 0 | 0 | `P1`: 12 · `P2`: 8 · `P3`: 3 · `unset`: 10 |
@@ -19,7 +19,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Docs](docs/) | 13 | 8 | 0 | 5 | `P1`: 9 · `P2`: 2 · `P3`: 2 |
 | [Fleet](fleet/) | 21 | 21 | 0 | 0 | `P0`: 2 · `P1`: 5 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
 | [Gateway](gateway/) | 156 | 155 | 0 | 1 | `P0`: 14 · `P1`: 47 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
-| [Goncho](goncho/) | 34 | 33 | 0 | 1 | `P0`: 6 · `P1`: 5 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
+| [Goncho](goncho/) | 34 | 34 | 0 | 0 | `P0`: 6 · `P1`: 5 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
 | [Install](install/) | 28 | 27 | 0 | 1 | `P0`: 2 · `P1`: 15 · `P2`: 4 · `P3`: 3 · `unset`: 4 |
 | [Kanban](kanban/) | 33 | 33 | 0 | 0 | `P1`: 14 · `P2`: 19 |
 | [Landing](landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |

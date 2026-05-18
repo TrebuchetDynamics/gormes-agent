@@ -1470,84 +1470,6 @@
     }
   },
   {
-    "phase": "5",
-    "subphase": "5.N",
-    "pos": 55,
-    "item": {
-      "name": "Goncho durable recall trace IR + fused ranking pipeline",
-      "priority": "P0",
-      "status": "planned",
-      "contract": "Introduce an internal Goncho recall pipeline where `RecallEngine.Run` is the only caller-facing entrypoint, package-local generate/score/select phases produce a durable `RecallTrace`, and Honcho-compatible search/context projections can only be built from that trace. `RecallCandidate` owns facts/content/provenance, `RecallScore` owns scoring components and selection evidence, and `RecallTrace` owns replay/debug/eval state including `TraceID`, `PipelineVersion`, `RecallScoringConfig`, `CreatedAt`, selected/rejected candidates, and code-first warnings for every degraded path.",
-      "contract_status": "fixture_ready",
-      "slice_size": "medium",
-      "execution_owner": "memory",
-      "module": "goncho",
-      "trust_class": [
-        "operator",
-        "system"
-      ],
-      "degraded_mode": "Semantic, graph, FTS, scope, stale-index, and token-budget fallbacks must be recorded in RecallTrace.Warnings instead of silently widening or dropping recall; external Honcho-compatible response shapes stay unchanged.",
-      "fixture": "internal/goncho/testdata/recall_trace/*.golden.json",
-      "source_refs": [
-        "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/engine/engine.go",
-        "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/session/spaces.go",
-        "internal/goncho/service.go",
-        "internal/goncho/importance_scorer.go",
-        "internal/memory/recall.go",
-        "internal/memory/semantic_sql.go",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
-      ],
-      "ready_when": [
-        "The builder restates the invariant: no projection without a RecallTrace.",
-        "Existing Goncho Search/Context responses remain Honcho-compatible and do not gain new required fields.",
-        "Trace fixtures can be deterministic without live embeddings, hosted Honcho, external vector databases, or provider calls."
-      ],
-      "not_ready_when": [
-        "The slice rewrites Goncho persistence, adds Qdrant/Postgres/Mongo/Neo4j dependencies, or changes public honcho_* tool/API contracts.",
-        "The slice exposes package-local generate/score/select phases as the caller-facing interface instead of `RecallEngine.Run`.",
-        "The implementation permits semantic/graph/FTS failures, scope exclusions, or token-budget truncation without a stable RecallWarning code."
-      ],
-      "unblocks": [
-        "Goncho recall diagnostics CLI",
-        "Goncho replayable retrieval traces",
-        "Goncho retrieval benchmark corpus"
-      ],
-      "acceptance": [
-        "Types define RecallQuery, RecallCandidate, RecallScore, ScoredRecallCandidate, RecallScoringConfig, RecallWarning, RecallTrace, and trace-only projectors with no exported constructor path that builds projected Honcho responses from raw candidates.",
-        "TraceID is deterministic from query, scope, ordered candidate IDs, scoring config version, and pipeline version; identical inputs/config produce byte-stable JSON fixtures.",
-        "RecallScoringConfig includes Version, Weights, RRFK, MMRLambda, DiversityKeys, and TokenBudget and is copied into every trace.",
-        "`RecallEngine.Run` always returns a trace containing PipelineVersion, CreatedAt, ScoringConfig, selected candidates, rejected candidates, and warnings; package-local tests may exercise generate/score/select stages directly.",
-        "Ranking tests cover weighted fusion, RRF-style tie behavior, MMR-style diversity penalties, deterministic tie-breaks, scope filtering, and token-budget truncation.",
-        "Warning tests cover semantic_unavailable, graph_disabled, stale_embedding_index, fts_unavailable, scope_excluded_all_candidates, and token_budget_truncated as stable codes.",
-        "Projection tests prove Honcho-compatible search/context output is produced only from RecallTrace and keeps existing external response fields stable."
-      ],
-      "note": "Planner/interface pass 2026-05-17: added after a deep study of Protocol-Lattice/go-agent and the Goncho recall design discussion. The borrowed idea is not a new memory database; it is an internal retrieval IR and durable explanation artifact for operator trust, replay, tuning, and benchmarks. Keep the implementation local-first and SQLite-backed; use external go-agent only as pattern evidence for explicit scoring components, MMR selection, scoped-memory warnings, and testable trace fixtures.",
-      "write_scope": [
-        "internal/goncho/recall_ir.go",
-        "internal/goncho/recall_pipeline.go",
-        "internal/goncho/recall_projector.go",
-        "internal/goncho/recall_trace_test.go",
-        "internal/goncho/recall_pipeline_test.go",
-        "internal/goncho/testdata/recall_trace/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
-      ],
-      "test_commands": [
-        "go test ./internal/goncho -run 'TestRecall' -count=1",
-        "go test ./internal/goncho ./internal/memory -count=1",
-        "go run ./cmd/progress validate",
-        "git diff --check"
-      ],
-      "done_signal": [
-        "Builder reports byte-stable recall trace fixtures, stable warning codes, deterministic fused ranking/diversity tests, trace-only projection tests, and no public Honcho API break."
-      ],
-      "provenance": {
-        "origin_type": "gormes",
-        "owned_since": "2026-05-17T00:00:00Z",
-        "note": "Gormes-owned Goncho reliability/evaluation layer informed by Protocol-Lattice go-agent scoring/MMR patterns and the local agentmemory reference-product study; no Hermes/Honcho upstream analog."
-      }
-    }
-  },
-  {
     "phase": "3",
     "subphase": "3.G",
     "pos": 0,
@@ -2341,6 +2263,84 @@
       "done_signal": [
         "Goncho tests prove serialized writes and nonblocking pending relation candidates without changing Honcho-compatible external names."
       ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 55,
+    "item": {
+      "name": "Goncho durable recall trace IR + fused ranking pipeline",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Introduce an internal Goncho recall pipeline where `RecallEngine.Run` is the only caller-facing entrypoint, package-local generate/score/select phases produce a durable `RecallTrace`, and Honcho-compatible search/context projections can only be built from that trace. `RecallCandidate` owns facts/content/provenance, `RecallScore` owns scoring components and selection evidence, and `RecallTrace` owns replay/debug/eval state including `TraceID`, `PipelineVersion`, `RecallScoringConfig`, `CreatedAt`, selected/rejected candidates, and code-first warnings for every degraded path.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Semantic, graph, FTS, scope, stale-index, and token-budget fallbacks must be recorded in RecallTrace.Warnings instead of silently widening or dropping recall; external Honcho-compatible response shapes stay unchanged.",
+      "fixture": "internal/goncho/testdata/recall_trace/*.golden.json",
+      "source_refs": [
+        "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/engine/engine.go",
+        "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/session/spaces.go",
+        "internal/goncho/service.go",
+        "internal/goncho/importance_scorer.go",
+        "internal/memory/recall.go",
+        "internal/memory/semantic_sql.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+      ],
+      "ready_when": [
+        "The builder restates the invariant: no projection without a RecallTrace.",
+        "Existing Goncho Search/Context responses remain Honcho-compatible and do not gain new required fields.",
+        "Trace fixtures can be deterministic without live embeddings, hosted Honcho, external vector databases, or provider calls."
+      ],
+      "not_ready_when": [
+        "The slice rewrites Goncho persistence, adds Qdrant/Postgres/Mongo/Neo4j dependencies, or changes public honcho_* tool/API contracts.",
+        "The slice exposes package-local generate/score/select phases as the caller-facing interface instead of `RecallEngine.Run`.",
+        "The implementation permits semantic/graph/FTS failures, scope exclusions, or token-budget truncation without a stable RecallWarning code."
+      ],
+      "unblocks": [
+        "Goncho recall diagnostics CLI",
+        "Goncho replayable retrieval traces",
+        "Goncho retrieval benchmark corpus"
+      ],
+      "acceptance": [
+        "Types define RecallQuery, RecallCandidate, RecallScore, ScoredRecallCandidate, RecallScoringConfig, RecallWarning, RecallTrace, and trace-only projectors with no exported constructor path that builds projected Honcho responses from raw candidates.",
+        "TraceID is deterministic from query, scope, ordered candidate IDs, scoring config version, and pipeline version; identical inputs/config produce byte-stable JSON fixtures.",
+        "RecallScoringConfig includes Version, Weights, RRFK, MMRLambda, DiversityKeys, and TokenBudget and is copied into every trace.",
+        "`RecallEngine.Run` always returns a trace containing PipelineVersion, CreatedAt, ScoringConfig, selected candidates, rejected candidates, and warnings; package-local tests may exercise generate/score/select stages directly.",
+        "Ranking tests cover weighted fusion, RRF-style tie behavior, MMR-style diversity penalties, deterministic tie-breaks, scope filtering, and token-budget truncation.",
+        "Warning tests cover semantic_unavailable, graph_disabled, stale_embedding_index, fts_unavailable, scope_excluded_all_candidates, and token_budget_truncated as stable codes.",
+        "Projection tests prove Honcho-compatible search/context output is produced only from RecallTrace and keeps existing external response fields stable."
+      ],
+      "note": "Planner/interface pass 2026-05-17: added after a deep study of Protocol-Lattice/go-agent and the Goncho recall design discussion. Builder closeout 2026-05-17: shipped durable RecallTrace IR, deterministic stable JSON fixture, fused weighted/RRF scoring, MMR-style diversity selection, code-first degraded-path warnings, scope/token-budget rejection evidence, and trace-only Honcho-compatible search/context projectors; verified with row-local Goncho/memory tests and progress validation.",
+      "write_scope": [
+        "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_trace_test.go",
+        "internal/goncho/recall_pipeline_test.go",
+        "internal/goncho/testdata/recall_trace/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestRecall' -count=1",
+        "go test ./internal/goncho ./internal/memory -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports byte-stable recall trace fixtures, stable warning codes, deterministic fused ranking/diversity tests, trace-only projection tests, and no public Honcho API break."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned Goncho reliability/evaluation layer informed by Protocol-Lattice go-agent scoring/MMR patterns and the local agentmemory reference-product study; no Hermes/Honcho upstream analog."
+      }
     }
   }
 ]

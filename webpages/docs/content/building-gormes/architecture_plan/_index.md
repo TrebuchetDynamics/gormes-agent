@@ -779,7 +779,7 @@ classification and row-backed implementation queue.
 - [x] `browser` Browser SSRF quoted-false guard
 - [x] `browser` Go browser harness binary repo + integration lane (placeholder)
 - [x] `browser` Browser session inactivity cleanup thread
-- [ ] `browser` Goscrapling browser-backed extraction gate for web_extract
+- [x] `browser` Goscrapling browser-backed extraction gate for web_extract
 - [ ] `browser` Goscrapling local crawler adapter gate for web_crawl
 
 ### 5.D — Vision + Image Generation ✅
@@ -1027,7 +1027,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox host setup apply with transient sudo
 - [x] `gateway` Gateway auto-resume on restart
 - [ ] `tools` Hermes x_search tool and auth surface
-- [ ] `goncho` Goncho durable recall trace IR + fused ranking pipeline
+- [x] `goncho` Goncho durable recall trace IR + fused ranking pipeline
 
 ### 5.O — Hermes CLI Parity 🔨
 
