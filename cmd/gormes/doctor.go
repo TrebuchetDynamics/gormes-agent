@@ -755,10 +755,18 @@ func doctorWebToolsStatus(cfg config.Config) doctor.CheckResult {
 		checkStatus = doctor.StatusPass
 	}
 	summary := fmt.Sprintf("backend=%s route=%s source=%s evidence=%s", status.Backend, status.Route, status.Source, status.Evidence)
+	backendNote := fmt.Sprintf("base_url=%s use_gateway=%t managed=%t", status.BaseURL, status.UseGateway, status.Managed)
+	if status.Backend == tools.WebBackendGoscraplingBrowser {
+		backendNote = "local browser extraction; extract only; " + backendNote
+	}
+	requiresEnvNote := strings.Join(status.RequiresEnv, ",")
+	if status.Backend == tools.WebBackendGoscraplingBrowser {
+		requiresEnvNote = "none (browser runtime checked separately)"
+	}
 	items := []doctor.ItemInfo{
-		{Name: "backend", Status: checkStatus, Note: fmt.Sprintf("base_url=%s use_gateway=%t managed=%t", status.BaseURL, status.UseGateway, status.Managed)},
+		{Name: "backend", Status: checkStatus, Note: backendNote},
 		{Name: "toolset", Status: doctor.StatusPass, Note: strings.Join(status.ToolNames, ",")},
-		{Name: "requires_env", Status: doctor.StatusPass, Note: strings.Join(status.RequiresEnv, ",")},
+		{Name: "requires_env", Status: doctor.StatusPass, Note: requiresEnvNote},
 	}
 	if !status.Available {
 		items[0].Note = "provider unavailable; " + items[0].Note
