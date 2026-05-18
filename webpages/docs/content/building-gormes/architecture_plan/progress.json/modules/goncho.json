@@ -2416,11 +2416,11 @@
       }
     }
   },
-  {
-    "phase": "5",
-    "subphase": "5.N",
-    "pos": 57,
-    "item": {
+    {
+      "phase": "5",
+      "subphase": "5.N",
+      "pos": 57,
+      "item": {
       "name": "Goncho replayable retrieval traces",
       "priority": "P1",
       "status": "complete",
@@ -2488,6 +2488,87 @@
         "origin_type": "gormes",
         "owned_since": "2026-05-18T00:00:00Z",
         "note": "Gormes-owned operator trust and evaluation substrate consuming the durable RecallTrace seam; no Honcho upstream analog."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 58,
+    "item": {
+      "name": "Goncho proof matrix and fixture harness",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add a focused proof matrix that defines and tests what `Goncho works` means across local storage lifecycle, retrieval/context behavior, durable RecallTrace evidence, Honcho-compatible tool contracts, Memory V1 governance/tombstones, and existing operator surfaces. This row must add hermetic tests only; it must not add a proof CLI, replay UI, benchmark corpus, learning-loop behavior, new retrieval algorithms, live provider calls, hosted Honcho dependencies, or public Honcho API changes.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "The proof matrix uses temp SQLite stores, golden RecallTrace fixtures, local tool execution, and zero-state doctor fixtures. Any proof failure is a normal test failure; no live provider, network, hosted Honcho, external vector database, or Hermes learning-loop dependency is required.",
+      "fixture": "internal/goncho/proof_matrix_test.go",
+      "source_refs": [
+        "internal/goncho/service.go",
+        "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_diagnostics.go",
+        "internal/goncho/recall_replay.go",
+        "internal/gonchotools/honcho_tools.go",
+        "internal/memory/goncho_v1.go",
+        "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+      ],
+      "ready_when": [
+        "Goncho durable recall trace IR, diagnostics CLI, and replay CLI rows are complete.",
+        "Goncho local storage, Honcho-compatible tools, Memory V1 governance, and goncho doctor surfaces already have working hermetic fixtures.",
+        "The proof row can stay tests-only and consume existing behavior rather than broadening runtime scope."
+      ],
+      "not_ready_when": [
+        "The slice attempts to implement Hermes learning loop, curator/background review, skill promotion, outcome learning, or self-improvement workflows.",
+        "The slice adds a new proof CLI, replay UI, benchmark corpus, transcript importer, scoped grants redesign, agent-as-tool adapter, resumable checkpoints, external vector database, or hosted Honcho dependency.",
+        "The proof relies on live providers, network access, developer home directories, or empty/no-op assertions."
+      ],
+      "unblocks": [
+        "Goncho retrieval benchmark corpus",
+        "Goncho provenance UI over RecallTrace",
+        "Goncho transcript importer fixtures"
+      ],
+      "acceptance": [
+        "`internal/goncho` proof tests cover local storage lifecycle, workspace/session boundaries, retrieval/context behavior, deterministic RecallTrace JSON, code-first warnings, diagnostics, replay, and trace-only projection.",
+        "`internal/gonchotools` proof tests exercise the registered `honcho_*` tool surface against local Goncho behavior and assert `honcho_chat` remains excluded from the tool registry.",
+        "`internal/memory` proof tests cover Goncho Memory V1 contract versions, local SQLite/FTS/graph recall path, required tables, private/shared recall boundaries, tombstone refusal, tombstone evidence, and eval-artifact provenance.",
+        "`cmd/gormes` proof tests cover existing operator surfaces: `goncho doctor --json`, `goncho recall-diagnostics --json`, and `goncho recall-replay --json`.",
+        "Tests use hermetic temp stores and golden fixtures only, with no live provider, network, hosted Honcho, external vector database, benchmark corpus, replay UI, or learning-loop scope."
+      ],
+      "note": "Complete 2026-05-18: added `TestGonchoProofMatrix` coverage across internal Goncho storage/retrieval/trace behavior, Honcho-compatible tool execution, Memory V1 governance/tombstones/eval artifacts, and existing CLI operator surfaces. The row explicitly keeps Hermes learning loop, proof CLI, UI, benchmarks, importers, and external backends out of scope while proving the current Goncho contract with hermetic fixtures.",
+      "write_scope": [
+        "internal/goncho/proof_matrix_test.go",
+        "internal/gonchotools/proof_matrix_test.go",
+        "internal/memory/goncho_proof_matrix_test.go",
+        "cmd/gormes/goncho_proof_matrix_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestGonchoProofMatrix' -count=1",
+        "go test ./internal/gonchotools -run 'TestGonchoProofMatrix' -count=1",
+        "go test ./internal/memory -run 'TestGonchoProofMatrix' -count=1",
+        "go test ./cmd/gormes -run 'TestGonchoProofMatrix' -count=1",
+        "go test ./internal/goncho ./internal/gonchotools ./internal/memory ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports hermetic proof matrix tests for Goncho storage/retrieval/trace/operator trust, Honcho-compatible tools, Memory V1 governance/tombstones, CLI diagnostics/replay/doctor, and explicit non-scope for Hermes learning loop and benchmark/UI/importer work."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned proof harness for the Goncho memory subsystem; it consumes existing Honcho-compatible contracts and local RecallTrace evidence without introducing new runtime behavior."
       }
     }
   }

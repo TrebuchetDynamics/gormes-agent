@@ -7,9 +7,9 @@ title: "Runtime Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `runtime`
-**Rows:** 16
-**Status counts:** `complete`: 16 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 2 · `P1`: 8 · `P2`: 6
+**Rows:** 17
+**Status counts:** `complete`: 16 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 2 · `P1`: 9 · `P2`: 6
 
 ## Phase 4 — The Brain Transplant
 
@@ -21,6 +21,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `runtime` | Nested feature-level coverage test matrix for swarm gaps |
 | `complete` | `P1` | `runtime` | Hermes website docs mirror coverage gate |
 | `complete` | `P2` | `runtime` | Hermes compatibility namespace retirement boundary |
+| `planned` | `P1` | `runtime` | Hermes agent runtime strict-fidelity source-pair expansion |
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC)
 

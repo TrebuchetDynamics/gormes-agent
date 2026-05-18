@@ -7,9 +7,9 @@ title: "TUI Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `tui`
-**Rows:** 46
-**Status counts:** `complete`: 44 · `in_progress`: 0 · `planned`: 2
-**Priority counts:** `P0`: 3 · `P1`: 11 · `P2`: 21 · `P3`: 1 · `unset`: 10
+**Rows:** 47
+**Status counts:** `complete`: 44 · `in_progress`: 0 · `planned`: 3
+**Priority counts:** `P0`: 3 · `P1`: 12 · `P2`: 21 · `P3`: 1 · `unset`: 10
 
 ## Phase 1 — The Dashboard
 
@@ -74,6 +74,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tui` | Kernel in-session model-switch seam for the native TUI |
 | `planned` | `P2` | `tui` | Native TUI slash handler-port coverage |
 | `complete` | `P1` | `tui` | Native TUI Terminal.app truecolor and ANSI sanitizer parity |
+| `planned` | `P1` | `tui` | Hermes ui-tui strict-fidelity action matrix |
 
 ## Phase 8 — Reputation & Publication
 

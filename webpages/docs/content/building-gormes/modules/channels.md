@@ -7,9 +7,9 @@ title: "Channels Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `channels`
-**Rows:** 133
-**Status counts:** `complete`: 129 · `in_progress`: 0 · `planned`: 4
-**Priority counts:** `P0`: 7 · `P1`: 45 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47
+**Rows:** 134
+**Status counts:** `complete`: 129 · `in_progress`: 0 · `planned`: 5
+**Priority counts:** `P0`: 7 · `P1`: 46 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47
 
 ## Phase 2 — The Gateway
 
@@ -121,6 +121,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P1` | `channels` | MSGraph webhook platform manifest drift closeout |
+| `planned` | `P1` | `channels` | Hermes gateway platform strict-fidelity source-pair expansion |
 
 ### 2.H — Gormes-owned: Dynamic agents and per-thread spawn UX
 

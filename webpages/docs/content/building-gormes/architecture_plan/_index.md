@@ -91,15 +91,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 94/110 subphases shipped · 16 in progress · 0 planned
+**Overall:** 90/110 subphases shipped · 20 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | ✅ | 22/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 16/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
@@ -163,7 +163,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux real-device smoke evidence
 - [x] `install` Termux remote execution guidance
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -305,7 +305,7 @@ classification and row-backed implementation queue.
 - [x] `channels` Discord SessionSource guild/parent/message evidence
 - [x] `channels` Discord forum media + polish parity
 
-### 2.B.12 — Channel-Neutral Native Runtime Adapter ✅
+### 2.B.12 — Channel-Neutral Native Runtime Adapter 🔨
 
 - [x] `gateway` Channel-neutral native runtime turn adapter
 - [x] `gateway` Hermes gateway platform registry manifest
@@ -316,6 +316,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox Flutter voice morph surface
 - [x] `gateway` Multimodal photo attachment passthrough
 - [x] `gateway` Hermes-style default prompt and image-path hints for inbound photos
+- [ ] `channels` Hermes gateway platform strict-fidelity source-pair expansion
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -545,7 +546,7 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho Honcho SDK compatibility e2e harness
 - [x] `goncho` Goncho memory integration into normal agent turn
 
-## Phase 4 — The Brain Transplant ✅
+## Phase 4 — The Brain Transplant 🔨
 
 *Native Go agent orchestrator + prompt builder*
 
@@ -683,7 +684,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Provider rate guard — degraded-state + last-known-good evidence
 - [x] `providers` Hermes fast-mode request override serializer
 
-### 4.I — Native Agent Turn Closure ✅
+### 4.I — Native Agent Turn Closure 🔨
 
 - [x] `runtime` Python-free normal agent turn e2e harness
 - [x] `providers` Provider-tool-memory golden transcript suite
@@ -696,6 +697,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Gormes setup/channel/provider docs webpage parity gate
 - [x] `gateway` Native runtime provider gateway binding
 - [x] `runtime` Hermes compatibility namespace retirement boundary
+- [ ] `runtime` Hermes agent runtime strict-fidelity source-pair expansion
 
 ### 4.J — Permission-Hardened Tool Execution ✅
 
@@ -724,7 +726,7 @@ classification and row-backed implementation queue.
 
 *Python tool scripts ported to Go or WASM*
 
-### 5.A — Tool Surface Port ✅
+### 5.A — Tool Surface Port 🔨
 
 - [x] `tools` 61-tool registry port
 - [x] `tools` Tool registry inventory + schema parity harness
@@ -742,6 +744,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Terminal process watch notification throttle contract
 - [x] `tools` Tool output budget persisted artifact pointer
 - [x] `tools` Tool descriptor layer (OperationSpec)
+- [ ] `tools` Hermes tool tail strict-fidelity source-pair expansion
 
 ### 5.B — Sandboxing Backends ✅
 
@@ -857,7 +860,7 @@ classification and row-backed implementation queue.
 - [x] `tools` ACP session CWD propagation into prompt runners
 - [x] `tools` ACP setup-browser bootstrap parity
 
-### 5.I — Plugins Architecture ✅
+### 5.I — Plugins Architecture 🔨
 
 - [x] `skills` Plugin SDK
 - [x] `skills` Dashboard theme/plugin extension status contract
@@ -873,6 +876,7 @@ classification and row-backed implementation queue.
 - [x] `doctor` Plugin Marketplace + Doctor
 - [x] `skills` Extension Lifecycle Hook System
 - [x] `skills` Plugin lifecycle hook: transform_llm_output
+- [ ] `skills` Hermes plugin catalog strict-fidelity classifier
 
 ### 5.J — Approval / Security Guards ✅
 
@@ -1030,6 +1034,7 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho durable recall trace IR + fused ranking pipeline
 - [x] `goncho` Goncho recall diagnostics CLI over RecallTrace
 - [x] `goncho` Goncho replayable retrieval traces
+- [x] `goncho` Goncho proof matrix and fixture harness
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -1240,6 +1245,8 @@ classification and row-backed implementation queue.
 - [ ] `gateway` Kernel cross-provider client swap for in-session model switch
 - [ ] `tui` Native TUI slash handler-port coverage
 - [x] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
+- [ ] `tui` Hermes ui-tui strict-fidelity action matrix
+- [ ] `gateway` Hermes web dashboard strict-fidelity contract map
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1300,6 +1307,7 @@ classification and row-backed implementation queue.
 - [x] `skills` Hermes creative skill metadata compatibility
 - [x] `skills` Portable SKILL.md format
 - [ ] `skills` Hermes v0.14 optional skill catalog refresh
+- [ ] `skills` Hermes skill catalog strict-fidelity classifier
 
 ### 6.D — Skill Retrieval + Matching ✅
 
@@ -1438,6 +1446,7 @@ classification and row-backed implementation queue.
 - [ ] `docs` Engineering writeup #1: autonomous Hermes-porting loop
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
 - [x] `docs` Hermes contract inventory gate
+- [ ] `docs` Strict-fidelity upstream test-suite classifier
 
 ### 8.D — Sharp v1.0 🔨
 
