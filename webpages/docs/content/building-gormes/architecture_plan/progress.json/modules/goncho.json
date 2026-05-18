@@ -2343,11 +2343,11 @@
       }
     }
   },
-    {
-      "phase": "5",
-      "subphase": "5.N",
-      "pos": 56,
-      "item": {
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 56,
+    "item": {
       "name": "Goncho recall diagnostics CLI over RecallTrace",
       "priority": "P1",
       "status": "complete",

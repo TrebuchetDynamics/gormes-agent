@@ -44,21 +44,24 @@ type Options struct {
 }
 
 type Report struct {
-	SchemaVersion    string          `json:"schema_version"`
-	GeneratedAt      string          `json:"generated_at"`
-	HermesSHA        string          `json:"hermes_sha,omitempty"`
-	HermesPath       string          `json:"hermes_path,omitempty"`
-	ProgressPath     string          `json:"progress_path,omitempty"`
-	SourcePairsPath  string          `json:"source_pairs_path,omitempty"`
-	SourcePairsSHA   string          `json:"source_pairs_sha,omitempty"`
-	SourcePairsState string          `json:"source_pairs_state,omitempty"`
-	Strict           bool            `json:"strict"`
-	OK               bool            `json:"ok"`
-	Inventory        InventoryCounts `json:"inventory"`
-	Candidates       CandidateInventory `json:"candidates"`
-	Summary          Summary         `json:"summary"`
-	UnmappedSurfaces []string        `json:"unmapped_surfaces,omitempty"`
-	Surfaces         []SurfaceReport `json:"surfaces"`
+	SchemaVersion        string                    `json:"schema_version"`
+	GeneratedAt          string                    `json:"generated_at"`
+	HermesSHA            string                    `json:"hermes_sha,omitempty"`
+	HermesPath           string                    `json:"hermes_path,omitempty"`
+	ProgressPath         string                    `json:"progress_path,omitempty"`
+	SourcePairsPath      string                    `json:"source_pairs_path,omitempty"`
+	SourcePairsSHA       string                    `json:"source_pairs_sha,omitempty"`
+	SourcePairsState     string                    `json:"source_pairs_state,omitempty"`
+	Strict               bool                      `json:"strict"`
+	OK                   bool                      `json:"ok"`
+	Inventory            InventoryCounts           `json:"inventory"`
+	Candidates           CandidateInventory        `json:"candidates"`
+	UnmappedUpstream     UpstreamUnmappedInventory `json:"unmapped_upstream"`
+	ReleaseCheckpoints   []ReleaseCheckpoint       `json:"release_checkpoints,omitempty"`
+	ContinuityCategories []ContinuityCategory      `json:"continuity_categories,omitempty"`
+	Summary              Summary                   `json:"summary"`
+	UnmappedSurfaces     []string                  `json:"unmapped_surfaces,omitempty"`
+	Surfaces             []SurfaceReport           `json:"surfaces"`
 }
 
 type InventoryCounts struct {
@@ -78,11 +81,35 @@ type CandidateInventory struct {
 	LearningLoop []string `json:"learning_loop"`
 }
 
+type UpstreamUnmappedInventory struct {
+	SourceFiles []string `json:"source_files,omitempty"`
+	DocsFiles   []string `json:"docs_files,omitempty"`
+	TestFiles   []string `json:"test_files,omitempty"`
+}
+
+type ReleaseCheckpoint struct {
+	Label   string `json:"label"`
+	Path    string `json:"path"`
+	Present bool   `json:"present"`
+}
+
+type ContinuityCategory struct {
+	ID           string   `json:"id"`
+	Title        string   `json:"title"`
+	SurfaceIDs   []string `json:"surface_ids"`
+	Status       Status   `json:"status"`
+	GapSeverity  string   `json:"gap_severity"`
+	EvidenceRefs []string `json:"evidence_refs,omitempty"`
+	Reason       string   `json:"reason"`
+}
+
 type Summary struct {
-	Total          int            `json:"total"`
-	Critical       int            `json:"critical"`
-	StrictFailures int            `json:"strict_failures"`
-	ByStatus       map[string]int `json:"by_status"`
+	Total                 int            `json:"total"`
+	Critical              int            `json:"critical"`
+	SurfaceStrictFailures int            `json:"surface_strict_failures"`
+	UnmappedUpstreamFiles int            `json:"unmapped_upstream_files"`
+	StrictFailures        int            `json:"strict_failures"`
+	ByStatus              map[string]int `json:"by_status"`
 }
 
 type SurfaceReport struct {
@@ -137,6 +164,13 @@ type surfaceDefinition struct {
 	Critical     bool
 	UpstreamRefs []string
 	Keywords     []string
+	Modules      []string
+}
+
+type continuityCategoryDefinition struct {
+	ID         string
+	Title      string
+	SurfaceIDs []string
 }
 
 type sourcePairsManifest struct {
@@ -222,7 +256,11 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 		},
 	}
 	rows := flattenProgress(prog)
-	for _, def := range defaultSurfaces() {
+	definitions := defaultSurfaces()
+	mappedUpstream := mappedUpstreamRefs(definitions, sourcePairs.Pairs, rows)
+	report.UnmappedUpstream = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream)
+	report.ReleaseCheckpoints = buildReleaseCheckpoints(repoRoot, hermesPath)
+	for _, def := range definitions {
 		surface := buildSurfaceReport(def, hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
 		report.Surfaces = append(report.Surfaces, surface)
 		report.Summary.Total++
@@ -231,10 +269,13 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 		}
 		report.Summary.ByStatus[string(surface.Status)]++
 		if surface.Critical && !strictStatusPasses(surface.Status) {
-			report.Summary.StrictFailures++
+			report.Summary.SurfaceStrictFailures++
 			report.UnmappedSurfaces = append(report.UnmappedSurfaces, surface.ID)
 		}
 	}
+	report.ContinuityCategories = buildContinuityCategories(report.Surfaces)
+	report.Summary.UnmappedUpstreamFiles = report.UnmappedUpstream.total()
+	report.Summary.StrictFailures = report.Summary.SurfaceStrictFailures + report.Summary.UnmappedUpstreamFiles
 	report.OK = !opts.Strict || report.Summary.StrictFailures == 0
 	return report, nil
 }
@@ -249,6 +290,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"hermes_cli/profiles.py"},
 			Keywords:     []string{"profile", "profiles", "profile-scoped", "identity", "workspace", "peer"},
+			Modules:      []string{"profiles", "config"},
 		},
 		{
 			ID:           "sessions",
@@ -258,6 +300,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"run_agent.py", "gateway/session.py", "tools/session_search_tool.py", "hermes_cli/session_recap.py"},
 			Keywords:     []string{"session", "sessions", "transcript", "recap", "summary", "context"},
+			Modules:      []string{"sessions"},
 		},
 		{
 			ID:           "goncho_memory",
@@ -267,6 +310,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"tools/memory_tool.py", "agent/memory_manager.py", "plugins/memory/__init__.py"},
 			Keywords:     []string{"memory", "goncho", "honcho", "recall", "remember", "knowledge graph"},
+			Modules:      []string{"goncho", "memory"},
 		},
 		{
 			ID:           "learning_loop",
@@ -276,6 +320,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"agent/curator.py", "hermes_cli/curator.py", "tools/skill_usage.py"},
 			Keywords:     []string{"learning", "curator", "candidate", "feedback", "outcome", "skill update", "memory update"},
+			Modules:      []string{"skills", "memory", "goncho"},
 		},
 		{
 			ID:           "prompt_assembly",
@@ -285,6 +330,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"agent/prompt_builder.py", "agent/skill_commands.py", "agent/skill_preprocessing.py", "agent/skill_utils.py"},
 			Keywords:     []string{"prompt", "context", "insertion", "skill preprocessing", "budget", "assembly"},
+			Modules:      []string{"runtime", "skills", "memory", "sessions"},
 		},
 		{
 			ID:           "provider_auth_setup",
@@ -294,6 +340,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"hermes_cli/auth_commands.py", "hermes_cli/providers.py", "hermes_cli/setup.py"},
 			Keywords:     []string{"provider", "auth", "oauth", "credential", "setup", "model", "openrouter", "codex"},
+			Modules:      []string{"providers", "config", "doctor"},
 		},
 		{
 			ID:           "gateway_channels",
@@ -303,6 +350,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"gateway/run.py"},
 			Keywords:     []string{"gateway", "channel", "telegram", "slack", "whatsapp", "discord", "outbound", "tool progress"},
+			Modules:      []string{"gateway", "channels"},
 		},
 		{
 			ID:           "tool_runtime",
@@ -312,6 +360,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"tools/registry.py", "tools/file_tools.py", "tools/code_execution_tool.py"},
 			Keywords:     []string{"tool", "tools", "registry", "execution", "permission", "sandbox", "file ops"},
+			Modules:      []string{"tools"},
 		},
 		{
 			ID:           "mcp_acp",
@@ -321,6 +370,7 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"hermes_cli/mcp_config.py", "tools/mcp_tool.py", "acp_adapter/entry.py", "acp_adapter/server.py"},
 			Keywords:     []string{"mcp", "acp", "adapter", "server", "protocol"},
+			Modules:      []string{"tools"},
 		},
 		{
 			ID:           "tui_cli",
@@ -330,7 +380,157 @@ func defaultSurfaces() []surfaceDefinition {
 			Critical:     true,
 			UpstreamRefs: []string{"ui-tui/package.json", "cli.py"},
 			Keywords:     []string{"tui", "cli", "command", "terminal", "ui-tui", "curses", "cobra"},
+			Modules:      []string{"tui"},
 		},
+	}
+}
+
+func defaultContinuityCategories() []continuityCategoryDefinition {
+	return []continuityCategoryDefinition{
+		{
+			ID:         "sessions",
+			Title:      "Sessions",
+			SurfaceIDs: []string{"sessions"},
+		},
+		{
+			ID:         "memory_goncho_honcho_compatibility",
+			Title:      "Memory/Goncho/Honcho compatibility",
+			SurfaceIDs: []string{"goncho_memory"},
+		},
+		{
+			ID:         "workspace_peer_profile_identity_boundaries",
+			Title:      "Workspace/peer/profile identity boundaries",
+			SurfaceIDs: []string{"profiles"},
+		},
+		{
+			ID:         "context_retrieval_and_prompt_budget",
+			Title:      "Context retrieval and prompt budget",
+			SurfaceIDs: []string{"sessions", "prompt_assembly"},
+		},
+		{
+			ID:         "summaries_conclusions_search",
+			Title:      "Summaries/conclusions/search",
+			SurfaceIDs: []string{"sessions"},
+		},
+		{
+			ID:         "skill_templates_and_skills_ux",
+			Title:      "Skill templates and skills UX",
+			SurfaceIDs: []string{"learning_loop", "prompt_assembly"},
+		},
+		{
+			ID:         "skill_precedence_sync_update_reset",
+			Title:      "Skill precedence/sync/update/reset",
+			SurfaceIDs: []string{"learning_loop", "prompt_assembly"},
+		},
+		{
+			ID:         "learning_loop_curator_behavior",
+			Title:      "Learning-loop curator behavior",
+			SurfaceIDs: []string{"learning_loop"},
+		},
+		{
+			ID:         "candidate_memory_skill_updates",
+			Title:      "Candidate memory/skill updates",
+			SurfaceIDs: []string{"learning_loop", "goncho_memory"},
+		},
+		{
+			ID:         "feedback_outcome_scoring",
+			Title:      "Feedback/outcome scoring",
+			SurfaceIDs: []string{"learning_loop"},
+		},
+		{
+			ID:         "audit_trail",
+			Title:      "Audit trail",
+			SurfaceIDs: []string{"sessions", "tool_runtime", "learning_loop"},
+		},
+		{
+			ID:         "mutation_safety",
+			Title:      "Mutation safety",
+			SurfaceIDs: []string{"tool_runtime", "learning_loop", "goncho_memory"},
+		},
+		{
+			ID:         "prompt_context_memory_skill_insertion_ordering",
+			Title:      "Prompt/context/memory/skill insertion ordering",
+			SurfaceIDs: []string{"prompt_assembly", "goncho_memory", "sessions", "learning_loop"},
+		},
+		{
+			ID:         "profile_scoped_isolation",
+			Title:      "Profile-scoped isolation",
+			SurfaceIDs: []string{"profiles", "sessions", "gateway_channels"},
+		},
+	}
+}
+
+func buildContinuityCategories(surfaces []SurfaceReport) []ContinuityCategory {
+	byID := map[string]SurfaceReport{}
+	for _, surface := range surfaces {
+		byID[surface.ID] = surface
+	}
+	var categories []ContinuityCategory
+	for _, def := range defaultContinuityCategories() {
+		category := ContinuityCategory{
+			ID:         def.ID,
+			Title:      def.Title,
+			SurfaceIDs: append([]string(nil), def.SurfaceIDs...),
+			Status:     StatusCovered,
+			Reason:     "Mapped surfaces are strictly covered.",
+		}
+		var matched []SurfaceReport
+		var missing []string
+		for _, surfaceID := range def.SurfaceIDs {
+			surface, ok := byID[surfaceID]
+			if !ok {
+				missing = append(missing, surfaceID)
+				continue
+			}
+			matched = append(matched, surface)
+			category.EvidenceRefs = append(category.EvidenceRefs, surface.UpstreamRefs...)
+			category.EvidenceRefs = append(category.EvidenceRefs, surface.GormesRefs...)
+			for _, pair := range surface.SourcePairs {
+				category.EvidenceRefs = append(category.EvidenceRefs, pair.HermesFile)
+				category.EvidenceRefs = append(category.EvidenceRefs, pair.UpstreamTests...)
+			}
+		}
+		if len(missing) > 0 {
+			category.Status = StatusMissing
+			category.Reason = "One or more expected fidelity surfaces are absent: " + strings.Join(missing, ", ") + "."
+		} else if len(matched) == 0 {
+			category.Status = StatusMissing
+			category.Reason = "No fidelity surface maps this continuity category."
+		} else {
+			worst := matched[0]
+			for _, surface := range matched[1:] {
+				if statusRank(surface.Status) > statusRank(worst.Status) {
+					worst = surface
+				}
+			}
+			category.Status = worst.Status
+			if strictStatusPasses(worst.Status) {
+				category.Reason = "Mapped surfaces are strictly covered: " + strings.Join(def.SurfaceIDs, ", ") + "."
+			} else {
+				category.Reason = fmt.Sprintf("Mapped through surfaces: %s; worst status is %s=%s.", strings.Join(def.SurfaceIDs, ", "), worst.ID, worst.Status)
+			}
+		}
+		category.GapSeverity = gapSeverity(category.Status, true)
+		category.EvidenceRefs = uniqueSorted(category.EvidenceRefs)
+		categories = append(categories, category)
+	}
+	return categories
+}
+
+func statusRank(status Status) int {
+	switch status {
+	case StatusBlocked, StatusStaleUpstream, StatusMissing:
+		return 50
+	case StatusVague:
+		return 40
+	case StatusPlanned:
+		return 30
+	case StatusPartial:
+		return 20
+	case StatusCovered, StatusOwnedDivergence, StatusExcluded:
+		return 0
+	default:
+		return 10
 	}
 }
 
@@ -526,10 +726,31 @@ func rowMatchReasons(def surfaceDefinition, row progressRow, matchedNames map[st
 			reasons = append(reasons, "source_ref:"+normalized)
 		}
 	}
-	if containsKeyword(row.Text, def.Keywords) {
+	if surfaceAcceptsModule(def, row.Item.Module) && containsKeyword(tightRowText(row.Item), def.Keywords) {
 		reasons = append(reasons, "taxonomy_keyword")
 	}
 	return uniqueSorted(reasons)
+}
+
+func surfaceAcceptsModule(def surfaceDefinition, module string) bool {
+	module = strings.TrimSpace(module)
+	for _, candidate := range def.Modules {
+		if module == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func tightRowText(item progress.Item) string {
+	parts := []string{
+		item.Name,
+		item.Contract,
+		item.Module,
+		item.Fixture,
+		strings.Join(item.SourceRefs, " "),
+	}
+	return strings.ToLower(strings.Join(parts, " "))
 }
 
 func progressRowEvidence(row progressRow, reasons []string) ProgressRowEvidence {
@@ -703,6 +924,128 @@ func gitRevision(ctx context.Context, dir string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+func (u UpstreamUnmappedInventory) total() int {
+	return len(u.SourceFiles) + len(u.DocsFiles) + len(u.TestFiles)
+}
+
+func mappedUpstreamRefs(definitions []surfaceDefinition, pairs []sourcePair, rows []progressRow) map[string]bool {
+	mapped := map[string]bool{}
+	for _, def := range definitions {
+		for _, ref := range def.UpstreamRefs {
+			addMappedUpstreamRef(mapped, ref)
+		}
+	}
+	for _, pair := range pairs {
+		addMappedUpstreamRef(mapped, pair.HermesFile)
+		for _, ref := range pair.UpstreamTests {
+			addMappedUpstreamRef(mapped, ref)
+		}
+	}
+	for _, row := range rows {
+		for _, ref := range row.Item.SourceRefs {
+			addMappedUpstreamRef(mapped, ref)
+		}
+		if row.Item.Provenance != nil {
+			addMappedUpstreamRef(mapped, row.Item.Provenance.UpstreamRef)
+			for _, ref := range row.Item.Provenance.UpstreamRefs {
+				addMappedUpstreamRef(mapped, ref)
+			}
+		}
+	}
+	return mapped
+}
+
+func addMappedUpstreamRef(mapped map[string]bool, ref string) {
+	original := filepath.ToSlash(strings.TrimSpace(ref))
+	ref = normalizeUpstreamRef(original)
+	if ref == "" {
+		ref = original
+	}
+	ref = strings.TrimPrefix(ref, "./")
+	if ref != "" {
+		mapped[ref] = true
+	}
+}
+
+func buildUnmappedUpstreamInventory(root string, mapped map[string]bool) UpstreamUnmappedInventory {
+	var unmapped UpstreamUnmappedInventory
+	if root == "" {
+		return unmapped
+	}
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredInventoryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		slash := filepath.ToSlash(rel)
+		if mapped[slash] {
+			return nil
+		}
+		if isHermesReleaseCheckpointFile(slash) {
+			return nil
+		}
+		switch {
+		case isUpstreamTestFile(slash):
+			unmapped.TestFiles = append(unmapped.TestFiles, slash)
+		case isUpstreamDocsFile(slash):
+			unmapped.DocsFiles = append(unmapped.DocsFiles, slash)
+		case isUpstreamSourceFile(slash):
+			unmapped.SourceFiles = append(unmapped.SourceFiles, slash)
+		}
+		return nil
+	})
+	unmapped.SourceFiles = uniqueSorted(unmapped.SourceFiles)
+	unmapped.DocsFiles = uniqueSorted(unmapped.DocsFiles)
+	unmapped.TestFiles = uniqueSorted(unmapped.TestFiles)
+	return unmapped
+}
+
+func buildReleaseCheckpoints(repoRoot, hermesPath string) []ReleaseCheckpoint {
+	var checkpoints []ReleaseCheckpoint
+	if hermesPath != "" {
+		matches, _ := filepath.Glob(filepath.Join(hermesPath, "RELEASE_v*.md"))
+		sort.Strings(matches)
+		for _, match := range matches {
+			base := strings.TrimSuffix(filepath.Base(match), ".md")
+			checkpoints = append(checkpoints, ReleaseCheckpoint{
+				Label:   "Hermes " + base,
+				Path:    displayPath(repoRoot, match),
+				Present: true,
+			})
+		}
+	}
+	for _, checkpoint := range []ReleaseCheckpoint{
+		{
+			Label: "Gormes Hermes v0.14 module pairings",
+			Path:  "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+		},
+		{
+			Label: "Gormes Hermes source-pair manifest",
+			Path:  "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+		},
+		{
+			Label: "Gormes Hermes source-pair report",
+			Path:  "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+		},
+	} {
+		abs := filepath.Join(repoRoot, filepath.FromSlash(checkpoint.Path))
+		if _, err := os.Stat(abs); err == nil {
+			checkpoint.Present = true
+		}
+		checkpoints = append(checkpoints, checkpoint)
+	}
+	return checkpoints
+}
+
 func countHermesInventory(root string) InventoryCounts {
 	var counts InventoryCounts
 	if root == "" {
@@ -713,7 +1056,7 @@ func countHermesInventory(root string) InventoryCounts {
 			return nil
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".git") {
+			if ignoredInventoryDir(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -723,15 +1066,13 @@ func countHermesInventory(root string) InventoryCounts {
 			rel = path
 		}
 		slash := filepath.ToSlash(rel)
-		ext := strings.ToLower(filepath.Ext(path))
-		switch ext {
-		case ".py", ".ts", ".tsx", ".js", ".jsx":
+		if isUpstreamSourceFile(slash) {
 			counts.SourceFiles++
-		case ".md", ".mdx":
+		}
+		if isUpstreamDocsFile(slash) {
 			counts.DocsFiles++
 		}
-		base := filepath.Base(path)
-		if strings.Contains(slash, "/tests/") || strings.HasPrefix(base, "test_") || strings.HasSuffix(base, "_test.py") || strings.HasSuffix(base, ".test.ts") || strings.HasSuffix(base, ".test.tsx") {
+		if isUpstreamTestFile(slash) {
 			counts.TestFiles++
 		}
 		return nil
@@ -749,7 +1090,7 @@ func buildCandidateInventory(root string) CandidateInventory {
 			return nil
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".git") {
+			if ignoredInventoryDir(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -807,6 +1148,52 @@ func candidateSourceFile(path string) bool {
 	default:
 		return false
 	}
+}
+
+func ignoredInventoryDir(name string) bool {
+	switch name {
+	case ".git", ".hg", ".svn", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "node_modules", "dist", "build", "coverage", ".venv", "venv":
+		return true
+	default:
+		return false
+	}
+}
+
+func isUpstreamSourceFile(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".py", ".ts", ".tsx", ".js", ".jsx":
+		return true
+	default:
+		return false
+	}
+}
+
+func isUpstreamDocsFile(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".md", ".mdx":
+		return true
+	default:
+		return false
+	}
+}
+
+func isUpstreamTestFile(path string) bool {
+	lower := strings.ToLower(filepath.ToSlash(path))
+	base := filepath.Base(lower)
+	return strings.Contains(lower, "/tests/") ||
+		strings.HasPrefix(lower, "tests/") ||
+		strings.Contains(lower, "/test/") ||
+		strings.HasPrefix(base, "test_") ||
+		strings.HasSuffix(base, "_test.py") ||
+		strings.HasSuffix(base, ".test.ts") ||
+		strings.HasSuffix(base, ".test.tsx") ||
+		strings.HasSuffix(base, ".spec.ts") ||
+		strings.HasSuffix(base, ".spec.tsx")
+}
+
+func isHermesReleaseCheckpointFile(path string) bool {
+	base := filepath.Base(filepath.ToSlash(path))
+	return strings.HasPrefix(base, "RELEASE_v") && strings.HasSuffix(base, ".md")
 }
 
 func displayPath(root, path string) string {

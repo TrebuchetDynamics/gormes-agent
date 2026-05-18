@@ -1437,7 +1437,7 @@ classification and row-backed implementation queue.
 
 - [ ] `docs` Engineering writeup #1: autonomous Hermes-porting loop
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
-- [ ] `docs` Hermes contract inventory gate
+- [x] `docs` Hermes contract inventory gate
 
 ### 8.D — Sharp v1.0 🔨
 

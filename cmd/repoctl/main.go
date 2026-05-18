@@ -12,7 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/repoctl"
 )
 
-const usage = "usage: repoctl [--repo-root <path>] {benchmark record|readme update|progress seed <fleet|missing-all>|hermes-source-pairs validate|hermes-source-pairs sync-sha|hermes-source-pairs report}"
+const usage = "usage: repoctl [--repo-root <path>] {benchmark record|readme update|progress seed <fleet|missing-all>|hermes-source-pairs validate|hermes-source-pairs sync-sha|hermes-source-pairs report|hermes-contract-inventory}"
 
 var errParse = errors.New("parse error")
 
@@ -84,6 +84,24 @@ func run(stdout, stderr io.Writer, args []string) error {
 		}
 		_, err = fmt.Fprintln(stdout, "repoctl: hermes-source-pairs report updated")
 		return err
+	case len(args) >= 1 && args[0] == "hermes-contract-inventory":
+		opts, err := parseHermesContractInventoryOptions(root, args[1:])
+		if err != nil {
+			return err
+		}
+		result, err := repoctl.WriteHermesContractInventory(opts)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(stdout, "repoctl: hermes-contract-inventory report updated json=%s markdown=%s hermes_sha=%s strict_failures=%d\n",
+			result.JSONPath, result.MarkdownPath, result.Report.HermesSHA, result.Report.Summary.StrictFailures)
+		if err != nil {
+			return err
+		}
+		if opts.Strict && !result.Report.OK {
+			return fmt.Errorf("repoctl: hermes-contract-inventory strict failed strict_failures=%d", result.Report.Summary.StrictFailures)
+		}
+		return nil
 	default:
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
@@ -124,6 +142,55 @@ func parseSourcePairOptions(root string, args []string) (repoctl.SourcePairOptio
 			i++
 		default:
 			return opts, fmt.Errorf("%w: unknown hermes-source-pairs option %s\n%s", errParse, args[i], usage)
+		}
+	}
+	return opts, nil
+}
+
+func parseHermesContractInventoryOptions(root string, args []string) (repoctl.HermesContractInventoryOptions, error) {
+	opts := repoctl.HermesContractInventoryOptions{Root: root}
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--progress":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("%w: --progress requires a value\n%s", errParse, usage)
+			}
+			opts.ProgressPath = args[i+1]
+			i++
+		case "--hermes-src":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("%w: --hermes-src requires a value\n%s", errParse, usage)
+			}
+			opts.HermesSrc = args[i+1]
+			i++
+		case "--source-pairs":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("%w: --source-pairs requires a value\n%s", errParse, usage)
+			}
+			opts.SourcePairsPath = args[i+1]
+			i++
+		case "--json-out":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("%w: --json-out requires a value\n%s", errParse, usage)
+			}
+			opts.JSONPath = args[i+1]
+			i++
+		case "--markdown-out":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("%w: --markdown-out requires a value\n%s", errParse, usage)
+			}
+			opts.MarkdownPath = args[i+1]
+			i++
+		case "--hermes-sha":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("%w: --hermes-sha requires a value\n%s", errParse, usage)
+			}
+			opts.CurrentHermesSHA = args[i+1]
+			i++
+		case "--strict":
+			opts.Strict = true
+		default:
+			return opts, fmt.Errorf("%w: unknown hermes-contract-inventory option %s\n%s", errParse, args[i], usage)
 		}
 	}
 	return opts, nil

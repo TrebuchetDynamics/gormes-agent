@@ -53,7 +53,7 @@ func newFidelityHermesCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.hermes, "hermes", "", "path to Hermes source checkout")
 	cmd.Flags().StringVar(&opts.sourcePairs, "source-pairs", "", "path to hermes-source-pairs.json")
 	cmd.Flags().StringVar(&opts.hermesSHA, "hermes-sha", "", "Hermes source SHA to record in the report")
-	cmd.Flags().BoolVar(&opts.strict, "strict", false, "return non-zero when critical fidelity surfaces are not covered")
+	cmd.Flags().BoolVar(&opts.strict, "strict", false, "return non-zero when critical fidelity surfaces or unmapped upstream files are not covered")
 	cmd.Flags().BoolVar(&opts.json, "json", false, "emit machine-readable JSON")
 	return cmd
 }
@@ -94,7 +94,7 @@ func runFidelityHermesCommand(cmd *cobra.Command, opts fidelityHermesCommandOpti
 		fmt.Fprint(cmd.OutOrStdout(), formatFidelityHermesReport(payload))
 	}
 	if opts.strict && !report.OK {
-		return newExitCodeError(1, fmt.Errorf("fidelity hermes: uncovered critical surfaces"))
+		return newExitCodeError(1, fmt.Errorf("fidelity hermes: uncovered critical surfaces or unmapped upstream files"))
 	}
 	return nil
 }
@@ -110,6 +110,11 @@ func formatFidelityHermesReport(payload fidelityHermesReportJSON) string {
 		payload.Report.Summary.ByStatus[string(fidelity.StatusPartial)],
 		payload.Report.Summary.ByStatus[string(fidelity.StatusPlanned)],
 		payload.Report.Summary.ByStatus[string(fidelity.StatusMissing)],
+	)
+	fmt.Fprintf(&b, "unmapped_upstream: source=%d docs=%d tests=%d\n",
+		len(payload.Report.UnmappedUpstream.SourceFiles),
+		len(payload.Report.UnmappedUpstream.DocsFiles),
+		len(payload.Report.UnmappedUpstream.TestFiles),
 	)
 	for _, surface := range payload.Report.Surfaces {
 		fmt.Fprintf(&b, "- %s status=%s\n", surface.ID, surface.Status)

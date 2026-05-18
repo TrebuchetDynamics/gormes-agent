@@ -34,6 +34,15 @@ func TestHermesReportClassifiesCriticalSurfacesFromStaticEvidence(t *testing.T) 
 	if report.Summary.Total != 10 || report.Summary.Critical != 10 {
 		t.Fatalf("summary = %+v, want 10 total critical surfaces", report.Summary)
 	}
+	if report.Summary.UnmappedUpstreamFiles == 0 || len(report.UnmappedUpstream.SourceFiles) == 0 || len(report.UnmappedUpstream.DocsFiles) == 0 || len(report.UnmappedUpstream.TestFiles) == 0 {
+		t.Fatalf("unmapped upstream evidence missing from report: summary=%+v unmapped=%+v", report.Summary, report.UnmappedUpstream)
+	}
+	if len(report.ReleaseCheckpoints) == 0 {
+		t.Fatalf("release checkpoints missing from report")
+	}
+	if len(report.ContinuityCategories) < 14 {
+		t.Fatalf("continuity categories = %d, want at least 14", len(report.ContinuityCategories))
+	}
 
 	goncho := surfaceByID(t, report, "goncho_memory")
 	if goncho.Status != StatusCovered {
@@ -109,6 +118,20 @@ func writeHermesSurfaceFixtures(t *testing.T, hermes string) {
 			if err := os.WriteFile(path, []byte("# fixture\n"), 0o644); err != nil {
 				t.Fatalf("write %s: %v", path, err)
 			}
+		}
+	}
+	for _, rel := range []string{
+		"RELEASE_v0.14.0.md",
+		"docs/unmapped.md",
+		"tools/unmapped_tool.py",
+		"tests/hermes_cli/test_unmapped.py",
+	} {
+		path := filepath.Join(hermes, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+		if err := os.WriteFile(path, []byte("# fixture\n"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
 		}
 	}
 }

@@ -516,9 +516,9 @@
     "item": {
       "name": "Hermes contract inventory gate",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Build a report-only Hermes contract inventory gate that scans the current in-repo Hermes checkout, inventories source files, upstream docs pages, upstream tests, CLI/tool/provider/channel/session/memory/skill/learning-loop candidates, joins that evidence to progress.json rows and hermes-source-pairs.json, and emits machine-readable plus human-readable gap reports without failing CI by default. The gate must treat agent continuity as first-class: sessions, Memory/Goncho/Honcho compatibility, workspace/peer/profile identity boundaries, context retrieval and prompt budget, summaries/conclusions/search, skill templates and skills UX, skill precedence/sync/update/reset, learning-loop curator behavior, candidate memory/skill updates, feedback/outcome scoring, audit trail, mutation safety, prompt/context/memory/skill insertion ordering, and profile-scoped isolation. The gate proves whether a given Hermes SHA has every behavior/architecture contract classified as covered, partial, planned, excluded, or owned_divergence before Gormes claims full pairing.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "docs",
@@ -583,7 +583,7 @@
         "The inventory has explicit sections or typed categories for sessions, Memory/Goncho/Honcho compatibility, workspace/peer/profile identity boundaries, context retrieval and prompt budget, summaries/conclusions/search, skills templates and skills UX, skill precedence/sync/update/reset, learning-loop curator behavior, candidate memory/skill updates, feedback/outcome scoring, audit trail, mutation safety, insertion ordering, and profile-scoped isolation.",
         "Agent-continuity gaps are reported separately from CLI/tool/channel gaps so planner passes can prioritize Memory/Goncho, skills UX, and learning-loop fidelity without creating a side backlog."
       ],
-      "note": "Decision from grill-me parity review: Gormes targets behavior/contract parity against rolling Hermes HEAD with release checkpoints. Architecture is paired as invariants, py2many is evidence only, and gormes-planner owns gap classification before gormes-builder implements rows. Follow-up grill refinement made agent continuity first-class: Memory/Goncho/Honcho compatibility, skills templates/UX, learning-loop curator behavior, prompt/context/memory/skill insertion ordering, and profile-scoped isolation must be inventoried explicitly before separate continuity audit rows are added.",
+      "note": "SHIPPED 2026-05-18: report-only Hermes contract inventory landed with current-SHA source-pair joins, release checkpoints, per-module gap tables, typed continuity categories, generated JSON/Markdown, and strict-mode blockers for unmapped upstream source/doc/test files.",
       "write_scope": [
         "cmd/repoctl",
         "internal/repoctl",
@@ -591,14 +591,20 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
-        "webpages/docs/content/building-gormes/modules/docs.md"
+        "webpages/docs/content/building-gormes/modules/docs.md",
+        "cmd/gormes/fidelity.go",
+        "internal/fidelity"
       ],
       "test_commands": [
         "go test ./internal/repoctl -run 'TestHermesContractInventory' -count=1",
         "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
         "go run ./cmd/progress validate",
         "go test ./webpages/docs -count=1",
-        "git diff --check"
+        "git diff --check",
+        "go test ./internal/fidelity ./internal/repoctl ./cmd/repoctl ./cmd/gormes -run 'TestHermesReport|TestWriteHermesContractInventory|TestRunHermesContractInventory|TestFidelityHermes' -count=1",
+        "go run ./cmd/gormes fidelity hermes --repo-root . --json",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go test ./... -count=1"
       ],
       "done_signal": [
         "Hermes contract inventory JSON and Markdown reports are generated for the current Hermes SHA, unclassified gaps are visible by severity, agent-continuity categories are first-class in the report, and normal validation remains report-only green unless strict mode is explicitly requested."

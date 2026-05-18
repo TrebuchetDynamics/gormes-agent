@@ -16,7 +16,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Config](config/) | 29 | 29 | 0 | 0 | `P0`: 3 · `P1`: 6 · `P2`: 7 · `P3`: 1 · `unset`: 12 |
 | [Cross Cutting](cross-cutting/) | 0 | 0 | 0 | 0 | - |
 | [Doctor](doctor/) | 16 | 16 | 0 | 0 | `P1`: 5 · `P2`: 7 · `P3`: 2 · `unset`: 2 |
-| [Docs](docs/) | 13 | 8 | 0 | 5 | `P1`: 9 · `P2`: 2 · `P3`: 2 |
+| [Docs](docs/) | 13 | 9 | 0 | 4 | `P1`: 9 · `P2`: 2 · `P3`: 2 |
 | [Fleet](fleet/) | 21 | 21 | 0 | 0 | `P0`: 2 · `P1`: 5 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
 | [Gateway](gateway/) | 156 | 155 | 0 | 1 | `P0`: 14 · `P1`: 47 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
 | [Goncho](goncho/) | 36 | 36 | 0 | 0 | `P0`: 6 · `P1`: 7 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
