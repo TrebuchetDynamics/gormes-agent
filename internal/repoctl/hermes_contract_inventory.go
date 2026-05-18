@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/fidelity"
 )
@@ -27,6 +28,7 @@ type HermesContractInventoryOptions struct {
 	MarkdownPath     string
 	CurrentHermesSHA string
 	Strict           bool
+	Now              func() time.Time
 }
 
 type HermesContractInventoryResult struct {
@@ -56,14 +58,13 @@ func WriteHermesContractInventory(opts HermesContractInventoryOptions) (HermesCo
 		return HermesContractInventoryResult{}, err
 	}
 
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(report); err != nil {
+	report = preserveHermesContractInventoryTimestamp(report, jsonPath, mdPath)
+
+	jsonReport, err := marshalHermesContractInventoryJSON(report)
+	if err != nil {
 		return HermesContractInventoryResult{}, err
 	}
-	if err := os.WriteFile(jsonPath, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(jsonPath, jsonReport, 0o644); err != nil {
 		return HermesContractInventoryResult{}, err
 	}
 	if err := os.WriteFile(mdPath, []byte(RenderHermesContractInventoryMarkdown(report)), 0o644); err != nil {
@@ -81,7 +82,48 @@ func BuildHermesContractInventory(opts HermesContractInventoryOptions) (fidelity
 		SourcePairsPath: opts.SourcePairsPath,
 		HermesSHA:       opts.CurrentHermesSHA,
 		Strict:          opts.Strict,
+		Now:             opts.Now,
 	})
+}
+
+func preserveHermesContractInventoryTimestamp(report fidelity.Report, jsonPath, mdPath string) fidelity.Report {
+	existingJSON, err := os.ReadFile(jsonPath)
+	if err != nil {
+		return report
+	}
+	existingMD, err := os.ReadFile(mdPath)
+	if err != nil {
+		return report
+	}
+	var existing fidelity.Report
+	if err := json.Unmarshal(existingJSON, &existing); err != nil {
+		return report
+	}
+	if strings.TrimSpace(existing.GeneratedAt) == "" {
+		return report
+	}
+	candidate := report
+	candidate.GeneratedAt = existing.GeneratedAt
+	candidateJSON, err := marshalHermesContractInventoryJSON(candidate)
+	if err != nil {
+		return report
+	}
+	candidateMD := []byte(RenderHermesContractInventoryMarkdown(candidate))
+	if bytes.Equal(existingJSON, candidateJSON) && bytes.Equal(existingMD, candidateMD) {
+		return candidate
+	}
+	return report
+}
+
+func marshalHermesContractInventoryJSON(report fidelity.Report) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(report); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func RenderHermesContractInventoryMarkdown(report fidelity.Report) string {

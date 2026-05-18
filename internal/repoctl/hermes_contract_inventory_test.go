@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/fidelity"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
@@ -67,6 +68,56 @@ func TestWriteHermesContractInventoryWritesJSONAndMarkdown(t *testing.T) {
 			t.Fatalf("markdown report missing %q:\n%s", want, md)
 		}
 	}
+}
+
+func TestWriteHermesContractInventoryPreservesTimestampWhenContentIsUnchanged(t *testing.T) {
+	root := hermesContractInventoryFixtureRoot(t)
+	first := time.Date(2026, 5, 18, 10, 0, 0, 0, time.UTC)
+	second := first.Add(2 * time.Hour)
+
+	result, err := WriteHermesContractInventory(HermesContractInventoryOptions{
+		Root:             root,
+		CurrentHermesSHA: "abc123",
+		Now: func() time.Time {
+			return first
+		},
+	})
+	if err != nil {
+		t.Fatalf("first WriteHermesContractInventory: %v", err)
+	}
+	firstJSON := readFileForInventoryTest(t, result.JSONPath)
+	firstMD := readFileForInventoryTest(t, result.MarkdownPath)
+
+	result, err = WriteHermesContractInventory(HermesContractInventoryOptions{
+		Root:             root,
+		CurrentHermesSHA: "abc123",
+		Now: func() time.Time {
+			return second
+		},
+	})
+	if err != nil {
+		t.Fatalf("second WriteHermesContractInventory: %v", err)
+	}
+	secondJSON := readFileForInventoryTest(t, result.JSONPath)
+	secondMD := readFileForInventoryTest(t, result.MarkdownPath)
+	if string(firstJSON) != string(secondJSON) {
+		t.Fatalf("JSON report changed on no-op rewrite:\nfirst:\n%s\nsecond:\n%s", firstJSON, secondJSON)
+	}
+	if string(firstMD) != string(secondMD) {
+		t.Fatalf("Markdown report changed on no-op rewrite:\nfirst:\n%s\nsecond:\n%s", firstMD, secondMD)
+	}
+	if result.Report.GeneratedAt != first.UTC().Format(time.RFC3339) {
+		t.Fatalf("GeneratedAt = %q, want preserved %q", result.Report.GeneratedAt, first.UTC().Format(time.RFC3339))
+	}
+}
+
+func readFileForInventoryTest(t *testing.T, path string) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return raw
 }
 
 func findInventorySurface(report fidelity.Report, id string) fidelity.SurfaceReport {
