@@ -8,6 +8,22 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.17] - 2026-05-18
+
+Date alias: `v2026.5.18`.
+
+> **Local voice transcription and voice tool-progress hardening.**
+
+### Fixed
+- Local Telegram Whisper discovery now checks `~/.local/bin/whisper` when
+  service-managed PATH values omit user-local binaries.
+- Local STT now converts OGG and other supported audio inputs into temporary
+  WAV chunks before WASI Whisper transcription, improving Telegram voice-note
+  handling.
+- Gateway and channel tool-progress previews now recognize
+  `transcribe_audio` and `text_to_speech` as voice tools while suppressing raw
+  audio paths and speech text from compact progress messages.
+
 ## [0.2.16] - 2026-05-18
 
 Date alias: `v2026.5.18`.
@@ -1068,7 +1084,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.16...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.17...HEAD
+[0.2.17]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.16...v0.2.17
 [0.2.16]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.15...v0.2.16
 [0.2.15]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.14...v0.2.15
 [0.2.14]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.13...v0.2.14
