@@ -2342,5 +2342,153 @@
         "note": "Gormes-owned Goncho reliability/evaluation layer informed by Protocol-Lattice go-agent scoring/MMR patterns and the local agentmemory reference-product study; no Hermes/Honcho upstream analog."
       }
     }
+  },
+    {
+      "phase": "5",
+      "subphase": "5.N",
+      "pos": 56,
+      "item": {
+      "name": "Goncho recall diagnostics CLI over RecallTrace",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add a narrow `gormes goncho recall-diagnostics --trace <trace.json>` operator command that consumes an existing durable `RecallTrace` JSON artifact and explains selected/rejected ranking outcomes, score components, warning codes, and the no-projection-without-trace invariant. The command must not run retrieval, touch Goncho persistence, change Honcho-compatible public API responses, or add replay/benchmark/UI scope.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing or invalid trace files fail with exit code 1 and typed CLI guidance; traces with warning codes render status=degraded while preserving the warning code/stage/severity evidence. No DB/backend/provider dependency is required.",
+      "fixture": "cmd/gormes/goncho_recall_diagnostics_test.go",
+      "source_refs": [
+        "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_pipeline.go",
+        "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "cmd/gormes/goncho.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+      ],
+      "ready_when": [
+        "The durable RecallTrace IR row is complete and validated.",
+        "A byte-stable RecallTrace fixture exists for command tests.",
+        "The implementation can consume a trace artifact without running live retrieval, embeddings, graph traversal, providers, hosted Honcho, or external databases."
+      ],
+      "not_ready_when": [
+        "The slice attempts to build replay UI, benchmark corpus, scoped grants, agent-as-tool, resumable checkpoints, or a new retrieval backend.",
+        "The command accepts raw candidates or projected Honcho responses instead of a RecallTrace artifact.",
+        "Warnings are hidden in prose without stable code/stage/severity fields."
+      ],
+      "unblocks": [
+        "Goncho replayable retrieval traces",
+        "Goncho retrieval benchmark corpus"
+      ],
+      "acceptance": [
+        "`gormes goncho recall-diagnostics --trace <trace.json>` prints an operator-readable report with trace_id, pipeline_version, scoring_config, query, selected candidates, rejected candidates, score components, why-selected/why-rejected reasons, and warning codes.",
+        "`--json` emits a machine-readable report with service/status/trace_id/query/scoring_config/selected/rejected/warnings fields and status=degraded when warnings are present.",
+        "The command fails fast with exit code 1 and clear guidance when `--trace` is missing or the trace cannot be decoded.",
+        "Internal diagnostics helpers consume `RecallTrace` only and do not expose raw-candidate projection paths.",
+        "Tests use hermetic trace fixtures and require no live memory database, provider, hosted Honcho, embeddings, graph index, or network access."
+      ],
+      "note": "Complete 2026-05-18: shipped a trace-consuming `gormes goncho recall-diagnostics` command plus internal report/formatter helpers. Text output explains ranking components, selected/rejected candidates, why-selected/why-rejected reasons, warning codes, and invariants; JSON output exposes stable fields for automation. Focused tests prove text output from the stable RecallTrace fixture, degraded JSON warning-code output, and missing-trace failure guidance without DB/backend/provider dependencies.",
+      "write_scope": [
+        "internal/goncho/recall_diagnostics.go",
+        "internal/goncho/recall_diagnostics_test.go",
+        "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_diagnostics_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestRecallDiagnostics' -count=1",
+        "go test ./cmd/gormes -run 'TestGonchoRecallDiagnostics' -count=1",
+        "go test ./cmd/gormes ./internal/goncho -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports trace-only diagnostics CLI, text/JSON warning-code output, ranking-reason display, missing-trace failure guidance, and no replay/benchmark/UI/backend scope."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned operator trust layer consuming the durable RecallTrace seam; no Honcho upstream analog."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 57,
+    "item": {
+      "name": "Goncho replayable retrieval traces",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add a narrow replay layer over existing durable `RecallTrace` artifacts plus `gormes goncho recall-replay --trace <trace.json>` text/JSON output. The replay must expose an ordered, deterministic retrieval timeline for query, scored candidates, warning codes, selected/rejected candidates, and trace-only projection readiness without running retrieval, touching Goncho persistence, changing Honcho-compatible public APIs, or adding benchmark/UI/backend scope.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing or invalid trace files fail with exit code 1 and clear CLI guidance; traces with degraded paths replay every warning as a code-first event containing code/stage/severity evidence. The replay command requires no database, provider, embedding model, graph index, hosted Honcho service, or network access.",
+      "fixture": "cmd/gormes/goncho_recall_replay_test.go",
+      "source_refs": [
+        "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_diagnostics.go",
+        "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "cmd/gormes/goncho.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho"
+      ],
+      "ready_when": [
+        "The durable RecallTrace IR row is complete and validated.",
+        "The recall diagnostics CLI over RecallTrace is complete and proves trace decoding plus operator-readable ranking evidence.",
+        "A byte-stable RecallTrace fixture exists for replay command tests."
+      ],
+      "not_ready_when": [
+        "The slice attempts to build a replay UI, benchmark corpus, scoped grants, agent-as-tool adapter, resumable checkpoints, or a new retrieval backend.",
+        "The command accepts raw candidates or projected Honcho responses instead of a RecallTrace artifact.",
+        "The replay silently collapses degraded paths into prose without stable warning code/stage/severity events."
+      ],
+      "unblocks": [
+        "Goncho retrieval benchmark corpus",
+        "Goncho provenance UI over RecallTrace"
+      ],
+      "acceptance": [
+        "`BuildRecallReplay(RecallTrace)` returns a deterministic artifact with service, trace_id, pipeline_version, scoring_config_version, query, event_count, ordered events, projection invariant, and replay contract fields.",
+        "Replay events preserve stable order for query, candidate scoring, warnings, selected candidates, rejected candidates, and projection readiness, with deterministic 1-based indices.",
+        "Every warning in the trace appears as a replay event with code-first warning_code and severity fields.",
+        "`gormes goncho recall-replay --trace <trace.json>` prints an operator-readable timeline with candidate scores, selected/rejected decisions, warning events, projection readiness, and the no-projection-without-trace invariant.",
+        "`--json` emits the same replay artifact for automation, and missing `--trace` fails with exit code 1 plus clear guidance.",
+        "Tests use hermetic trace fixtures and require no live memory database, provider, hosted Honcho, embeddings, graph index, or network access."
+      ],
+      "note": "Complete 2026-05-18: shipped trace-only replay artifacts and `gormes goncho recall-replay` text/JSON output. The replay timeline is deterministic, indexed, and built only from durable RecallTrace input; it exposes query, candidate scoring, warning-code, selected, rejected, and projection-ready events while preserving the no-projection-without-trace invariant. Focused tests prove stable internal replay output, command text output from the golden RecallTrace fixture, JSON warning-event output, and missing-trace guidance.",
+      "write_scope": [
+        "internal/goncho/recall_replay.go",
+        "internal/goncho/recall_replay_test.go",
+        "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_replay.go",
+        "cmd/gormes/goncho_recall_replay_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestRecallReplay' -count=1",
+        "go test ./cmd/gormes -run 'TestGonchoRecallReplay' -count=1",
+        "go test ./cmd/gormes ./internal/goncho -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports deterministic trace-only replay artifacts, text/JSON CLI replay output, code-first warning events, projection-ready event evidence, missing-trace failure guidance, and no benchmark/UI/backend/public-API scope."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned operator trust and evaluation substrate consuming the durable RecallTrace seam; no Honcho upstream analog."
+      }
+    }
   }
 ]

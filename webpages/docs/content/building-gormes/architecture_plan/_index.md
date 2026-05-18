@@ -1028,6 +1028,8 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway auto-resume on restart
 - [ ] `tools` Hermes x_search tool and auth surface
 - [x] `goncho` Goncho durable recall trace IR + fused ranking pipeline
+- [x] `goncho` Goncho recall diagnostics CLI over RecallTrace
+- [x] `goncho` Goncho replayable retrieval traces
 
 ### 5.O — Hermes CLI Parity 🔨
 

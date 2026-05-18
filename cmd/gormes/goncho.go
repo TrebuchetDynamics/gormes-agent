@@ -24,8 +24,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
-// newGonchoCommand returns a fresh goncho command tree (parent +
-// doctor subcommand). Constructor pattern eliminates the
+// newGonchoCommand returns a fresh goncho command tree. Constructor pattern
+// eliminates the
 // `resetGonchoDoctorFlags` workaround the package-level var version
 // needed for cross-test FlagSet isolation.
 func newGonchoCommand() *cobra.Command {
@@ -35,6 +35,8 @@ func newGonchoCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(newGonchoDoctorCommand())
+	cmd.AddCommand(newGonchoRecallDiagnosticsCommand())
+	cmd.AddCommand(newGonchoRecallReplayCommand())
 	return cmd
 }
 
