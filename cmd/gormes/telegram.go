@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -31,13 +32,9 @@ import (
 // < 100 MB binary ceiling. Constructor pattern keeps each
 // newRootCommand() instance independent.
 func newTelegramCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:          "telegram",
-		Short:        "Run Gormes as a Telegram bot adapter",
-		Long:         "Long-polls Telegram for DMs from the allowlisted chat, drives the same kernel + tool loop as the TUI, and persists turns to the SQLite memory store.",
-		SilenceUsage: true,
-		RunE:         runTelegram,
-	}
+	return channelsmodule.NewTelegramCommandWithSeams(channelsmodule.TelegramCommandSeams{
+		Run: runTelegram,
+	})
 }
 
 func runTelegram(cmd *cobra.Command, _ []string) error {

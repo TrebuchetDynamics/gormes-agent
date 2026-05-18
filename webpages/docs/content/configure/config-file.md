@@ -317,6 +317,13 @@ Multi-agent registry. `agents.defaults` carries fallback workspace/model;
 `[[agents.list]]` defines named agents with `id`, `name`, `workspace`,
 `model`, and `default`.
 
+| Field | Purpose |
+|---|---|
+| `agents.defaults.workspace` | Single default workspace path used for backward-compatible agent defaults. |
+| `agents.defaults.workspaces` | Per-profile project workspace list persisted by `gormes setup profiles`. Current releases round-trip this list but do not yet enforce it as an access boundary. Planned policy: empty list means operator home; non-empty list is the project read/write allow-list. Runtime internals still use the active profile root for state, but model-facing profile edits are limited to explicit profile-owned content such as `SOUL.md`, `IDENTITY.md`, and `skills/`; secrets and runtime databases are not project workspaces. |
+| `agents.defaults.channels` | Per-profile messaging-channel list persisted by `gormes setup profiles`; distinct from `[[bindings]]` routing and channel credentials. |
+| `[[agents.list]].workspace` | Per-agent primary workspace path. This is different from Goncho's memory workspace id. |
+
 ### `[[bindings]]`
 
 Channel-to-agent routing rules. Each entry: `agent_id` plus a `bindings.match`

@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/channels"
 	wa "github.com/TrebuchetDynamics/gormes-agent/internal/channels/whatsapp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
@@ -74,24 +75,23 @@ type whatsappPairingPlan struct {
 
 func newWhatsAppCommandWithSeams(seams whatsappCommandSeams) *cobra.Command {
 	seams = seams.withDefaults()
-	opts := whatsappCommandOptions{}
-	cmd := &cobra.Command{
-		Use:          "whatsapp",
-		Short:        "Set up WhatsApp pairing through the Hermes-compatible Baileys bridge",
-		Long:         "Sets up WhatsApp mode, allowlist state, bridge dependencies, and QR pairing through the Hermes-compatible Baileys bridge.",
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runWhatsAppCommand(cmd, opts, seams)
+	return channelsmodule.NewWhatsAppCommandWithSeams(channelsmodule.WhatsAppCommandSeams{
+		Run: func(cmd *cobra.Command, opts channelsmodule.WhatsAppOptions) error {
+			return runWhatsAppCommand(cmd, whatsappCommandOptionsFromModule(opts), seams)
 		},
+	})
+}
+
+func whatsappCommandOptionsFromModule(opts channelsmodule.WhatsAppOptions) whatsappCommandOptions {
+	return whatsappCommandOptions{
+		Mode:         opts.Mode,
+		AllowedUsers: opts.AllowedUsers,
+		AllowAll:     opts.AllowAll,
+		Debug:        opts.Debug,
+		PlanOnly:     opts.PlanOnly,
+		JSONOut:      opts.JSONOut,
+		BridgeScript: opts.BridgeScript,
 	}
-	cmd.Flags().StringVar(&opts.Mode, "mode", "bot", "WhatsApp mode: bot or self-chat")
-	cmd.Flags().StringVar(&opts.AllowedUsers, "allowed-users", "", "comma-separated allowed phone numbers with country code and no punctuation")
-	cmd.Flags().BoolVar(&opts.AllowAll, "allow-all-users", false, "render allow-all sender configuration")
-	cmd.Flags().BoolVar(&opts.Debug, "debug", false, "render WHATSAPP_DEBUG=true in the dotenv plan")
-	cmd.Flags().BoolVar(&opts.PlanOnly, "plan", false, "render the WhatsApp bridge plan without starting QR pairing")
-	cmd.Flags().BoolVar(&opts.JSONOut, "json", false, "with --plan, emit the plan as machine-readable JSON")
-	cmd.Flags().StringVar(&opts.BridgeScript, "bridge-script", "", "override the WhatsApp bridge.js path")
-	return cmd
 }
 
 func (seams whatsappCommandSeams) withDefaults() whatsappCommandSeams {

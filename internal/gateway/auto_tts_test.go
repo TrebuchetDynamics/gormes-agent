@@ -46,6 +46,9 @@ func TestInboundRequestsAudioReply(t *testing.T) {
 	if !inboundRequestsAudioReply(InboundEvent{Text: "I cannot read right now, send audio too"}) {
 		t.Fatal("cannot-read text did not request audio reply")
 	}
+	if !inboundRequestsAudioReply(InboundEvent{Text: "Mandamelo en audio, por favor"}) {
+		t.Fatal("Spanish audio request did not request audio reply")
+	}
 	if inboundRequestsAudioReply(InboundEvent{Text: "plain written answer is fine"}) {
 		t.Fatal("plain text unexpectedly requested audio reply")
 	}

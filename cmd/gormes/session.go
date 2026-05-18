@@ -16,6 +16,7 @@ import (
 	_ "github.com/ncruces/go-sqlite3/driver"
 	"github.com/spf13/cobra"
 
+	sessionsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/sessions"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
@@ -26,77 +27,57 @@ import (
 // list/export/delete/prune/browse subcommands). Constructor pattern
 // avoids cross-test FlagSet contamination on shared package-level vars.
 func newSessionCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "session",
-		Aliases: []string{"sessions"},
-		Short:   "Inspect and export persisted sessions",
-		Args:    cobra.NoArgs,
-	}
-	cmd.AddCommand(
-		newSessionListCommand(),
-		newSessionExportCommand(),
-		newSessionDeleteCommand(),
-		newSessionPruneCommand(),
-		newSessionBrowseCommand(),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "stats",
-			Short: "Show Hermes-compatible session statistics",
-			Row:   "Session shutdown memory transcript handoff",
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "rename <session-id> <title>",
-			Short: "Rename a persisted session",
-			Row:   "Session shutdown memory transcript handoff",
-		}),
-	)
-	return cmd
+	return sessionsmodule.NewSessionCommandWithSeams(sessionsmodule.SessionCommandSeams{
+		RunList:   runSessionListCommand,
+		RunExport: runSessionExportCommand,
+		RunDelete: runSessionDeleteCommand,
+		RunPrune:  runSessionPruneCommand,
+		RunBrowse: runSessionBrowseCommand,
+		UnavailableCommand: func(spec sessionsmodule.UnavailableCommandSpec) *cobra.Command {
+			return newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+				Use:   spec.Use,
+				Short: spec.Short,
+				Row:   spec.Row,
+			})
+		},
+	})
 }
 
-func newSessionListCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List recent sessions",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			source, _ := cmd.Flags().GetString("source")
-			limit, _ := cmd.Flags().GetInt("limit")
-			asJSON, _ := cmd.Flags().GetBool("json")
-			// On a fresh install the goncho memory.db doesn't exist
-			// yet (it's created lazily on the first turn write). For
-			// an inventory command the absence of state isn't an
-			// error — it's the empty state. Mutating commands
-			// (export/delete/continue) keep their hard error in
-			// openSessionDirectoryDB.
-			db, err := openSessionDirectoryDB()
-			if err != nil {
-				if errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "memory database not found") {
-					if asJSON {
-						return emitSessionListJSON(cmd, nil)
-					}
-					fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
-					return nil
-				}
-				return err
-			}
-			defer db.Close()
-			sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
-			if err != nil {
-				return err
-			}
+func runSessionListCommand(cmd *cobra.Command, _ []string) error {
+	source, _ := cmd.Flags().GetString("source")
+	limit, _ := cmd.Flags().GetInt("limit")
+	asJSON, _ := cmd.Flags().GetBool("json")
+	// On a fresh install the goncho memory.db doesn't exist
+	// yet (it's created lazily on the first turn write). For
+	// an inventory command the absence of state isn't an
+	// error — it's the empty state. Mutating commands
+	// (export/delete/continue) keep their hard error in
+	// openSessionDirectoryDB.
+	db, err := openSessionDirectoryDB()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "memory database not found") {
 			if asJSON {
-				return emitSessionListJSON(cmd, sessions)
+				return emitSessionListJSON(cmd, nil)
 			}
-			if len(sessions) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
-				return nil
-			}
-			renderSessionDirectoryList(cmd.OutOrStdout(), sessions)
+			fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
 			return nil
-		},
+		}
+		return err
 	}
-	cmd.Flags().String("source", "", "only list sessions from this source")
-	cmd.Flags().Int("limit", 20, "max sessions to list")
-	cmd.Flags().Bool("json", false, "emit a `{build, sessions: [...]}` JSON document (suitable for fleet inventory automation)")
-	return cmd
+	defer db.Close()
+	sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
+	if err != nil {
+		return err
+	}
+	if asJSON {
+		return emitSessionListJSON(cmd, sessions)
+	}
+	if len(sessions) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
+		return nil
+	}
+	renderSessionDirectoryList(cmd.OutOrStdout(), sessions)
+	return nil
 }
 
 // sessionListReportJSON is the wire shape for `gormes session list --json`.
@@ -157,157 +138,137 @@ type sessionExportReportJSON struct {
 	Content   string              `json:"content"`
 }
 
-func newSessionExportCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "export <session-id-or-prefix>",
-		Short: "Export a persisted session transcript",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Flags().GetString("format")
-			asJSON, _ := cmd.Flags().GetBool("json")
-			if format != "markdown" {
-				return fmt.Errorf("unsupported export format %q", format)
-			}
-
-			path := config.MemoryDBPath()
-			if _, err := os.Stat(path); err != nil {
-				if errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("memory database not found at %s", path)
-				}
-				return err
-			}
-
-			db, err := sqlOpenGoncho(path)
-			if err != nil {
-				return fmt.Errorf("open transcript db: %w", err)
-			}
-			defer db.Close()
-
-			// Resolve the operator's input as a session id OR a unique
-			// prefix — same shape `session delete` accepts. Operators
-			// shouldn't have to copy-paste a 24-char id when a 7-char
-			// prefix already disambiguates.
-			resolved, err := sessionpkg.ResolveSessionIDPrefix(context.Background(), db, args[0])
-			if err != nil {
-				if errors.Is(err, sessionpkg.ErrSessionNotFound) {
-					return fmt.Errorf("session %q not found", args[0])
-				}
-				if errors.Is(err, sessionpkg.ErrSessionPrefixAmbiguous) {
-					return fmt.Errorf("session export: prefix %q is ambiguous: %w", args[0], err)
-				}
-				return err
-			}
-
-			out, err := transcript.ExportMarkdown(context.Background(), db, resolved)
-			if err != nil {
-				if errors.Is(err, transcript.ErrSessionNotFound) {
-					return fmt.Errorf("session %q not found", resolved)
-				}
-				return err
-			}
-
-			if asJSON {
-				body, marshalErr := json.MarshalIndent(sessionExportReportJSON{
-					Build:     newBuildProvenance(),
-					SessionID: resolved,
-					Format:    format,
-					Content:   out,
-				}, "", "  ")
-				if marshalErr != nil {
-					return marshalErr
-				}
-				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
-				return err
-			}
-
-			_, err = fmt.Fprint(cmd.OutOrStdout(), out)
-			return err
-		},
+func runSessionExportCommand(cmd *cobra.Command, args []string) error {
+	format, _ := cmd.Flags().GetString("format")
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if format != "markdown" {
+		return fmt.Errorf("unsupported export format %q", format)
 	}
-	cmd.Flags().String("format", "markdown", "export format")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, session_id, format, content}")
-	return cmd
+
+	path := config.MemoryDBPath()
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("memory database not found at %s", path)
+		}
+		return err
+	}
+
+	db, err := sqlOpenGoncho(path)
+	if err != nil {
+		return fmt.Errorf("open transcript db: %w", err)
+	}
+	defer db.Close()
+
+	// Resolve the operator's input as a session id OR a unique
+	// prefix — same shape `session delete` accepts. Operators
+	// shouldn't have to copy-paste a 24-char id when a 7-char
+	// prefix already disambiguates.
+	resolved, err := sessionpkg.ResolveSessionIDPrefix(context.Background(), db, args[0])
+	if err != nil {
+		if errors.Is(err, sessionpkg.ErrSessionNotFound) {
+			return fmt.Errorf("session %q not found", args[0])
+		}
+		if errors.Is(err, sessionpkg.ErrSessionPrefixAmbiguous) {
+			return fmt.Errorf("session export: prefix %q is ambiguous: %w", args[0], err)
+		}
+		return err
+	}
+
+	out, err := transcript.ExportMarkdown(context.Background(), db, resolved)
+	if err != nil {
+		if errors.Is(err, transcript.ErrSessionNotFound) {
+			return fmt.Errorf("session %q not found", resolved)
+		}
+		return err
+	}
+
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(sessionExportReportJSON{
+			Build:     newBuildProvenance(),
+			SessionID: resolved,
+			Format:    format,
+			Content:   out,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
+
+	_, err = fmt.Fprint(cmd.OutOrStdout(), out)
+	return err
 }
 
-func newSessionDeleteCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "delete <session-id-or-prefix>",
-		Short: "Delete a persisted session",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := openSessionDirectoryDB()
-			if err != nil {
-				return err
-			}
-			defer db.Close()
-			asJSON, _ := cmd.Flags().GetBool("json")
-			resolved, err := sessionpkg.ResolveSessionIDPrefix(context.Background(), db, args[0])
-			if err != nil {
-				if errors.Is(err, sessionpkg.ErrSessionNotFound) {
-					if asJSON {
-						return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
-							Build:       newBuildProvenance(),
-							Action:      "not_found",
-							RequestedID: args[0],
-						})
-					}
-					fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
-					return nil
-				}
-				if errors.Is(err, sessionpkg.ErrSessionPrefixAmbiguous) {
-					if asJSON {
-						return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
-							Build:       newBuildProvenance(),
-							Action:      "ambiguous",
-							RequestedID: args[0],
-							Error:       err.Error(),
-						})
-					}
-					fmt.Fprintf(cmd.OutOrStdout(), "sessions_delete_ambiguous: %s\n", err.Error())
-					return nil
-				}
-				return err
-			}
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !cmd.Flags().Changed("yes") {
-				yes = false
-			}
-			if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete session '%s' and all its messages? [y/N] ", resolved)) {
-				fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
-				return nil
-			}
-			deleted, err := sessionpkg.DeleteDirectorySession(context.Background(), db, resolved)
-			if err != nil {
-				return err
-			}
-			if !deleted {
-				if asJSON {
-					return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
-						Build:       newBuildProvenance(),
-						Action:      "not_found",
-						RequestedID: args[0],
-						ResolvedID:  resolved,
-					})
-				}
-				fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
-				return nil
-			}
+func runSessionDeleteCommand(cmd *cobra.Command, args []string) error {
+	db, err := openSessionDirectoryDB()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	asJSON, _ := cmd.Flags().GetBool("json")
+	resolved, err := sessionpkg.ResolveSessionIDPrefix(context.Background(), db, args[0])
+	if err != nil {
+		if errors.Is(err, sessionpkg.ErrSessionNotFound) {
 			if asJSON {
 				return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
 					Build:       newBuildProvenance(),
-					Action:      "deleted",
+					Action:      "not_found",
 					RequestedID: args[0],
-					ResolvedID:  resolved,
-					Deleted:     true,
 				})
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Deleted session '%s'.\n", resolved)
+			fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
 			return nil
-		},
+		}
+		if errors.Is(err, sessionpkg.ErrSessionPrefixAmbiguous) {
+			if asJSON {
+				return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
+					Build:       newBuildProvenance(),
+					Action:      "ambiguous",
+					RequestedID: args[0],
+					Error:       err.Error(),
+				})
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "sessions_delete_ambiguous: %s\n", err.Error())
+			return nil
+		}
+		return err
 	}
-	cmd.Flags().Bool("yes", false, "delete without prompting")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'deleted'|'not_found'|'ambiguous', requested_id, resolved_id, deleted, error?}`")
-	return cmd
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !cmd.Flags().Changed("yes") {
+		yes = false
+	}
+	if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete session '%s' and all its messages? [y/N] ", resolved)) {
+		fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+		return nil
+	}
+	deleted, err := sessionpkg.DeleteDirectorySession(context.Background(), db, resolved)
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		if asJSON {
+			return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
+				Build:       newBuildProvenance(),
+				Action:      "not_found",
+				RequestedID: args[0],
+				ResolvedID:  resolved,
+			})
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
+		return nil
+	}
+	if asJSON {
+		return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
+			Build:       newBuildProvenance(),
+			Action:      "deleted",
+			RequestedID: args[0],
+			ResolvedID:  resolved,
+			Deleted:     true,
+		})
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Deleted session '%s'.\n", resolved)
+	return nil
 }
 
 // sessionDeleteReportJSON is the wire shape for `session delete --json`.
@@ -332,55 +293,44 @@ func writeSessionDeleteJSON(out interface{ Write(p []byte) (int, error) }, repor
 	return nil
 }
 
-func newSessionPruneCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "prune",
-		Short: "Delete old persisted sessions",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := openSessionDirectoryDB()
-			if err != nil {
-				return err
-			}
-			defer db.Close()
-			days, _ := cmd.Flags().GetInt("older-than")
-			source, _ := cmd.Flags().GetString("source")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !cmd.Flags().Changed("yes") {
-				yes = false
-			}
-			asJSON, _ := cmd.Flags().GetBool("json")
-			if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete sessions older than %d days? [y/N] ", days)) {
-				fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
-				return nil
-			}
-			cutoff := time.Now().AddDate(0, 0, -days).Unix()
-			count, err := sessionpkg.PruneDirectorySessions(context.Background(), db, cutoff, source)
-			if err != nil {
-				return err
-			}
-			if asJSON {
-				body, marshalErr := json.MarshalIndent(sessionPruneReportJSON{
-					Build:         newBuildProvenance(),
-					Action:        "pruned",
-					OlderThanDays: days,
-					Source:        source,
-					Pruned:        count,
-				}, "", "  ")
-				if marshalErr != nil {
-					return marshalErr
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), string(body))
-				return nil
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Pruned %d session(s).\n", count)
-			return nil
-		},
+func runSessionPruneCommand(cmd *cobra.Command, _ []string) error {
+	db, err := openSessionDirectoryDB()
+	if err != nil {
+		return err
 	}
-	cmd.Flags().Int("older-than", 90, "delete sessions older than N days")
-	cmd.Flags().String("source", "", "only prune sessions from this source")
-	cmd.Flags().Bool("yes", false, "prune without prompting")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, older_than_days, source, pruned}`")
-	return cmd
+	defer db.Close()
+	days, _ := cmd.Flags().GetInt("older-than")
+	source, _ := cmd.Flags().GetString("source")
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !cmd.Flags().Changed("yes") {
+		yes = false
+	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete sessions older than %d days? [y/N] ", days)) {
+		fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+		return nil
+	}
+	cutoff := time.Now().AddDate(0, 0, -days).Unix()
+	count, err := sessionpkg.PruneDirectorySessions(context.Background(), db, cutoff, source)
+	if err != nil {
+		return err
+	}
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(sessionPruneReportJSON{
+			Build:         newBuildProvenance(),
+			Action:        "pruned",
+			OlderThanDays: days,
+			Source:        source,
+			Pruned:        count,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Pruned %d session(s).\n", count)
+	return nil
 }
 
 // sessionPruneReportJSON is the wire shape for `session prune --json`.
@@ -395,35 +345,25 @@ type sessionPruneReportJSON struct {
 	Pruned        int                 `json:"pruned"`
 }
 
-func newSessionBrowseCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "browse",
-		Short: "Browse and resume persisted sessions",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := openSessionDirectoryDB()
-			if err != nil {
-				return err
-			}
-			defer db.Close()
-			source, _ := cmd.Flags().GetString("source")
-			limit, _ := cmd.Flags().GetInt("limit")
-			sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
-			if err != nil {
-				return err
-			}
-			selected := sessionBrowseFallback(cmd.OutOrStdout(), cmd.InOrStdin(), sessions)
-			if selected == "" {
-				fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
-				return nil
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Resuming session: %s\n", selected)
-			return nil
-		},
+func runSessionBrowseCommand(cmd *cobra.Command, _ []string) error {
+	db, err := openSessionDirectoryDB()
+	if err != nil {
+		return err
 	}
-	cmd.Flags().String("source", "", "only browse sessions from this source")
-	cmd.Flags().Int("limit", 500, "max sessions to load")
-	cmd.Flags().Bool("no-curses", false, "use the numbered fallback picker")
-	return cmd
+	defer db.Close()
+	source, _ := cmd.Flags().GetString("source")
+	limit, _ := cmd.Flags().GetInt("limit")
+	sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
+	if err != nil {
+		return err
+	}
+	selected := sessionBrowseFallback(cmd.OutOrStdout(), cmd.InOrStdin(), sessions)
+	if selected == "" {
+		fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+		return nil
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Resuming session: %s\n", selected)
+	return nil
 }
 
 func openSessionDirectoryDB() (*sql.DB, error) {

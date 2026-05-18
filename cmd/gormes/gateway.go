@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.etcd.io/bbolt"
 
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
@@ -37,37 +38,22 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
 
-// newGatewayCommand returns a fresh gateway command tree. Constructor pattern
-// eliminates shared package-level FlagSet state across the multi-file tree.
 func newGatewayCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "gateway",
-		Short:        "Run Gormes as a multi-channel messaging gateway",
-		Long:         "Runs every configured channel through one gateway.Manager that drives the same kernel + tool loop as the TUI.",
-		SilenceUsage: true,
-		Args:         cobra.NoArgs,
-		RunE:         runGateway,
+	return gatewaymodule.NewGatewayCommandWithSeams(gatewayCommandSeams(), gatewayCommandOptions())
+}
+
+func gatewayCommandSeams() gatewaymodule.GatewayCommandSeams {
+	return gatewaymodule.GatewayCommandSeams{
+		Run:                        runGateway,
+		StopCommand:                newGatewayStopCommand,
+		RestartCommand:             newGatewayRestartCommand,
+		ReloadCommand:              newGatewayReloadCommand,
+		StatusCommand:              newGatewayStatusCommand,
+		DiscoverCommand:            newGatewayDiscoverCommand,
+		ProbeCommand:               newGatewayProbeCommand,
+		UsageCostCommand:           newGatewayUsageCostCommand,
+		MutatingUnavailableCommand: newGatewayMutatingUnavailableCommand,
 	}
-	cmd.AddCommand(
-		newGatewayStopCommand(),
-		newGatewayRestartCommand(),
-		newGatewayReloadCommand(),
-		newGatewayStatusCommand(),
-		newGatewayDiscoverCommand(),
-		newGatewayProbeCommand(),
-		newGatewayUsageCostCommand(),
-	)
-	for _, name := range gatewayMutatingUnavailableSubcommands {
-		cmd.AddCommand(newGatewayMutatingUnavailableCommand(name))
-	}
-	for _, name := range gatewayRowBackedUnavailableSubcommands {
-		cmd.AddCommand(newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   name,
-			Short: fmt.Sprintf("Manage gateway %s through a row-backed Hermes parity command", name),
-			Row:   hermesGatewayCronRow,
-		}))
-	}
-	return cmd
 }
 
 // gatewayMutatingUnavailableExitCode is the stable non-zero exit code surfaced

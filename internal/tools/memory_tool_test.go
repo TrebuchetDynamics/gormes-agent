@@ -119,6 +119,51 @@ func TestMemoryToolReadsDurableMemoryWithoutMutating(t *testing.T) {
 	}
 }
 
+func TestMemoryToolReadReturnsProvenanceInventory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "USER.md"), []byte("Juan prefers concise memory summaries.\n"), 0o600); err != nil {
+		t.Fatalf("write USER.md fixture: %v", err)
+	}
+	tool := NewMemoryTool(MemoryToolConfig{MemoryDir: dir})
+
+	result := executeMemoryTool(t, tool, map[string]any{
+		"action": "read",
+		"target": "memory",
+	})
+
+	if !result.Success || result.Target != "memory" || result.EntryCount != 0 {
+		t.Fatalf("read result = %#v, want successful empty MEMORY.md read", result)
+	}
+	if result.Provenance == nil {
+		t.Fatal("read result provenance is nil; want inventory of included and omitted memory sources")
+	}
+	if result.Provenance.SelectedSource != "durable_markdown_memory" {
+		t.Fatalf("selected_source = %q, want durable_markdown_memory", result.Provenance.SelectedSource)
+	}
+	selected := requireMemoryInventorySource(t, result.Provenance.Sources, "durable_markdown_memory")
+	if !selected.Included || selected.Target != "memory" || selected.EntryCount != 0 || selected.State != "missing" {
+		t.Fatalf("selected source = %+v, want included missing MEMORY.md inventory", selected)
+	}
+	user := requireMemoryInventorySource(t, result.Provenance.Sources, "durable_markdown_user")
+	if user.Included || user.Target != "user" || user.EntryCount != 1 || user.State != "available" {
+		t.Fatalf("user source = %+v, want available but omitted USER.md inventory", user)
+	}
+	for _, source := range []string{
+		"goncho_db_active_items",
+		"loaded_context_files",
+		"profile_state",
+		"session_transcripts",
+	} {
+		item := requireMemoryInventorySource(t, result.Provenance.Sources, source)
+		if item.Included {
+			t.Fatalf("%s source = %+v, want omitted from memory read result", source, item)
+		}
+		if strings.TrimSpace(item.ReadWith) == "" {
+			t.Fatalf("%s source = %+v, want read_with guidance", source, item)
+		}
+	}
+}
+
 func TestMemoryToolReadsHermesDelimitedEntriesAndDeduplicates(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "MEMORY.md")
@@ -147,6 +192,17 @@ func TestMemoryToolReadsHermesDelimitedEntriesAndDeduplicates(t *testing.T) {
 	if result.EntryCount != len(want) {
 		t.Fatalf("entry_count = %d, want %d", result.EntryCount, len(want))
 	}
+}
+
+func requireMemoryInventorySource(t *testing.T, sources []MemoryInventorySource, source string) MemoryInventorySource {
+	t.Helper()
+	for _, item := range sources {
+		if item.Source == source {
+			return item
+		}
+	}
+	t.Fatalf("memory inventory sources missing %q: %+v", source, sources)
+	return MemoryInventorySource{}
 }
 
 func TestMemoryToolWritesHermesEntryDelimiter(t *testing.T) {

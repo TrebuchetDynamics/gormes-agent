@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `navivox`
 **Rows:** 22
-**Status counts:** `complete`: 13 · `in_progress`: 0 · `planned`: 9
+**Status counts:** `complete`: 12 · `in_progress`: 0 · `planned`: 10
 **Priority counts:** `P0`: 2 · `P1`: 12 · `P2`: 1 · `P3`: 1 · `unset`: 6
 
 ## Phase 2 — The Gateway
@@ -33,7 +33,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `complete` | `P2` | `navivox` | gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned) |
+| `planned` | `P2` | `navivox` | gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned) |
 | `planned` | `P3` | `navivox` | gormes setup profiles — all profiles navivox-accessible by default |
 
 ## Phase 9 — Design & Security Hardening

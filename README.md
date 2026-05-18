@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Hermes-class agents from one Go binary.</strong><br>
-  Gormes is a Go-native runtime for Hermes-compatible agents: providers, tools, skills, local SQLite memory, sessions, and gateways in one static binary. It carries the 30 most-used Hermes skills to Termux, Windows-without-Python, and locked-down corp Linux — no pip, no venv, no Docker daemon.
+  <strong>Run Hermes-compatible agents from one Go binary.</strong><br>
+  Gormes is a Go-native runtime for providers, tools, skills, local SQLite memory, sessions, dashboard, and chat gateways in one static binary. It brings the Hermes agent shape to Termux, Windows-without-Python, and locked-down Linux hosts: no pip, no venv, no Docker daemon. The bundled skill set covers the 30 most-used Hermes skills, including coding, GitHub, browser/web tools, research, productivity, and media workflows.
 </p>
 
 <p align="center">
@@ -23,16 +23,19 @@
 
 Gormes is not a micro-agent. It keeps the broad Hermes agent architecture and makes it portable, inspectable, and cheap to operate from a normal terminal.
 
+The demo above is a real operator path: install, setup, provider setup, first task, web tools, Termux, and gateway.
+
 ## At A Glance
 
 | Signal | Current evidence |
 |---|---|
 | Runtime shape | One Go binary for CLI, TUI, provider turns, tools, skills, memory, sessions, dashboard, and gateways |
 | Install proof | `gormes doctor --offline` and `gormes --offline` run before any provider token is needed |
-| Measured footprint | Linux build ~45.8 MB; offline doctor peak RSS ~25.6 MB (`benchmarks.json`, 2026-05-16) |
+| Release artifact | Linux build ~45.9 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |
+| Bundled skills | 30 Hermes skills across coding, GitHub, browser/web, research, productivity, and media workflows |
 | Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
 | Stable channels | Telegram, Discord, and Slack through one gateway process |
-| Project posture | Scout release: useful today, with full Hermes parity, voice/TTS, signing, and package-manager lanes still hardening |
+| Release posture | Useful today for CLI/TUI, provider turns, local state, and Telegram/Discord/Slack; voice/TTS, release signing, package-manager lanes, and remaining parity gaps are on the roadmap |
 
 ## Quick Install
 
@@ -48,7 +51,7 @@ curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/dow
 irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex
 ```
 
-> **Inspect first:** download the script, read it, then run it. Both installers are user-scoped — no root or admin paths.
+> Both installers are user-scoped. For audit-first installs, download the script, read it, then run it.
 
 After installation:
 
@@ -80,7 +83,7 @@ If `gormes chat` opens, the TUI and gateway have a model to use.
 - Termux can be the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds.
 - Long-running personal or team agents that need local sessions, memory, tools, and chat gateways.
 
-Not yet for teams that require signed enterprise releases, full Hermes parity, voice/TTS parity, or broad channel parity on day one.
+Not yet for teams that require signed enterprise releases, voice/TTS parity, or every Hermes channel on day one.
 
 ## What Works Today
 
@@ -97,7 +100,7 @@ Not yet for teams that require signed enterprise releases, full Hermes parity, v
 | Learning loop, MCP/plugin parity, voice/TTS | **Roadmap** |
 | Release signing, package-manager lanes | **Roadmap** |
 
-Full Hermes-parity status by phase lives in the [roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/).
+Detailed parity status by phase lives in the [roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/).
 
 ## Why People Switch
 
@@ -108,7 +111,7 @@ Full Hermes-parity status by phase lives in the [roadmap](https://docs.gormes.ai
 | **Smoke test** | Needs a live model first | `gormes doctor --offline` and `gormes --offline` |
 | **State** | Redis, vector DBs, sidecars | SQLite under `~/.gormes` |
 | **Channels** | Separate bot glue per platform | One gateway process with channel bindings |
-| **Footprint claims** | Often anecdotal | Binary size and RSS recorded in `benchmarks.json` |
+| **Footprint claims** | Often anecdotal | Release assets and binary size recorded from `benchmarks.json`; no Python/Node sidecar on the local path |
 | **Release trust** | Ad-hoc local environments | Tagged release assets with SHA-256 + SBOMs |
 
 ## How It Works
@@ -192,25 +195,27 @@ gormes doctor --offline
 
 - `gormes doctor --offline` and `gormes --offline` prove local readiness before any token spend.
 - Provider secrets stay local under `~/.gormes/.env`; config under `~/.gormes/config.toml`.
-- Tagged releases publish a single static binary per target plus SHA-256 checksums and SBOMs (release signing and package-manager lanes are still hardening).
+- Tagged releases publish a single static binary per target plus SHA-256 checksums and SBOMs. Release signing and package-manager lanes remain on the roadmap.
 - The `curl … | sh` install path is validated by an end-to-end suite ([`tests/install/e2e.sh`](tests/install/e2e.sh)) covering API outage with redirect fallback, SHA-256 mismatch abort, SSH-origin update fallback to public HTTPS, hosts without Go/curl/wget/systemd, Termux detection, sudo'd root install, and `--uninstall --dry-run` preview. Runnable locally or via the [`install-e2e`](.github/workflows/install-e2e.yml) workflow on demand.
 
-## How It's Built
+## Engineering Evidence
 
-Gormes is the artifact of an autonomous-porting methodology — a validation-gated planner → builder → TDD-slice loop that ports Hermes to Go one bounded vertical at a time. The runtime is the product; the methodology is the supporting evidence.
+Gormes is ported against Hermes behavior in small, test-backed slices. This process is here for auditability; the product pitch is the runtime you can install and run.
 
+- Roadmap: [Hermes parity phases](https://docs.gormes.ai/building-gormes/architecture_plan/)
 - Strategy: [Gormes Success Plan](docs/content/building-gormes/strategy/success-plan.md)
 - Engineering blog: [TrebuchetDynamics Engineering](https://engineering.trebuchetdynamics.com/) ([RSS](https://engineering.trebuchetdynamics.com/feed.xml))
 - Differentiator: [v1.0 differentiator](docs/content/building-gormes/strategy/v1-differentiator.md)
-- Toolkit extraction (`agentic-porting-kit`): tracked as a Phase 8 row; until that public repo exists, the [repo-local development skills](docs/development-skills/) are the inspectable placeholder.
+- Development workflow: [repo-local development skills](docs/development-skills/) track the planner, builder, and TDD-slice process.
+- Future toolkit extraction (`agentic-porting-kit`): tracked as a Phase 8 row.
 
-Hermes-Agent, with upstream Git history preserved for attribution, remains the parity oracle.
+Hermes-Agent, with upstream Git history preserved for attribution, remains the behavior reference.
 
 ## Status
 
-Latest public release: [v0.2.12](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.12).
+Latest public release: [v0.2.14](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.14).
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~45.8 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10). Offline doctor peaks at ~25.6 MB RSS (`benchmarks.json`, 2026-05-16).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~45.9 MB (`benchmarks.json`).
 
 <details>
 <summary>Roadmap phase rollup</summary>
@@ -219,13 +224,13 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | ✅ | 22/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
-| Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
+| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
+| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 <!-- PROGRESS:END -->
 

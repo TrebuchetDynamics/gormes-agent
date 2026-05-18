@@ -82,7 +82,7 @@ func ValidateSourcePairs(opts SourcePairOptions) (SourcePairsValidation, error) 
 	root := sourcePairRoot(opts)
 	hermesSrc := sourcePairHermesSrc(root, opts)
 	currentSHA := opts.CurrentHermesSHA
-	if currentSHA == "" {
+	if currentSHA == "" && sourcePairIsGitCheckout(hermesSrc) {
 		currentSHA, _ = sourcePairGitSHA(hermesSrc)
 	}
 
@@ -354,6 +354,9 @@ func sourcePairHermesSrc(root string, opts SourcePairOptions) string {
 }
 
 func sourcePairGitSHA(dir string) (string, error) {
+	if !sourcePairIsGitCheckout(dir) {
+		return "", fmt.Errorf("%s is not a git checkout root", dir)
+	}
 	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
 	if err != nil {
 		return "", err

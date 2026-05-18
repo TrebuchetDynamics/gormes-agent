@@ -7,9 +7,9 @@ title: "Gateway Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `gateway`
-**Rows:** 153
-**Status counts:** `complete`: 152 · `in_progress`: 0 · `planned`: 1
-**Priority counts:** `P0`: 14 · `P1`: 44 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 156
+**Status counts:** `complete`: 154 · `in_progress`: 0 · `planned`: 2
+**Priority counts:** `P0`: 14 · `P1`: 47 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -77,6 +77,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `gateway` | Gateway platform reconnect isolation + channel health limits |
 | `complete` | `P1` | `gateway` | Gateway per-platform circuit breaker + /platform pause/resume/list command |
 | `complete` | `P1` | `gateway` | Gateway /model interactive provider/model picker |
+| `planned` | `P1` | `gateway` | Gateway memory monitor pressure policy |
 
 ### 2.B.12 — Channel-Neutral Native Runtime Adapter
 
@@ -274,6 +275,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `gateway` | Gormes update bundled assets and skills sync |
 | `complete` | `P1` | `gateway` | Gateway planned stop marker + WSL systemd PATH parity |
 | `complete` | `P1` | `gateway` | Gateway stale-code self-check uses git HEAD SHA |
+| `complete` | `P1` | `gateway` | cmd/gormes gateway row-backed command package extraction |
+| `complete` | `P1` | `gateway` | cmd/gormes live gateway command package extraction |
 
 ### 5.Q — API Server + TUI Gateway Streaming
 

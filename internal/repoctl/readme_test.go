@@ -143,7 +143,7 @@ func TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata(t *testing.T) {
 	}
 }
 
-func TestUpdateReadmeSyncsSTTBenchmarkSummary(t *testing.T) {
+func TestUpdateReadmeKeepsVoiceBenchmarkOutOfMainReadme(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "benchmarks.json"), []byte(`{
   "binary": {
@@ -170,7 +170,7 @@ func TestUpdateReadmeSyncsSTTBenchmarkSummary(t *testing.T) {
 	original := strings.Join([]string{
 		"## Status",
 		"",
-		"The current Linux build measures ~28.0 MB (`benchmarks.json`). WASI Whisper tiny.en has not been benchmarked yet.",
+		"The current Linux build measures ~28.0 MB (`benchmarks.json`).",
 	}, "\n")
 	if err := os.WriteFile(readme, []byte(original), 0o644); err != nil {
 		t.Fatal(err)
@@ -186,19 +186,18 @@ func TestUpdateReadmeSyncsSTTBenchmarkSummary(t *testing.T) {
 	got := string(raw)
 	wants := []string{
 		"The current Linux build measures ~42.2 MB (`benchmarks.json`).",
-		"WASI Whisper tiny.en runs at 0.92x realtime (`benchmarks.json`, 2026-05-10).",
 	}
 	for _, want := range wants {
 		if !strings.Contains(got, want) {
 			t.Fatalf("README missing %q:\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, "has not been benchmarked yet") || strings.Contains(got, "~28.0 MB") {
-		t.Fatalf("README retained stale STT benchmark text:\n%s", got)
+	if strings.Contains(got, "WASI Whisper") || strings.Contains(got, "~28.0 MB") {
+		t.Fatalf("README retained or injected voice benchmark text:\n%s", got)
 	}
 }
 
-func TestUpdateReadmeSyncsRuntimeRSSBenchmarkSummary(t *testing.T) {
+func TestUpdateReadmeKeepsRuntimeRSSOutOfMainReadme(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "benchmarks.json"), []byte(`{
   "binary": {
@@ -228,11 +227,11 @@ func TestUpdateReadmeSyncsRuntimeRSSBenchmarkSummary(t *testing.T) {
 	}
 	readme := filepath.Join(root, "README.md")
 	original := strings.Join([]string{
-		"| Measured footprint | Linux build ~28.0 MB; offline doctor peak RSS ~99.9 MB (`benchmarks.json`, 2026-05-01) |",
+		"| Release artifact | Linux build ~28.0 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |",
 		"",
 		"## Status",
 		"",
-		"The current Linux build measures ~28.0 MB (`benchmarks.json`). WASI Whisper tiny.en has not been benchmarked yet. Offline doctor peaks at ~99.9 MB RSS (`benchmarks.json`, 2026-05-01).",
+		"The current Linux build measures ~28.0 MB (`benchmarks.json`).",
 	}, "\n")
 	if err := os.WriteFile(readme, []byte(original), 0o644); err != nil {
 		t.Fatal(err)
@@ -248,26 +247,22 @@ func TestUpdateReadmeSyncsRuntimeRSSBenchmarkSummary(t *testing.T) {
 	got := string(raw)
 	wants := []string{
 		"The current Linux build measures ~42.2 MB (`benchmarks.json`).",
-		"| Measured footprint | Linux build ~42.2 MB; offline doctor peak RSS ~18.7 MB (`benchmarks.json`, 2026-05-15) |",
-		"WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).",
-		"Offline doctor peaks at ~18.7 MB RSS (`benchmarks.json`, 2026-05-15).",
+		"| Release artifact | Linux build ~42.2 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |",
 	}
 	for _, want := range wants {
 		if !strings.Contains(got, want) {
 			t.Fatalf("README missing %q:\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, "~99.9 MB RSS") || strings.Contains(got, "has not been benchmarked yet") || strings.Contains(got, "~28.0 MB") {
-		t.Fatalf("README retained stale runtime benchmark text:\n%s", got)
+	if strings.Contains(got, "WASI Whisper") || strings.Contains(got, "RSS") || strings.Contains(got, "~28.0 MB") {
+		t.Fatalf("README retained or injected detailed benchmark text:\n%s", got)
 	}
 }
 
 // TestREADMELeadsWithRuntime pins the runtime-first hero contract.
-// Earlier drafts led with "autonomous-porting methodology" — the
-// 2026-05-09 README rebalance walked that back: README opens with
-// the runtime story, methodology lives in a dedicated section near
-// the bottom as supporting evidence. The site/landing copy may
-// still lead with methodology; this assertion is README-only.
+// Earlier drafts led with an autonomous-porting story. README now
+// opens with the installable runtime and keeps engineering-process
+// evidence near the bottom.
 func TestREADMELeadsWithRuntime(t *testing.T) {
 	raw := readRepoFile(t, "README.md")
 	lead := firstReadmeBodyParagraph(raw)
@@ -280,17 +275,15 @@ func TestREADMELeadsWithRuntime(t *testing.T) {
 	if !strings.Contains(leadLower, "go binary") && !strings.Contains(leadLower, "go-native") {
 		t.Fatalf("README lead must anchor on the Go-native runtime story; got %q", lead)
 	}
-	// Methodology must still appear somewhere — just not in the
-	// lead. The dedicated section lives further down.
-	if !strings.Contains(raw, "autonomous-porting methodology") {
-		t.Fatalf("README must still mention the autonomous-porting methodology somewhere (relocated to its own section, not the lead)")
+	if strings.Contains(leadLower, "methodology") {
+		t.Fatalf("README lead should not frame Gormes around methodology: %q", lead)
 	}
 }
 
 // TestREADMEMentionsDifferentiator asserts the v1 differentiator
 // spec lands in the README's hero block (within the first 80 words):
 // the 30 most-used Hermes skills running on Termux,
-// Windows-without-Python, and locked-down corp Linux. Previously
+// Windows-without-Python, and locked-down Linux hosts. Previously
 // this also required "single 30 MB Go binary" in the first 50
 // words — the rebalance moved binary-size into the Status section
 // to keep the hero focused on portability + skill count.
@@ -301,7 +294,7 @@ func TestREADMEMentionsDifferentiator(t *testing.T) {
 		"30 most-used Hermes skills",
 		"Termux",
 		"Windows-without-Python",
-		"locked-down corp Linux",
+		"locked-down Linux hosts",
 	}
 	for _, want := range wants {
 		if !strings.Contains(firstWords, want) {

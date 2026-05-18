@@ -7,9 +7,9 @@ title: "Docs Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `docs`
-**Rows:** 9
-**Status counts:** `complete`: 6 · `in_progress`: 0 · `planned`: 3
-**Priority counts:** `P1`: 5 · `P2`: 2 · `P3`: 2
+**Rows:** 13
+**Status counts:** `complete`: 8 · `in_progress`: 0 · `planned`: 5
+**Priority counts:** `P1`: 9 · `P2`: 2 · `P3`: 2
 
 ## Phase 8 — Reputation & Publication
 
@@ -26,12 +26,16 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 |---|---|---|---|
 | `complete` | `P1` | `docs` | README rewrite to methodology-first positioning |
 | `complete` | `P1` | `docs` | README release and benchmark metadata sync |
+| `complete` | `P1` | `docs` | Gormes market comparison positioning brief |
+| `planned` | `P1` | `docs` | Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents |
 
 ### 8.C — Engineering Writeups
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `planned` | `P1` | `docs` | Engineering writeup #1: autonomous Hermes-porting loop |
+| `complete` | `P1` | `docs` | Hermes v0.14 release feature-to-module pairing ledger |
+| `planned` | `P1` | `docs` | Hermes contract inventory gate |
 
 ### 8.E — Toolkit Extraction
 

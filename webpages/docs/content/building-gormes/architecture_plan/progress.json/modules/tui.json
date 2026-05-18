@@ -2757,6 +2757,55 @@
     }
   },
   {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 55,
+    "item": {
+      "name": "Native TUI Terminal.app truecolor and ANSI sanitizer parity",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Port Hermes Ink TUI Terminal.app/truecolor and ANSI sanitizer behavior into the native Gormes TUI so renderer output keeps cursor/source-of-truth stability, strips malformed CSI safely, and preserves readable color behavior across modern terminals.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "fixture": "internal/tui Terminal.app/ANSI sanitizer fixtures",
+      "source_refs": [
+        "../hermes-agent/ui-tui/src/lib/forceTruecolor.ts",
+        "../hermes-agent/ui-tui/src/lib/text.ts",
+        "../hermes-agent/ui-tui/src/components/textInput.tsx",
+        "../hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts",
+        "../hermes-agent/ui-tui/src/__tests__/text.test.ts",
+        "../hermes-agent/ui-tui/src/__tests__/textInputFastEcho.test.ts",
+        "internal/tui"
+      ],
+      "ready_when": [
+        "Native TUI text rendering and input fast-echo helpers can be tested without launching an interactive terminal."
+      ],
+      "not_ready_when": [
+        "The slice requires a live Terminal.app session or snapshots from a developer machine.",
+        "The slice changes TUI layout or slash dispatch outside text/color/input sanitizer behavior."
+      ],
+      "acceptance": [
+        "Malformed or dangling ANSI/CSI sequences are stripped or bounded exactly by fixture expectations.",
+        "Truecolor forcing/degradation is deterministic from injected terminal environment facts.",
+        "Fast-echo cursor source-of-truth does not drift after sanitized writes."
+      ],
+      "write_scope": [
+        "internal/tui",
+        "internal/tuigateway",
+        "cmd/gormes"
+      ],
+      "test_commands": [
+        "go test ./internal/tui ./internal/tuigateway ./cmd/gormes -run 'Truecolor|ANSI|Terminal|TextInput|Resume' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI fixtures prove truecolor environment handling, ANSI sanitizer safety, and fast-echo cursor stability without a live terminal."
+      ]
+    }
+  },
+  {
     "phase": "8",
     "subphase": "8.D",
     "pos": 16,

@@ -7,9 +7,9 @@ title: "Learning Loop Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `learning-loop`
-**Rows:** 4
-**Status counts:** `complete`: 4 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 2 · `P2`: 2
+**Rows:** 5
+**Status counts:** `complete`: 4 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P1`: 3 · `P2`: 2
 
 ## Phase 6 — The Learning Loop (Soul)
 
@@ -31,3 +31,11 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 |---|---|---|---|
 | `complete` | `P2` | `learning-loop` | Prompt evaluation harness |
 | `complete` | `P2` | `learning-loop` | Iterative prompt mutation and scoring loop |
+
+## Phase 8 — Reputation & Publication
+
+### 8.B — Repository Messaging
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `planned` | `P1` | `learning-loop` | Learning-loop proof demo for skills, memory, and curator |

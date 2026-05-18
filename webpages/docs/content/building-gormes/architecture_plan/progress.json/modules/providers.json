@@ -7881,6 +7881,174 @@
     }
   },
   {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 126,
+    "item": {
+      "name": "cmd/gormes provider usage command package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move the `gormes usage` provider account-usage command from cmd/gormes into an importable providers module while preserving flags, JSON shape, provider inference, bounded HTTP timeout, credential redaction, and gateway helper compatibility.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If account usage is unsupported or credentials are absent, the provider module returns the existing unavailable snapshot without live TUI startup or credential leakage.",
+      "fixture": "internal/app/gormescli/modules/providers/usage_command_test.go plus cmd/gormes/usage_command_test.go",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
+        "cmd/gormes/usage.go",
+        "cmd/gormes/gateway.go:AccountUsage",
+        "internal/app/gormescli/modules/providers/usage.go",
+        "internal/hermes/account_usage.go"
+      ],
+      "ready_when": [
+        "CLI module contract registry and manifest gate is complete.",
+        "Provider command ownership is declared in gormescli.DefaultContracts.",
+        "Existing usage command fixtures prove timeout, provider inference, structured JSON, and unsupported-provider behavior."
+      ],
+      "not_ready_when": [
+        "The slice changes account-usage endpoint behavior, JSON field names, provider inference, or redaction semantics.",
+        "The providers module imports cmd/gormes build globals directly.",
+        "The slice claims auth, model, fallback, logout, or insights command extraction without moving their implementations and tests."
+      ],
+      "unblocks": [
+        "provider-owned command package extraction",
+        "gateway and channel surface extraction",
+        "root command assembly extraction"
+      ],
+      "acceptance": [
+        "internal/app/gormescli/modules/providers exposes NewUsageCommandWithSeams and Options so usage behavior can be tested without importing cmd/gormes.",
+        "cmd/gormes/usage.go becomes a thin adapter that injects build provenance and preserves current helper names used by gateway and tests.",
+        "`gormes usage --json` still emits `{build, provider, account_id, plan, source, fetched_at, windows, details, unavailable}` without leaking API keys.",
+        "Provider account-usage HTTP requests remain bounded by the existing timeout.",
+        "Existing root command usage fixtures and the new provider module seam/provenance fixture pass without live provider credentials."
+      ],
+      "note": "Complete 2026-05-17: extracted `gormes usage` into internal/app/gormescli/modules/providers with injectable config and account-usage fetch seams plus injected build provenance. cmd/gormes/usage.go is now a compatibility adapter preserving helper names used by gateway account-usage wiring and existing tests. Existing usage fixtures still cover bounded timeout, unsupported providers, inferred OpenAI Codex and Anthropic providers, and JSON redaction; the provider module fixture proves hermetic seam/provenance injection.",
+      "write_scope": [
+        "cmd/gormes/usage.go",
+        "internal/app/gormescli/modules/providers/usage.go",
+        "internal/app/gormescli/modules/providers/usage_command_test.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/providers -run TestUsageCommandUsesInjectedSeamsAndBuildProvenance -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli/modules/providers -run 'UsageCommand|CLIContract' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/app/gormescli/modules/providers ./internal/cli -run 'SetupRegistry|Setup|Profile|UsageCommand|CLIContract' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Provider usage command behavior is owned by an importable providers module; cmd/gormes only adapts build provenance and legacy package-local helper names."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned provider command-package architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 127,
+    "item": {
+      "name": "cmd/gormes provider command surface package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move provider-owned command construction for `auth`, `logout`, `model`, `fallback`, `usage`, and `insights` from cmd/gormes into an importable providers module while preserving public command spelling, flags, JSON shapes, exit codes, credential redaction, provider setup ownership, and existing root-command behavior through thin cmd/gormes adapters.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Provider command construction is module-owned; deeper auth/OAuth runtime and shared model prompt helpers remain explicit cmd/gormes seams until separate runtime/TUI rows move them.",
+      "fixture": "internal/app/gormescli/modules/providers/*_command_test.go plus existing cmd/gormes auth/logout/model/fallback/usage fixtures",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
+        "internal/app/gormescli/modules/providers/auth.go",
+        "internal/app/gormescli/modules/providers/logout.go",
+        "internal/app/gormescli/modules/providers/model.go",
+        "internal/app/gormescli/modules/providers/fallback.go",
+        "internal/app/gormescli/modules/providers/usage.go",
+        "internal/app/gormescli/modules/providers/insights.go",
+        "cmd/gormes/auth_command.go",
+        "cmd/gormes/logout.go",
+        "cmd/gormes/model.go",
+        "cmd/gormes/fallback.go",
+        "cmd/gormes/usage.go",
+        "cmd/gormes/insights.go"
+      ],
+      "ready_when": [
+        "CLI module contract registry and manifest gate is complete.",
+        "Profile command package extraction proves the adapter pattern.",
+        "Provider command behavior already has focused cmd/gormes fixtures for auth, logout, model, fallback, usage, and row-backed insights."
+      ],
+      "not_ready_when": [
+        "The slice changes public provider command spelling, flags, JSON field names, exit codes, or redaction semantics.",
+        "The providers module imports cmd/gormes or main-package build globals directly.",
+        "The row claims deeper auth/OAuth runtime extraction, live provider transport changes, or shared TUI prompt helper migration."
+      ],
+      "unblocks": [
+        "gateway and channel surface extraction",
+        "root command assembly extraction",
+        "provider auth/OAuth runtime package extraction",
+        "model prompt helper package extraction"
+      ],
+      "acceptance": [
+        "providers.NewAuthCommandWithSeams constructs the auth command tree and routes add/list/remove/reset/status/logout through injected auth seams.",
+        "providers.NewLogoutCommandWithSeams owns top-level logout defaulting, allow-list validation, absent-state JSON, and reset-after-logout orchestration while delegating auth storage mutation through seams.",
+        "providers.NewModelCommandWithSeams owns model picker command orchestration and normalized saved-selection output while shared prompt helpers remain injected through cmd/gormes default seams.",
+        "providers.NewFallbackCommandWithSeams owns fallback list/add/remove/clear behavior and fallback config parsing/writes.",
+        "providers.NewUsageCommandWithSeams owns provider account-usage behavior with injected config/fetch/build seams.",
+        "providers.NewInsightsCommand owns the provider row-backed insights command through the shared gormescli row-backed report helper.",
+        "cmd/gormes provider files are thin adapters that inject build provenance, auth runtime seams, model prompt seams, and compatibility helper names for existing tests."
+      ],
+      "note": "Complete 2026-05-17: provider command construction for auth, logout, model, fallback, usage, and insights now lives under internal/app/gormescli/modules/providers. Added module-level seam tests for auth routing, logout defaulting/JSON, model selection normalization, fallback config writes, usage account snapshots, and insights row-backed JSON. cmd/gormes now adapts build provenance and deeper runtime seams: auth/OAuth storage remains in cmd/gormes auth runtime for a later extraction, and shared model prompt helpers remain in cmd/gormes because setup and Bubble Tea source-pinned tests still depend on that boundary.",
+      "write_scope": [
+        "cmd/gormes/auth.go",
+        "cmd/gormes/auth_command.go",
+        "cmd/gormes/logout.go",
+        "cmd/gormes/model.go",
+        "cmd/gormes/fallback.go",
+        "cmd/gormes/usage.go",
+        "cmd/gormes/insights.go",
+        "cmd/gormes/hermes_rowbacked_commands.go",
+        "cmd/gormes/setup.go",
+        "internal/app/gormescli/rowbacked.go",
+        "internal/app/gormescli/rowbacked_test.go",
+        "internal/app/gormescli/modules/providers",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli ./internal/app/gormescli/modules/providers -run 'RowBacked|AuthCommand|LogoutCommand|ModelCommand|FallbackCommand|UsageCommand|InsightsCommand|SetupSections' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli/modules/providers -run 'Auth|LogoutTopLevel|ModelPicker|ModelCatalog|Fallback|UsageCommand|Insights|CLIContract' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/app/gormescli/modules/providers ./internal/cli -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Provider command construction is importable and module-owned for auth, logout, model, fallback, usage, and insights; existing root command fixtures prove public behavior did not drift."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned provider command-package architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
     "phase": "6",
     "subphase": "6.E",
     "pos": 0,

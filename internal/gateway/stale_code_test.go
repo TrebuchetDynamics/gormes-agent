@@ -158,6 +158,44 @@ func TestRuntimeStatusStorePersistsBootGitSHAAndAnnotatesStaleCode(t *testing.T)
 	}
 }
 
+func TestRuntimeStatusStoreUsesPersistedSourceRootForValidatedReads(t *testing.T) {
+	liveRoot := t.TempDir()
+	writeNormalGitHEAD(t, liveRoot, "development", staleCodeSHA1)
+	otherRoot := t.TempDir()
+	writeNormalGitHEAD(t, otherRoot, "development", staleCodeSHA2)
+	statusPath := filepath.Join(t.TempDir(), "gateway_state.json")
+
+	writer := NewRuntimeStatusStore(statusPath)
+	writer.bootGitSHA = staleCodeSHA1
+	writer.staleCodeChecker = NewStaleCodeChecker(liveRoot)
+	writer.processes = fakeRuntimeProcessTable{
+		4242: {startTime: 123, command: "gormes gateway"},
+	}
+	writer.pid = func() int { return 4242 }
+	writer.startTime = func(int) (int64, bool) { return 123, true }
+	writer.argv = func() []string { return []string{"gormes", "gateway"} }
+
+	if err := writer.UpdateRuntimeStatus(context.Background(), RuntimeStatusUpdate{GatewayState: GatewayStateRunning}); err != nil {
+		t.Fatalf("UpdateRuntimeStatus: %v", err)
+	}
+
+	reader := NewRuntimeStatusStore(statusPath)
+	reader.staleCodeChecker = NewStaleCodeChecker(otherRoot)
+	reader.processes = fakeRuntimeProcessTable{
+		4242: {startTime: 123, command: "gormes gateway"},
+	}
+	snapshot, err := reader.ReadValidatedRuntimeStatusSnapshot(context.Background())
+	if err != nil {
+		t.Fatalf("ReadValidatedRuntimeStatusSnapshot: %v", err)
+	}
+	if snapshot.Status.SourceRoot != liveRoot {
+		t.Fatalf("SourceRoot = %q, want %q", snapshot.Status.SourceRoot, liveRoot)
+	}
+	if snapshot.Status.StaleCode == nil || snapshot.Status.StaleCode.Status != RuntimeStaleCodeFresh {
+		t.Fatalf("StaleCode = %+v, want fresh from persisted source root", snapshot.Status.StaleCode)
+	}
+}
+
 func writeNormalGitHEAD(t *testing.T, root, branch, sha string) {
 	t.Helper()
 	writeFile(t, filepath.Join(root, ".git", "HEAD"), "ref: refs/heads/"+branch+"\n")

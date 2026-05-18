@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-15T07:10:00Z",
+    "last_updated": "2026-05-17",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -692,6 +692,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ],
           "drift_state": {
@@ -2679,6 +2683,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ],
           "drift_state": {
@@ -2961,6 +2969,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ],
           "drift_state": {
@@ -3328,6 +3340,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ],
           "drift_state": {
@@ -3741,7 +3757,7 @@
             },
             {
               "name": "",
-              "status": "complete"
+              "status": "planned"
             },
             {
               "name": "",
@@ -3770,6 +3786,66 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "planned"
             },
             {
               "name": "",
@@ -4093,6 +4169,10 @@
             {
               "name": "",
               "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ],
           "drift_state": {
@@ -4266,6 +4346,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ],
           "drift_state": {
@@ -4627,6 +4711,10 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ],
           "drift_state": {
@@ -4668,12 +4756,40 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ]
         },
         "8.C": {
           "name": "Engineering Writeups",
           "items": [
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "planned"

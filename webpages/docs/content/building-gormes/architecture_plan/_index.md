@@ -91,18 +91,18 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 100/110 subphases shipped · 9 in progress · 1 planned
+**Overall:** 93/110 subphases shipped · 17 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | ✅ | 22/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
-| Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
+| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
+| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -163,7 +163,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux real-device smoke evidence
 - [x] `install` Termux remote execution guidance
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -209,7 +209,7 @@ classification and row-backed implementation queue.
 - [x] `channels` WhatsApp outbound pairing gate + raw peer mapping
 - [x] `channels` WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing ✅
+### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] `gateway` Gateway session store + SessionSource parity
 - [x] `gateway` Gateway manual reset session-boundary hooks
@@ -292,6 +292,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway platform reconnect isolation + channel health limits
 - [x] `gateway` Gateway per-platform circuit breaker + /platform pause/resume/list command
 - [x] `gateway` Gateway /model interactive provider/model picker
+- [ ] `gateway` Gateway memory monitor pressure policy
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -845,13 +846,14 @@ classification and row-backed implementation queue.
 - [x] `tools` Gormes-native MCP host runtime boundary
 - [x] `channels` MCP channels_list tool
 
-### 5.H — ACP Integration ✅
+### 5.H — ACP Integration 🔨
 
 - [x] `tools` ACP server side
 - [x] `tools` ACP Client Bridge Mode
 - [x] `tools` ACP JSON-RPC stdio session/prompt closeout
 - [x] `tools` ACP stdio benign ping/probe suppression
 - [x] `tools` ACP session CWD propagation into prompt runners
+- [ ] `tools` ACP setup-browser bootstrap parity
 
 ### 5.I — Plugins Architecture ✅
 
@@ -900,7 +902,7 @@ classification and row-backed implementation queue.
 
 - [x] `tools` Sandboxed exec
 
-### 5.L — File Ops + Patches ✅
+### 5.L — File Ops + Patches 🔨
 
 - [x] `tools` Atomic file write helper with temp+rename pattern
 - [x] `tools` File tool atomic checkpoint integration
@@ -927,6 +929,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Context-aware fuzzy replace for native patch tool
 - [x] `tools` V4A patch apply rollback for native patch tool
 - [x] `tools` Patch replace post-write verification
+- [ ] `tools` Hermes LSP write-time semantic diagnostics
 
 ### 5.M — Mixture of Agents ✅
 
@@ -965,7 +968,7 @@ classification and row-backed implementation queue.
 - [x] `kanban` Kanban worker heartbeat, reclaim, and zombie detection
 - [x] `kanban` Hermes Kanban specify triage parity
 
-### 5.N — Misc Operator Tools ✅
+### 5.N — Misc Operator Tools 🔨
 
 - [x] `tools` Todo
 - [x] `tools` Clarify
@@ -1021,6 +1024,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Cron dashboard partial-record page
 - [x] `navivox` Navivox host setup apply with transient sudo
 - [x] `gateway` Gateway auto-resume on restart
+- [ ] `tools` Hermes x_search tool and auth surface
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -1124,7 +1128,7 @@ classification and row-backed implementation queue.
 - [x] `doctor` gormes doctor ◆ Profiles section content
 - [x] `doctor` gormes doctor ◆ Security Advisories section content
 - [x] `config` gormes setup <section> boxed header + completion footer (UX parity)
-- [x] `navivox` gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
+- [ ] `navivox` gormes setup profiles: per-profile workspaces + channels + navivox-default (Gormes-owned)
 - [x] `profiles` gormes setup profiles — section scaffold + per-profile workspace list
 - [x] `profiles` gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
 - [ ] `navivox` gormes setup profiles — all profiles navivox-accessible by default
@@ -1142,6 +1146,21 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway stale-code self-check uses git HEAD SHA
 - [x] `runtime` Agent lifecycle hooks (agent:start, agent:step, agent:end)
 - [x] `providers` Nous OAuth device code + refresh token + agent key provisioning
+- [ ] `cli` Hermes send command stdin/file payload parity
+- [ ] `sessions` Hermes session recap command surface
+- [ ] `profiles` Profile workspace allow-list enforcement policy
+- [ ] `profiles` Profile-local subprocess HOME parity
+- [ ] `profiles` Long-term plan: profile fleet supervisor and single control-plane gateway
+- [x] `cli` CLI module contract registry and manifest gate
+- [x] `cli` cmd/gormes profile command package extraction
+- [x] `cli` cmd/gormes setup section registry extraction
+- [x] `providers` cmd/gormes provider usage command package extraction
+- [x] `providers` cmd/gormes provider command surface package extraction
+- [x] `gateway` cmd/gormes gateway row-backed command package extraction
+- [x] `channels` cmd/gormes channels capabilities command package extraction
+- [x] `gateway` cmd/gormes live gateway command package extraction
+- [x] `channels` cmd/gormes channel service command package extraction
+- [x] `cli` cmd/gormes root command assembly extraction
 
 ### 5.P — Docker / Packaging ✅
 
@@ -1215,6 +1234,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Kernel in-session model-switch seam for the native TUI
 - [ ] `gateway` Kernel cross-provider client swap for in-session model switch
 - [ ] `tui` Native TUI slash handler-port coverage
+- [ ] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1269,11 +1289,12 @@ classification and row-backed implementation queue.
 
 - [x] `skills` LLM-assisted pattern distillation
 
-### 6.C — Skill Storage Format ✅
+### 6.C — Skill Storage Format 🔨
 
 - [x] `skills` SKILL.md frontmatter validation guard
 - [x] `skills` Hermes creative skill metadata compatibility
 - [x] `skills` Portable SKILL.md format
+- [ ] `skills` Hermes v0.14 optional skill catalog refresh
 
 ### 6.D — Skill Retrieval + Matching ✅
 
@@ -1329,7 +1350,7 @@ classification and row-backed implementation queue.
 - [x] `profiles` Agent personalities + enhanced display config
 - [x] `stt` Session auto-reset + STT config parity
 
-## Phase 7 — Paused Channel Backlog ✅
+## Phase 7 — Paused Channel Backlog 🔨
 
 *Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize*
 
@@ -1360,7 +1381,7 @@ classification and row-backed implementation queue.
 - [x] `channels` Signed event parsing + auth gates
 - [x] `channels` Prompt-to-delivery routing bridge
 
-### 7.E — Regional + Device Adapter Backlog ✅
+### 7.E — Regional + Device Adapter Backlog 🔨
 
 - [x] `channels` BlueBubbles + HomeAssistant adapters
 - [x] `channels` BlueBubbles iMessage bubble formatting parity
@@ -1385,6 +1406,7 @@ classification and row-backed implementation queue.
 - [x] `channels` Google Chat relay sender-type self-filter
 - [x] `channels` Google Chat standalone cron sender
 - [x] `channels` Google Chat install dependency hint refresh
+- [ ] `channels` SimpleX Chat platform plugin parity
 
 ## Phase 8 — Reputation & Publication 🔨
 
@@ -1395,15 +1417,22 @@ classification and row-backed implementation queue.
 - [x] `docs` TD engineering blog scaffolded and live
 - [ ] `docs` TD social presence connected to blog feed
 
-### 8.B — Repository Messaging ✅
+### 8.B — Repository Messaging 🔨
 
 - [x] `docs` README rewrite to methodology-first positioning
 - [x] `docs` README release and benchmark metadata sync
 - [x] `landing` gormes.ai landing page positioning audit
+- [x] `docs` Gormes market comparison positioning brief
+- [ ] `docs` Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents
+- [ ] `channels` Channel capability matrix with stable/fixture/planned labels
+- [ ] `learning-loop` Learning-loop proof demo for skills, memory, and curator
+- [ ] `install` No-stack first-run proof path from install to offline doctor
 
-### 8.C — Engineering Writeups ⏳
+### 8.C — Engineering Writeups 🔨
 
 - [ ] `docs` Engineering writeup #1: autonomous Hermes-porting loop
+- [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
+- [ ] `docs` Hermes contract inventory gate
 
 ### 8.D — Sharp v1.0 🔨
 

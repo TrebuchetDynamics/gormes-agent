@@ -15,12 +15,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
+	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/profiles"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/pelletier/go-toml/v2"
@@ -33,24 +37,31 @@ var errSetupRequiresTTY = errors.New("setup_requires_tty")
 var setupReadPassword = term.ReadPassword
 var setupInputIsTerminal = stdinIsTerminal
 
-var setupSections = []string{"provider", "model", "agent", "workspace", "profiles", "bindings", "tts", "terminal", "gateway", "tools"}
+var setupRegistry = gormescli.MustSetupRegistry(defaultSetupSections())
+var setupSections = setupRegistry.Names()
 
 // setupSectionLabels is the Gormes-owned section→label map for the boxed
 // `│ Gormes Setup — <Label> │` per-section header (parity with hermes
 // setup.py@55c9f3206:3199 `│ ⚕ Hermes Setup — {label} │`). Labels are
 // Gormes-owned wording; some sections (provider/workspace/bindings) have no
 // 1:1 Hermes equivalent — this map is the documented owned divergence.
-var setupSectionLabels = map[string]string{
-	"provider":  "Provider",
-	"model":     "Model",
-	"agent":     "Agent Settings",
-	"workspace": "Workspace",
-	"profiles":  "Profiles",
-	"bindings":  "Channel Bindings",
-	"tts":       "Text-to-Speech",
-	"terminal":  "Terminal Backend",
-	"gateway":   "Messaging Gateway",
-	"tools":     "Tools",
+var setupSectionLabels = setupRegistry.Labels()
+
+func defaultSetupSections() []gormescli.SetupSection {
+	sections := []gormescli.SetupSection{
+		{Name: "agent", Label: "Agent Settings", Module: progress.ModuleGateway},
+		{Name: "workspace", Label: "Workspace", Module: progress.ModuleGateway},
+	}
+	sections = append(providermodule.SetupSections(), sections...)
+	sections = append(sections, profilemodule.SetupSections()...)
+	sections = append(sections,
+		gormescli.SetupSection{Name: "bindings", Label: "Channel Bindings", Module: progress.ModuleGateway},
+		gormescli.SetupSection{Name: "tts", Label: "Text-to-Speech", Module: progress.ModuleTTS},
+		gormescli.SetupSection{Name: "terminal", Label: "Terminal Backend", Module: progress.ModuleTUI},
+		gormescli.SetupSection{Name: "gateway", Label: "Messaging Gateway", Module: progress.ModuleGateway},
+		gormescli.SetupSection{Name: "tools", Label: "Tools", Module: progress.ModuleTools},
+	)
+	return sections
 }
 
 func setupSectionLabel(section string) string {
@@ -1612,6 +1623,9 @@ func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams)
 		if a, aerr := pseams.ReadActiveProfileName(); aerr == nil && strings.TrimSpace(a) != "" {
 			active = strings.TrimSpace(a)
 		}
+	}
+	if handled, err := maybeRunSetupProfilesTUI(cmd, pseams, known, active); handled || err != nil {
+		return err
 	}
 	listProfiles := func(names []string) {
 		fmt.Fprintln(out, "\nKnown profiles:")

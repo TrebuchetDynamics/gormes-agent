@@ -8,6 +8,10 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
@@ -95,6 +99,88 @@ func TestSqlOpenGoncho_ConcurrentConnectionsDoNotLockOut(t *testing.T) {
 	}
 	if n != 2 {
 		t.Errorf("rows = %d, want 2", n)
+	}
+}
+
+// TestGonchoGatewayTurnWriteSurvivesTransientProfileLock captures the
+// profile-gateway failure mode from the audit bundle: a live turn tries to
+// persist through the gateway Goncho adapter while another profile-scoped
+// memory writer briefly owns SQLite's write lock. Hermes' SessionDB retries
+// transient locked/busy writes at the application layer; Gormes must not lose
+// the user turn after one short busy-handler timeout.
+func TestGonchoGatewayTurnWriteSurvivesTransientProfileLock(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "memory.db")
+	mem, err := memory.OpenSqlite(tmp, 32, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer func() {
+		if err := mem.Close(context.Background()); err != nil {
+			t.Fatalf("Close memory store: %v", err)
+		}
+	}()
+
+	gonchoDB, err := sqlOpenGoncho(tmp)
+	if err != nil {
+		t.Fatalf("sqlOpenGoncho: %v", err)
+	}
+	defer gonchoDB.Close()
+	gonchoDB.SetMaxOpenConns(1)
+	gonchoDB.SetMaxIdleConns(1)
+	if _, err := gonchoDB.Exec(`PRAGMA busy_timeout = 25`); err != nil {
+		t.Fatalf("lower busy_timeout for deterministic lock regression: %v", err)
+	}
+
+	lockTx, err := mem.DB().BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("begin profile lock transaction: %v", err)
+	}
+	if _, err := lockTx.ExecContext(context.Background(), `
+		INSERT INTO turns(session_id, role, content, ts_unix, chat_id)
+		VALUES(?, ?, ?, ?, ?)
+	`, "profile-session", "user", "background lifecycle writer", time.Now().Unix(), "telegram:profile"); err != nil {
+		_ = lockTx.Rollback()
+		t.Fatalf("hold profile write lock: %v", err)
+	}
+
+	svc := goncho.NewService(gonchoDB, goncho.Config{
+		WorkspaceID:    "default",
+		ObserverPeerID: "gormes",
+	}, nil)
+	store := newGonchoAdapter(svc)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- store.AppendTurn(
+			context.Background(),
+			"telegram:profile",
+			"profile-session",
+			"user",
+			"persist this user turn after the transient lock clears",
+		)
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+	if err := lockTx.Commit(); err != nil {
+		t.Fatalf("release profile write lock: %v", err)
+	}
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("gateway Goncho user turn write returned transient lock error: %v", err)
+	}
+
+	var persisted int
+	if err := gonchoDB.QueryRowContext(context.Background(), `
+		SELECT COUNT(*)
+		FROM turns
+		WHERE session_id = ?
+		  AND role = ?
+		  AND content = ?
+		  AND memory_sync_status = 'ready'
+	`, "profile-session", "user", "persist this user turn after the transient lock clears").Scan(&persisted); err != nil {
+		t.Fatalf("count persisted user turn: %v", err)
+	}
+	if persisted != 1 {
+		t.Fatalf("persisted user turn count = %d, want 1", persisted)
 	}
 }
 

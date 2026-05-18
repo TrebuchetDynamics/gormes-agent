@@ -300,12 +300,14 @@ func sanitizeTelegramStartupError(err error) string {
 }
 
 var (
-	telegramTokenPattern  = regexp.MustCompile(`\b\d{5,}:[A-Za-z0-9_-]{6,}\b`)
-	telegramBearerPattern = regexp.MustCompile(`(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+`)
+	telegramBotTokenPattern = regexp.MustCompile(`\bbot\d{5,}:[A-Za-z0-9_-]{6,}\b`)
+	telegramTokenPattern    = regexp.MustCompile(`\b\d{5,}:[A-Za-z0-9_-]{6,}\b`)
+	telegramBearerPattern   = regexp.MustCompile(`(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+`)
 )
 
 func sanitizeTelegramStartupText(text string) string {
 	text = strings.TrimSpace(text)
+	text = telegramBotTokenPattern.ReplaceAllString(text, "bot<redacted-telegram-token>")
 	text = telegramTokenPattern.ReplaceAllString(text, "<redacted-telegram-token>")
 	text = telegramBearerPattern.ReplaceAllString(text, "Bearer <redacted>")
 	text = strings.ReplaceAll(text, "\n", " ")

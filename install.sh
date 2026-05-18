@@ -15,7 +15,9 @@
 #                        default (non-root): $HOME/.local/bin
 #                        default (root Linux): /usr/local/bin
 #   GORMES_PREFIX        compatibility prefix; publishes into $GORMES_PREFIX/bin
-#   GORMES_RESTART_GATEWAY restart policy: auto, always, never (default: auto)
+#   GORMES_RESTART_GATEWAY restart policy for default gateway and active
+#                         profile gateway services: auto, always, never
+#                         (default: auto)
 #   GORMES_SKIP_SETUP     set to 1/true/yes/on to skip the setup wizard
 #   GORMES_GO_SHA256      optional expected SHA-256 for managed Go download
 #   GORMES_INSTALL_VERBOSE set to 1/true/yes/on for verbose installer diagnostics
@@ -52,6 +54,8 @@ SOURCE_ROOT_DIR=""
 INSTALL_SOURCE_DESC=""
 PREVIOUS_GATEWAY_PID=""
 NEW_GATEWAY_PID=""
+PREVIOUS_PROFILE_GATEWAY_UNITS=""
+PROFILE_GATEWAY_RESTARTS_JSON=""
 TMP_DIRS=""
 TMP_DIR_COUNT=0
 OS=""
@@ -165,7 +169,8 @@ Options:
                  install.sh --uninstall --dry-run
                  install.sh --uninstall --dry-run=false --yes
   --restart-gateway auto|always|never
-                 Restart a live gateway after update (default: auto)
+                 Restart live default/profile gateways after update
+                 (default: auto)
   --no-restart   Alias for --restart-gateway never
   -h, --help     Show this help
 
@@ -1314,10 +1319,16 @@ build_gormes() {
   build_bin="$(managed_bin_dir)/gormes"
   build_root=$(build_root_dir) || fail "could not find a Gormes Go module to build"
   cache_tag=$(git -C "$build_root" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  build_dirty="false"
+  if ! git -C "$build_root" diff --quiet 2>/dev/null \
+    || ! git -C "$build_root" diff --cached --quiet 2>/dev/null; then
+    build_dirty="true"
+  fi
   BUILD_TAG="$cache_tag"
   verbose "build root: ${build_root}"
   verbose "build output: ${build_bin}"
   verbose "source commit: ${cache_tag}"
+  verbose "source dirty: ${build_dirty}"
 
   if [ -x "$build_bin" ]; then
     cached_tag=""
@@ -1325,11 +1336,14 @@ build_gormes() {
       cached_tag=$(cat "${build_bin}.build-tag" 2>/dev/null || true)
     fi
     OLD_BUILD_TAG="$cached_tag"
-    if [ "$cached_tag" = "$cache_tag" ]; then
+    if [ "$cached_tag" = "$cache_tag" ] && [ "$build_dirty" != "true" ]; then
       log_success "Gormes binary ready (${cache_tag})"
       return
     fi
-    if [ -n "$cached_tag" ]; then
+    if [ "$cached_tag" = "$cache_tag" ] && [ "$build_dirty" = "true" ]; then
+      log_info "source tree has local changes; rebuilding"
+    fi
+    if [ -n "$cached_tag" ] && [ "$cached_tag" != "$cache_tag" ]; then
       log_info "source changed (${cached_tag} → ${cache_tag}); rebuilding"
     fi
   fi
@@ -1339,11 +1353,6 @@ build_gormes() {
   # values instead of compiled-in defaults.
   build_commit="$(git -C "$build_root" rev-parse --short HEAD 2>/dev/null || true)"
   [ -n "$build_commit" ] || build_commit="unknown"
-  build_dirty="false"
-  if ! git -C "$build_root" diff --quiet 2>/dev/null \
-    || ! git -C "$build_root" diff --cached --quiet 2>/dev/null; then
-    build_dirty="true"
-  fi
   build_version="$(grep '^\s*var Version\s*=' "$build_root/cmd/gormes/version.go" 2>/dev/null | sed 's/.*"\(.*\)".*/\1/' || true)"
   [ -n "$build_version" ] || build_version="0.0.0"
   build_ldflags="-s -w -X main.Version=${build_version} -X main.GitCommit=${build_commit} -X main.GitDirty=${build_dirty}"
@@ -1681,6 +1690,16 @@ json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
+systemd_env_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+systemd_source_root_environment_line() {
+  srel_source_root=$(build_root_dir 2>/dev/null || true)
+  [ -n "$srel_source_root" ] || return 1
+  printf 'Environment="GORMES_SOURCE_ROOT=%s"\n' "$(systemd_env_escape "$srel_source_root")"
+}
+
 install_ledger_path() {
   printf '%s/install.log.jsonl\n' "$(managed_home_dir)"
 }
@@ -1710,9 +1729,148 @@ append_install_ledger() {
     if [ -n "$NEW_GATEWAY_PID" ]; then
       printf ',"new_gateway_pid":%s' "$NEW_GATEWAY_PID"
     fi
+    if [ -n "$PROFILE_GATEWAY_RESTARTS_JSON" ]; then
+      printf ',"profile_gateways":[%s]' "$PROFILE_GATEWAY_RESTARTS_JSON"
+    fi
     printf ',"restart_gateway":"%s"' "$(json_escape "$RESTART_GATEWAY")"
     printf '}\n'
   } >> "$ledger"
+}
+
+systemd_user_available() {
+  has systemctl && systemctl --user >/dev/null 2>&1
+}
+
+running_profile_gateway_units() {
+  sandbox_bin_dir_set && return 0
+  is_termux && return 0
+  systemd_user_available || return 0
+  systemctl --user list-units 'gormes-gateway-*.service' --type=service --state=running --no-legend --no-pager 2>/dev/null |
+    awk '$1 ~ /^gormes-gateway-.+\.service$/ { print $1 }'
+}
+
+systemd_unit_main_pid() {
+  sump_unit="$1"
+  sump_pid=$(systemctl --user show "$sump_unit" -p ExecMainPID --value 2>/dev/null || true)
+  case "$sump_pid" in
+    ""|0|*[!0123456789]*) return 1 ;;
+    *) printf '%s\n' "$sump_pid" ;;
+  esac
+}
+
+write_systemd_source_root_dropin() {
+  wssrd_unit="$1"
+  wssrd_source_root=$(build_root_dir 2>/dev/null || true)
+  [ -n "$wssrd_source_root" ] || return 1
+  wssrd_unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/${wssrd_unit}.d"
+  wssrd_dropin="${wssrd_unit_dir}/10-gormes-install-source.conf"
+  mkdir -p "$wssrd_unit_dir" || return 1
+  {
+    printf '[Service]\n'
+    printf 'Environment="GORMES_SOURCE_ROOT=%s"\n' "$(systemd_env_escape "$wssrd_source_root")"
+  } > "$wssrd_dropin"
+}
+
+prepare_profile_gateway_unit_restarts() {
+  ppgr_units="$1"
+  ppgr_wrote=0
+  for ppgr_unit in $ppgr_units; do
+    case "$ppgr_unit" in
+      gormes-gateway-*.service) ;;
+      *) continue ;;
+    esac
+    if write_systemd_source_root_dropin "$ppgr_unit"; then
+      ppgr_wrote=1
+    fi
+  done
+  if [ "$ppgr_wrote" -eq 1 ]; then
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+  fi
+}
+
+wait_for_profile_gateway_unit_restart() {
+  wfpgur_unit="$1"
+  wfpgur_old_pid="$2"
+  wfpgur_i=0
+  while [ "$wfpgur_i" -lt 8 ]; do
+    wfpgur_new_pid=$(systemd_unit_main_pid "$wfpgur_unit" 2>/dev/null || true)
+    if [ -n "$wfpgur_new_pid" ]; then
+      if [ -z "$wfpgur_old_pid" ] || [ "$wfpgur_new_pid" != "$wfpgur_old_pid" ]; then
+        printf '%s\n' "$wfpgur_new_pid"
+        return 0
+      fi
+    fi
+    sleep 1
+    wfpgur_i=$((wfpgur_i + 1))
+  done
+  return 1
+}
+
+record_profile_gateway_restart() {
+  rpgr_unit="$1"
+  rpgr_old_pid="$2"
+  rpgr_new_pid="$3"
+  rpgr_obj=$(printf '{"unit":"%s"' "$(json_escape "$rpgr_unit")")
+  if [ -n "$rpgr_old_pid" ]; then
+    rpgr_obj="${rpgr_obj},\"old_pid\":${rpgr_old_pid}"
+  fi
+  if [ -n "$rpgr_new_pid" ]; then
+    rpgr_obj="${rpgr_obj},\"new_pid\":${rpgr_new_pid}"
+  fi
+  rpgr_obj="${rpgr_obj}}"
+  if [ -n "$PROFILE_GATEWAY_RESTARTS_JSON" ]; then
+    PROFILE_GATEWAY_RESTARTS_JSON="${PROFILE_GATEWAY_RESTARTS_JSON},${rpgr_obj}"
+  else
+    PROFILE_GATEWAY_RESTARTS_JSON="$rpgr_obj"
+  fi
+}
+
+restart_profile_gateway_units_if_running() {
+  rpguir_units="$1"
+  [ -n "$rpguir_units" ] || return 0
+  case "$RESTART_GATEWAY" in
+    never)
+      log "profile gateway restart skipped by policy=never"
+      return 0
+      ;;
+    auto|always)
+      ;;
+  esac
+
+  if ! systemd_user_available; then
+    log "profile gateway restart skipped: systemd --user unavailable"
+    return 0
+  fi
+
+  prepare_profile_gateway_unit_restarts "$rpguir_units"
+
+  for rpguir_unit in $rpguir_units; do
+    case "$rpguir_unit" in
+      gormes-gateway-*.service) ;;
+      *) continue ;;
+    esac
+    rpguir_old_pid=$(systemd_unit_main_pid "$rpguir_unit" || true)
+    if [ -n "$rpguir_old_pid" ]; then
+      log "restarting profile gateway unit ${rpguir_unit} pid=${rpguir_old_pid}"
+    else
+      log "restarting profile gateway unit ${rpguir_unit}"
+    fi
+    if ! systemctl --user restart "$rpguir_unit" >/dev/null 2>&1; then
+      log "profile gateway unit restart skipped ${rpguir_unit}: systemctl restart failed"
+      continue
+    fi
+    rpguir_new_pid=$(wait_for_profile_gateway_unit_restart "$rpguir_unit" "$rpguir_old_pid" || true)
+    record_profile_gateway_restart "$rpguir_unit" "$rpguir_old_pid" "$rpguir_new_pid"
+    if [ -n "$rpguir_new_pid" ]; then
+      if [ -n "$rpguir_old_pid" ]; then
+        log "profile gateway unit restarted ${rpguir_unit} pid=${rpguir_old_pid} -> ${rpguir_new_pid}"
+      else
+        log "profile gateway unit restarted ${rpguir_unit} pid=${rpguir_new_pid}"
+      fi
+    else
+      log "profile gateway unit restart requested ${rpguir_unit}; status did not report a new main pid yet"
+    fi
+  done
 }
 
 stop_gateway_for_restart() {
@@ -1730,19 +1888,32 @@ start_gateway_for_restart() {
   build_bin="$(managed_bin_dir)/gormes"
   home="$(managed_home_dir)"
   log_path="${home}/gateway.log"
+  source_root=$(build_root_dir 2>/dev/null || true)
 
   [ -x "$build_bin" ] || return 1
   mkdir -p "$home"
 
-  if has setsid; then
-    setsid -f "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null
-    return
+  if [ -n "$source_root" ]; then
+    if has setsid; then
+      GORMES_SOURCE_ROOT="$source_root" setsid -f "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null
+      return
+    fi
+    if has nohup; then
+      GORMES_SOURCE_ROOT="$source_root" nohup "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
+      return
+    fi
+    GORMES_SOURCE_ROOT="$source_root" "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
+  else
+    if has setsid; then
+      setsid -f "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null
+      return
+    fi
+    if has nohup; then
+      nohup "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
+      return
+    fi
+    "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
   fi
-  if has nohup; then
-    nohup "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
-    return
-  fi
-  "$build_bin" gateway >> "$log_path" 2>&1 < /dev/null &
 }
 
 wait_for_gateway_restart() {
@@ -1933,6 +2104,7 @@ ExecReload=${build_bin} gateway stop && ${build_bin} gateway
 Restart=on-failure
 RestartSec=30
 Environment=GORMES_HOME=$(managed_home_dir)
+$(systemd_source_root_environment_line 2>/dev/null || true)
 
 [Install]
 WantedBy=default.target
@@ -2050,6 +2222,9 @@ print_install_plan_body() {
     fi
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
+  if ! sandbox_bin_dir_set && ! is_termux; then
+    log "  profile_gateways: active gormes-gateway-*.service units follow restart_gateway policy"
+  fi
   log "  setup_wizard: ${RUN_SETUP}"
 }
 
@@ -2122,6 +2297,9 @@ print_verbose_plan() {
     fi
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
+  if ! sandbox_bin_dir_set && ! is_termux; then
+    log "  profile_gateways: active gormes-gateway-*.service units follow restart_gateway policy"
+  fi
   log "  setup_wizard: ${RUN_SETUP}"
 }
 
@@ -2190,6 +2368,7 @@ main() {
   fi
   acquire_install_lock
   PREVIOUS_GATEWAY_PID=$(running_gateway_pid 2>/dev/null || true)
+  PREVIOUS_PROFILE_GATEWAY_UNITS=$(running_profile_gateway_units 2>/dev/null || true)
   ensure_base_prerequisites
   prepare_gormes_binary
   publish_command
@@ -2197,6 +2376,7 @@ main() {
   verify_install
   run_setup_wizard
   restart_gateway_if_running "$PREVIOUS_GATEWAY_PID"
+  restart_profile_gateway_units_if_running "$PREVIOUS_PROFILE_GATEWAY_UNITS"
   append_install_ledger
   print_summary
 }

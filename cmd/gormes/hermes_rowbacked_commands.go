@@ -55,99 +55,6 @@ func newImportCommand() *cobra.Command {
 	})
 }
 
-func newPairingCommand() *cobra.Command {
-	return newHermesUnavailableParent(
-		"pairing",
-		"Manage gateway pairing requests",
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "list",
-			Short: "List pending pairing requests",
-			Row:   hermesGatewayCronRow,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "approve <id>",
-			Short: "Approve a pairing request",
-			Row:   hermesGatewayCronRow,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:         "revoke <id>",
-			Short:       "Revoke an approved pairing",
-			Row:         hermesGatewayCronRow,
-			Destructive: true,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:         "clear-pending",
-			Short:       "Clear pending pairing requests",
-			Row:         hermesGatewayCronRow,
-			Destructive: true,
-			FlagSet:     hermesUnavailableYesFlag,
-		}),
-	)
-}
-
-func newWebhookCommand() *cobra.Command {
-	return newHermesUnavailableParent(
-		"webhook",
-		"Manage Hermes-compatible webhook subscriptions",
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:     "subscribe <target>",
-			Aliases: []string{"add"},
-			Short:   "Subscribe a webhook target",
-			Row:     hermesGatewayCronRow,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:     "list",
-			Aliases: []string{"ls"},
-			Short:   "List webhook subscriptions",
-			Row:     hermesGatewayCronRow,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:         "remove <id>",
-			Aliases:     []string{"rm"},
-			Short:       "Remove a webhook subscription",
-			Row:         hermesGatewayCronRow,
-			Destructive: true,
-			FlagSet:     hermesUnavailableYesFlag,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "test <id>",
-			Short: "Send a test webhook event",
-			Row:   hermesGatewayCronRow,
-		}),
-	)
-}
-
-func newHooksCommand() *cobra.Command {
-	return newHermesUnavailableParent(
-		"hooks",
-		"Manage local Hermes-compatible hook registrations",
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:     "list",
-			Aliases: []string{"ls"},
-			Short:   "List hook registrations",
-			Row:     hermesGatewayCronRow,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "test <name>",
-			Short: "Test a hook registration",
-			Row:   hermesGatewayCronRow,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:         "revoke <name>",
-			Aliases:     []string{"remove", "rm"},
-			Short:       "Revoke a hook registration",
-			Row:         hermesGatewayCronRow,
-			Destructive: true,
-			FlagSet:     hermesUnavailableYesFlag,
-		}),
-		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-			Use:   "doctor",
-			Short: "Inspect hook configuration health",
-			Row:   hermesGatewayCronRow,
-		}),
-	)
-}
-
 func newToolsCommand() *cobra.Command {
 	return newHermesUnavailableParent(
 		"tools",
@@ -168,12 +75,4 @@ func newToolsCommand() *cobra.Command {
 			Row:   hermesToolRow,
 		}),
 	)
-}
-
-func newInsightsCommand() *cobra.Command {
-	return newHermesUnavailableCommand(hermesUnavailableCommandSpec{
-		Use:   "insights",
-		Short: "Show Hermes-compatible runtime insights",
-		Row:   "Self-monitoring telemetry",
-	})
 }

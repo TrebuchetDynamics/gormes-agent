@@ -7,9 +7,9 @@ title: "CLI Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `cli`
-**Rows:** 28
-**Status counts:** `complete`: 28 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 7 · `P2`: 8 · `P3`: 3 · `unset`: 10
+**Rows:** 33
+**Status counts:** `complete`: 32 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P1`: 12 · `P2`: 8 · `P3`: 3 · `unset`: 10
 
 ## Phase 5 — The Final Purge
 
@@ -45,3 +45,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `cli` | CLI log snapshot reader using shared redactor |
 | `complete` | `P2` | `cli` | Hermes CLI alias and suggestion fidelity matrix |
 | `complete` | `P2` | `cli` | Logs Command |
+| `planned` | `P1` | `cli` | Hermes send command stdin/file payload parity |
+| `complete` | `P1` | `cli` | CLI module contract registry and manifest gate |
+| `complete` | `P1` | `cli` | cmd/gormes profile command package extraction |
+| `complete` | `P1` | `cli` | cmd/gormes setup section registry extraction |
+| `complete` | `P1` | `cli` | cmd/gormes root command assembly extraction |

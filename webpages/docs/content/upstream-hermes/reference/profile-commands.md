@@ -6,6 +6,10 @@ weight: 7
 
 # Profile Commands Reference
 
+> **Upstream Hermes reference**
+> This page mirrors upstream Hermes behavior. For the current Gormes command
+> surface, use [gormes profile](../../../cli/profile/).
+
 This page covers all commands related to [Hermes profiles](../../user-guide/profiles/). For general CLI commands, see [CLI Commands Reference](../cli-commands/).
 
 ## `hermes profile`
@@ -27,6 +31,9 @@ Top-level command for managing profiles. Running `hermes profile` without a subc
 | `rename` | Rename a profile. |
 | `export` | Export a profile to a tar.gz archive. |
 | `import` | Import a profile from a tar.gz archive. |
+| `install` | Install a profile distribution from a git URL or local directory. See [Profile Distributions](../../user-guide/profile-distributions/). |
+| `update` | Re-pull a distribution-managed profile and re-apply its bundle. |
+| `info` | Show distribution metadata for a profile (origin URL, commit, last update). |
 
 ## `hermes profile list`
 
@@ -245,6 +252,68 @@ hermes profile import ./work-2026-03-29.tar.gz
 hermes profile import ./work-2026-03-29.tar.gz --name work-restored
 ```
 
+## Distribution commands
+
+> **Tip**
+> New to distributions? Start with the [Profile Distributions user guide](../../user-guide/profile-distributions/) — it covers the why, when, and how with full examples. The sections below are a dry CLI reference for when you know what you want.
+
+Distributions turn a profile into a shareable, versioned artifact published as
+a **git repository**. A recipient installs the distribution with a single
+command and can update it in place later without touching their local memories,
+sessions, or credentials.
+
+`auth.json` and `.env` are never part of a distribution — they stay on the
+installing user's machine.
+
+The recipient's user data (memories, sessions, auth, their own edits to `.env`)
+is always preserved across the initial install and subsequent updates.
+
+> **Info**
+> `hermes profile export` / `import` are still the right commands for **local backup and restore** of a profile on your own machine. Distribution (`install` / `update` / `info`) is a separate concept: ship a profile via git so someone else can install it.
+
+### `hermes profile install`
+
+```bash
+hermes profile install <source> [--name <name>] [--alias] [--force] [--yes]
+```
+
+Installs a profile distribution from a git URL or a local directory.
+
+| Option | Description |
+|--------|-------------|
+| `<source>` | Git URL (`github.com/user/repo`, `https://...`, `git@...`, `ssh://`, `git://`) or a local directory containing `distribution.yaml` at its root. |
+| `--name NAME` | Override the profile name from the manifest. |
+| `--alias` | Also create a shell wrapper (for example, `telemetry` to `hermes -p telemetry`). |
+| `--force` | Overwrite an existing profile of the same name. User data is still preserved. |
+| `-y`, `--yes` | Skip the manifest-preview confirmation prompt. |
+
+The installer shows the manifest, lists required env vars, and warns about cron
+jobs before asking for confirmation. Required env vars go into a `.env.EXAMPLE`
+file you copy to `.env` and fill in.
+
+### `hermes profile update`
+
+```bash
+hermes profile update <name> [--force-config] [--yes]
+```
+
+Re-clones the distribution from its recorded source and applies updates.
+Distribution-owned files (SOUL.md, skills/, cron/, mcp.json) are overwritten;
+user data (memories, sessions, auth, .env) is never touched.
+
+`config.yaml` is preserved by default to keep your local overrides. Pass
+`--force-config` to reset it to the distribution's shipped config.
+
+### `hermes profile info`
+
+```bash
+hermes profile info <name>
+```
+
+Prints the profile's distribution manifest — name, version, required Hermes
+version, author, env var requirements, the source URL/path, and the `Installed:`
+timestamp recorded when the distribution was last `install`-ed or `update`-d.
+
 ## `hermes -p` / `hermes --profile`
 
 ```bash
@@ -277,7 +346,7 @@ Generates shell completion scripts. Includes completions for profile names and p
 
 | Argument | Description |
 |----------|-------------|
-| `<shell>` | Shell to generate completions for: `bash` or `zsh`. |
+| `<shell>` | Shell to generate completions for: `bash`, `zsh`, or `fish`. |
 
 **Examples:**
 
@@ -285,6 +354,7 @@ Generates shell completion scripts. Includes completions for profile names and p
 # Install completions
 hermes completion bash >> ~/.bashrc
 hermes completion zsh >> ~/.zshrc
+hermes completion fish > ~/.config/fish/completions/hermes.fish
 
 # Reload shell
 source ~/.bashrc

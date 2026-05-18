@@ -1343,6 +1343,53 @@
     }
   },
   {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 119,
+    "item": {
+      "name": "Hermes session recap command surface",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Port Hermes' session recap command as a Gormes-native read-only session summarizer over local session/transcript storage, preserving output modes, missing-session diagnostics, and provider-free degraded behavior.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "sessions",
+      "fixture": "cmd/gormes session recap fixtures",
+      "source_refs": [
+        "../hermes-agent/hermes_cli/session_recap.py",
+        "../hermes-agent/hermes_cli/main.py",
+        "internal/session",
+        "internal/store"
+      ],
+      "ready_when": [
+        "Gormes session list/export storage helpers are available for hermetic temp-store tests."
+      ],
+      "not_ready_when": [
+        "The slice calls a live model to summarize instead of first proving the read-only recap envelope and degraded provider-free path.",
+        "The slice mutates session history while generating a recap."
+      ],
+      "acceptance": [
+        "Known session transcripts render a deterministic recap envelope in human and JSON modes.",
+        "Missing or empty sessions return explicit diagnostics without panics or live provider calls.",
+        "Long transcripts are bounded with visible truncation evidence."
+      ],
+      "write_scope": [
+        "cmd/gormes",
+        "internal/session",
+        "internal/store"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestSessionRecap|TestSession' -count=1",
+        "go test ./internal/session ./internal/store -run Recap -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Session recap fixtures prove read-only transcript loading, bounded output, missing-session diagnostics, and no live provider dependency."
+      ]
+    }
+  },
+  {
     "phase": "6",
     "subphase": "6.J",
     "pos": 2,

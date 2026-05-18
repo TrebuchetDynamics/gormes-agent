@@ -268,6 +268,131 @@
   },
   {
     "phase": "8",
+    "subphase": "8.B",
+    "pos": 3,
+    "item": {
+      "name": "Gormes market comparison positioning brief",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "A canonical strategy note captures the buyer-language lesson from the OpenClaw/Hermes/hosted-agent comparison without treating social-post claims as evidence. It defines the comparison axes Gormes should answer publicly, records the approved one-line frame, and forbids citing unverified popularity, token-ranking, release-count, or CVE claims without primary-source verification.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without this brief, future README/landing/docs passes can drift back into clone framing, unverifiable competitor claims, or methodology-heavy copy that hides the runtime wedge.",
+      "fixture": "docs/content/building-gormes/strategy/market-positioning.md",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/market-positioning.md",
+        "README.md",
+        "webpages/docs/content/why-gormes.md",
+        "webpages/landing/src/data/landing.js",
+        "conversation: user-supplied Reddit OpenClaw/Hermes/hosted-agent comparison, 2026-05-17"
+      ],
+      "ready_when": [
+        "The user-supplied market post is treated as perception evidence only.",
+        "No unverifiable numeric or security claim is promoted into public copy."
+      ],
+      "not_ready_when": [
+        "The brief cites social popularity, token ranking, release count, or CVE claims as facts without primary sources.",
+        "The frame says Gormes is hosted SaaS or zero-terminal software."
+      ],
+      "acceptance": [
+        "market-positioning.md names the four buyer axes: channel breadth, learning loop, infrastructure tax, and trust.",
+        "The canonical frame is recorded as Hermes-compatible agents from one Go binary, without the Python/Docker stack.",
+        "The note lists copy rules that separate stable Gormes evidence from unverified social claims.",
+        "Planner implications are turned into public-proof progress rows."
+      ],
+      "note": "Planner pass 2026-05-17 (gormes-planner): distilled a user-supplied Reddit competitor comparison into Gormes-owned positioning evidence. The post is not source-backed upstream evidence and must not create runtime parity rows by itself.",
+      "write_scope": [
+        "docs/content/building-gormes/strategy/market-positioning.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Market-positioning brief exists, rejects unverifiable claims, and records the approved Gormes comparison spine plus follow-up proof rows."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Market-positioning strategy row; no Hermes/Honcho upstream analog."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.B",
+    "pos": 4,
+    "item": {
+      "name": "Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Publish an operator-facing comparison matrix that explains Gormes beside Hermes, OpenClaw, and hosted agent services on the axes buyers already use: integrations/channels, learning loop, operational stack, ownership/control, security/trust posture, and first-run proof. The page must be evidence-based: Gormes claims cite local docs/tests/artifacts, competitor claims are phrased as category tradeoffs unless primary sources are verified, and the copy avoids popularity, token-ranking, release-count, and CVE claims sourced only from social posts.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without a canonical comparison, external posts define the category for Gormes and force the README or landing page to answer clone, chaos, or hosted-SaaS framing ad hoc.",
+      "fixture": "webpages/docs/content/why-gormes.md::comparison matrix",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/market-positioning.md",
+        "README.md",
+        "webpages/docs/content/why-gormes.md",
+        "webpages/docs/content/start-here/_index.md",
+        "webpages/docs/content/recipes/migrate-hermes.md",
+        "webpages/landing/src/data/landing.js"
+      ],
+      "ready_when": [
+        "Gormes market comparison positioning brief is complete.",
+        "The builder can add static docs/tests without browsing or fabricating competitor metrics.",
+        "Existing README/landing no-stack framing remains intact."
+      ],
+      "not_ready_when": [
+        "The page claims OpenClaw star counts, Hermes token rankings, CVE counts, or release counts without primary-source verification.",
+        "The page implies Gormes is hosted SaaS, no-terminal software, or a drop-in replacement for every OpenClaw integration.",
+        "The comparison demotes local ownership and no-stack first-run proof below methodology/process copy."
+      ],
+      "acceptance": [
+        "A public docs page or Why Gormes section contains a concise comparison table for Gormes, Hermes, OpenClaw, and hosted services.",
+        "The table includes explicit tradeoffs: Gormes is local software with ownership/control, not hosted zero-infrastructure SaaS.",
+        "README or landing Explore/Why links expose the comparison without making it the hero.",
+        "A docs test pins the no-unverified-social-stats rule and the core comparison axes."
+      ],
+      "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. This is a public docs/landing proof row, not a runtime parity row.",
+      "write_scope": [
+        "webpages/docs/content/why-gormes.md",
+        "webpages/docs/content/start-here/_index.md",
+        "webpages/docs/docs_test.go",
+        "webpages/docs/landing_page_docs_test.go",
+        "webpages/landing/src/data/landing.js",
+        "webpages/landing/tests/home.spec.mjs",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run 'Test.*(WhyGormes|Comparison|Landing)' -count=1",
+        "(cd webpages/landing && npm run test:e2e)",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Public comparison matrix is linked, source-honest, no-stack/local-ownership centered, and guarded by docs or landing tests."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned public positioning row from market perception; no upstream parity contract."
+      }
+    }
+  },
+  {
+    "phase": "8",
     "subphase": "8.C",
     "pos": 0,
     "item": {
@@ -329,6 +454,159 @@
       ],
       "provenance": {
         "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.C",
+    "pos": 1,
+    "item": {
+      "name": "Hermes v0.14 release feature-to-module pairing ledger",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Map Hermes v0.14 release-level user-visible features to the Gormes module taxonomy, mark which surfaces are covered or row-backed, and add source-backed planned rows for newly visible behavior that is not already explicit in module roadmaps.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "fixture": "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+      "source_refs": [
+        "../hermes-agent/RELEASE_v0.14.0.md",
+        "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/modules/_index.md"
+      ],
+      "ready_when": [
+        "Hermes v0.14 release notes are present in the in-repo Hermes checkout.",
+        "The planner can compare release surfaces against existing module rows without changing runtime code.",
+        "Newly visible behavior that is not already explicit can be represented as planned progress rows."
+      ],
+      "not_ready_when": [
+        "The ledger claims runtime parity for behavior that only has a doc pairing.",
+        "The ledger creates a side backlog outside progress.json.",
+        "The ledger copies py2many output into production Go packages."
+      ],
+      "acceptance": [
+        "The ledger pairs each Hermes v0.14 release surface to a Gormes module and either an existing row family or a newly added planned row.",
+        "The module roadmap pages regenerate from progress.json and show the added rows in their owning modules.",
+        "The ledger records the current py2many Go target command as `py2many --go <file.py>` and keeps generated Go non-runtime."
+      ],
+      "note": "Complete 2026-05-17: refreshed Hermes to 9f182bd7b, regenerated source-pair and py2many maps, then added a release-level module-pairing ledger plus planned rows for x_search, send_cmd, session recap, gateway memory monitor, LSP diagnostics, ACP setup-browser bootstrap, SimpleX, optional skills, and TUI truecolor/ANSI drift.",
+      "write_scope": [
+        "docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/modules"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress write",
+        "go run ./cmd/progress validate",
+        "go test ./internal/progress -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermes v0.14 feature families are paired into Gormes modules and generated module roadmaps include the added source-backed rows."
+      ]
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.C",
+    "pos": 2,
+    "item": {
+      "name": "Hermes contract inventory gate",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Build a report-only Hermes contract inventory gate that scans the current in-repo Hermes checkout, inventories source files, upstream docs pages, upstream tests, CLI/tool/provider/channel/session/memory/skill/learning-loop candidates, joins that evidence to progress.json rows and hermes-source-pairs.json, and emits machine-readable plus human-readable gap reports without failing CI by default. The gate must treat agent continuity as first-class: sessions, Memory/Goncho/Honcho compatibility, workspace/peer/profile identity boundaries, context retrieval and prompt budget, summaries/conclusions/search, skill templates and skills UX, skill precedence/sync/update/reset, learning-loop curator behavior, candidate memory/skill updates, feedback/outcome scoring, audit trail, mutation safety, prompt/context/memory/skill insertion ordering, and profile-scoped isolation. The gate proves whether a given Hermes SHA has every behavior/architecture contract classified as covered, partial, planned, excluded, or owned_divergence before Gormes claims full pairing.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without this inventory gate, Hermes pairing remains a hand-maintained release-note/source-file map and can silently drift from rolling upstream HEAD; Gormes must continue describing parity as source-backed but not exhaustive, especially for agent-continuity behavior that spans sessions, memory, skills, learning-loop updates, prompt insertion, and profile isolation.",
+      "fixture": "internal/repoctl/hermes_contract_inventory_test.go; webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md",
+      "source_refs": [
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md",
+        "internal/repoctl/source_pairs.go:ValidateSourcePairs",
+        "internal/progress/progress.go:Item",
+        "cmd/repoctl/main.go",
+        "hermes-agent/RELEASE_v0.14.0.md",
+        "hermes-agent/hermes_cli/main.py",
+        "hermes-agent/tools/x_search_tool.py",
+        "hermes-agent/tests/hermes_cli/test_send_cmd.py",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho",
+        "hermes-agent/tools/memory_tool.py",
+        "hermes-agent/agent/memory_manager.py",
+        "hermes-agent/agent/skill_commands.py",
+        "hermes-agent/agent/skill_preprocessing.py",
+        "hermes-agent/agent/skill_utils.py",
+        "hermes-agent/tools/skills_tool.py",
+        "hermes-agent/tools/skill_manager_tool.py",
+        "hermes-agent/tools/skills_sync.py",
+        "hermes-agent/agent/curator.py",
+        "hermes-agent/hermes_cli/curator.py"
+      ],
+      "ready_when": [
+        "The in-repo Hermes checkout is present and its current SHA can be read without importing or running Hermes.",
+        "hermes-source-pairs.json validates against the current Hermes SHA or reports stale evidence explicitly.",
+        "The first implementation is accepted as report-only; CI-blocking strict mode is planned separately or kept behind an explicit flag.",
+        "Matching is conservative and deterministic: source-pair rows, progress source_refs, upstream_tests, docs path refs, and taxonomy patterns produce confidence levels rather than proof.",
+        "Agent-continuity categories are treated as first-class inventory dimensions, not incidental notes under tools or CLI.",
+        "Honcho/Goncho evidence is included as compatibility evidence for memory, session, workspace, peer, message, context, search, summary, conclusion, API, and SDK-style surfaces."
+      ],
+      "not_ready_when": [
+        "The slice tries to infer every contract from Python AST or py2many output instead of emitting a conservative inventory.",
+        "The slice mutates progress.json rows automatically, creates hundreds of rows, or marks rows covered without planner review.",
+        "The slice fails CI by default before the initial gap baseline is classified.",
+        "The slice requires Hermes to be importable/runnable, live profile data, credentials, network access, or successful py2many transpilation.",
+        "The report treats low-confidence matches as proof of coverage.",
+        "The slice omits Memory/Goncho, skills templates/UX, learning-loop curator behavior, or prompt/context/memory/skill insertion ordering from the inventory categories.",
+        "The report merges agent continuity into one vague row instead of separating memory, skills, learning, prompt insertion, and profile isolation gaps."
+      ],
+      "acceptance": [
+        "`repoctl` can generate `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` and `.md` for the current Hermes SHA.",
+        "The JSON records Hermes SHA, generated timestamp, source/docs/tests inventory counts, unmapped lists, extracted CLI/tool/provider/channel candidates, matched progress rows, matched source-pair rows, confidence, and gap severity.",
+        "The Markdown records headline completion counts, critical blockers, per-module gap tables, release-checkpoint links, and a note that progress.json remains the only backlog.",
+        "Default report mode surfaces gaps without failing progress validation or CI; a strict mode is explicit and can be promoted later.",
+        "Docs state that Gormes may claim all Hermes features/architecture are paired only when every inventory gap is classified as covered, partial, planned, excluded, or owned_divergence for the current Hermes SHA.",
+        "Upstream tests and docs pages with no mapped progress row or explicit exclusion appear as blockers, not as silently ignored files.",
+        "The inventory has explicit sections or typed categories for sessions, Memory/Goncho/Honcho compatibility, workspace/peer/profile identity boundaries, context retrieval and prompt budget, summaries/conclusions/search, skills templates and skills UX, skill precedence/sync/update/reset, learning-loop curator behavior, candidate memory/skill updates, feedback/outcome scoring, audit trail, mutation safety, insertion ordering, and profile-scoped isolation.",
+        "Agent-continuity gaps are reported separately from CLI/tool/channel gaps so planner passes can prioritize Memory/Goncho, skills UX, and learning-loop fidelity without creating a side backlog."
+      ],
+      "note": "Decision from grill-me parity review: Gormes targets behavior/contract parity against rolling Hermes HEAD with release checkpoints. Architecture is paired as invariants, py2many is evidence only, and gormes-planner owns gap classification before gormes-builder implements rows. Follow-up grill refinement made agent continuity first-class: Memory/Goncho/Honcho compatibility, skills templates/UX, learning-loop curator behavior, prompt/context/memory/skill insertion ordering, and profile-scoped isolation must be inventoried explicitly before separate continuity audit rows are added.",
+      "write_scope": [
+        "cmd/repoctl",
+        "internal/repoctl",
+        "internal/progress",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/modules/docs.md"
+      ],
+      "test_commands": [
+        "go test ./internal/repoctl -run 'TestHermesContractInventory' -count=1",
+        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go run ./cmd/progress validate",
+        "go test ./webpages/docs -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Hermes contract inventory JSON and Markdown reports are generated for the current Hermes SHA, unclassified gaps are visible by severity, agent-continuity categories are first-class in the report, and normal validation remains report-only green unless strict mode is explicitly requested."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Rolling Hermes HEAD contract inventory + Gormes progress/source-pair evidence",
+        "note": "The gate measures pairing completeness; it does not itself complete Hermes parity."
       }
     }
   },

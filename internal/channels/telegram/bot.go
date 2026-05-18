@@ -62,9 +62,9 @@ type Config struct {
 	Notifications string
 	// DynamicCommands are optional runtime-discovered commands (for example
 	// enabled skill slash commands) appended to the canonical Hermes menu.
-	DynamicCommands  []gateway.PlatformCommand
-	ApprovalResolver     gateway.ApprovalResolver
-	ModelPickerResolver  gateway.ModelPickerResolver
+	DynamicCommands     []gateway.PlatformCommand
+	ApprovalResolver    gateway.ApprovalResolver
+	ModelPickerResolver gateway.ModelPickerResolver
 	// TokenLockDir stores machine-local same-token polling locks. Empty uses
 	// the gateway package default; cmd/gormes passes config.GatewayLockDir.
 	TokenLockDir string
@@ -400,7 +400,10 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 	var markers []string
 	if msg.Voice != nil {
 		marker, attachment := telegramVoiceAttachment(msg.Voice)
-		if transcript, err := b.transcribeTelegramAudio(ctx, AudioInput{
+		if b.cfg.AudioTranscriber == nil {
+			attachment.Error = "audio transcription is not configured"
+			markers = append(markers, telegramAudioUnavailableMarker("voice", attachment.Error))
+		} else if transcript, err := b.transcribeTelegramAudio(ctx, AudioInput{
 			Kind:      "voice",
 			FileID:    attachment.SourceID,
 			MediaType: attachment.MediaType,
@@ -409,18 +412,23 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 			markers = append(markers, telegramAudioTranscriptMarker("voice", transcript))
 		} else if err != nil {
 			attachment.Error = sanitizeTelegramAudioError(err)
+			markers = append(markers, telegramAudioUnavailableMarker("voice", attachment.Error))
 			b.log.Warn("telegram audio transcription unavailable",
 				"kind", "voice",
 				"err", attachment.Error,
 				"diagnostic", telegramAudioErrorDiagnostic(err),
 				"detail", telegramAudioErrorRedactedDetail(err))
 		}
+		attachment = redactTelegramAudioTransportID(attachment)
 		markers = append(markers, marker)
 		attachments = append(attachments, attachment)
 	}
 	if msg.Audio != nil {
 		marker, attachment := telegramAudioAttachment(msg.Audio)
-		if transcript, err := b.transcribeTelegramAudio(ctx, AudioInput{
+		if b.cfg.AudioTranscriber == nil {
+			attachment.Error = "audio transcription is not configured"
+			markers = append(markers, telegramAudioUnavailableMarker("audio", attachment.Error))
+		} else if transcript, err := b.transcribeTelegramAudio(ctx, AudioInput{
 			Kind:      "audio",
 			FileID:    attachment.SourceID,
 			MediaType: attachment.MediaType,
@@ -430,12 +438,14 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 			markers = append(markers, telegramAudioTranscriptMarker("audio", transcript))
 		} else if err != nil {
 			attachment.Error = sanitizeTelegramAudioError(err)
+			markers = append(markers, telegramAudioUnavailableMarker("audio", attachment.Error))
 			b.log.Warn("telegram audio transcription unavailable",
 				"kind", "audio",
 				"err", attachment.Error,
 				"diagnostic", telegramAudioErrorDiagnostic(err),
 				"detail", telegramAudioErrorRedactedDetail(err))
 		}
+		attachment = redactTelegramAudioTransportID(attachment)
 		markers = append(markers, marker)
 		attachments = append(attachments, attachment)
 	}
@@ -508,6 +518,26 @@ func telegramAudioTranscriptMarker(kind, transcript string) string {
 		label = "audio message"
 	}
 	return fmt.Sprintf("[The user sent a %s~ Here's what they said: %q]", label, strings.Join(strings.Fields(transcript), " "))
+}
+
+func telegramAudioUnavailableMarker(kind, reason string) string {
+	label := "voice message"
+	if strings.EqualFold(strings.TrimSpace(kind), "audio") {
+		label = "audio message"
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "audio transcription unavailable"
+	}
+	return fmt.Sprintf("[Telegram %s could not be transcribed: %s]", label, reason)
+}
+
+func redactTelegramAudioTransportID(attachment gateway.Attachment) gateway.Attachment {
+	// Telegram file_id values are adapter-private handles, not model-usable
+	// media URLs. Keep the attachment kind for gateway policy while preventing
+	// raw transport IDs from reaching SubmitText().
+	attachment.SourceID = ""
+	return attachment
 }
 
 func telegramVoiceAttachment(voice *tgbotapi.Voice) (string, gateway.Attachment) {

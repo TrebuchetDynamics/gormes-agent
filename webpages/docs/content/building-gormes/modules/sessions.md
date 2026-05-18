@@ -7,9 +7,9 @@ title: "Sessions Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `sessions`
-**Rows:** 27
-**Status counts:** `complete`: 27 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 8 · `P2`: 4 · `P3`: 1 · `unset`: 14
+**Rows:** 28
+**Status counts:** `complete`: 27 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P1`: 8 · `P2`: 5 · `P3`: 1 · `unset`: 14
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -81,6 +81,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 |---|---|---|---|
 | `complete` | `unset` | `sessions` | Busy command guard for compression and long CLI actions |
 | `complete` | `P1` | `sessions` | Hermes sessions CLI MRU browse/delete ergonomics |
+| `planned` | `P2` | `sessions` | Hermes session recap command surface |
 
 ## Phase 6 — The Learning Loop (Soul)
 

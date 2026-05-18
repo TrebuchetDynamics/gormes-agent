@@ -10,6 +10,15 @@ import (
 
 const audioDeliveryGuidance = "## Audio Delivery\nGateway audio delivery is enabled for this turn. Answer normally in written text; the gateway will synthesize and attach the audio after your final answer. Do not claim that you generated audio yourself, and do not claim the TTS provider is unavailable."
 
+var audioIntentTextReplacer = strings.NewReplacer(
+	"á", "a",
+	"é", "e",
+	"í", "i",
+	"ó", "o",
+	"ú", "u",
+	"ü", "u",
+)
+
 func inboundRequestsAudioReply(ev InboundEvent) bool {
 	for _, attachment := range ev.Attachments {
 		switch strings.ToLower(strings.TrimSpace(attachment.Kind)) {
@@ -17,7 +26,7 @@ func inboundRequestsAudioReply(ev InboundEvent) bool {
 			return true
 		}
 	}
-	text := strings.ToLower(strings.Join(strings.Fields(ev.Text), " "))
+	text := audioIntentTextReplacer.Replace(strings.ToLower(strings.Join(strings.Fields(ev.Text), " ")))
 	if text == "" {
 		return false
 	}
@@ -31,6 +40,20 @@ func inboundRequestsAudioReply(ev InboundEvent) bool {
 		"reply by voice",
 		"read it aloud",
 		"read out loud",
+		"mandame audio",
+		"mandamelo en audio",
+		"mandalo en audio",
+		"enviame audio",
+		"enviamelo en audio",
+		"envialo en audio",
+		"pasame audio",
+		"pasamelo en audio",
+		"por audio",
+		"para audio",
+		"audio por favor",
+		"leelo en voz alta",
+		"leemelo",
+		"voz alta",
 	} {
 		if strings.Contains(text, phrase) {
 			return true

@@ -3057,6 +3057,53 @@
   },
   {
     "phase": "5",
+    "subphase": "5.H",
+    "pos": 5,
+    "item": {
+      "name": "ACP setup-browser bootstrap parity",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "`gormes acp --setup-browser` ports Hermes' ACP browser-tool bootstrap behavior with platform-specific command planning, dry-run/report output, and browser harness dependency checks while keeping actual installs explicit and operator-approved.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tools",
+      "fixture": "cmd/gormes acp setup-browser dry-run fixtures",
+      "source_refs": [
+        "../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.sh",
+        "../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.ps1",
+        "../hermes-agent/acp_adapter/entry.py",
+        "cmd/gormes/acp.go",
+        "internal/acp"
+      ],
+      "ready_when": [
+        "ACP server/client rows are complete and command planning can be tested without installing browser tools."
+      ],
+      "not_ready_when": [
+        "The slice downloads browsers or runs package managers during tests.",
+        "The slice changes ACP JSON-RPC session behavior instead of only adding bootstrap planning."
+      ],
+      "acceptance": [
+        "Linux/macOS and Windows plans match Hermes script intent and surface missing prerequisites.",
+        "Dry-run output is deterministic and secret-free.",
+        "Non-dry-run execution requires explicit operator approval and reports each step outcome."
+      ],
+      "write_scope": [
+        "cmd/gormes/acp.go",
+        "internal/acp",
+        "internal/tools"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes ./internal/acp -run 'ACP.*SetupBrowser|ACP.*Bootstrap' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "ACP setup-browser dry-run and approval fixtures prove platform planning without live downloads."
+      ]
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.J",
     "pos": 0,
     "item": {
@@ -6319,6 +6366,54 @@
   },
   {
     "phase": "5",
+    "subphase": "5.L",
+    "pos": 25,
+    "item": {
+      "name": "Hermes LSP write-time semantic diagnostics",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "After `write_file` or `patch`, Gormes runs a language-server diagnostic pass equivalent to Hermes' write-time LSP surface, shifts baseline ranges through edits, and returns new semantic errors to the agent without blocking unsupported languages.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "fixture": "internal/tools LSP diagnostic fake-server fixtures",
+      "source_refs": [
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
+        "internal/tools/file_task_tools.go"
+      ],
+      "ready_when": [
+        "Native write/patch tools and lint-delta rows are complete.",
+        "A fake diagnostic service can be injected without launching real language servers."
+      ],
+      "not_ready_when": [
+        "The slice shells out to real language servers in unit tests.",
+        "Unsupported languages fail the file operation instead of returning degraded diagnostic evidence."
+      ],
+      "acceptance": [
+        "Post-write diagnostics report only new or shifted errors relevant to the edited file.",
+        "Range-shift fixtures cover insert/delete/move edits and preserve baseline diagnostic identity.",
+        "Unsupported or missing LSP backends return degraded evidence without failing successful file writes."
+      ],
+      "write_scope": [
+        "internal/tools",
+        "internal/lsp"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'Test.*LSP|Test.*Diagnostic|TestWrite|TestPatch' -count=1",
+        "go test ./internal/lsp -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "File write/patch fixtures prove LSP diagnostic deltas, range shifting, and graceful unsupported-language degradation."
+      ]
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.N",
     "pos": 0,
     "item": {
@@ -8958,6 +9053,55 @@
         ],
         "note": "The first RED exposed the static web test harness using Node 20-only import.meta.dirname under Node 18.19.1; the harness now resolves its root from import.meta.url before running the Cron fixture."
       }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.N",
+    "pos": 54,
+    "item": {
+      "name": "Hermes x_search tool and auth surface",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Expose Hermes' first-class `x_search` tool in Gormes with a descriptor, OAuth/API-key auth status, query/result envelope, rate-limit/degraded errors, and registry/toolset visibility without requiring live X credentials in tests.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "fixture": "internal/tools x_search fake transport fixtures",
+      "source_refs": [
+        "../hermes-agent/tools/x_search_tool.py",
+        "../hermes-agent/tools/xai_http.py",
+        "../hermes-agent/tests/tools/test_x_search_tool.py",
+        "../hermes-agent/website/docs/user-guide/features/x-search.md",
+        "internal/tools",
+        "internal/config"
+      ],
+      "ready_when": [
+        "Tool registry and auth status helpers can be exercised with fake HTTP and temp config."
+      ],
+      "not_ready_when": [
+        "The slice requires a live X OAuth/API-key credential.",
+        "The slice hides x_search from tool descriptors while adding only a CLI helper."
+      ],
+      "acceptance": [
+        "`x_search` appears in the registry with Hermes-compatible schema and toolset availability.",
+        "OAuth and API-key auth modes produce redacted status and missing-auth diagnostics.",
+        "Fake search results normalize into a bounded model-visible result envelope; rate-limit and auth failures degrade explicitly."
+      ],
+      "write_scope": [
+        "internal/tools",
+        "internal/config",
+        "cmd/gormes/registry.go"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestXSearch|TestToolRegistry' -count=1",
+        "go test ./internal/config -run 'TestXSearch|TestAuth' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "x_search descriptor, auth status, fake-result normalization, and degraded errors are proven without live X credentials."
+      ]
     }
   },
   {

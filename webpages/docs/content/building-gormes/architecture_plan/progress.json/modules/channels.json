@@ -5285,6 +5285,144 @@
   },
   {
     "phase": "5",
+    "subphase": "5.O",
+    "pos": 129,
+    "item": {
+      "name": "cmd/gormes channels capabilities command package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move `gormes channels capabilities` command construction and rendering into an importable channels module while preserving configured-state redaction, unknown-channel exit code, human output, JSON shape, and build provenance.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Unknown channels still return exit code 1 with typed `unknown_channel` evidence; configured details are supplied through cmd/gormes seams until channel runtime modules own each platform's config summary.",
+      "fixture": "internal/app/gormescli/modules/channels/capabilities_test.go plus cmd/gormes/channels_capabilities_test.go",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
+        "internal/app/gormescli/modules/channels/capabilities.go",
+        "cmd/gormes/channels_capabilities.go",
+        "internal/channels/capabilities.go"
+      ],
+      "ready_when": [
+        "CLI module contract registry assigns `channels` to the channels module.",
+        "Existing channel capability fixtures cover Telegram, Teams, JSON build provenance, redaction, and unknown-channel behavior."
+      ],
+      "not_ready_when": [
+        "The slice moves Telegram, Slack, or WhatsApp service command runtimes.",
+        "The slice changes capability metadata, redaction details, JSON shape, or exit code semantics."
+      ],
+      "unblocks": [
+        "telegram/slack/whatsapp command package extraction",
+        "root command assembly extraction"
+      ],
+      "acceptance": [
+        "channels.NewCommandWithSeams owns `channels capabilities` command construction and text/JSON rendering.",
+        "cmd/gormes only injects config loading, configured channel details, and build provenance.",
+        "Existing channel capability command fixtures continue to pass through the root command."
+      ],
+      "note": "Complete 2026-05-17: moved `gormes channels capabilities` construction and renderers to internal/app/gormescli/modules/channels with config/detail/build seams. cmd/gormes/channels_capabilities.go now adapts configured platform details. Telegram, Slack, and WhatsApp service command runtimes remain separate future channel slices.",
+      "write_scope": [
+        "cmd/gormes/channels_capabilities.go",
+        "internal/app/gormescli/modules/channels/capabilities.go",
+        "internal/app/gormescli/modules/channels/capabilities_test.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/channels -run TestCapabilitiesCommandUsesInjectedConfigAndBuildProvenance -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli/modules/channels -run 'ChannelsCapabilities|CLIContract' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "`gormes channels capabilities` is importable and module-owned; existing root command fixtures prove redacted human/JSON behavior did not drift."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned channels command-package architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 131,
+    "item": {
+      "name": "cmd/gormes channel service command package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move `slack`, `whatsapp`, and `telegram` top-level service command construction into the importable channels module while preserving Slack manifest behavior, WhatsApp pairing flags/output, Telegram runtime startup behavior, command spelling, flags, JSON shapes, and exit-code behavior.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Slack manifest generation, WhatsApp pairing runtime, and Telegram long-poll runtime remain in cmd/gormes seams; only command construction and typed option parsing moved.",
+      "fixture": "internal/app/gormescli/modules/channels slack/whatsapp/telegram tests plus cmd/gormes Slack/WhatsApp/Telegram focused tests",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Finish Line Decisions",
+        "internal/app/gormescli/modules/channels/slack.go",
+        "internal/app/gormescli/modules/channels/whatsapp.go",
+        "internal/app/gormescli/modules/channels/telegram.go",
+        "cmd/gormes/slack.go",
+        "cmd/gormes/whatsapp.go",
+        "cmd/gormes/telegram.go"
+      ],
+      "ready_when": [
+        "Channels capabilities command extraction is complete.",
+        "Existing Slack manifest, WhatsApp pairing, and Telegram root/parity tests can run through cmd/gormes adapters."
+      ],
+      "not_ready_when": [
+        "The slice rewrites Slack manifest payload generation, WhatsApp pairing/install behavior, or Telegram long-poll runtime behavior.",
+        "Any channel command flags, help text, JSON shape, or exit-code behavior drifts."
+      ],
+      "unblocks": [
+        "root command assembly extraction"
+      ],
+      "acceptance": [
+        "channels.NewSlackCommandWithSeams owns `slack manifest` command flags and typed option handoff.",
+        "channels.NewWhatsAppCommandWithSeams owns WhatsApp setup flags and typed option handoff.",
+        "channels.NewTelegramCommandWithSeams owns the Telegram service command shell.",
+        "cmd/gormes only adapts runtime seams for manifest generation, WhatsApp pairing, and Telegram long-poll runtime."
+      ],
+      "note": "Complete 2026-05-17: moved Slack, WhatsApp, and Telegram service command construction into internal/app/gormescli/modules/channels. cmd/gormes now injects runtime seams for Slack manifest rendering/writes, WhatsApp pairing/install behavior, and Telegram long-poll startup.",
+      "write_scope": [
+        "cmd/gormes/slack.go",
+        "cmd/gormes/whatsapp.go",
+        "cmd/gormes/telegram.go",
+        "internal/app/gormescli/modules/channels/slack.go",
+        "internal/app/gormescli/modules/channels/whatsapp.go",
+        "internal/app/gormescli/modules/channels/telegram.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/channels -run 'TestSlack|TestWhatsApp|TestTelegram' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli/modules/channels -run 'TestSlack|TestWhatsApp|TestTelegram|CLIContract' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Slack, WhatsApp, and Telegram command shells are importable and module-owned while channel runtimes remain covered by existing cmd/gormes tests."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned command architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.V",
     "pos": 1,
     "item": {
@@ -7686,6 +7824,116 @@
         ]
       },
       "unblocks": []
+    }
+  },
+  {
+    "phase": "7",
+    "subphase": "7.E",
+    "pos": 23,
+    "item": {
+      "name": "SimpleX Chat platform plugin parity",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Port Hermes' SimpleX Chat platform plugin into Gormes behind the shared channel adapter contract: local daemon/WebSocket configuration, allowlist admission, opaque contact IDs, DM pairing, outbound delivery, command routing, and status/degraded evidence.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "fixture": "internal/channels/simplex fake WebSocket fixtures",
+      "source_refs": [
+        "../hermes-agent/plugins/platforms/simplex/plugin.yaml",
+        "../hermes-agent/plugins/platforms/simplex/adapter.py",
+        "internal/gateway/platform_manifest.go",
+        "internal/gateway/platform_connected_checkers.go"
+      ],
+      "ready_when": [
+        "Gateway platform manifest already classifies SimpleX as row-backed.",
+        "Shared channel adapter fixtures can run without a live SimpleX daemon."
+      ],
+      "not_ready_when": [
+        "The slice requires a real SimpleX account, daemon, or network socket in tests.",
+        "The slice bypasses shared gateway admission/delivery abstractions."
+      ],
+      "acceptance": [
+        "Config/status checks distinguish disabled, missing ws_url, unauthorized, and connected fake-daemon states.",
+        "Inbound fake events produce normalized PlatformEvent values with opaque contact identity preserved.",
+        "Outbound fake delivery and DM pairing preserve Hermes-visible SimpleX behavior and degraded errors."
+      ],
+      "write_scope": [
+        "internal/channels/simplex",
+        "internal/gateway",
+        "cmd/gormes/gateway.go"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/simplex ./internal/gateway -run 'SimpleX|PlatformManifest|Connected' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "SimpleX fake-daemon fixtures prove config/status, inbound admission, outbound delivery, DM pairing, and command routing without live credentials."
+      ]
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.B",
+    "pos": 5,
+    "item": {
+      "name": "Channel capability matrix with stable/fixture/planned labels",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Turn channel breadth into proof instead of a raw count: publish a channel capability matrix that separates runtime-ready, fixture-backed, and planned adapters, links each stable top-channel setup path, and states that gateway readiness comes from `gormes channels capabilities` plus `gormes gateway status`, not from roadmap row count.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "channels",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without labeled channel proof, Gormes either undersells existing gateway breadth or overclaims long-tail adapters as runtime-ready support.",
+      "fixture": "webpages/docs/content/cli/channels.md::capability matrix",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/market-positioning.md",
+        "webpages/docs/content/cli/channels.md",
+        "webpages/docs/content/recipes/multi-channel.md",
+        "webpages/docs/content/cli/gateway.md",
+        "webpages/docs/content/building-gormes/modules/channels.md",
+        "cmd/gormes/channels.go"
+      ],
+      "ready_when": [
+        "`gormes channels capabilities` exists and can be used as the runtime-facing truth surface.",
+        "Gateway recipes for Telegram, Discord, and Slack remain current.",
+        "The builder can add docs/tests without changing channel adapter behavior."
+      ],
+      "not_ready_when": [
+        "The matrix counts roadmap/planned adapters as runtime-ready.",
+        "The docs claim 50+ integrations or parity with OpenClaw channel breadth without executable evidence.",
+        "The slice changes gateway runtime behavior instead of documenting and testing the proof surface."
+      ],
+      "acceptance": [
+        "The channel docs include a matrix with at least runtime-ready, fixture-backed, and planned statuses.",
+        "Telegram, Discord, and Slack link to setup/status paths; WhatsApp and long-tail channels are labeled honestly according to current evidence.",
+        "The multi-channel recipe points users to `gormes channels capabilities` and `gormes gateway status --json` as the readiness proof.",
+        "A docs test fails if the matrix collapses stable, fixture-backed, and planned labels into one bucket."
+      ],
+      "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. OpenClaw owns broad integration perception; Gormes should answer with labeled proof, not inflated counts.",
+      "write_scope": [
+        "webpages/docs/content/cli/channels.md",
+        "webpages/docs/content/recipes/multi-channel.md",
+        "webpages/docs/docs_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run 'Test.*Channel.*(Capability|Matrix|Recipe)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Channel matrix and gateway recipe distinguish runtime-ready, fixture-backed, and planned adapters with docs tests guarding the labels."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned public proof row; channel runtime work remains in dedicated channel rows."
+      }
     }
   }
 ]
