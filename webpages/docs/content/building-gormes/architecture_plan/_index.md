@@ -1237,7 +1237,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Kernel in-session model-switch seam for the native TUI
 - [ ] `gateway` Kernel cross-provider client swap for in-session model switch
 - [ ] `tui` Native TUI slash handler-port coverage
-- [ ] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
+- [x] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
 
 ### 5.R — Code Execution Mode Policy ✅
 

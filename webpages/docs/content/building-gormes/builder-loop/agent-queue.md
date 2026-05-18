@@ -127,27 +127,7 @@ selection.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Native TUI Terminal.app truecolor and ANSI sanitizer parity
-
-- Phase: 5 / 5.Q
-- Owner: `tui`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Port Hermes Ink TUI Terminal.app/truecolor and ANSI sanitizer behavior into the native Gormes TUI so renderer output keeps cursor/source-of-truth stability, strips malformed CSI safely, and preserves readable color behavior across modern terminals.
-- Trust class: -
-- Ready when: Native TUI text rendering and input fast-echo helpers can be tested without launching an interactive terminal.
-- Not ready when: The slice requires a live Terminal.app session or snapshots from a developer machine., The slice changes TUI layout or slash dispatch outside text/color/input sanitizer behavior.
-- Degraded mode: -
-- Fixture: `internal/tui Terminal.app/ANSI sanitizer fixtures`
-- Write scope: `internal/tui`, `internal/tuigateway`, `cmd/gormes`
-- Test commands: `go test ./internal/tui ./internal/tuigateway ./cmd/gormes -run 'Truecolor\|ANSI\|Terminal\|TextInput\|Resume' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Native TUI fixtures prove truecolor environment handling, ANSI sanitizer safety, and fast-echo cursor stability without a live terminal.
-- Acceptance: Malformed or dangling ANSI/CSI sequences are stripped or bounded exactly by fixture expectations., Truecolor forcing/degradation is deterministic from injected terminal environment facts., Fast-echo cursor source-of-truth does not drift after sanitized writes.
-- Source refs: ../hermes-agent/ui-tui/src/lib/forceTruecolor.ts, ../hermes-agent/ui-tui/src/lib/text.ts, ../hermes-agent/ui-tui/src/components/textInput.tsx, ../hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts, ../hermes-agent/ui-tui/src/__tests__/text.test.ts, ../hermes-agent/ui-tui/src/__tests__/textInputFastEcho.test.ts, internal/tui
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Hermes v0.14 optional skill catalog refresh
+## 6. Hermes v0.14 optional skill catalog refresh
 
 - Phase: 6 / 6.C
 - Owner: `skills`
@@ -167,7 +147,7 @@ selection.
 - Source refs: ../hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md, ../hermes-agent/optional-skills/research/darwinian-evolver/SKILL.md, ../hermes-agent/optional-skills/research/osint-investigation/SKILL.md, ../hermes-agent/skills/productivity/notion/SKILL.md, internal/skills
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. SimpleX Chat platform plugin parity
+## 7. SimpleX Chat platform plugin parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -187,7 +167,7 @@ selection.
 - Source refs: ../hermes-agent/plugins/platforms/simplex/plugin.yaml, ../hermes-agent/plugins/platforms/simplex/adapter.py, internal/gateway/platform_manifest.go, internal/gateway/platform_connected_checkers.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Hermes contract inventory gate
+## 8. Hermes contract inventory gate
 
 - Phase: 8 / 8.C
 - Owner: `docs`
@@ -207,7 +187,7 @@ selection.
 - Source refs: webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json, webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md, webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md, internal/repoctl/source_pairs.go:ValidateSourcePairs, internal/progress/progress.go:Item, cmd/repoctl/main.go, hermes-agent/RELEASE_v0.14.0.md, hermes-agent/hermes_cli/main.py, hermes-agent/tools/x_search_tool.py, hermes-agent/tests/hermes_cli/test_send_cmd.py, webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage, webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho, hermes-agent/tools/memory_tool.py, hermes-agent/agent/memory_manager.py, hermes-agent/agent/skill_commands.py, hermes-agent/agent/skill_preprocessing.py, hermes-agent/agent/skill_utils.py, hermes-agent/tools/skills_tool.py, hermes-agent/tools/skill_manager_tool.py, hermes-agent/tools/skills_sync.py, hermes-agent/agent/curator.py, hermes-agent/hermes_cli/curator.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Agentic-porting-kit public repo scaffold
+## 9. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
