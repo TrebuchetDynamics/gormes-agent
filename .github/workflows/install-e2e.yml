@@ -26,7 +26,7 @@ jobs:
     name: install.sh e2e
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
 
@@ -45,7 +45,7 @@ jobs:
 
       - name: Upload sandbox logs on failure
         if: failure() || inputs.keep_sandbox == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: install-e2e-sandbox
           path: /tmp/gormes-install-e2e/
