@@ -124,7 +124,7 @@ func looksLikeGoTest(command, text string) bool {
 		goTestFailPackage.MatchString(text) ||
 		goTestFailTest.MatchString(text) ||
 		strings.Contains(text, "\nFAIL\n")
-	return outputConfirms && (commandSuggests || goTestFailTest.MatchString(text) || goTestFailPackage.MatchString(text))
+	return outputConfirms && (commandSuggests || goTestFailTest.MatchString(text))
 }
 
 func compactGoTest(text string) (string, []string) {
