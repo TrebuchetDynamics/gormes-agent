@@ -937,9 +937,10 @@
         "DuckDuckGo/free web_extract keeps Instant Answer as fallback after a local static fetch cannot produce content.",
         "Selected content excludes unrelated page content from nonmatching elements.",
         "Result metadata preserves the requested/final URL and HTML title.",
+        "Goscrapling static results include structured extraction evidence with engine, mode, HTTP status, content type, and css_selector.",
         "The implementation uses the local goscrapling module without exposing a new public tool name."
       ],
-      "note": "Complete 2026-05-15: TDD added a goscrapling-backed local/static extraction path behind the existing web_extract tool. Follow-up TDD integrated goscrapling more deeply into the DuckDuckGo/free web_extract route so normal root URLs are fetched locally first and Instant Answer becomes fallback instead of the primary path. The public contract stays Hermes-compatible while Gormes owns the optional css_selector parameter and local static extraction behavior as Termux-friendly enhancements. Dynamic JavaScript and browser-heavy cases remain delegated to browser/CDP tools.",
+      "note": "Complete 2026-05-15: TDD added a goscrapling-backed local/static extraction path behind the existing web_extract tool. Follow-up TDD integrated goscrapling more deeply into the DuckDuckGo/free web_extract route so normal root URLs are fetched locally first and Instant Answer becomes fallback instead of the primary path. On 2026-05-18, TDD added structured extraction evidence for goscrapling static results while keeping the public tool name unchanged. The public contract stays Hermes-compatible while Gormes owns the optional css_selector parameter and local static extraction behavior as Termux-friendly enhancements. Dynamic JavaScript and browser-heavy cases remain delegated to browser/CDP tools.",
       "write_scope": [
         "internal/tools/web_tools.go",
         "internal/tools/web_tools_test.go",
@@ -956,15 +957,15 @@
         "git diff --check"
       ],
       "done_signal": [
-        "Focused web_extract fixture proves goscrapling-backed CSS selection through the existing tool contract."
+        "Focused web_extract fixture proves goscrapling-backed CSS selection and structured extraction evidence through the existing tool contract."
       ],
       "provenance": {
         "origin_type": "gormes",
         "note": "This is a Gormes-owned Go-native/Termux-friendly static extraction enhancement behind the existing Hermes-compatible web_extract surface, not an upstream Hermes tool rename."
       },
       "evidence": [
-        "TestWebExtractToolUsesGoscraplingCSSSelectorForStaticPages proves schema exposure, one fakeable local GET, selector-only content, unrelated-content exclusion, and title/URL metadata.",
-        "TestWebExtractToolUsesGoscraplingForDuckDuckGoRootURL proves the automatic DuckDuckGo/free backend locally fetches an ordinary root URL through goscrapling instead of calling DuckDuckGo Instant Answer first.",
+        "TestWebExtractToolUsesGoscraplingCSSSelectorForStaticPages proves schema exposure, one fakeable local GET, selector-only content, unrelated-content exclusion, title/URL metadata, and structured extraction evidence.",
+        "TestWebExtractToolUsesGoscraplingForDuckDuckGoRootURL proves the automatic DuckDuckGo/free backend locally fetches an ordinary root URL through goscrapling instead of calling DuckDuckGo Instant Answer first, while preserving structured extraction evidence through normalization.",
         "TestWebExtractToolUsesDuckDuckGoInstantAnswer proves Instant Answer remains fallback after local static extraction cannot produce content.",
         "The implementation resolves goscrapling through the repo-local ./goscrapling module and keeps the root Gormes Go directive at 1.26 for Termux parity."
       ]

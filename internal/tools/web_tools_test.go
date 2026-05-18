@@ -974,6 +974,26 @@ func TestWebExtractToolUsesGoscraplingForDuckDuckGoRootURL(t *testing.T) {
 	if got.URL != siteURL || got.Title != "Example Home" {
 		t.Fatalf("result metadata = %+v, want root URL/title from goscrapling static fetch", got)
 	}
+	var evidence struct {
+		Results []struct {
+			Extraction struct {
+				Engine      string `json:"engine"`
+				Mode        string `json:"mode"`
+				StatusCode  int    `json:"status_code"`
+				ContentType string `json:"content_type"`
+			} `json:"extraction"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &evidence); err != nil {
+		t.Fatalf("decode evidence %s: %v", out, err)
+	}
+	if len(evidence.Results) != 1 {
+		t.Fatalf("evidence results len = %d, want one", len(evidence.Results))
+	}
+	gotEvidence := evidence.Results[0].Extraction
+	if gotEvidence.Engine != "goscrapling" || gotEvidence.Mode != "static" || gotEvidence.StatusCode != http.StatusOK || gotEvidence.ContentType != "text/html" {
+		t.Fatalf("extraction evidence = %+v, want goscrapling static document evidence", gotEvidence)
+	}
 }
 
 func TestWebExtractToolFetchesDuckDuckGoDirectTextDocument(t *testing.T) {
@@ -1147,6 +1167,27 @@ func TestWebExtractToolUsesGoscraplingCSSSelectorForStaticPages(t *testing.T) {
 	}
 	if got.URL != catalogURL || got.Title != "Catalog" {
 		t.Fatalf("result metadata = %+v, want URL/title from static page", got)
+	}
+	var evidence struct {
+		Results []struct {
+			Extraction struct {
+				Engine      string `json:"engine"`
+				Mode        string `json:"mode"`
+				StatusCode  int    `json:"status_code"`
+				ContentType string `json:"content_type"`
+				CSSSelector string `json:"css_selector"`
+			} `json:"extraction"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &evidence); err != nil {
+		t.Fatalf("decode evidence %s: %v", out, err)
+	}
+	if len(evidence.Results) != 1 {
+		t.Fatalf("evidence results len = %d, want one", len(evidence.Results))
+	}
+	gotEvidence := evidence.Results[0].Extraction
+	if gotEvidence.Engine != "goscrapling" || gotEvidence.Mode != "static" || gotEvidence.StatusCode != http.StatusOK || gotEvidence.ContentType != "text/html" || gotEvidence.CSSSelector != "article.product" {
+		t.Fatalf("extraction evidence = %+v, want goscrapling static selector evidence", gotEvidence)
 	}
 	if !strings.Contains(string(tool.Schema()), `"css_selector"`) {
 		t.Fatalf("web_extract schema missing css_selector: %s", tool.Schema())

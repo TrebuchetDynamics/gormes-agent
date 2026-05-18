@@ -195,7 +195,16 @@ type webExtractResult struct {
 	Content         string            `json:"content"`
 	Error           string            `json:"error,omitempty"`
 	Evidence        WebEvidence       `json:"evidence,omitempty"`
+	Extraction      *webExtraction    `json:"extraction,omitempty"`
 	BlockedByPolicy map[string]string `json:"blocked_by_policy,omitempty"`
+}
+
+type webExtraction struct {
+	Engine      string `json:"engine,omitempty"`
+	Mode        string `json:"mode,omitempty"`
+	StatusCode  int    `json:"status_code,omitempty"`
+	ContentType string `json:"content_type,omitempty"`
+	CSSSelector string `json:"css_selector,omitempty"`
 }
 
 type webErrorResponse struct {
@@ -1002,15 +1011,23 @@ func (t *webTool) goscraplingExtractURL(ctx context.Context, rawURL, selector st
 
 	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	extraction := &webExtraction{
+		Engine:      "goscrapling",
+		Mode:        "static",
+		StatusCode:  resp.StatusCode,
+		ContentType: mediaType,
+		CSSSelector: selector,
+	}
 	if selector == "" && mediaType != "text/html" && mediaType != "application/xhtml+xml" {
 		if !webDirectTextContentAllowed(mediaType, rawURL, data) {
 			return webExtractResult{}, fmt.Errorf("unsupported direct content type %q", firstNonEmpty(mediaType, http.DetectContentType(data)))
 		}
 		content := strings.TrimPrefix(string(data), "\ufeff")
 		return webExtractResult{
-			URL:     finalURL,
-			Title:   webDirectTextDocumentTitle(finalURL, content),
-			Content: content,
+			URL:        finalURL,
+			Title:      webDirectTextDocumentTitle(finalURL, content),
+			Content:    content,
+			Extraction: extraction,
 		}, nil
 	}
 
@@ -1037,19 +1054,21 @@ func (t *webTool) goscraplingExtractURL(ctx context.Context, rawURL, selector st
 			return webExtractResult{}, fmt.Errorf("empty static HTML content")
 		}
 		return webExtractResult{
-			URL:     finalURL,
-			Title:   webDirectHTMLTitle(finalURL, title, content),
-			Content: content,
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, content),
+			Content:    content,
+			Extraction: extraction,
 		}, nil
 	}
 
 	selection := response.CSS(selector)
 	if selection.Len() == 0 {
 		return webExtractResult{
-			URL:      finalURL,
-			Title:    webDirectHTMLTitle(finalURL, title, ""),
-			Error:    string(WebEvidenceInvalidArguments) + ": css_selector matched no elements",
-			Evidence: WebEvidenceInvalidArguments,
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, ""),
+			Error:      string(WebEvidenceInvalidArguments) + ": css_selector matched no elements",
+			Evidence:   WebEvidenceInvalidArguments,
+			Extraction: extraction,
 		}, nil
 	}
 
@@ -1061,17 +1080,19 @@ func (t *webTool) goscraplingExtractURL(ctx context.Context, rawURL, selector st
 	}
 	if content == "" {
 		return webExtractResult{
-			URL:      finalURL,
-			Title:    webDirectHTMLTitle(finalURL, title, ""),
-			Error:    string(WebEvidenceInvalidArguments) + ": css_selector matched only empty content",
-			Evidence: WebEvidenceInvalidArguments,
+			URL:        finalURL,
+			Title:      webDirectHTMLTitle(finalURL, title, ""),
+			Error:      string(WebEvidenceInvalidArguments) + ": css_selector matched only empty content",
+			Evidence:   WebEvidenceInvalidArguments,
+			Extraction: extraction,
 		}, nil
 	}
 
 	return webExtractResult{
-		URL:     finalURL,
-		Title:   webDirectHTMLTitle(finalURL, title, content),
-		Content: content,
+		URL:        finalURL,
+		Title:      webDirectHTMLTitle(finalURL, title, content),
+		Content:    content,
+		Extraction: extraction,
 	}, nil
 }
 
@@ -1484,9 +1505,10 @@ func normalizeWebExtract(requestedURL, format string, raw map[string]any) webExt
 	title := firstNonEmpty(webStringValue(metadata["title"]), webStringValue(payload["title"]))
 	content := webExtractContent(payload, format)
 	result := webExtractResult{
-		URL:     finalURL,
-		Title:   title,
-		Content: content,
+		URL:        finalURL,
+		Title:      title,
+		Content:    content,
+		Extraction: webExtractionFromRaw(payload["extraction"]),
 	}
 	if errMsg := webStringValue(payload["error"]); errMsg != "" {
 		result.Error = errMsg
@@ -1536,9 +1558,10 @@ func normalizeWebExtractDocument(row map[string]any, fallbackURL string, format 
 		content = firstNonEmpty(webStringValue(row["text"]), webStringValue(row["raw_content"]), webStringValue(row["full_content"]), strings.Join(webStringList(row["excerpts"]), "\n\n"))
 	}
 	result := webExtractResult{
-		URL:     firstNonEmpty(webStringValue(row["url"]), webStringValue(metadata["sourceURL"]), webStringValue(metadata["url"]), fallbackURL),
-		Title:   firstNonEmpty(webStringValue(row["title"]), webStringValue(metadata["title"])),
-		Content: content,
+		URL:        firstNonEmpty(webStringValue(row["url"]), webStringValue(metadata["sourceURL"]), webStringValue(metadata["url"]), fallbackURL),
+		Title:      firstNonEmpty(webStringValue(row["title"]), webStringValue(metadata["title"])),
+		Content:    content,
+		Extraction: webExtractionFromRaw(row["extraction"]),
 	}
 	if errMsg := webStringValue(row["error"]); errMsg != "" {
 		result.Error = errMsg
@@ -1900,7 +1923,52 @@ func webExtractResultProviderRow(result webExtractResult) map[string]any {
 	if result.Error != "" {
 		row["error"] = result.Error
 	}
+	if result.Extraction != nil {
+		row["extraction"] = result.Extraction
+	}
 	return row
+}
+
+func webExtractionFromRaw(raw any) *webExtraction {
+	switch value := raw.(type) {
+	case *webExtraction:
+		if value == nil {
+			return nil
+		}
+		clone := *value
+		if webExtractionEmpty(clone) {
+			return nil
+		}
+		return &clone
+	case webExtraction:
+		if webExtractionEmpty(value) {
+			return nil
+		}
+		clone := value
+		return &clone
+	case map[string]any:
+		extraction := webExtraction{
+			Engine:      webStringValue(value["engine"]),
+			Mode:        webStringValue(value["mode"]),
+			StatusCode:  intValue(value["status_code"]),
+			ContentType: webStringValue(value["content_type"]),
+			CSSSelector: webStringValue(value["css_selector"]),
+		}
+		if webExtractionEmpty(extraction) {
+			return nil
+		}
+		return &extraction
+	default:
+		return nil
+	}
+}
+
+func webExtractionEmpty(extraction webExtraction) bool {
+	return extraction.Engine == "" &&
+		extraction.Mode == "" &&
+		extraction.StatusCode == 0 &&
+		extraction.ContentType == "" &&
+		extraction.CSSSelector == ""
 }
 
 var (
