@@ -7,9 +7,9 @@ title: "Providers Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `providers`
-**Rows:** 117
-**Status counts:** `complete`: 117 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 9 · `P1`: 48 · `P2`: 23 · `P3`: 2 · `unset`: 35
+**Rows:** 118
+**Status counts:** `complete`: 117 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 9 · `P1`: 49 · `P2`: 23 · `P3`: 2 · `unset`: 35
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -185,6 +185,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P1` | `providers` | Cron partial legacy job read-model normalization |
+| `planned` | `P1` | `providers` | Provider/auth readiness preflight for unattended jobs |
 
 ### 5.O — Hermes CLI Parity
 

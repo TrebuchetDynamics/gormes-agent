@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Hermes tool tail strict-fidelity source-pair expansion
+## 1. Durable operator run report for unattended jobs
+
+- Phase: 2 / 2.D
+- Owner: `orchestrator`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Add a Gormes-owned durable OperatorRunReport artifact for unattended cron/fleet jobs. The report is produced from existing cron run, provider/runtime readiness, delivery, session, and release-ledger evidence and records job_id, run_id, profile/workspace, provider/model, delivery target, start/end/status, degraded_reason, transcript/session refs, redacted error/log summary, and recommended_next_command without running a real provider, gateway, or scheduler loop.
+- Trust class: operator, system
+- Ready when: Cron run audit records, delivery planning evidence, and runtime binding status evidence already exist., The first slice can build reports from hermetic fixtures without live providers, gateways, schedulers, or network access., The report schema is scoped to unattended operator jobs and does not replace existing cron_runs storage.
+- Not ready when: The implementation tries to run real scheduled jobs, call providers, send gateway messages, or introduce email/CRM integrations., The report is tied only to Telegram/gateway delivery and cannot represent local or suppressed cron runs., Errors are stored only as prose without stable status/degraded_reason/recommended_next_command fields.
+- Degraded mode: When a run is suppressed, times out, fails provider/auth readiness, or cannot deliver, the report remains written with status=degraded or failed, a stable degraded_reason, redacted detail, and a recommended repair command rather than disappearing into logs.
+- Fixture: `internal/cron/operator_run_report_test.go::TestOperatorRunReportBuildsSuccessAndDegradedArtifacts`
+- Write scope: `internal/cron/operator_run_report.go`, `internal/cron/operator_run_report_test.go`, `internal/cron/run_store.go`, `internal/cron/run_store_test.go`
+- Test commands: `go test ./internal/cron -run 'TestOperatorRunReport' -count=1`, `go test ./internal/cron -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Builder reports stable OperatorRunReport JSON fixtures for success and degraded unattended runs, redaction evidence, recommended repair commands, and no live provider/gateway/scheduler dependency.
+- Acceptance: A pure report builder maps successful cron run evidence into a stable JSON artifact with job/run identity, provider/model, delivery target, timestamps, status, and session/transcript refs., A degraded fixture maps provider/auth missing, timeout, suppressed, and delivery-failed evidence into stable degraded_reason codes plus recommended_next_command values., Report JSON never includes raw API keys, full secret refs, provider response bodies, or unredacted filesystem home paths., The builder can write/read the artifact under a temp GORMES_HOME-style path without starting cron, gateway, kernel, or provider clients.
+- Source refs: internal/cron/run_store.go, internal/cron/run_completion.go, internal/cron/executor.go, internal/cron/delivery_plan.go, internal/subagent/durable_ledger.go, internal/runtime/binding.go, cmd/gormes/status.go
+- Unblocks: Scheduled briefing job emits operator run report, Morning degraded-status summary over latest run report, Gateway delivery evidence in operator run report, Provider/auth readiness preflight for unattended jobs
+- Why now: Unblocks Scheduled briefing job emits operator run report, Morning degraded-status summary over latest run report, Gateway delivery evidence in operator run report, Provider/auth readiness preflight for unattended jobs.
+
+## 2. Hermes tool tail strict-fidelity source-pair expansion
 
 - Phase: 5 / 5.A
 - Owner: `docs`
@@ -47,7 +68,7 @@ selection.
 - Source refs: hermes-agent/tools/x_search_tool.py, hermes-agent/tools/web_tools.py, hermes-agent/tools/tts_tool.py, hermes-agent/tools/transcription_tools.py, hermes-agent/tools/video_generation_tool.py, hermes-agent/tools/environments/vercel_sandbox.py, hermes-agent/tests/tools/test_x_search_tool.py, internal/tools
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Strict-fidelity upstream test-suite classifier
+## 3. Strict-fidelity upstream test-suite classifier
 
 - Phase: 8 / 8.C
 - Owner: `docs`
@@ -67,7 +88,7 @@ selection.
 - Source refs: webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json, internal/fidelity/report.go:buildUnmappedUpstreamInventory, internal/repoctl/hermes_contract_inventory.go:RenderHermesContractInventoryMarkdown, hermes-agent/tests/agent/lsp/test_workspace.py, hermes-agent/tests/tools/test_x_search_tool.py, hermes-agent/ui-tui/src/__tests__/slashParity.test.ts
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Hermes gateway platform strict-fidelity source-pair expansion
+## 4. Hermes gateway platform strict-fidelity source-pair expansion
 
 - Phase: 2 / 2.B.12
 - Owner: `docs`
@@ -87,7 +108,7 @@ selection.
 - Source refs: hermes-agent/gateway/platforms/base.py, hermes-agent/gateway/platforms/api_server.py, hermes-agent/gateway/platforms/telegram.py, hermes-agent/gateway/platforms/yuanbao.py, hermes-agent/tui_gateway/server.py, hermes-agent/tui_gateway/render.py, internal/channels, internal/gateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Hermes agent runtime strict-fidelity source-pair expansion
+## 5. Hermes agent runtime strict-fidelity source-pair expansion
 
 - Phase: 4 / 4.I
 - Owner: `docs`
@@ -107,7 +128,7 @@ selection.
 - Source refs: hermes-agent/agent/conversation_loop.py, hermes-agent/agent/tool_executor.py, hermes-agent/agent/context_engine.py, hermes-agent/agent/transports/codex.py, hermes-agent/agent/transports/chat_completions.py, hermes-agent/agent/lsp/manager.py, hermes-agent/tests/agent/lsp/test_lifecycle.py, internal/runtime, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Hermes plugin catalog strict-fidelity classifier
+## 6. Hermes plugin catalog strict-fidelity classifier
 
 - Phase: 5 / 5.I
 - Owner: `docs`
@@ -127,7 +148,7 @@ selection.
 - Source refs: hermes-agent/plugins/model-providers/openrouter/plugin.yaml, hermes-agent/plugins/model-providers/openai-codex/plugin.yaml, hermes-agent/plugins/memory/honcho/plugin.yaml, hermes-agent/plugins/platforms/simplex/adapter.py, hermes-agent/plugins/google_meet/meet_bot.py, internal/plugins, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes LSP write-time semantic diagnostics
+## 7. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -147,7 +168,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Hermes x_search tool and auth surface
+## 8. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -167,7 +188,7 @@ selection.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Hermes session recap command surface
+## 9. Hermes session recap command surface
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -187,7 +208,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/session_recap.py, ../hermes-agent/hermes_cli/main.py, internal/session, internal/store
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Long-term plan: profile fleet supervisor and single control-plane gateway
+## 10. Long-term plan: profile fleet supervisor and single control-plane gateway
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -205,26 +226,6 @@ selection.
 - Done signal: The profiles module documents one operator-facing fleet gateway/supervisor target, preserves profile isolation as non-negotiable, and makes the current per-profile services an explicit compatibility bridge rather than silent architecture drift.
 - Acceptance: Fleet status JSON lists every configured profile with desired channels, runtime owner, version, health, last error, and token-lock evidence., Start/stop/restart-all paths operate on all configured profiles while preserving isolated GORMES_HOME, config, auth, session, memory, and tool state per profile., A duplicate Telegram token across profiles is detected and reported as a per-profile conflict rather than racing two pollers., Update/release restart hooks can target the fleet through one operator-facing command or service instead of requiring hand-managed unit names., Regression tests use fake profile roots and fake supervisors only; no live systemd, Telegram, or provider credentials are required.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Hermes ui-tui strict-fidelity action matrix
-
-- Phase: 5 / 5.Q
-- Owner: `docs`
-- Size: `large`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Map the unmapped Hermes `ui-tui` source and test surface into Gormes-native TUI rows, owned-divergence notes, or explicit exclusions. The matrix must cover command dispatch, viewport/history stores, RPC/gateway client events, terminal modes, clipboard/OSC52, provider/model UI, approval actions, and state isolation before the strict-fidelity report can stop treating `ui-tui` as an undifferentiated blocker bucket.
-- Trust class: operator, system
-- Ready when: `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA., The row uses exact Hermes files/tests as evidence, not only broad directory globs., The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests.
-- Not ready when: The implementation treats low-confidence taxonomy matches as proof of coverage., The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping., The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first.
-- Degraded mode: Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.
-- Fixture: `internal/tui hermes-ui-tui strict-fidelity matrix fixtures`
-- Write scope: `internal/tui`, `internal/tuigateway`, `internal/repoctl`, `webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tui ./internal/tuigateway -count=1`, `go run ./cmd/repoctl hermes-contract-inventory --repo-root .`, `go run ./cmd/progress validate`
-- Done signal: Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim.
-- Acceptance: The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes., `go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence., `go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits., `go run ./cmd/progress validate` passes and generated docs show the row in the correct module.
-- Source refs: hermes-agent/ui-tui/src/__tests__/slashParity.test.ts, hermes-agent/ui-tui/src/__tests__/gatewayClient.test.ts, hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts, hermes-agent/ui-tui/src/__tests__/stateIsolation.test.ts, hermes-agent/ui-tui/src/__tests__/approvalAction.test.ts, internal/tui, internal/tuigateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

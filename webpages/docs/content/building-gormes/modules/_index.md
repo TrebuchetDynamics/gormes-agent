@@ -17,9 +17,9 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Cross Cutting](cross-cutting/) | 0 | 0 | 0 | 0 | - |
 | [Doctor](doctor/) | 16 | 16 | 0 | 0 | `P1`: 5 · `P2`: 7 · `P3`: 2 · `unset`: 2 |
 | [Docs](docs/) | 14 | 9 | 0 | 5 | `P1`: 10 · `P2`: 2 · `P3`: 2 |
-| [Fleet](fleet/) | 21 | 21 | 0 | 0 | `P0`: 2 · `P1`: 5 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
-| [Gateway](gateway/) | 157 | 155 | 0 | 2 | `P0`: 14 · `P1`: 48 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
-| [Goncho](goncho/) | 37 | 37 | 0 | 0 | `P0`: 6 · `P1`: 8 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
+| [Fleet](fleet/) | 23 | 21 | 0 | 2 | `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
+| [Gateway](gateway/) | 158 | 155 | 0 | 3 | `P0`: 14 · `P1`: 49 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
+| [Goncho](goncho/) | 39 | 39 | 0 | 0 | `P0`: 6 · `P1`: 10 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
 | [Install](install/) | 28 | 27 | 0 | 1 | `P0`: 2 · `P1`: 15 · `P2`: 4 · `P3`: 3 · `unset`: 4 |
 | [Kanban](kanban/) | 33 | 33 | 0 | 0 | `P1`: 14 · `P2`: 19 |
 | [Landing](landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |
@@ -29,9 +29,9 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Planner](planner/) | 9 | 9 | 0 | 0 | `P0`: 1 · `P1`: 3 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Profiles](profiles/) | 21 | 20 | 0 | 1 | `P0`: 2 · `P1`: 9 · `P2`: 4 · `unset`: 6 |
 | [Progress](progress/) | 17 | 17 | 0 | 0 | `P1`: 2 · `P2`: 15 |
-| [Providers](providers/) | 117 | 117 | 0 | 0 | `P0`: 9 · `P1`: 48 · `P2`: 23 · `P3`: 2 · `unset`: 35 |
+| [Providers](providers/) | 118 | 117 | 0 | 1 | `P0`: 9 · `P1`: 49 · `P2`: 23 · `P3`: 2 · `unset`: 35 |
 | [Release](release/) | 11 | 10 | 0 | 1 | `P0`: 1 · `P1`: 10 |
-| [Runtime](runtime/) | 17 | 16 | 0 | 1 | `P0`: 2 · `P1`: 9 · `P2`: 6 |
+| [Runtime](runtime/) | 18 | 16 | 0 | 2 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
 | [Sessions](sessions/) | 28 | 27 | 0 | 1 | `P1`: 8 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
 | [Skills](skills/) | 46 | 42 | 0 | 4 | `P0`: 6 · `P1`: 8 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9 |
 | [STT](stt/) | 4 | 4 | 0 | 0 | `P0`: 1 · `P1`: 3 |

@@ -212,8 +212,11 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 	}
 
 	cron := p.Phases["2"].Subphases["2.D"]
-	if got := cron.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.D = %q, want complete", got)
+	switch got := cron.DerivedStatus(); got {
+	case StatusComplete, StatusInProgress:
+		// Complete historically, or reopened by the operator run report lane.
+	default:
+		t.Fatalf("Phase 2.D = %q, want complete or in_progress", got)
 	}
 	cronItems := itemStatusByName(cron.Items)
 	for name, want := range map[string]Status{
@@ -224,6 +227,18 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		if got := cronItems[name]; got != want {
 			t.Errorf("Phase 2.D item %q = %q, want %q", name, got, want)
 		}
+	}
+	cronItemDetails := itemsByName(cron.Items)
+	report := cronItemDetails["Durable operator run report for unattended jobs"]
+	if report.Status != StatusPlanned || report.ContractStatus != ContractStatusFixtureReady || report.ExecutionOwner != ExecutionOwnerOrchestrator {
+		t.Fatalf("Phase 2.D operator run report metadata = status %q contract_status %q owner %q, want planned fixture_ready orchestrator", report.Status, report.ContractStatus, report.ExecutionOwner)
+	}
+	if report.SliceSize != SliceSizeSmall || !containsString(report.Unblocks, "Scheduled briefing job emits operator run report") {
+		t.Fatalf("Phase 2.D operator run report readiness = size %q unblocks %v, want small slice unblocking scheduled briefing", report.SliceSize, report.Unblocks)
+	}
+	briefing := cronItemDetails["Scheduled briefing job emits operator run report"]
+	if briefing.Status != StatusPlanned || !containsString(briefing.BlockedBy, "Durable operator run report for unattended jobs") {
+		t.Fatalf("Phase 2.D scheduled briefing metadata = status %q blocked_by %v, want planned blocked by durable report", briefing.Status, briefing.BlockedBy)
 	}
 
 	runtimeCore := p.Phases["2"].Subphases["2.E.0"]
@@ -888,10 +903,20 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.F.3 lifecycle writers note = %q, want runtime status store evidence", lifecycleWriters.Note)
 	}
 
-	if got := operator.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.F.4 = %q, want complete", got)
+	switch got := operator.DerivedStatus(); got {
+	case StatusComplete, StatusInProgress:
+		// Complete historically, or reopened by operator report delivery evidence.
+	default:
+		t.Fatalf("Phase 2.F.4 = %q, want complete or in_progress", got)
 	}
 	operatorItems := itemsByName(operator.Items)
+	deliveryReport := operatorItems["Gateway delivery evidence in operator run report"]
+	if deliveryReport.Status != StatusPlanned || deliveryReport.ContractStatus != ContractStatusDraft || deliveryReport.ExecutionOwner != ExecutionOwnerGateway {
+		t.Fatalf("Phase 2.F.4 operator delivery report metadata = status %q contract_status %q owner %q, want planned draft gateway", deliveryReport.Status, deliveryReport.ContractStatus, deliveryReport.ExecutionOwner)
+	}
+	if !containsString(deliveryReport.BlockedBy, "Durable operator run report for unattended jobs") || !strings.Contains(deliveryReport.Contract, "OperatorRunReport") {
+		t.Fatalf("Phase 2.F.4 operator delivery report readiness = blocked_by %v contract %q, want blocked by durable report and report contract", deliveryReport.BlockedBy, deliveryReport.Contract)
+	}
 	homeRules := operatorItems["Home channel ownership resolver fixtures"]
 	if homeRules.Status != StatusComplete {
 		t.Fatalf("Phase 2.F.4 home channel ownership resolver status = %q, want complete", homeRules.Status)

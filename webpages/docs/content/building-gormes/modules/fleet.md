@@ -7,9 +7,9 @@ title: "Fleet Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `fleet`
-**Rows:** 21
-**Status counts:** `complete`: 21 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 2 · `P1`: 5 · `P2`: 6 · `P3`: 3 · `unset`: 5
+**Rows:** 23
+**Status counts:** `complete`: 21 · `in_progress`: 0 · `planned`: 2
+**Priority counts:** `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5
 
 ## Phase 1 — The Dashboard
 
@@ -33,6 +33,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `fleet` | robfig/cron scheduler + bbolt job store |
 | `complete` | `unset` | `fleet` | SQLite cron_runs audit + CRON.md mirror |
 | `complete` | `unset` | `fleet` | Heartbeat [SYSTEM:] + [SILENT] delivery contract |
+| `planned` | `P1` | `fleet` | Durable operator run report for unattended jobs |
+| `planned` | `P1` | `fleet` | Scheduled briefing job emits operator run report |
 
 ### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution
 

@@ -625,6 +625,74 @@
   },
   {
     "phase": "5",
+    "subphase": "5.N",
+    "pos": 59,
+    "item": {
+      "name": "Morning degraded-status summary over latest run report",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add a read-only operator summary surface that renders the latest OperatorRunReport into text and JSON for morning review. The summary must show whether the unattended run succeeded, degraded, or failed; include job/run identity, delivery status, provider/auth readiness, redacted error details, and a recommended next command; and integrate with existing gormes status-style output without mutating cron or gateway state.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "runtime",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If no report exists or the latest report cannot be decoded, the command returns status=operator_report_unavailable with the path/reason redacted and points operators to the scheduler/doctor command rather than failing with raw filesystem errors.",
+      "fixture": "cmd/gormes/status_operator_report_test.go::TestStatusRendersLatestOperatorRunReport",
+      "source_refs": [
+        "cmd/gormes/status.go",
+        "internal/cli/status.go",
+        "internal/cron/operator_run_report.go",
+        "internal/doctor/durable_ledger.go",
+        "internal/gateway/status.go"
+      ],
+      "ready_when": [
+        "Durable operator run report for unattended jobs is complete.",
+        "The status command already has text/JSON degraded-output conventions.",
+        "The first version reads only local report files and does not query live gateways/providers."
+      ],
+      "not_ready_when": [
+        "The implementation starts cron, gateway, or provider clients to compute status.",
+        "The surface hides failed runs because there is no successful briefing content.",
+        "Raw error text leaks API keys, token-bearing URLs, or unredacted home paths."
+      ],
+      "blocked_by": [
+        "Durable operator run report for unattended jobs"
+      ],
+      "acceptance": [
+        "gormes status text output includes latest unattended run status, job/run id, delivery state, degraded reason, and recommended next command when a report exists.",
+        "gormes status --json includes a stable operator_run_report object with empty/absent fields normalized for automation.",
+        "Missing, unreadable, or malformed reports render operator_report_unavailable evidence without non-zero exit for read-only status.",
+        "Existing status progress/system output remains present."
+      ],
+      "note": "Gormes-owned works-first local-ownership reliability layer; no Hermes upstream analog.",
+      "write_scope": [
+        "cmd/gormes/status.go",
+        "cmd/gormes/status_operator_report_test.go",
+        "internal/cli/status.go",
+        "internal/cron/operator_run_report.go"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestStatusRendersLatestOperatorRunReport|TestStatusJSON' -count=1",
+        "go test ./cmd/gormes ./internal/cron -run 'Test(Status|OperatorRunReport)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports status text/JSON fixtures for latest operator run report, unavailable-report degradation, redaction, and unchanged existing status output."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned operator reliability behavior; no Hermes upstream analog."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.O",
     "pos": 116,
     "item": {

@@ -7,9 +7,9 @@ title: "Gateway Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `gateway`
-**Rows:** 157
-**Status counts:** `complete`: 155 · `in_progress`: 0 · `planned`: 2
-**Priority counts:** `P0`: 14 · `P1`: 48 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 158
+**Status counts:** `complete`: 155 · `in_progress`: 0 · `planned`: 3
+**Priority counts:** `P0`: 14 · `P1`: 49 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -175,6 +175,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `gateway` | Channel directory refresh + stale-target invalidation |
 | `complete` | `P1` | `gateway` | Manager remember-source hook |
 | `complete` | `P2` | `gateway` | Mirror + sticker cache surfaces |
+| `planned` | `P1` | `gateway` | Gateway delivery evidence in operator run report |
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy
 

@@ -7,9 +7,9 @@ title: "Goncho Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `goncho`
-**Rows:** 37
-**Status counts:** `complete`: 37 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 6 · `P1`: 8 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1
+**Rows:** 39
+**Status counts:** `complete`: 39 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 6 · `P1`: 10 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1
 
 ## Phase 2 — The Gateway
 
@@ -100,3 +100,5 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `goncho` | Goncho recall diagnostics CLI over RecallTrace |
 | `complete` | `P1` | `goncho` | Goncho replayable retrieval traces |
 | `complete` | `P1` | `goncho` | Goncho proof matrix and fixture harness |
+| `complete` | `P1` | `goncho` | Goncho golden transcript e2e harness |
+| `complete` | `P1` | `goncho` | Goncho retrieval benchmark corpus |
