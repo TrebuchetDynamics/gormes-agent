@@ -52,6 +52,7 @@ var (
 		{regexp.MustCompile(`\bASIA[0-9A-Z]{12,}\b`)},
 		{regexp.MustCompile(`\bAIza[0-9A-Za-z_-]{20,}\b`)},
 		{regexp.MustCompile(`\bxox[abprs]-[A-Za-z0-9-]{8,}\b`)},
+		{regexp.MustCompile(`\bbot[0-9]{5,}:[A-Za-z0-9_-]{20,}\b`)},
 		{regexp.MustCompile(`\b[0-9]{5,}:[A-Za-z0-9_-]{20,}\b`)},
 		{regexp.MustCompile(`\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{6,}\b`)},
 		{regexp.MustCompile(`(?i)\b(?:secret|token|password|credential)[-_][A-Za-z0-9._-]{4,}\b`)},

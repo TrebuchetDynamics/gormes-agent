@@ -14,12 +14,13 @@ func TestRedactSecretsCoversCommonCredentialShapes(t *testing.T) {
 		"AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
 		`DATABASE_URL=postgres://user:pass@example.test/db`,
 		"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.signature",
+		`telegram polling: Post "https://api.telegram.org/bot123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi_123456/getUpdates": connection reset by peer`,
 		"-----BEGIN PRIVATE KEY-----\nabc123\n-----END PRIVATE KEY-----",
 	}, "\n")
 
 	redacted, count := RedactSecretsWithCount(input, "[REDACTED]")
-	if count < 8 {
-		t.Fatalf("redaction count = %d, want at least 8 in:\n%s", count, redacted)
+	if count < 9 {
+		t.Fatalf("redaction count = %d, want at least 9 in:\n%s", count, redacted)
 	}
 	for _, leaked := range []string{
 		"sk-test-abcdefghijklmnopqrstuvwxyz",
@@ -29,6 +30,7 @@ func TestRedactSecretsCoversCommonCredentialShapes(t *testing.T) {
 		"wJalrXUtnFEMI",
 		"postgres://user:pass",
 		"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+		"bot123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi_123456",
 		"BEGIN PRIVATE KEY",
 	} {
 		if strings.Contains(redacted, leaked) {

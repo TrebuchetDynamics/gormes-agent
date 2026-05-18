@@ -1,8 +1,10 @@
 package telegram
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"strings"
 	"sync"
@@ -243,6 +245,56 @@ func TestTelegramPollingReconnectDrainsPollingOnlyAndHeartbeats(t *testing.T) {
 	}
 	if client.heartbeats != 1 {
 		t.Fatalf("heartbeats = %d, want post-reconnect probe", client.heartbeats)
+	}
+}
+
+func TestTelegramPollingNetworkErrorLogRedactsBotAPIURL(t *testing.T) {
+	client := &reconnectMockClient{mockClient: newMockClient()}
+	token := "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi_123456"
+	rawURL := "https://api.telegram.org/bot" + token + "/getUpdates"
+	var calls int
+	client.GetUpdatesFn = func(context.Context, tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+		calls++
+		if calls == 1 {
+			return nil, &net.OpError{Op: "read", Err: errors.New(`Post "` + rawURL + `": read: connection reset by peer`)}
+		}
+		return []tgbotapi.Update{{
+			UpdateID: 6,
+			Message: &tgbotapi.Message{
+				MessageID: 78,
+				Text:      "after sanitized retry",
+				Chat:      &tgbotapi.Chat{ID: 42, Type: "private"},
+				From:      &tgbotapi.User{ID: 7, FirstName: "tester"},
+			},
+		}}, nil
+	}
+	var logs bytes.Buffer
+	bot := New(Config{PollingConflictRetryDelay: time.Millisecond}, client, slog.New(slog.NewTextHandler(&logs, nil)))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	inbox := make(chan gateway.InboundEvent, 1)
+	done := make(chan error, 1)
+	go func() { done <- bot.Run(ctx, inbox) }()
+
+	select {
+	case <-inbox:
+	case err := <-done:
+		t.Fatalf("Run() returned before reconnect success: %v", err)
+	case <-time.After(300 * time.Millisecond):
+		t.Fatal("polling reconnect did not recover")
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("Run() error after cancel = %v", err)
+	}
+	got := logs.String()
+	for _, leaked := range []string{token, "bot" + token, rawURL} {
+		if strings.Contains(got, leaked) {
+			t.Fatalf("polling network log leaked %q in:\n%s", leaked, got)
+		}
+	}
+	if !strings.Contains(got, "bot<redacted-telegram-token>/getUpdates") {
+		t.Fatalf("polling network log missing redacted Telegram URL:\n%s", got)
 	}
 }
 

@@ -225,6 +225,7 @@ redact_stream() {
     s/(api[_-]?key|token|secret|password|client[_-]?secret|refresh[_-]?token|access[_-]?token)([[:space:]]*["=:]+[[:space:]]*)[^,}\s"]+/${1}${2}[REDACTED]/gi;
     s/\bsk-[A-Za-z0-9_-]{20,}\b/[REDACTED_OPENAI_KEY]/g;
     s/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/[REDACTED_GITHUB_TOKEN]/g;
+    s/\bbot[0-9]{8,10}:[A-Za-z0-9_-]{30,}\b/bot[REDACTED_TELEGRAM_TOKEN]/g;
     s/\b[0-9]{8,10}:[A-Za-z0-9_-]{30,}\b/[REDACTED_TELEGRAM_TOKEN]/g;
     s/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/[REDACTED_JWT]/g;
     s/\b(agent:[A-Za-z0-9_:-]*telegram:[A-Za-z0-9_:-]*:)[0-9]{6,}\b/${1}[REDACTED_ID]/g;

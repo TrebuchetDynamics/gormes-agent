@@ -221,8 +221,17 @@ func TestBot_ToInboundEvent_VoiceMessageIsNotBlank(t *testing.T) {
 		if !strings.Contains(ev.Text, "Telegram voice message") || !strings.Contains(ev.Text, "66s") {
 			t.Fatalf("voice marker text = %q", ev.Text)
 		}
-		if got := ev.SubmitText(); strings.TrimSpace(got) == "" || !strings.Contains(got, "voice-file-id") {
-			t.Fatalf("SubmitText() = %q, want nonblank voice attachment evidence", got)
+		submit := ev.SubmitText()
+		if strings.TrimSpace(submit) == "" || !strings.Contains(submit, "Telegram voice message") {
+			t.Fatalf("SubmitText() = %q, want nonblank voice attachment evidence", submit)
+		}
+		if !strings.Contains(submit, "audio transcription is not configured") {
+			t.Fatalf("SubmitText() = %q, want sanitized STT configuration marker", submit)
+		}
+		for _, forbidden := range []string{"voice-file-id", "sourceId=", ".cache/gormes", "~/.cache/gormes"} {
+			if strings.Contains(submit, forbidden) {
+				t.Fatalf("SubmitText() leaks transport/cache detail %q: %q", forbidden, submit)
+			}
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("no inbound event")
@@ -293,6 +302,15 @@ func TestBot_ToInboundEvent_VoiceMessageFallsBackWhenDownloadFails(t *testing.T)
 		}
 		if strings.Contains(ev.Text, "voice-file-id") || strings.Contains(ev.Text, "bot") || strings.Contains(ev.Text, "token") {
 			t.Fatalf("voice text leaks transport details: %q", ev.Text)
+		}
+		submit := ev.SubmitText()
+		for _, forbidden := range []string{"voice-file-id", "sourceId=", ".cache/gormes", "~/.cache/gormes"} {
+			if strings.Contains(submit, forbidden) {
+				t.Fatalf("SubmitText() leaks transport/cache detail %q: %q", forbidden, submit)
+			}
+		}
+		if !strings.Contains(submit, "telegram getFile failed") {
+			t.Fatalf("SubmitText() = %q, want sanitized transcription failure marker", submit)
 		}
 		if len(ev.Attachments) != 1 || ev.Attachments[0].Error == "" {
 			t.Fatalf("attachments = %+v, want sanitized error", ev.Attachments)

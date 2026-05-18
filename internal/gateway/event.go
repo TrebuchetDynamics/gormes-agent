@@ -255,16 +255,22 @@ func (e InboundEvent) SubmitText() string {
 		return text
 	}
 
-	lines := make([]string, 0, len(e.Attachments)+3)
+	attachmentLines := make([]string, 0, len(e.Attachments))
+	for _, att := range e.Attachments {
+		if line := att.submitLine(); line != "" {
+			attachmentLines = append(attachmentLines, line)
+		}
+	}
+	if len(attachmentLines) == 0 {
+		return text
+	}
+
+	lines := make([]string, 0, len(attachmentLines)+3)
 	if text != "" {
 		lines = append(lines, text, "")
 	}
 	lines = append(lines, "Attachments:")
-	for _, att := range e.Attachments {
-		if line := att.submitLine(); line != "" {
-			lines = append(lines, line)
-		}
-	}
+	lines = append(lines, attachmentLines...)
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
 
