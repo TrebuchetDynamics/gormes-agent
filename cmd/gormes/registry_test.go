@@ -14,6 +14,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -141,6 +142,51 @@ func TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool(t *testing.T) {
 	}
 }
 
+func TestBuildDefaultRegistryEnablesTerminalOutputCompaction(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.Config{
+		Terminal: config.TerminalCfg{CWD: t.TempDir()},
+	}, nil, "")
+	tool, ok := reg.Get("terminal")
+	if !ok {
+		t.Fatal("terminal not registered")
+	}
+	var stdout strings.Builder
+	for i := 0; i < 240; i++ {
+		stdout.WriteString("ok  \tgithub.com/example/project/pkg\t0.001s\n")
+	}
+	stdout.WriteString("--- FAIL: TestWidgetHandlesOverflow (0.00s)\n")
+	stdout.WriteString("    widget_test.go:42: got overflow=false, want true\n")
+	stdout.WriteString("FAIL\n")
+	stdout.WriteString("FAIL\tgithub.com/example/project/widget\t0.123s\n")
+	rawCommand, err := json.Marshal("cat <<'EOF'\n" + stdout.String() + "EOF\n")
+	if err != nil {
+		t.Fatalf("marshal command: %v", err)
+	}
+
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"command":`+string(rawCommand)+`}`))
+	if err != nil {
+		t.Fatalf("terminal Execute: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal terminal output %s: %v", raw, err)
+	}
+	if !strings.Contains(asRegistryString(out["stdout"]), "TestWidgetHandlesOverflow") {
+		t.Fatalf("stdout missing failing test after compaction: %s", raw)
+	}
+	if strings.Contains(asRegistryString(out["stdout"]), "github.com/example/project/pkg\t0.001s") {
+		t.Fatalf("stdout kept noisy package wall: %s", raw)
+	}
+	compaction, ok := out["compaction"].(map[string]any)
+	if !ok {
+		t.Fatalf("compaction = %#v, want object: %s", out["compaction"], raw)
+	}
+	stdoutEvidence, ok := compaction["stdout"].(map[string]any)
+	if !ok || stdoutEvidence["reducer"] != toolcompact.ReducerGoTest {
+		t.Fatalf("stdout compaction = %#v, want go_test reducer", compaction["stdout"])
+	}
+}
+
 func TestBuildDefaultRegistryPassesExecuteCodeMode(t *testing.T) {
 	reg := buildDefaultRegistry(context.Background(), config.Config{
 		CodeExecution: config.CodeExecutionCfg{Mode: "project"},
@@ -155,6 +201,9 @@ func TestBuildDefaultRegistryPassesExecuteCodeMode(t *testing.T) {
 	}
 	if execTool.Mode != tools.ExecuteCodeModeProject {
 		t.Fatalf("execute_code mode = %q, want %q", execTool.Mode, tools.ExecuteCodeModeProject)
+	}
+	if execTool.OutputCompaction.Mode != toolcompact.ModeAuto {
+		t.Fatalf("execute_code output compaction mode = %q, want %q", execTool.OutputCompaction.Mode, toolcompact.ModeAuto)
 	}
 
 	reg = buildDefaultRegistry(context.Background(), config.Config{
