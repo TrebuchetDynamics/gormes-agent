@@ -9,6 +9,12 @@ backlog. The executable backlog is still
 `docs/content/building-gormes/architecture_plan/progress.json`, accessed through
 `internal/progress.Load` / `SaveProgress` or `cmd/progress`.
 
+Closure decision confirmed 2026-05-18: this plan stays closed. Runtime seams
+such as auth/OAuth, gateway manager, dashboard server, Telegram/Slack/WhatsApp
+internals, tools/MCP/ACP, skills/plugins, and TUI setup are not unfinished work
+from this file. They must be handled as new progress rows or a new bounded plan
+with their own tests.
+
 ## Final State
 
 Branch must stay `development`. Do not create feature branches or worktrees for
