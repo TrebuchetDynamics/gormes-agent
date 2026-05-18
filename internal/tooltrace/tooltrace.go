@@ -32,6 +32,9 @@ func FormatPlain(text string) string {
 				}
 				return "🔧 tool_progress: " + quoteAndTruncate(name, arg, 40)
 			}
+			if suppressToolTraceArgs(name) {
+				return toolTraceIcon(name) + " " + name + "..."
+			}
 			if arg == "" {
 				return toolTraceIcon(name) + " " + name + "..."
 			}
@@ -114,7 +117,8 @@ func isKnownToolTraceName(name string) bool {
 		"search_files", "web_search", "web_extract", "web_crawl",
 		"browser_navigate", "browser_snapshot", "browser_click", "browser_type", "browser_scroll",
 		"browser_back", "browser_press", "browser_get_images", "browser_vision", "browser_cdp", "browser_dialog",
-		"read_file", "patch", "write_file", "terminal", "execute_code", "process":
+		"read_file", "patch", "write_file", "terminal", "execute_code", "process",
+		"transcribe_audio", "text_to_speech":
 		return true
 	default:
 		return false
@@ -165,8 +169,21 @@ func toolTraceIcon(name string) string {
 		return "💻"
 	case "execute_code":
 		return "💻"
+	case "transcribe_audio":
+		return "🎙️"
+	case "text_to_speech":
+		return "🔊"
 	default:
 		return "🔧"
+	}
+}
+
+func suppressToolTraceArgs(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "transcribe_audio", "text_to_speech":
+		return true
+	default:
+		return false
 	}
 }
 
