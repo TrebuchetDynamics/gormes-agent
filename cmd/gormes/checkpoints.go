@@ -10,66 +10,17 @@ import (
 
 	"github.com/spf13/cobra"
 
+	sessionsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/sessions"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func newCheckpointsCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "checkpoints",
-		Short: "Inspect and manage Gormes file-operation rollback state",
-		Long: `View and control the filesystem checkpoint store at $XDG_DATA_HOME/gormes/checkpoints/.
-
-Commands mirror Hermes' hermes checkpoints CLI. None require the agent to be
-running — safe to call at any time.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Bare `gormes checkpoints` falls through to status as a
-			// convenience. With a positional arg cobra has already
-			// failed to match it to a real subcommand, so it's a typo
-			// — surface "did you mean" parity with other parent
-			// commands (slice 26) instead of silently running status.
-			if len(args) > 0 {
-				if cmd.SuggestionsMinimumDistance <= 0 {
-					cmd.SuggestionsMinimumDistance = 2
-				}
-				if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
-					return fmt.Errorf("unknown command %q for %q; did you mean %q?", args[0], cmd.CommandPath(), suggestions[0])
-				}
-				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
-			}
-			return runCheckpointsStatus(cmd, args)
-		},
-	}
-
-	cmd.AddCommand(
-		newCheckpointsStatusCommand(),
-		newCheckpointsListCommand(),
-		newCheckpointsPruneCommand(),
-		newCheckpointsClearCommand(),
-		newCheckpointsClearLegacyCommand(),
-	)
-	return cmd
-}
-
-func newCheckpointsStatusCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Show total size, project count, and per-project breakdown",
-		RunE:  runCheckpointsStatus,
-	}
-	cmd.Flags().Int("limit", 20, "max projects to list")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, root, total_size_bytes, …, projects: [...], legacy_archives: [...]}`")
-	return cmd
-}
-
-func newCheckpointsListCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Alias for 'status'",
-		RunE:  runCheckpointsStatus,
-	}
-	cmd.Flags().Int("limit", 20, "max projects to list")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON (see `status --json`)")
-	return cmd
+	return sessionsmodule.NewCheckpointsCommandWithSeams(sessionsmodule.CheckpointsCommandSeams{
+		RunStatus:      runCheckpointsStatus,
+		RunPrune:       runCheckpointsPrune,
+		RunClear:       runCheckpointsClear,
+		RunClearLegacy: runCheckpointsClearLegacy,
+	})
 }
 
 // checkpointsStatusJSON is the wire shape for `checkpoints status --json`.
@@ -194,20 +145,6 @@ func runCheckpointsStatus(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func newCheckpointsPruneCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "prune",
-		Short: "Delete orphan/stale checkpoints and GC the store",
-		RunE:  runCheckpointsPrune,
-	}
-	cmd.Flags().Int("retention-days", 7, "drop projects whose last_touch is older than N days")
-	cmd.Flags().Int("max-size-mb", 500, "after orphan/stale prune, drop oldest commits per project until total size <= this")
-	cmd.Flags().Bool("keep-orphans", false, "skip deleting projects whose workdir no longer exists")
-	cmd.Flags().Bool("dry-run", false, "preview which orphan/stale shadows would be deleted without touching disk")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, dry_run, retention_days, max_total_size_mb, keep_orphans, scanned, deleted_orphan, deleted_stale, errors, bytes_freed}`")
-	return cmd
-}
-
 // checkpointsPruneJSON is the wire shape for `checkpoints prune --json`.
 // Operator scripts gating destructive prunes (CI/CD jobs, scheduled GC,
 // dashboard alerts) parse this to reason about what was — or, in
@@ -277,17 +214,6 @@ func runCheckpointsPrune(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintln(out, "Re-run without --dry-run to apply.")
 	}
 	return nil
-}
-
-func newCheckpointsClearCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "clear",
-		Short: "Delete the entire checkpoint base (all /rollback history)",
-		RunE:  runCheckpointsClear,
-	}
-	cmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, root, action, deleted, bytes_freed, projects_before, legacy_before}`")
-	return cmd
 }
 
 // checkpointsClearJSON is the wire shape for `checkpoints clear --json`.
@@ -374,17 +300,6 @@ func runCheckpointsClear(cmd *cobra.Command, _ []string) error {
 	}
 	fmt.Fprintln(out, "Could not clear checkpoint base (see logs).")
 	return nil
-}
-
-func newCheckpointsClearLegacyCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "clear-legacy",
-		Short: "Delete only the legacy-<ts>/ archives from v1 migration",
-		RunE:  runCheckpointsClearLegacy,
-	}
-	cmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, root, action, archives_before: [...], deleted, bytes_freed}`")
-	return cmd
 }
 
 // checkpointsClearLegacyJSON is the wire shape for `checkpoints clear-legacy --json`.

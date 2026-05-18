@@ -7,9 +7,9 @@ title: "Gateway Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `gateway`
-**Rows:** 155
-**Status counts:** `complete`: 153 · `in_progress`: 0 · `planned`: 2
-**Priority counts:** `P0`: 14 · `P1`: 46 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 156
+**Status counts:** `complete`: 154 · `in_progress`: 0 · `planned`: 2
+**Priority counts:** `P0`: 14 · `P1`: 47 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -276,6 +276,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `gateway` | Gateway planned stop marker + WSL systemd PATH parity |
 | `complete` | `P1` | `gateway` | Gateway stale-code self-check uses git HEAD SHA |
 | `complete` | `P1` | `gateway` | cmd/gormes gateway row-backed command package extraction |
+| `complete` | `P1` | `gateway` | cmd/gormes live gateway command package extraction |
 
 ### 5.Q — API Server + TUI Gateway Streaming
 

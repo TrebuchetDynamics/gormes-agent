@@ -11,15 +11,20 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 )
 
-type agentResetOptions struct {
-	Target string
-	Force  bool
-	DryRun bool
-	JSON   bool
+func newAgentCommand() *cobra.Command {
+	return gatewaymodule.NewAgentCommandWithSeams(gatewaymodule.AgentCommandSeams{
+		Reset:   runAgentResetCommand,
+		Spawn:   runAgentSpawnCommand,
+		List:    runAgentListCommand,
+		Bind:    runAgentBindCommand,
+		Unbind:  runAgentUnbindCommand,
+		Inspect: runAgentInspectCommand,
+	}, gatewaymodule.AgentCommandOptions{DefaultResetTarget: config.GormesHome()})
 }
 
 // agentResetReportJSON is the wire shape for `agent reset --json`.
@@ -28,10 +33,10 @@ type agentResetOptions struct {
 // which would land). Build provenance leads — same convention as the
 // rest of the `--json` arc.
 type agentResetReportJSON struct {
-	Build  buildProvenanceJSON       `json:"build"`
-	Target string                    `json:"target"`
-	DryRun bool                      `json:"dry_run"`
-	Files  []agentResetFileJSON      `json:"files"`
+	Build  buildProvenanceJSON  `json:"build"`
+	Target string               `json:"target"`
+	DryRun bool                 `json:"dry_run"`
+	Files  []agentResetFileJSON `json:"files"`
 }
 
 type agentResetFileJSON struct {
@@ -39,43 +44,7 @@ type agentResetFileJSON struct {
 	Action string `json:"action"`
 }
 
-func newAgentCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:          "agent",
-		Short:        "Manage Gormes agent context templates",
-		SilenceUsage: true,
-		Args:         cobra.NoArgs,
-	}
-	cmd.AddCommand(
-		newAgentResetCommand(),
-		newAgentSpawnCommand(),
-		newAgentListCommand(),
-		newAgentBindCommand(),
-		newAgentUnbindCommand(),
-		newAgentInspectCommand(),
-	)
-	return cmd
-}
-
-// agentBindingMatchFlags wires the shared (channel, peer-kind, peer-id,
-// thread-id) flag set used by bind, unbind, and inspect.
-type agentBindingMatchFlags struct {
-	Channel  string
-	PeerKind string
-	PeerID   string
-	ThreadID string
-}
-
-func (f *agentBindingMatchFlags) attach(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&f.Channel, "channel", "", "messaging channel (telegram, discord, slack, ...)")
-	cmd.Flags().StringVar(&f.PeerKind, "peer-kind", "group", "peer kind: group or direct")
-	cmd.Flags().StringVar(&f.PeerID, "peer-id", "", "channel-specific peer identifier (chat id, channel id, conversation id)")
-	cmd.Flags().StringVar(&f.ThreadID, "thread-id", "", "optional thread/topic identifier inside the peer")
-	_ = cmd.MarkFlagRequired("channel")
-	_ = cmd.MarkFlagRequired("peer-id")
-}
-
-func (f agentBindingMatchFlags) toMatch() goncho.BindingMatch {
+func agentBindingMatchToGoncho(f gatewaymodule.AgentBindingMatch) goncho.BindingMatch {
 	return goncho.BindingMatch{
 		Channel:  f.Channel,
 		PeerKind: f.PeerKind,
@@ -85,7 +54,7 @@ func (f agentBindingMatchFlags) toMatch() goncho.BindingMatch {
 }
 
 type agentBindingReportJSON struct {
-	Build buildProvenanceJSON  `json:"build"`
+	Build buildProvenanceJSON   `json:"build"`
 	Match agentBindingMatchJSON `json:"match"`
 	// AgentID is populated by bind (the bound agent) and by inspect when
 	// Bound=true; omitted when Bound=false so the JSON shape stays small.
@@ -112,143 +81,98 @@ func bindingMatchToJSON(m goncho.BindingMatch) agentBindingMatchJSON {
 	}
 }
 
-func newAgentBindCommand() *cobra.Command {
-	var match agentBindingMatchFlags
-	var asJSON bool
-	cmd := &cobra.Command{
-		Use:          "bind <agent_id>",
-		Short:        "Bind a (channel, peer, thread) tuple to a runtime-spawned agent",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			reg, cleanup, err := openDynamicAgentRegistry()
-			if err != nil {
-				return err
-			}
-			defer cleanup()
-
-			m := match.toMatch()
-			if err := reg.Bind(cmd.Context(), args[0], m); err != nil {
-				return fmt.Errorf("gormes agent bind: %w", err)
-			}
-			if asJSON {
-				body, marshalErr := json.MarshalIndent(agentBindingReportJSON{
-					Build:   newBuildProvenance(),
-					Match:   bindingMatchToJSON(m),
-					AgentID: args[0],
-				}, "", "  ")
-				if marshalErr != nil {
-					return marshalErr
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), string(body))
-				return nil
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "bound %s -> %s/%s/%s/%s\n",
-				args[0], m.Channel, m.PeerKind, m.PeerID, m.ThreadID)
-			return nil
-		},
+func runAgentBindCommand(cmd *cobra.Command, agentID string, match gatewaymodule.AgentBindingMatch, asJSON bool) error {
+	reg, cleanup, err := openDynamicAgentRegistry()
+	if err != nil {
+		return err
 	}
-	match.attach(cmd)
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, match, agent_id}`")
-	return cmd
+	defer cleanup()
+
+	m := agentBindingMatchToGoncho(match)
+	if err := reg.Bind(cmd.Context(), agentID, m); err != nil {
+		return fmt.Errorf("gormes agent bind: %w", err)
+	}
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(agentBindingReportJSON{
+			Build:   newBuildProvenance(),
+			Match:   bindingMatchToJSON(m),
+			AgentID: agentID,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "bound %s -> %s/%s/%s/%s\n",
+		agentID, m.Channel, m.PeerKind, m.PeerID, m.ThreadID)
+	return nil
 }
 
-func newAgentUnbindCommand() *cobra.Command {
-	var match agentBindingMatchFlags
-	var asJSON bool
-	cmd := &cobra.Command{
-		Use:          "unbind",
-		Short:        "Remove a runtime binding for the given (channel, peer, thread) tuple",
-		Args:         cobra.NoArgs,
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			reg, cleanup, err := openDynamicAgentRegistry()
-			if err != nil {
-				return err
-			}
-			defer cleanup()
-
-			m := match.toMatch()
-			if err := reg.Unbind(cmd.Context(), m); err != nil {
-				return fmt.Errorf("gormes agent unbind: %w", err)
-			}
-			if asJSON {
-				removed := true
-				body, marshalErr := json.MarshalIndent(agentBindingReportJSON{
-					Build:   newBuildProvenance(),
-					Match:   bindingMatchToJSON(m),
-					Removed: &removed,
-				}, "", "  ")
-				if marshalErr != nil {
-					return marshalErr
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), string(body))
-				return nil
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "unbound %s/%s/%s/%s\n",
-				m.Channel, m.PeerKind, m.PeerID, m.ThreadID)
-			return nil
-		},
+func runAgentUnbindCommand(cmd *cobra.Command, match gatewaymodule.AgentBindingMatch, asJSON bool) error {
+	reg, cleanup, err := openDynamicAgentRegistry()
+	if err != nil {
+		return err
 	}
-	match.attach(cmd)
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, match, removed}`")
-	return cmd
+	defer cleanup()
+
+	m := agentBindingMatchToGoncho(match)
+	if err := reg.Unbind(cmd.Context(), m); err != nil {
+		return fmt.Errorf("gormes agent unbind: %w", err)
+	}
+	if asJSON {
+		removed := true
+		body, marshalErr := json.MarshalIndent(agentBindingReportJSON{
+			Build:   newBuildProvenance(),
+			Match:   bindingMatchToJSON(m),
+			Removed: &removed,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "unbound %s/%s/%s/%s\n",
+		m.Channel, m.PeerKind, m.PeerID, m.ThreadID)
+	return nil
 }
 
-func newAgentInspectCommand() *cobra.Command {
-	var match agentBindingMatchFlags
-	var asJSON bool
-	cmd := &cobra.Command{
-		Use:          "inspect",
-		Short:        "Resolve a (channel, peer, thread) tuple to its bound agent, if any",
-		Args:         cobra.NoArgs,
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			reg, cleanup, err := openDynamicAgentRegistry()
-			if err != nil {
-				return err
-			}
-			defer cleanup()
-
-			m := match.toMatch()
-			agentID, found, err := reg.Resolve(cmd.Context(), m)
-			if err != nil {
-				return fmt.Errorf("gormes agent inspect: %w", err)
-			}
-			if asJSON {
-				bound := found
-				report := agentBindingReportJSON{
-					Build: newBuildProvenance(),
-					Match: bindingMatchToJSON(m),
-					Bound: &bound,
-				}
-				if found {
-					report.AgentID = agentID
-				}
-				body, marshalErr := json.MarshalIndent(report, "", "  ")
-				if marshalErr != nil {
-					return marshalErr
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), string(body))
-				return nil
-			}
-			if !found {
-				fmt.Fprintln(cmd.ErrOrStderr(), "agent_not_bound")
-				return newExitCodeError(1, fmt.Errorf("agent_not_bound"))
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "agent: %s\n", agentID)
-			return nil
-		},
+func runAgentInspectCommand(cmd *cobra.Command, match gatewaymodule.AgentBindingMatch, asJSON bool) error {
+	reg, cleanup, err := openDynamicAgentRegistry()
+	if err != nil {
+		return err
 	}
-	match.attach(cmd)
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, match, bound, agent_id}`")
-	return cmd
-}
+	defer cleanup()
 
-// agentSpawnOptions parameterizes `gormes agent spawn`.
-type agentSpawnOptions struct {
-	Persona string
-	JSON    bool
+	m := agentBindingMatchToGoncho(match)
+	agentID, found, err := reg.Resolve(cmd.Context(), m)
+	if err != nil {
+		return fmt.Errorf("gormes agent inspect: %w", err)
+	}
+	if asJSON {
+		bound := found
+		report := agentBindingReportJSON{
+			Build: newBuildProvenance(),
+			Match: bindingMatchToJSON(m),
+			Bound: &bound,
+		}
+		if found {
+			report.AgentID = agentID
+		}
+		body, marshalErr := json.MarshalIndent(report, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
+	if !found {
+		fmt.Fprintln(cmd.ErrOrStderr(), "agent_not_bound")
+		return newExitCodeError(1, fmt.Errorf("agent_not_bound"))
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "agent: %s\n", agentID)
+	return nil
 }
 
 // agentRecordJSON is the wire shape for one dynamic agent in --json output.
@@ -271,23 +195,7 @@ type agentListReportJSON struct {
 	Agents []agentRecordJSON   `json:"agents"`
 }
 
-func newAgentSpawnCommand() *cobra.Command {
-	opts := agentSpawnOptions{}
-	cmd := &cobra.Command{
-		Use:          "spawn <name>",
-		Short:        "Spawn a runtime-only agent persona in the dynamic registry",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAgentSpawnCommand(cmd, args[0], opts)
-		},
-	}
-	cmd.Flags().StringVar(&opts.Persona, "persona", "", "free-text persona seed injected into the agent's system prompt")
-	cmd.Flags().BoolVar(&opts.JSON, "json", false, "emit machine-readable JSON: `{build, agent: {id, name, persona, created_at}}`")
-	return cmd
-}
-
-func runAgentSpawnCommand(cmd *cobra.Command, name string, opts agentSpawnOptions) error {
+func runAgentSpawnCommand(cmd *cobra.Command, name string, opts gatewaymodule.AgentSpawnOptions) error {
 	reg, cleanup, err := openDynamicAgentRegistry()
 	if err != nil {
 		return err
@@ -317,21 +225,6 @@ func runAgentSpawnCommand(cmd *cobra.Command, name string, opts agentSpawnOption
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "spawned agent %s (%s)\n", record.ID, record.Name)
 	return nil
-}
-
-func newAgentListCommand() *cobra.Command {
-	var asJSON bool
-	cmd := &cobra.Command{
-		Use:          "list",
-		Short:        "List runtime-spawned agents in the dynamic registry",
-		Args:         cobra.NoArgs,
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runAgentListCommand(cmd, asJSON)
-		},
-	}
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, agents: [{id, name, persona, created_at}]}`")
-	return cmd
 }
 
 func runAgentListCommand(cmd *cobra.Command, asJSON bool) error {
@@ -401,25 +294,7 @@ func openDynamicAgentRegistry() (*goncho.DynamicAgentRegistry, func(), error) {
 	return reg, func() { _ = db.Close() }, nil
 }
 
-func newAgentResetCommand() *cobra.Command {
-	opts := agentResetOptions{Target: config.GormesHome()}
-	cmd := &cobra.Command{
-		Use:          "reset",
-		Short:        "Seed default Gormes agent context templates",
-		Args:         cobra.NoArgs,
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runAgentResetCommand(cmd, opts)
-		},
-	}
-	cmd.Flags().StringVar(&opts.Target, "target", opts.Target, "target directory for agent context templates")
-	cmd.Flags().BoolVar(&opts.Force, "force", false, "overwrite existing template files")
-	cmd.Flags().BoolVar(&opts.DryRun, "dry-run", false, "report reset actions without writing files")
-	cmd.Flags().BoolVar(&opts.JSON, "json", false, "emit machine-readable JSON: `{build, target, dry_run, files: [{path, action}]}`")
-	return cmd
-}
-
-func runAgentResetCommand(cmd *cobra.Command, opts agentResetOptions) error {
+func runAgentResetCommand(cmd *cobra.Command, opts gatewaymodule.AgentResetOptions) error {
 	result, err := agenttemplate.ApplyDefaultTemplates(agenttemplate.WriteOptions{
 		TargetDir: opts.Target,
 		Force:     opts.Force,

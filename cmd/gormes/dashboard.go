@@ -11,60 +11,51 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/apiserver"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
 )
 
 func newDashboardCommand() *cobra.Command {
-	var port int
-	var noOpen bool
+	return gatewaymodule.NewDashboardCommandWithSeams(gatewaymodule.DashboardCommandSeams{
+		Run: runDashboardCommand,
+	})
+}
 
-	cmd := &cobra.Command{
-		Use:   "dashboard",
-		Short: "Start the Gormes web dashboard",
-		Long:  "Starts an HTTP server with an htmx-based web dashboard for managing sessions, config, skills, and logs.",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg := apiserver.Config{
-				APIKey:             os.Getenv("GORMES_DASHBOARD_API_KEY"),
-				DashboardBoundHost: "127.0.0.1",
-				BuildInfo: apiserver.BuildInfo{
-					Version:   Version,
-					GitCommit: resolveGitCommit(),
-					GitDirty:  resolveGitDirty(),
-					GoVersion: runtime.Version(),
-				},
-			}
-			if cfg.APIKey == "" {
-				cfg.APIKey = "gormes-dashboard-dev"
-			}
-
-			srv, err := apiserver.NewServerChecked(cfg)
-			if err != nil {
-				return err
-			}
-			addr := fmt.Sprintf("127.0.0.1:%d", port)
-			url := fmt.Sprintf("http://%s/dashboard", addr)
-			fmt.Fprintf(os.Stderr, "Gormes dashboard starting at %s\n", url)
-			if !noOpen {
-				go func() {
-					time.Sleep(250 * time.Millisecond)
-					if err := openDashboardURL(url); err != nil {
-						fmt.Fprintf(os.Stderr, "Open %s in your browser (%v)\n", url, err)
-					}
-				}()
-			}
-
-			server := &http.Server{
-				Addr:    addr,
-				Handler: srv.Handler(),
-			}
-			return server.ListenAndServe()
+func runDashboardCommand(_ *cobra.Command, opts gatewaymodule.DashboardOptions) error {
+	cfg := apiserver.Config{
+		APIKey:             os.Getenv("GORMES_DASHBOARD_API_KEY"),
+		DashboardBoundHost: "127.0.0.1",
+		BuildInfo: apiserver.BuildInfo{
+			Version:   Version,
+			GitCommit: resolveGitCommit(),
+			GitDirty:  resolveGitDirty(),
+			GoVersion: runtime.Version(),
 		},
 	}
+	if cfg.APIKey == "" {
+		cfg.APIKey = "gormes-dashboard-dev"
+	}
 
-	// No `-p` shorthand: root reserves -p for --profile (a persistent flag),
-	// and cobra's mergePersistentFlags would panic on shorthand collision.
-	cmd.Flags().IntVar(&port, "port", 43827, "Dashboard HTTP server port")
-	cmd.Flags().BoolVar(&noOpen, "no-open", false, "do not open the dashboard in a browser")
-	return cmd
+	srv, err := apiserver.NewServerChecked(cfg)
+	if err != nil {
+		return err
+	}
+	addr := fmt.Sprintf("127.0.0.1:%d", opts.Port)
+	url := fmt.Sprintf("http://%s/dashboard", addr)
+	fmt.Fprintf(os.Stderr, "Gormes dashboard starting at %s\n", url)
+	if !opts.NoOpen {
+		go func() {
+			time.Sleep(250 * time.Millisecond)
+			if err := openDashboardURL(url); err != nil {
+				fmt.Fprintf(os.Stderr, "Open %s in your browser (%v)\n", url, err)
+			}
+		}()
+	}
+
+	server := &http.Server{
+		Addr:    addr,
+		Handler: srv.Handler(),
+	}
+	return server.ListenAndServe()
 }
 
 func openDashboardURL(url string) error {

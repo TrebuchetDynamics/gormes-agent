@@ -1,17 +1,20 @@
-# cmd/gormes Refactor Continuation Plan
+# cmd/gormes Refactor Completion Note
 
 Date: 2026-05-17
 
-This is a continuation handoff, not a second backlog. The executable backlog is
-still `docs/content/building-gormes/architecture_plan/progress.json`, accessed
-through `internal/progress.Load` / `SaveProgress` or `cmd/progress`.
+Status: **complete for the planned command-construction refactor.**
 
-## Current State
+This file is now a completion record, not an active handoff and not a second
+backlog. The executable backlog is still
+`docs/content/building-gormes/architecture_plan/progress.json`, accessed through
+`internal/progress.Load` / `SaveProgress` or `cmd/progress`.
+
+## Final State
 
 Branch must stay `development`. Do not create feature branches or worktrees for
 Gormes work.
 
-Six slices are implemented:
+All command-construction slices in this plan are implemented:
 
 - `internal/app/gormescli/contracts.go` defines an importable CLI contract
   registry.
@@ -59,8 +62,29 @@ Six slices are implemented:
 - The completed progress row is
   `cmd/gormes channels capabilities command package extraction` under module
   `channels`.
+- `internal/app/gormescli/modules/gateway/` now owns live `gateway`,
+  `dashboard`, and `agent` command construction.
+- `cmd/gormes` keeps runtime seams for gateway lifecycle, dashboard serving,
+  and dynamic-agent registry behavior.
+- The completed progress row is
+  `cmd/gormes live gateway command package extraction` under module `gateway`.
+- `internal/app/gormescli/modules/channels/` now owns `slack`, `whatsapp`,
+  and `telegram` command construction.
+- `cmd/gormes` keeps runtime seams for Slack manifest rendering/writes,
+  WhatsApp pairing/install behavior, and Telegram long-poll startup.
+- The completed progress row is
+  `cmd/gormes channel service command package extraction` under module
+  `channels`.
+- `internal/app/gormescli/root.go` now owns root Cobra assembly, root flags,
+  root help text, finalizer hook execution, and canonical top-level command
+  ordering.
+- `cmd/gormes/main.go` now defaults runtime seams and supplies command
+  factories while keeping process entry, panic dump, exit-code mapping, and
+  ldflags/build values.
+- The completed progress row is
+  `cmd/gormes root command assembly extraction` under module `cli`.
 
-Verified before this handoff:
+Verified during the closeout pass:
 
 ```sh
 go test ./... -count=1
@@ -68,46 +92,48 @@ go run ./cmd/progress validate
 git diff --check
 ```
 
-## Problem
+## Original Problem
 
-`cmd/gormes` is still too broad. It is currently a binary package, root command
-builder, setup wizard, feature command implementations, runtime seams, and
-operator policy surface all at once. That makes ownership unclear: profiles,
-providers, channels, gateway, setup, TUI, sessions, tools, and install behavior
-can all drift inside one package.
+At the start of this plan, `cmd/gormes` was too broad: binary package, root
+command builder, setup wizard, feature command implementations, runtime seams,
+and operator policy surface all lived in one package. That made ownership
+unclear: profiles, providers, channels, gateway, setup, TUI, sessions, tools,
+and install behavior could all drift inside one package.
 
-The new `gormescli` contract gate stops unowned drift, and the profile command
-is the first extracted feature-owned command package. Setup, provider, gateway,
-channel, session, tools, skills, TUI, and install surfaces still need the same
-treatment.
+The completed `gormescli` contract gate stops unowned drift for the migrated
+command-construction layer. Profile, setup, provider, gateway, channel,
+session/checkpoint, and root command construction now have feature-owned
+package boundaries. Runtime seams intentionally remain in `cmd/gormes` where
+they were declared out of scope for this plan.
 
-## Target Architecture
+## Completed Architecture
 
-Keep `cmd/gormes` as the thin process entrypoint:
+`cmd/gormes` is now process-entry and runtime glue for this refactor boundary:
 
 ```text
 cmd/gormes/
-  main.go              os.Args, panic dump, exit code mapping, ldflags version
+  main.go              os.Args, panic dump, exit code mapping, ldflags version,
+                       command factories, and runtime seam defaults
 ```
 
-Move command/control-plane assembly into importable app packages:
+Command/control-plane assembly now lives in importable app packages:
 
 ```text
 internal/app/gormescli/
   contracts.go         module ownership registry and manifest gate
   default_contracts.go temporary central contract map
-  app.go               NewRootCommand / Execute entrypoint after migration
-  runtime.go           RootRuntime and top-level runtime seams
+  root.go              NewRootCommand, root flags, help, command ordering
+  runtime.go           importable root option/factory types
   setup_registry.go    setup section registration and validation
   modules/
     profiles/          profile command + setup profiles section
     providers/         auth/logout/model/fallback/usage/insights/setup provider
     gateway/           gateway/webhook/hooks/pairing/dashboard/agent surfaces
     channels/          telegram/slack/whatsapp/channels surfaces
-    sessions/          session/checkpoints/chat resume surfaces
-    tools/             tools/mcp/acp surfaces
-    skills/            skills/plugins/curator surfaces
-    tui/               chat/admin/terminal setup surfaces
+    sessions/          session/checkpoint command surfaces
+    tools/             future command-construction extraction
+    skills/            future command-construction extraction
+    tui/               future command-construction extraction
 ```
 
 Long term, each module package should expose a small registration surface:
@@ -120,8 +146,9 @@ type Module interface {
 }
 ```
 
-Do not force that abstraction too early. Extract one feature slice first and
-let the interface harden around real needs.
+Do not force that abstraction from this completed plan. The current extracted
+packages use typed constructors and seams; a generic `Module` interface remains
+future work only if more modules converge on the same shape.
 
 ## Non-Negotiables
 
@@ -136,7 +163,40 @@ let the interface harden around real needs.
 - Keep setup/profile/provider/channel changes hermetic: temp `GORMES_HOME`, no
   live providers, no network credentials.
 
-## Recommended Next Slices
+## Finish Line Decisions
+
+The finish line for this plan is **command construction extraction**, not
+deeper runtime extraction.
+
+In scope:
+
+- Move live `gateway`, `dashboard`, and `agent` command construction into the
+  gateway module.
+- Move `slack`, `whatsapp`, and `telegram` command construction into the
+  channels module, in that order.
+- Move root command assembly into `internal/app/gormescli`, leaving
+  `cmd/gormes/main.go` as process-entry glue.
+- Keep temporary `cmd/gormes` compatibility shims only for build provenance,
+  existing tests, and runtime seams that have not moved yet.
+
+All in-scope items are complete.
+
+Out of scope for this plan:
+
+- Deeper auth/OAuth storage/runtime extraction.
+- Gateway manager/kernel/channel runtime extraction.
+- Model prompt helper and Bubble Tea picker extraction.
+- Generic `Module` interface introduction.
+- Release/install/commit/push work.
+
+Root assembly ownership decision:
+
+- `internal/app/gormescli` owns Cobra root assembly for now.
+- Feature packages expose constructors and typed options/seams.
+- Do not force a generic module-registration interface until several extracted
+  modules expose the same shape naturally.
+
+## Completed Slices
 
 1. Extract setup section registration. **Done.**
 
@@ -161,25 +221,58 @@ let the interface harden around real needs.
    shared model prompt helpers remain injected seams and should be moved by
    separate runtime/TUI rows if needed.
 
-3. Move gateway and channel surfaces separately. **In progress.**
+3. Move gateway and channel surfaces separately. **Done at command-construction layer.**
 
-   Completed so far: gateway owns row-backed `webhook`, `hooks`, and `pairing`;
-   channels owns `channels capabilities`.
+   Gateway now owns row-backed `webhook`, `hooks`, and `pairing` plus live
+   `gateway`, `dashboard`, and `agent` command construction. Channels owns
+   `channels capabilities` plus `slack`, `whatsapp`, and `telegram` command
+   construction.
 
-   Remaining: gateway should own live `gateway`, `dashboard`, and `agent`
-   command/runtime surfaces. Channels should own `telegram`, `slack`, and
-   `whatsapp` service command surfaces. Do not mix these two modules just
-   because they currently share gateway runtime helpers.
+   Runtime internals intentionally remain injected seams: gateway manager
+   lifecycle, dashboard HTTP serving, dynamic-agent registry behavior, Slack
+   manifest rendering/writes, WhatsApp pairing/install behavior, and Telegram
+   long-poll startup still live in `cmd/gormes` until separate runtime rows
+   move them.
 
-4. Move root command assembly last.
+4. Move session/checkpoint surfaces. **Done at command-construction layer.**
 
-   Only after several feature packages exist, move `newRootCommandWithRuntime`
-   and `rootRuntime` into `internal/app/gormescli`. `cmd/gormes/main.go` should
-   then become a small wrapper around `gormescli.Execute`.
+   Sessions now owns `session`/`sessions` plus `checkpoints` command tree
+   construction. Transcript export, session directory mutation, checkpoint
+   status/prune/clear behavior, confirmations, and JSON payload rendering stay
+   in `cmd/gormes` runtime handlers behind injected seams.
 
-## Progress Row Template
+5. Move root command assembly last. **Done at command-construction layer.**
 
-Use this shape before executing the next slice:
+   `internal/app/gormescli.NewRootCommand` now owns root flags, help text,
+   top-level command order, and finalizer hook execution. `cmd/gormes/main.go`
+   still owns `rootRuntime` defaulting, runtime callbacks, command factories,
+   process entry, panic dump, exit-code mapping, and build values. A later
+   runtime-extraction plan can decide whether `rootRuntime` becomes importable
+   or remains binary-owned glue.
+
+## No Remaining Work In This Plan
+
+Do not keep extending this file with new slices. The planned command
+construction extraction is closed.
+
+Future work must be filed as progress rows or a new bounded plan when it has a
+real target and tests. Likely future plans, if needed:
+
+- tools/MCP/ACP command construction extraction;
+- skills/plugins/curator command construction extraction;
+- chat/admin/TUI setup command construction extraction;
+- deeper auth/OAuth, gateway manager, dashboard server, Telegram/Slack/WhatsApp
+  runtime seam extraction;
+- a generic `Module` interface, only after repeated constructor shapes justify
+  it.
+
+Until then, `cmd/gormes` retaining runtime seams is intentional, not unfinished
+work from this plan.
+
+## Historical Progress Row Template
+
+This is retained as historical context only. Do not execute it as another
+slice from this plan.
 
 ```text
 name: cmd/gormes setup section registry extraction
@@ -203,9 +296,10 @@ test_commands:
   - git diff --check
 ```
 
-## Final Gate For Any Slice
+## Historical Final Gate
 
-Run the row-local tests first, then:
+These were the gates used for command-construction slices. Keep them as
+reference only; this plan has no remaining slices.
 
 ```sh
 go test ./cmd/gormes ./internal/app/gormescli ./internal/cli ./internal/progress -count=1
@@ -213,5 +307,4 @@ go run ./cmd/progress validate
 git diff --check
 ```
 
-Run `go test ./... -count=1` before handing off a broad package move or before
-claiming the branch is ready to commit.
+`go test ./... -count=1` was run before this plan was marked complete.

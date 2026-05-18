@@ -10,11 +10,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
-
-const slackManifestDefaultWrite = "__gormes_default_slack_manifest_path__"
 
 var slackManifestInvalidChars = regexp.MustCompile(`[^a-z0-9_-]`)
 
@@ -41,62 +40,42 @@ var slackManifestReservedCommands = map[string]struct{}{
 }
 
 func newSlackCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "slack",
-		Short: "Slack integration helpers",
-	}
-	cmd.AddCommand(newSlackManifestCommand())
-	return cmd
+	return channelsmodule.NewSlackCommandWithSeams(channelsmodule.SlackCommandSeams{
+		Manifest: runSlackManifestCommand,
+	})
 }
 
-func newSlackManifestCommand() *cobra.Command {
-	var botName string
-	var description string
-	var slashesOnly bool
-	var writeTarget string
-
-	cmd := &cobra.Command{
-		Use:   "manifest",
-		Short: "Print or write a Slack app manifest",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			payload, err := slackManifestPayload(botName, description, slashesOnly)
-			if err != nil {
-				return err
-			}
-			body, err := json.MarshalIndent(payload, "", "  ")
-			if err != nil {
-				return fmt.Errorf("encode slack manifest: %w", err)
-			}
-			body = append(body, '\n')
-
-			if !cmd.Flags().Changed("write") {
-				_, err = cmd.OutOrStdout().Write(body)
-				return err
-			}
-
-			target := writeTarget
-			if target == "" || target == slackManifestDefaultWrite {
-				target = filepath.Join(config.GormesHome(), "slack-manifest.json")
-			}
-			target = expandUserPath(target)
-			if err := writeFileAtomic(target, body, 0o600); err != nil {
-				return fmt.Errorf("write slack manifest: %w", err)
-			}
-			fmt.Fprintf(cmd.ErrOrStderr(), "Slack manifest written to: %s\n\n", target)
-			fmt.Fprintln(cmd.ErrOrStderr(), "Next steps:")
-			fmt.Fprintln(cmd.ErrOrStderr(), "  1. Open https://api.slack.com/apps and pick your Gormes app.")
-			fmt.Fprintf(cmd.ErrOrStderr(), "  2. Features -> App Manifest -> paste the contents of\n     %s\n", target)
-			fmt.Fprintln(cmd.ErrOrStderr(), "  3. Save; Slack will prompt to reinstall the app if scopes or slash commands changed.")
-			fmt.Fprintln(cmd.ErrOrStderr(), "  4. Make sure Socket Mode is enabled and bot/app tokens are configured with `gormes setup gateway`.")
-			return nil
-		},
+func runSlackManifestCommand(cmd *cobra.Command, opts channelsmodule.SlackManifestOptions) error {
+	payload, err := slackManifestPayload(opts.BotName, opts.Description, opts.SlashesOnly)
+	if err != nil {
+		return err
 	}
-	cmd.Flags().StringVar(&writeTarget, "write", "", "write manifest to PATH instead of stdout; with no PATH writes to $GORMES_HOME/slack-manifest.json")
-	cmd.Flags().Lookup("write").NoOptDefVal = slackManifestDefaultWrite
-	cmd.Flags().StringVar(&botName, "name", "", `bot display name (default: "Gormes")`)
-	cmd.Flags().StringVar(&description, "description", "", "bot description shown in Slack's app directory")
-	cmd.Flags().BoolVar(&slashesOnly, "slashes-only", false, "emit only the features.slash_commands array")
-	return cmd
+	body, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode slack manifest: %w", err)
+	}
+	body = append(body, '\n')
+
+	if !opts.WriteChanged {
+		_, err = cmd.OutOrStdout().Write(body)
+		return err
+	}
+
+	target := opts.WriteTarget
+	if target == "" || target == channelsmodule.SlackManifestDefaultWrite {
+		target = filepath.Join(config.GormesHome(), "slack-manifest.json")
+	}
+	target = expandUserPath(target)
+	if err := writeFileAtomic(target, body, 0o600); err != nil {
+		return fmt.Errorf("write slack manifest: %w", err)
+	}
+	fmt.Fprintf(cmd.ErrOrStderr(), "Slack manifest written to: %s\n\n", target)
+	fmt.Fprintln(cmd.ErrOrStderr(), "Next steps:")
+	fmt.Fprintln(cmd.ErrOrStderr(), "  1. Open https://api.slack.com/apps and pick your Gormes app.")
+	fmt.Fprintf(cmd.ErrOrStderr(), "  2. Features -> App Manifest -> paste the contents of\n     %s\n", target)
+	fmt.Fprintln(cmd.ErrOrStderr(), "  3. Save; Slack will prompt to reinstall the app if scopes or slash commands changed.")
+	fmt.Fprintln(cmd.ErrOrStderr(), "  4. Make sure Socket Mode is enabled and bot/app tokens are configured with `gormes setup gateway`.")
+	return nil
 }
 
 func slackManifestPayload(botName, description string, slashesOnly bool) (any, error) {

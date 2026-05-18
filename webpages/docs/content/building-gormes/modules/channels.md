@@ -7,9 +7,9 @@ title: "Channels Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `channels`
-**Rows:** 132
-**Status counts:** `complete`: 128 · `in_progress`: 0 · `planned`: 4
-**Priority counts:** `P0`: 7 · `P1`: 44 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47
+**Rows:** 133
+**Status counts:** `complete`: 129 · `in_progress`: 0 · `planned`: 4
+**Priority counts:** `P0`: 7 · `P1`: 45 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47
 
 ## Phase 2 — The Gateway
 
@@ -168,6 +168,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `channels` | WhatsApp top-level pairing wizard shell |
 | `complete` | `P1` | `channels` | WhatsApp live Baileys QR pairing wizard |
 | `complete` | `P1` | `channels` | cmd/gormes channels capabilities command package extraction |
+| `complete` | `P1` | `channels` | cmd/gormes channel service command package extraction |
 
 ### 5.V — Unified Event Bus
 

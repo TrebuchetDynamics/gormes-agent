@@ -7658,6 +7658,78 @@
   },
   {
     "phase": "5",
+    "subphase": "5.O",
+    "pos": 130,
+    "item": {
+      "name": "cmd/gormes live gateway command package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move live `gateway`, `dashboard`, and `agent` command construction into the importable gateway module while preserving gateway lifecycle behavior, dashboard startup behavior, agent registry JSON shapes, command spelling, flags, and exit-code behavior.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Live gateway manager, dashboard HTTP server, and dynamic-agent registry runtimes remain in cmd/gormes seams; only command construction and typed option parsing moved.",
+      "fixture": "internal/app/gormescli/modules/gateway live/dashboard/agent tests plus cmd/gormes gateway/dashboard/agent focused tests",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Finish Line Decisions",
+        "internal/app/gormescli/modules/gateway/live.go",
+        "internal/app/gormescli/modules/gateway/dashboard.go",
+        "internal/app/gormescli/modules/gateway/agent.go",
+        "cmd/gormes/gateway.go",
+        "cmd/gormes/dashboard.go",
+        "cmd/gormes/agent.go"
+      ],
+      "ready_when": [
+        "Gateway row-backed command extraction is complete.",
+        "Existing live gateway/dashboard/agent tests can continue to exercise runtime behavior through cmd/gormes seams."
+      ],
+      "not_ready_when": [
+        "The slice rewrites gateway manager lifecycle, dashboard HTTP server behavior, or dynamic-agent persistence.",
+        "Agent JSON reports, gateway mutating command exit codes, or dashboard flags drift."
+      ],
+      "unblocks": [
+        "root command assembly extraction"
+      ],
+      "acceptance": [
+        "gateway.NewGatewayCommandWithSeams owns the live gateway parent and child command wiring.",
+        "gateway.NewDashboardCommandWithSeams owns dashboard flags and typed option handoff.",
+        "gateway.NewAgentCommandWithSeams owns agent subcommands, flags, and typed binding/reset/spawn options.",
+        "cmd/gormes only adapts runtime seams and build/runtime behavior."
+      ],
+      "note": "Complete 2026-05-17: moved live gateway, dashboard, and agent command construction into internal/app/gormescli/modules/gateway. cmd/gormes now injects runtime seams for gateway lifecycle, dashboard serving, and dynamic-agent registry behavior.",
+      "write_scope": [
+        "cmd/gormes/gateway.go",
+        "cmd/gormes/dashboard.go",
+        "cmd/gormes/agent.go",
+        "internal/app/gormescli/modules/gateway/live.go",
+        "internal/app/gormescli/modules/gateway/dashboard.go",
+        "internal/app/gormescli/modules/gateway/agent.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/gateway -run 'TestGatewayCommand|TestDashboardCommand|TestAgentCommand' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli/modules/gateway -run 'Gateway|Dashboard|TestAgent|CLIContract' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Live gateway/dashboard/agent command construction is importable and module-owned while runtime behavior remains covered by cmd/gormes tests."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned command architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.Q",
     "pos": 1,
     "item": {

@@ -2362,5 +2362,65 @@
         "note": "Gormes-owned command-package architecture refactor from REFACTOR-CMD-PLAN.md."
       }
     }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 132,
+    "item": {
+      "name": "cmd/gormes root command assembly extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move Cobra root command assembly, root flags, root help text, and canonical top-level command ordering into internal/app/gormescli while leaving cmd/gormes/main.go responsible for process entry, panic dump, exit-code mapping, ldflags/build values, and runtime seam factories.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "cli",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "cmd/gormes still owns runtime-specific rootRuntime defaults and command factory injection until deeper runtime modules exist.",
+      "fixture": "internal/app/gormescli/root_test.go plus cmd/gormes root/help/parity tests",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Finish Line Decisions",
+        "internal/app/gormescli/root.go",
+        "cmd/gormes/main.go"
+      ],
+      "ready_when": [
+        "Provider, profile, setup registry, gateway, and channel command-construction slices exist.",
+        "Root assembly can be expressed as importable Cobra construction plus cmd/gormes factory/runtime seams."
+      ],
+      "not_ready_when": [
+        "The slice introduces a generic Module interface before enough module constructors share a stable shape.",
+        "The slice moves process entrypoint behavior, panic dumping, exit-code mapping, or ldflags/build provenance out of cmd/gormes."
+      ],
+      "acceptance": [
+        "gormescli.NewRootCommand owns root identity, flags, help text, finalizer hooks, and canonical top-level command order.",
+        "cmd/gormes/main.go supplies command factories and runtime callbacks without rebuilding the root Cobra shell inline.",
+        "Existing root help, CLI parity, fresh install, and unknown-subcommand tests continue to pass."
+      ],
+      "note": "Complete 2026-05-17: added internal/app/gormescli/root.go for root Cobra assembly and command order. cmd/gormes/main.go now defaults runtime seams, passes root callbacks/finalizers, and supplies command factories while preserving process-entry ownership.",
+      "write_scope": [
+        "cmd/gormes/main.go",
+        "internal/app/gormescli/root.go",
+        "internal/app/gormescli/root_test.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli -run TestNewRootCommandOwnsRootFlagsAndFactories -count=1",
+        "go test ./cmd/gormes -run 'TestRootCommand|TestHermesCLIParity|TestRootHelp|TestFreshInstall|TestParentUnknown|TestProviderFlagResolution' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Root Cobra assembly is importable and module-owned; cmd/gormes/main.go remains process-entry/runtime glue."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned command architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
   }
 ]

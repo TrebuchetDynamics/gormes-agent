@@ -1158,6 +1158,9 @@ classification and row-backed implementation queue.
 - [x] `providers` cmd/gormes provider command surface package extraction
 - [x] `gateway` cmd/gormes gateway row-backed command package extraction
 - [x] `channels` cmd/gormes channels capabilities command package extraction
+- [x] `gateway` cmd/gormes live gateway command package extraction
+- [x] `channels` cmd/gormes channel service command package extraction
+- [x] `cli` cmd/gormes root command assembly extraction
 
 ### 5.P — Docker / Packaging ✅
 

@@ -5351,6 +5351,78 @@
   },
   {
     "phase": "5",
+    "subphase": "5.O",
+    "pos": 131,
+    "item": {
+      "name": "cmd/gormes channel service command package extraction",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move `slack`, `whatsapp`, and `telegram` top-level service command construction into the importable channels module while preserving Slack manifest behavior, WhatsApp pairing flags/output, Telegram runtime startup behavior, command spelling, flags, JSON shapes, and exit-code behavior.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "channels",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Slack manifest generation, WhatsApp pairing runtime, and Telegram long-poll runtime remain in cmd/gormes seams; only command construction and typed option parsing moved.",
+      "fixture": "internal/app/gormescli/modules/channels slack/whatsapp/telegram tests plus cmd/gormes Slack/WhatsApp/Telegram focused tests",
+      "source_refs": [
+        "REFACTOR-CMD-PLAN.md: Finish Line Decisions",
+        "internal/app/gormescli/modules/channels/slack.go",
+        "internal/app/gormescli/modules/channels/whatsapp.go",
+        "internal/app/gormescli/modules/channels/telegram.go",
+        "cmd/gormes/slack.go",
+        "cmd/gormes/whatsapp.go",
+        "cmd/gormes/telegram.go"
+      ],
+      "ready_when": [
+        "Channels capabilities command extraction is complete.",
+        "Existing Slack manifest, WhatsApp pairing, and Telegram root/parity tests can run through cmd/gormes adapters."
+      ],
+      "not_ready_when": [
+        "The slice rewrites Slack manifest payload generation, WhatsApp pairing/install behavior, or Telegram long-poll runtime behavior.",
+        "Any channel command flags, help text, JSON shape, or exit-code behavior drifts."
+      ],
+      "unblocks": [
+        "root command assembly extraction"
+      ],
+      "acceptance": [
+        "channels.NewSlackCommandWithSeams owns `slack manifest` command flags and typed option handoff.",
+        "channels.NewWhatsAppCommandWithSeams owns WhatsApp setup flags and typed option handoff.",
+        "channels.NewTelegramCommandWithSeams owns the Telegram service command shell.",
+        "cmd/gormes only adapts runtime seams for manifest generation, WhatsApp pairing, and Telegram long-poll runtime."
+      ],
+      "note": "Complete 2026-05-17: moved Slack, WhatsApp, and Telegram service command construction into internal/app/gormescli/modules/channels. cmd/gormes now injects runtime seams for Slack manifest rendering/writes, WhatsApp pairing/install behavior, and Telegram long-poll startup.",
+      "write_scope": [
+        "cmd/gormes/slack.go",
+        "cmd/gormes/whatsapp.go",
+        "cmd/gormes/telegram.go",
+        "internal/app/gormescli/modules/channels/slack.go",
+        "internal/app/gormescli/modules/channels/whatsapp.go",
+        "internal/app/gormescli/modules/channels/telegram.go",
+        "REFACTOR-CMD-PLAN.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescli/modules/channels -run 'TestSlack|TestWhatsApp|TestTelegram' -count=1",
+        "go test ./cmd/gormes ./internal/app/gormescli/modules/channels -run 'TestSlack|TestWhatsApp|TestTelegram|CLIContract' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Slack, WhatsApp, and Telegram command shells are importable and module-owned while channel runtimes remain covered by existing cmd/gormes tests."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-17T00:00:00Z",
+        "note": "Gormes-owned command architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.V",
     "pos": 1,
     "item": {
