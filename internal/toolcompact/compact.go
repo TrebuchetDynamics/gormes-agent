@@ -110,9 +110,9 @@ func (cfg Config) withDefaults() Config {
 }
 
 var (
-	goTestOKPackage     = regexp.MustCompile(`^(ok|\?)\s+\S+`)
-	goTestFailPackage   = regexp.MustCompile(`^FAIL\s+\S+`)
-	goTestFailTest      = regexp.MustCompile(`^\s*--- FAIL:\s+`)
+	goTestOKPackage     = regexp.MustCompile(`(?m)^(ok|\?)\s+\S+`)
+	goTestFailPackage   = regexp.MustCompile(`(?m)^FAIL\s+\S+`)
+	goTestFailTest      = regexp.MustCompile(`(?m)^\s*--- FAIL:\s+`)
 	goDiagnosticLine    = regexp.MustCompile(`\b[-_A-Za-z0-9./]+\.go:\d+\b`)
 	buildDiagnosticLine = regexp.MustCompile(`\b[-_A-Za-z0-9./]+\.(go|ts|tsx|js|jsx|c|cc|cpp|h|hpp|rs|java|kt|py|sh):\d+(:\d+)?:`)
 )
