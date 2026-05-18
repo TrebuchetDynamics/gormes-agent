@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestAzureAnthropicOpenStream_StripsTrailingV1AndSendsAPIVersionQueryWithStaticKey(t *testing.T) {
+func TestAzureAnthropicOpenStream_StripsTrailingV1AndSendsAPIVersionQueryWithBearerKey(t *testing.T) {
 	var requestURI string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestURI = r.URL.RequestURI()
@@ -23,11 +23,11 @@ func TestAzureAnthropicOpenStream_StripsTrailingV1AndSendsAPIVersionQueryWithSta
 		if strings.Contains(requestURI, "?api-version=2025-04-15/v1/messages") {
 			t.Fatalf("request URI malformed with query before messages path: %q", requestURI)
 		}
-		if got := r.Header.Get("x-api-key"); got != "configured-azure-key" {
-			t.Fatalf("x-api-key = %q, want configured Azure key", got)
+		if got := r.Header.Get("Authorization"); got != "Bearer configured-azure-key" {
+			t.Fatalf("Authorization = %q, want Azure bearer key", got)
 		}
-		if got := r.Header.Get("Authorization"); got != "" {
-			t.Fatalf("Authorization = %q, want no bearer auth for Azure Anthropic", got)
+		if got := r.Header.Get("x-api-key"); got != "" {
+			t.Fatalf("x-api-key = %q, want no x-api-key auth for Azure Anthropic", got)
 		}
 		if got := r.Header.Get("anthropic-version"); got != anthropicVersion {
 			t.Fatalf("anthropic-version = %q, want %q", got, anthropicVersion)
@@ -68,11 +68,11 @@ func TestAzureAnthropicOpenStream_UsesAzureKeyFromEnvironmentBeforeAnyOAuthPath(
 	t.Setenv("ANTHROPIC_TOKEN", "cc-oauth-token-that-must-not-be-used")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("x-api-key"); got != "env-azure-key" {
-			t.Fatalf("x-api-key = %q, want AZURE_ANTHROPIC_KEY", got)
+		if got := r.Header.Get("Authorization"); got != "Bearer env-azure-key" {
+			t.Fatalf("Authorization = %q, want AZURE_ANTHROPIC_KEY as bearer", got)
 		}
-		if got := r.Header.Get("Authorization"); got != "" {
-			t.Fatalf("Authorization = %q, want Azure OAuth bypass", got)
+		if got := r.Header.Get("x-api-key"); got != "" {
+			t.Fatalf("x-api-key = %q, want Azure OAuth bypass without x-api-key", got)
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		fmt.Fprint(w, "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n")
