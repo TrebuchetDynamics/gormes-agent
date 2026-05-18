@@ -45,6 +45,7 @@ var profileCloneAllStripRoot = []string{
 }
 
 var profileCreateDefaultDirs = []string{
+	"home",
 	"memories",
 	"sessions",
 	"skills",
@@ -116,19 +117,30 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 			_ = os.RemoveAll(targetRoot)
 			return ProfileCreateResult{}, err
 		}
+		if err := ensureProfileDefaultDirs(targetRoot); err != nil {
+			_ = os.RemoveAll(targetRoot)
+			return ProfileCreateResult{}, err
+		}
 		return ProfileCreateResult{Name: name, Root: targetRoot, CloneAll: true}, nil
 	}
 
 	if err := os.MkdirAll(targetRoot, 0o700); err != nil {
 		return ProfileCreateResult{}, fmt.Errorf("profile create root: %w", err)
 	}
-	for _, dir := range profileCreateDefaultDirs {
-		if err := os.MkdirAll(filepath.Join(targetRoot, dir), 0o700); err != nil {
-			_ = os.RemoveAll(targetRoot)
-			return ProfileCreateResult{}, fmt.Errorf("profile create dir %s: %w", dir, err)
-		}
+	if err := ensureProfileDefaultDirs(targetRoot); err != nil {
+		_ = os.RemoveAll(targetRoot)
+		return ProfileCreateResult{}, err
 	}
 	return ProfileCreateResult{Name: name, Root: targetRoot, CloneAll: false}, nil
+}
+
+func ensureProfileDefaultDirs(targetRoot string) error {
+	for _, dir := range profileCreateDefaultDirs {
+		if err := os.MkdirAll(filepath.Join(targetRoot, dir), 0o700); err != nil {
+			return fmt.Errorf("profile create dir %s: %w", dir, err)
+		}
+	}
+	return nil
 }
 
 func copyProfileTree(sourceRoot, targetRoot string, defaultSource bool) error {

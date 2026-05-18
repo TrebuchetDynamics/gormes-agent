@@ -37,6 +37,7 @@ type ExecuteCodeToolConfig struct {
 	DefaultMode    ExecuteCodeMode
 	StrictSandbox  CodeSandbox
 	ProjectSandbox CodeSandbox
+	SubprocessHome SubprocessHomeResolver
 }
 
 type ExecuteCodeModeResolverInput struct {
@@ -203,12 +204,12 @@ func sandboxForExecuteCodeMode(mode ExecuteCodeMode, cfg ExecuteCodeToolConfig) 
 		if cfg.ProjectSandbox != nil {
 			return cfg.ProjectSandbox
 		}
-		return NewProjectModeSandbox()
+		return newProjectModeSandboxWithSubprocessHome(cfg.SubprocessHome)
 	default:
 		if cfg.StrictSandbox != nil {
 			return cfg.StrictSandbox
 		}
-		return NewStrictModeSandbox()
+		return newStrictModeSandboxWithSubprocessHome(cfg.SubprocessHome)
 	}
 }
 
@@ -295,9 +296,10 @@ func intOrDefault(v, preferred, fallback int) int {
 }
 
 type LocalCodeSandbox struct {
-	lookPath  func(string) (string, error)
-	languages map[string]runtimeSpec
-	workdir   func(stagingDir string) string
+	lookPath       func(string) (string, error)
+	languages      map[string]runtimeSpec
+	workdir        func(stagingDir string) string
+	subprocessHome SubprocessHomeResolver
 }
 
 type runtimeSpec struct {
@@ -364,7 +366,7 @@ func (s *LocalCodeSandbox) Execute(ctx context.Context, req CodeExecutionRequest
 			cmd.Dir = workdir
 		}
 	}
-	cmd.Env = safeSandboxEnv()
+	cmd.Env = safeSandboxEnv(s.subprocessHome)
 
 	stdout := newLimitedBuffer(req.StdoutLimitBytes)
 	stderr := newLimitedBuffer(req.StderrLimitBytes)
@@ -420,7 +422,7 @@ func exitCode(err error) int {
 	return exitErr.ExitCode()
 }
 
-func safeSandboxEnv() []string {
+func safeSandboxEnv(resolve SubprocessHomeResolver) []string {
 	keys := []string{"PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "TMP", "TEMP"}
 	env := make([]string, 0, len(keys))
 	for _, key := range keys {
@@ -428,7 +430,7 @@ func safeSandboxEnv() []string {
 			env = append(env, key+"="+value)
 		}
 	}
-	return env
+	return envWithSubprocessHome(env, resolve)
 }
 
 var (

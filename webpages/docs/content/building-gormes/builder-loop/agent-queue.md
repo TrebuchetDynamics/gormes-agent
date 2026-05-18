@@ -47,27 +47,7 @@ selection.
 - Source refs: internal/config/agents.go:AgentDefaultsCfg.Workspaces, cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces, cmd/gormes/registry.go:buildDefaultRegistry registers file, execute_code, terminal tools, internal/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files, internal/tools/filesystem_scope.go:NewFilesystemScope, internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase, internal/tools/terminal_tool.go:TerminalTool.Execute / terminalWorkdir, internal/tools/execute_code.go:LocalCodeSandbox.Execute, internal/codingagents/workspace.go:WorkspaceGuard.Resolve, hermes-agent/website/docs/user-guide/profiles.md:Profiles vs workspaces vs sandboxing (upstream says profiles do not sandbox; this row is Gormes-owned)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Profile-local subprocess HOME parity
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Port Hermes' profile-local subprocess HOME semantics for Gormes local shell execution. New Gormes profiles create a `home/` directory under the profile root, and local shell tools that spawn subprocesses use that directory as `HOME` when the active `GORMES_HOME/home` exists. This matches Hermes' git/ssh/gh/npm credential isolation without changing the process working directory, without changing the separate profile workspace allow-list policy, and without shipping wrapper aliases in this slice.
-- Trust class: operator, system
-- Ready when: A temp GORMES_HOME fixture can create a named profile and invoke `gormes --profile <name> chat -q` or a direct tool fixture without touching the operator HOME., The builder has identified the central helper location for computing active profile subprocess HOME so terminal and execute_code do not each reimplement path logic.
-- Not ready when: The slice implements wrapper aliases, remote/container backend env forwarding, or workspace/sandbox policy changes., The slice changes tool working-directory resolution instead of only subprocess HOME., The slice reads or mutates HERMES_HOME as a live Gormes profile source.
-- Degraded mode: If the active profile has no `home/` directory, subprocess env falls back to the operator HOME exactly as today. Remote/container backends and row-backed wrapper alias commands remain unchanged.
-- Fixture: `Temp GORMES_HOME with profiles/worker/home plus terminal and execute_code commands that print `$HOME`.`
-- Write scope: `internal/cli/profile_create.go`, `internal/cli/profile_create_test.go`, `internal/config/config.go`, `internal/config/config_test.go`, `internal/tools/terminal_tool.go`, `internal/tools/terminal_tool_test.go`, `internal/tools/execute_code.go`, `internal/tools/execute_code_test.go`, `webpages/docs/content/cli/profile.md`, `webpages/docs/content/recipes/profiles.md`, `webpages/docs/profile_docs_test.go`
-- Test commands: `go test ./internal/cli ./internal/config ./internal/tools -run 'Profile\|SubprocessHome\|Terminal\|ExecuteCode' -count=1`, `go test ./cmd/gormes -run 'Profile\|ChatCommandProfileFlag' -count=1`, `go test ./webpages/docs -run 'Profile\|DocsContent' -count=1`
-- Done signal: Builder reports the helper name, the temp profile root used by tests, and the terminal/execute_code outputs proving HOME points at the profile-local `home/` directory.
-- Acceptance: `gormes profile create <name>` creates the standard profile directories including `home/`, while `--clone-all` preserves a cloned profile's existing `home/` tree., Under an active named profile with `<root>/home` present, terminal foreground commands observe `HOME=<root>/home` and `GORMES_HOME=<root>`., execute_code local shell execution receives the same profile-local HOME when filesystem access mode permits local execution; strict temp execution does not leak the operator HOME., Docs continue to distinguish current profile homes from workspace enforcement, point sandbox semantics to the separate profile workspace allow-list row, and keep wrapper aliases row-backed.
-- Source refs: ./hermes-agent/hermes_cli/profiles.py:_PROFILE_DIRS includes `home`, ./hermes-agent/hermes_constants.py:get_subprocess_home, ./hermes-agent/tools/environments/local.py:_make_run_env, ./hermes-agent/tools/environments/local.py:_sanitize_subprocess_env, cmd/gormes/main.go:applyProfileStartupFlag, internal/cli/profile_create.go:profileCreateDefaultDirs, internal/tools/terminal_tool.go:TerminalTool.Execute, internal/tools/execute_code.go:LocalCodeSandbox.Execute
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Gateway memory monitor pressure policy
+## 2. Gateway memory monitor pressure policy
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -87,7 +67,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/memory_monitor.py, ../hermes-agent/tests/gateway/test_memory_monitor.py, internal/gateway/status.go, cmd/gormes/gateway_status.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. ACP setup-browser bootstrap parity
+## 3. ACP setup-browser bootstrap parity
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -107,7 +87,7 @@ selection.
 - Source refs: ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.sh, ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.ps1, ../hermes-agent/acp_adapter/entry.py, cmd/gormes/acp.go, internal/acp
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Hermes LSP write-time semantic diagnostics
+## 4. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -127,7 +107,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes x_search tool and auth surface
+## 5. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -147,7 +127,7 @@ selection.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Hermes send command stdin/file payload parity
+## 6. Hermes send command stdin/file payload parity
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -167,7 +147,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/send_cmd.py, ../hermes-agent/tests/hermes_cli/test_send_cmd.py, ../hermes-agent/tests/hermes_cli/test_tui_resume_flow.py, cmd/gormes
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Hermes session recap command surface
+## 7. Hermes session recap command surface
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -187,7 +167,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/session_recap.py, ../hermes-agent/hermes_cli/main.py, internal/session, internal/store
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Long-term plan: profile fleet supervisor and single control-plane gateway
+## 8. Long-term plan: profile fleet supervisor and single control-plane gateway
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -207,7 +187,7 @@ selection.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Native TUI Terminal.app truecolor and ANSI sanitizer parity
+## 9. Native TUI Terminal.app truecolor and ANSI sanitizer parity
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -225,6 +205,26 @@ selection.
 - Done signal: Native TUI fixtures prove truecolor environment handling, ANSI sanitizer safety, and fast-echo cursor stability without a live terminal.
 - Acceptance: Malformed or dangling ANSI/CSI sequences are stripped or bounded exactly by fixture expectations., Truecolor forcing/degradation is deterministic from injected terminal environment facts., Fast-echo cursor source-of-truth does not drift after sanitized writes.
 - Source refs: ../hermes-agent/ui-tui/src/lib/forceTruecolor.ts, ../hermes-agent/ui-tui/src/lib/text.ts, ../hermes-agent/ui-tui/src/components/textInput.tsx, ../hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts, ../hermes-agent/ui-tui/src/__tests__/text.test.ts, ../hermes-agent/ui-tui/src/__tests__/textInputFastEcho.test.ts, internal/tui
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Hermes v0.14 optional skill catalog refresh
+
+- Phase: 6 / 6.C
+- Owner: `skills`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Refresh the Gormes skill catalog and metadata compatibility checks against Hermes v0.14 optional skills, including devops/pinggy-tunnel, research/darwinian-evolver, research/osint-investigation, and the updated Notion skill, without blindly copying unsupported Python scripts into runtime packages.
+- Trust class: -
+- Ready when: Skill metadata parser and hub registry fixtures exist.
+- Not ready when: The slice vendors Hermes optional-skill scripts as trusted Go runtime code., The slice marks skills enabled by default without platform/dependency guards.
+- Degraded mode: -
+- Fixture: `internal/skills optional skill catalog fixtures`
+- Write scope: `internal/skills`, `docs/development-skills`, `docs/content/building-gormes/architecture_plan`
+- Test commands: `go test ./internal/skills -run 'Test.*Skill.*Catalog\|Test.*Optional' -count=1`, `go run ./cmd/progress validate`
+- Done signal: Optional skill fixtures prove v0.14 metadata/catalog visibility and guarded unsupported-script handling.
+- Acceptance: New optional skills parse with frontmatter, loaded/when metadata, references, and script/template inventories., Unsupported scripts remain catalog evidence with explicit dependency/degraded status., Skill hub/search output surfaces these skills with category and safety metadata.
+- Source refs: ../hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md, ../hermes-agent/optional-skills/research/darwinian-evolver/SKILL.md, ../hermes-agent/optional-skills/research/osint-investigation/SKILL.md, ../hermes-agent/skills/productivity/notion/SKILL.md, internal/skills
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

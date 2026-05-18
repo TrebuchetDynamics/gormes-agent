@@ -1652,6 +1652,34 @@ func TestDelegationCfgResolvedRunLogPathDefaultsToGormesHome(t *testing.T) {
 	}
 }
 
+func TestSubprocessHomeRequiresProfileHomeDir(t *testing.T) {
+	root := t.TempDir()
+	if got, ok := SubprocessHomeFor(root); ok || got != "" {
+		t.Fatalf("SubprocessHomeFor(missing home) = %q, %v; want empty false", got, ok)
+	}
+
+	fileRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(fileRoot, "home"), []byte("not a dir"), 0o600); err != nil {
+		t.Fatalf("write non-directory home: %v", err)
+	}
+	if got, ok := SubprocessHomeFor(fileRoot); ok || got != "" {
+		t.Fatalf("SubprocessHomeFor(file home) = %q, %v; want empty false", got, ok)
+	}
+
+	homeDir := filepath.Join(root, "home")
+	if err := os.MkdirAll(homeDir, 0o700); err != nil {
+		t.Fatalf("mkdir profile subprocess home: %v", err)
+	}
+	if got, ok := SubprocessHomeFor(root); !ok || got != homeDir {
+		t.Fatalf("SubprocessHomeFor(existing home) = %q, %v; want %q true", got, ok, homeDir)
+	}
+
+	t.Setenv("GORMES_HOME", root)
+	if got, ok := SubprocessHome(); !ok || got != homeDir {
+		t.Fatalf("SubprocessHome() = %q, %v; want %q true", got, ok, homeDir)
+	}
+}
+
 func TestLoad_ConfigVersionFromFutureBinaryErrors(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)

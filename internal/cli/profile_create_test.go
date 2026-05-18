@@ -14,6 +14,7 @@ func TestCreateProfileCloneAllExcludesDefaultInfrastructure(t *testing.T) {
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "config.toml"), "model = \"gpt-4\"\n")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, ".env"), "TOKEN=placeholder\n")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "state.db"), "state")
+	mustWriteProfileFile(t, filepath.Join(defaultRoot, "home", ".gitconfig"), "[user]\n\tname = Worker\n")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "sessions", "turn.json"), "{}")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "logs", "gateway.log"), "log")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "skills", "my-skill", "SKILL.md"), "skill")
@@ -50,6 +51,7 @@ func TestCreateProfileCloneAllExcludesDefaultInfrastructure(t *testing.T) {
 		"config.toml",
 		".env",
 		"state.db",
+		"home/.gitconfig",
 		"sessions/turn.json",
 		"logs/gateway.log",
 		"skills/my-skill/SKILL.md",
@@ -73,6 +75,27 @@ func TestCreateProfileCloneAllExcludesDefaultInfrastructure(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(target, path)); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("expected excluded %s, stat err=%v", path, err)
 		}
+	}
+}
+
+func TestCreateProfileSeedsSubprocessHomeDir(t *testing.T) {
+	xdg := t.TempDir()
+
+	result, err := CreateProfile(ProfileCreateOptions{
+		Name:          "worker",
+		XDGConfigHome: xdg,
+	})
+	if err != nil {
+		t.Fatalf("CreateProfile: %v", err)
+	}
+
+	homeDir := filepath.Join(result.Root, "home")
+	info, err := os.Stat(homeDir)
+	if err != nil {
+		t.Fatalf("profile subprocess home missing at %s: %v", homeDir, err)
+	}
+	if !info.IsDir() {
+		t.Fatalf("profile subprocess home = non-directory %s", homeDir)
 	}
 }
 

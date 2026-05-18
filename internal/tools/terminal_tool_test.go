@@ -25,6 +25,40 @@ func TestTerminalToolRunsForegroundCommand(t *testing.T) {
 	}
 }
 
+func TestTerminalToolUsesProfileSubprocessHome(t *testing.T) {
+	operatorHome := t.TempDir()
+	profileRoot := t.TempDir()
+	profileHome := filepath.Join(profileRoot, "home")
+	if err := os.MkdirAll(profileHome, 0o700); err != nil {
+		t.Fatalf("mkdir profile home: %v", err)
+	}
+	t.Setenv("HOME", operatorHome)
+	t.Setenv("GORMES_HOME", profileRoot)
+
+	tool := NewTerminalTool(TerminalToolConfig{
+		Workdir:        t.TempDir(),
+		DefaultTimeout: 5 * time.Second,
+		SubprocessHome: func() (string, bool) {
+			return profileHome, true
+		},
+	})
+	out := executeTerminalTool(t, tool, `{"command":"printf '%s\n%s' \"$HOME\" \"$GORMES_HOME\""}`)
+
+	if out["status"] != "completed" {
+		t.Fatalf("status = %v, want completed: %#v", out["status"], out)
+	}
+	lines := strings.Split(strings.TrimSpace(asString(out["stdout"])), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("stdout = %q, want HOME and GORMES_HOME lines", out["stdout"])
+	}
+	if lines[0] != profileHome {
+		t.Fatalf("HOME = %q, want profile subprocess home %q", lines[0], profileHome)
+	}
+	if lines[1] != profileRoot {
+		t.Fatalf("GORMES_HOME = %q, want active profile root %q", lines[1], profileRoot)
+	}
+}
+
 func TestTerminalToolBlocksDangerousCommandWithoutApproval(t *testing.T) {
 	tool := NewTerminalTool(TerminalToolConfig{Workdir: t.TempDir(), ApprovalMode: ApprovalModeManual})
 	out := executeTerminalTool(t, tool, `{"command":"git reset --hard"}`)

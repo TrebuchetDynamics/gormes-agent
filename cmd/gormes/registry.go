@@ -43,16 +43,20 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
 	reg.MustRegister(tools.NewExecuteCodeTool(tools.ExecuteCodeToolConfig{
-		ConfigSet:   cfg.CodeExecution.Mode != "",
-		ConfigValue: cfg.CodeExecution.Mode,
-		DefaultMode: tools.DefaultExecuteCodeMode,
+		ConfigSet:      cfg.CodeExecution.Mode != "",
+		ConfigValue:    cfg.CodeExecution.Mode,
+		DefaultMode:    tools.DefaultExecuteCodeMode,
+		SubprocessHome: config.SubprocessHome,
 	}))
 	fileTools := tools.FileTaskToolConfig{}
 	reg.MustRegister(tools.NewReadFileTool(fileTools))
 	reg.MustRegister(tools.NewSearchFilesTool(fileTools))
 	reg.MustRegister(tools.NewWriteFileTool(fileTools))
 	reg.MustRegister(tools.NewPatchTool(fileTools))
-	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{Workdir: cfg.Terminal.CWD}))
+	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{
+		Workdir:        cfg.Terminal.CWD,
+		SubprocessHome: config.SubprocessHome,
+	}))
 	reg.MustRegister(tools.NewClarifyTool(nil))
 	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
 		Browser: tools.BrowserHarnessToolsConfig{

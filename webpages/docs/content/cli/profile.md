@@ -37,8 +37,12 @@ use real confinement or fail closed under that allow-list; changing `cwd` is
 not enough to make a shell a sandbox.
 
 Upstream Hermes also creates wrapper commands and a profile-local subprocess
-`HOME` at `HERMES_HOME/home/`; Gormes wrapper aliases are row-backed today, and
-profile-local subprocess `HOME` is tracked as a planned parity slice.
+`HOME` at `HERMES_HOME/home/`. Gormes now creates `home/` for new profiles and
+uses `GORMES_HOME/home` as subprocess `HOME` for local terminal and
+`execute_code` shell execution when that directory exists. This is environment
+separation only; it does not change the process working directory or replace
+the separate workspace allow-list row. Gormes wrapper aliases remain row-backed
+today.
 
 ## Synopsis
 

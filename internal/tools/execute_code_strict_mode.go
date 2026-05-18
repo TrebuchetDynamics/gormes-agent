@@ -26,6 +26,12 @@ func NewStrictModeSandbox() *StrictModeSandbox {
 	}
 }
 
+func newStrictModeSandboxWithSubprocessHome(resolve SubprocessHomeResolver) *StrictModeSandbox {
+	s := NewStrictModeSandbox()
+	s.inner.subprocessHome = resolve
+	return s
+}
+
 // newStrictModeSandboxWithLookPath is a test seam that injects a fake
 // lookPath function so tests can assert canonical resolution without
 // depending on the host's real shell binary.

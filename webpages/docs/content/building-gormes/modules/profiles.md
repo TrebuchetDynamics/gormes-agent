@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `profiles`
 **Rows:** 21
-**Status counts:** `complete`: 18 · `in_progress`: 0 · `planned`: 3
+**Status counts:** `complete`: 19 · `in_progress`: 0 · `planned`: 2
 **Priority counts:** `P0`: 2 · `P1`: 9 · `P2`: 4 · `unset`: 6
 
 ## Phase 2 — The Gateway
@@ -44,7 +44,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `profiles` | gormes setup profiles — section scaffold + per-profile workspace list |
 | `complete` | `P2` | `profiles` | gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack) |
 | `planned` | `P1` | `profiles` | Profile workspace allow-list enforcement policy |
-| `planned` | `P1` | `profiles` | Profile-local subprocess HOME parity |
+| `complete` | `P1` | `profiles` | Profile-local subprocess HOME parity |
 | `planned` | `P2` | `profiles` | Long-term plan: profile fleet supervisor and single control-plane gateway |
 
 ### 5.Q — API Server + TUI Gateway Streaming

@@ -29,6 +29,7 @@ type TerminalToolConfig struct {
 	ApprovalMode   string
 	DefaultTimeout time.Duration
 	MaxOutputBytes int
+	SubprocessHome SubprocessHomeResolver
 }
 
 type TerminalTool struct {
@@ -128,7 +129,7 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	start := time.Now()
 	cmd := exec.CommandContext(runCtx, "bash", "-lc", in.Command)
 	cmd.Dir = workdir.Path
-	cmd.Env = os.Environ()
+	cmd.Env = envWithSubprocessHome(os.Environ(), t.cfg.SubprocessHome)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

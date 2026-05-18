@@ -1033,9 +1033,9 @@
     "item": {
       "name": "Profile-local subprocess HOME parity",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Port Hermes' profile-local subprocess HOME semantics for Gormes local shell execution. New Gormes profiles create a `home/` directory under the profile root, and local shell tools that spawn subprocesses use that directory as `HOME` when the active `GORMES_HOME/home` exists. This matches Hermes' git/ssh/gh/npm credential isolation without changing the process working directory, without changing the separate profile workspace allow-list policy, and without shipping wrapper aliases in this slice.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
       "module": "profiles",
@@ -1053,6 +1053,7 @@
         "cmd/gormes/main.go:applyProfileStartupFlag",
         "internal/cli/profile_create.go:profileCreateDefaultDirs",
         "internal/tools/terminal_tool.go:TerminalTool.Execute",
+        "internal/tools/subprocess_home.go:SubprocessHomeResolver",
         "internal/tools/execute_code.go:LocalCodeSandbox.Execute"
       ],
       "ready_when": [
@@ -1078,8 +1079,12 @@
         "internal/config/config_test.go",
         "internal/tools/terminal_tool.go",
         "internal/tools/terminal_tool_test.go",
+        "internal/tools/subprocess_home.go",
         "internal/tools/execute_code.go",
         "internal/tools/execute_code_test.go",
+        "internal/tools/execute_code_project_mode.go",
+        "internal/tools/execute_code_strict_mode.go",
+        "cmd/gormes/registry.go",
         "webpages/docs/content/cli/profile.md",
         "webpages/docs/content/recipes/profiles.md",
         "webpages/docs/profile_docs_test.go"
@@ -1091,6 +1096,9 @@
       ],
       "done_signal": [
         "Builder reports the helper name, the temp profile root used by tests, and the terminal/execute_code outputs proving HOME points at the profile-local `home/` directory."
+      ],
+      "evidence": [
+        "Validated 2026-05-18: added config.SubprocessHome/SubprocessHomeFor and tools.SubprocessHomeResolver, seeded `home/` in new profiles, preserved cloned `home/` trees, and injected the resolver into terminal and execute_code via cmd/gormes/registry.go. Focused command passed: go test ./internal/cli ./internal/config ./internal/tools -run 'Profile|SubprocessHome|Terminal|ExecuteCode' -count=1."
       ]
     }
   },

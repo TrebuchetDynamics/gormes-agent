@@ -91,10 +91,11 @@ type ProjectModeSandbox struct {
 }
 
 type projectModeSandboxHooks struct {
-	lookupEnv func(string) (string, bool)
-	getwd     func() (string, error)
-	isDir     func(string) bool
-	lookPath  func(string) (string, error)
+	lookupEnv      func(string) (string, bool)
+	getwd          func() (string, error)
+	isDir          func(string) bool
+	lookPath       func(string) (string, error)
+	subprocessHome SubprocessHomeResolver
 }
 
 func NewProjectModeSandbox() *ProjectModeSandbox {
@@ -103,6 +104,16 @@ func NewProjectModeSandbox() *ProjectModeSandbox {
 		getwd:     os.Getwd,
 		isDir:     projectModeDirExists,
 		lookPath:  exec.LookPath,
+	})
+}
+
+func newProjectModeSandboxWithSubprocessHome(resolve SubprocessHomeResolver) *ProjectModeSandbox {
+	return newProjectModeSandboxWithHooks(projectModeSandboxHooks{
+		lookupEnv:      os.LookupEnv,
+		getwd:          os.Getwd,
+		isDir:          projectModeDirExists,
+		lookPath:       exec.LookPath,
+		subprocessHome: resolve,
 	})
 }
 
@@ -139,7 +150,8 @@ func newProjectModeSandboxWithHooks(h projectModeSandboxHooks) *ProjectModeSandb
 				"sh":    {Binaries: []string{"sh"}, Extension: ".sh"},
 				"shell": {Binaries: []string{"sh"}, Extension: ".sh"},
 			},
-			workdir: workdir,
+			workdir:        workdir,
+			subprocessHome: h.subprocessHome,
 		},
 	}
 }

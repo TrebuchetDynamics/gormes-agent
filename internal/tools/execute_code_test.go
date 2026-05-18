@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -91,6 +93,71 @@ func TestExecuteCodeToolRejectsPythonLanguage(t *testing.T) {
 	}
 	if !strings.Contains(out.Error, "Python runtime execution is disabled") {
 		t.Fatalf("error = %q, want Python disabled message", out.Error)
+	}
+}
+
+func TestExecuteCodeToolStrictModeUsesProfileSubprocessHome(t *testing.T) {
+	operatorHome := t.TempDir()
+	profileRoot := t.TempDir()
+	profileHome := filepath.Join(profileRoot, "home")
+	if err := os.MkdirAll(profileHome, 0o700); err != nil {
+		t.Fatalf("mkdir profile home: %v", err)
+	}
+	t.Setenv("HOME", operatorHome)
+
+	tool := NewExecuteCodeTool(ExecuteCodeToolConfig{
+		DefaultMode: ExecuteCodeModeStrict,
+		SubprocessHome: func() (string, bool) {
+			return profileHome, true
+		},
+	})
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"language":"sh","code":"printf '%s' \"$HOME\""}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var out CodeExecutionResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal %s: %v", raw, err)
+	}
+	if out.Status != "success" {
+		t.Fatalf("status = %q, want success: %#v", out.Status, out)
+	}
+	if strings.TrimSpace(out.Stdout) != profileHome {
+		t.Fatalf("HOME = %q, want profile subprocess home %q", out.Stdout, profileHome)
+	}
+	if strings.Contains(out.Stdout, operatorHome) {
+		t.Fatalf("execute_code leaked operator HOME %q in stdout %q", operatorHome, out.Stdout)
+	}
+}
+
+func TestExecuteCodeToolProjectModeUsesProfileSubprocessHome(t *testing.T) {
+	operatorHome := t.TempDir()
+	profileRoot := t.TempDir()
+	profileHome := filepath.Join(profileRoot, "home")
+	if err := os.MkdirAll(profileHome, 0o700); err != nil {
+		t.Fatalf("mkdir profile home: %v", err)
+	}
+	t.Setenv("HOME", operatorHome)
+
+	tool := NewExecuteCodeTool(ExecuteCodeToolConfig{
+		DefaultMode: ExecuteCodeModeProject,
+		SubprocessHome: func() (string, bool) {
+			return profileHome, true
+		},
+	})
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"language":"sh","code":"printf '%s' \"$HOME\""}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var out CodeExecutionResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal %s: %v", raw, err)
+	}
+	if out.Status != "success" {
+		t.Fatalf("status = %q, want success: %#v", out.Status, out)
+	}
+	if strings.TrimSpace(out.Stdout) != profileHome {
+		t.Fatalf("HOME = %q, want profile subprocess home %q", out.Stdout, profileHome)
 	}
 }
 

@@ -27,7 +27,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Memory](memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
 | [Navivox](navivox/) | 22 | 12 | 0 | 10 | `P0`: 2 · `P1`: 12 · `P2`: 1 · `P3`: 1 · `unset`: 6 |
 | [Planner](planner/) | 9 | 9 | 0 | 0 | `P0`: 1 · `P1`: 3 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
-| [Profiles](profiles/) | 21 | 18 | 0 | 3 | `P0`: 2 · `P1`: 9 · `P2`: 4 · `unset`: 6 |
+| [Profiles](profiles/) | 21 | 19 | 0 | 2 | `P0`: 2 · `P1`: 9 · `P2`: 4 · `unset`: 6 |
 | [Progress](progress/) | 17 | 17 | 0 | 0 | `P1`: 2 · `P2`: 15 |
 | [Providers](providers/) | 117 | 117 | 0 | 0 | `P0`: 9 · `P1`: 48 · `P2`: 23 · `P3`: 2 · `unset`: 35 |
 | [Release](release/) | 11 | 10 | 0 | 1 | `P0`: 1 · `P1`: 10 |

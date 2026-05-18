@@ -47,7 +47,9 @@ difficulty: "S"
    ```
    Gormes state commands run against the active profile home. Current profiles
    are not enforced filesystem sandboxes, and selecting one does not change the
-   project working directory for shell tools. The planned Gormes workspace
+   project working directory for shell tools. Local terminal and `execute_code`
+   shell subprocesses do use the active profile's `home/` directory as `HOME`
+   when that directory exists. The planned Gormes workspace
    policy treats an empty `agents.defaults.workspaces` list as the operator
    home, and a non-empty list as the project read/write allow-list. Runtime
    internals still own the active profile root for state, but model-facing
@@ -78,7 +80,7 @@ root: .../client-acme
 
 - **`profile not found`** → Re-run `gormes profile list` to confirm the exact name, or create it with `gormes profile create <name>`.
 - **Wrong profile picked up by a script** → Set the profile per-invocation with `--profile <name>` rather than relying on the persisted active profile.
-- **Shell tools still see the operator home** → Current Gormes profile roots do not yet provide Hermes-style profile-local subprocess `HOME`; that parity slice is planned.
+- **Shell tools still see the operator home** → Confirm the active profile has a `home/` directory and the command is running under `gormes --profile <name>` or after `gormes profile use <name>`. Legacy profile roots created before this parity slice may need `mkdir -p <profile-root>/home`, using the root printed by `gormes profile show`.
 - **Workspace list does not restrict access yet** → `gormes setup profiles`
   persists `agents.defaults.workspaces` today, but runtime enforcement is still
   row-backed. Until that slice ships, do not treat the list as a sandbox.
