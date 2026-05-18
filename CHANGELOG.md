@@ -8,6 +8,39 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.15] - 2026-05-18
+
+Date alias: `v2026.5.18`.
+
+> **Goncho recall proof, Hermes fidelity gates, durable run reports, and compact tool output.**
+
+### Added
+- Goncho recall diagnostics, replay traces, benchmark corpus coverage, proof
+  matrix reporting, TOON prompt context encoding, and end-to-end memory-turn
+  proof coverage.
+- Hermes fidelity evidence gates, contract inventory validation, and refreshed
+  source-pair reporting for parity work.
+- Durable operator run reports for scheduled runs.
+- Browser extraction, Navivox continuous voice/profile-contact planning, gateway
+  memory-pressure policy, and profile workspace/subprocess-home parity coverage.
+
+### Changed
+- Built-in `execute_code` and `terminal` tool output now compact noisy build
+  and Go test output by default while preserving `full_output` escape hatches.
+- Gormes command construction was split into long-term CLI modules, with the
+  command refactor plan closed and release/action runtimes refreshed.
+- Benchmark and progress mirrors were refreshed for the current development
+  line.
+
+### Fixed
+- Azure Anthropic auth now sends bearer credentials correctly.
+- Multiline tool-output compaction preserves build diagnostics instead of
+  dropping failing-test evidence.
+- Source-backed gateway installs restart against the intended source root and
+  detect stale-code conditions more reliably.
+- Telegram audio handling, Goncho transient message locks, contract inventory
+  timestamp no-op behavior, and send-command output sanitization were hardened.
+
 ## [0.2.14] - 2026-05-17
 
 Date alias: `v2026.5.17`.
@@ -1007,7 +1040,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.14...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.15...HEAD
+[0.2.15]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.14...v0.2.15
 [0.2.14]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.13...v0.2.14
 [0.2.13]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.12...v0.2.13
 [0.2.12]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.11...v0.2.12
