@@ -53,6 +53,32 @@ func TestCompact_GoTestFailurePreservesActionableDiagnostics(t *testing.T) {
 	}
 }
 
+func TestCompact_GoTestFailureAfterLeadingNoise(t *testing.T) {
+	text := strings.Join([]string{
+		"preparing test environment",
+		"ok  \tgithub.com/example/project/pkg\t0.001s",
+		"--- FAIL: TestWidgetHandlesOverflow (0.00s)",
+		"    widget_test.go:42: got overflow=false, want true",
+		"FAIL",
+		"FAIL\tgithub.com/example/project/widget\t0.123s",
+	}, "\n")
+
+	result := Compact(Request{
+		ToolName: "execute_code",
+		Command:  "go test ./...",
+		Stream:   "stdout",
+		Text:     text,
+		ExitCode: 1,
+	}, Config{Mode: ModeAuto, ThresholdBytes: 16, HeadLines: 1, TailLines: 1})
+
+	if result.Reducer != ReducerGoTest {
+		t.Fatalf("Reducer = %q, want %q:\n%s", result.Reducer, ReducerGoTest, result.Text)
+	}
+	if !strings.Contains(result.Text, "TestWidgetHandlesOverflow") {
+		t.Fatalf("compacted output lost failure:\n%s", result.Text)
+	}
+}
+
 func TestCompact_GoTestSuccessCountsPassingPackages(t *testing.T) {
 	var b strings.Builder
 	for i := 0; i < 24; i++ {
