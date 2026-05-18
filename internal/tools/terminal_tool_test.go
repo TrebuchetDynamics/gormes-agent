@@ -59,6 +59,43 @@ func TestTerminalToolUsesProfileSubprocessHome(t *testing.T) {
 	}
 }
 
+func TestTerminalToolFailsClosedWithProfileWorkspaceAllowList(t *testing.T) {
+	root := t.TempDir()
+	project := filepath.Join(root, "project")
+	if err := os.MkdirAll(project, 0o755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	scope, err := NewProfileWorkspaceScope(ProfileWorkspaceScopeOptions{
+		ProjectRoots: []string{project},
+		OperatorHome: root,
+	})
+	if err != nil {
+		t.Fatalf("NewProfileWorkspaceScope: %v", err)
+	}
+	created := filepath.Join(project, "created-by-terminal")
+	tool := NewTerminalTool(TerminalToolConfig{
+		Workdir:        project,
+		DefaultTimeout: 5 * time.Second,
+		WorkspaceScope: scope,
+	})
+
+	out := executeTerminalTool(t, tool, `{"command":"printf ran > created-by-terminal"}`)
+
+	if out["status"] != "blocked" {
+		t.Fatalf("status = %v, want blocked: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), ProfileWorkspaceScopeViolation) {
+		t.Fatalf("error = %v, want %s", out["error"], ProfileWorkspaceScopeViolation)
+	}
+	evidence, ok := out["evidence"].(map[string]any)
+	if !ok || evidence["code"] != ProfileWorkspaceScopeViolation {
+		t.Fatalf("evidence = %#v, want profile workspace scope violation code", out["evidence"])
+	}
+	if _, err := os.Stat(created); !os.IsNotExist(err) {
+		t.Fatalf("terminal command ran despite fail-closed policy, stat err=%v", err)
+	}
+}
+
 func TestTerminalToolBlocksDangerousCommandWithoutApproval(t *testing.T) {
 	tool := NewTerminalTool(TerminalToolConfig{Workdir: t.TempDir(), ApprovalMode: ApprovalModeManual})
 	out := executeTerminalTool(t, tool, `{"command":"git reset --hard"}`)

@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Profile workspace allow-list enforcement policy
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Make `agents.defaults.workspaces` the Gormes-owned profile workspace allow-list, not just setup metadata. With an empty list, the default project workspace is the operator home. With a non-empty list, model-facing project read/write access is restricted to the normalized listed roots. Runtime internals may access the active profile root (`GORMES_HOME`) for config, auth, sessions, memory, skills, logs, cron, and gateway state, but model-facing tools must not treat the whole profile root as a project workspace. Model-facing profile edits are limited to explicit profile-owned content: identity files (`SOUL.md`, `IDENTITY.md` when present) and the active profile `skills/` directory. Profile-local `home/` is subprocess HOME/runtime state, not a broad project workspace. Sibling profiles, arbitrary operator-home paths, `.env`, `auth.json`, session/memory databases, logs, and other runtime state are denied as project paths. File tools, local/project execute_code, and coding-agent delegation must share one resolver. Local terminal must use a tested sandbox-capable backend for allow-listed roots or fail closed; merely setting cwd is not accepted as confinement.
-- Trust class: operator, system
-- Ready when: The completed `gormes setup profiles — section scaffold + per-profile workspace list` row persists the selected profile's workspace list as a TOML array and config.Load round-trips it., The builder can add a single profile workspace policy resolver and inject it from cmd/gormes/registry.go into path-aware tools without hand-parsing config files., Terminal behavior is decided before coding: either a real confinement backend is in scope, or local terminal fails closed under a non-empty allow-list with typed evidence.
-- Not ready when: The change only updates docs/setup text and leaves runtime tools unconstrained., The change claims local terminal is sandboxed only because its cwd starts inside an allowed root., The resolver allows `..`, symlink, deleted-cwd, or prefix-sibling escapes; grants sibling profile roots; or silently falls back to unrestricted operator home when a non-empty workspace list is invalid., The active profile root is treated as an unrestricted model-facing project workspace instead of a runtime-owned state root with a narrow editable-content allow-list., The row is merged into `Profile-local subprocess HOME parity`; subprocess HOME and workspace access policy are separate behaviors.
-- Degraded mode: If `agents.defaults.workspaces` is empty, the project workspace policy defaults to the operator home for compatibility. If the list is non-empty and the local terminal backend cannot provide real confinement, terminal commands fail closed with `profile_workspace_scope_violation` instead of pretending cwd is a sandbox; path-aware tools still enforce the project allow-list plus explicit profile-owned editable content.
-- Fixture: `Temp GORMES_HOME with a named profile containing `agents.defaults.workspaces = ["<project1>", "<project2>"]`, plus active-profile SOUL.md/IDENTITY.md/skills fixtures, profile secret/runtime-state fixtures, sibling-profile fixtures, and outside-root fixtures.`
-- Write scope: `internal/config/agents.go`, `internal/config/agents_test.go`, `cmd/gormes/registry.go`, `cmd/gormes/registry_test.go`, `internal/tools/filesystem_scope.go`, `internal/tools/file_task_tools.go`, `internal/tools/file_task_tools_test.go`, `internal/tools/execute_code.go`, `internal/tools/execute_code_test.go`, `internal/tools/terminal_tool.go`, `internal/tools/terminal_tool_test.go`, `internal/codingagents/workspace.go`, `internal/codingagents/workspace_test.go`, `webpages/docs/content/cli/profile.md`, `webpages/docs/content/recipes/profiles.md`, `webpages/docs/profile_docs_test.go`
-- Test commands: `go test ./internal/config ./internal/tools ./internal/codingagents -run 'Profile\|Workspace\|Scope\|Filesystem\|ExecuteCode\|Terminal' -count=1`, `go test ./cmd/gormes -run 'Registry\|Profile\|Workspace' -count=1`, `go test ./webpages/docs -run 'Profile\|DocsContent' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Builder reports the shared resolver API, the exact denied-path evidence code, and fixtures proving project1/project2 pass while outside roots and sibling profiles fail; terminal either shows tested confinement or typed fail-closed behavior before shell spawn.
-- Acceptance: With no configured workspace list, the profile workspace policy resolves the operator home as the default project read/write root while preserving explicit `agents.defaults.workspace`, `terminal.cwd`, or per-agent workspace overrides where those are intentionally configured., With `agents.defaults.workspaces = [project1, project2]`, read/write/edit/search/code paths inside either project succeed and paths outside both roots fail with stable `profile_workspace_scope_violation` evidence., Runtime internals keep access to the active profile root for profile state, while model-facing file/edit/search/code access is limited to configured project roots plus explicit profile-owned editable content: `SOUL.md`, `IDENTITY.md` when present, and `skills/**`., Profile secrets and runtime state (`.env`, `auth.json`, session/memory databases, logs, gateway state, sibling profiles, and arbitrary operator-home paths) are denied as model-facing project paths under a non-empty workspace list., File tools, execute_code local/project mode, and coding-agent workspace resolution use the same normalized root list and produce matching pass/fail decisions for absolute, relative, symlink, and prefix-sibling paths., Terminal commands under a non-empty allow-list either run through a tested confinement backend rooted in the allow-list or return a typed fail-closed result before spawning a local shell; tests prove cwd-only confinement is rejected., Docs state the distinction between current shipped behavior and the planned Gormes-owned allow-list sandbox policy, including the operator-home default, Hermes' non-sandbox upstream behavior, runtime-owned profile state, and the narrow model-facing profile-owned editable content allowance.
-- Source refs: internal/config/agents.go:AgentDefaultsCfg.Workspaces, cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces, cmd/gormes/registry.go:buildDefaultRegistry registers file, execute_code, terminal tools, internal/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files, internal/tools/filesystem_scope.go:NewFilesystemScope, internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase, internal/tools/terminal_tool.go:TerminalTool.Execute / terminalWorkdir, internal/tools/execute_code.go:LocalCodeSandbox.Execute, internal/codingagents/workspace.go:WorkspaceGuard.Resolve, hermes-agent/website/docs/user-guide/profiles.md:Profiles vs workspaces vs sandboxing (upstream says profiles do not sandbox; this row is Gormes-owned)
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. ACP setup-browser bootstrap parity
+## 1. ACP setup-browser bootstrap parity
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -67,7 +47,7 @@ selection.
 - Source refs: ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.sh, ../hermes-agent/acp_adapter/bootstrap/bootstrap_browser_tools.ps1, ../hermes-agent/acp_adapter/entry.py, cmd/gormes/acp.go, internal/acp
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Hermes LSP write-time semantic diagnostics
+## 2. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -87,7 +67,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Hermes x_search tool and auth surface
+## 3. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -107,7 +87,7 @@ selection.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Hermes send command stdin/file payload parity
+## 4. Hermes send command stdin/file payload parity
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -127,7 +107,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/send_cmd.py, ../hermes-agent/tests/hermes_cli/test_send_cmd.py, ../hermes-agent/tests/hermes_cli/test_tui_resume_flow.py, cmd/gormes
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes session recap command surface
+## 5. Hermes session recap command surface
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -147,7 +127,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/session_recap.py, ../hermes-agent/hermes_cli/main.py, internal/session, internal/store
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Long-term plan: profile fleet supervisor and single control-plane gateway
+## 6. Long-term plan: profile fleet supervisor and single control-plane gateway
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -167,7 +147,7 @@ selection.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Native TUI Terminal.app truecolor and ANSI sanitizer parity
+## 7. Native TUI Terminal.app truecolor and ANSI sanitizer parity
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -187,7 +167,7 @@ selection.
 - Source refs: ../hermes-agent/ui-tui/src/lib/forceTruecolor.ts, ../hermes-agent/ui-tui/src/lib/text.ts, ../hermes-agent/ui-tui/src/components/textInput.tsx, ../hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts, ../hermes-agent/ui-tui/src/__tests__/text.test.ts, ../hermes-agent/ui-tui/src/__tests__/textInputFastEcho.test.ts, internal/tui
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Hermes v0.14 optional skill catalog refresh
+## 8. Hermes v0.14 optional skill catalog refresh
 
 - Phase: 6 / 6.C
 - Owner: `skills`
@@ -207,7 +187,7 @@ selection.
 - Source refs: ../hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md, ../hermes-agent/optional-skills/research/darwinian-evolver/SKILL.md, ../hermes-agent/optional-skills/research/osint-investigation/SKILL.md, ../hermes-agent/skills/productivity/notion/SKILL.md, internal/skills
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. SimpleX Chat platform plugin parity
+## 9. SimpleX Chat platform plugin parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -225,6 +205,26 @@ selection.
 - Done signal: SimpleX fake-daemon fixtures prove config/status, inbound admission, outbound delivery, DM pairing, and command routing without live credentials.
 - Acceptance: Config/status checks distinguish disabled, missing ws_url, unauthorized, and connected fake-daemon states., Inbound fake events produce normalized PlatformEvent values with opaque contact identity preserved., Outbound fake delivery and DM pairing preserve Hermes-visible SimpleX behavior and degraded errors.
 - Source refs: ../hermes-agent/plugins/platforms/simplex/plugin.yaml, ../hermes-agent/plugins/platforms/simplex/adapter.py, internal/gateway/platform_manifest.go, internal/gateway/platform_connected_checkers.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Hermes contract inventory gate
+
+- Phase: 8 / 8.C
+- Owner: `docs`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Build a report-only Hermes contract inventory gate that scans the current in-repo Hermes checkout, inventories source files, upstream docs pages, upstream tests, CLI/tool/provider/channel/session/memory/skill/learning-loop candidates, joins that evidence to progress.json rows and hermes-source-pairs.json, and emits machine-readable plus human-readable gap reports without failing CI by default. The gate must treat agent continuity as first-class: sessions, Memory/Goncho/Honcho compatibility, workspace/peer/profile identity boundaries, context retrieval and prompt budget, summaries/conclusions/search, skill templates and skills UX, skill precedence/sync/update/reset, learning-loop curator behavior, candidate memory/skill updates, feedback/outcome scoring, audit trail, mutation safety, prompt/context/memory/skill insertion ordering, and profile-scoped isolation. The gate proves whether a given Hermes SHA has every behavior/architecture contract classified as covered, partial, planned, excluded, or owned_divergence before Gormes claims full pairing.
+- Trust class: operator, system
+- Ready when: The in-repo Hermes checkout is present and its current SHA can be read without importing or running Hermes., hermes-source-pairs.json validates against the current Hermes SHA or reports stale evidence explicitly., The first implementation is accepted as report-only; CI-blocking strict mode is planned separately or kept behind an explicit flag., Matching is conservative and deterministic: source-pair rows, progress source_refs, upstream_tests, docs path refs, and taxonomy patterns produce confidence levels rather than proof., Agent-continuity categories are treated as first-class inventory dimensions, not incidental notes under tools or CLI., Honcho/Goncho evidence is included as compatibility evidence for memory, session, workspace, peer, message, context, search, summary, conclusion, API, and SDK-style surfaces.
+- Not ready when: The slice tries to infer every contract from Python AST or py2many output instead of emitting a conservative inventory., The slice mutates progress.json rows automatically, creates hundreds of rows, or marks rows covered without planner review., The slice fails CI by default before the initial gap baseline is classified., The slice requires Hermes to be importable/runnable, live profile data, credentials, network access, or successful py2many transpilation., The report treats low-confidence matches as proof of coverage., The slice omits Memory/Goncho, skills templates/UX, learning-loop curator behavior, or prompt/context/memory/skill insertion ordering from the inventory categories., The report merges agent continuity into one vague row instead of separating memory, skills, learning, prompt insertion, and profile isolation gaps.
+- Degraded mode: Without this inventory gate, Hermes pairing remains a hand-maintained release-note/source-file map and can silently drift from rolling upstream HEAD; Gormes must continue describing parity as source-backed but not exhaustive, especially for agent-continuity behavior that spans sessions, memory, skills, learning-loop updates, prompt insertion, and profile isolation.
+- Fixture: `internal/repoctl/hermes_contract_inventory_test.go; webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md`
+- Write scope: `cmd/repoctl`, `internal/repoctl`, `internal/progress`, `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json`, `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`, `webpages/docs/content/building-gormes/modules/docs.md`
+- Test commands: `go test ./internal/repoctl -run 'TestHermesContractInventory' -count=1`, `go run ./cmd/repoctl hermes-contract-inventory --repo-root .`, `go run ./cmd/progress validate`, `go test ./webpages/docs -count=1`, `git diff --check`
+- Done signal: Hermes contract inventory JSON and Markdown reports are generated for the current Hermes SHA, unclassified gaps are visible by severity, agent-continuity categories are first-class in the report, and normal validation remains report-only green unless strict mode is explicitly requested.
+- Acceptance: `repoctl` can generate `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` and `.md` for the current Hermes SHA., The JSON records Hermes SHA, generated timestamp, source/docs/tests inventory counts, unmapped lists, extracted CLI/tool/provider/channel candidates, matched progress rows, matched source-pair rows, confidence, and gap severity., The Markdown records headline completion counts, critical blockers, per-module gap tables, release-checkpoint links, and a note that progress.json remains the only backlog., Default report mode surfaces gaps without failing progress validation or CI; a strict mode is explicit and can be promoted later., Docs state that Gormes may claim all Hermes features/architecture are paired only when every inventory gap is classified as covered, partial, planned, excluded, or owned_divergence for the current Hermes SHA., Upstream tests and docs pages with no mapped progress row or explicit exclusion appear as blockers, not as silently ignored files., The inventory has explicit sections or typed categories for sessions, Memory/Goncho/Honcho compatibility, workspace/peer/profile identity boundaries, context retrieval and prompt budget, summaries/conclusions/search, skills templates and skills UX, skill precedence/sync/update/reset, learning-loop curator behavior, candidate memory/skill updates, feedback/outcome scoring, audit trail, mutation safety, insertion ordering, and profile-scoped isolation., Agent-continuity gaps are reported separately from CLI/tool/channel gaps so planner passes can prioritize Memory/Goncho, skills UX, and learning-loop fidelity without creating a side backlog.
+- Source refs: webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json, webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md, webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md, internal/repoctl/source_pairs.go:ValidateSourcePairs, internal/progress/progress.go:Item, cmd/repoctl/main.go, hermes-agent/RELEASE_v0.14.0.md, hermes-agent/hermes_cli/main.py, hermes-agent/tools/x_search_tool.py, hermes-agent/tests/hermes_cli/test_send_cmd.py, webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage, webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes, webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho, hermes-agent/tools/memory_tool.py, hermes-agent/agent/memory_manager.py, hermes-agent/agent/skill_commands.py, hermes-agent/agent/skill_preprocessing.py, hermes-agent/agent/skill_utils.py, hermes-agent/tools/skills_tool.py, hermes-agent/tools/skill_manager_tool.py, hermes-agent/tools/skills_sync.py, hermes-agent/agent/curator.py, hermes-agent/hermes_cli/curator.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

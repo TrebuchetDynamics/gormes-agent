@@ -176,6 +176,96 @@ func TestBuildDefaultRegistryPassesExecuteCodeMode(t *testing.T) {
 	}
 }
 
+func TestBuildDefaultRegistryAppliesProfileWorkspaceAllowList(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, ".gormes", "profiles", "coder")
+	project1 := filepath.Join(root, "project1")
+	project2 := filepath.Join(root, "project2")
+	outside := filepath.Join(root, "outside")
+	for _, dir := range []string{gormesHome, project1, project2, outside} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(project2, "notes.txt"), []byte("project two\n"), 0o644); err != nil {
+		t.Fatalf("write project2 notes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("outside\n"), 0o644); err != nil {
+		t.Fatalf("write outside secret: %v", err)
+	}
+	t.Setenv("HOME", root)
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	reg := buildDefaultRegistry(context.Background(), config.Config{
+		Terminal:      config.TerminalCfg{CWD: project1},
+		CodeExecution: config.CodeExecutionCfg{Mode: "project"},
+		Agents: config.AgentsCfg{
+			Defaults: config.AgentDefaultsCfg{
+				Workspaces: []string{project1, project2},
+			},
+		},
+	}, nil, "")
+
+	readTool, ok := reg.Get("read_file")
+	if !ok {
+		t.Fatal("read_file not registered")
+	}
+	raw, err := readTool.Execute(context.Background(), json.RawMessage(`{"path":`+quoteJSONRegistry(t, filepath.Join(project2, "notes.txt"))+`}`))
+	if err != nil {
+		t.Fatalf("read_file project2 Execute: %v", err)
+	}
+	var readOut map[string]any
+	if err := json.Unmarshal(raw, &readOut); err != nil {
+		t.Fatalf("unmarshal read_file %s: %v", raw, err)
+	}
+	if readOut["error"] != nil {
+		t.Fatalf("read_file project2 = %#v, want allowed", readOut)
+	}
+
+	raw, err = readTool.Execute(context.Background(), json.RawMessage(`{"path":`+quoteJSONRegistry(t, filepath.Join(outside, "secret.txt"))+`}`))
+	if err != nil {
+		t.Fatalf("read_file outside Execute: %v", err)
+	}
+	if err := json.Unmarshal(raw, &readOut); err != nil {
+		t.Fatalf("unmarshal read_file outside %s: %v", raw, err)
+	}
+	if !strings.Contains(asRegistryString(readOut["error"]), tools.ProfileWorkspaceScopeViolation) {
+		t.Fatalf("read_file outside = %#v, want %s", readOut, tools.ProfileWorkspaceScopeViolation)
+	}
+
+	termTool, ok := reg.Get("terminal")
+	if !ok {
+		t.Fatal("terminal not registered")
+	}
+	raw, err = termTool.Execute(context.Background(), json.RawMessage(`{"command":"printf ran"}`))
+	if err != nil {
+		t.Fatalf("terminal Execute: %v", err)
+	}
+	var termOut map[string]any
+	if err := json.Unmarshal(raw, &termOut); err != nil {
+		t.Fatalf("unmarshal terminal %s: %v", raw, err)
+	}
+	if termOut["status"] != "blocked" || !strings.Contains(asRegistryString(termOut["error"]), tools.ProfileWorkspaceScopeViolation) {
+		t.Fatalf("terminal = %#v, want profile workspace fail-closed block", termOut)
+	}
+
+	execTool, ok := reg.Get("execute_code")
+	if !ok {
+		t.Fatal("execute_code not registered")
+	}
+	raw, err = execTool.Execute(context.Background(), json.RawMessage(`{"language":"sh","code":"printf ran"}`))
+	if err != nil {
+		t.Fatalf("execute_code Execute: %v", err)
+	}
+	var execOut map[string]any
+	if err := json.Unmarshal(raw, &execOut); err != nil {
+		t.Fatalf("unmarshal execute_code %s: %v", raw, err)
+	}
+	if execOut["status"] != "blocked" || execOut["evidence"] != tools.ProfileWorkspaceScopeViolation {
+		t.Fatalf("execute_code = %#v, want profile workspace fail-closed block", execOut)
+	}
+}
+
 func executeCodeRegistryHasEvidence(evidence []tools.ExecuteCodeModeEvidence, code string) bool {
 	for _, ev := range evidence {
 		if ev.Code == code {
@@ -203,6 +293,15 @@ func asRegistryString(v any) string {
 		return s
 	}
 	return ""
+}
+
+func quoteJSONRegistry(t *testing.T, value string) string {
+	t.Helper()
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal %q: %v", value, err)
+	}
+	return string(raw)
 }
 
 func TestBuildDefaultRegistryDelegationToolExecutes(t *testing.T) {

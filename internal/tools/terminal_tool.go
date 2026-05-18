@@ -30,6 +30,7 @@ type TerminalToolConfig struct {
 	DefaultTimeout time.Duration
 	MaxOutputBytes int
 	SubprocessHome SubprocessHomeResolver
+	WorkspaceScope *ProfileWorkspaceScope
 }
 
 type TerminalTool struct {
@@ -77,6 +78,19 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 			ExitCode: -1,
 			Error:    "background terminal processes are not ported yet; use tmux or run a foreground command with timeout",
 		})
+	}
+
+	if t.cfg.WorkspaceScope != nil && t.cfg.WorkspaceScope.Configured() {
+		return marshalToolPayload(redactTerminalResult(terminalResult{
+			Status:   "blocked",
+			ExitCode: -1,
+			Error:    ProfileWorkspaceScopeViolation + ": local terminal cannot prove confinement for a non-empty profile workspace allow-list; fail closed before spawning",
+			Command:  in.Command,
+			Evidence: map[string]string{
+				"code":   ProfileWorkspaceScopeViolation,
+				"reason": "local_terminal_no_profile_workspace_confinement",
+			},
+		}))
 	}
 
 	var guard BlockedResult

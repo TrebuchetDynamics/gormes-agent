@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"os"
+	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -39,6 +41,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		opt(&o)
 	}
 	reg := tools.NewRegistry()
+	workspaceScope := profileWorkspaceScopeFromConfig(cfg)
 	reg.MustRegister(&tools.EchoTool{})
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
@@ -47,8 +50,15 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		ConfigValue:    cfg.CodeExecution.Mode,
 		DefaultMode:    tools.DefaultExecuteCodeMode,
 		SubprocessHome: config.SubprocessHome,
+		WorkspaceScope: workspaceScope,
 	}))
-	fileTools := tools.FileTaskToolConfig{}
+	fileTools := tools.FileTaskToolConfig{
+		Root:           workspaceScope.DefaultRoot(),
+		WorkspaceScope: workspaceScope,
+		CWDResolver: func() string {
+			return cfg.Terminal.CWD
+		},
+	}
 	reg.MustRegister(tools.NewReadFileTool(fileTools))
 	reg.MustRegister(tools.NewSearchFilesTool(fileTools))
 	reg.MustRegister(tools.NewWriteFileTool(fileTools))
@@ -56,6 +66,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{
 		Workdir:        cfg.Terminal.CWD,
 		SubprocessHome: config.SubprocessHome,
+		WorkspaceScope: workspaceScope,
 	}))
 	reg.MustRegister(tools.NewClarifyTool(nil))
 	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
@@ -149,6 +160,26 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		reg.MustRegister(subagent.NewDelegateTool(subagent.NewManager(opts), drafter))
 	}
 	return reg
+}
+
+func profileWorkspaceScopeFromConfig(cfg config.Config) *tools.ProfileWorkspaceScope {
+	operatorHome, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(operatorHome) == "" {
+		operatorHome = config.GormesHome()
+	}
+	roots := append([]string(nil), cfg.Agents.Defaults.Workspaces...)
+	if len(roots) == 0 && strings.TrimSpace(cfg.Agents.Defaults.Workspace) != "" {
+		roots = []string{cfg.Agents.Defaults.Workspace}
+	}
+	scope, err := tools.NewProfileWorkspaceScope(tools.ProfileWorkspaceScopeOptions{
+		ProjectRoots: roots,
+		ProfileRoot:  config.GormesHome(),
+		OperatorHome: operatorHome,
+	})
+	if err != nil {
+		return tools.NewFailClosedProfileWorkspaceScope(err)
+	}
+	return scope
 }
 
 func browserCDPEnv(cfg config.Config) map[string]string {

@@ -1148,7 +1148,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Nous OAuth device code + refresh token + agent key provisioning
 - [ ] `cli` Hermes send command stdin/file payload parity
 - [ ] `sessions` Hermes session recap command surface
-- [ ] `profiles` Profile workspace allow-list enforcement policy
+- [x] `profiles` Profile workspace allow-list enforcement policy
 - [x] `profiles` Profile-local subprocess HOME parity
 - [ ] `profiles` Long-term plan: profile fleet supervisor and single control-plane gateway
 - [x] `cli` CLI module contract registry and manifest gate

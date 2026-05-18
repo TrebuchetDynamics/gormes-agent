@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 // Sentinel errors so callers can present clear, voice-friendly messages and
@@ -23,6 +25,9 @@ var (
 // the resolved location is inside an allowed root and not under a denied
 // path.
 type WorkspaceGuard struct {
+	// Scope is the shared Gormes profile workspace policy. When present it is
+	// the first resolver used for delegation targets.
+	Scope *tools.ProfileWorkspaceScope
 	// AllowedRoots is the set of absolute, symlink-resolved roots inside
 	// which workers may operate.
 	AllowedRoots []string
@@ -68,6 +73,22 @@ func NewWorkspaceGuard(allowed []string) (*WorkspaceGuard, error) {
 	return &WorkspaceGuard{AllowedRoots: normalized, DeniedPaths: denied, DeniedExact: exact}, nil
 }
 
+func NewWorkspaceGuardFromProfileScope(scope *tools.ProfileWorkspaceScope) (*WorkspaceGuard, error) {
+	if scope == nil {
+		return NewWorkspaceGuard(nil)
+	}
+	denied, exact, err := defaultDenyList()
+	if err != nil {
+		return nil, err
+	}
+	return &WorkspaceGuard{
+		Scope:        scope,
+		AllowedRoots: scope.ProjectRoots(),
+		DeniedPaths:  denied,
+		DeniedExact:  exact,
+	}, nil
+}
+
 // Resolve validates the requested workspace and returns the absolute,
 // symlink-resolved path the worker may use. It refuses empty or
 // whitespace-ambiguous inputs, paths outside the allowed roots, and paths
@@ -79,6 +100,17 @@ func (g *WorkspaceGuard) Resolve(input string) (string, error) {
 	if input != strings.TrimSpace(input) || strings.Contains(input, "  ") {
 		return "", fmt.Errorf("%w: input has leading, trailing, or repeated whitespace", ErrWorkspaceAmbiguous)
 	}
+	if g.Scope != nil {
+		decision := g.Scope.Resolve(input, g.Scope.DefaultRoot(), tools.ProfileWorkspaceAccessDelegate)
+		if !decision.Allowed {
+			return "", fmt.Errorf("%w: %s", ErrWorkspaceOutsideAllowed, decision.Message)
+		}
+		resolved := decision.Normalized
+		if err := g.checkDenied(resolved, g.Scope.Configured()); err != nil {
+			return "", err
+		}
+		return resolved, nil
+	}
 	resolved, err := canonicalize(input)
 	if err != nil {
 		return "", err
@@ -86,15 +118,8 @@ func (g *WorkspaceGuard) Resolve(input string) (string, error) {
 	if resolved == string(filepath.Separator) {
 		return "", fmt.Errorf("%w: filesystem root", ErrWorkspaceDenied)
 	}
-	for _, d := range g.DeniedExact {
-		if resolved == d {
-			return "", fmt.Errorf("%w: %s", ErrWorkspaceDenied, resolved)
-		}
-	}
-	for _, d := range g.DeniedPaths {
-		if pathIsUnderOrEqual(resolved, d) {
-			return "", fmt.Errorf("%w: %s", ErrWorkspaceDenied, resolved)
-		}
+	if err := g.checkDenied(resolved, true); err != nil {
+		return "", err
 	}
 	for _, root := range g.AllowedRoots {
 		if pathIsUnderOrEqual(resolved, root) {
@@ -102,6 +127,25 @@ func (g *WorkspaceGuard) Resolve(input string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("%w: %s", ErrWorkspaceOutsideAllowed, resolved)
+}
+
+func (g *WorkspaceGuard) checkDenied(resolved string, includeExact bool) error {
+	if resolved == string(filepath.Separator) {
+		return fmt.Errorf("%w: filesystem root", ErrWorkspaceDenied)
+	}
+	if includeExact {
+		for _, d := range g.DeniedExact {
+			if resolved == d {
+				return fmt.Errorf("%w: %s", ErrWorkspaceDenied, resolved)
+			}
+		}
+	}
+	for _, d := range g.DeniedPaths {
+		if pathIsUnderOrEqual(resolved, d) {
+			return fmt.Errorf("%w: %s", ErrWorkspaceDenied, resolved)
+		}
+	}
+	return nil
 }
 
 // defaultDenyList returns the per-user default deny entries split into

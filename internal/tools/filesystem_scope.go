@@ -17,6 +17,9 @@ type PathCheckResult struct {
 	Allowed    bool
 	Normalized string
 	Evidence   string
+	Root       string
+	Relative   string
+	Message    string
 }
 
 func NewFilesystemScope(cwd string, readPaths, writePaths []string) *FilesystemScope {

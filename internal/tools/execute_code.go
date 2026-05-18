@@ -38,6 +38,7 @@ type ExecuteCodeToolConfig struct {
 	StrictSandbox  CodeSandbox
 	ProjectSandbox CodeSandbox
 	SubprocessHome SubprocessHomeResolver
+	WorkspaceScope *ProfileWorkspaceScope
 }
 
 type ExecuteCodeModeResolverInput struct {
@@ -140,6 +141,7 @@ type CodeExecutionResult struct {
 	StderrTruncated  bool   `json:"stderr_truncated,omitempty"`
 	DurationMs       int64  `json:"duration_ms"`
 	Error            string `json:"error,omitempty"`
+	Evidence         string `json:"evidence,omitempty"`
 	FilesystemAccess bool   `json:"filesystem_access"`
 	NetworkAccess    bool   `json:"network_access"`
 }
@@ -157,6 +159,7 @@ type ExecuteCodeTool struct {
 	DefaultTimeout   time.Duration
 	DefaultStdoutCap int
 	DefaultStderrCap int
+	WorkspaceScope   *ProfileWorkspaceScope
 }
 
 func NewExecuteCodeTool(configs ...ExecuteCodeToolConfig) *ExecuteCodeTool {
@@ -180,6 +183,7 @@ func NewExecuteCodeTool(configs ...ExecuteCodeToolConfig) *ExecuteCodeTool {
 		DefaultTimeout:   defaultExecuteCodeTimeout,
 		DefaultStdoutCap: defaultExecuteCodeStdoutLimit,
 		DefaultStderrCap: defaultExecuteCodeStderrLimit,
+		WorkspaceScope:   cfg.WorkspaceScope,
 	}
 }
 
@@ -253,6 +257,16 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 		Timeout:          durationOrDefault(in.TimeoutMS, t.DefaultTimeout, defaultExecuteCodeTimeout),
 		StdoutLimitBytes: intOrDefault(in.StdoutLimitBytes, t.DefaultStdoutCap, defaultExecuteCodeStdoutLimit),
 		StderrLimitBytes: intOrDefault(in.StderrLimitBytes, t.DefaultStderrCap, defaultExecuteCodeStderrLimit),
+	}
+
+	if t.Mode == ExecuteCodeModeProject && t.WorkspaceScope != nil && t.WorkspaceScope.Configured() {
+		return json.Marshal(CodeExecutionResult{
+			Status:   "blocked",
+			Language: language,
+			ExitCode: -1,
+			Error:    ProfileWorkspaceScopeViolation + ": project-mode execute_code cannot prove confinement for a non-empty profile workspace allow-list; fail closed before spawning",
+			Evidence: ProfileWorkspaceScopeViolation,
+		})
 	}
 
 	sandbox := t.Sandbox
