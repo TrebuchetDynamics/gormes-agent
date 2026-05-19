@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
 var ErrGonchoUnavailable = errors.New("goncho not configured")
@@ -11,6 +13,7 @@ var ErrGonchoUnavailable = errors.New("goncho not configured")
 type GonchoStore interface {
 	AppendTurn(ctx context.Context, peer, sessionKey, role, content string) error
 	GetContext(ctx context.Context, sessionKey string, maxTokens int) (string, error)
+	OnSessionEnd(ctx context.Context, sessionKey string, messages []hermes.Message) error
 }
 
 func (k *Kernel) writeGonchoUserTurn(ctx context.Context, text string) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 // gatewayStopReportJSON is the wire shape for `gateway stop --json`.
@@ -160,6 +162,12 @@ func runGatewayStop(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+
+	wakeLockMgr := tools.TermuxWakeLockManager{}
+	if err := wakeLockMgr.Release(ctx); err != nil {
+		slog.Warn("gateway stop: termux-wake-lock release failed", "err", err)
+	}
+
 	if asJSON {
 		return writeGatewayStopJSON(cmd.OutOrStdout(), gatewayStopReportJSON{
 			Build:                    newBuildProvenance(),

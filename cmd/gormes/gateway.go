@@ -36,10 +36,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/slack"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func newGatewayCommand() *cobra.Command {
-	return gatewaymodule.NewGatewayCommandWithSeams(gatewayCommandSeams(), gatewayCommandOptions())
+	cmd := gatewaymodule.NewGatewayCommandWithSeams(gatewayCommandSeams(), gatewayCommandOptions())
+	cmd.Flags().Bool("no-wakelock", false, "skip automatic termux-wake-lock acquisition on Termux (gateway foreground mode only)")
+	return cmd
 }
 
 func gatewayCommandSeams() gatewaymodule.GatewayCommandSeams {
@@ -53,6 +56,8 @@ func gatewayCommandSeams() gatewaymodule.GatewayCommandSeams {
 		ProbeCommand:               newGatewayProbeCommand,
 		UsageCostCommand:           newGatewayUsageCostCommand,
 		MutatingUnavailableCommand: newGatewayMutatingUnavailableCommand,
+		BootInstallCommand:         newGatewayBootInstallCommand,
+		BootUninstallCommand:       newGatewayBootUninstallCommand,
 	}
 }
 
@@ -417,7 +422,18 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		Tools:  reg,
 		Log:    slog.Default(),
 	})
-	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
+
+	noWakeLock, _ := cmd.Flags().GetBool("no-wakelock")
+	wakeLockMgr := tools.TermuxWakeLockManager{}
+	if !noWakeLock {
+		if err := wakeLockMgr.Acquire(cmd.Context()); err != nil {
+			slog.Warn("termux-wake-lock acquire failed; continuing without wake lock", "err", err)
+		} else {
+			slog.Info("termux-wake-lock acquired")
+		}
+	}
+
+	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit, wakeLockMgr)
 
 	// Phase 2.D — cron scheduler + executor + mirror (opt-in via cfg.Cron.Enabled).
 	// Initialized after channel registration so delivery adapters are available.
@@ -425,7 +441,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		initGatewayCron(cfg, smap.DB(), mstore.DB(), k, rootCtx)
 	}
 
-	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "secret_refs", len(secretSnapshot.Entries))
+	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "secret_refs", len(secretSnapshot.Entries), "wakelock", !noWakeLock)
 	return mgr.Run(rootCtx)
 }
 
@@ -1196,7 +1212,7 @@ func logGatewayStartupSecurityEvidence(evidence []gateway.AdmissionEvidence, log
 	}
 }
 
-func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gracefulShutdownManager, cancel context.CancelFunc, log *slog.Logger, forceExit func(int)) {
+func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gracefulShutdownManager, cancel context.CancelFunc, log *slog.Logger, forceExit func(int), wakeLockMgr tools.TermuxWakeLockManager) {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -1235,6 +1251,11 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 		})
 		defer timer.Stop()
 
+		if err := wakeLockMgr.Release(context.Background()); err != nil {
+			log.Warn("termux-wake-lock release failed", "err", err)
+		} else {
+			log.Info("termux-wake-lock released")
+		}
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), budget)
 		err := mgr.Shutdown(shutdownCtx)
 		shutdownCancel()
@@ -1357,4 +1378,11 @@ func (a *gonchoAdapter) GetContext(ctx context.Context, sessionKey string, maxTo
 		b.WriteByte('\n')
 	}
 	return b.String(), nil
+}
+
+func (a *gonchoAdapter) OnSessionEnd(ctx context.Context, sessionKey string, messages []hermes.Message) error {
+	if a.svc == nil || sessionKey == "" {
+		return nil
+	}
+	return a.svc.OnSessionEnd(ctx, sessionKey, messages)
 }

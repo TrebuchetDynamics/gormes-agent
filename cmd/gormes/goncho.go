@@ -37,6 +37,8 @@ func newGonchoCommand() *cobra.Command {
 	cmd.AddCommand(newGonchoDoctorCommand())
 	cmd.AddCommand(newGonchoRecallDiagnosticsCommand())
 	cmd.AddCommand(newGonchoRecallReplayCommand())
+	cmd.AddCommand(newGonchoMemoryCommand())
+	cmd.AddCommand(newGonchoContinueCommand())
 	return cmd
 }
 

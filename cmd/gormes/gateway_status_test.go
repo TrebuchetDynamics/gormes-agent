@@ -14,17 +14,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-// TestGatewayCommand_ConstructorReturnsIndependentInstances proves
-// each newGatewayCommand() returns a fresh tree. With 6 real
-// subcommands, 4 mutating-unavailable placeholders, and 4 row-backed
-// Hermes parity placeholders, the parent must own 14 children per call.
 func TestGatewayCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
 	a := newGatewayCommand()
 	b := newGatewayCommand()
 	if a == b {
 		t.Fatal("newGatewayCommand must return distinct instances")
 	}
-	want := 14
+	want := 16
 	if got := len(a.Commands()); got != want {
 		t.Fatalf("gateway tree must have %d subcommands; got %d", want, got)
 	}

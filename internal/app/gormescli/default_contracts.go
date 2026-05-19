@@ -134,7 +134,7 @@ func DefaultContracts() []ModuleContract {
 				"model",
 				"usage",
 			),
-			SetupSections: setupSections("model", "provider"),
+			SetupSections: setupSections("model", "provider", "fallback"),
 			SlashCommands: slashCommands(
 				"gquota",
 				"insights",

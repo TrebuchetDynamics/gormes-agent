@@ -27,6 +27,7 @@ type conclusionRow struct {
 	Source         string
 	IdempotencyKey string
 	EvidenceJSON   string
+	Scope          string
 }
 
 type sessionSummaryRow struct {
@@ -434,12 +435,16 @@ func getSessionSummaries(ctx context.Context, db *sql.DB, workspaceID, sessionKe
 
 func upsertConclusion(ctx context.Context, db *sql.DB, row conclusionRow) (int64, string, error) {
 	now := time.Now().Unix()
+	scope := row.Scope
+	if scope == "" {
+		scope = "workspace"
+	}
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO goncho_conclusions(
 			workspace_id, observer_peer_id, peer_id, session_key, content,
-			kind, status, source, idempotency_key, evidence_json, created_at, updated_at
+			kind, status, source, idempotency_key, evidence_json, created_at, updated_at, scope
 		)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workspace_id, observer_peer_id, peer_id, idempotency_key)
 		DO UPDATE SET updated_at = excluded.updated_at
 	`,
@@ -455,6 +460,7 @@ func upsertConclusion(ctx context.Context, db *sql.DB, row conclusionRow) (int64
 		row.EvidenceJSON,
 		now,
 		now,
+		scope,
 	)
 	if err != nil {
 		return 0, "", fmt.Errorf("goncho: upsert conclusion: %w", err)
@@ -492,9 +498,10 @@ func findConclusions(ctx context.Context, db *sql.DB, workspaceID, observer, pee
 	base := `
 		SELECT id, content, COALESCE(session_key, '')
 		FROM goncho_conclusions
-		WHERE workspace_id = ? AND observer_peer_id = ? AND peer_id = ?
+		WHERE observer_peer_id = ? AND peer_id = ?
+		  AND (workspace_id = ? AND scope = 'workspace' OR scope = 'global')
 	`
-	args := []any{workspaceID, observer, peer}
+	args := []any{observer, peer, workspaceID}
 	if trimmed := strings.TrimSpace(sessionKey); trimmed != "" {
 		base += ` AND (session_key = ? OR session_key IS NULL)`
 		args = append(args, trimmed)

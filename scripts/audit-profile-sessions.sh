@@ -451,6 +451,9 @@ collect_runtime_surface() {
     else
       printf '(clean)\n'
     fi
+    printf '\nConfigured audit homes:\n'
+    printf 'gormes_home=%s\n' "$gormes_home"
+    printf 'hermes_home=%s\n' "$hermes_home"
     printf '\nEnvironment homes:\n'
     printf 'GORMES_HOME=%s\n' "${GORMES_HOME:-}"
     printf 'HERMES_HOME=%s\n' "${HERMES_HOME:-}"
@@ -477,9 +480,9 @@ collect_runtime_surface() {
     else
       printf 'codexu not found on PATH: %s\n' "$codexu_bin"
     fi
-    printf '\nGateway status from discovered gormes command:\n'
+    printf '\nGateway status from discovered gormes command using configured gormes_home:\n'
     if command -v gormes >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
-      timeout 5s gormes gateway status --json 2>/dev/null || printf 'gateway status unavailable or timed out\n'
+      GORMES_HOME="$gormes_home" timeout 5s gormes gateway status --json 2>/dev/null || printf 'gateway status unavailable or timed out\n'
     elif command -v gormes >/dev/null 2>&1; then
       printf 'skipped; timeout command unavailable\n'
     else
@@ -588,8 +591,17 @@ collect_memory_provenance() {
     provenance_dir_record "legacy_hermes_memories_dir" "$root/memories"
     provenance_file_record "legacy_hermes_user" "$root/memories/USER.md"
     provenance_file_record "legacy_hermes_memory" "$root/memories/MEMORY.md"
+    provenance_file_record "profile_config_toml" "$root/config.toml"
     provenance_file_record "profile_config" "$root/config.json"
+    provenance_file_record "profile_env" "$root/.env"
+    provenance_file_record "profile_auth_json" "$root/auth.json"
     provenance_file_record "profile_state" "$root/state.json"
+    provenance_file_record "profile_gateway_state" "$root/gateway_state.json"
+    provenance_file_record "profile_gateway_pid" "$root/gateway.pid"
+    provenance_file_record "profile_channel_directory" "$root/channel_directory.json"
+    provenance_file_record "profile_channel_directory_sources" "$root/channel_directory_sources.json"
+    provenance_file_record "session_store" "$root/sessions.db"
+    provenance_file_record "session_index" "$root/sessions/index.yaml"
     provenance_dir_record "session_transcripts" "$root/sessions"
     provenance_dir_record "tool_audits" "$root/tools"
     printf '```\n'
@@ -746,7 +758,7 @@ collect_session_files() {
           jsonl_events "$file" "$max_session_lines"
           ;;
         *)
-          sed -n '1,220p' "$file"
+          limit_lines "$max_session_lines" < "$file"
           ;;
       esac
       printf '\n```\n'

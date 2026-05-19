@@ -325,7 +325,7 @@ func TestSetupFullWizardPrintsReconfigureAndProviderPrelude(t *testing.T) {
 		"◆ Reconfigure",
 		"✓ You already have Gormes configured.",
 		"Running the full wizard - each prompt shows your current value.",
-		"Tip: jump straight to a section with 'gormes setup model|terminal|",
+		"Tip: jump straight to a section with 'gormes setup model|fallback|",
 		"◆ Configuration Location",
 		"Config file:  " + config.ConfigPath(),
 		"Secrets file: " + config.EnvPath(),

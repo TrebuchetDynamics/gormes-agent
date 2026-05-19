@@ -134,6 +134,7 @@ type ConcludeParams struct {
 	Conclusion string `json:"conclusion,omitempty"`
 	DeleteID   int64  `json:"delete_id,omitempty"`
 	SessionKey string `json:"session_key,omitempty"`
+	Scope      string `json:"scope,omitempty"`
 }
 
 // ConcludeResult is the stable JSON shape for honcho_conclude.
@@ -213,6 +214,15 @@ type MessageSlice struct {
 	Content string `json:"content"`
 }
 
+// StructuredSummary captures session-end facts for cross-session continuity.
+type StructuredSummary struct {
+	FilesModified []string `json:"files_modified,omitempty"`
+	DecisionsMade []string `json:"decisions_made,omitempty"`
+	OpenQuestions []string `json:"open_questions,omitempty"`
+	SkillOutcomes []string `json:"skill_outcomes,omitempty"`
+	NextSteps     []string `json:"next_steps,omitempty"`
+}
+
 // SessionSummary is the summary component returned by session context when a
 // short or long summary slot fits inside the requested summary budget.
 type SessionSummary struct {
@@ -233,19 +243,20 @@ type ContextUnavailableEvidence struct {
 
 // ContextResult is the stable JSON shape for honcho_context.
 type ContextResult struct {
-	WorkspaceID    string                          `json:"workspace_id"`
-	Peer           string                          `json:"peer"`
-	ObserverPeerID string                          `json:"observer_peer_id,omitempty"`
-	ObservedPeerID string                          `json:"observed_peer_id,omitempty"`
-	SessionKey     string                          `json:"session_key,omitempty"`
-	PeerCard       []string                        `json:"peer_card"`
-	Representation string                          `json:"representation"`
-	Summary        *SessionSummary                 `json:"summary,omitempty"`
-	Conclusions    []string                        `json:"conclusions,omitempty"`
-	SearchResults  []SearchHit                     `json:"search_results,omitempty"`
-	ScopeEvidence  *memory.CrossChatRecallEvidence `json:"scope_evidence,omitempty"`
-	RecentMessages []MessageSlice                  `json:"recent_messages,omitempty"`
-	Unavailable    []ContextUnavailableEvidence    `json:"unavailable,omitempty"`
+	WorkspaceID       string                          `json:"workspace_id"`
+	Peer              string                          `json:"peer"`
+	ObserverPeerID    string                          `json:"observer_peer_id,omitempty"`
+	ObservedPeerID    string                          `json:"observed_peer_id,omitempty"`
+	SessionKey        string                          `json:"session_key,omitempty"`
+	PeerCard          []string                        `json:"peer_card"`
+	Representation    string                          `json:"representation"`
+	Summary           *SessionSummary                 `json:"summary,omitempty"`
+	StructuredSummary *StructuredSummary              `json:"structured_summary,omitempty"`
+	Conclusions       []string                        `json:"conclusions,omitempty"`
+	SearchResults     []SearchHit                     `json:"search_results,omitempty"`
+	ScopeEvidence     *memory.CrossChatRecallEvidence `json:"scope_evidence,omitempty"`
+	RecentMessages    []MessageSlice                  `json:"recent_messages,omitempty"`
+	Unavailable       []ContextUnavailableEvidence    `json:"unavailable,omitempty"`
 }
 
 // ChatParams mirrors Honcho's DialecticOptions request body for peer.chat().

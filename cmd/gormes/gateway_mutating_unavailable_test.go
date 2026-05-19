@@ -15,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func TestGatewayMutatingSubcommandsAreUnavailable(t *testing.T) {
@@ -545,7 +546,7 @@ func TestGatewayStopSignalLoopConsumesPlannedMarker(t *testing.T) {
 		defer close(done)
 		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, nil, func(code int) {
 			forceExit <- code
-		})
+		}, tools.TermuxWakeLockManager{})
 	}()
 
 	sigCh <- syscall.SIGTERM

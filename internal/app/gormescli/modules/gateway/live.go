@@ -32,6 +32,8 @@ type GatewayCommandSeams struct {
 	UsageCostCommand           func() *cobra.Command
 	MutatingUnavailableCommand func(name string) *cobra.Command
 	RowBackedCommand           func(name string, opts Options) *cobra.Command
+	BootInstallCommand         func() *cobra.Command
+	BootUninstallCommand       func() *cobra.Command
 }
 
 func NewGatewayCommandWithSeams(seams GatewayCommandSeams, opts Options) *cobra.Command {
@@ -58,6 +60,12 @@ func NewGatewayCommandWithSeams(seams GatewayCommandSeams, opts Options) *cobra.
 	}
 	for _, name := range RowBackedUnavailableSubcommands {
 		cmd.AddCommand(seams.RowBackedCommand(name, opts))
+	}
+	if seams.BootInstallCommand != nil {
+		cmd.AddCommand(seams.BootInstallCommand())
+	}
+	if seams.BootUninstallCommand != nil {
+		cmd.AddCommand(seams.BootUninstallCommand())
 	}
 	return cmd
 }

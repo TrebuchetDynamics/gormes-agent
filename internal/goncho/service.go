@@ -225,6 +225,7 @@ func (s *Service) Conclude(ctx context.Context, params ConcludeParams) (Conclude
 	}
 
 	idempotencyKey := makeIdempotencyKey(s.workspaceID, s.observer, peer, params.SessionKey, conclusion)
+	scope := normalizeScope(params.Scope)
 	id, status, err := upsertConclusion(ctx, s.db, conclusionRow{
 		WorkspaceID:    s.workspaceID,
 		ObserverPeerID: s.observer,
@@ -236,6 +237,7 @@ func (s *Service) Conclude(ctx context.Context, params ConcludeParams) (Conclude
 		Source:         "manual",
 		IdempotencyKey: idempotencyKey,
 		EvidenceJSON:   "[]",
+		Scope:          scope,
 	})
 	if err != nil {
 		return ConcludeResult{}, err
@@ -601,6 +603,14 @@ func normalizeReasoningLevel(level string) string {
 		return string(DialecticLevelLow)
 	}
 	return level
+}
+
+func normalizeScope(scope string) string {
+	scope = strings.ToLower(strings.TrimSpace(scope))
+	if scope == "global" {
+		return "global"
+	}
+	return "workspace"
 }
 
 func chatUnavailableEvidence(params ChatParams) []ContextUnavailableEvidence {

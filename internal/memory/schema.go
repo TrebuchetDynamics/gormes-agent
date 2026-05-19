@@ -3,7 +3,7 @@ package memory
 // schemaVersion is the canonical target version for this binary. OpenSqlite
 // migrates any earlier supported version up to this value, and refuses to
 // open DBs with an unknown version (future schemas).
-const schemaVersion = "3k"
+const schemaVersion = "3m"
 
 // schemaV3a is the baseline schema installed on a fresh DB. It matches
 // exactly what Phase 3.A shipped — any change to this string is a schema
@@ -240,7 +240,7 @@ const migration3gTo3h = `
 CREATE TABLE IF NOT EXISTS goncho_session_summaries (
 	workspace_id TEXT    NOT NULL,
 	session_key  TEXT    NOT NULL,
-	summary_type TEXT    NOT NULL CHECK(summary_type IN ('short','long')),
+	summary_type TEXT    NOT NULL CHECK(summary_type IN ('short','long','structured')),
 	content      TEXT    NOT NULL,
 	message_id   INTEGER NOT NULL,
 	created_at   INTEGER NOT NULL,
@@ -490,4 +490,38 @@ CREATE INDEX IF NOT EXISTS idx_memory_proposals_child
 	ON memory_proposals(child_agent_id, created_at DESC);
 
 UPDATE schema_meta SET v = '3k' WHERE k = 'version' AND v = '3j';
+`
+
+// migration3kTo3l adds 'structured' as a valid summary_type for session-end
+// structured summary capture (Phase 3.H).
+const migration3kTo3l = `
+ALTER TABLE goncho_session_summaries RENAME TO goncho_session_summaries_old;
+CREATE TABLE goncho_session_summaries (
+	workspace_id TEXT    NOT NULL,
+	session_key  TEXT    NOT NULL,
+	summary_type TEXT    NOT NULL CHECK(summary_type IN ('short','long','structured')),
+	content      TEXT    NOT NULL,
+	message_id   INTEGER NOT NULL,
+	created_at   INTEGER NOT NULL,
+	token_count  INTEGER NOT NULL CHECK(token_count >= 0),
+	PRIMARY KEY(workspace_id, session_key, summary_type)
+);
+CREATE INDEX IF NOT EXISTS idx_goncho_session_summaries_session
+	ON goncho_session_summaries(workspace_id, session_key);
+INSERT INTO goncho_session_summaries SELECT * FROM goncho_session_summaries_old;
+DROP TABLE goncho_session_summaries_old;
+
+UPDATE schema_meta SET v = '3l' WHERE k = 'version' AND v = '3k';
+`
+
+// migration3lTo3m adds scope classification to Goncho conclusions for
+// workspace isolation with explicit global-scope cross-boundary sharing
+// (Phase 3.H).
+const migration3lTo3m = `
+ALTER TABLE goncho_conclusions ADD COLUMN scope TEXT NOT NULL DEFAULT 'workspace'
+	CHECK(scope IN ('workspace', 'global'));
+CREATE INDEX IF NOT EXISTS idx_goncho_conclusions_scope
+	ON goncho_conclusions(workspace_id, scope, peer_id, updated_at DESC);
+
+UPDATE schema_meta SET v = '3m' WHERE k = 'version' AND v = '3l';
 `

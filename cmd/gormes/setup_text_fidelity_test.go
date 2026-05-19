@@ -87,7 +87,7 @@ func TestSetupTextFidelity_UnknownSectionGuidance(t *testing.T) {
 	artifact := stdout + stderr + err.Error()
 	for _, want := range []string{
 		"setup_section_unsupported: section=browser",
-		"available=provider|model|agent|workspace|profiles|bindings|tts|terminal|gateway|tools",
+		"available=provider|model|fallback|agent|workspace|profiles|bindings|tts|terminal|gateway|tools",
 		"recommended_command=\"gormes setup\"",
 		"setup_section_row_backed",
 	} {
