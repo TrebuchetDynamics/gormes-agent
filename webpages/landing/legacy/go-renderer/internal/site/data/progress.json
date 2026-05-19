@@ -1555,6 +1555,41 @@
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Goncho core rows cover many Honcho-compatible pieces, but drop-in confidence now needs an explicit SDK-style harness and a normal-agent-turn integration row before Phase 3 memory can be called complete."
           }
+        },
+        "3.H": {
+          "name": "Goncho Memory Quality \u0026 UX Improvements",
+          "priority": "P0",
+          "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            }
+          ],
+          "drift_state": {
+            "status": "owned",
+            "last_upstream_check": "2026-05-18T00:00:00Z",
+            "origin_decision": "Gormes-owned memory quality improvements inspired by Shokunin session-end summaries, hybrid retrieval patterns, and memory transparency UX. Not direct Honcho parity — Gormes-original enhancements to Goncho's write quality, retrieval effectiveness, and user control."
+          }
         }
       }
     },
