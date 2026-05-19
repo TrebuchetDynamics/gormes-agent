@@ -23,13 +23,15 @@ func (q ACLQuery) ReadScopeSQL() (string, []any) {
 	var args []any
 	parts = append(parts, `m.memory_id IN (SELECT acl.memory_id FROM memory_acl acl WHERE acl.agent_id = ? AND acl.permission = 'read')`)
 	args = append(args, q.AgentID)
+
+	args = append(args, q.WorkspaceID)
 	placeholders := make([]string, len(q.ReadTiers))
 	for i := range q.ReadTiers {
 		placeholders[i] = "?"
 		args = append(args, string(q.ReadTiers[i]))
 	}
 	parts = append(parts, fmt.Sprintf(`(m.workspace_id = ? AND m.tier IN (%s))`, strings.Join(placeholders, ",")))
-	args = append(args, q.WorkspaceID)
+
 	parts = append(parts, `(m.agent_id = ? AND m.tier = 'workspace')`)
 	args = append(args, q.AgentID)
 	return "(" + strings.Join(parts, " OR ") + ")", args
