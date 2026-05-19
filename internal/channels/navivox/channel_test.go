@@ -392,6 +392,7 @@ func newTestChannel(t *testing.T) *Channel {
 		ExposureMode: config.NavivoxExposureLocal,
 		AuthMode:     config.NavivoxAuthPairingToken,
 		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -502,5 +503,194 @@ func TestNewChannel_LocalExposureUnaffectedByVPNCheck(t *testing.T) {
 	}
 	if ch == nil {
 		t.Fatal("NewChannel returned nil channel")
+	}
+}
+
+func TestMergeProfileContact_PreservesLoaderHealth(t *testing.T) {
+	base := ProfileContact{
+		ServerID:        "navivox-gateway",
+		ProfileID:       "default",
+		DisplayName:     "Default profile",
+		Health:          ProfileContactHealthWarning,
+		AttentionBadges: []string{"config", "workspace"},
+		WorkspaceRootsOK: false,
+	}
+	overlay := ProfileContact{
+		ServerID:        "navivox-gateway",
+		ProfileID:       "default",
+		LatestPreview:   "active turn",
+		ActiveTurnState: ProfileContactTurnActive,
+		Health:          ProfileContactHealthOnline,
+		MicAvailable:    true,
+	}
+	merged := mergeProfileContact(base, overlay)
+	if merged.Health != ProfileContactHealthWarning {
+		t.Fatalf("merged health = %q, want %q (loader health preserved)", merged.Health, ProfileContactHealthWarning)
+	}
+	if merged.LatestPreview != "active turn" {
+		t.Fatalf("merged preview = %q, want active turn", merged.LatestPreview)
+	}
+	if merged.ActiveTurnState != ProfileContactTurnActive {
+		t.Fatalf("merged turn state = %q, want active", merged.ActiveTurnState)
+	}
+}
+
+func TestNavivoxCORSPreflightAndActualRequest(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	origin := "http://localhost:3000"
+	preflight, err := http.NewRequest(http.MethodOptions, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preflight.Header.Set("Origin", origin)
+	preflightResp, err := http.DefaultClient.Do(preflight)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer preflightResp.Body.Close()
+	if preflightResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("CORS preflight status = %d, want 204", preflightResp.StatusCode)
+	}
+	if got := preflightResp.Header.Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("CORS Allow-Origin = %q, want %q", got, origin)
+	}
+
+	actual, err := http.NewRequest(http.MethodGet, server.URL+"/healthz", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual.Header.Set("Origin", origin)
+	actualResp, err := http.DefaultClient.Do(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer actualResp.Body.Close()
+	if got := actualResp.Header.Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("CORS Allow-Origin on actual request = %q, want %q", got, origin)
+	}
+	if got := actualResp.Header.Get("Vary"); got != "Origin" {
+		t.Fatalf("CORS Vary = %q, want Origin", got)
+	}
+}
+
+func TestNavivoxWebSocketCancelTurnEnqueuesCancel(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "cancel_turn", RequestID: "req-cancel", SessionID: "s-cancel"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var done ServerEvent
+	if err := conn.ReadJSON(&done); err != nil {
+		t.Fatal(err)
+	}
+	if done.Type != "done" || done.RequestID != "req-cancel" || done.SessionID != "s-cancel" || done.Status != "cancelled" {
+		t.Fatalf("cancel response = %+v", done)
+	}
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventCancel || ev.ChatID != "s-cancel" {
+			t.Fatalf("gateway event = %+v, want cancel for s-cancel", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for cancel gateway event")
+	}
+}
+
+func TestNavivoxSubscriberLifecycleAndBroadcast(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	conn1 := dialTestWebSocket(t, server.URL)
+	defer conn1.Close()
+
+	if err := conn1.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-sub", SessionID: "s-sub"}); err != nil {
+		t.Fatal(err)
+	}
+	var subscribed ServerEvent
+	if err := conn1.ReadJSON(&subscribed); err != nil {
+		t.Fatal(err)
+	}
+	if subscribed.Type != "session_started" || subscribed.SessionID != "s-sub" {
+		t.Fatalf("subscribe response = %+v", subscribed)
+	}
+
+	ch.mu.Lock()
+	state := ch.sessions["s-sub"]
+	if state == nil {
+		t.Fatal("session not created after subscribe")
+	}
+	if state.Subscribers != 1 {
+		t.Fatalf("subscribers = %d, want 1 after first subscribe", state.Subscribers)
+	}
+	ch.mu.Unlock()
+
+	if err := conn1.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-sub2", SessionID: "s-sub"}); err != nil {
+		t.Fatal(err)
+	}
+	var subscribed2 ServerEvent
+	if err := conn1.ReadJSON(&subscribed2); err != nil {
+		t.Fatal(err)
+	}
+	if subscribed2.Type != "session_started" {
+		t.Fatalf("second subscribe response = %+v", subscribed2)
+	}
+
+	ch.mu.Lock()
+	state = ch.sessions["s-sub"]
+	if state.Subscribers != 1 {
+		t.Fatalf("subscribers = %d, want 1 (deduplicated re-subscribe)", state.Subscribers)
+	}
+	ch.mu.Unlock()
+
+	conn1.Close()
+	time.Sleep(100 * time.Millisecond)
+
+	ch.mu.Lock()
+	state = ch.sessions["s-sub"]
+	if state.Subscribers != 0 {
+		t.Fatalf("subscribers after disconnect = %d, want 0", state.Subscribers)
+	}
+	ch.mu.Unlock()
+}
+
+func TestNavivoxSessionSweepEvictsOldSessions(t *testing.T) {
+	ch := newTestChannel(t)
+	ch.now = func() time.Time { return time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC) }
+
+	ch.mu.Lock()
+	ch.sessions["old-session"] = &sessionState{
+		ID:        "old-session",
+		CreatedAt: time.Date(2024, 12, 30, 12, 0, 0, 0, time.UTC),
+		UpdatedAt: time.Date(2024, 12, 30, 12, 0, 0, 0, time.UTC),
+	}
+	ch.sessions["fresh-session"] = &sessionState{
+		ID:        "fresh-session",
+		CreatedAt: time.Date(2025, 1, 1, 11, 0, 0, 0, time.UTC),
+		UpdatedAt: time.Date(2025, 1, 1, 11, 0, 0, 0, time.UTC),
+	}
+	ch.mu.Unlock()
+
+	ch.sweepSessions()
+
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	if _, ok := ch.sessions["old-session"]; ok {
+		t.Fatal("old-session should have been swept")
+	}
+	if _, ok := ch.sessions["fresh-session"]; !ok {
+		t.Fatal("fresh-session should not have been swept")
 	}
 }

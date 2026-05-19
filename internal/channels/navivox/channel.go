@@ -28,6 +28,9 @@ const PlatformName = "navivox"
 const (
 	navivoxWebSocketProtocol            = "gormes.navivox.v1"
 	navivoxWebSocketTokenProtocolPrefix = "gormes.navivox.token."
+	navivoxEventBufferCap               = 256
+	navivoxSessionMaxAge                = 24 * time.Hour
+	navivoxSessionSweepInterval         = 5 * time.Minute
 )
 
 // vpnHostLister is the seam tests override to inject deterministic VPN
@@ -60,6 +63,7 @@ type sessionState struct {
 
 	lastMessageID string
 	lastText      string
+	seq           int
 }
 
 type client struct {
@@ -69,6 +73,8 @@ type client struct {
 	sessions map[string]struct{}
 	requests map[string]string
 	identity string
+	events   chan ServerEvent
+	done     chan struct{}
 }
 
 type ClientMessage struct {
@@ -89,6 +95,7 @@ type ServerEvent struct {
 	ToolName   string          `json:"tool_name,omitempty"`
 	ToolCallID string          `json:"tool_call_id,omitempty"`
 	Status     string          `json:"status,omitempty"`
+	Seq        int             `json:"seq,omitempty"`
 	Metadata   map[string]any  `json:"metadata,omitempty"`
 	Contact    *ProfileContact `json:"contact,omitempty"`
 }
@@ -233,11 +240,22 @@ func (c *Channel) EditMessageFinal(ctx context.Context, chatID, msgID, text stri
 }
 
 func (c *Channel) edit(chatID, msgID, text string, finalize bool) error {
-	delta := text
 	c.mu.Lock()
 	session := c.ensureSessionLocked(chatID, "")
-	if session.lastMessageID == msgID && strings.HasPrefix(text, session.lastText) {
+	isPrefix := session.lastMessageID == msgID && strings.HasPrefix(text, session.lastText)
+	delta := text
+	seq := 0
+	reset := false
+	if isPrefix {
 		delta = strings.TrimPrefix(text, session.lastText)
+		seq = session.seq
+		session.seq++
+	} else {
+		// Prefix match failed (LLM rewrote mid-stream). Send full text with reset flag.
+		seq = session.seq
+		session.seq++
+		reset = true
+		delta = text
 	}
 	session.lastMessageID = msgID
 	session.lastText = text
@@ -246,7 +264,11 @@ func (c *Channel) edit(chatID, msgID, text string, finalize bool) error {
 
 	if !finalize {
 		if delta != "" {
-			c.broadcast(chatID, ServerEvent{Type: "assistant_delta", SessionID: chatID, Text: delta})
+			ev := ServerEvent{Type: "assistant_delta", SessionID: chatID, Text: delta, Seq: seq}
+			if reset {
+				ev.Metadata = map[string]any{"reset": true}
+			}
+			c.broadcast(chatID, ev)
 		}
 		return nil
 	}
@@ -395,7 +417,10 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			sessions: map[string]struct{}{},
 			requests: map[string]string{},
 			identity: identity,
+			events:   make(chan ServerEvent, navivoxEventBufferCap),
+			done:     make(chan struct{}),
 		}
+		go cl.eventPump()
 		c.addClient(cl)
 		defer c.removeClient(cl)
 		defer conn.Close()
@@ -535,6 +560,17 @@ func enqueue(ctx context.Context, inbox chan<- gateway.InboundEvent, ev gateway.
 	}
 }
 
+func (c *Channel) sweepSessions() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := c.now()
+	for id, state := range c.sessions {
+		if now.Sub(state.UpdatedAt) > navivoxSessionMaxAge {
+			delete(c.sessions, id)
+		}
+	}
+}
+
 func (c *Channel) ensureSessionLocked(id, requestID string) *sessionState {
 	state, ok := c.sessions[id]
 	now := c.now()
@@ -571,37 +607,45 @@ func (c *Channel) addClient(cl *client) {
 
 func (c *Channel) removeClient(cl *client) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	delete(c.clients, cl)
 	for sessionID := range cl.sessions {
 		if state := c.sessions[sessionID]; state != nil && state.Subscribers > 0 {
 			state.Subscribers--
 		}
 	}
+	c.mu.Unlock()
+	close(cl.events)
+	<-cl.done
 }
 
 func (c *Channel) broadcast(sessionID string, ev ServerEvent) {
-	type clientEvent struct {
-		client *client
-		event  ServerEvent
-	}
 	c.mu.Lock()
-	clientEvents := make([]clientEvent, 0, len(c.clients))
 	for cl := range c.clients {
-		if _, ok := cl.sessions[sessionID]; ok {
-			next := ev
-			if next.RequestID == "" {
-				next.RequestID = cl.requests[sessionID]
-			}
-			clientEvents = append(clientEvents, clientEvent{client: cl, event: next})
+		if _, ok := cl.sessions[sessionID]; !ok {
+			continue
+		}
+		next := ev
+		if next.RequestID == "" {
+			next.RequestID = cl.requests[sessionID]
+		}
+		select {
+		case cl.events <- next:
+		default:
+			// Buffer full — drop event rather than block all clients.
 		}
 	}
 	if state := c.sessions[sessionID]; state != nil {
 		state.UpdatedAt = c.now()
 	}
 	c.mu.Unlock()
-	for _, item := range clientEvents {
-		_ = item.client.write(item.event)
+}
+
+func (cl *client) eventPump() {
+	defer close(cl.done)
+	for ev := range cl.events {
+		if err := cl.write(ev); err != nil {
+			return
+		}
 	}
 }
 
