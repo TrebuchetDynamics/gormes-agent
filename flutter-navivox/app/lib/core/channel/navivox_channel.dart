@@ -88,7 +88,7 @@ class NavivoxChannelState {
   const NavivoxChannelState({
     this.servers = const [],
     this.activeServerId,
-    this.messages = const [],
+    this.messages = const {},
     this.agents = const [],
     this.selectedAgentId,
     this.profileContacts = const [],
@@ -100,7 +100,7 @@ class NavivoxChannelState {
 
   final List<NavivoxServer> servers;
   final String? activeServerId;
-  final List<NavivoxChatMessage> messages;
+  final Map<String, NavivoxChatMessage> messages;
   final List<NavivoxAgent> agents;
   final String? selectedAgentId;
   final List<NavivoxProfileContact> profileContacts;
@@ -108,6 +108,8 @@ class NavivoxChannelState {
   final Map<String, Object?>? configSchema;
   final Map<String, Object?> configValues;
   final Map<String, Object?>? configDiff;
+
+  List<NavivoxChatMessage> get messagesList => messages.values.toList();
 
   bool get hasServers => servers.isNotEmpty;
   NavivoxServer? get activeServer =>
@@ -119,7 +121,7 @@ class NavivoxChannelState {
   NavivoxChannelState copyWith({
     List<NavivoxServer>? servers,
     String? activeServerId,
-    List<NavivoxChatMessage>? messages,
+    Map<String, NavivoxChatMessage>? messages,
     List<NavivoxAgent>? agents,
     String? selectedAgentId,
     List<NavivoxProfileContact>? profileContacts,
@@ -147,13 +149,10 @@ class NavivoxChannelState {
 abstract interface class NavivoxChannel implements Listenable {
   NavivoxChannelState get state;
   Stream<NavivoxApprovalRequest> get approvalRequests;
+  Future<void> connect({required String baseUrl, String? token});
+  Future<void> disconnect();
   void sendText(String text);
-  void sendVoice({
-    required Uint8List audio,
-    required String transcript,
-    required Duration duration,
-    required double confidence,
-  });
+  void sendVoice({required String transcript});
   void cancelActiveTurn();
   void stopActiveTurn();
   void respondToApproval({required String approvalId, required bool approved});

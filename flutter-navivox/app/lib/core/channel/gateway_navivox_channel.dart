@@ -23,7 +23,6 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   StreamSubscription<NavivoxGatewayEvent>? _events;
   NavivoxChannelState _state = const NavivoxChannelState();
   String? _activeSessionId;
-  final Map<String, String> _assistantMessageIds = {};
 
   @override
   NavivoxChannelState get state => _state;
@@ -31,8 +30,10 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   @override
   Stream<NavivoxApprovalRequest> get approvalRequests => _approvals.stream;
 
-  Future<void> connect(NavivoxGatewayConfig config) async {
+  @override
+  Future<void> connect({required String baseUrl, String? token}) async {
     await disconnect();
+    final config = NavivoxGatewayConfig.fromBaseUrl(baseUrl, token: token);
     final client = NavivoxGatewayClient(config: config);
     await client.status();
     final contactPayloads = await client.profileContacts();
@@ -61,12 +62,12 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     notifyListeners();
   }
 
+  @override
   Future<void> disconnect() async {
     await _events?.cancel();
     _events = null;
     await _socket?.close();
     _socket = null;
-    _assistantMessageIds.clear();
   }
 
   @override
@@ -82,7 +83,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
 
     final requestId = _uuid.v4();
     final activeProfile = _state.activeProfileContact;
-    _appendMessage(
+    _putMessage(
       NavivoxChatMessage(
         id: requestId,
         author: NavivoxMessageAuthor.user,
@@ -104,12 +105,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   }
 
   @override
-  void sendVoice({
-    required Uint8List audio,
-    required String transcript,
-    required Duration duration,
-    required double confidence,
-  }) {
+  void sendVoice({required String transcript}) {
     final trimmed = transcript.trim();
     if (trimmed.isEmpty) {
       _appendSystemMessage('Voice transcript is empty.');
@@ -124,17 +120,13 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
 
     final requestId = _uuid.v4();
     final activeProfile = _state.activeProfileContact;
-    _appendMessage(
+    _putMessage(
       NavivoxChatMessage(
         id: requestId,
         author: NavivoxMessageAuthor.user,
         kind: NavivoxMessageKind.voice,
         createdAt: _clock(),
-        voice: NavivoxVoiceMessage(
-          duration: duration,
-          transcript: trimmed,
-          confidence: confidence,
-        ),
+        text: trimmed,
       ),
     );
     socket.add(
@@ -247,13 +239,10 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
 
   void _appendAssistantDelta(NavivoxGatewayEvent event) {
     final requestId = event.requestId ?? _uuid.v4();
-    final messageId = _assistantMessageIds.putIfAbsent(
-      requestId,
-      () => 'assistant-$requestId',
-    );
-    final index = _state.messages.indexWhere((m) => m.id == messageId);
-    if (index < 0) {
-      _appendMessage(
+    final messageId = 'assistant-$requestId';
+    final existing = _state.messages[messageId];
+    if (existing == null) {
+      _putMessage(
         NavivoxChatMessage(
           id: messageId,
           author: NavivoxMessageAuthor.assistant,
@@ -264,9 +253,7 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
       );
       return;
     }
-    final existing = _state.messages[index];
-    _replaceMessage(
-      index,
+    _putMessage(
       NavivoxChatMessage(
         id: existing.id,
         author: existing.author,
@@ -279,51 +266,40 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
 
   void _upsertAssistantMessage(NavivoxGatewayEvent event) {
     final requestId = event.requestId ?? _uuid.v4();
-    final messageId = _assistantMessageIds.putIfAbsent(
-      requestId,
-      () => 'assistant-$requestId',
-    );
-    final index = _state.messages.indexWhere((m) => m.id == messageId);
+    final messageId = 'assistant-$requestId';
+    final existing = _state.messages[messageId];
     final message = NavivoxChatMessage(
       id: messageId,
       author: NavivoxMessageAuthor.assistant,
       kind: NavivoxMessageKind.text,
-      createdAt: index >= 0 ? _state.messages[index].createdAt : _clock(),
+      createdAt: existing?.createdAt ?? _clock(),
       text: event.text ?? '',
     );
-    if (index >= 0) {
-      _replaceMessage(index, message);
-    } else {
-      _appendMessage(message);
-    }
+    _putMessage(message);
   }
 
   void _upsertToolCall(NavivoxGatewayEvent event, String status) {
     final toolCallId = event.toolCallId ?? 'tool-${_uuid.v4()}';
-    final index = _state.messages.indexWhere((m) => m.id == toolCallId);
-    final prior = index >= 0 ? _state.messages[index].toolCall : null;
+    final prior = _state.messages[toolCallId]?.toolCall;
     final summary = event.message ?? event.text ?? prior?.summary ?? '';
-    final message = NavivoxChatMessage(
-      id: toolCallId,
-      author: NavivoxMessageAuthor.assistant,
-      kind: NavivoxMessageKind.toolCall,
-      createdAt: index >= 0 ? _state.messages[index].createdAt : _clock(),
-      toolCall: NavivoxToolCall(
-        name: event.toolName ?? prior?.name ?? 'tool',
-        status: status,
-        summary: summary,
-        artifacts: prior?.artifacts ?? const [],
+    _putMessage(
+      NavivoxChatMessage(
+        id: toolCallId,
+        author: NavivoxMessageAuthor.assistant,
+        kind: NavivoxMessageKind.toolCall,
+        createdAt: _state.messages[toolCallId]?.createdAt ?? _clock(),
+        toolCall: NavivoxToolCall(
+          name: event.toolName ?? prior?.name ?? 'tool',
+          status: status,
+          summary: summary,
+          artifacts: prior?.artifacts ?? const [],
+        ),
       ),
     );
-    if (index >= 0) {
-      _replaceMessage(index, message);
-    } else {
-      _appendMessage(message);
-    }
   }
 
   void _appendSystemMessage(String text) {
-    _appendMessage(
+    _putMessage(
       NavivoxChatMessage(
         id: _uuid.v4(),
         author: NavivoxMessageAuthor.system,
@@ -366,8 +342,10 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     notifyListeners();
   }
 
-  void _appendMessage(NavivoxChatMessage message) {
-    _state = _state.copyWith(messages: [..._state.messages, message]);
+  void _putMessage(NavivoxChatMessage message) {
+    final messages = Map<String, NavivoxChatMessage>.from(_state.messages);
+    messages[message.id] = message;
+    _state = _state.copyWith(messages: messages);
     notifyListeners();
   }
 
@@ -396,13 +374,6 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
           ? 'Stop requested. Started side effects may still exist.'
           : 'Cancel requested. Started side effects may still exist.',
     );
-  }
-
-  void _replaceMessage(int index, NavivoxChatMessage message) {
-    final messages = [..._state.messages];
-    messages[index] = message;
-    _state = _state.copyWith(messages: messages);
-    notifyListeners();
   }
 
   Map<String, Object?> _turnMetadata(NavivoxProfileContact? profile) {

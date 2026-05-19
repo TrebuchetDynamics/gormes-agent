@@ -134,7 +134,7 @@ void main() {
       serverId: 'office',
       profileId: 'support',
     ));
-    expect(channel.sentVoiceCalls, isEmpty);
+    expect(channel.sentVoiceTranscripts, isEmpty);
   });
 
   testWidgets('voice command mode timeout treats later bare voice as chat', (
@@ -162,8 +162,8 @@ void main() {
     await _tapMic(tester);
     await tester.pump(const Duration(milliseconds: 120));
 
-    expect(channel.sentVoiceCalls, hasLength(1));
-    expect(channel.sentVoiceCalls.single.transcript, 'support');
+    expect(channel.sentVoiceTranscripts, hasLength(1));
+    expect(channel.sentVoiceTranscripts, 'support');
     expect(channel.selectedProfileScope, isNull);
   });
 
@@ -217,7 +217,7 @@ void main() {
     await _submitText(tester, 'navi cancel');
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(channel.sentVoiceCalls, isEmpty);
+    expect(channel.sentVoiceTranscripts, isEmpty);
     expect(channel.cancelRequests, 0);
     expect(find.textContaining('before commit'), findsNothing);
   });
@@ -295,12 +295,12 @@ void main() {
 
     expect(find.text('Sending...'), findsOneWidget);
     expect(find.textContaining('check status'), findsOneWidget);
-    expect(channel.sentVoiceCalls, isEmpty);
+    expect(channel.sentVoiceTranscripts, isEmpty);
 
     await tester.tap(find.text('Cancel'));
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(channel.sentVoiceCalls, isEmpty);
+    expect(channel.sentVoiceTranscripts, isEmpty);
     expect(find.textContaining('check status'), findsNothing);
   });
 
@@ -334,8 +334,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
 
-    expect(channel.sentVoiceCalls, hasLength(1));
-    expect(channel.sentVoiceCalls.single.transcript, 'summarize workspace');
+    expect(channel.sentVoiceTranscripts, hasLength(1));
+    expect(channel.sentVoiceTranscripts, 'summarize workspace');
   });
 
   testWidgets('typed navi settings opens local voice settings', (tester) async {

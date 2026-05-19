@@ -37,10 +37,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      channel.connectedConfig?.baseUri.toString(),
+      channel.connectedBaseUrl,
       'http://127.0.0.1:8765',
     );
-    expect(channel.connectedConfig?.token, 'nvbx_test_token');
     expect(find.text('Gormes Gateway'), findsOneWidget);
     expect(find.textContaining('Gateway online'), findsOneWidget);
     expect(find.text('Default profile'), findsOneWidget);

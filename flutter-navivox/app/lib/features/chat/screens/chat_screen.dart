@@ -86,7 +86,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       settings: voiceSettings,
     );
     final adapterMessages = [
-      ...state.messages,
+      ...state.messagesList,
       if (_pendingVoice != null)
         NavivoxChatMessage(
           id: 'pending-voice',
@@ -242,12 +242,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _pendingVoiceCreatedAt = null;
         _voiceNotice = null;
       });
-      channel.sendVoice(
-        audio: pending.audio,
-        transcript: pending.transcript,
-        duration: pending.duration,
-        confidence: pending.confidence,
-      );
+      channel.sendVoice(transcript: pending.transcript);
     });
   }
 

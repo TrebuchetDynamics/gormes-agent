@@ -1,53 +1,51 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html' as html;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
+
+import 'package:web/web.dart' as web;
 
 const navivoxWebSocketProtocol = 'gormes.navivox.v1';
 const _navivoxWebSocketTokenProtocolPrefix = 'gormes.navivox.token.';
 
 class NavivoxGatewaySocket {
   NavivoxGatewaySocket._(this._socket) {
-    _messageSub = _socket.onMessage.listen((event) => _events.add(event.data));
-    _errorSub = _socket.onError.listen(
-      (event) => _events.addError(StateError('Gateway stream error')),
-    );
-    _closeSub = _socket.onClose.listen((event) {
+    _socket.onmessage = ((web.MessageEvent event) {
+      _events.add((event.data as JSString).toDart);
+    }).toJS;
+    _socket.onerror = ((web.Event event) {
+      _events.addError(StateError('Gateway stream error'));
+    }).toJS;
+    _socket.onclose = ((web.CloseEvent event) {
       if (!_events.isClosed) unawaited(_events.close());
-    });
+    }).toJS;
   }
 
-  final html.WebSocket _socket;
+  final web.WebSocket _socket;
   final StreamController<dynamic> _events = StreamController<dynamic>();
-  late final StreamSubscription<html.MessageEvent> _messageSub;
-  late final StreamSubscription<html.Event> _errorSub;
-  late final StreamSubscription<html.CloseEvent> _closeSub;
 
   Stream<dynamic> get events => _events.stream;
 
-  void add(String message) => _socket.sendString(message);
+  void add(String message) => _socket.send(message.toJS);
 
   Future<void> close() async {
     _socket.close();
-    await _messageSub.cancel();
-    await _errorSub.cancel();
-    await _closeSub.cancel();
     if (!_events.isClosed) await _events.close();
   }
 }
 
 Future<String> defaultGet(Uri uri, Map<String, String> headers) async {
-  final response = await html.HttpRequest.request(
-    uri.toString(),
-    method: 'GET',
-    requestHeaders: headers,
-  );
-  final status = response.status ?? 0;
-  if (status < 200 || status >= 300) {
-    throw StateError('Navivox gateway returned HTTP $status');
+  final response = await web.window.fetch(
+    uri.toString().toJS,
+    web.RequestInit(headers: _headersToRecord(headers)),
+  ).toDart;
+  if (!response.ok) {
+    throw StateError(
+      'Navivox gateway returned HTTP ${response.status}',
+    );
   }
-  return response.responseText ?? '';
+  final jsText = await response.text().toDart;
+  return jsText.toDart;
 }
 
 Future<NavivoxGatewaySocket> defaultConnectWebSocket(
@@ -63,36 +61,28 @@ Future<NavivoxGatewaySocket> defaultConnectWebSocket(
     );
   }
 
-  final socket = html.WebSocket(uri.toString(), protocols);
+  final socket = web.WebSocket(uri.toString(), protocols.join(' ').toJS);
   final completer = Completer<NavivoxGatewaySocket>();
-  late final StreamSubscription<html.Event> openSub;
-  late final StreamSubscription<html.Event> errorSub;
-  late final StreamSubscription<html.CloseEvent> closeSub;
 
-  Future<void> cleanup() async {
-    await openSub.cancel();
-    await errorSub.cancel();
-    await closeSub.cancel();
-  }
-
-  openSub = socket.onOpen.listen((event) {
-    unawaited(cleanup());
+  socket.onopen = ((web.Event event) {
     if (!completer.isCompleted) {
       completer.complete(NavivoxGatewaySocket._(socket));
     }
-  });
-  errorSub = socket.onError.listen((event) {
-    unawaited(cleanup());
+  }).toJS;
+  socket.onerror = ((web.Event event) {
     if (!completer.isCompleted) {
-      completer.completeError(StateError('Navivox gateway WebSocket failed'));
+      completer.completeError(
+        StateError('Navivox gateway WebSocket failed'),
+      );
     }
-  });
-  closeSub = socket.onClose.listen((event) {
-    unawaited(cleanup());
+  }).toJS;
+  socket.onclose = ((web.CloseEvent event) {
     if (!completer.isCompleted) {
-      completer.completeError(StateError('Navivox gateway WebSocket closed'));
+      completer.completeError(
+        StateError('Navivox gateway WebSocket closed'),
+      );
     }
-  });
+  }).toJS;
 
   return completer.future;
 }
@@ -104,4 +94,12 @@ String? _bearerToken(Map<String, String> headers) {
       .firstOrNull;
   if (auth == null || !auth.startsWith('Bearer ')) return null;
   return auth.substring('Bearer '.length).trim();
+}
+
+JSObject _headersToRecord(Map<String, String> headers) {
+  final record = JSObject();
+  for (final entry in headers.entries) {
+    record.setProperty(entry.key.toJS, entry.value.toJS);
+  }
+  return record;
 }

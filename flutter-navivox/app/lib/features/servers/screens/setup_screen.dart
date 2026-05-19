@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/channel/navivox_channel_provider.dart';
-import '../../../core/gateway/navivox_gateway_protocol.dart';
 import '../../../router/app_routes.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
@@ -103,11 +102,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       _error = null;
     });
     try {
-      final config = NavivoxGatewayConfig.fromBaseUrl(
-        _baseUrlController.text.trim(),
+      await ref.read(gatewayNavivoxChannelProvider).connect(
+        baseUrl: _baseUrlController.text.trim(),
         token: _tokenController.text.trim(),
       );
-      await ref.read(gatewayNavivoxChannelProvider).connect(config);
       if (mounted) context.go(AppRoutes.chats);
     } catch (_) {
       if (mounted) {

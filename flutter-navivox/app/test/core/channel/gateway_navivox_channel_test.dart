@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navivox/core/channel/gateway_navivox_channel.dart';
 import 'package:navivox/core/channel/navivox_channel.dart';
-import 'package:navivox/core/gateway/navivox_gateway_protocol.dart';
 import 'package:navivox/core/protocol/navivox_event.dart';
 
 void main() {
@@ -18,10 +16,8 @@ void main() {
     addTearDown(channel.dispose);
 
     await channel.connect(
-      NavivoxGatewayConfig.fromBaseUrl(
-        server.baseUrl,
-        token: _FakeGatewayServer.token,
-      ),
+      baseUrl: server.baseUrl,
+      token: _FakeGatewayServer.token,
     );
 
     expect(channel.state.activeServer?.name, 'Gormes Gateway');
@@ -29,7 +25,7 @@ void main() {
 
     final completed = Completer<void>();
     channel.addListener(() {
-      final texts = channel.state.messages.map((m) => m.text).toList();
+      final texts = channel.state.messagesList.map((m) => m.text).toList();
       if (texts.contains('hello from gateway') && !completed.isCompleted) {
         completed.complete();
       }
@@ -42,7 +38,7 @@ void main() {
     expect(sent['text'], 'hello gateway');
     await completed.future.timeout(const Duration(seconds: 2));
 
-    final messages = channel.state.messages;
+    final messages = channel.state.messagesList;
     expect(messages.where((m) => m.text == 'hello gateway'), hasLength(1));
     expect(messages.where((m) => m.text == 'hello from gateway'), hasLength(1));
   });
@@ -55,10 +51,8 @@ void main() {
     addTearDown(channel.dispose);
 
     await channel.connect(
-      NavivoxGatewayConfig.fromBaseUrl(
-        server.baseUrl,
-        token: _FakeGatewayServer.token,
-      ),
+      baseUrl: server.baseUrl,
+      token: _FakeGatewayServer.token,
     );
     channel.selectProfileContact(
       serverId: 'navivox-gateway',
@@ -129,10 +123,8 @@ void main() {
       addTearDown(channel.dispose);
 
       await channel.connect(
-        NavivoxGatewayConfig.fromBaseUrl(
-          server.baseUrl,
-          token: _FakeGatewayServer.token,
-        ),
+        baseUrl: server.baseUrl,
+        token: _FakeGatewayServer.token,
       );
 
       expect(channel.state.profileContacts, hasLength(1));
@@ -183,34 +175,22 @@ void main() {
       addTearDown(channel.dispose);
 
       await channel.connect(
-        NavivoxGatewayConfig.fromBaseUrl(
-          server.baseUrl,
-          token: _FakeGatewayServer.token,
-        ),
+        baseUrl: server.baseUrl,
+        token: _FakeGatewayServer.token,
       );
 
-      channel.sendVoice(
-        audio: Uint8List.fromList([1, 2, 3]),
-        transcript: 'hello by voice',
-        duration: const Duration(milliseconds: 1200),
-        confidence: 0.91,
-      );
+      channel.sendVoice(transcript: 'hello by voice');
 
       final sent = await server.nextClientMessage;
       expect(sent['type'], 'start_turn');
       expect(sent['text'], 'hello by voice');
 
-      final voiceMessages = channel.state.messages
+      final voiceMessages = channel.state.messagesList
           .where((message) => message.kind == NavivoxMessageKind.voice)
           .toList();
       expect(voiceMessages, hasLength(1));
       expect(voiceMessages.single.author, NavivoxMessageAuthor.user);
-      expect(voiceMessages.single.voice?.transcript, 'hello by voice');
-      expect(
-        voiceMessages.single.voice?.duration,
-        const Duration(milliseconds: 1200),
-      );
-      expect(voiceMessages.single.voice?.confidence, 0.91);
+      expect(voiceMessages.single.text, 'hello by voice');
     },
   );
 
@@ -249,15 +229,13 @@ void main() {
     addTearDown(channel.dispose);
 
     await channel.connect(
-      NavivoxGatewayConfig.fromBaseUrl(
-        server.baseUrl,
-        token: _FakeGatewayServer.token,
-      ),
+      baseUrl: server.baseUrl,
+      token: _FakeGatewayServer.token,
     );
 
     final completed = Completer<void>();
     channel.addListener(() {
-      final cards = channel.state.messages
+      final cards = channel.state.messagesList
           .where((message) => message.kind == NavivoxMessageKind.toolCall)
           .toList();
       if (cards.length == 1 &&
@@ -271,7 +249,7 @@ void main() {
     await server.nextClientMessage;
     await completed.future.timeout(const Duration(seconds: 2));
 
-    final cards = channel.state.messages
+    final cards = channel.state.messagesList
         .where((message) => message.kind == NavivoxMessageKind.toolCall)
         .toList();
     expect(cards, hasLength(1));

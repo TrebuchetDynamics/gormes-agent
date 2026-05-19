@@ -1,21 +1,18 @@
-import 'dart:typed_data';
-
 import '../core/channel/gateway_navivox_channel.dart';
 import '../core/channel/navivox_channel.dart';
-import '../core/gateway/navivox_gateway_protocol.dart';
 import '../core/protocol/navivox_event.dart';
 
 class ConnectAndTalkChannel extends GatewayNavivoxChannel {
   NavivoxChannelState _state = const NavivoxChannelState();
-  NavivoxGatewayConfig? connectedConfig;
+  String? connectedBaseUrl;
   final List<String> sentTexts = [];
 
   @override
   NavivoxChannelState get state => _state;
 
   @override
-  Future<void> connect(NavivoxGatewayConfig config) async {
-    connectedConfig = config;
+  Future<void> connect({required String baseUrl, String? token}) async {
+    connectedBaseUrl = baseUrl;
     const server = NavivoxServer(
       id: 'navivox-gateway',
       name: 'Gormes Gateway',
@@ -44,25 +41,22 @@ class ConnectAndTalkChannel extends GatewayNavivoxChannel {
     if (trimmed.isEmpty) return;
     sentTexts.add(trimmed);
     final now = DateTime(2026, 5, 16, 9, 41);
-    _state = _state.copyWith(
-      messages: [
-        ..._state.messages,
-        NavivoxChatMessage(
-          id: 'user-${sentTexts.length}',
-          author: NavivoxMessageAuthor.user,
-          kind: NavivoxMessageKind.text,
-          createdAt: now,
-          text: trimmed,
-        ),
-        NavivoxChatMessage(
-          id: 'assistant-${sentTexts.length}',
-          author: NavivoxMessageAuthor.assistant,
-          kind: NavivoxMessageKind.text,
-          createdAt: now,
-          text: 'hello from gateway',
-        ),
-      ],
+    final messages = Map<String, NavivoxChatMessage>.from(_state.messages);
+    messages['user-${sentTexts.length}'] = NavivoxChatMessage(
+      id: 'user-${sentTexts.length}',
+      author: NavivoxMessageAuthor.user,
+      kind: NavivoxMessageKind.text,
+      createdAt: now,
+      text: trimmed,
     );
+    messages['assistant-${sentTexts.length}'] = NavivoxChatMessage(
+      id: 'assistant-${sentTexts.length}',
+      author: NavivoxMessageAuthor.assistant,
+      kind: NavivoxMessageKind.text,
+      createdAt: now,
+      text: 'hello from gateway',
+    );
+    _state = _state.copyWith(messages: messages);
     notifyListeners();
   }
 
@@ -79,12 +73,7 @@ class ConnectAndTalkChannel extends GatewayNavivoxChannel {
   }
 
   @override
-  void sendVoice({
-    required Uint8List audio,
-    required String transcript,
-    required Duration duration,
-    required double confidence,
-  }) {
+  void sendVoice({required String transcript}) {
     sendText(transcript);
   }
 
@@ -97,7 +86,7 @@ class ConnectAndTalkChannel extends GatewayNavivoxChannel {
 
 class FailingConnectChannel extends GatewayNavivoxChannel {
   @override
-  Future<void> connect(NavivoxGatewayConfig config) async {
-    throw StateError('connection failed for ${config.token}');
+  Future<void> connect({required String baseUrl, String? token}) async {
+    throw StateError('connection failed for $token');
   }
 }

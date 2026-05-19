@@ -5,9 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:navivox/core/channel/navivox_channel.dart';
 import 'package:navivox/core/protocol/navivox_event.dart';
 
-/// A minimal in-memory [NavivoxChannel] for widget tests. Records calls into
-/// public fields and surfaces a mutable [NavivoxChannelState] so tests can
-/// seed servers/agents/messages without touching the wire layer.
 class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   TestNavivoxChannel({
     NavivoxChannelState initial = const NavivoxChannelState(),
@@ -21,7 +18,7 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   final List<String> sentTexts = [];
   final List<({String text, String? serverId, String? profileId})>
   sentTextCalls = [];
-  final List<SentVoiceCall> sentVoiceCalls = [];
+  final List<String> sentVoiceTranscripts = [];
   int cancelRequests = 0;
   int stopRequests = 0;
   final List<({String approvalId, bool approved})> approvalResponses = [];
@@ -64,6 +61,14 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     );
   }
 
+  void seedMessages(List<NavivoxChatMessage> messages) {
+    final map = <String, NavivoxChatMessage>{};
+    for (final m in messages) {
+      map[m.id] = m;
+    }
+    state = _state.copyWith(messages: map);
+  }
+
   void emitApprovalRequest(NavivoxApprovalRequest request) {
     _approvals.add(request);
   }
@@ -84,6 +89,12 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   Stream<NavivoxApprovalRequest> get approvalRequests => _approvals.stream;
 
   @override
+  Future<void> connect({required String baseUrl, String? token}) async {}
+
+  @override
+  Future<void> disconnect() async {}
+
+  @override
   void sendText(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
@@ -95,35 +106,20 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
       serverId: active?.serverId,
       profileId: active?.profileId,
     ));
-    state = _state.copyWith(
-      messages: [
-        ..._state.messages,
-        NavivoxChatMessage(
-          id: 'test-user-${++_messageCounter}',
-          author: NavivoxMessageAuthor.user,
-          kind: NavivoxMessageKind.text,
-          createdAt: DateTime.utc(2026, 5, 16, 12, 0, _messageCounter),
-          text: trimmed,
-        ),
-      ],
+    final messages = Map<String, NavivoxChatMessage>.from(_state.messages);
+    messages['test-user-${++_messageCounter}'] = NavivoxChatMessage(
+      id: 'test-user-$_messageCounter',
+      author: NavivoxMessageAuthor.user,
+      kind: NavivoxMessageKind.text,
+      createdAt: DateTime.utc(2026, 5, 16, 12, 0, _messageCounter),
+      text: trimmed,
     );
+    state = _state.copyWith(messages: messages);
   }
 
   @override
-  void sendVoice({
-    required Uint8List audio,
-    required String transcript,
-    required Duration duration,
-    required double confidence,
-  }) {
-    sentVoiceCalls.add(
-      SentVoiceCall(
-        audio: audio,
-        transcript: transcript,
-        duration: duration,
-        confidence: confidence,
-      ),
-    );
+  void sendVoice({required String transcript}) {
+    sentVoiceTranscripts.add(transcript);
   }
 
   @override
@@ -177,18 +173,4 @@ class TestNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     _approvals.close();
     super.dispose();
   }
-}
-
-class SentVoiceCall {
-  const SentVoiceCall({
-    required this.audio,
-    required this.transcript,
-    required this.duration,
-    required this.confidence,
-  });
-
-  final Uint8List audio;
-  final String transcript;
-  final Duration duration;
-  final double confidence;
 }
