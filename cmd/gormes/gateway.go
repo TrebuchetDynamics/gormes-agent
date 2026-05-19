@@ -27,7 +27,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -1384,5 +1384,9 @@ func (a *gonchoAdapter) OnSessionEnd(ctx context.Context, sessionKey string, mes
 	if a.svc == nil || sessionKey == "" {
 		return nil
 	}
-	return a.svc.OnSessionEnd(ctx, sessionKey, messages)
+	gonchoMsgs := make([]goncho.Message, len(messages))
+	for i, m := range messages {
+		gonchoMsgs[i] = goncho.Message{Role: m.Role, Content: m.Content}
+	}
+	return a.svc.OnSessionEnd(ctx, sessionKey, gonchoMsgs)
 }

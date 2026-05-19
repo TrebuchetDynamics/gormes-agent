@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 )
 
 type AgentSpawnEvidence string

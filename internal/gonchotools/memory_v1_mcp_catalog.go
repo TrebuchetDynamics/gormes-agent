@@ -3,7 +3,7 @@ package gonchotools
 import (
 	"sort"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 

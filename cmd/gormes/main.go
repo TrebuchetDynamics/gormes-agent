@@ -326,6 +326,8 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 		"tools":       newToolsCommand,
 		"insights":    newInsightsCommand,
 		"admin":       newAdminCommand,
+		"bridge":      newBridgeCommand,
+		"bootstrap":   newBootstrapCommand,
 	}
 }
 

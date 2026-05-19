@@ -34,6 +34,7 @@ require (
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // indirect
+	github.com/TrebuchetDynamics/goncho v0.0.0-20260519150947-20118c765d5b // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/htmlquery v1.3.6 // indirect
 	github.com/antchfx/xpath v1.3.6 // indirect
