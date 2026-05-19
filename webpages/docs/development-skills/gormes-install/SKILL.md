@@ -1,6 +1,6 @@
 ---
 name: gormes-install
-description: Test and validate Gormes install + setup paths against a real release. Use when verifying a tagged release end-to-end, exercising install.sh / install.ps1 in isolation, finding install-time issues that don't surface in CI, documenting install regressions, or proving that a fresh user can go from `curl ... | bash` to a working `gormes` command without disturbing existing state.
+description: Test and validate Gormes install + setup paths, or build/install Gormes from the existing development branch onto this PC when the operator explicitly asks. Use when verifying a tagged release end-to-end, exercising install.sh / install.ps1 in isolation, installing the current development checkout with --local, refreshing the live gateway binary, finding install-time issues that don't surface in CI, documenting install regressions, or proving that a fresh user can go from `curl ... | bash` to a working `gormes` command without disturbing existing state.
 ---
 
 # Gormes Install
@@ -13,6 +13,7 @@ Exercise the operator install + setup paths against a real Gormes release and su
 
 The output is one of:
 - A clean install transcript with confirmed sandbox isolation (release is install-clean).
+- A clean development-workstation install from the existing `development` checkout, with binary hashes and gateway freshness verified.
 - A list of source-backed install regressions, each with a reproducible recipe and the exact production-state surface it touched.
 - New rows added to `progress.json` Phase 5.P (installer) or Phase 5.O (CLI) when an issue needs builder follow-up.
 
@@ -22,6 +23,8 @@ The output is one of:
 |---|---|
 | New release tagged | Full pre-publish install rehearsal in isolation. |
 | `install.sh` or `install.ps1` changed on `development` | Pre-merge install regression check. |
+| User asks to install/build Gormes on this PC from `development` | Development workstation install from the current checkout. |
+| User says "install gormes bin in this pc", "build and install development", or "refresh my live gormes" | Production workstation install with gateway restart/freshness verification. |
 | User reports broken install / `gormes` command not found / shell rc clutter | Targeted regression repro, then route to `gormes-builder`. |
 | Sandbox-isolation env vars added or changed (`GORMES_INSTALL_HOME`, `GORMES_BIN_DIR`, etc.) | Verify each isolation surface. |
 | New target environment (Termux, WSL, locked-down corp Linux, fresh container) | Coverage extension; capture environment-specific findings. |
@@ -37,7 +40,7 @@ Stay on the existing `development` branch. Do not create release branches, featu
 
 These are non-negotiable because the test machine is usually the operator's real workstation:
 
-1. **Never run `install.sh` directly against production state without explicit operator agreement**. Default to a sandbox HOME under `/tmp/gormes-install-test/<UTC-stamp>/` and route `GORMES_INSTALL_HOME` + `GORMES_BIN_DIR` there.
+1. **Never run `install.sh` directly against production state without explicit operator agreement**. Default to a sandbox HOME under `/tmp/gormes-install-test/<UTC-stamp>/` and route `GORMES_INSTALL_HOME` + `GORMES_BIN_DIR` there. Exception: if the user explicitly asks to install/build Gormes on this PC from `development`, use the development workstation path below and report the production surfaces touched.
 2. **Capture pre-state before every test pass** so post-state diffs prove what install actually changed. Pre-state must include:
    - `~/.local/bin/gormes` symlink target (or absence) and inode.
    - `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.zprofile`, `~/.config/fish/config.fish` last modified time + grep for `GORMES`/`gormes` lines.
@@ -62,6 +65,7 @@ These are non-negotiable because the test machine is usually the operator's real
 State which install path you are testing:
 - fresh-user `curl … | bash` non-interactive flow;
 - existing-user upgrade in place against production paths;
+- development workstation install from the existing `development` checkout;
 - `--local` mode (build from current checkout instead of cloning);
 - `--dry-run` plan accuracy vs. real-install outcome;
 - `--uninstall` flow;
@@ -69,6 +73,89 @@ State which install path you are testing:
 - environment-specific (Termux, WSL2, root install, no-systemd minimal Linux, locked-down filesystem).
 
 If the user asks "test the install" without scoping, default to the **fresh-user sandboxed flow** and surface coverage gaps in the final report.
+
+### 1A. Development Workstation Install From `development`
+
+Use this path only when the operator explicitly asks to install on this PC from
+`development`. This is a production-state install, not a sandbox pass.
+
+Success criteria:
+- current branch is `development`;
+- no feature branch, release branch, git worktree, stash, reset, or checkout of
+  `main`;
+- install builds from the current checkout with `--local`;
+- installed command, managed binary, and repo-local `bin/gormes` have the same
+  sha256;
+- default gateway and any running profile-scoped gateway units report `fresh`
+  after restart.
+
+Preflight:
+
+```sh
+git branch --show-current
+git status --short --branch
+which -a gormes || true
+if command -v gormes >/dev/null 2>&1; then
+  readlink -f "$(command -v gormes)" || true
+  gormes --version || true
+  gormes gateway status --json 2>/dev/null || true
+fi
+```
+
+If the branch is not `development`, stop before installing. Switch to
+`development` only when it is safe and consistent with the repo rule; otherwise
+report the blocker. If the user asks for exact `origin/development`, pull only
+with a clean worktree and a fast-forward:
+
+```sh
+git fetch origin development
+git pull --ff-only origin development
+```
+
+Do not stash, reset, rebase, or discard user/agent edits to make the pull work.
+When the tree is dirty and the user still asks to install "this PC", build the
+current dirty checkout and report that fact.
+
+Install and align binary surfaces:
+
+```sh
+./install.sh --local --skip-setup --restart-gateway auto
+
+version=$(sed -n 's/^var Version = "\(.*\)"/\1/p' cmd/gormes/version.go)
+commit=$(git rev-parse --short HEAD)
+dirty=false
+if [ -n "$(git status --porcelain)" ]; then dirty=true; fi
+CGO_ENABLED=0 go build -trimpath \
+  -ldflags "-s -w -X main.Version=${version} -X main.GitCommit=${commit} -X main.GitDirty=${dirty}" \
+  -o bin/gormes ./cmd/gormes
+```
+
+Verify:
+
+```sh
+which -a gormes
+readlink -f "$(command -v gormes)"
+sha256sum "$(command -v gormes)" "$HOME/.gormes/bin/gormes" bin/gormes
+gormes --version
+./bin/gormes --version
+gormes gateway status --json | jq -r '.build.version, .build.git_commit, .runtime.gateway_state, .runtime.stale_code.status, (.runtime.platforms.telegram.state // "telegram-missing")'
+
+profile_root="$HOME/.gormes/profiles"
+if [ -d "$profile_root" ]; then
+  find "$profile_root" -mindepth 1 -maxdepth 1 -type d -print | sort |
+    while IFS= read -r profile_home; do
+      profile_id=$(basename "$profile_home")
+      printf 'profile=%s\n' "$profile_id"
+      GORMES_HOME="$profile_home" \
+        gormes gateway status --json |
+        jq -r '.build.version, .build.git_commit, .runtime.gateway_state, .runtime.stale_code.status, (.runtime.platforms.telegram.state // "telegram-missing")'
+    done
+fi
+```
+
+If `stale_code.status` is `stale` because `development` moved during the pass,
+rerun the local install from the new HEAD. If any sha256 differs, rebuild the
+mismatched surface before reporting success.
 
 ### 2. Capture Pre-State
 
@@ -195,3 +282,12 @@ Report:
 7. New issues found, with the entry now in `references/known-issues.md`.
 8. Production restoration steps run, if any.
 9. Coverage gaps (environments / flags / paths not exercised this pass).
+
+For development-workstation installs, report instead:
+
+1. Branch and commit installed, including dirty-tree status.
+2. `which -a gormes` and active command realpath.
+3. sha256 comparison for active command, `$HOME/.gormes/bin/gormes`, and `bin/gormes`.
+4. Default gateway freshness and each profile-scoped gateway freshness.
+5. Any profile gateway units restarted by the installer.
+6. Verification commands run and their pass/fail result.
