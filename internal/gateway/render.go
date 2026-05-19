@@ -123,9 +123,28 @@ func FormatErrorPlain(f kernel.RenderFrame) string {
 	return truncate(text)
 }
 
+// escapeTelegramMarkdownV2 escapes all 20 Telegram MarkdownV2 reserved
+// characters plus backslash. Unlike tgbotapi.EscapeText, this function
+// explicitly handles every reserved character per the Bot API spec:
+// _ * [ ] ( ) ~ ` > # + - = | { } . ! and \.
+func escapeTelegramMarkdownV2(text string) string {
+	var b strings.Builder
+	b.Grow(len(text) * 2) // worst case: every char escaped
+	for _, r := range text {
+		switch r {
+		case '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!', '\\':
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 // FormatStreamTelegram renders a streaming frame using Telegram MarkdownV2.
 func FormatStreamTelegram(f kernel.RenderFrame) string {
-	body := tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, f.DraftText)
+	body := escapeTelegramMarkdownV2(f.DraftText)
 	if streamPreviewCursorActive(f) {
 		body += streamPreviewCursor
 	}
@@ -1033,7 +1052,14 @@ func truncate(s string) string {
 	if len(runes) <= maxMessageLen {
 		return s
 	}
-	return string(runes[:maxMessageLen-1]) + "…"
+	end := maxMessageLen - 1
+	// Avoid slicing through a MarkdownV2 escape sequence: if the cut lands
+	// on a backslash, back up so the trailing ellipsis is not interpreted
+	// as part of an incomplete escape.
+	for end > 0 && runes[end-1] == '\\' {
+		end--
+	}
+	return string(runes[:end]) + "…"
 }
 
 func paginatePlainText(s string) []string {
