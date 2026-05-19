@@ -57,4 +57,4 @@ validation failures are not killed.
 - [`gormes logs`](../logs/)
 - [`gormes telegram`](../telegram/)
 - [`gormes whatsapp`](../whatsapp/)
-- [Gateway operations](../../recipes/multi-channel/)
+- [Gateway operations](../../operate/multi-channel-gateway/)

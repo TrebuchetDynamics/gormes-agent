@@ -2,18 +2,18 @@
 title: "Run a multi-channel gateway"
 description: "Run every configured channel through one Gormes gateway process."
 difficulty: "L"
+aliases:
+  - /recipes/multi-channel/
 ---
-
-# Run a multi-channel gateway
 
 > **Outcome:** One `gormes gateway` process drives Telegram, Discord, Slack, and any other configured channel through the same kernel + tool loop, with persistent runtime state visible via `gateway status`.
 >
-> **Prerequisites:** Working `gormes chat -q` (see [first turn](../first-turn/)). At least one channel adapter configured with secrets and an allowlist. Runtime-ready channels today are Telegram, Discord, and Slack; WhatsApp/Teams/Yuanbao are row-backed or fixture-backed until promoted.
+> **Prerequisites:** Working `gormes chat -q` (see [first chat](../first-chat/)). At least one channel adapter configured with secrets and an allowlist. Runtime-ready channels today are Telegram, Discord, and Slack; WhatsApp/Teams/Yuanbao are row-backed or fixture-backed until promoted.
 
 ## Steps
 
 1. **Configure each channel locally**
-   - Telegram: see [Run a Telegram bot](../telegram-bot/).
+- Telegram: see [Run a Telegram bot](../telegram-bot/).
    - Discord: set the bot token (`GORMES_DISCORD_TOKEN` in `.env`) and allowlisted guild/channel ids in `config.toml`.
    - Slack: set the app/bot tokens in `.env` and the configured channels in `config.toml`.
 
@@ -65,6 +65,6 @@ Expected: each configured channel reports `lifecycle=running` and any allowlist 
 
 ## See also
 
-- [Route channels to different agents](../bindings/)
+- [Route channels to different agents](../channel-bindings/)
 - [Run a Telegram bot](../telegram-bot/)
-- [Diagnose a broken install](../diagnose/)
+- [Diagnose a broken install](../../troubleshooting/diagnose/)

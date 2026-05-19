@@ -3,8 +3,8 @@ title: "CLI reference"
 description: "One page per top-level Gormes command, audited against the binary."
 weight: 30
 aliases:
-  - /reference/
   - /reference/cli/
+  - /cli-reference/
 ---
 
 # CLI reference

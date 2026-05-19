@@ -115,7 +115,7 @@ resolves the provider's curated default model from the registry above.
 
 The fallback chain is configured per-agent and traversed by the runtime when
 the primary provider fails. See the
-[Fallback provider chain](../../recipes/fallback/) recipe for the
+[Fallback provider chain](../../operate/fallback-providers/) recipe for the
 operator-facing workflow.
 
 ## Web backends

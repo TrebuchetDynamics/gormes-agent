@@ -2,9 +2,9 @@
 title: "Switch profiles for client work"
 description: "Keep separate Gormes homes for different bots, projects, or clients."
 difficulty: "S"
+aliases:
+  - /recipes/profiles/
 ---
-
-# Switch profiles for client work
 
 > **Outcome:** Two or more separate Gormes profile homes, each with its own config, secrets, sessions, and memory store, switchable in one command.
 >
@@ -94,5 +94,5 @@ root: .../client-acme
 
 ## See also
 
-- [Connect a provider and open chat](../first-turn/)
-- [Migrate from Hermes or OpenClaw](../migrate-hermes/) — migrate into a separate profile home.
+- [Connect a provider and open chat](../first-chat/)
+- [Migrate from Hermes or OpenClaw](../../recipes/migrate-hermes/) — migrate into a separate profile home.

@@ -2,13 +2,13 @@
 title: "Route channels to different agents"
 description: "Bind one gateway's channels to different agent personas with different workspaces or models."
 difficulty: "M"
+aliases:
+  - /recipes/bindings/
 ---
-
-# Route channels to different agents
 
 > **Outcome:** Two named agents (for example `support` and `coder`) live inside one Gormes gateway; each Telegram or Slack channel routes to the right agent.
 >
-> **Prerequisites:** A working multi-channel gateway (see [run a multi-channel gateway](../multi-channel/)).
+> **Prerequisites:** A working multi-channel gateway (see [run a multi-channel gateway](../multi-channel-gateway/)).
 
 ## Steps
 
@@ -75,6 +75,6 @@ Expected: `config show` shows the new agent ids; `gateway status` shows each cha
 
 ## See also
 
-- [Run a multi-channel gateway](../multi-channel/)
-- [Switch profiles for client work](../profiles/)
+- [Run a multi-channel gateway](../multi-channel-gateway/)
+- [Switch profiles for client work](../profiles-client-work/)
 - [Config file](../../configure/config-file/)

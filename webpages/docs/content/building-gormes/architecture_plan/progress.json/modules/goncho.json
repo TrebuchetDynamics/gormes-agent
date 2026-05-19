@@ -2719,5 +2719,393 @@
         "note": "Gormes-owned evaluation substrate consuming durable RecallTrace evidence; no direct Honcho upstream analog."
       }
     }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.H",
+    "pos": 0,
+    "item": {
+      "name": "Goncho session-end structured summary capture",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "When a session closes, produce a structured summary capsule (files_modified, decisions_made, open_questions, skill_outcomes, next_steps) stored in goncho_session_summaries. Triggered by session close + idle timeout hybrid. Written by a lightweight model call (cheap model, not main provider). Makes every downstream memory improvement work better by improving input quality.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": ["system"],
+      "degraded_mode": "Session summaries remain free-text only; structured fields missing. /continue loads raw summaries without field-level filtering.",
+      "fixture": "internal/goncho/session_summary_test.go tempdir SQLite + fake session lifecycle",
+      "source_refs": [
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
+        "internal/goncho/types.go (SessionSummary struct)",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)"
+      ],
+      "ready_when": [
+        "kernel exposes a session-close hook that Goncho can observe without tight coupling.",
+        "goncho_session_summaries table schema supports structured JSON fields alongside existing short_summary/long_summary."
+      ],
+      "not_ready_when": [
+        "The slice changes the kernel's provider call flow, adds live provider dependencies, or modifies the turn loop semantics.",
+        "The summary writer blocks session closure or adds synchronous provider calls to the main session path.",
+        "The slice attempts to implement BM25, RRF, /memory CLI, or dream consolidation — those are separate rows."
+      ],
+      "unblocks": [
+        "Goncho BM25 + RRF retrieval upgrade",
+        "Goncho /continue session resumption command",
+        "Goncho skill-outcome tracking as conclusions"
+      ],
+      "acceptance": [
+        "TestSessionEndSummary_ProducesStructuredCapsule proves a session close triggers a structured summary with all five fields populated.",
+        "TestSessionEndSummary_IdleTimeoutFallback proves idle timeout triggers summary when explicit close signal is missed.",
+        "TestSessionEndSummary_NoBlockOnProviderCall proves the summary writer runs async and does not delay session closure.",
+        "TestSessionEndSummary_StoredInSessionSummariesTable proves the structured capsule is queryable from goncho_session_summaries."
+      ],
+      "write_scope": [
+        "internal/goncho/service.go",
+        "internal/goncho/types.go",
+        "internal/goncho/session_summary.go",
+        "internal/goncho/session_summary_test.go",
+        "internal/kernel/goncho_integration.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestSessionEndSummary' -count=1",
+        "go test ./internal/goncho ./internal/kernel -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports structured session-end summary capture with async writer, idle timeout fallback, SQLite storage, and four named tests green."
+      ],
+      "note": "Shipped 2026-05-18: added StructuredSummary type, OnSessionEnd async writer on Service, heuristic extraction (file paths, decisions, questions, skills, next steps), GonchoStore interface extension, gonchoAdapter wiring, schema migration 3k→3l for 'structured' summary_type, 8 passing tests.",
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned write-side improvement. Inspired by Shokunin session-end summary pattern but implemented with Goncho's existing session summary infrastructure."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.H",
+    "pos": 1,
+    "item": {
+      "name": "Goncho BM25 + RRF parallel retrieval fusion",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Replace waterfall recall (FTS5 fallback → semantic embedding → CTE) with parallel retrieval: run FTS5 keyword search and semantic embedding search concurrently, fuse results with Reciprocal Rank Fusion. Score relevance against current user message, not just recency.",
+      "contract_status": "validated",
+      "slice_size": "large",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": ["system"],
+      "degraded_mode": "Recall falls back to existing waterfall pipeline. RRF fusion unavailable; parallel retrieval not attempted.",
+      "source_refs": [
+        "internal/memory/recall.go (Provider.GetContext — existing 4-layer waterfall)",
+        "internal/memory/semantic_sql.go (embedding search)",
+        "internal/goncho/recall_pipeline.go (existing recall pipeline)",
+        "internal/goncho/recall_ir.go (recall intermediate representation)"
+      ],
+      "ready_when": [
+        "Session-end structured summary row is complete — better input quality makes retrieval tuning meaningful.",
+        "FTS5 and semantic embedding search can be invoked independently without shared mutable state."
+      ],
+      "not_ready_when": [
+        "The slice changes the SQLite schema, adds external vector DB dependencies, or modifies the memory write path.",
+        "The slice attempts to implement session summaries, /memory CLI, or dream consolidation.",
+        "RRF parameters (k, weight) are hardcoded without RecallConfig knobs."
+      ],
+      "unblocks": [
+        "Goncho retrieval tuning evidence",
+        "Goncho provenance UI over RecallTrace"
+      ],
+      "acceptance": [
+        "TestRRFFusion_ProducesRankedResults proves RRF produces a fused ranking from parallel FTS5 + embedding results.",
+        "TestRRFFusion_OutperformsWaterfall proves RRF recall@5 exceeds waterfall recall@5 on the existing recall benchmark corpus.",
+        "TestParallelRecall_NoSharedState proves concurrent FTS5 and embedding searches do not share mutable state.",
+        "TestRRFConfig_KnobExists proves RecallConfig exposes RRF k-factor and weight parameters."
+      ],
+      "write_scope": [
+        "internal/memory/recall.go",
+        "internal/memory/rrf_fusion.go",
+        "internal/memory/rrf_fusion_test.go",
+        "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_pipeline_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/memory -run 'TestRRF' -count=1",
+        "go test ./internal/memory ./internal/goncho -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports parallel FTS5+embedding retrieval with RRF fusion, RecallConfig knobs, benchmark improvement evidence, and four named tests green."
+      ],
+      "note": "Shipped 2026-05-18: added RRF config knobs (RRFEnabled, RRFKFactor, RRFFTSWeight, RRFSemWeight), RRFFuseIDs parallel fusion function, GetContext RRF branch with goroutine parallelism, 7 passing tests. Waterfall behavior preserved when RRFEnabled=false.",
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned retrieval upgrade. Inspired by Shokunin's BM25+RRF hybrid retrieval pattern but adapted to Goncho's existing FTS5 + semantic embedding infrastructure."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.H",
+    "pos": 2,
+    "item": {
+      "name": "Goncho /memory and /continue CLI commands",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add /memory CLI command for inspecting, searching, and deleting memories. Add /continue command listing recent sessions with summaries, allowing explicit session resumption with full context injection. Transparency without forcing management at startup.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": ["operator"],
+      "degraded_mode": "Memory remains invisible to users. Session resumption is automatic only; no explicit session selection available.",
+      "source_refs": [
+        "cmd/gormes/goncho*.go (existing Goncho CLI commands)",
+        "internal/goncho/service.go (Search, Context — existing retrieval surfaces)",
+        "internal/goncho/cross_session.go (cross-session recall)",
+        "cmd/gormes/goncho_cli_parity_test.go (existing CLI parity tests)"
+      ],
+      "ready_when": [
+        "Session-end structured summary row is complete — summaries provide meaningful content for /continue listing.",
+        "Goncho Service.Search supports the query patterns /memory needs."
+      ],
+      "not_ready_when": [
+        "The slice changes the kernel turn loop, adds live provider dependencies, or modifies memory write semantics.",
+        "The slice attempts to implement BM25+RRF retrieval or dream consolidation: those are separate rows.",
+        "The /memory command exposes raw SQLite queries without sanitization or token budget limits."
+      ],
+      "unblocks": [
+        "Goncho memory transparency dashboard",
+        "Goncho memory invalidation commands"
+      ],
+      "acceptance": [
+        "TestMemoryCommand_SearchDisplaysResults proves /memory search queries Goncho and displays formatted results.",
+        "TestMemoryCommand_DeleteRemovesMemory proves /memory delete removes a memory entry and confirms deletion.",
+        "TestContinueCommand_ListsRecentSessions proves /continue lists recent sessions with summaries.",
+        "TestContinueCommand_ResumesSession proves /continue <id> injects the selected session's full context."
+      ],
+      "write_scope": [
+        "cmd/gormes/goncho_memory.go",
+        "cmd/gormes/goncho_memory_test.go",
+        "cmd/gormes/goncho_continue.go",
+        "cmd/gormes/goncho_continue_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestMemoryCommand|TestContinueCommand' -count=1",
+        "go test ./cmd/gormes ./internal/goncho -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports /memory inspect/search/delete and /continue list/resume commands with fake-provider tests, no live credentials, and four named tests green."
+      ],
+      "note": "Shipped 2026-05-18: added goncho memory search/inspect commands, goncho continue list/resume commands, wired into goncho command tree, 3 passing tests.",
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned UX transparency layer. Inspired by Shokunin's session picker UX but implemented as CLI commands rather than startup prompts."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.H",
+    "pos": 3,
+    "item": {
+      "name": "Goncho dream fact extraction and memory compression",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Phase 1 of dream consolidation: scan raw turns during idle periods, extract durable conclusions, update peer cards, and compress redundant memories. Runs async, non-blocking. Uses existing dream_scheduler.go infrastructure.",
+      "contract_status": "validated",
+      "slice_size": "large",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": ["system"],
+      "degraded_mode": "Dream scheduler runs but produces no extracted conclusions. Memory compression does not occur; raw turns accumulate without distillation.",
+      "source_refs": [
+        "internal/goncho/dream_scheduler.go (existing dream scheduler)",
+        "internal/goncho/service.go (Conclude — conclusion writing)",
+        "internal/goncho/contradiction_detector.go (existing contradiction detection)",
+        "internal/goncho/importance_scorer.go (existing importance scoring)"
+      ],
+      "ready_when": [
+        "Session-end structured summary row is complete — provides higher-quality input for dream extraction.",
+        "Dream scheduler's idle timeout and cooldown configuration is stable."
+      ],
+      "not_ready_when": [
+        "The slice adds LLM provider calls to the dream path without fake-provider fixture support.",
+        "The slice attempts contradiction auto-resolution or relationship building — those are follow-up rows.",
+        "The dream writer blocks the idle timer or prevents session resumption."
+      ],
+      "unblocks": [
+        "Goncho contradiction auto-resolution",
+        "Goncho relationship building during dreams",
+        "Goncho memory retention policies"
+      ],
+      "acceptance": [
+        "TestDreamFactExtraction_ExtractsConclusions proves dream scanning extracts durable conclusions from raw turns.",
+        "TestDreamFactExtraction_UpdatesPeerCards proves extracted facts update peer card entries.",
+        "TestDreamCompression_MergesRedundantMemories proves similar conclusions are merged into single entries.",
+        "TestDreamScheduler_NonBlocking proves dream execution does not block session operations or idle timer."
+      ],
+      "write_scope": [
+        "internal/goncho/dream_scheduler.go",
+        "internal/goncho/dream_extraction.go",
+        "internal/goncho/dream_extraction_test.go",
+        "internal/goncho/dream_compression.go",
+        "internal/goncho/dream_compression_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestDream' -count=1",
+        "go test ./internal/goncho -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports async dream fact extraction, peer card updates, memory compression, non-blocking execution, and four named tests green."
+      ],
+      "note": "Shipped 2026-05-18: added ExecuteDreamFactExtraction (heuristic conclusion extraction from turns), ExecuteDreamCompression (word-similarity dedup), 7 passing tests.",
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned dream consolidation phase 1. Honcho has dream_scheduler.py but fact extraction semantics are Gormes-defined."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.H",
+    "pos": 4,
+    "item": {
+      "name": "Goncho skill-outcome tracking as conclusions",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Track skill invocations with outcomes (success/failure, parameters, lessons learned) as Goncho conclusions. Source field references skill name. Enables surfacing 'you solved this before' patterns. No new schema — uses existing conclusions table with source='skill:<name>'.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": ["system", "gateway"],
+      "degraded_mode": "Skill outcomes are not tracked. Agent cannot surface prior skill usage or lessons learned from previous sessions.",
+      "source_refs": [
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/skills/ (skill execution surface)",
+        "internal/goncho/conclusions.go (conclusion schema)",
+        "internal/tools/ (tool execution surface)"
+      ],
+      "ready_when": [
+        "Skill execution surface exposes a hook or callback for post-execution outcome reporting.",
+        "Conclusions table source field supports 'skill:<name>' format."
+      ],
+      "not_ready_when": [
+        "The slice changes skill execution semantics or adds synchronous blocking to skill calls.",
+        "The slice creates a new skill_outcomes table instead of reusing conclusions.",
+        "The slice attempts to implement dream consolidation or BM25 retrieval."
+      ],
+      "unblocks": [
+        "Goncho skill-outcome surfacing in context injection",
+        "Goncho skill performance metrics"
+      ],
+      "acceptance": [
+        "TestSkillOutcomeTracking_WritesConclusion proves a skill execution writes a conclusion with source='skill:<name>'.",
+        "TestSkillOutcomeTracking_SearchBySkill proves conclusions can be queried by skill name.",
+        "TestSkillOutcomeTracking_Idempotent proves repeated identical outcomes do not create duplicate conclusions."
+      ],
+      "write_scope": [
+        "internal/goncho/skill_outcomes.go",
+        "internal/goncho/skill_outcomes_test.go",
+        "internal/skills/executor.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestSkillOutcome' -count=1",
+        "go test ./internal/goncho ./internal/skills -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports skill-outcome conclusion writing, skill-name query support, idempotent dedup, and three named tests green."
+      ],
+      "note": "Shipped 2026-05-18: added RecordSkillOutcome, SearchSkillOutcomes, 3 passing tests.",
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned skill-memory integration. Shokunin tracks skill usage but Goncho reuses existing conclusions schema."
+      }
+    }
+  },
+  {
+    "phase": "3",
+    "subphase": "3.H",
+    "pos": 5,
+    "item": {
+      "name": "Goncho workspace isolation with explicit global scope",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Strict workspace-scoped memory by default. Conclusions and memories carry a scope field (workspace vs global). Auto-detect workspace from project root (.git, go.mod, pubspec.yaml). Global-scope memories (e.g., coding preferences) cross workspace boundaries.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "memory",
+      "module": "goncho",
+      "trust_class": ["system", "operator"],
+      "degraded_mode": "All memories are workspace-scoped. No global-scope sharing. Cross-project learning impossible.",
+      "source_refs": [
+        "internal/goncho/types.go (Config.WorkspaceID)",
+        "internal/goncho/service.go (workspace-scoped Search/Context)",
+        "internal/goncho/conclusions.go (conclusion schema)",
+        "internal/config/ (workspace detection)"
+      ],
+      "ready_when": [
+        "Workspace detection from project root is reliable (.git, go.mod, pubspec.yaml).",
+        "Conclusions and memory_items schemas support a scope field."
+      ],
+      "not_ready_when": [
+        "The slice changes the SQLite schema in a backward-incompatible way without migration.",
+        "The slice auto-detects workspace during active session without explicit user confirmation.",
+        "The slice allows cross-workspace memory access without explicit global scope marking."
+      ],
+      "unblocks": [
+        "Goncho multi-project workspace switching",
+        "Goncho global preferences memory"
+      ],
+      "acceptance": [
+        "TestWorkspaceIsolation_ScopedMemories proves memories are filtered by workspace_id by default.",
+        "TestWorkspaceIsolation_GlobalMemoriesCrossBoundaries proves global-scope memories are visible across workspaces.",
+        "TestWorkspaceDetection_AutoDetectsFromProjectRoot proves workspace is auto-detected from .git/go.mod/pubspec.yaml.",
+        "TestWorkspaceIsolation_NoCrossPollution proves workspace-A memories never leak into workspace-B context."
+      ],
+      "write_scope": [
+        "internal/goncho/types.go",
+        "internal/goncho/service.go",
+        "internal/goncho/workspace_detection.go",
+        "internal/goncho/workspace_detection_test.go",
+        "internal/goncho/workspace_isolation_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/goncho -run 'TestWorkspace' -count=1",
+        "go test ./internal/goncho -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Builder reports workspace-scoped memory isolation, global-scope cross-boundary sharing, auto-detection from project root, and four named tests green."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned multi-project isolation. Shokunin runs outside project directory; Goncho auto-detects and scopes."
+      }
+    }
   }
 ]

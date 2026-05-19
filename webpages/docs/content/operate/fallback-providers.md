@@ -2,13 +2,13 @@
 title: "Add a fallback provider chain"
 description: "Append backup providers so a primary outage doesn't kill turns."
 difficulty: "S"
+aliases:
+  - /recipes/fallback/
 ---
-
-# Add a fallback provider chain
 
 > **Outcome:** When the primary provider fails (rate limit, outage, expired key), Gormes automatically tries the next provider/model in the configured chain.
 >
-> **Prerequisites:** At least two configured providers (see [first turn](../first-turn/)).
+> **Prerequisites:** At least two configured providers (see [first chat](../first-chat/)).
 
 ## Steps
 
@@ -61,5 +61,5 @@ The turn should still return a reply — served by the next entry in the chain.
 
 ## See also
 
-- [Connect a provider and open chat](../first-turn/)
-- [Provider setup](../../guides/provider-setup/)
+- [Connect a provider and open chat](../first-chat/)
+- [Provider setup](../../configure/providers/)

@@ -2,9 +2,9 @@
 title: "Connect a provider and open chat"
 description: "Add provider credentials and start provider-backed chat from the shell."
 difficulty: "S"
+aliases:
+  - /recipes/first-turn/
 ---
-
-# Connect a provider and open chat
 
 > **Outcome:** Provider-backed chat opens from the shell, proving credentials and routing work.
 >
@@ -42,10 +42,10 @@ Expected output: a short model reply on stdout, then the query exits with status
 
 - **`Not Found: model 'xxx' not found`** → The configured model is not available on this provider. Run `gormes setup model`, or set the model with `gormes config set hermes.model <id>`.
 - **`accepts 1 arg(s), received 0`** → `gormes auth add` needs the provider name. Re-run `gormes auth add <provider> --api-key ...`.
-- **Auth `status=invalid` or `status=missing`** → See [provider setup](../../guides/provider-setup/).
+- **Auth `status=invalid` or `status=missing`** → See [provider setup](../../configure/providers/).
 
 ## See also
 
 - [Run a local model with Ollama](../local-ollama/)
-- [Add a fallback provider chain](../fallback/)
-- [Provider setup](../../guides/provider-setup/)
+- [Add a fallback provider chain](../fallback-providers/)
+- [Provider setup](../../configure/providers/)

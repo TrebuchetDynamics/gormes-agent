@@ -2,13 +2,13 @@
 title: "Run a Telegram bot"
 description: "Long-poll Telegram from one chat through the same kernel and tool loop as the TUI."
 difficulty: "M"
+aliases:
+  - /recipes/telegram-bot/
 ---
-
-# Run a Telegram bot
 
 > **Outcome:** Gormes long-polls Telegram for DMs from an allowlisted chat, runs the same kernel + tool loop as the TUI, and persists turns to the local SQLite memory store.
 >
-> **Prerequisites:** A working `gormes chat -q` (see [first turn](../first-turn/)). A bot token from [@BotFather](https://t.me/botfather). The numeric chat ID you want the bot to answer.
+> **Prerequisites:** A working `gormes chat -q` (see [first chat](../first-chat/)). A bot token from [@BotFather](https://t.me/botfather). The numeric chat ID you want the bot to answer.
 
 ## Steps
 
@@ -55,6 +55,6 @@ A new session row appears for the channel turn. Persisted turns survive a proces
 
 ## See also
 
-- [Run a multi-channel gateway](../multi-channel/) — same kernel, multiple channels.
-- [Route channels to different agents](../bindings/)
-- [Provider setup](../../guides/provider-setup/)
+- [Run a multi-channel gateway](../multi-channel-gateway/) — same kernel, multiple channels.
+- [Route channels to different agents](../channel-bindings/)
+- [Provider setup](../../configure/providers/)

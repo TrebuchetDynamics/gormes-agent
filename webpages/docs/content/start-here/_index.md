@@ -1,6 +1,6 @@
 ---
-title: "Start here"
-description: "Install, authenticate, and run your first Gormes turn in under two minutes."
+title: "Quickstart"
+description: "Install, run offline doctor, configure a provider, and start your first Gormes chat."
 aliases:
   - /getting-started/
   - /getting-started/first-run/
@@ -8,28 +8,32 @@ aliases:
   - /using-gormes/quickstart/
 ---
 
-# Start here
+# Quickstart
 
 Gormes is a Go-native AI agent runtime: one static binary, no Python, no Docker, no Hermes process. Run it in your terminal as a TUI or as a persistent Telegram, Discord, or Slack gateway. Configuration and state live under `~/.gormes/`. Secrets stay local.
 
-## 60-second install
+## Fast path
 
-Pick one. Full details for each path live in [Install](../install/).
-
-Linux, macOS, WSL2:
+Linux, macOS, WSL2, and Termux:
 
 ```bash
-curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh
-less install.sh
-sh install.sh
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+gormes doctor --offline
+gormes setup
+gormes chat
 ```
 
-Native Windows (PowerShell):
+Prefer inspect-first? Use [Install](../install/) to download and review `install.sh` or `install.ps1` before running it.
+
+Native Windows uses PowerShell:
 
 ```powershell
 irm https://gormes.ai/install.ps1 -OutFile install.ps1
 Get-Content .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
+gormes doctor --offline
+gormes setup
+gormes chat
 ```
 
 From source (requires Go 1.26+):
@@ -54,14 +58,23 @@ For source builds, keep using `./bin/gormes` from the checkout, or add `export P
 
 ## Your first chat
 
-Add a provider credential, then open chat.
+The primary setup path is provider-neutral:
+
+```bash
+gormes setup
+gormes chat
+```
+
+During setup, choose your provider. For API-key providers, paste the key when prompted. For OAuth providers, follow the browser flow.
+
+If you already know the provider credential, you can add it directly:
 
 ```bash
 gormes auth add openai --api-key sk-...
 gormes chat
 ```
 
-Or open the interactive TUI:
+Prefer the full terminal UI?
 
 ```bash
 gormes
@@ -77,6 +90,6 @@ For scripts, `gormes chat -q "hello from Gormes"` sends one query and exits with
 |---|---|
 | **[Install](../install/)** | Linux/macOS, Windows, and source-build details |
 | **[Configure](../configure/)** | `config.toml`, environment variables, providers, Telegram, paths and logs |
-| **[CLI reference](../cli/)** | Every top-level command and subcommand |
-| **[Recipes](../recipes/)** | First turn, Telegram bot, profiles, fallback chains, local Ollama |
-| **[Troubleshooting](../troubleshooting/)** | Doctor, common errors, log locations |
+| **[Operate](../operate/)** | First chat, Telegram bot, profiles, fallback chains, local Ollama, memory and sessions |
+| **[Troubleshoot](../troubleshooting/)** | Doctor, common errors, log locations |
+| **[Reference](../reference/)** | CLI commands, config, environment, paths, status, and glossary |

@@ -2,9 +2,9 @@
 title: "Diagnose a broken install"
 description: "Use doctor, setup, and gateway status to localize the failure."
 difficulty: "S"
+aliases:
+  - /recipes/diagnose/
 ---
-
-# Diagnose a broken install
 
 > **Outcome:** A reproducible diagnosis (one failing subsystem, one error string) you can paste into an issue or hand to a maintainer.
 >
@@ -47,12 +47,12 @@ Expected: a `{build, failed, checks: [...]}` JSON document. Every check has a `n
 
 ## Troubleshooting
 
-- **`Auth: missing`** → Run `gormes auth add <provider>` (see [first turn](../first-turn/)).
-- **`provider health: [FAIL]`** → Wrong endpoint, wrong model id, or expired credentials. Try [provider setup](../../guides/provider-setup/).
+- **`Auth: missing`** → Run `gormes auth add <provider>` (see [first chat](../../operate/first-chat/)).
+- **`provider health: [FAIL]`** → Wrong endpoint, wrong model id, or expired credentials. Try [provider setup](../../configure/providers/).
 - **Gateway `lifecycle=failed`** → The channel adapter failed to start. The `error` field in `gateway status` names the cause (token conflict, missing allowlist, etc.).
 - **`stale_pid` in gateway runtime** → A previous gateway crashed without clearing state. Run `gormes gateway stop` or remove the pid file under `~/.gormes`.
 
 ## See also
 
-- [Smoke-test offline with doctor](../doctor-offline/)
-- [Troubleshooting overview](../../troubleshooting/)
+- [Smoke-test offline with doctor](../../recipes/doctor-offline/)
+- [Troubleshooting overview](../)

@@ -2,9 +2,9 @@
 title: "Run a local model with Ollama"
 description: "Send a single chat query through a locally hosted Ollama server."
 difficulty: "S"
+aliases:
+  - /recipes/local-ollama/
 ---
-
-# Run a local model with Ollama
 
 > **Outcome:** A single chat query completes against a model running on local Ollama — no cloud provider required.
 >
@@ -46,5 +46,5 @@ Expected: a model-generated reply on stdout. The process exits with status 0.
 
 ## See also
 
-- [Connect a provider and open chat](../first-turn/)
-- [Add a fallback provider chain](../fallback/) — keep Ollama as a free fallback.
+- [Connect a provider and open chat](../first-chat/)
+- [Add a fallback provider chain](../fallback-providers/) — keep Ollama as a free fallback.

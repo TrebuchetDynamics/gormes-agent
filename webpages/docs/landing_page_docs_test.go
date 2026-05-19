@@ -94,12 +94,16 @@ func TestDocsHarnessAllowsNativeGormesManifestoPage(t *testing.T) {
 	if _, ok := nativeDocsPages["why-gormes.md"]; !ok {
 		t.Fatalf("nativeDocsPages should explicitly allow why-gormes.md")
 	}
-	// Native Gormes pages live under why-gormes.md OR the building-gormes/
-	// (contributor-facing) and operator-facing sections (start-here/,
-	// install/, troubleshooting/, and the legacy using-gormes/ mirror).
-	// Everything else is a mirrored upstream doc under upstream-hermes/.
+	// Native Gormes pages live under why-gormes.md OR the curated Gormes
+	// taxonomy sections. Everything else is a mirrored upstream doc under
+	// upstream-hermes/.
 	nativePrefixes := []string{
+		"archive/",
 		"building-gormes/",
+		"concepts/",
+		"configure/",
+		"operate/",
+		"reference/",
 		"using-gormes/",
 		"start-here/",
 		"install/",
@@ -126,21 +130,22 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 	raw := readDoc(t, "content/_index.md")
 	wants := []string{
 		`title: "Gormes Documentation"`,
-		"# Gormes",
-		"[Start here](start-here/)",
+		"[Quickstart](start-here/)",
 		"[Install](install/)",
 		"[Configure](configure/)",
-		"[CLI reference](cli/)",
-		"[Recipes](recipes/)",
-		"[Troubleshooting](troubleshooting/)",
-		"Go-native runtime",
-		"## What is Gormes?",
-		"Offline proof path",
-		"Three install paths",
-		"## Support labels",
+		"[Operate](operate/)",
+		"[Troubleshoot](troubleshooting/)",
+		"[Reference](reference/)",
+		"[Concepts](concepts/)",
+		"[Build Gormes](building-gormes/)",
+		"[Archive & Research](archive/)",
+		"## Fast path",
+		"gormes doctor --offline",
+		"gormes setup",
+		"gormes chat",
+		"## Available now",
 		"Runtime-ready",
-		"## Trust posture",
-		"Source build and release-first",
+		"## How these docs are organized",
 	}
 	for _, want := range wants {
 		if !strings.Contains(raw, want) {
@@ -195,13 +200,14 @@ func TestGormesOperatorSetupChannelProviderDocs(t *testing.T) {
 
 	home := readDoc(t, "content/_index.md")
 	assertContainsAll(t, "content/_index.md", home, []string{
-		"Start here",
+		"Quickstart",
 		"Install",
 		"Configure",
-		"CLI reference",
-		"Recipes",
-		"Troubleshooting",
-		"Telegram",
+		"Operate",
+		"Troubleshoot",
+		"Reference",
+		"Concepts",
+		"Build Gormes",
 		"providers",
 	})
 

@@ -59,5 +59,5 @@ Expected: the provider/model/endpoint from the source agent appear in `config sh
 
 ## See also
 
-- [Switch profiles for client work](../profiles/) — keep migrated state in its own profile.
-- [Diagnose a broken install](../diagnose/)
+- [Switch profiles for client work](../../operate/profiles-client-work/) — keep migrated state in its own profile.
+- [Diagnose a broken install](../../troubleshooting/diagnose/)

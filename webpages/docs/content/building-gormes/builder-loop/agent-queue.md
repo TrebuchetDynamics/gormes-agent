@@ -88,7 +88,28 @@ selection.
 - Unblocks: Morning degraded-status summary over latest run report
 - Why now: Unblocks Morning degraded-status summary over latest run report.
 
-## 4. Hermes gateway platform strict-fidelity source-pair expansion
+## 4. Goncho workspace isolation with explicit global scope
+
+- Phase: 3 / 3.H
+- Owner: `memory`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Strict workspace-scoped memory by default. Conclusions and memories carry a scope field (workspace vs global). Auto-detect workspace from project root (.git, go.mod, pubspec.yaml). Global-scope memories (e.g., coding preferences) cross workspace boundaries.
+- Trust class: system, operator
+- Ready when: Workspace detection from project root is reliable (.git, go.mod, pubspec.yaml)., Conclusions and memory_items schemas support a scope field.
+- Not ready when: The slice changes the SQLite schema in a backward-incompatible way without migration., The slice auto-detects workspace during active session without explicit user confirmation., The slice allows cross-workspace memory access without explicit global scope marking.
+- Degraded mode: All memories are workspace-scoped. No global-scope sharing. Cross-project learning impossible.
+- Fixture: `-`
+- Write scope: `internal/goncho/types.go`, `internal/goncho/service.go`, `internal/goncho/workspace_detection.go`, `internal/goncho/workspace_detection_test.go`, `internal/goncho/workspace_isolation_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/goncho -run 'TestWorkspace' -count=1`, `go test ./internal/goncho -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Builder reports workspace-scoped memory isolation, global-scope cross-boundary sharing, auto-detection from project root, and four named tests green.
+- Acceptance: TestWorkspaceIsolation_ScopedMemories proves memories are filtered by workspace_id by default., TestWorkspaceIsolation_GlobalMemoriesCrossBoundaries proves global-scope memories are visible across workspaces., TestWorkspaceDetection_AutoDetectsFromProjectRoot proves workspace is auto-detected from .git/go.mod/pubspec.yaml., TestWorkspaceIsolation_NoCrossPollution proves workspace-A memories never leak into workspace-B context.
+- Source refs: internal/goncho/types.go (Config.WorkspaceID), internal/goncho/service.go (workspace-scoped Search/Context), internal/goncho/conclusions.go (conclusion schema), internal/config/ (workspace detection)
+- Unblocks: Goncho multi-project workspace switching, Goncho global preferences memory
+- Why now: Unblocks Goncho multi-project workspace switching, Goncho global preferences memory.
+
+## 5. Hermes gateway platform strict-fidelity source-pair expansion
 
 - Phase: 2 / 2.B.12
 - Owner: `docs`
@@ -108,7 +129,7 @@ selection.
 - Source refs: hermes-agent/gateway/platforms/base.py, hermes-agent/gateway/platforms/api_server.py, hermes-agent/gateway/platforms/telegram.py, hermes-agent/gateway/platforms/yuanbao.py, hermes-agent/tui_gateway/server.py, hermes-agent/tui_gateway/render.py, internal/channels, internal/gateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Gateway delivery evidence in operator run report
+## 6. Gateway delivery evidence in operator run report
 
 - Phase: 2 / 2.F.4
 - Owner: `gateway`
@@ -128,7 +149,7 @@ selection.
 - Source refs: internal/cron/delivery_plan.go, internal/cron/executor.go, internal/gateway/status.go, cmd/gormes/gateway_status.go, cmd/gormes/send.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes agent runtime strict-fidelity source-pair expansion
+## 7. Hermes agent runtime strict-fidelity source-pair expansion
 
 - Phase: 4 / 4.I
 - Owner: `docs`
@@ -148,7 +169,7 @@ selection.
 - Source refs: hermes-agent/agent/conversation_loop.py, hermes-agent/agent/tool_executor.py, hermes-agent/agent/context_engine.py, hermes-agent/agent/transports/codex.py, hermes-agent/agent/transports/chat_completions.py, hermes-agent/agent/lsp/manager.py, hermes-agent/tests/agent/lsp/test_lifecycle.py, internal/runtime, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Hermes plugin catalog strict-fidelity classifier
+## 8. Hermes plugin catalog strict-fidelity classifier
 
 - Phase: 5 / 5.I
 - Owner: `docs`
@@ -168,7 +189,7 @@ selection.
 - Source refs: hermes-agent/plugins/model-providers/openrouter/plugin.yaml, hermes-agent/plugins/model-providers/openai-codex/plugin.yaml, hermes-agent/plugins/memory/honcho/plugin.yaml, hermes-agent/plugins/platforms/simplex/adapter.py, hermes-agent/plugins/google_meet/meet_bot.py, internal/plugins, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Hermes LSP write-time semantic diagnostics
+## 9. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -188,7 +209,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Hermes x_search tool and auth surface
+## 10. Hermes x_search tool and auth surface
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -206,26 +227,6 @@ selection.
 - Done signal: x_search descriptor, auth status, fake-result normalization, and degraded errors are proven without live X credentials.
 - Acceptance: `x_search` appears in the registry with Hermes-compatible schema and toolset availability., OAuth and API-key auth modes produce redacted status and missing-auth diagnostics., Fake search results normalize into a bounded model-visible result envelope; rate-limit and auth failures degrade explicitly.
 - Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Morning degraded-status summary over latest run report
-
-- Phase: 5 / 5.N
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Add a read-only operator summary surface that renders the latest OperatorRunReport into text and JSON for morning review. The summary must show whether the unattended run succeeded, degraded, or failed; include job/run identity, delivery status, provider/auth readiness, redacted error details, and a recommended next command; and integrate with existing gormes status-style output without mutating cron or gateway state.
-- Trust class: operator, system
-- Ready when: Durable operator run report for unattended jobs is complete., The status command already has text/JSON degraded-output conventions., The first version reads only local report files and does not query live gateways/providers.
-- Not ready when: The implementation starts cron, gateway, or provider clients to compute status., The surface hides failed runs because there is no successful briefing content., Raw error text leaks API keys, token-bearing URLs, or unredacted home paths.
-- Degraded mode: If no report exists or the latest report cannot be decoded, the command returns status=operator_report_unavailable with the path/reason redacted and points operators to the scheduler/doctor command rather than failing with raw filesystem errors.
-- Fixture: `cmd/gormes/status_operator_report_test.go::TestStatusRendersLatestOperatorRunReport`
-- Write scope: `cmd/gormes/status.go`, `cmd/gormes/status_operator_report_test.go`, `internal/cli/status.go`, `internal/cron/operator_run_report.go`
-- Test commands: `go test ./cmd/gormes -run 'TestStatusRendersLatestOperatorRunReport\|TestStatusJSON' -count=1`, `go test ./cmd/gormes ./internal/cron -run 'Test(Status\|OperatorRunReport)' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Builder reports status text/JSON fixtures for latest operator run report, unavailable-report degradation, redaction, and unchanged existing status output.
-- Acceptance: gormes status text output includes latest unattended run status, job/run id, delivery state, degraded reason, and recommended next command when a report exists., gormes status --json includes a stable operator_run_report object with empty/absent fields normalized for automation., Missing, unreadable, or malformed reports render operator_report_unavailable evidence without non-zero exit for read-only status., Existing status progress/system output remains present.
-- Source refs: cmd/gormes/status.go, internal/cli/status.go, internal/cron/operator_run_report.go, internal/doctor/durable_ledger.go, internal/gateway/status.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

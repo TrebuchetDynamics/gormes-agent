@@ -91,13 +91,13 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 88/110 subphases shipped · 22 in progress · 0 planned
+**Overall:** 88/111 subphases shipped · 23 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | 🔨 | 19/22 subphases |
-| Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
+| Phase 3 — The Black Box (Memory) | 🔨 | 15/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 16/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
@@ -430,7 +430,7 @@ classification and row-backed implementation queue.
 - [x] `channels` Telegram /spawn opens forum topic bound to spawned agent
 - [x] `channels` Discord /spawn opens thread bound to spawned agent
 
-## Phase 3 — The Black Box (Memory) ✅
+## Phase 3 — The Black Box (Memory) 🔨
 
 *SQLite + FTS5 + ontological graph + semantic fusion in Go; 3.E closes session visibility, audit trails, decay, and cross-chat/session boundaries*
 
@@ -548,6 +548,15 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho CLI command-tree parity
 - [x] `goncho` Goncho Honcho SDK compatibility e2e harness
 - [x] `goncho` Goncho memory integration into normal agent turn
+
+### 3.H — Goncho Memory Quality & UX Improvements 🔨
+
+- [x] `goncho` Goncho session-end structured summary capture
+- [x] `goncho` Goncho BM25 + RRF parallel retrieval fusion
+- [x] `goncho` Goncho /memory and /continue CLI commands
+- [x] `goncho` Goncho dream fact extraction and memory compression
+- [x] `goncho` Goncho skill-outcome tracking as conclusions
+- [ ] `goncho` Goncho workspace isolation with explicit global scope
 
 ## Phase 4 — The Brain Transplant 🔨
 
