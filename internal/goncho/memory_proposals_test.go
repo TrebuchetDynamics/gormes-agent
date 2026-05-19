@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"testing"
-	"time"
 )
 
 func newTestProposalsDB(t *testing.T) *sql.DB {
