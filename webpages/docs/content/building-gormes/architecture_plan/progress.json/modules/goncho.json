@@ -3051,19 +3051,21 @@
     "item": {
       "name": "Goncho workspace isolation with explicit global scope",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Strict workspace-scoped memory by default. Conclusions and memories carry a scope field (workspace vs global). Auto-detect workspace from project root (.git, go.mod, pubspec.yaml). Global-scope memories (e.g., coding preferences) cross workspace boundaries.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "memory",
       "module": "goncho",
       "trust_class": ["system", "operator"],
       "degraded_mode": "All memories are workspace-scoped. No global-scope sharing. Cross-project learning impossible.",
       "source_refs": [
-        "internal/goncho/types.go (Config.WorkspaceID)",
-        "internal/goncho/service.go (workspace-scoped Search/Context)",
-        "internal/goncho/conclusions.go (conclusion schema)",
-        "internal/config/ (workspace detection)"
+        "internal/goncho/types.go (Config.WorkspaceID, ConcludeParams.Scope)",
+        "internal/goncho/service.go (normalizeScope, scope-aware Conclude/Search)",
+        "internal/goncho/sql.go (conclusionRow.Scope, upsertConclusion, findConclusions with global cross-boundary)",
+        "internal/goncho/workspace_detection.go (DetectWorkspaceFromPath, WorkspaceIDForPath, GlobalWorkspaceID)",
+        "internal/memory/schema.go (migration3lTo3m adds scope column to goncho_conclusions)",
+        "internal/memory/migrate.go (3l→3m migration chain entry)"
       ],
       "ready_when": [
         "Workspace detection from project root is reliable (.git, go.mod, pubspec.yaml).",
@@ -3105,7 +3107,8 @@
         "origin_type": "gormes",
         "owned_since": "2026-05-18T00:00:00Z",
         "note": "Gormes-owned multi-project isolation. Shokunin runs outside project directory; Goncho auto-detects and scopes."
-      }
+      },
+      "evidence": "Schema migration 3l→3m adds scope TEXT NOT NULL DEFAULT 'workspace' CHECK(scope IN ('workspace','global')) to goncho_conclusions. conclusionRow and ConcludeParams gain Scope field. upsertConclusion writes scope; findConclusions queries (workspace_id=? AND scope='workspace' OR scope='global') for cross-boundary global visibility. normalizeScope defaults to 'workspace'. Workspace detection: DetectWorkspaceFromPath scans upward for .git/go.mod/pubspec.yaml/package.json/Cargo.toml/pyproject.toml. Tests: TestWorkspaceDetection_AutoDetectsFromProjectRoot (7 subtests), TestWorkspaceIsolation_ScopedMemories, TestWorkspaceIsolation_GlobalMemoriesCrossBoundaries, TestWorkspaceIsolation_NoCrossPollution — all green. go build ./cmd/gormes/... passes. progress validate passes."
     }
   }
 ]

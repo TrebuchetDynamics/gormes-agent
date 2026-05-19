@@ -19,7 +19,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Docs](docs/) | 15 | 10 | 0 | 5 | `P1`: 11 · `P2`: 2 · `P3`: 2 |
 | [Fleet](fleet/) | 23 | 22 | 0 | 1 | `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
 | [Gateway](gateway/) | 158 | 155 | 0 | 3 | `P0`: 14 · `P1`: 49 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
-| [Goncho](goncho/) | 45 | 44 | 0 | 1 | `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
+| [Goncho](goncho/) | 45 | 45 | 0 | 0 | `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
 | [Install](install/) | 28 | 27 | 0 | 1 | `P0`: 2 · `P1`: 15 · `P2`: 4 · `P3`: 3 · `unset`: 4 |
 | [Kanban](kanban/) | 33 | 33 | 0 | 0 | `P1`: 14 · `P2`: 19 |
 | [Landing](landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |

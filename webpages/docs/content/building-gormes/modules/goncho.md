@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `goncho`
 **Rows:** 45
-**Status counts:** `complete`: 44 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 45 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1
 
 ## Phase 2 — The Gateway
@@ -78,7 +78,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `goncho` | Goncho /memory and /continue CLI commands |
 | `complete` | `P2` | `goncho` | Goncho dream fact extraction and memory compression |
 | `complete` | `P2` | `goncho` | Goncho skill-outcome tracking as conclusions |
-| `planned` | `P2` | `goncho` | Goncho workspace isolation with explicit global scope |
+| `complete` | `P2` | `goncho` | Goncho workspace isolation with explicit global scope |
 
 ## Phase 4 — The Brain Transplant
 

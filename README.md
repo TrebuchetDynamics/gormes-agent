@@ -225,7 +225,7 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | 🔨 | 19/22 subphases |
-| Phase 3 — The Black Box (Memory) | 🔨 | 15/16 subphases |
+| Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 16/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
