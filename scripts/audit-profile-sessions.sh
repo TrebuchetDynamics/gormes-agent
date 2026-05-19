@@ -299,6 +299,13 @@ display_path() {
   fi
 }
 
+status_line() {
+  local level=$1
+  local subsystem=$2
+  local message=$3
+  printf '%-6s [%s] %s\n' "$level" "$subsystem" "$message"
+}
+
 is_sensitive_path() {
   case "$1" in
     *auth.json|*.env|*.pem|*.key|*credentials*|*secret*|*password*|*token*)
@@ -1030,10 +1037,10 @@ Constraints:
 PROMPT
 
 if [ "$dry_run" -eq 1 ]; then
-  printf 'dry-run: wrote bundle: %s\n' "$bundle"
-  printf 'dry-run: wrote prompt: %s\n' "$prompt"
+  status_line "RESULT" "audit" "Bundle: $(display_path "$bundle")"
+  status_line "RESULT" "audit" "Planner prompt: $(display_path "$prompt")"
   if [ "$execute" -eq 1 ]; then
-    printf 'dry-run: wrote executor prompt: %s\n' "$executor_prompt"
+    status_line "RESULT" "audit" "Executor prompt: $(display_path "$executor_prompt")"
   fi
   exit 0
 fi
@@ -1049,12 +1056,14 @@ run_codexu_stage() {
   local stage_sandbox=$4
   local pre_tracked_status post_tracked_status
 
+  status_line "ACTION" "audit" "Running $stage stage"
   pre_tracked_status=$(git -C "$repo_root" status --porcelain=v1 -uno)
   "$codexu_bin" exec --ephemeral --sandbox "$stage_sandbox" -C "$repo_root" -o "$stage_report" - < "$stage_prompt"
   post_tracked_status=$(git -C "$repo_root" status --porcelain=v1 -uno)
   if [ "$pre_tracked_status" != "$post_tracked_status" ]; then
-    printf 'warning: tracked git status changed during %s stage; inspect git diff before continuing.\n' "$stage" >&2
+    status_line "WARN" "git" "Tracked git status changed during $stage stage; inspect git diff" >&2
   fi
+  status_line "OK" "audit" "$stage report written: $(display_path "$stage_report")"
 }
 
 run_codexu_stage "planner" "$prompt" "$report" "read-only"
@@ -1062,16 +1071,16 @@ run_codexu_stage "planner" "$prompt" "$report" "read-only"
 if [ "$execute" -eq 1 ]; then
   run_codexu_stage "executor" "$executor_prompt" "$executor_report" "$executor_sandbox"
   if git -C "$repo_root" diff --check > "$out_dir/git-diff-check.txt" 2>&1; then
-    printf 'executor verification: git diff --check passed\n'
+    status_line "OK" "verify" "git diff --check passed"
   else
-    printf 'warning: executor verification failed; see %s\n' "$out_dir/git-diff-check.txt" >&2
+    status_line "WARN" "verify" "git diff --check failed: $(display_path "$out_dir/git-diff-check.txt")" >&2
   fi
 fi
 
-printf 'wrote bundle: %s\n' "$bundle"
-printf 'wrote prompt: %s\n' "$prompt"
-printf 'wrote codexu audit: %s\n' "$report"
+status_line "RESULT" "audit" "Bundle: $(display_path "$bundle")"
+status_line "RESULT" "audit" "Planner prompt: $(display_path "$prompt")"
+status_line "RESULT" "audit" "Planner report: $(display_path "$report")"
 if [ "$execute" -eq 1 ]; then
-  printf 'wrote executor prompt: %s\n' "$executor_prompt"
-  printf 'wrote codexu execution report: %s\n' "$executor_report"
+  status_line "RESULT" "audit" "Executor prompt: $(display_path "$executor_prompt")"
+  status_line "RESULT" "audit" "Executor report: $(display_path "$executor_report")"
 fi
