@@ -1,12 +1,12 @@
 ---
 title: "TOON context encoding"
-description: "Optional compact serialization for model-visible prompt and context payloads."
+description: "Default compact serialization for model-visible prompt and context payloads."
 weight: 46
 ---
 
 # TOON context encoding
 
-Gormes treats TOON as an optional serialization layer for JSON-shaped data that
+Gormes treats TOON as the default serialization layer for JSON-shaped data that
 is going into prompts or other model-visible context. It is not a replacement
 for JSON in provider APIs, public APIs, config, or storage contracts.
 
@@ -20,9 +20,9 @@ JSON-first:
   JSON.
 - `toon.NewEncoder(io.Writer)` writes encoded TOON to a caller-owned writer.
 
-`internal/hermes.EncodePromptContext` wires this in as an explicit
-`PromptContextFormatTOON` option. The default prompt-context format remains
-compact JSON.
+`internal/hermes.EncodePromptContext` uses TOON when callers leave the format
+unset. Callers that need exact JSON-shaped context can still request
+`PromptContextFormatJSON` explicitly.
 
 ## Good fits
 

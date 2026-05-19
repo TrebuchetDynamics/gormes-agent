@@ -28,7 +28,10 @@ func EncodePromptContext(raw json.RawMessage, format PromptContextFormat) ([]byt
 		err     error
 	)
 	switch format {
-	case "", PromptContextFormatJSON:
+	case "":
+		report.Format = string(PromptContextFormatTOON)
+		encoded, err = toon.EncodeJSON(raw)
+	case PromptContextFormatJSON:
 		report.Format = string(PromptContextFormatJSON)
 		var compact bytes.Buffer
 		err = json.Compact(&compact, raw)
