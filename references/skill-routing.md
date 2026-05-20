@@ -18,6 +18,9 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | End-to-end installer or setup validation | `gormes-install` | `gormes-dev-runtime`, `gormes-planner` |
 | API/package boundary design | `gormes-interface-designer` | `gormes-builder` |
 | Find Go implementation donor shapes | `gormes-references` | `gormes-tdd-slice` |
+| Source-backed external library/framework/upstream context | `gormes-context-sourcing` | parity/planner/builder skill selected from evidence |
+| Repeated runtime mechanics or service-layer cleanup | `gormes-service-layer-refactor` | `gormes-interface-designer` when boundary is unclear |
+| PR feedback, CI failures, or bounded review-to-green loops | `gormes-review-loop` | `gormes-tdd-slice`, then `gormes-git` when committing |
 | README/public repository messaging | `gormes-readme` | `gormes-git` when committing |
 | Landing page content or UI | `gormes-landing-web` | `gormes-git` when committing |
 | Commit all dirty development work and push | `gormes-git` | none |

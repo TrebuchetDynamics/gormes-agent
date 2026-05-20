@@ -1,0 +1,51 @@
+---
+name: gormes-review-loop
+description: Use when Gormes work has PR feedback, CI failures, reviewer comments, static-analysis findings, or a need to iterate until a bounded validation target is green.
+---
+
+# Gormes Review Loop
+
+## Overview
+
+Review feedback is a loop, not a vibes pass. Fix one verified issue at a time, prove it, and stop only when the agreed gate is green or a blocker is documented.
+
+## When to Use
+
+Use for:
+- PR review comments, GitHub checks, CI failures, `git diff --check`, or reviewer confidence issues;
+- “keep going until green”, “address feedback”, “make this mergeable”, or “review loop” requests;
+- self-review before `gormes-git` or `gormes-release`.
+
+Do not use to expand scope. Large PRs should be split before looping.
+
+## Workflow
+
+1. Capture the target gate: review comments, test command, progress validation, or diff check.
+2. Read the exact failing evidence; do not infer from summaries.
+3. Pick one issue and classify it: bug, test drift, docs drift, style, or blocker.
+4. For code behavior, use `gormes-tdd-slice`: failing test first, minimal fix, rerun focused test.
+5. Re-run the target gate.
+6. Repeat until green, or document the blocker and pivot per workspace rules.
+
+## Quick Reference
+
+| Evidence | Next step |
+|---|---|
+| Test failure | Reproduce focused failure before editing |
+| Review comment | Map to file and exact requested behavior |
+| Diff whitespace | Run `git diff --check` after edit |
+| Progress docs drift | Run `go run ./cmd/progress validate` |
+| Full merge gate | Run `go test ./... -count=1`, progress validate, diff check |
+
+## Stop Conditions
+
+- Target gate is green with command output captured.
+- Same command failed twice with the same blocker.
+- Fix requires scope expansion; ask Juan or route to planner.
+
+## Common Mistakes
+
+- Letting an automated loop rewrite broad areas without focused evidence.
+- Marking review “done” after edits but before rerunning the gate.
+- Treating a confidence score as proof; command output and reviewer comments are evidence.
+- Continuing after a blocker without documenting it in required locations.

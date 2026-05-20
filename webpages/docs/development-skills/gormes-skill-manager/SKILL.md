@@ -95,6 +95,9 @@ Pick the primary intent:
   exposure**: use `gormes-hermes-parity` for source-backed Hermes behavior,
   then `gormes-planner` or `gormes-tdd-slice` depending on whether the row is
   missing or builder-ready.
+- **External library/framework/upstream source context** before planning or implementation: use `gormes-context-sourcing`, then route to the smallest parity/planner/builder skill.
+- **Repeated runtime mechanics or service-layer cleanup** after a feature works: use `gormes-service-layer-refactor`; route unclear package boundaries to `gormes-interface-designer` first.
+- **PR feedback, CI failures, review comments, or bounded review-to-green iteration**: use `gormes-review-loop`; route code behavior fixes through `gormes-tdd-slice`.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
 - **Fix a failing row/test**: use `gormes-tdd-slice`; escalate to `gormes-builder` if progress/docs need updates.
