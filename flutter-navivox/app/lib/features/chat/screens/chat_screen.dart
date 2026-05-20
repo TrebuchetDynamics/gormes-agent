@@ -9,6 +9,7 @@ import '../../../core/channel/navivox_channel_provider.dart';
 import '../../../core/protocol/navivox_event.dart';
 import '../../../router/app_routes.dart';
 import '../../settings/providers/voice_settings_provider.dart';
+import '../../voice/services/text_to_speech_service.dart';
 import '../../voice/services/voice_capture_service.dart';
 import '../widgets/approval_banner.dart';
 import '../widgets/simple_chat_adapter.dart';
@@ -17,6 +18,10 @@ import '../widgets/simple_chat_adapter.dart';
 /// [FakeVoiceCaptureService]; production wiring slots in
 /// [RecordVoiceCaptureService] once the real mic + STT plugins land.
 final chatVoiceCaptureServiceProvider = Provider<VoiceCaptureService?>(
+  (_) => null,
+);
+
+final chatTextToSpeechServiceProvider = Provider<TextToSpeechService?>(
   (_) => null,
 );
 
@@ -79,6 +84,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final voiceService =
         widget.voiceCaptureServiceOverride ??
         ref.watch(chatVoiceCaptureServiceProvider);
+    final textToSpeechService = ref.watch(chatTextToSpeechServiceProvider);
     final voiceSettings = ref.watch(navivoxVoiceSettingsProvider);
     final voiceDisabledReason = _voiceDisabledReason(
       voiceService: voiceService,
@@ -169,6 +175,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               voiceCaptureService: voiceDisabledReason == null
                   ? voiceService
                   : null,
+              voiceUnavailableReason: voiceDisabledReason,
+              textToSpeechService: textToSpeechService,
               onVoice: (capture) => _handleVoiceCapture(channel, capture),
               forwardTargets: state.profileContacts
                   .where((contact) => contact.key != activeProfile?.key)

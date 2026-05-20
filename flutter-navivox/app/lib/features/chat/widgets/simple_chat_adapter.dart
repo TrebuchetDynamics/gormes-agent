@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/channel/navivox_channel.dart';
 import '../../../core/protocol/navivox_event.dart';
+import '../../voice/services/text_to_speech_service.dart';
 import '../../voice/services/voice_capture_service.dart';
 import '../../voice/widgets/voice_morph_surface.dart';
 
@@ -14,6 +15,8 @@ class SimpleChatAdapter extends StatefulWidget {
     this.voiceCaptureService,
     this.onVoice,
     this.voiceCaptureTimeout = const Duration(seconds: 30),
+    this.voiceUnavailableReason,
+    this.textToSpeechService,
     this.forwardTargets = const [],
     this.onForward,
     super.key,
@@ -24,6 +27,8 @@ class SimpleChatAdapter extends StatefulWidget {
   final VoiceCaptureService? voiceCaptureService;
   final ValueChanged<VoiceCapture>? onVoice;
   final Duration voiceCaptureTimeout;
+  final String? voiceUnavailableReason;
+  final TextToSpeechService? textToSpeechService;
   final List<NavivoxProfileContact> forwardTargets;
   final void Function(NavivoxChatMessage message, NavivoxProfileContact target)?
   onForward;
@@ -113,6 +118,7 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
                       showTail: showTail,
                       forwardTargets: widget.forwardTargets,
                       onForward: widget.onForward,
+                      textToSpeechService: widget.textToSpeechService,
                     );
                   },
                 ),
@@ -131,6 +137,7 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
             controller: _controller,
             onSend: _send,
             voiceService: widget.voiceCaptureService,
+            voiceUnavailableReason: widget.voiceUnavailableReason,
             capturing: _capturing,
             onToggleVoice: _toggleVoiceCapture,
           ),
@@ -184,6 +191,7 @@ class _TelegramBubble extends StatelessWidget {
     required this.showTail,
     required this.forwardTargets,
     required this.onForward,
+    required this.textToSpeechService,
   });
 
   final NavivoxChatMessage message;
@@ -192,6 +200,7 @@ class _TelegramBubble extends StatelessWidget {
   final List<NavivoxProfileContact> forwardTargets;
   final void Function(NavivoxChatMessage message, NavivoxProfileContact target)?
   onForward;
+  final TextToSpeechService? textToSpeechService;
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +322,7 @@ class _TelegramBubble extends StatelessWidget {
                 ),
                 child: SelectableText(text),
               ),
-            if (text.isNotEmpty)
+            if (text.isNotEmpty) ...[
               ListTile(
                 leading: const Icon(Icons.copy),
                 title: const Text('Copy text'),
@@ -326,6 +335,20 @@ class _TelegramBubble extends StatelessWidget {
                   );
                 },
               ),
+              if (textToSpeechService != null)
+                ListTile(
+                  leading: const Icon(Icons.volume_up),
+                  title: const Text('Read aloud'),
+                  onTap: () async {
+                    await textToSpeechService!.speak(text);
+                    if (!sheetContext.mounted) return;
+                    Navigator.of(sheetContext).pop();
+                    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                      const SnackBar(content: Text('Reading aloud')),
+                    );
+                  },
+                ),
+            ],
             if (forwardTargets.isNotEmpty && onForward != null) ...[
               const Divider(),
               const ListTile(
@@ -343,6 +366,13 @@ class _TelegramBubble extends StatelessWidget {
                   },
                 ),
             ],
+            if (text.isNotEmpty && textToSpeechService == null)
+              const ListTile(
+                enabled: false,
+                leading: Icon(Icons.volume_off),
+                title: Text('Read aloud unavailable'),
+                subtitle: Text('Device TTS is not connected.'),
+              ),
           ],
         ),
       ),
@@ -587,6 +617,7 @@ class _InputBar extends StatelessWidget {
     required this.controller,
     required this.onSend,
     this.voiceService,
+    this.voiceUnavailableReason,
     this.capturing = false,
     this.onToggleVoice,
   });
@@ -594,8 +625,40 @@ class _InputBar extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onSend;
   final VoiceCaptureService? voiceService;
+  final String? voiceUnavailableReason;
   final bool capturing;
   final VoidCallback? onToggleVoice;
+
+  void _showVoiceUnavailable(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Voice unavailable',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.mic_off),
+                title: Text(voiceUnavailableReason ?? 'device STT unavailable'),
+                subtitle: const Text(
+                  'Check microphone permissions and Settings.',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -642,6 +705,12 @@ class _InputBar extends StatelessWidget {
                     ? theme.colorScheme.errorContainer
                     : null,
               ),
+            )
+          else
+            IconButton.outlined(
+              tooltip: 'Voice unavailable',
+              onPressed: () => _showVoiceUnavailable(context),
+              icon: const Icon(Icons.mic_off),
             ),
           const SizedBox(width: 4),
           IconButton.filled(

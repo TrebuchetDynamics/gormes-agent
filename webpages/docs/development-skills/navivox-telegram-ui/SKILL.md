@@ -54,7 +54,7 @@ Chats bottom tab | Contact list may have top-level app nav; chat thread should n
 Message bubbles | User right, assistant left, grouped tails, compact timestamps
 Read ticks | Local send/queued/streaming/done/error status, not read receipts
 Attachment button | Navivox action tray for approvals, tools, workspace/config, future files
-Voice message | Device transcript bubble and continuous voice controls
+Voice message | Device transcript bubble, explicit STT unavailable state, TTS/read-aloud action, and continuous voice controls
 Long press | Selectable text, copy, forward to another profile/contact, retry, inspect event/tool, reveal redacted fields only when allowed
 Telegram backend | Never: Navivox talks to Gormes gateway only
 
@@ -94,4 +94,5 @@ Telegram backend | Never: Navivox talks to Gormes gateway only
 | Leaving bottom app nav inside mobile chat thread | Hide top-level nav on `/chats/<server>/<profile>` routes. |
 | Treating Gormes profiles as Telegram accounts | Profiles are Gormes homes/config/runtime scopes. |
 | Copying clone code without license/maintenance proof | Verify first; otherwise write local Flutter widgets. |
+| Hiding broken STT/TTS controls | Keep voice controls visible with clear unavailable states and settings guidance. |
 | Making UI pretty without tests | Add widget tests for the visible contract. |

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:navivox/core/channel/navivox_channel.dart';
 import 'package:navivox/core/protocol/navivox_event.dart';
 import 'package:navivox/features/chat/widgets/simple_chat_adapter.dart';
+import 'package:navivox/features/voice/services/text_to_speech_service.dart';
 
 void main() {
   testWidgets('long press text message opens selectable copy actions', (
@@ -50,6 +51,53 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(copied, ['copy this dispatch note']);
+  });
+
+  testWidgets('long press text message can be read aloud with TTS', (
+    tester,
+  ) async {
+    final tts = FakeTextToSpeechService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SimpleChatAdapter(
+            messages: [_textMessage('m-1', 'read this aloud')],
+            onSend: (_) {},
+            textToSpeechService: tts,
+          ),
+        ),
+      ),
+    );
+
+    await tester.longPress(find.text('read this aloud'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Read aloud'), findsOneWidget);
+
+    await tester.tap(find.text('Read aloud'));
+    await tester.pumpAndSettle();
+
+    expect(tts.spoken, ['read this aloud']);
+  });
+
+  testWidgets('long press text explains unavailable TTS', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SimpleChatAdapter(
+            messages: [_textMessage('m-1', 'read this later')],
+            onSend: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.longPress(find.text('read this later'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Read aloud unavailable'), findsOneWidget);
+    expect(find.text('Device TTS is not connected.'), findsOneWidget);
   });
 
   testWidgets(
