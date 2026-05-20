@@ -209,7 +209,13 @@ func (s *Shell) setActiveLocked(idx int) tea.Cmd {
 	}
 	s.previous = s.active
 	s.active = idx
-	return s.screens[s.active].Init()
+	cmds := []tea.Cmd{s.screens[s.active].Init()}
+	if s.width > 0 || s.height > 0 {
+		next, resizeCmd := s.screens[s.active].Update(tea.WindowSizeMsg{Width: s.width, Height: s.height})
+		s.screens[s.active] = next
+		cmds = append(cmds, resizeCmd)
+	}
+	return tea.Batch(cmds...)
 }
 
 func (s *Shell) forwardToActive(msg tea.Msg) (tea.Model, tea.Cmd) {

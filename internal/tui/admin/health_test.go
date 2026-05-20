@@ -96,7 +96,11 @@ func TestAdminHealth_ShellForwardsResizeToSetupScreen(t *testing.T) {
 	shell = updated.(*Shell)
 
 	view := shell.View()
-	for _, line := range strings.Split(view, "\n") {
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("shell setup view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
 		if got := lipgloss.Width(line); got > 32 {
 			t.Fatalf("shell setup line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
 		}
@@ -105,6 +109,31 @@ func TestAdminHealth_ShellForwardsResizeToSetupScreen(t *testing.T) {
 	for _, want := range []string{"Setup health", "[Fix]", "omitted", "resize"} {
 		if !strings.Contains(collapsed, want) {
 			t.Fatalf("shell setup view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestAdminHealth_ShellAppliesExistingSizeWhenSwitchingToSetup(t *testing.T) {
+	long := strings.Repeat("x", 220)
+	setup := NewSetupHealthScreen(WithHealthSource(healthSourceFunc(func(context.Context) ([]HealthItem, error) {
+		return []HealthItem{{ID: "provider", Status: doctor.StatusFail, Title: "provider configuration " + long, Detail: "endpoint missing " + long, Fixable: true}}, nil
+	})))
+	shell := New(&stubScreen{name: "Other"}, setup)
+	updated, _ := shell.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	shell = updated.(*Shell)
+	updated, _ = shell.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}})
+	shell = updated.(*Shell)
+
+	view := shell.View()
+	for _, line := range strings.Split(view, "\n") {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("switched setup line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Setup health", "[Fix]", "omitted", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("switched setup view missing %q:\n%s", want, view)
 		}
 	}
 }
