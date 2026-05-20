@@ -72,7 +72,7 @@ func (m Model) View() string {
 
 	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
 
-	hint := renderHermesHint(m.frame, m.statusMessage)
+	hint := renderHermesHint(m.frame, m.statusMessage, m.width)
 	completions := renderSlashCompletionMenu(editor.Value(), m.width)
 
 	// Render the active modal panel if one is present.
@@ -99,7 +99,7 @@ func (m Model) View() string {
 	})
 }
 
-func renderHermesHint(f kernel.RenderFrame, statusMessage string) string {
+func renderHermesHint(f kernel.RenderFrame, statusMessage string, width int) string {
 	var parts []string
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
 		parts = append(parts, strings.ToLower(f.Phase.String()))
@@ -113,7 +113,11 @@ func renderHermesHint(f kernel.RenderFrame, statusMessage string) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	return muted.Render(strings.Join(parts, " · "))
+	text := strings.Join(parts, " · ")
+	if width > 0 {
+		text = RenderMarkdownSoftWrapTrim(text, width)
+	}
+	return muted.Render(text)
 }
 
 func promptHeightForValue(value string) int {
