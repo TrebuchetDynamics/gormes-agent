@@ -167,6 +167,71 @@
     }
   },
   {
+    "phase": "1",
+    "subphase": "1.D",
+    "pos": 4,
+    "item": {
+      "name": "External review feedback ingestion for planner rows",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "gormes-planner and gormes-review-loop define a bounded, source-backed workflow for ingesting external review feedback such as Greptile/Grep-style PR reviews, GitHub review comments, CI annotations, and static-analysis findings into existing progress rows or one new builder-ready row without creating a side backlog.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until this lands, agents may still use gormes-review-loop manually, but external review findings are not guaranteed to be normalized into canonical progress-row fields before builder selection.",
+      "fixture": "docs/development-skills/gormes-planner/SKILL.md::external review ingestion + docs/development-skills/gormes-review-loop/SKILL.md::target gate capture",
+      "source_refs": [
+        "docs/development-skills/gormes-planner/SKILL.md",
+        "docs/development-skills/gormes-review-loop/SKILL.md",
+        "references/skill-routing.md",
+        "AGENTS.md",
+        "webpages/docs/content/building-gormes/strategy/pi-agent-study.md#most-useful-tips-for-gormes"
+      ],
+      "ready_when": [
+        "The external review evidence is available as exact text, PR comment URLs, CI annotations, local review logs, or copied reviewer output.",
+        "The pass can classify each finding as an existing-row refinement, a new builder-ready row, a duplicate, or out-of-scope noise.",
+        "No runtime code change is required in the planner pass."
+      ],
+      "not_ready_when": [
+        "The review feedback is summarized without exact reviewer text, file path, command output, or PR/check evidence.",
+        "The pass would auto-apply broad code changes instead of planning one bounded row or row refinement.",
+        "The proposed output is a TODO file, issue list, or private queue outside progress.json."
+      ],
+      "acceptance": [
+        "gormes-planner names external review ingestion as a planner-owned route and says findings must become progress row refinements or one builder-ready row.",
+        "gormes-review-loop tells agents to capture exact review evidence first, then route row-shaping work through gormes-planner when the fix is not already builder-ready.",
+        "Skill routing docs include Greptile/Grep-style PR review feedback as a review-loop to planner chain.",
+        "The workflow preserves progress.json as the only backlog and rejects review side queues."
+      ],
+      "write_scope": [
+        "docs/development-skills/gormes-planner/SKILL.md",
+        "docs/development-skills/gormes-review-loop/SKILL.md",
+        "references/skill-routing.md",
+        "AGENTS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress write",
+        "go run ./cmd/progress validate",
+        "go test ./internal/progress -count=1",
+        "go test ./webpages/docs -count=1"
+      ],
+      "done_signal": [
+        "Planner and review-loop skills now route exact external review findings into canonical progress-row updates, and progress/docs validation passes without adding a side backlog."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-20T00:00:00Z",
+        "note": "Gormes-owned control-plane workflow inspired by Juan's request to add gormes-planner plus Greptile/Grep-style review feedback into planning."
+      }
+    }
+  },
+  {
     "phase": "2",
     "subphase": "2.D",
     "pos": 3,

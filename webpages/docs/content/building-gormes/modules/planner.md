@@ -7,9 +7,9 @@ title: "Planner Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `planner`
-**Rows:** 9
-**Status counts:** `complete`: 9 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 1 · `P1`: 3 · `P2`: 1 · `P3`: 1 · `unset`: 3
+**Rows:** 10
+**Status counts:** `complete`: 9 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 1 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3
 
 ## Phase 1 — The Dashboard
 
@@ -20,6 +20,12 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P0` | `planner` | Planner wrapper/test consistency closeout |
 | `complete` | `unset` | `planner` | Planner self-healing verdict loop |
 | `complete` | `unset` | `planner` | Planner divergence and provenance awareness |
+
+### 1.D — Skill-Driven Control Plane
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `planned` | `P1` | `planner` | External review feedback ingestion for planner rows |
 
 ## Phase 2 — The Gateway
 
