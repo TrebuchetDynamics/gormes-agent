@@ -150,9 +150,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ApprovalBanner(channel: channel),
           _VoiceModeBanner(
             commandMode: _commandMode,
+            commandWord: voiceSettings.commandWord,
             disabledReason: voiceDisabledReason,
             notice: _voiceNotice,
             pending: _pendingVoice != null,
+            pendingTranscript: _pendingVoice?.transcript,
+            profileName: activeProfile?.displayName,
             ready:
                 voiceService != null &&
                 activeProfile != null &&
@@ -568,9 +571,12 @@ class _ChatInfoRow extends StatelessWidget {
 class _VoiceModeBanner extends StatelessWidget {
   const _VoiceModeBanner({
     required this.commandMode,
+    required this.commandWord,
     required this.disabledReason,
     required this.notice,
     required this.pending,
+    required this.pendingTranscript,
+    required this.profileName,
     required this.ready,
     required this.canTrustServer,
     required this.onTrustServer,
@@ -578,9 +584,12 @@ class _VoiceModeBanner extends StatelessWidget {
   });
 
   final bool commandMode;
+  final String commandWord;
   final String? disabledReason;
   final String? notice;
   final bool pending;
+  final String? pendingTranscript;
+  final String? profileName;
   final bool ready;
   final bool canTrustServer;
   final VoidCallback? onTrustServer;
@@ -600,25 +609,99 @@ class _VoiceModeBanner extends StatelessWidget {
     if (text == null) return const SizedBox.shrink();
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Icon(
-              disabledReason == null ? Icons.keyboard_voice : Icons.mic_off,
-              size: 18,
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(text)),
-            if (pending)
-              TextButton(
-                onPressed: onCancelPending,
-                child: const Text('Cancel'),
+      child: InkWell(
+        key: const ValueKey('continuous-voice-banner'),
+        onTap: () => _showVoiceControls(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Icon(
+                disabledReason == null ? Icons.keyboard_voice : Icons.mic_off,
+                size: 18,
               ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(text)),
+              const Icon(Icons.tune, size: 18),
+              if (pending)
+                TextButton(
+                  onPressed: onCancelPending,
+                  child: const Text('Cancel'),
+                ),
+              if (!pending && canTrustServer)
+                TextButton(
+                  onPressed: onTrustServer,
+                  child: const Text('Trust server'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showVoiceControls(BuildContext context) {
+    final status = pending
+        ? 'Pending voice turn'
+        : disabledReason != null
+        ? 'Voice disabled'
+        : ready
+        ? 'Ready for ${profileName ?? 'chat'}'
+        : 'Voice standby';
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Text(
+              'Continuous voice',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: Icon(
+                disabledReason == null ? Icons.keyboard_voice : Icons.mic_off,
+              ),
+              title: Text(status),
+              subtitle: Text(
+                pendingTranscript?.isNotEmpty == true
+                    ? pendingTranscript!
+                    : disabledReason ??
+                          'Tap the mic to speak. Say “$commandWord” for command mode.',
+              ),
+            ),
+            if (pending)
+              ListTile(
+                leading: const Icon(Icons.cancel_outlined),
+                title: const Text('Cancel pending voice'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onCancelPending();
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.short_text),
+              title: const Text('Command word'),
+              subtitle: Text(commandWord),
+            ),
+            const ListTile(
+              leading: Icon(Icons.record_voice_over),
+              title: Text('How it works'),
+              subtitle: Text(
+                'Tap once to capture a turn. Use command mode for local actions like switching profiles, stop, cancel, help, or settings.',
+              ),
+            ),
             if (!pending && canTrustServer)
-              TextButton(
-                onPressed: onTrustServer,
-                child: const Text('Trust server'),
+              ListTile(
+                leading: const Icon(Icons.verified_user_outlined),
+                title: const Text('Trust server'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onTrustServer?.call();
+                },
               ),
           ],
         ),

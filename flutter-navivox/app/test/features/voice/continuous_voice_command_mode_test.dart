@@ -256,6 +256,70 @@ void main() {
     },
   );
 
+  testWidgets('continuous voice banner opens a control sheet', (tester) async {
+    final channel = _seedChannel(selectedKey: 'local::mineru');
+    final voiceService = FakeVoiceCaptureService(
+      audio: Uint8List.fromList([1]),
+      transcript: 'hello',
+      duration: const Duration(milliseconds: 500),
+      confidence: 0.9,
+    );
+
+    await _pumpTrustedChat(
+      tester,
+      channel: channel,
+      voiceService: voiceService,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('continuous-voice-banner')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Continuous voice'), findsOneWidget);
+    expect(find.text('Ready for Mineru'), findsOneWidget);
+    expect(
+      find.text('Tap the mic to speak. Say “navi” for command mode.'),
+      findsOneWidget,
+    );
+    expect(find.text('Command word'), findsOneWidget);
+    expect(find.text('navi'), findsOneWidget);
+  });
+
+  testWidgets('continuous voice control sheet exposes pending cancel', (
+    tester,
+  ) async {
+    final channel = _seedChannel(selectedKey: 'local::mineru');
+    final voiceService = FakeVoiceCaptureService(
+      audio: Uint8List.fromList([1, 2, 3]),
+      transcript: 'check status',
+      duration: const Duration(milliseconds: 900),
+      confidence: 0.9,
+    );
+
+    await _pumpTrustedChat(
+      tester,
+      channel: channel,
+      voiceService: voiceService,
+      voiceAutoSendGrace: const Duration(seconds: 5),
+    );
+
+    await tester.tap(find.byIcon(Icons.mic));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+
+    await tester.tap(find.byKey(const ValueKey('continuous-voice-banner')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Pending voice turn'), findsOneWidget);
+    expect(find.textContaining('check status'), findsWidgets);
+
+    await tester.tap(find.text('Cancel pending voice'));
+    await tester.pumpAndSettle();
+
+    expect(channel.sentVoiceTranscripts, isEmpty);
+    expect(find.textContaining('check status'), findsNothing);
+  });
+
   testWidgets('trusted healthy voice capture shows grace and can cancel', (
     tester,
   ) async {

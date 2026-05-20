@@ -55,7 +55,7 @@ Message bubbles | User right, assistant left, grouped tails, compact timestamps
 Read ticks | Local send/queued/streaming/done/error status, not read receipts
 Attachment button | Telegram-style share tray for upload file, media, workspace file, approvals, tools, workspace/config, future files
 Emoji/composer | Quick emoji strip inserts into the message field without leaving chat
-Voice message | Device transcript bubble, explicit STT unavailable state, TTS/read-aloud action, and continuous voice controls
+Voice message | Device transcript bubble, explicit STT unavailable state, TTS/read-aloud action, tappable continuous voice banner, and voice control sheet
 Long press | Selectable text, copy, forward to another profile/contact, retry, inspect event/tool, reveal redacted fields only when allowed
 Telegram backend | Never: Navivox talks to Gormes gateway only
 
@@ -95,5 +95,5 @@ Telegram backend | Never: Navivox talks to Gormes gateway only
 | Leaving bottom app nav inside mobile chat thread | Hide top-level nav on `/chats/<server>/<profile>` routes. |
 | Treating Gormes profiles as Telegram accounts | Profiles are Gormes homes/config/runtime scopes. |
 | Copying clone code without license/maintenance proof | Verify first; otherwise write local Flutter widgets. |
-| Hiding broken STT/TTS controls | Keep voice controls visible with clear unavailable states and settings guidance. |
+| Hiding broken STT/TTS controls | Keep voice controls visible with clear unavailable states, continuous voice status, and settings guidance. |
 | Making UI pretty without tests | Add widget tests for the visible contract. |
