@@ -49,7 +49,7 @@ Before adding any package or copying an implementation, verify: source URL, lice
 
 Telegram pattern | Navivox translation
 ---|---
-Chat list | Profile contact list keyed by `server_id + profile_id`, with active-turn `typing…` state
+Chat list | Profile contact list keyed by `server_id + profile_id`, with active-turn `typing…` state and Telegram-like search/filter
 Chats bottom tab | Contact list may have top-level app nav; chat thread should not show bottom nav
 Message bubbles | User right, assistant left, grouped tails, compact timestamps, assistant typing/streaming indicator
 Read ticks | Local send/queued/streaming/done/error status, not read receipts

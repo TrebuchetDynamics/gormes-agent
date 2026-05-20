@@ -16,6 +16,9 @@ class ProfileContactsScreen extends ConsumerStatefulWidget {
 
 class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
   NavivoxChannel? _subscribed;
+  final _searchController = TextEditingController();
+  bool _searching = false;
+  String _query = '';
 
   void _onChannelChanged() {
     if (mounted) setState(() {});
@@ -24,6 +27,7 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
   @override
   void dispose() {
     _subscribed?.removeListener(_onChannelChanged);
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -36,22 +40,36 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
       _subscribed = channel;
     }
 
-    final contacts = [...channel.state.profileContacts]
+    final allContacts = [...channel.state.profileContacts]
       ..sort((a, b) => a.displayName.compareTo(b.displayName));
+    final contacts = _filterContacts(allContacts);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Navivox'),
+        title: _searching
+            ? TextField(
+                key: const ValueKey('profile-search-field'),
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Search',
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => setState(() => _query = value),
+              )
+            : const Text('Navivox'),
         actions: [
           IconButton(
-            tooltip: 'Search profiles',
-            onPressed: () {},
-            icon: const Icon(Icons.search),
+            tooltip: _searching ? 'Close search' : 'Search profiles',
+            onPressed: _toggleSearch,
+            icon: Icon(_searching ? Icons.close : Icons.search),
           ),
         ],
       ),
-      body: contacts.isEmpty
+      body: allContacts.isEmpty
           ? const Center(child: Text('No profiles loaded'))
+          : contacts.isEmpty
+          ? const Center(child: Text('No chats found'))
           : ListView.separated(
               itemCount: contacts.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
@@ -78,6 +96,34 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  List<NavivoxProfileContact> _filterContacts(
+    List<NavivoxProfileContact> contacts,
+  ) {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return contacts;
+    return contacts
+        .where(
+          (contact) => [
+            contact.displayName,
+            contact.profileId,
+            contact.serverLabel,
+            contact.latestPreview,
+            ...contact.attentionBadges,
+          ].any((field) => field.toLowerCase().contains(query)),
+        )
+        .toList(growable: false);
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _searching = !_searching;
+      if (!_searching) {
+        _query = '';
+        _searchController.clear();
+      }
+    });
   }
 
   void _showAddProfilePlaceholder(BuildContext context) {
