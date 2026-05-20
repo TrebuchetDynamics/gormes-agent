@@ -10,14 +10,17 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | Map missing Hermes/Honcho behavior before implementation | `gormes-parity-auditor` | `gormes-planner` |
 | Discover OpenClaw-only behavior worth adopting | `gormes-openclaw-parity` | `gormes-planner` |
 | Refine phases, rows, dependencies, or progress docs | `gormes-planner` | none unless implementation starts |
+| Slice a broad plan, PRD, parity gap, or review finding into progress rows | `gormes-progress-slicer` | `gormes-planner` to write/update rows |
 | Implement one builder-ready row | `gormes-builder` | `gormes-tdd-slice` |
 | Red-green-refactor one behavior or failing row | `gormes-tdd-slice` | `gormes-builder` if row metadata changes |
 | Provider/auth/model/streaming/rate-limit behavior | `gormes-provider-parity` | `gormes-tdd-slice` |
 | Browser Use, CDP, Browserbase, Firecrawl, or `/browser connect` | `gormes-browser-harness` | `gormes-planner` or `gormes-tdd-slice` |
 | Local binary, install, gateway process, PATH, or sessions.db locks | `gormes-dev-runtime` | `gormes-install` for installer-specific validation |
 | End-to-end installer or setup validation | `gormes-install` | `gormes-dev-runtime`, `gormes-planner` |
+| Architecture zoom-out before unfamiliar or cross-package work | `gormes-architecture-zoomout` | `gormes-interface-designer` or `gormes-tdd-slice` |
 | API/package boundary design | `gormes-interface-designer` | `gormes-builder` |
 | Find Go implementation donor shapes | `gormes-references` | `gormes-tdd-slice` |
+| Throwaway design/state/UI experiment before production work | `gormes-prototype-spike` | `gormes-tdd-slice` after decision |
 | Source-backed external library/framework/upstream context | `gormes-context-sourcing` | parity/planner/builder skill selected from evidence |
 | Repeated runtime mechanics or service-layer cleanup | `gormes-service-layer-refactor` | `gormes-interface-designer` when boundary is unclear |
 | PR feedback, CI failures, or bounded review-to-green loops | `gormes-review-loop` | `gormes-tdd-slice`, then `gormes-git` when committing |

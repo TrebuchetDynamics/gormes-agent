@@ -96,6 +96,9 @@ Pick the primary intent:
   then `gormes-planner` or `gormes-tdd-slice` depending on whether the row is
   missing or builder-ready.
 - **External library/framework/upstream source context** before planning or implementation: use `gormes-context-sourcing`, then route to the smallest parity/planner/builder skill.
+- **Architecture zoom-out or unfamiliar cross-package work**: use `gormes-architecture-zoomout` before implementation; route unclear package boundaries to `gormes-interface-designer`.
+- **Broad plan, PRD, parity gap, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces.
+- **Throwaway design, state-machine, protocol, or UI experiment**: use `gormes-prototype-spike`; route validated production work to `gormes-tdd-slice`.
 - **Repeated runtime mechanics or service-layer cleanup** after a feature works: use `gormes-service-layer-refactor`; route unclear package boundaries to `gormes-interface-designer` first.
 - **PR feedback, CI failures, review comments, or bounded review-to-green iteration**: use `gormes-review-loop`; route code behavior fixes through `gormes-tdd-slice`.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
@@ -181,6 +184,9 @@ Use names like:
 - `gormes-hermes-parity`
 - `gormes-openclaw-parity`
 - `gormes-goncho-compat`
+- `gormes-progress-slicer`
+- `gormes-prototype-spike`
+- `gormes-architecture-zoomout`
 - `gormes-channel-adapter`
 - `gormes-docs-web-sync`
 - `gormes-e2e-operator`
