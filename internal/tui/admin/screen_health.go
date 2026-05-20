@@ -15,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
@@ -53,6 +54,8 @@ type SetupHealthScreen struct {
 	message  string
 	err      error
 	fix      *providerFixState
+	width    int
+	height   int
 }
 
 // HealthOption configures a SetupHealthScreen.
@@ -69,7 +72,7 @@ func WithHealthSource(source HealthSource) HealthOption {
 
 // NewSetupHealthScreen returns the Setup tab used by `gormes admin`.
 func NewSetupHealthScreen(opts ...HealthOption) *SetupHealthScreen {
-	s := &SetupHealthScreen{source: defaultHealthSource{}}
+	s := &SetupHealthScreen{source: defaultHealthSource{}, width: 80, height: 24}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -127,6 +130,8 @@ func (s *SetupHealthScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		return s.updateFix(msg)
 	}
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		s.width, s.height = msg.Width, msg.Height
 	case healthCheckedMsg:
 		s.applyHealth(msg.items, msg.err)
 	case tea.KeyMsg:
@@ -167,7 +172,7 @@ func (s *SetupHealthScreen) View() string {
 	b.WriteString("\n")
 	if len(s.items) == 0 {
 		b.WriteString("no health checks available\n")
-		return b.String()
+		return clampSetupHealthView(b.String(), s.viewWidth(), s.viewHeight())
 	}
 	for i, item := range s.items {
 		cursor := " "
@@ -180,7 +185,126 @@ func (s *SetupHealthScreen) View() string {
 		}
 		b.WriteByte('\n')
 	}
-	return b.String()
+	return clampSetupHealthView(b.String(), s.viewWidth(), s.viewHeight())
+}
+
+func (s *SetupHealthScreen) viewWidth() int {
+	if s.width <= 0 {
+		return 80
+	}
+	return max(1, s.width)
+}
+
+func (s *SetupHealthScreen) viewHeight() int {
+	if s.height <= 0 {
+		return 24
+	}
+	return max(1, s.height)
+}
+
+func clampSetupHealthView(view string, width, height int) string {
+	if width <= 0 {
+		width = 80
+	}
+	var wrapped []string
+	for _, line := range strings.Split(view, "\n") {
+		wrapped = append(wrapped, wrapSetupHealthLine(strings.TrimRight(line, " \t"), width)...)
+	}
+	if height > 0 && len(wrapped) > height {
+		wrapped = clampSetupHealthLines(wrapped, width, height)
+	}
+	return strings.TrimRight(strings.Join(wrapped, "\n"), "\n")
+}
+
+func wrapSetupHealthLine(line string, width int) []string {
+	original := line
+	if line == "" {
+		return []string{""}
+	}
+	var lines []string
+	for lipgloss.Width(line) > width {
+		cut := setupHealthWrapCut(line, width)
+		lines = append(lines, strings.TrimRight(line[:cut], " \t"))
+		line = strings.TrimLeft(line[cut:], " \t")
+		if line == "" {
+			break
+		}
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	if len(lines) <= 3 {
+		return lines
+	}
+	marker := "… value omitted; resize"
+	if strings.Contains(original, "[Fix]") {
+		marker = "[Fix] … value omitted; resize"
+	}
+	return append(lines[:2], setupHealthTrimToWidth(marker, width))
+}
+
+func clampSetupHealthLines(lines []string, width, height int) []string {
+	if height <= 0 || len(lines) <= height {
+		return lines
+	}
+	if height <= 2 {
+		return []string{setupHealthTrimToWidth("terminal too small; resize", width)}
+	}
+	marker := setupHealthTrimToWidth("… omitted; resize", width)
+	tailCount := 1
+	if height >= 6 {
+		tailCount = 2
+	}
+	headCount := height - tailCount - 1
+	if headCount < 1 {
+		headCount = 1
+	}
+	out := append([]string(nil), lines[:headCount]...)
+	out = append(out, marker)
+	out = append(out, lines[len(lines)-tailCount:]...)
+	return out
+}
+
+func setupHealthWrapCut(line string, width int) int {
+	lastSpace := -1
+	used := 0
+	for i, r := range line {
+		if r == ' ' || r == '\t' {
+			lastSpace = i
+		}
+		rw := lipgloss.Width(string(r))
+		if used+rw > width {
+			if lastSpace > 0 {
+				return lastSpace
+			}
+			if i > 0 {
+				return i
+			}
+			return i + len(string(r))
+		}
+		used += rw
+	}
+	return len(line)
+}
+
+func setupHealthTrimToWidth(text string, width int) string {
+	if width <= 0 || lipgloss.Width(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+	ellipsis := "…"
+	limit := width - lipgloss.Width(ellipsis)
+	used := 0
+	for i, r := range text {
+		rw := lipgloss.Width(string(r))
+		if used+rw > limit {
+			return strings.TrimRight(text[:i], " \t") + ellipsis
+		}
+		used += rw
+	}
+	return text
 }
 
 func (s *SetupHealthScreen) ShortHelp() []KeyHelp {

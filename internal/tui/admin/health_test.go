@@ -15,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestAdminHealth_RendersMissingProviderAndAuthCallouts(t *testing.T) {
@@ -52,6 +53,35 @@ func TestAdminHealth_RendersHealthyChecksWithoutFix(t *testing.T) {
 		}
 		if item.Fixable {
 			t.Fatalf("health item %q is fixable in healthy state\n%s", item.ID, got)
+		}
+	}
+}
+
+func TestAdminHealth_SetupScreenBoundsCrampedLongRows(t *testing.T) {
+	long := strings.Repeat("x", 220)
+	screen := NewSetupHealthScreen(WithHealthSource(healthSourceFunc(func(context.Context) ([]HealthItem, error) {
+		return []HealthItem{
+			{ID: "provider", Status: doctor.StatusFail, Title: "provider configuration " + long, Detail: "endpoint missing " + long, Fixable: true},
+			{ID: "auth", Status: doctor.StatusFail, Title: "auth credentials " + long, Detail: "credential pool missing " + long, Fixable: true},
+		}, nil
+	})))
+	updated, _ := screen.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	screen = updated.(*SetupHealthScreen)
+
+	view := screen.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("setup health view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("setup health line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Setup health", "provider", "[Fix]", "omitted", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup health view missing %q:\n%s", want, view)
 		}
 	}
 }
