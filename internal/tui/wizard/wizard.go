@@ -7,10 +7,12 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
 )
 
@@ -196,7 +198,7 @@ func (m model) View() string {
 		fmt.Fprintf(&b, "Gormes setup %d/%d\n\n", m.index+1, len(m.steps))
 	}
 	if step.Prompt != "" {
-		b.WriteString(step.Prompt)
+		b.WriteString(wrapSetupText(step.Prompt, m.viewWidth()))
 		b.WriteString("\n\n")
 	}
 
@@ -216,21 +218,21 @@ func (m model) View() string {
 	}
 
 	b.WriteString("\n\n")
+	help := "Enter submit  Esc abort"
 	switch step.Kind {
 	case KindPick:
 		if step.pickDisplay == pickDisplayRadio {
-			b.WriteString("↑↓ navigate  ENTER/SPACE select  ESC cancel")
+			help = "↑↓ navigate  ENTER/SPACE select  ESC cancel"
 		} else {
-			b.WriteString("Up/Down or j/k navigate  1-9 select  Enter submit  Esc/q abort")
+			help = "Up/Down or j/k navigate  1-9 select  Enter submit  Esc/q abort"
 		}
 	case KindChecklist:
-		b.WriteString("Up/Down or j/k navigate  SPACE toggle  ENTER confirm  ESC cancel")
+		help = "Up/Down or j/k navigate  SPACE toggle  ENTER confirm  ESC cancel"
 	case KindMultiLine:
-		b.WriteString("Enter submit  Ctrl+J newline  Esc abort")
-	default:
-		b.WriteString("Enter submit  Esc abort")
+		help = "Enter submit  Ctrl+J newline  Esc abort"
 	}
-	return b.String()
+	b.WriteString(wrapSetupText(help, m.viewWidth()))
+	return trimSetupTrailingWhitespace(b.String())
 }
 
 func (m model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -406,7 +408,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 			ti.EchoMode = textinput.EchoPassword
 			ti.EchoCharacter = '*'
 		}
-		ti.Width = max(20, m.width-4)
+		ti.Width = setupInputWidth(m.width)
 		m.text = ti
 		return m.text.Focus()
 	case KindMultiLine:
@@ -414,7 +416,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 		ta.Prompt = "> "
 		ta.ShowLineNumbers = false
 		ta.Placeholder = step.Placeholder
-		ta.SetWidth(max(20, m.width-4))
+		ta.SetWidth(setupInputWidth(m.width))
 		ta.SetHeight(4)
 		ta.SetValue(step.value.Text)
 		m.area = ta
@@ -453,7 +455,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 }
 
 func (m *model) resizeInputs() {
-	width := max(20, m.width-4)
+	width := setupInputWidth(m.width)
 	switch m.activeKind() {
 	case KindText, KindPassword:
 		m.text.Width = width
@@ -494,7 +496,8 @@ func (m model) renderPick(step Step) string {
 		if label == "" {
 			label = choice.ID
 		}
-		fmt.Fprintf(&b, "%s%d. %s\n", prefix, i+1, label)
+		b.WriteString(wrapSetupIndented(fmt.Sprintf("%s%d. ", prefix, i+1), label, m.viewWidth()))
+		b.WriteByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -512,7 +515,8 @@ func (m model) renderRadioPick(step Step) string {
 		if label == "" {
 			label = choice.ID
 		}
-		fmt.Fprintf(&b, "%s%s %s\n", prefix, marker, label)
+		b.WriteString(wrapSetupIndented(prefix+marker+" ", label, m.viewWidth()))
+		b.WriteByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -535,7 +539,8 @@ func (m model) renderChecklist(step Step) string {
 		if label == "" {
 			label = choice.ID
 		}
-		fmt.Fprintf(&b, "%s%s %s\n", prefix, marker, label)
+		b.WriteString(wrapSetupIndented(prefix+marker+" ", label, m.viewWidth()))
+		b.WriteByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -570,6 +575,110 @@ func (m model) renderConfirm() string {
 		noPrefix = "> "
 	}
 	return noPrefix + "No\n" + yesPrefix + "Yes"
+}
+
+func (m model) viewWidth() int {
+	if m.width <= 0 {
+		return 80
+	}
+	return max(1, m.width)
+}
+
+func setupInputWidth(terminalWidth int) int {
+	if terminalWidth <= 0 {
+		return 76
+	}
+	// Bubbles textinput/textarea add prompt/cursor cells around this content
+	// width. Keep the component inside the actual terminal instead of forcing a
+	// 20-column minimum that overflows cramped setup terminals.
+	return max(1, terminalWidth-4)
+}
+
+func wrapSetupIndented(prefix, text string, width int) string {
+	if width <= 0 {
+		width = 80
+	}
+	if prefix == "" {
+		return wrapSetupText(text, width)
+	}
+	indentWidth := lipgloss.Width(prefix)
+	bodyWidth := max(1, width-indentWidth)
+	wrapped := wrapSetupText(text, bodyWidth)
+	lines := strings.Split(wrapped, "\n")
+	indent := strings.Repeat(" ", indentWidth)
+	for i, line := range lines {
+		if i == 0 {
+			lines[i] = prefix + line
+			continue
+		}
+		lines[i] = indent + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func wrapSetupText(text string, width int) string {
+	if width <= 0 {
+		width = 80
+	}
+	var out []string
+	for _, line := range strings.Split(text, "\n") {
+		out = append(out, wrapSetupLine(line, width)...)
+	}
+	return strings.Join(out, "\n")
+}
+
+func wrapSetupLine(line string, width int) []string {
+	line = strings.TrimRight(line, " \t")
+	if line == "" {
+		return []string{""}
+	}
+	var lines []string
+	for lipgloss.Width(line) > width {
+		cut := setupWrapCut(line, width)
+		lines = append(lines, strings.TrimRight(line[:cut], " \t"))
+		line = strings.TrimLeft(line[cut:], " \t")
+		if line == "" {
+			break
+		}
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+func setupWrapCut(line string, width int) int {
+	if width <= 0 {
+		_, size := utf8.DecodeRuneInString(line)
+		return max(1, size)
+	}
+	lastSpace := -1
+	used := 0
+	for i, r := range line {
+		if r == ' ' || r == '\t' {
+			lastSpace = i
+		}
+		rw := lipgloss.Width(string(r))
+		if used+rw > width {
+			if lastSpace > 0 {
+				return lastSpace
+			}
+			if i > 0 {
+				return i
+			}
+			return i + len(string(r))
+		}
+		used += rw
+	}
+	return len(line)
+}
+
+func trimSetupTrailingWhitespace(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " \t")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func max(a, b int) int {

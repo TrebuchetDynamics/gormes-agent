@@ -3,14 +3,83 @@ package wizard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 )
+
+func TestWizardChassis_ViewHardeningBoundsSetupUX(t *testing.T) {
+	long := strings.Repeat("x", 160)
+	cases := []struct {
+		name  string
+		steps []Step
+		want  []string
+	}{
+		{
+			name:  "text input with long prompt placeholder and value",
+			steps: []Step{Text("endpoint", "Gateway endpoint for a very long operator setup prompt "+long, WithPlaceholder("https://example.invalid/"+long), WithStringValue("https://127.0.0.1:8765/"+long))},
+			want:  []string{"Gateway endpoint", "Enter submit"},
+		},
+		{
+			name:  "password input masks long secret",
+			steps: []Step{Password("api_key", "API key "+long, WithStringValue("sk-secret-"+long))},
+			want:  []string{"API key", "Enter submit"},
+		},
+		{
+			name:  "radio picker with long labels",
+			steps: []Step{Pick("mode", "How should setup continue? "+long, []Choice{{ID: "quick", Label: "Quick setup recommended path " + long}, {ID: "full", Label: "Full setup advanced path " + long}}, WithRadioChoices())},
+			want:  []string{"How should setup", "Quick setup", "Full setup"},
+		},
+		{
+			name:  "numbered picker with long labels",
+			steps: []Step{Pick("provider", "Provider selection "+long, []Choice{{ID: "anthropic", Label: "Anthropic Claude provider with detailed explanation " + long}, {ID: "openai", Label: "OpenAI provider with detailed explanation " + long}})},
+			want:  []string{"Provider selection", "1. Anthropic", "2. OpenAI"},
+		},
+		{
+			name:  "checklist with long labels",
+			steps: []Step{Checklist("tools", "Tool setup "+long, []Choice{{ID: "browser", Label: "Browser automation toolset " + long}, {ID: "shell", Label: "Shell command toolset " + long}})},
+			want:  []string{"Tool setup", "Browser automation", "Shell command"},
+		},
+		{
+			name:  "confirm with long prompt",
+			steps: []Step{Confirm("apply", "Apply these setup changes after reviewing this long warning "+long)},
+			want:  []string{"Apply these", "No", "Yes"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, size := range []struct{ width, height int }{{20, 10}, {40, 12}, {80, 24}} {
+				t.Run(fmt.Sprintf("%dx%d", size.width, size.height), func(t *testing.T) {
+					m := newModel(tc.steps)
+					updated, _ := m.Update(tea.WindowSizeMsg{Width: size.width, Height: size.height})
+					m = updated.(model)
+					got := m.View()
+					if strings.TrimSpace(got) == "" {
+						t.Fatalf("wizard View returned blank output")
+					}
+					for _, line := range strings.Split(got, "\n") {
+						if width := lipgloss.Width(line); width > size.width {
+							t.Fatalf("wizard line width %d exceeds terminal width %d:\n%q\n\nfull output:\n%s", width, size.width, line, got)
+						}
+					}
+					collapsed := strings.Join(strings.Fields(got), " ")
+					for _, want := range tc.want {
+						if !strings.Contains(collapsed, want) {
+							t.Fatalf("wizard View missing %q:\n%s", want, got)
+						}
+					}
+				})
+			}
+		})
+	}
+}
 
 func TestWizardChassis_TextStepCapturesInput(t *testing.T) {
 	m := newModel([]Step{
