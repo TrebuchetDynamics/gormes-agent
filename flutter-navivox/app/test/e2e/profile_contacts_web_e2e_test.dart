@@ -39,6 +39,53 @@ final _contacts = [
 
 void main() {
   testWidgets(
+    'web browser e2e filters by gateway and opens management details',
+    (tester) async {
+      final channel = TestNavivoxChannel()
+        ..seedServers(_servers, activeServerId: 'local')
+        ..seedProfileContacts(_contacts);
+      addTearDown(channel.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [navivoxChannelProvider.overrideWithValue(channel)],
+          child: const _WebE2EApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('server-filter-all')), findsOneWidget);
+      expect(find.byKey(const ValueKey('server-filter-local')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('server-filter-office')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('server-filter-office')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Support Triage'), findsOneWidget);
+      expect(find.text('Mineru Builder'), findsNothing);
+      expect(find.text('1 profile'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Manage gateways'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Gateways'), findsOneWidget);
+      expect(find.byKey(const ValueKey('server-card-local')), findsOneWidget);
+      expect(find.byKey(const ValueKey('server-card-office')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('server-manage-office')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Manage gateway'), findsOneWidget);
+      expect(find.text('Office'), findsWidgets);
+      expect(find.text('Support Triage'), findsOneWidget);
+      expect(find.text('Profiles on this gateway'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'web browser e2e selects a profile contact and sends scoped chat text',
     (tester) async {
       final channel = TestNavivoxChannel()

@@ -109,6 +109,39 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(page.getByText(/https:\/\/gormes[.]ai\/install[.]sh/)).toHaveCount(0);
 });
 
+test('install copy interaction copies the exact release-first command', async ({ page }) => {
+  const copied = [];
+  await page.addInitScript(() => {
+    window.__copiedText = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (text) => {
+          window.__copiedText.push(text);
+        },
+      },
+    });
+  });
+
+  await page.goto('/');
+  const install = page.locator('#install');
+  const command = await install.locator('pre code').innerText();
+  expect(command).toContain('https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh');
+  expect(command).toContain('gormes doctor --offline');
+  expect(command).toContain('gormes setup');
+  expect(command).toContain('gormes chat');
+  expect(command).not.toContain('raw.githubusercontent.com');
+  expect(command).not.toContain('https://gormes.ai/' + 'install.sh');
+
+  await install.getByRole('button', { name: 'Copy install command' }).click();
+  await expect(install.locator('.copy-label')).toHaveText('Copied');
+  copied.push(...await page.evaluate(() => window.__copiedText));
+  expect(copied).toEqual([command]);
+
+  await expect(page.locator('.hero-ctas .btn-primary')).toHaveAttribute('href', '#install');
+  await expect(page.locator('.final-cta-actions .btn-primary')).toHaveAttribute('href', '#install');
+});
+
 test('static SEO helper files are shipped', async ({ page }) => {
   const sitemap = await page.request.get('/sitemap.xml');
   expect(sitemap.status()).toBe(200);

@@ -115,6 +115,100 @@ func TestComplexE2E_MultiStepToolChainAuditAndPersistence(t *testing.T) {
 	assertComplexPersistedTurn(t, mem.DB(), "telegram:complex-e2e", "assistant", finalText)
 }
 
+func TestComplexE2E_MixedToolBatchPreservesEveryOutcomeAndRecovers(t *testing.T) {
+	dir := t.TempDir()
+	mem, err := memory.OpenSqlite(filepath.Join(dir, "memory.db"), 32, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := mem.Close(ctx); err != nil {
+			t.Fatalf("close memory store: %v", err)
+		}
+	})
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(complexE2ETool{name: "stable_fixture", response: `{"status":"ok","value":"alpha"}`})
+	reg.MustRegister(complexE2ETool{name: "failing_fixture", err: errors.New("fixture failed after partial work")})
+
+	provider := hermes.NewMockClient()
+	provider.Script([]hermes.Event{{
+		Kind:         hermes.EventDone,
+		FinishReason: "tool_calls",
+		ToolCalls: []hermes.ToolCall{
+			{ID: "call_stable", Name: "stable_fixture", Arguments: json.RawMessage(`{"target":"mixed-success"}`)},
+			{ID: "call_failing", Name: "failing_fixture", Arguments: json.RawMessage(`{"target":"mixed-failure"}`)},
+			{ID: "call_missing", Name: "missing_fixture", Arguments: json.RawMessage(`{"target":"unknown"}`)},
+		},
+		TokensIn:  60,
+		TokensOut: 4,
+	}}, "mixed-tool-session")
+	finalText := "Mixed tool batch recovered: one success, two failures, no raw tool noise leaked."
+	provider.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: finalText, TokensOut: 12},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 120, TokensOut: 12},
+	}, "mixed-tool-session")
+
+	auditPath := filepath.Join(dir, "tool-audit.jsonl")
+	k := kernel.New(kernel.Config{
+		Model:             "complex-e2e-model",
+		Endpoint:          "mock://complex-e2e-mixed",
+		Admission:         kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Tools:             reg,
+		MaxToolIterations: 2,
+		MaxToolDuration:   2 * time.Second,
+		InitialSessionID:  "sess-complex-mixed",
+		ChatKey:           "telegram:complex-mixed",
+		ToolAudit:         audit.NewJSONLWriter(auditPath),
+	}, provider, mem, telemetry.New(), nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- k.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("kernel run: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("kernel did not stop after cleanup cancel")
+		}
+	})
+	waitForFrame(t, k.Render(), func(f kernel.RenderFrame) bool { return f.Phase == kernel.PhaseIdle }, time.Second)
+
+	userInput := "Run the mixed tool batch and summarize every outcome safely."
+	if err := k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: userInput}); err != nil {
+		t.Fatalf("submit turn: %v", err)
+	}
+	final := waitForFrame(t, k.Render(), func(f kernel.RenderFrame) bool {
+		return f.Phase == kernel.PhaseIdle && len(f.History) >= 2 && f.History[len(f.History)-1].Role == "assistant"
+	}, 5*time.Second)
+	if got := final.History[len(final.History)-1].Content; got != finalText {
+		t.Fatalf("final assistant content = %q, want %q", got, finalText)
+	}
+	if strings.Contains(finalText, "<tool_call") || strings.Contains(finalText, "unknown tool:") {
+		t.Fatalf("final assistant leaked raw tool details: %q", finalText)
+	}
+
+	requests := provider.Requests()
+	if len(requests) != 2 {
+		t.Fatalf("provider request count = %d, want 2", len(requests))
+	}
+	assertComplexContinuation(t, requests[1], []string{"call_stable", "call_failing", "call_missing"})
+	assertComplexToolReplyContains(t, requests[1], "call_stable", `"status":"ok"`)
+	assertComplexToolReplyContains(t, requests[1], "call_failing", "fixture failed after partial work")
+	assertComplexToolReplyContains(t, requests[1], "call_missing", "unknown tool")
+	assertComplexAuditStatus(t, auditPath, "stable_fixture", "completed")
+	assertComplexAuditStatus(t, auditPath, "failing_fixture", "failed")
+	assertComplexAuditStatus(t, auditPath, "missing_fixture", "failed")
+	assertComplexPersistedTurn(t, mem.DB(), "telegram:complex-mixed", "user", userInput)
+	assertComplexPersistedTurn(t, mem.DB(), "telegram:complex-mixed", "assistant", finalText)
+}
+
 func TestComplexE2E_ToolFailureIsAuditedAndConversationRecovers(t *testing.T) {
 	dir := t.TempDir()
 	mem, err := memory.OpenSqlite(filepath.Join(dir, "memory.db"), 32, nil)
@@ -248,6 +342,19 @@ func assertComplexContinuation(t *testing.T, req hermes.ChatRequest, wantToolRep
 			t.Fatalf("tool reply %q content = %q, want JSON object", id, content)
 		}
 	}
+}
+
+func assertComplexToolReplyContains(t *testing.T, req hermes.ChatRequest, callID, want string) {
+	t.Helper()
+	for _, msg := range req.Messages {
+		if msg.Role == "tool" && msg.ToolCallID == callID {
+			if !strings.Contains(msg.Content, want) {
+				t.Fatalf("tool reply %q content = %q, want substring %q", callID, msg.Content, want)
+			}
+			return
+		}
+	}
+	t.Fatalf("tool reply %q not found in messages %+v", callID, req.Messages)
 }
 
 func assertComplexAudits(t *testing.T, path string, tools []string) {
