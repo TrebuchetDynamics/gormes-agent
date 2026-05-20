@@ -55,7 +55,7 @@ func TestWizardChassis_ViewHardeningBoundsSetupUX(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, size := range []struct{ width, height int }{{20, 10}, {40, 12}, {80, 24}} {
+			for _, size := range []struct{ width, height int }{{20, 12}, {40, 12}, {80, 24}} {
 				t.Run(fmt.Sprintf("%dx%d", size.width, size.height), func(t *testing.T) {
 					m := newModel(tc.steps)
 					updated, _ := m.Update(tea.WindowSizeMsg{Width: size.width, Height: size.height})
@@ -107,24 +107,28 @@ func TestWizardChassis_ViewHardeningBoundsShortSetupTerminal(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			m := newModel(tc.steps)
-			updated, _ := m.Update(tea.WindowSizeMsg{Width: 24, Height: 8})
-			m = updated.(model)
-			got := m.View()
-			lines := strings.Split(got, "\n")
-			if len(lines) > 8 {
-				t.Fatalf("wizard View height = %d, want <= 8:\n%s", len(lines), got)
-			}
-			for _, line := range lines {
-				if width := lipgloss.Width(line); width > 24 {
-					t.Fatalf("wizard line width %d exceeds terminal width 24:\n%q\n\nfull output:\n%s", width, line, got)
-				}
-			}
-			collapsed := strings.Join(strings.Fields(got), " ")
-			for _, want := range tc.want {
-				if !strings.Contains(collapsed, want) {
-					t.Fatalf("wizard short View missing %q:\n%s", want, got)
-				}
+			for _, height := range []int{8, 10} {
+				t.Run(fmt.Sprintf("24x%d", height), func(t *testing.T) {
+					m := newModel(tc.steps)
+					updated, _ := m.Update(tea.WindowSizeMsg{Width: 24, Height: height})
+					m = updated.(model)
+					got := m.View()
+					lines := strings.Split(got, "\n")
+					if len(lines) > height {
+						t.Fatalf("wizard View height = %d, want <= %d:\n%s", len(lines), height, got)
+					}
+					for _, line := range lines {
+						if width := lipgloss.Width(line); width > 24 {
+							t.Fatalf("wizard line width %d exceeds terminal width 24:\n%q\n\nfull output:\n%s", width, line, got)
+						}
+					}
+					collapsed := strings.Join(strings.Fields(got), " ")
+					for _, want := range tc.want {
+						if !strings.Contains(collapsed, want) {
+							t.Fatalf("wizard short View missing %q:\n%s", want, got)
+						}
+					}
+				})
 			}
 		})
 	}

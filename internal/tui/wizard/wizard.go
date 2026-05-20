@@ -689,7 +689,7 @@ func trimSetupTrailingWhitespace(s string) string {
 }
 
 func clampSetupView(s string, width, height int) string {
-	if height <= 0 || height >= 10 {
+	if height <= 0 || height > 10 {
 		return s
 	}
 	lines := strings.Split(s, "\n")
