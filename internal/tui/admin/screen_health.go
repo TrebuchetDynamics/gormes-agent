@@ -504,6 +504,9 @@ func (f *providerFixState) View() string {
 	if !ok {
 		return ""
 	}
+	if f.viewHeight() <= 6 {
+		return f.compactView(step)
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Provider setup %d/%d\n\n", f.index+1, len(f.steps))
 	fmt.Fprintf(&b, "%s\n\n", step.Prompt)
@@ -519,6 +522,27 @@ func (f *providerFixState) View() string {
 		}
 	}
 	b.WriteString("\nEnter submit  Esc cancel")
+	return clampSetupHealthView(b.String(), f.viewWidth(), f.viewHeight())
+}
+
+func (f *providerFixState) compactView(step wizard.Step) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Provider setup %d/%d\n", f.index+1, len(f.steps))
+	fmt.Fprintf(&b, "%s\n", step.Prompt)
+	switch step.Kind {
+	case wizard.KindPick:
+		if f.pickCursor >= 0 && f.pickCursor < len(step.Choices) {
+			fmt.Fprintf(&b, "> %s\n", step.Choices[f.pickCursor].Label)
+		}
+	case wizard.KindText, wizard.KindPassword:
+		b.WriteString(f.input.View())
+		b.WriteByte('\n')
+		if lipgloss.Width(f.input.Value()) > setupHealthInputWidth(f.viewWidth()) {
+			b.WriteString(setupHealthTrimToWidth("… value omitted; resize", f.viewWidth()))
+			b.WriteByte('\n')
+		}
+	}
+	b.WriteString("Enter submit  Esc cancel")
 	return clampSetupHealthView(b.String(), f.viewWidth(), f.viewHeight())
 }
 

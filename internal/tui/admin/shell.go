@@ -80,7 +80,7 @@ func (s *Shell) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.mu.Lock()
 		s.width, s.height = msg.Width, msg.Height
 		s.mu.Unlock()
-		return s.forwardToActive(msg)
+		return s.forwardToActive(tea.WindowSizeMsg{Width: msg.Width, Height: adminShellBodyHeight(msg.Height)})
 	case tea.KeyMsg:
 		if s.activeScreenCapturesKey(msg) {
 			return s.forwardToActive(msg)
@@ -211,7 +211,7 @@ func (s *Shell) setActiveLocked(idx int) tea.Cmd {
 	s.active = idx
 	cmds := []tea.Cmd{s.screens[s.active].Init()}
 	if s.width > 0 || s.height > 0 {
-		next, resizeCmd := s.screens[s.active].Update(tea.WindowSizeMsg{Width: s.width, Height: s.height})
+		next, resizeCmd := s.screens[s.active].Update(tea.WindowSizeMsg{Width: s.width, Height: adminShellBodyHeight(s.height)})
 		s.screens[s.active] = next
 		cmds = append(cmds, resizeCmd)
 	}
@@ -293,6 +293,16 @@ func (s *Shell) renderTabBarLocked() string {
 
 func (s *Shell) renderStatusBarLocked() string {
 	return trimAdminShellLine("tab/shift+tab cycle  q quit  ? help", s.width)
+}
+
+func adminShellBodyHeight(total int) int {
+	if total <= 0 {
+		return 0
+	}
+	// Shell View adds one tab-bar line and one status-bar line around the active
+	// screen body. Give screens the remaining row budget so real terminal output
+	// stays within the operator's current height.
+	return max(1, total-2)
 }
 
 func trimAdminShellLine(text string, width int) string {

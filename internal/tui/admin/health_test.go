@@ -138,6 +138,35 @@ func TestAdminHealth_ShellAppliesExistingSizeWhenSwitchingToSetup(t *testing.T) 
 	}
 }
 
+func TestAdminHealth_ShellProviderFixWizardFitsTerminalHeight(t *testing.T) {
+	isolateHealthHome(t)
+	screen := NewSetupHealthScreen(WithHealthSource(healthSourceFunc(func(context.Context) ([]HealthItem, error) {
+		return []HealthItem{{ID: healthItemProvider, Status: doctor.StatusFail, Title: "no provider", Detail: "hermes.endpoint is not configured", Fixable: true}}, nil
+	})))
+	shell := New(screen)
+	updated, _ := shell.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	shell = updated.(*Shell)
+	updated, _ = shell.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	shell = updated.(*Shell)
+
+	view := shell.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("setup fix shell view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("setup fix shell line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Provider setup", "OpenAI", "Enter submit"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup fix shell view missing %q:\n%s", want, view)
+		}
+	}
+}
+
 func TestAdminHealth_ProviderFixWizardBoundsCrampedLongDefaults(t *testing.T) {
 	long := strings.Repeat("x", 220)
 	cfg := config.Config{}
