@@ -53,7 +53,8 @@ Chat list | Profile contact list keyed by `server_id + profile_id`
 Chats bottom tab | Contact list may have top-level app nav; chat thread should not show bottom nav
 Message bubbles | User right, assistant left, grouped tails, compact timestamps
 Read ticks | Local send/queued/streaming/done/error status, not read receipts
-Attachment button | Navivox action tray for approvals, tools, workspace/config, future files
+Attachment button | Telegram-style share tray for upload file, media, workspace file, approvals, tools, workspace/config, future files
+Emoji/composer | Quick emoji strip inserts into the message field without leaving chat
 Voice message | Device transcript bubble, explicit STT unavailable state, TTS/read-aloud action, and continuous voice controls
 Long press | Selectable text, copy, forward to another profile/contact, retry, inspect event/tool, reveal redacted fields only when allowed
 Telegram backend | Never: Navivox talks to Gormes gateway only
