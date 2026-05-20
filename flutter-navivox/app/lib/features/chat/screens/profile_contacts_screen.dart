@@ -77,15 +77,17 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
           ? const Center(child: Text('No profiles loaded'))
           : Column(
               children: [
-                _ServerFilterBar(
-                  servers: servers,
-                  selectedServerId: _selectedServerId,
-                  visibleCount: contacts.length,
-                  onSelected: (serverId) => setState(() {
-                    _selectedServerId = serverId;
-                  }),
-                ),
-                const Divider(height: 1),
+                if (servers.length > 1) ...[
+                  _ServerFilterBar(
+                    servers: servers,
+                    selectedServerId: _selectedServerId,
+                    visibleCount: contacts.length,
+                    onSelected: (serverId) => setState(() {
+                      _selectedServerId = serverId;
+                    }),
+                  ),
+                  const Divider(height: 1),
+                ],
                 Expanded(
                   child: contacts.isEmpty
                       ? const Center(child: Text('No chats found'))
