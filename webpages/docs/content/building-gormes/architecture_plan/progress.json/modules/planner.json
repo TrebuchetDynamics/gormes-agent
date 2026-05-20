@@ -173,9 +173,9 @@
     "item": {
       "name": "External review feedback ingestion for planner rows",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "gormes-planner and gormes-review-loop define a bounded, source-backed workflow for ingesting external review feedback such as Greptile/Grep-style PR reviews, GitHub review comments, CI annotations, and static-analysis findings into existing progress rows or one new builder-ready row without creating a side backlog.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "orchestrator",
       "module": "planner",
@@ -183,7 +183,7 @@
         "operator",
         "system"
       ],
-      "degraded_mode": "Until this lands, agents may still use gormes-review-loop manually, but external review findings are not guaranteed to be normalized into canonical progress-row fields before builder selection.",
+      "degraded_mode": "If exact review evidence is unavailable, agents must stop and ask for reviewer text, PR/check URLs, file paths, command output, or copied review logs before shaping rows.",
       "fixture": "docs/development-skills/gormes-planner/SKILL.md::external review ingestion + docs/development-skills/gormes-review-loop/SKILL.md::target gate capture",
       "source_refs": [
         "docs/development-skills/gormes-planner/SKILL.md",

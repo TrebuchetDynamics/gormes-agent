@@ -173,6 +173,33 @@ planning evidence, not product defaults. Rows may require discovery or
 fixture-backed behavior around those layouts, but must reject hard-coded
 operator paths in Gormes code.
 
+### External Review Feedback Ingestion
+
+When the input is exact external review feedback (Greptile/Grep-style PR review,
+GitHub review comment, CI annotation, static-analysis finding, or pasted local
+review log), this skill owns row shaping, not code fixes.
+
+Use this workflow:
+
+1. **Preserve exact evidence.** Record reviewer text, PR/check URL when
+   available, file path, line/symbol, command output, and commit SHA. If the
+   feedback is only summarized, stop and ask for the exact text.
+2. **Classify each finding.** Choose exactly one: existing-row refinement, new
+   builder-ready row, duplicate of an existing row, out-of-scope noise, or
+   blocker needing Juan/system input.
+3. **Prefer existing rows.** Refine `ready_when`, `not_ready_when`,
+   `acceptance`, `source_refs`, `write_scope`, or `test_commands` before adding
+   a new row.
+4. **Create at most one new row per bounded review theme.** The row must be a
+   vertical slice with exact review evidence in `source_refs`, `fixture`, or a
+   provenance note.
+5. **Reject side queues.** Do not create TODO files, issue lists, private
+   review ledgers, or prompt-only task lists outside `progress.json`.
+6. **Hand implementation back to builders.** If a finding is already
+   builder-ready and does not need row shaping, route back to
+   `gormes-review-loop` plus `gormes-tdd-slice` instead of editing planning
+   surfaces.
+
 ### 4. Rewrite Rows For Builders
 
 Every executable row must be one worker-sized slice and include enough detail for a builder agent to start TDD immediately:

@@ -25,6 +25,7 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | Repeated runtime mechanics or service-layer cleanup | `gormes-service-layer-refactor` | `gormes-interface-designer` when boundary is unclear |
 | PR readiness audit before review/merge | `gormes-pr-check` | `gormes-review-loop` or `gormes-greptile-loop` |
 | Greptile sub-5/5 review loop | `gormes-greptile-loop` | `gormes-tdd-slice`, then `gormes-git` when committing |
+| External review finding that must become canonical backlog work | `gormes-review-loop` | `gormes-planner` to refine/add one progress row |
 | Local production-readiness score when Greptile is unavailable | `gormes-review-scorecard` | `gormes-tdd-slice` or `gormes-review-loop` |
 | PR feedback, CI failures, or bounded review-to-green loops | `gormes-review-loop` | `gormes-tdd-slice`, then `gormes-git` when committing |
 | README/public repository messaging | `gormes-readme` | `gormes-git` when committing |

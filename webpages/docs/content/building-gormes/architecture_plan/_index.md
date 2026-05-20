@@ -91,11 +91,11 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 89/111 subphases shipped · 22 in progress · 0 planned
+**Overall:** 90/111 subphases shipped · 21 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | 🔨 | 5/6 subphases |
+| Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | 🔨 | 19/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
@@ -107,7 +107,7 @@ classification and row-backed implementation queue.
 
 ---
 
-## Phase 1 — The Dashboard 🔨
+## Phase 1 — The Dashboard ✅
 
 *Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary*
 
@@ -134,13 +134,13 @@ classification and row-backed implementation queue.
 - [x] `fleet` Watchdog dead-process vs slow-progress separation
 - [x] `progress` Builder-loop self-improvement vs user-feature ratio metric
 
-### 1.D — Skill-Driven Control Plane 🔨
+### 1.D — Skill-Driven Control Plane ✅
 
 - [x] `skills` Skill control-plane docs and Hugo navigation closeout
 - [x] `skills` Skill-manager selection matrix hardening
 - [x] `skills` Skill-pack coverage audit for Hermes-in-Go completion
 - [x] `skills` Canonical development-skills directory and loader symlinks
-- [ ] `planner` External review feedback ingestion for planner rows
+- [x] `planner` External review feedback ingestion for planner rows
 
 ### 1.E — Gormes-owned: Unified Bubble Tea admin TUI ✅
 

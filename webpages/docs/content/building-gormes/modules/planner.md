@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `planner`
 **Rows:** 10
-**Status counts:** `complete`: 9 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 10 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 1 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3
 
 ## Phase 1 — The Dashboard
@@ -25,7 +25,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `planned` | `P1` | `planner` | External review feedback ingestion for planner rows |
+| `complete` | `P1` | `planner` | External review feedback ingestion for planner rows |
 
 ## Phase 2 — The Gateway
 

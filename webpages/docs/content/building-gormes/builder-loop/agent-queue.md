@@ -88,27 +88,7 @@ selection.
 - Unblocks: Morning degraded-status summary over latest run report
 - Why now: Unblocks Morning degraded-status summary over latest run report.
 
-## 4. External review feedback ingestion for planner rows
-
-- Phase: 1 / 1.D
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: gormes-planner and gormes-review-loop define a bounded, source-backed workflow for ingesting external review feedback such as Greptile/Grep-style PR reviews, GitHub review comments, CI annotations, and static-analysis findings into existing progress rows or one new builder-ready row without creating a side backlog.
-- Trust class: operator, system
-- Ready when: The external review evidence is available as exact text, PR comment URLs, CI annotations, local review logs, or copied reviewer output., The pass can classify each finding as an existing-row refinement, a new builder-ready row, a duplicate, or out-of-scope noise., No runtime code change is required in the planner pass.
-- Not ready when: The review feedback is summarized without exact reviewer text, file path, command output, or PR/check evidence., The pass would auto-apply broad code changes instead of planning one bounded row or row refinement., The proposed output is a TODO file, issue list, or private queue outside progress.json.
-- Degraded mode: Until this lands, agents may still use gormes-review-loop manually, but external review findings are not guaranteed to be normalized into canonical progress-row fields before builder selection.
-- Fixture: `docs/development-skills/gormes-planner/SKILL.md::external review ingestion + docs/development-skills/gormes-review-loop/SKILL.md::target gate capture`
-- Write scope: `docs/development-skills/gormes-planner/SKILL.md`, `docs/development-skills/gormes-review-loop/SKILL.md`, `references/skill-routing.md`, `AGENTS.md`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go run ./cmd/progress write`, `go run ./cmd/progress validate`, `go test ./internal/progress -count=1`, `go test ./webpages/docs -count=1`
-- Done signal: Planner and review-loop skills now route exact external review findings into canonical progress-row updates, and progress/docs validation passes without adding a side backlog.
-- Acceptance: gormes-planner names external review ingestion as a planner-owned route and says findings must become progress row refinements or one builder-ready row., gormes-review-loop tells agents to capture exact review evidence first, then route row-shaping work through gormes-planner when the fix is not already builder-ready., Skill routing docs include Greptile/Grep-style PR review feedback as a review-loop to planner chain., The workflow preserves progress.json as the only backlog and rejects review side queues.
-- Source refs: docs/development-skills/gormes-planner/SKILL.md, docs/development-skills/gormes-review-loop/SKILL.md, references/skill-routing.md, AGENTS.md, webpages/docs/content/building-gormes/strategy/pi-agent-study.md#most-useful-tips-for-gormes
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Hermes gateway platform strict-fidelity source-pair expansion
+## 4. Hermes gateway platform strict-fidelity source-pair expansion
 
 - Phase: 2 / 2.B.12
 - Owner: `docs`
@@ -128,7 +108,7 @@ selection.
 - Source refs: hermes-agent/gateway/platforms/base.py, hermes-agent/gateway/platforms/api_server.py, hermes-agent/gateway/platforms/telegram.py, hermes-agent/gateway/platforms/yuanbao.py, hermes-agent/tui_gateway/server.py, hermes-agent/tui_gateway/render.py, internal/channels, internal/gateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Gateway delivery evidence in operator run report
+## 5. Gateway delivery evidence in operator run report
 
 - Phase: 2 / 2.F.4
 - Owner: `gateway`
@@ -148,7 +128,7 @@ selection.
 - Source refs: internal/cron/delivery_plan.go, internal/cron/executor.go, internal/gateway/status.go, cmd/gormes/gateway_status.go, cmd/gormes/send.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Hermes agent runtime strict-fidelity source-pair expansion
+## 6. Hermes agent runtime strict-fidelity source-pair expansion
 
 - Phase: 4 / 4.I
 - Owner: `docs`
@@ -168,7 +148,7 @@ selection.
 - Source refs: hermes-agent/agent/conversation_loop.py, hermes-agent/agent/tool_executor.py, hermes-agent/agent/context_engine.py, hermes-agent/agent/transports/codex.py, hermes-agent/agent/transports/chat_completions.py, hermes-agent/agent/lsp/manager.py, hermes-agent/tests/agent/lsp/test_lifecycle.py, internal/runtime, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Hermes plugin catalog strict-fidelity classifier
+## 7. Hermes plugin catalog strict-fidelity classifier
 
 - Phase: 5 / 5.I
 - Owner: `docs`
@@ -188,7 +168,7 @@ selection.
 - Source refs: hermes-agent/plugins/model-providers/openrouter/plugin.yaml, hermes-agent/plugins/model-providers/openai-codex/plugin.yaml, hermes-agent/plugins/memory/honcho/plugin.yaml, hermes-agent/plugins/platforms/simplex/adapter.py, hermes-agent/plugins/google_meet/meet_bot.py, internal/plugins, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Hermes LSP write-time semantic diagnostics
+## 8. Hermes LSP write-time semantic diagnostics
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -208,7 +188,7 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Long-term plan: profile fleet supervisor and single control-plane gateway
+## 9. Long-term plan: profile fleet supervisor and single control-plane gateway
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -226,6 +206,26 @@ selection.
 - Done signal: The profiles module documents one operator-facing fleet gateway/supervisor target, preserves profile isolation as non-negotiable, and makes the current per-profile services an explicit compatibility bridge rather than silent architecture drift.
 - Acceptance: Fleet status JSON lists every configured profile with desired channels, runtime owner, version, health, last error, and token-lock evidence., Start/stop/restart-all paths operate on all configured profiles while preserving isolated GORMES_HOME, config, auth, session, memory, and tool state per profile., A duplicate Telegram token across profiles is detected and reported as a per-profile conflict rather than racing two pollers., Update/release restart hooks can target the fleet through one operator-facing command or service instead of requiring hand-managed unit names., Regression tests use fake profile roots and fake supervisors only; no live systemd, Telegram, or provider credentials are required.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Hermes ui-tui strict-fidelity action matrix
+
+- Phase: 5 / 5.Q
+- Owner: `docs`
+- Size: `large`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Map the unmapped Hermes `ui-tui` source and test surface into Gormes-native TUI rows, owned-divergence notes, or explicit exclusions. The matrix must cover command dispatch, viewport/history stores, RPC/gateway client events, terminal modes, clipboard/OSC52, provider/model UI, approval actions, and state isolation before the strict-fidelity report can stop treating `ui-tui` as an undifferentiated blocker bucket.
+- Trust class: operator, system
+- Ready when: `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA., The row uses exact Hermes files/tests as evidence, not only broad directory globs., The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests.
+- Not ready when: The implementation treats low-confidence taxonomy matches as proof of coverage., The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping., The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first.
+- Degraded mode: Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.
+- Fixture: `internal/tui hermes-ui-tui strict-fidelity matrix fixtures`
+- Write scope: `internal/tui`, `internal/tuigateway`, `internal/repoctl`, `webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tui ./internal/tuigateway -count=1`, `go run ./cmd/repoctl hermes-contract-inventory --repo-root .`, `go run ./cmd/progress validate`
+- Done signal: Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim.
+- Acceptance: The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes., `go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence., `go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits., `go run ./cmd/progress validate` passes and generated docs show the row in the correct module.
+- Source refs: hermes-agent/ui-tui/src/__tests__/slashParity.test.ts, hermes-agent/ui-tui/src/__tests__/gatewayClient.test.ts, hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts, hermes-agent/ui-tui/src/__tests__/stateIsolation.test.ts, hermes-agent/ui-tui/src/__tests__/approvalAction.test.ts, internal/tui, internal/tuigateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
