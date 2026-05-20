@@ -452,7 +452,7 @@ func (m setupProfilesModel) View() string {
 		}
 		fmt.Fprintln(&b, "Space toggle  Up/Down move  Enter done")
 	}
-	return setupProfilesWrapView(b.String(), m.viewWidth())
+	return setupProfilesWrapView(b.String(), m.viewWidth(), m.viewHeight())
 }
 
 func (m setupProfilesModel) currentProfile() setupProfileView {
@@ -472,7 +472,14 @@ func (m setupProfilesModel) viewWidth() int {
 	return max(1, m.width)
 }
 
-func setupProfilesWrapView(view string, width int) string {
+func (m setupProfilesModel) viewHeight() int {
+	if m.height <= 0 {
+		return 24
+	}
+	return max(1, m.height)
+}
+
+func setupProfilesWrapView(view string, width, height int) string {
 	if width <= 0 {
 		width = 80
 	}
@@ -480,6 +487,7 @@ func setupProfilesWrapView(view string, width int) string {
 	for _, line := range strings.Split(view, "\n") {
 		out = append(out, setupProfilesWrapLine(strings.TrimRight(line, " \t"), width)...)
 	}
+	out = setupProfilesClampHeight(out, width, height)
 	return strings.TrimRight(strings.Join(out, "\n"), "\n")
 }
 
@@ -499,7 +507,10 @@ func setupProfilesWrapLine(line string, width int) []string {
 	if line != "" {
 		lines = append(lines, line)
 	}
-	return lines
+	if len(lines) <= 3 {
+		return lines
+	}
+	return append(lines[:2], setupProfilesTrimToWidth("… value truncated; resize for full setup text", width))
 }
 
 func setupProfilesWrapCut(line string, width int) int {
@@ -522,6 +533,63 @@ func setupProfilesWrapCut(line string, width int) int {
 		used += rw
 	}
 	return len(line)
+}
+
+func setupProfilesClampHeight(lines []string, width, height int) []string {
+	if height <= 0 || len(lines) <= height {
+		return lines
+	}
+	if height <= 2 {
+		return []string{setupProfilesTrimToWidth("terminal too small; resize", width)}
+	}
+	omitted := len(lines) - height + 1
+	marker := setupProfilesTrimToWidth(fmt.Sprintf("… %d omitted; resize", omitted), width)
+	tailCount := 2
+	if height < 6 {
+		tailCount = 1
+	}
+	headCount := height - tailCount - 1
+	if headCount < 1 {
+		headCount = 1
+	}
+	tailStart := len(lines) - tailCount
+	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.Contains(lines[i], "directories:") && i > 0 {
+			tailStart = i - 1
+			break
+		}
+		if strings.Contains(lines[i], "Workspace") || strings.Contains(lines[i], "New profile:") {
+			tailStart = i
+			break
+		}
+	}
+	if tailStart+tailCount > len(lines) {
+		tailStart = max(0, len(lines)-tailCount)
+	}
+	out := append([]string(nil), lines[:headCount]...)
+	out = append(out, marker)
+	out = append(out, lines[tailStart:tailStart+tailCount]...)
+	return out
+}
+
+func setupProfilesTrimToWidth(text string, width int) string {
+	if width <= 0 || lipgloss.Width(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+	ellipsis := "…"
+	limit := width - lipgloss.Width(ellipsis)
+	used := 0
+	for i, r := range text {
+		rw := lipgloss.Width(string(r))
+		if used+rw > limit {
+			return strings.TrimRight(text[:i], " \t") + ellipsis
+		}
+		used += rw
+	}
+	return text
 }
 
 func setupProfilesListOrEmpty(values []string) string {

@@ -82,12 +82,44 @@ func TestSetupProfilesTUIHardeningBoundsLongOperatorContent(t *testing.T) {
 				}
 			}
 			collapsed := strings.Join(strings.Fields(view), " ")
-			for _, want := range []string{"Gormes profile setup", "Selected profile", "Workspaces", "Workspace directories"} {
+			for _, want := range []string{"Gormes profile setup", "omitted", "resize", "Workspace directories"} {
 				if !strings.Contains(collapsed, want) {
 					t.Fatalf("setup profiles view missing %q:\n%s", want, view)
 				}
 			}
 		})
+	}
+}
+
+func TestSetupProfilesTUIHardeningBoundsShortTerminalHeight(t *testing.T) {
+	long := strings.Repeat("x", 240)
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{
+			{Name: "default", Root: "/home/operator/.gormes", Active: true, Workspaces: []string{"/srv/" + long}},
+			{Name: "very-long-profile-" + long, Root: "/tmp/" + long},
+		},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 24, Height: 8})
+	m = updated.(setupProfilesModel)
+	m.mode = setupProfilesModeWorkspaces
+	m.input = "/tmp/new-workspace-" + long
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("setup profiles view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 24 {
+			t.Fatalf("setup profiles line width %d exceeds 24:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Gormes profile setup", "omitted", "resize", "Workspace directories"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup profiles short view missing %q:\n%s", want, view)
+		}
 	}
 }
 
