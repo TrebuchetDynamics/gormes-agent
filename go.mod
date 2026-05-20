@@ -5,6 +5,7 @@ go 1.26
 toolchain go1.26.0
 
 require (
+	github.com/TrebuchetDynamics/goncho v0.1.0
 	github.com/a-h/templ v0.3.1001
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -15,7 +16,6 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/google/uuid v1.6.0
 	github.com/jerbob92/wazero-emscripten-embind v1.5.2
-	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/ncruces/go-sqlite3 v0.33.3
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/pelletier/go-toml/v2 v2.3.0
@@ -34,7 +34,6 @@ require (
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3 // indirect
-	github.com/TrebuchetDynamics/goncho v0.0.0-20260519150947-20118c765d5b // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/htmlquery v1.3.6 // indirect
 	github.com/antchfx/xpath v1.3.6 // indirect
@@ -87,7 +86,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/text v0.36.0 // indirect
-	rsc.io/qr v0.2.0 // indirect
 )
 
 replace github.com/TrebuchetDynamics/goscrapling => ./goscrapling

@@ -2,9 +2,13 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log/slog"
+	"sort"
+	"strings"
 
 	"github.com/TrebuchetDynamics/goncho"
+	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gonchotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -27,4 +31,28 @@ func newChannelGonchoService(db *sql.DB, cfg goncho.Config, log *slog.Logger, cl
 // channels (Telegram, WhatsApp, Slack, Discord) call to enable memory.
 func registerChannelGonchoTools(reg *tools.Registry, svc *goncho.Service) {
 	gonchotools.RegisterHonchoTools(reg, svc)
+}
+
+// registerGormesGonchoTools wires the public Goncho v0.1.x Gormes adapter
+// tools onto the registry. These are the stable goncho_* tools exposed by the
+// released github.com/TrebuchetDynamics/goncho/integration/gormes package.
+func registerGormesGonchoTools(reg *tools.Registry, mem *gormesgoncho.Runtime) {
+	if reg == nil || mem == nil {
+		return
+	}
+	reg.MustRegister(mem.ContextTool)
+	reg.MustRegister(mem.SearchTool)
+	reg.MustRegister(mem.RememberTool)
+	reg.MustRegister(mem.ReviewTool)
+	reg.MustRegister(mem.HandoffTool)
+}
+
+func formatGormesGonchoStatus(status gormesgoncho.Status) string {
+	ready := "unavailable"
+	if status.Ready {
+		ready = "ready"
+	}
+	tools := append([]string(nil), status.ToolNames...)
+	sort.Strings(tools)
+	return fmt.Sprintf("goncho: %s workspace_id=%s observer_id=%s database=%s tools=%s", ready, status.WorkspaceID, status.ObserverID, status.DatabasePath, strings.Join(tools, ","))
 }

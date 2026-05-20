@@ -19,6 +19,8 @@ import (
 	"github.com/spf13/cobra"
 	"go.etcd.io/bbolt"
 
+	"github.com/TrebuchetDynamics/goncho"
+	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
@@ -27,7 +29,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -297,21 +298,33 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model, withSessionSearch(mstore.DB(), smap))
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
-	// Initialize Goncho for cross-session memory persistence.
-	// When available, every user + assistant turn is persisted and recent
-	// context is injected into the system prompt on each turn.
+	// Initialize Goncho for cross-session memory persistence through the public
+	// github.com/TrebuchetDynamics/goncho/integration/gormes adapter. When
+	// available, every user + assistant turn is persisted, recent context is
+	// injected into the system prompt, and public goncho_* tools are registered.
 	var gonchoStore kernel.GonchoStore
+	var gonchoRuntime *gormesgoncho.Runtime
 	if cfg.Goncho.Enabled {
-		gonchoDB, err := sqlOpenGoncho(config.MemoryDBPath())
+		gonchoRuntime, err = gormesgoncho.Open(rootCtx, gormesgoncho.Config{
+			DatabasePath:   config.MemoryDBPath(),
+			WorkspaceID:    cfg.Goncho.Workspace,
+			ObserverID:     cfg.Goncho.ObserverPeer,
+			RecentMessages: cfg.Goncho.RecentMessages,
+			Logger:         slog.Default(),
+		})
 		if err != nil {
-			slog.Warn("goncho db open failed; memory disabled", "err", err)
+			slog.Warn("goncho runtime open failed; memory disabled", "err", err)
 		} else {
-			gc := goncho.NewService(gonchoDB, goncho.Config{
-				PeerCardEnabled: cfg.Goncho.PeerCardEnabled,
-				DreamEnabled:    cfg.Goncho.DreamEnabled,
-			}, slog.Default())
-			gonchoStore = newGonchoAdapter(gc)
-			slog.Info("goncho initialized", "db", config.MemoryDBPath())
+			gonchoStore = newGonchoAdapter(gonchoRuntime.Service)
+			registerGormesGonchoTools(reg, gonchoRuntime)
+			slog.Info(formatGormesGonchoStatus(gonchoRuntime.Status()))
+			defer func() {
+				shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+				defer cancelShutdown()
+				if err := gonchoRuntime.Close(shutdownCtx); err != nil {
+					slog.Warn("goncho runtime close", "err", err)
+				}
+			}()
 		}
 	}
 
@@ -373,7 +386,11 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := gatewayPolicyMaps(next)
 		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
 		nextCfg.DynamicAgentRegistry = dynamicAgentRegistry
-		nextCfg.ToolRegistry = buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
+		nextReg := buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
+		if gonchoRuntime != nil {
+			registerGormesGonchoTools(nextReg, gonchoRuntime)
+		}
+		nextCfg.ToolRegistry = nextReg
 		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
 		if nextCfg.AgentRouting.Enabled {
 			nextCfg.AgentRuntimeFactory = newGatewayAgentRuntimeFactory(rootCtx, next, mstore, gonchoStore)
@@ -1322,6 +1339,10 @@ func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
 		return nil, err
 	}
 	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := goncho.RunMigrations(db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
