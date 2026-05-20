@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -394,6 +395,153 @@ model = "gpt-5.2-codex"
 			t.Fatalf("quick tui setup created runtime artifact %s", path)
 		} else if !os.IsNotExist(statErr) {
 			t.Fatalf("stat runtime artifact %s: %v", path, statErr)
+		}
+	}
+}
+
+func TestSetupComplexE2E_ResetJSONDoesNotRunRequestedSectionOrLeakSecrets(t *testing.T) {
+	home := t.TempDir()
+	oldSecret := "sk-json-reset-old-secret"
+	newSecret := "sk-json-reset-new-secret"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_ENDPOINT", "https://json-reset.example/v1")
+	t.Setenv("GORMES_API_KEY", newSecret)
+	t.Setenv("GORMES_MODEL", "json-reset-model")
+
+	priorConfig := strings.Join([]string{
+		"[hermes]",
+		`provider = 'openai'`,
+		`endpoint = 'https://old-json-reset.example/v1'`,
+		`model = 'old-json-reset-model'`,
+		`api_key = '` + oldSecret + `'`,
+		"",
+	}, "\n")
+	if err := os.MkdirAll(filepath.Dir(config.ConfigPath()), 0o700); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(config.ConfigPath(), []byte(priorConfig), 0o600); err != nil {
+		t.Fatalf("write prior config: %v", err)
+	}
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "--reset", "--json", "provider", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	var report struct {
+		Action         string `json:"action"`
+		ConfigPath     string `json:"config_path"`
+		BreadcrumbPath string `json:"breadcrumb_path"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("reset JSON did not parse: %v\nstdout=%s", err, stdout)
+	}
+	if report.Action != "reset" || report.ConfigPath != config.ConfigPath() || report.BreadcrumbPath == "" {
+		t.Fatalf("reset JSON report = %+v, want reset action/config/breadcrumb", report)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty for reset JSON", stderr)
+	}
+	for _, forbidden := range []string{oldSecret, newSecret, "Provider configured", "API key", "json-reset-model", "old-json-reset-model"} {
+		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) {
+			t.Fatalf("reset JSON leaked/ran forbidden %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	breadcrumbBody, err := os.ReadFile(report.BreadcrumbPath)
+	if err != nil {
+		t.Fatalf("read breadcrumb: %v", err)
+	}
+	if string(breadcrumbBody) != priorConfig {
+		t.Fatalf("breadcrumb body changed\n got=%q\nwant=%q", string(breadcrumbBody), priorConfig)
+	}
+	if _, err := os.Stat(config.EnvPath()); !os.IsNotExist(err) {
+		t.Fatalf("reset JSON should not run provider section or write dotenv %s: %v", config.EnvPath(), err)
+	}
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read reset config: %v", err)
+	}
+	for _, forbidden := range []string{oldSecret, newSecret, "old-json-reset-model", "json-reset-model", "api_key"} {
+		if strings.Contains(string(configBody), forbidden) {
+			t.Fatalf("reset config leaked forbidden %q:\n%s", forbidden, string(configBody))
+		}
+	}
+}
+
+func TestSetupComplexE2E_FirstRunOpenClawMigrationRoutesWithoutSetupMutation(t *testing.T) {
+	home := t.TempDir()
+	gormesHome := filepath.Join(home, ".gormes")
+	openclawSource := filepath.Join(home, ".openclaw")
+	t.Setenv("HOME", home)
+	t.Setenv("GORMES_HOME", gormesHome)
+	if err := os.MkdirAll(openclawSource, 0o700); err != nil {
+		t.Fatalf("mkdir openclaw source: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(openclawSource, "config.toml"), []byte("api_key='sk-openclaw-migration-secret'\n"), 0o600); err != nil {
+		t.Fatalf("write openclaw fixture: %v", err)
+	}
+
+	fake := &setupCommandFakeSeams{isTTY: true, freshInstall: true}
+	fake.detectHermes = func() string { return "" }
+	fake.detectOpenClaw = func() string { return openclawSource }
+	seams := fake.seams()
+	seams.ChooseSetupAction = func(_ *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
+		if defaultOption != 0 {
+			t.Fatalf("default option = %d, want quick setup default", defaultOption)
+		}
+		var labels []string
+		for _, option := range options {
+			labels = append(labels, option.Label)
+		}
+		if got := strings.Join(labels, ","); got != "Quick setup — provider, model & messaging (recommended),Full setup — configure everything,Migrate OpenClaw" {
+			t.Fatalf("first-run options = %s", got)
+		}
+		return setupActionMigrateOpenClaw, nil
+	}
+	seams.RunSetupProvider = func(*cobra.Command, bool) error {
+		t.Fatal("migration route ran provider setup")
+		return nil
+	}
+	seams.RunFullWizard = func(*cobra.Command, bool) error {
+		t.Fatal("migration route ran full setup wizard")
+		return nil
+	}
+	seams.RunSetupGateway = func(*cobra.Command, bool) error {
+		t.Fatal("migration route ran gateway setup")
+		return nil
+	}
+	seams.RunSetupTools = func(*cobra.Command, bool) error {
+		t.Fatal("migration route ran tools setup")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams)
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Agent Setup Wizard",
+		"No existing Gormes configuration was found.",
+		"Migrate from openclaw",
+		"Found openclaw at: " + openclawSource,
+		"gormes migrate openclaw --dry-run",
+		"gormes migrate openclaw --yes --source " + openclawSource,
+		"does not overwrite files without --overwrite",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{"sk-openclaw-migration-secret", "Provider configured", "Setup Complete", "API key", "gormes chat"} {
+		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) {
+			t.Fatalf("migration route leaked/printed forbidden %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	for _, path := range []string{config.ConfigPath(), config.EnvPath(), config.SessionDBPath(), config.GatewayRuntimeStatusPath()} {
+		if _, statErr := os.Stat(path); statErr == nil {
+			t.Fatalf("migration route created setup/runtime artifact %s", path)
+		} else if !os.IsNotExist(statErr) {
+			t.Fatalf("stat migration artifact %s: %v", path, statErr)
 		}
 	}
 }
