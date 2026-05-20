@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `fleet`
 **Rows:** 23
-**Status counts:** `complete`: 22 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 23 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5
 
 ## Phase 1 — The Dashboard
@@ -34,7 +34,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `fleet` | SQLite cron_runs audit + CRON.md mirror |
 | `complete` | `unset` | `fleet` | Heartbeat [SYSTEM:] + [SILENT] delivery contract |
 | `complete` | `P1` | `fleet` | Durable operator run report for unattended jobs |
-| `planned` | `P1` | `fleet` | Scheduled briefing job emits operator run report |
+| `complete` | `P1` | `fleet` | Scheduled briefing job emits operator run report |
 
 ### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution
 

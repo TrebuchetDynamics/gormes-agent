@@ -82,6 +82,10 @@ type ExecutorConfig struct {
 	// runs. When it returns true after a 401 Submit error, the executor retries
 	// the same event once.
 	Codex401Refresher func(context.Context, Job, error) (bool, error)
+
+	// OperatorReportHome is the root used for durable OperatorRunReport
+	// artifacts. Empty disables report writes unless GORMES_HOME is set.
+	OperatorReportHome string
 }
 
 func (c *ExecutorConfig) withDefaults() {
@@ -106,6 +110,9 @@ func (c *ExecutorConfig) withDefaults() {
 		} else {
 			c.InactivityTimeout = -1
 		}
+	}
+	if strings.TrimSpace(c.OperatorReportHome) == "" {
+		c.OperatorReportHome = strings.TrimSpace(c.LookupEnv("GORMES_HOME"))
 	}
 }
 
@@ -237,7 +244,7 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 			ErrorMsg:   submitErr.Error(),
 		}
 		e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
-		e.recordAndUpdateJob(ctx, job, run)
+		e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID})
 		return submitErr
 	}
 
@@ -277,7 +284,7 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 				ErrorMsg:      err.Error(),
 			}
 			e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
-			e.recordAndUpdateJob(ctx, job, run)
+			e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID})
 			return err
 		case <-callCtx.Done():
 			// Timeout or parent ctx cancel — deliver a short failure notice.
@@ -294,7 +301,7 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 				ErrorMsg:      "context deadline exceeded",
 			}
 			e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
-			e.recordAndUpdateJob(ctx, job, run)
+			e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID})
 			return callCtx.Err()
 		}
 	}
@@ -314,7 +321,7 @@ completed:
 			SuppressionReason: "silent",
 		}
 		e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
-		e.recordAndUpdateJob(ctx, job, run)
+		e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID})
 		return nil
 	}
 
@@ -334,15 +341,16 @@ completed:
 			ErrorMsg:          "agent returned empty response",
 		}
 		e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
-		e.recordAndUpdateJob(ctx, job, run)
+		e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID})
 		return nil
 	}
 
 	// Normal delivery.
 	content := PrepareCronDeliveryContent(finalText)
+	deliveryPlan := PlanCronDeliveryForJob(runtimeJob, e.cfg.Directory)
 	outcome := DeliverCronDeliveryPlan(
 		context.Background(),
-		PlanCronDeliveryForJob(runtimeJob, e.cfg.Directory),
+		deliveryPlan,
 		content,
 		e.cfg.LiveDelivery,
 		e.cfg.Sink,
@@ -357,7 +365,7 @@ completed:
 	}
 	run = applyDeliveryOutcome(run, outcome)
 	e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
-	e.recordAndUpdateJob(ctx, job, run)
+	e.recordAndUpdateJob(ctx, runtimeJob, run, operatorReportContext{SessionID: sessionID, DeliveryPlan: deliveryPlan, DeliveryOutcome: outcome})
 	return nil
 }
 
@@ -376,7 +384,7 @@ func (e *Executor) runNoAgentJob(ctx context.Context, job Job, startedAt int64, 
 			Delivered:     true,
 			OutputPreview: truncate(notice, 200),
 			ErrorMsg:      err.Error(),
-		})
+		}, operatorReportContext{})
 		return err
 	}
 	runner := e.cfg.ScriptRunner
@@ -401,7 +409,7 @@ func (e *Executor) runNoAgentJob(ctx context.Context, job Job, startedAt int64, 
 				Status:            "suppressed",
 				Delivered:         false,
 				SuppressionReason: "empty",
-			})
+			}, operatorReportContext{})
 			return nil
 		case cronNoAgentWakeAgentFalse(output):
 			e.recordAndUpdateJob(ctx, job, Run{
@@ -413,13 +421,14 @@ func (e *Executor) runNoAgentJob(ctx context.Context, job Job, startedAt int64, 
 				Delivered:         false,
 				SuppressionReason: "silent",
 				OutputPreview:     truncate(output, 200),
-			})
+			}, operatorReportContext{})
 			return nil
 		default:
 			content := PrepareCronDeliveryContent(output)
+			deliveryPlan := PlanCronDeliveryForJob(job, e.cfg.Directory)
 			outcome := DeliverCronDeliveryPlan(
 				context.Background(),
-				PlanCronDeliveryForJob(job, e.cfg.Directory),
+				deliveryPlan,
 				content,
 				e.cfg.LiveDelivery,
 				e.cfg.Sink,
@@ -433,7 +442,7 @@ func (e *Executor) runNoAgentJob(ctx context.Context, job Job, startedAt int64, 
 				OutputPreview: truncate(content.Text, 200),
 			}
 			run = applyDeliveryOutcome(run, outcome)
-			e.recordAndUpdateJob(ctx, job, run)
+			e.recordAndUpdateJob(ctx, job, run, operatorReportContext{DeliveryPlan: deliveryPlan, DeliveryOutcome: outcome})
 			return nil
 		}
 	}
@@ -458,7 +467,7 @@ func (e *Executor) runNoAgentJob(ctx context.Context, job Job, startedAt int64, 
 		Delivered:     true,
 		OutputPreview: truncate(notice, 200),
 		ErrorMsg:      output,
-	})
+	}, operatorReportContext{})
 	if status == "timeout" {
 		return context.DeadlineExceeded
 	}
@@ -867,14 +876,49 @@ func durableCronProgress(job Job, promptHash, phase string) (json.RawMessage, er
 	})
 }
 
-func (e *Executor) recordAndUpdateJob(ctx context.Context, job Job, run Run) {
+type operatorReportContext struct {
+	SessionID       string
+	DeliveryPlan    DeliveryPlan
+	DeliveryOutcome DeliveryOutcome
+}
+
+func (e *Executor) recordAndUpdateJob(ctx context.Context, job Job, run Run, reportCtx ...operatorReportContext) {
+	var report operatorReportContext
+	if len(reportCtx) > 0 {
+		report = reportCtx[0]
+	}
 	completion, err := e.cfg.JobStore.ApplyRunCompletion(job, run, runCompletionNow(run), CronNextRunDecision)
 	if err != nil {
 		e.log.Warn("cron: failed to update job after run", "job_id", job.ID, "err", err)
 		completion = cronRunCompletionForJob(job, run, runCompletionNow(run), CronNextRunDecision)
 	}
-	if err := e.cfg.RunStore.RecordRun(ctx, completion.Run); err != nil {
+	recordedRun := completion.Run
+	id, err := e.cfg.RunStore.RecordRunWithID(ctx, recordedRun)
+	if err != nil {
 		e.log.Warn("cron: failed to record run", "job_id", job.ID, "err", err)
+		return
+	}
+	recordedRun.ID = id
+	e.writeOperatorRunReport(job, recordedRun, report)
+}
+
+func (e *Executor) writeOperatorRunReport(job Job, run Run, reportCtx operatorReportContext) {
+	home := strings.TrimSpace(e.cfg.OperatorReportHome)
+	if home == "" {
+		return
+	}
+	report := BuildOperatorRunReport(OperatorRunReportInput{
+		Job:             job,
+		Run:             run,
+		HomeDir:         home,
+		RuntimeEvidence: map[string]any{"provider": job.Provider, "model": job.Model},
+		DeliveryPlan:    reportCtx.DeliveryPlan,
+		DeliveryOutcome: reportCtx.DeliveryOutcome,
+		SessionID:       reportCtx.SessionID,
+	})
+	path := OperatorRunReportPath(home, report)
+	if err := WriteOperatorRunReport(path, report); err != nil {
+		e.log.Warn("cron: failed to write operator run report", "job_id", job.ID, "run_id", run.ID, "err", err)
 	}
 }
 

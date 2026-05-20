@@ -91,12 +91,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 90/111 subphases shipped · 21 in progress · 0 planned
+**Overall:** 91/111 subphases shipped · 20 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 19/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 20/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 17/23 subphases |
@@ -324,7 +324,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` bbolt session resume
 - [x] `gateway` (platform, chat_id) -> session_id
 
-### 2.D — Cron / Scheduled Automations 🔨
+### 2.D — Cron / Scheduled Automations ✅
 
 - [x] `fleet` robfig/cron scheduler + bbolt job store
 - [x] `fleet` SQLite cron_runs audit + CRON.md mirror
@@ -332,7 +332,7 @@ classification and row-backed implementation queue.
 - [x] `planner` Architecture planner tasks manager script
 - [x] `gateway` Cron no-agent script-only short-circuit
 - [x] `fleet` Durable operator run report for unattended jobs
-- [ ] `fleet` Scheduled briefing job emits operator run report
+- [x] `fleet` Scheduled briefing job emits operator run report
 
 ### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅
 
