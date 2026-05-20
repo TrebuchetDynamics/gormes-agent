@@ -26,7 +26,8 @@ import (
 const PlatformName = "navivox"
 
 const (
-	navivoxWebSocketProtocol            = "gormes.navivox.v1"
+	navivoxWebSocketProtocol            = "navivox.v1"
+	navivoxLegacyWebSocketProtocol      = "gormes.navivox.v1"
 	navivoxWebSocketTokenProtocolPrefix = "gormes.navivox.token."
 	navivoxEventBufferCap               = 256
 	navivoxSessionMaxAge                = 24 * time.Hour
@@ -299,11 +300,19 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 	clientCount := len(c.clients)
 	c.mu.Unlock()
 	writeNavivoxJSON(w, http.StatusOK, map[string]any{
-		"enabled":        c.cfg.Enabled,
-		"bind_host":      c.cfg.BindHost,
-		"port":           c.cfg.Port,
-		"exposure_mode":  c.cfg.ExposureMode,
-		"auth_mode":      c.cfg.AuthMode,
+		"enabled":             c.cfg.Enabled,
+		"bind_host":           c.cfg.BindHost,
+		"port":                c.cfg.Port,
+		"exposure_mode":       c.cfg.ExposureMode,
+		"auth_mode":           c.cfg.AuthMode,
+		"protocol_version":    navivoxWebSocketProtocol,
+		"websocket_protocols": []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol},
+		"capabilities": []string{
+			"profile_contacts",
+			"stream_turns",
+			"tool_progress",
+			"turn_control",
+		},
 		"sessions":       sessionCount,
 		"ws_connections": clientCount,
 	})
@@ -402,7 +411,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			return
 		}
 		upgrader := websocket.Upgrader{
-			Subprotocols: []string{navivoxWebSocketProtocol},
+			Subprotocols: []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol},
 			CheckOrigin: func(req *http.Request) bool {
 				return c.originAllowed(req.Header.Get("Origin"))
 			},

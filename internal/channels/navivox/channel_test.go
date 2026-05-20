@@ -3,6 +3,7 @@ package navivox
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,6 +39,35 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	defer statusResp.Body.Close()
 	if statusResp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("unauthorized status = %d, want 401", statusResp.StatusCode)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	authStatus, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authStatus.Body.Close()
+	if authStatus.StatusCode != http.StatusOK {
+		t.Fatalf("authorized status = %d, want 200", authStatus.StatusCode)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(authStatus.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["protocol_version"] != "navivox.v1" {
+		t.Fatalf("protocol_version = %v, want navivox.v1", payload["protocol_version"])
+	}
+	protocols, ok := payload["websocket_protocols"].([]any)
+	if !ok || len(protocols) < 2 || protocols[0] != "navivox.v1" || protocols[1] != "gormes.navivox.v1" {
+		t.Fatalf("websocket_protocols = %#v, want neutral protocol plus legacy gormes fallback", payload["websocket_protocols"])
+	}
+	capabilities, ok := payload["capabilities"].([]any)
+	if !ok || !containsAny(capabilities, "profile_contacts") || !containsAny(capabilities, "turn_control") {
+		t.Fatalf("capabilities = %#v, want profile_contacts and turn_control", payload["capabilities"])
 	}
 }
 
@@ -383,6 +413,15 @@ func TestNavivoxSendToolProgressStreamsStructuredToolEvent(t *testing.T) {
 	}
 }
 
+func containsAny(values []any, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func newTestChannel(t *testing.T) *Channel {
 	t.Helper()
 	ch, err := NewChannel(config.NavivoxCfg{
@@ -508,11 +547,11 @@ func TestNewChannel_LocalExposureUnaffectedByVPNCheck(t *testing.T) {
 
 func TestMergeProfileContact_PreservesLoaderHealth(t *testing.T) {
 	base := ProfileContact{
-		ServerID:        "navivox-gateway",
-		ProfileID:       "default",
-		DisplayName:     "Default profile",
-		Health:          ProfileContactHealthWarning,
-		AttentionBadges: []string{"config", "workspace"},
+		ServerID:         "navivox-gateway",
+		ProfileID:        "default",
+		DisplayName:      "Default profile",
+		Health:           ProfileContactHealthWarning,
+		AttentionBadges:  []string{"config", "workspace"},
 		WorkspaceRootsOK: false,
 	}
 	overlay := ProfileContact{

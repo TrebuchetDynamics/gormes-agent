@@ -29,6 +29,10 @@ class NavivoxGatewayClient {
 
   Future<Map<String, Object?>> health() => _getJson(config.healthUri);
   Future<Map<String, Object?>> status() => _getJson(config.statusUri);
+  Future<NavivoxGatewayStatus> gatewayStatus() async {
+    return NavivoxGatewayStatus.fromJson(await status());
+  }
+
   Future<List<Map<String, Object?>>> profileContacts() async {
     final body = await _getJson(config.profileContactsUri);
     final contacts = body['contacts'];

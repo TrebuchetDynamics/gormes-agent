@@ -69,7 +69,7 @@ void main() {
     expect(event.isError, isFalse);
   });
 
-  test('client sends auth headers to health and decodes status JSON', () async {
+  test('client sends auth headers and decodes status capabilities', () async {
     final seen = <Uri, Map<String, String>>{};
     final client = NavivoxGatewayClient(
       config: NavivoxGatewayConfig.fromBaseUrl(
@@ -78,13 +78,22 @@ void main() {
       ),
       get: (uri, headers) async {
         seen[uri] = headers;
-        return '{"enabled":true,"status":"ok"}';
+        return jsonEncode({
+          'enabled': true,
+          'protocol_version': 'navivox.v1',
+          'websocket_protocols': ['navivox.v1', 'gormes.navivox.v1'],
+          'capabilities': ['profile_contacts', 'stream_turns', 'turn_control'],
+        });
       },
     );
 
-    final status = await client.status();
+    final status = await client.gatewayStatus();
 
-    expect(status['enabled'], isTrue);
+    expect(status.enabled, isTrue);
+    expect(status.protocolVersion, 'navivox.v1');
+    expect(status.websocketProtocols, ['navivox.v1', 'gormes.navivox.v1']);
+    expect(status.supports('profile_contacts'), isTrue);
+    expect(status.supports('turn_control'), isTrue);
     expect(
       seen.keys.single.toString(),
       'http://127.0.0.1:8765/v1/navivox/status',

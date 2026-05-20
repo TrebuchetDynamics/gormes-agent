@@ -1,3 +1,49 @@
+const navivoxWebSocketProtocol = 'navivox.v1';
+const navivoxLegacyWebSocketProtocol = 'gormes.navivox.v1';
+const navivoxWebSocketTokenProtocolPrefix = 'gormes.navivox.token.';
+
+class NavivoxGatewayStatus {
+  const NavivoxGatewayStatus({
+    required this.enabled,
+    required this.protocolVersion,
+    required this.websocketProtocols,
+    required this.capabilities,
+  });
+
+  factory NavivoxGatewayStatus.fromJson(Map<String, Object?> json) {
+    return NavivoxGatewayStatus(
+      enabled: json['enabled'] == true,
+      protocolVersion: _stringFromJson(
+        json['protocol_version'],
+        fallback: navivoxLegacyWebSocketProtocol,
+      ),
+      websocketProtocols: _stringListFromJson(json['websocket_protocols']),
+      capabilities: _stringListFromJson(json['capabilities']),
+    );
+  }
+
+  final bool enabled;
+  final String protocolVersion;
+  final List<String> websocketProtocols;
+  final List<String> capabilities;
+
+  bool supports(String capability) => capabilities.contains(capability);
+}
+
+String _stringFromJson(Object? value, {required String fallback}) {
+  final text = value?.toString().trim();
+  if (text == null || text.isEmpty) return fallback;
+  return text;
+}
+
+List<String> _stringListFromJson(Object? value) {
+  if (value is! List) return const [];
+  return value
+      .map((item) => item.toString().trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+}
+
 class NavivoxGatewayConfig {
   const NavivoxGatewayConfig({required this.baseUri, this.token});
 
