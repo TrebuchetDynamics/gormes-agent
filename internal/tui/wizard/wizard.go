@@ -702,8 +702,12 @@ func clampSetupView(s string, width, height int) string {
 	marker := setupTrimToWidth("… omitted; resize", width)
 	out := make([]string, 0, height)
 	out = append(out, lines[0])
-	if height > 5 && len(lines) > 1 && strings.TrimSpace(lines[1]) != "" {
-		out = append(out, lines[1])
+	if height > 5 {
+		if prompt := setupPromptLine(lines); prompt != "" {
+			out = append(out, setupTrimToWidth(prompt, width))
+		} else if len(lines) > 1 && strings.TrimSpace(lines[1]) != "" {
+			out = append(out, lines[1])
+		}
 	}
 	out = append(out, marker)
 	if focal := setupFocalLine(lines); focal != "" && len(out) < height-2 {
@@ -716,6 +720,20 @@ func clampSetupView(s string, width, height int) string {
 		out = append(out[:len(out)-2], out[len(out)-1])
 	}
 	return strings.Join(out, "\n")
+}
+
+func setupPromptLine(lines []string) string {
+	for _, line := range lines[1:] {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, ">") || strings.HasPrefix(trimmed, "→") || strings.Contains(trimmed, "submit") || strings.Contains(trimmed, "abort") {
+			continue
+		}
+		return line
+	}
+	return ""
 }
 
 func setupFocalLine(lines []string) string {

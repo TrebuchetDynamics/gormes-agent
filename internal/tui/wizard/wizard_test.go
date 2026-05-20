@@ -134,6 +134,41 @@ func TestWizardChassis_ViewHardeningBoundsShortSetupTerminal(t *testing.T) {
 	}
 }
 
+func TestWizardChassis_CrampedMultiStepProviderChannelSetupKeepsProgressAndHelp(t *testing.T) {
+	long := strings.Repeat("x", 180)
+	m := newModel([]Step{
+		Password("token", "Telegram bot token from BotFather (blank keeps current) "+long, WithStringValue("123456:"+long)),
+		Pick("access_policy", "Telegram access policy", []Choice{
+			{ID: "allowlist", Label: "Allowlisted Telegram user IDs " + long},
+			{ID: "pairing", Label: "Pairing/first-run discovery " + long},
+			{ID: "open", Label: "Open access risky " + long},
+		}, WithDefaultChoice("allowlist")),
+		Text("allowed_users", "Allowed Telegram user IDs (comma-separated; used for allowlist) "+long),
+		Text("home_chat_id", "Home channel chat ID (blank to set later with /set-home) "+long),
+		Text("home_thread_id", "Home channel thread ID (optional) "+long),
+		Confirm("apply", "Write these Telegram settings now? "+long),
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 28, Height: 6})
+	m = updated.(model)
+
+	got := m.View()
+	lines := strings.Split(got, "\n")
+	if len(lines) > 6 {
+		t.Fatalf("multi-step setup wizard height = %d, want <= 6:\n%s", len(lines), got)
+	}
+	for _, line := range lines {
+		if width := lipgloss.Width(line); width > 28 {
+			t.Fatalf("multi-step setup wizard line width %d exceeds 28:\n%q\n\nfull output:\n%s", width, line, got)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(got), " ")
+	for _, want := range []string{"Gormes setup 1/6", "Telegram bot token", "omitted", "resize", "Enter submit"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("multi-step setup wizard missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestWizardChassis_TextStepCapturesInput(t *testing.T) {
 	m := newModel([]Step{
 		Text("name", "Agent name"),
