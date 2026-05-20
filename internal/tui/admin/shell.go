@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
 )
 
@@ -79,7 +80,7 @@ func (s *Shell) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.mu.Lock()
 		s.width, s.height = msg.Width, msg.Height
 		s.mu.Unlock()
-		return s, nil
+		return s.forwardToActive(msg)
 	case tea.KeyMsg:
 		if s.activeScreenCapturesKey(msg) {
 			return s.forwardToActive(msg)
@@ -281,11 +282,31 @@ func (s *Shell) renderTabBarLocked() string {
 		}
 		parts = append(parts, label)
 	}
-	return strings.Join(parts, " ")
+	return trimAdminShellLine(strings.Join(parts, " "), s.width)
 }
 
 func (s *Shell) renderStatusBarLocked() string {
-	return "tab/shift+tab cycle  q quit  ? help"
+	return trimAdminShellLine("tab/shift+tab cycle  q quit  ? help", s.width)
+}
+
+func trimAdminShellLine(text string, width int) string {
+	if width <= 0 || lipgloss.Width(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+	ellipsis := "…"
+	limit := width - lipgloss.Width(ellipsis)
+	used := 0
+	for i, r := range text {
+		rw := lipgloss.Width(string(r))
+		if used+rw > limit {
+			return strings.TrimRight(text[:i], " \t") + ellipsis
+		}
+		used += rw
+	}
+	return text
 }
 
 // Run is the production-facing entry. It refuses to start when in is not

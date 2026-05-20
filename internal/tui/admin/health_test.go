@@ -86,6 +86,29 @@ func TestAdminHealth_SetupScreenBoundsCrampedLongRows(t *testing.T) {
 	}
 }
 
+func TestAdminHealth_ShellForwardsResizeToSetupScreen(t *testing.T) {
+	long := strings.Repeat("x", 220)
+	screen := NewSetupHealthScreen(WithHealthSource(healthSourceFunc(func(context.Context) ([]HealthItem, error) {
+		return []HealthItem{{ID: "provider", Status: doctor.StatusFail, Title: "provider configuration " + long, Detail: "endpoint missing " + long, Fixable: true}}, nil
+	})))
+	shell := New(screen)
+	updated, _ := shell.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	shell = updated.(*Shell)
+
+	view := shell.View()
+	for _, line := range strings.Split(view, "\n") {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("shell setup line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Setup health", "[Fix]", "omitted", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("shell setup view missing %q:\n%s", want, view)
+		}
+	}
+}
+
 func TestAdminHealth_ProviderFixWizardBoundsCrampedLongDefaults(t *testing.T) {
 	long := strings.Repeat("x", 220)
 	cfg := config.Config{}
