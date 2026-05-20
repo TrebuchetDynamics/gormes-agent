@@ -23,6 +23,7 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | Commit all dirty development work and push | `gormes-git` | none |
 | Release development to main and tag | `gormes-release` | `gormes-git` as subroutine |
 | Stress-test a plan with the user | `grill-me` | skill selected from outcome |
+| Flutter Navivox Telegram-like chat/contact UI | `navivox-telegram-ui` | `gormes-tdd-slice` for widget-test implementation |
 
 Rules:
 

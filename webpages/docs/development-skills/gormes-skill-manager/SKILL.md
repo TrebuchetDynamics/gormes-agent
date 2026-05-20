@@ -82,6 +82,7 @@ Pick the primary intent:
 - **Browser automation, Browser Use, browser-harness, CDP, or `/browser connect` parity**:
   use `gormes-browser-harness`, then `gormes-parity-auditor`/`gormes-planner`
   for rows or `gormes-builder` + `gormes-tdd-slice` for a single runtime slice.
+- **Flutter Navivox Telegram-like chat/contact UI**: use `navivox-telegram-ui`, then `gormes-tdd-slice` for widget-test implementation. Use this for chat-thread chrome, bottom navigation removal, bubbles, composer, profile contacts, action sheets, voice affordances, or Telegram/Flutter clone reference research.
 - **Local run/install/runtime operations**: use `gormes-dev-runtime` when the
   task involves `go run ./cmd/gormes`, `bin/gormes`, `install.sh`, managed
   source checkouts, PATH shadowing, gateway process ownership, or
