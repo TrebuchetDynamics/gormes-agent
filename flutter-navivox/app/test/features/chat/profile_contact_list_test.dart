@@ -82,6 +82,32 @@ void main() {
     expect(find.byTooltip('Add profile'), findsOneWidget);
   });
 
+  testWidgets('server filter chips narrow contacts by gateway', (tester) async {
+    final channel = TestNavivoxChannel()
+      ..seedServers(_servers, activeServerId: 'local')
+      ..seedProfileContacts(_contacts);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [navivoxChannelProvider.overrideWithValue(channel)],
+        child: const _RouterTestApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('server-filter-all')), findsOneWidget);
+    expect(find.byKey(const ValueKey('server-filter-local')), findsOneWidget);
+    expect(find.byKey(const ValueKey('server-filter-office')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('server-filter-office')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Support Triage'), findsOneWidget);
+    expect(find.text('Mineru Builder'), findsNothing);
+    expect(find.text('Personal'), findsNothing);
+    expect(find.text('1 profile'), findsOneWidget);
+  });
+
   testWidgets('search filters profile contacts like Telegram chat search', (
     tester,
   ) async {

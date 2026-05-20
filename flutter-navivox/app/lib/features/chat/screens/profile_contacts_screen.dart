@@ -19,6 +19,7 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
   final _searchController = TextEditingController();
   bool _searching = false;
   String _query = '';
+  String? _selectedServerId;
 
   void _onChannelChanged() {
     if (mounted) setState(() {});
@@ -40,6 +41,7 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
       _subscribed = channel;
     }
 
+    final servers = channel.state.servers;
     final allContacts = [...channel.state.profileContacts]
       ..sort((a, b) => a.displayName.compareTo(b.displayName));
     final contacts = _filterContacts(allContacts);
@@ -68,27 +70,44 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
       ),
       body: allContacts.isEmpty
           ? const Center(child: Text('No profiles loaded'))
-          : contacts.isEmpty
-          ? const Center(child: Text('No chats found'))
-          : ListView.separated(
-              itemCount: contacts.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final contact = contacts[index];
-                return _ProfileContactTile(
-                  contact: contact,
-                  onTap: () {
-                    channel.selectProfileContact(
-                      serverId: contact.serverId,
-                      profileId: contact.profileId,
-                    );
-                    context.go(
-                      '/chats/${contact.serverId}/${contact.profileId}',
-                    );
-                  },
-                  onLongPress: () => _showProfileDetails(context, contact),
-                );
-              },
+          : Column(
+              children: [
+                _ServerFilterBar(
+                  servers: servers,
+                  selectedServerId: _selectedServerId,
+                  visibleCount: contacts.length,
+                  onSelected: (serverId) => setState(() {
+                    _selectedServerId = serverId;
+                  }),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: contacts.isEmpty
+                      ? const Center(child: Text('No chats found'))
+                      : ListView.separated(
+                          itemCount: contacts.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final contact = contacts[index];
+                            return _ProfileContactTile(
+                              contact: contact,
+                              onTap: () {
+                                channel.selectProfileContact(
+                                  serverId: contact.serverId,
+                                  profileId: contact.profileId,
+                                );
+                                context.go(
+                                  '/chats/${contact.serverId}/${contact.profileId}',
+                                );
+                              },
+                              onLongPress: () =>
+                                  _showProfileDetails(context, contact),
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
       floatingActionButton: FloatingActionButton.small(
         tooltip: 'Add profile',
@@ -102,16 +121,22 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
     List<NavivoxProfileContact> contacts,
   ) {
     final query = _query.trim().toLowerCase();
-    if (query.isEmpty) return contacts;
     return contacts
         .where(
-          (contact) => [
-            contact.displayName,
-            contact.profileId,
-            contact.serverLabel,
-            contact.latestPreview,
-            ...contact.attentionBadges,
-          ].any((field) => field.toLowerCase().contains(query)),
+          (contact) =>
+              _selectedServerId == null ||
+              contact.serverId == _selectedServerId,
+        )
+        .where(
+          (contact) =>
+              query.isEmpty ||
+              [
+                contact.displayName,
+                contact.profileId,
+                contact.serverLabel,
+                contact.latestPreview,
+                ...contact.attentionBadges,
+              ].any((field) => field.toLowerCase().contains(query)),
         )
         .toList(growable: false);
   }
@@ -174,6 +199,58 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ServerFilterBar extends StatelessWidget {
+  const _ServerFilterBar({
+    required this.servers,
+    required this.selectedServerId,
+    required this.visibleCount,
+    required this.onSelected,
+  });
+
+  final List<NavivoxServer> servers;
+  final String? selectedServerId;
+  final int visibleCount;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final countLabel = visibleCount == 1
+        ? '1 profile'
+        : '$visibleCount profiles';
+    return SizedBox(
+      height: 56,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        children: [
+          ChoiceChip(
+            key: const ValueKey('server-filter-all'),
+            label: const Text('All'),
+            selected: selectedServerId == null,
+            onSelected: (_) => onSelected(null),
+          ),
+          const SizedBox(width: 8),
+          for (final server in servers) ...[
+            ChoiceChip(
+              key: ValueKey('server-filter-${server.id}'),
+              label: Text(server.name),
+              selected: selectedServerId == server.id,
+              onSelected: (_) => onSelected(server.id),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Center(
+            child: Text(
+              countLabel,
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+        ],
       ),
     );
   }
