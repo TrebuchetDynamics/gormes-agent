@@ -170,6 +170,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ? voiceService
                   : null,
               onVoice: (capture) => _handleVoiceCapture(channel, capture),
+              forwardTargets: state.profileContacts
+                  .where((contact) => contact.key != activeProfile?.key)
+                  .toList(growable: false),
+              onForward: (message, target) =>
+                  _handleForward(channel, message: message, target: target),
             ),
           ),
         ],
@@ -276,6 +281,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _handleTextSubmit(NavivoxChannel channel, String text) {
     if (_handleLocalCommand(channel, text, fromVoice: false)) return;
     channel.sendText(text);
+  }
+
+  void _handleForward(
+    NavivoxChannel channel, {
+    required NavivoxChatMessage message,
+    required NavivoxProfileContact target,
+  }) {
+    final text = _forwardText(message);
+    if (text.isEmpty) return;
+    channel.selectProfileContact(
+      serverId: target.serverId,
+      profileId: target.profileId,
+    );
+    GoRouter.maybeOf(context)?.go(
+      '/chats/${Uri.encodeComponent(target.serverId)}/'
+      '${Uri.encodeComponent(target.profileId)}',
+    );
+    channel.sendText(text);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Forwarded to ${target.displayName}')),
+    );
+  }
+
+  String _forwardText(NavivoxChatMessage message) {
+    return switch (message.kind) {
+      NavivoxMessageKind.text => message.text ?? '',
+      NavivoxMessageKind.voice => message.voice?.transcript ?? '',
+      NavivoxMessageKind.toolCall => [
+        message.toolCall?.name,
+        message.toolCall?.status,
+        message.toolCall?.summary,
+      ].whereType<String>().where((part) => part.isNotEmpty).join('\n'),
+    };
   }
 
   void _handleVoiceCapture(NavivoxChannel channel, VoiceCapture capture) {

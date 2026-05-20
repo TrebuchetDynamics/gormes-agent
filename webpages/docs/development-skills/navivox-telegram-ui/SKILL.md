@@ -55,7 +55,7 @@ Message bubbles | User right, assistant left, grouped tails, compact timestamps
 Read ticks | Local send/queued/streaming/done/error status, not read receipts
 Attachment button | Navivox action tray for approvals, tools, workspace/config, future files
 Voice message | Device transcript bubble and continuous voice controls
-Long press | Copy, retry, inspect event/tool, reveal redacted fields only when allowed
+Long press | Selectable text, copy, forward to another profile/contact, retry, inspect event/tool, reveal redacted fields only when allowed
 Telegram backend | Never: Navivox talks to Gormes gateway only
 
 ## Implementation Workflow
