@@ -258,6 +258,146 @@ func TestSetupComplexE2E_QuickHeadlessDiscordTargetNeverPromptsOrStartsRuntime(t
 	}
 }
 
+func TestSetupComplexE2E_ProviderNonInteractiveMergesDotenvWithoutDuplicateSecrets(t *testing.T) {
+	home := t.TempDir()
+	oldSecret := "sk-old-dotenv-secret"
+	duplicateSecret := "sk-duplicate-dotenv-secret"
+	newSecret := "sk-new-dotenv-secret"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_ENDPOINT", "https://merge-dotenv.example/v1")
+	t.Setenv("GORMES_MODEL", "merge-dotenv-model")
+	t.Setenv("GORMES_API_KEY", newSecret)
+
+	if err := os.MkdirAll(filepath.Dir(config.EnvPath()), 0o700); err != nil {
+		t.Fatalf("mkdir env dir: %v", err)
+	}
+	priorEnv := strings.Join([]string{
+		"# operator managed file",
+		"GORMES_API_KEY=" + oldSecret,
+		"UNRELATED_SERVICE_TOKEN=keep-this-token-value",
+		"GORMES_API_KEY=" + duplicateSecret,
+		`QUOTED_VALUE="preserve me"`,
+		"",
+	}, "\n")
+	if err := os.WriteFile(config.EnvPath(), []byte(priorEnv), 0o644); err != nil {
+		t.Fatalf("write prior dotenv: %v", err)
+	}
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "provider", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{"Gormes Setup — Provider", "Provider configured.", "merge-dotenv-model", "API key:  stored (redacted)"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, leaked := range []string{oldSecret, duplicateSecret, newSecret, "keep-this-token-value", "sk-old", "sk-duplicate", "sk-new"} {
+		if strings.Contains(stdout+stderr, leaked) {
+			t.Fatalf("setup provider output leaked dotenv material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
+		}
+	}
+
+	envBody, err := os.ReadFile(config.EnvPath())
+	if err != nil {
+		t.Fatalf("read dotenv: %v", err)
+	}
+	envText := string(envBody)
+	if count := strings.Count(envText, "GORMES_API_KEY="); count != 1 {
+		t.Fatalf("dotenv GORMES_API_KEY occurrences = %d, want exactly 1 after merge:\n%s", count, envText)
+	}
+	for _, want := range []string{"# operator managed file", "GORMES_API_KEY=" + newSecret, "UNRELATED_SERVICE_TOKEN=keep-this-token-value", `QUOTED_VALUE="preserve me"`} {
+		if !strings.Contains(envText, want) {
+			t.Fatalf("dotenv missing preserved/new line %q:\n%s", want, envText)
+		}
+	}
+	for _, forbidden := range []string{oldSecret, duplicateSecret} {
+		if strings.Contains(envText, forbidden) {
+			t.Fatalf("dotenv retained old duplicate secret %q:\n%s", forbidden, envText)
+		}
+	}
+	info, err := os.Stat(config.EnvPath())
+	if err != nil {
+		t.Fatalf("stat dotenv: %v", err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("dotenv mode = %v, want 0600 after secret rewrite", info.Mode().Perm())
+	}
+
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if strings.Contains(string(configBody), newSecret) || strings.Contains(string(configBody), "api_key") {
+		t.Fatalf("config.toml leaked API key material:\n%s", string(configBody))
+	}
+}
+
+func TestSetupComplexE2E_QuickTUITargetAliasRunsLiveTestThenLaunchesChatOnly(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_API_KEY", "sk-tui-target-secret")
+	writeSetupGatewayFixtureConfig(t, `
+[hermes]
+provider = "openai-codex"
+endpoint = "https://chatgpt.com/backend-api/codex"
+model = "gpt-5.2-codex"
+`)
+
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.2-codex"},
+	}
+	seams := fake.seams()
+	seams.RunSetupProvider = func(*cobra.Command, bool) error {
+		t.Fatal("configured tui quick setup ran provider setup")
+		return nil
+	}
+	seams.RunModelPicker = func(*cobra.Command) error {
+		t.Fatal("configured tui quick setup ran model picker")
+		return nil
+	}
+	seams.RunGatewayPlatform = func(*cobra.Command, string) error {
+		t.Fatal("tui target routed through channel setup")
+		return nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		events = append(events, "live-test")
+		return nil
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		events = append(events, "chat")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick", "--target", "tui")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got, want := strings.Join(events, ","), "live-test,chat"; got != want {
+		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+	for _, want := range []string{"Quick Setup - configure missing items only", "Current model/provider: gpt-5.2-codex via openai-codex", "No missing core setup items detected."} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{"sk-tui-target-secret", "Channel setup command", "Channel setup checked", "Terminal chat ready", "setup gateway"} {
+		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) {
+			t.Fatalf("tui target output leaked/printed forbidden %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	for _, path := range []string{config.SessionDBPath(), config.MemoryDBPath(), config.GatewayRuntimeStatusPath()} {
+		if _, statErr := os.Stat(path); statErr == nil {
+			t.Fatalf("quick tui setup created runtime artifact %s", path)
+		} else if !os.IsNotExist(statErr) {
+			t.Fatalf("stat runtime artifact %s: %v", path, statErr)
+		}
+	}
+}
+
 func findSetupResetBreadcrumb(t *testing.T) string {
 	t.Helper()
 	entries, err := os.ReadDir(filepath.Dir(config.ConfigPath()))

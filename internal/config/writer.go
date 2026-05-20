@@ -140,9 +140,9 @@ func WriteTOMLValue(path, key, value string) error {
 }
 
 // WriteEnvValue persists a KEY=VALUE pair into the dotenv file at path.
-// An existing line for the same key is replaced in place; otherwise the
-// pair is appended. Parent directories are created with 0o700 and the
-// dotenv file is written 0o600 so secrets stay operator-readable only.
+// Existing lines for the same key are collapsed to one replacement;
+// otherwise the pair is appended. Parent directories are created with 0o700
+// and the dotenv file is written 0o600 so secrets stay operator-readable only.
 func WriteEnvValue(path, key, value string) error {
 	key = strings.TrimSpace(key)
 	if key == "" {
@@ -166,9 +166,11 @@ func WriteEnvValue(path, key, value string) error {
 		for sc.Scan() {
 			line := sc.Text()
 			if envLineMatchesKey(line, key) {
-				out.WriteString(encoded)
-				out.WriteByte('\n')
-				replaced = true
+				if !replaced {
+					out.WriteString(encoded)
+					out.WriteByte('\n')
+					replaced = true
+				}
 				continue
 			}
 			out.WriteString(line)
