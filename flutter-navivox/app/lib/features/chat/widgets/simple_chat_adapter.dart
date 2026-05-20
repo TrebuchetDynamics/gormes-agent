@@ -17,6 +17,7 @@ class SimpleChatAdapter extends StatefulWidget {
     this.voiceCaptureTimeout = const Duration(seconds: 30),
     this.voiceUnavailableReason,
     this.textToSpeechService,
+    this.assistantTypingLabel,
     this.forwardTargets = const [],
     this.onForward,
     super.key,
@@ -29,6 +30,7 @@ class SimpleChatAdapter extends StatefulWidget {
   final Duration voiceCaptureTimeout;
   final String? voiceUnavailableReason;
   final TextToSpeechService? textToSpeechService;
+  final String? assistantTypingLabel;
   final List<NavivoxProfileContact> forwardTargets;
   final void Function(NavivoxChatMessage message, NavivoxProfileContact target)?
   onForward;
@@ -80,7 +82,7 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
     return Column(
       children: [
         Expanded(
-          child: widget.messages.isEmpty
+          child: widget.messages.isEmpty && widget.assistantTypingLabel == null
               ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -106,8 +108,15 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
                     horizontal: 12,
                     vertical: 8,
                   ),
-                  itemCount: widget.messages.length,
+                  itemCount:
+                      widget.messages.length +
+                      (widget.assistantTypingLabel == null ? 0 : 1),
                   itemBuilder: (context, index) {
+                    if (index == widget.messages.length) {
+                      return _TypingIndicator(
+                        label: widget.assistantTypingLabel!,
+                      );
+                    }
                     final msg = widget.messages[index];
                     final isUser = msg.author == NavivoxMessageAuthor.user;
                     final prev = index > 0 ? widget.messages[index - 1] : null;
@@ -181,6 +190,47 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
+  }
+}
+
+class _TypingIndicator extends StatelessWidget {
+  const _TypingIndicator({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        key: const ValueKey('assistant-typing-indicator'),
+        margin: const EdgeInsets.only(top: 4, bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

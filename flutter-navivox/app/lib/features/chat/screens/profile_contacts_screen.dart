@@ -158,10 +158,35 @@ class _ProfileContactTile extends StatelessWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            contact.latestPreview,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _previewLabel(contact),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: contact.activeTurnState == 'streaming'
+                      ? TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontStyle: FontStyle.italic,
+                        )
+                      : null,
+                ),
+              ),
+              if (contact.activeTurnState == 'streaming')
+                Container(
+                  key: ValueKey(
+                    'profile-active-turn-${contact.serverId}-${contact.profileId}',
+                  ),
+                  margin: const EdgeInsets.only(left: 6),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           Wrap(
@@ -201,6 +226,11 @@ class _ProfileContactTile extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
     );
+  }
+
+  String _previewLabel(NavivoxProfileContact contact) {
+    if (contact.activeTurnState == 'streaming') return 'typing…';
+    return contact.latestPreview;
   }
 
   String _workspaceLabel(NavivoxProfileContact contact) {

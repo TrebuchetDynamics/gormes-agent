@@ -180,6 +180,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   : null,
               voiceUnavailableReason: voiceDisabledReason,
               textToSpeechService: textToSpeechService,
+              assistantTypingLabel:
+                  activeProfile?.activeTurnState == 'streaming'
+                  ? '${activeProfile!.displayName} is typing…'
+                  : null,
               onVoice: (capture) => _handleVoiceCapture(channel, capture),
               forwardTargets: state.profileContacts
                   .where((contact) => contact.key != activeProfile?.key)

@@ -82,6 +82,42 @@ void main() {
     expect(find.byTooltip('Add profile'), findsOneWidget);
   });
 
+  testWidgets('streaming profile contact shows Telegram-like typing state', (
+    tester,
+  ) async {
+    final channel = TestNavivoxChannel()
+      ..seedServers(_servers, activeServerId: 'local')
+      ..seedProfileContacts([
+        NavivoxProfileContact(
+          serverId: _contacts.first.serverId,
+          profileId: _contacts.first.profileId,
+          displayName: _contacts.first.displayName,
+          serverLabel: _contacts.first.serverLabel,
+          health: _contacts.first.health,
+          latestPreview: _contacts.first.latestPreview,
+          latestAt: _contacts.first.latestAt,
+          workspaceRootCount: _contacts.first.workspaceRootCount,
+          micAvailable: _contacts.first.micAvailable,
+          activeTurnState: 'streaming',
+        ),
+        ..._contacts.skip(1),
+      ]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [navivoxChannelProvider.overrideWithValue(channel)],
+        child: const _RouterTestApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('typing…'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('profile-active-turn-local-mineru')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('selecting a profile opens scoped chat and sends in that scope', (
     tester,
   ) async {
