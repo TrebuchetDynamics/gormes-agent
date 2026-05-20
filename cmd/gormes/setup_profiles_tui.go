@@ -11,6 +11,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 )
@@ -53,6 +54,8 @@ type setupProfilesModel struct {
 	selected     int
 	mode         setupProfilesMode
 	input        string
+	width        int
+	height       int
 	channelDraft map[string]bool
 	channelIndex int
 	result       setupProfilesTUIResult
@@ -243,6 +246,8 @@ func newSetupProfilesModel(state setupProfilesTUIState) setupProfilesModel {
 		state:        state,
 		selected:     selected,
 		mode:         setupProfilesModeBrowse,
+		width:        80,
+		height:       24,
 		channelDraft: make(map[string]bool),
 	}
 }
@@ -252,6 +257,11 @@ func (m setupProfilesModel) Init() tea.Cmd {
 }
 
 func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = size.Width
+		m.height = size.Height
+		return m, nil
+	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
@@ -442,7 +452,7 @@ func (m setupProfilesModel) View() string {
 		}
 		fmt.Fprintln(&b, "Space toggle  Up/Down move  Enter done")
 	}
-	return b.String()
+	return setupProfilesWrapView(b.String(), m.viewWidth())
 }
 
 func (m setupProfilesModel) currentProfile() setupProfileView {
@@ -453,6 +463,65 @@ func (m setupProfilesModel) currentProfile() setupProfileView {
 		return m.state.Profiles[0]
 	}
 	return m.state.Profiles[m.selected]
+}
+
+func (m setupProfilesModel) viewWidth() int {
+	if m.width <= 0 {
+		return 80
+	}
+	return max(1, m.width)
+}
+
+func setupProfilesWrapView(view string, width int) string {
+	if width <= 0 {
+		width = 80
+	}
+	var out []string
+	for _, line := range strings.Split(view, "\n") {
+		out = append(out, setupProfilesWrapLine(strings.TrimRight(line, " \t"), width)...)
+	}
+	return strings.TrimRight(strings.Join(out, "\n"), "\n")
+}
+
+func setupProfilesWrapLine(line string, width int) []string {
+	if line == "" {
+		return []string{""}
+	}
+	var lines []string
+	for lipgloss.Width(line) > width {
+		cut := setupProfilesWrapCut(line, width)
+		lines = append(lines, strings.TrimRight(line[:cut], " \t"))
+		line = strings.TrimLeft(line[cut:], " \t")
+		if line == "" {
+			break
+		}
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+func setupProfilesWrapCut(line string, width int) int {
+	lastSpace := -1
+	used := 0
+	for i, r := range line {
+		if r == ' ' || r == '\t' {
+			lastSpace = i
+		}
+		rw := lipgloss.Width(string(r))
+		if used+rw > width {
+			if lastSpace > 0 {
+				return lastSpace
+			}
+			if i > 0 {
+				return i
+			}
+			return i + len(string(r))
+		}
+		used += rw
+	}
+	return len(line)
 }
 
 func setupProfilesListOrEmpty(values []string) string {
