@@ -34,6 +34,70 @@ Start by locating the work in
 and, when implementation intent exists, the matching row in
 `docs/content/building-gormes/architecture_plan/progress.json`.
 
+Before picking a skill, detect the user's intent from verbs, artifacts, and
+risk. Do not route only by subsystem name.
+
+#### Intent Detection Ladder
+
+Use this order when several skills could apply:
+
+1. **Safety/repo state intent** — commit, push, release, PR, Greptile, CI,
+   dirty tree, branch, install, running binary, gateway process, or local
+   operator state. Route to `gormes-git`, `gormes-release`,
+   `gormes-pr-check`, `gormes-greptile-loop`, `gormes-review-loop`,
+   `gormes-review-scorecard`, `gormes-dev-runtime`, or `gormes-install` before
+   planning feature work.
+2. **Evidence-gathering intent** — "what is missing", "compare", "audit",
+   "map parity", "why does Hermes do X", "source refs", or external API docs.
+   Route to `gormes-hermes-parity`, `gormes-parity-auditor`,
+   `gormes-openclaw-parity`, `gormes-context-sourcing`, or
+   `gormes-architecture-zoomout` before builder work.
+3. **Backlog-shaping intent** — plan, split, rows, roadmap, progress,
+   acceptance, PRD, review finding becomes work. Route to
+   `gormes-progress-slicer` or `gormes-planner`.
+4. **Implementation intent** — build, fix, implement, make test pass, port one
+   behavior, execute a row. Route to `gormes-builder` plus
+   `gormes-tdd-slice`; add subsystem skills such as `gormes-provider-parity`,
+   `gormes-browser-harness`, or `navivox-telegram-ui` only when they supply the
+   needed contract.
+5. **Design/refactor intent** — interface, package boundary, repeated logic,
+   module shape, cleanup after working behavior. Route to
+   `gormes-interface-designer`, `gormes-service-layer-refactor`, or
+   `gormes-prototype-spike`.
+6. **Communication/content intent** — README, landing page, public claims,
+   handoff-like status, or user-facing messaging. Route to `gormes-readme` or
+   `gormes-landing-web` unless the request is actually release prep.
+
+#### Fast Signal Table
+
+| User words or artifact | Usually means | First skill |
+|---|---|---|
+| `/goal`, keep going, finish Gormes | persistent objective | `gormes-goal` |
+| `PR`, mergeable, checks, comments | PR readiness | `gormes-pr-check` |
+| Greptile, 5/5, unresolved review | automated review loop | `gormes-greptile-loop` |
+| score this, production-ready, no Greptile | local quality score | `gormes-review-scorecard` |
+| CI failed, review feedback, make green | bounded fix loop | `gormes-review-loop` |
+| release, tag, publish, version | release lane | `gormes-release` |
+| commit everything, push development | git delivery | `gormes-git` |
+| install.sh, setup, PATH, binary, gateway, sessions.db | local runtime | `gormes-dev-runtime` or `gormes-install` |
+| provider, auth, model, streaming, rate limit | provider contract | `gormes-provider-parity` |
+| browser, CDP, Browser Use, `/browser connect` | browser parity | `gormes-browser-harness` |
+| Navivox, Telegram-like, Flutter chat/contact | mobile UI | `navivox-telegram-ui` |
+| what is missing, compare Hermes/Honcho | parity discovery | `gormes-parity-auditor` or `gormes-hermes-parity` |
+| OpenClaw-only behavior | owned enhancement triage | `gormes-openclaw-parity` |
+| external API/library docs | source context | `gormes-context-sourcing` |
+| plan, roadmap, progress row | planner pass | `gormes-planner` |
+| split plan/PRD/review into rows | vertical slicing | `gormes-progress-slicer` |
+| implement row, build slice | builder pass | `gormes-builder` + `gormes-tdd-slice` |
+| failing test, bug fix, TDD | red-green loop | `gormes-tdd-slice` |
+| unfamiliar package, crosses modules | architecture map | `gormes-architecture-zoomout` |
+| interface, API boundary | design boundary | `gormes-interface-designer` |
+| duplicate mechanics, cleanup | refactor mechanics | `gormes-service-layer-refactor` |
+| try designs, prototype | throwaway experiment | `gormes-prototype-spike` |
+| README | public repo messaging | `gormes-readme` |
+| landing, homepage, www.gormes.ai | website copy/UI | `gormes-landing-web` |
+| create/update skills | skill management | `gormes-skill-manager` |
+
 Pick the primary intent:
 
 - **Decide direction**: use `grill-me` and optionally `gormes-planner`.
@@ -130,7 +194,24 @@ Pick the primary intent:
   `💻 execute_code: "..."`: use `gormes-hermes-parity` first. The active
   contract is Hermes gateway/channel progress, not only the current Ink TUI.
 
-If more than one applies, choose a chain with at most three skills. Do not load every Gormes skill.
+If more than one applies, choose a chain with at most three skills. Prefer
+`evidence -> row shaping -> TDD` or `runtime proof -> parity contract -> TDD`.
+Do not load every Gormes skill.
+
+Use these composition rules:
+
+- If the user asks to **do work now**, avoid a pure planner answer unless the
+  row is missing or vague.
+- If the user gives **a concrete failure artifact**, reproduce or inspect that
+  artifact before broad parity audits.
+- If the user asks to **make it better** without an artifact, use the ladder:
+  runtime/state preflight, then scorecard or architecture zoom-out, then one
+  bounded fix.
+- If the user asks for **multiple independent domains**, split the report into
+  separate skill chains and ask before editing multiple domains unless the
+  request clearly says fleet-wide or broad.
+- If a route would exceed three skills, stop at the first handoff boundary and
+  emit the next skill packet.
 
 Feature-map gaps route to `gormes-parity-auditor` then `gormes-planner`.
 Builder-ready rows route to `gormes-builder` and, when tests are required,
@@ -219,11 +300,16 @@ ln -s ../../docs/development-skills/<name> .codex/skills/<name>
 Before doing substantial work, state:
 
 - selected skill or skill chain;
+- detected intent, including the user words/artifact that triggered it;
 - feature-map area;
 - progress row, if any;
 - why it fits;
 - fallback if the selected skill cannot proceed;
 - whether a new skill is needed now.
+
+If confidence is low, ask one clarifying question only when the answer would
+change the first skill. Otherwise state the assumption and proceed with the
+lowest-risk evidence-gathering skill.
 
 Keep this short; then execute the chosen workflow.
 
@@ -231,6 +317,8 @@ Use this packet shape:
 
 ```text
 selected_skill:
+detected_intent:
+trigger:
 feature_map_area:
 progress_row:
 reason:
