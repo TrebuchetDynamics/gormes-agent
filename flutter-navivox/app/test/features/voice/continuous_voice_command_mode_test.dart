@@ -163,7 +163,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 120));
 
     expect(channel.sentVoiceTranscripts, hasLength(1));
-    expect(channel.sentVoiceTranscripts, 'support');
+    expect(channel.sentVoiceTranscripts.single, 'support');
     expect(channel.selectedProfileScope, isNull);
   });
 
@@ -335,7 +335,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 150));
 
     expect(channel.sentVoiceTranscripts, hasLength(1));
-    expect(channel.sentVoiceTranscripts, 'summarize workspace');
+    expect(channel.sentVoiceTranscripts.single, 'summarize workspace');
   });
 
   testWidgets('typed navi settings opens local voice settings', (tester) async {

@@ -99,8 +99,7 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
                     final msg = widget.messages[index];
                     final isUser = msg.author == NavivoxMessageAuthor.user;
                     final prev = index > 0 ? widget.messages[index - 1] : null;
-                    final showTail =
-                        prev == null || prev.author != msg.author;
+                    final showTail = prev == null || prev.author != msg.author;
                     return _TelegramBubble(
                       message: msg,
                       isUser: isUser,
@@ -150,7 +149,9 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
       _captureError = null;
     });
     try {
-      final capture = await service.capture(timeout: widget.voiceCaptureTimeout);
+      final capture = await service.capture(
+        timeout: widget.voiceCaptureTimeout,
+      );
       if (!mounted) return;
       widget.onVoice?.call(capture);
     } on VoiceCaptureTimeout {
@@ -193,68 +194,74 @@ class _TelegramBubble extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!isUser && showTail)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: CustomPaint(
-                size: const Size(8, 12),
-                painter: _BubbleTailPainter(
-                  color: bubbleColor,
-                  flip: false,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tailWidth = showTail ? 12.0 : 0.0;
+          final maxBubbleWidth = (constraints.maxWidth - tailWidth) * 0.78;
+          return Row(
+            mainAxisAlignment: isUser
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isUser && showTail)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: CustomPaint(
+                    size: const Size(8, 12),
+                    painter: _BubbleTailPainter(
+                      color: bubbleColor,
+                      flip: false,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-            ),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
-              decoration: BoxDecoration(
-                color: bubbleColor,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(12),
-                  topRight: const Radius.circular(12),
-                  bottomLeft: Radius.circular(isUser ? 12 : (showTail ? 4 : 12)),
-                  bottomRight: Radius.circular(isUser ? (showTail ? 4 : 12) : 12),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _MessageBody(message: message, textColor: textColor),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8, top: 2),
-                      child: Text(
-                        DateFormat.Hm().format(message.createdAt),
-                        style: TextStyle(color: timeColor, fontSize: 11),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxBubbleWidth),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
+                  decoration: BoxDecoration(
+                    color: bubbleColor,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(12),
+                      topRight: const Radius.circular(12),
+                      bottomLeft: Radius.circular(
+                        isUser ? 12 : (showTail ? 4 : 12),
+                      ),
+                      bottomRight: Radius.circular(
+                        isUser ? (showTail ? 4 : 12) : 12,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-          if (isUser && showTail)
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: CustomPaint(
-                size: const Size(8, 12),
-                painter: _BubbleTailPainter(
-                  color: bubbleColor,
-                  flip: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _MessageBody(message: message, textColor: textColor),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8, top: 2),
+                          child: Text(
+                            DateFormat.Hm().format(message.createdAt),
+                            style: TextStyle(color: timeColor, fontSize: 11),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
+              if (isUser && showTail)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: CustomPaint(
+                    size: const Size(8, 12),
+                    painter: _BubbleTailPainter(color: bubbleColor, flip: true),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -298,17 +305,17 @@ class _MessageBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (message.kind) {
       NavivoxMessageKind.text => Text(
-          message.text ?? '',
-          style: TextStyle(color: textColor, fontSize: 15),
-        ),
+        message.text ?? '',
+        style: TextStyle(color: textColor, fontSize: 15),
+      ),
       NavivoxMessageKind.toolCall => _ToolCallBody(
-          toolCall: message.toolCall!,
-          textColor: textColor,
-        ),
+        toolCall: message.toolCall!,
+        textColor: textColor,
+      ),
       NavivoxMessageKind.voice => _VoiceBody(
-          voice: message.voice!,
-          textColor: textColor,
-        ),
+        voice: message.voice!,
+        textColor: textColor,
+      ),
     };
   }
 }
@@ -333,7 +340,11 @@ class _ToolCallBody extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.build_circle, size: 16, color: textColor?.withValues(alpha: 0.7)),
+            Icon(
+              Icons.build_circle,
+              size: 16,
+              color: textColor?.withValues(alpha: 0.7),
+            ),
             const SizedBox(width: 6),
             Text(
               toolCall.name,
@@ -361,18 +372,59 @@ class _ToolCallBody extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             toolCall.summary,
-            style: TextStyle(color: textColor?.withValues(alpha: 0.8), fontSize: 13),
+            style: TextStyle(
+              color: textColor?.withValues(alpha: 0.8),
+              fontSize: 13,
+            ),
           ),
         ],
         for (final artifact in toolCall.artifacts) ...[
           const SizedBox(height: 4),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.attachment, size: 14, color: textColor?.withValues(alpha: 0.6)),
+              Icon(
+                Icons.attachment,
+                size: 14,
+                color: textColor?.withValues(alpha: 0.6),
+              ),
               const SizedBox(width: 4),
-              Text(
-                artifact.title,
-                style: TextStyle(color: textColor?.withValues(alpha: 0.7), fontSize: 12),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Wrap(
+                      spacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          artifact.title,
+                          style: TextStyle(
+                            color: textColor?.withValues(alpha: 0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          artifact.kind,
+                          style: TextStyle(
+                            color: textColor?.withValues(alpha: 0.55),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (artifact.summary != null &&
+                        artifact.summary!.isNotEmpty)
+                      Text(
+                        artifact.summary!,
+                        style: TextStyle(
+                          color: textColor?.withValues(alpha: 0.65),
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -404,11 +456,18 @@ class _VoiceBody extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Voice • ${voice.duration.inSeconds}s',
+              'Voice message',
               style: TextStyle(
                 color: textColor,
                 fontWeight: FontWeight.w500,
                 fontSize: 13,
+              ),
+            ),
+            Text(
+              '${voice.duration.inSeconds}s',
+              style: TextStyle(
+                color: textColor?.withValues(alpha: 0.6),
+                fontSize: 11,
               ),
             ),
             if (voice.transcript.isNotEmpty)
@@ -484,8 +543,9 @@ class _InputBar extends StatelessWidget {
               onPressed: onToggleVoice,
               icon: Icon(capturing ? Icons.stop : Icons.mic),
               style: IconButton.styleFrom(
-                backgroundColor:
-                    capturing ? theme.colorScheme.errorContainer : null,
+                backgroundColor: capturing
+                    ? theme.colorScheme.errorContainer
+                    : null,
               ),
             ),
           const SizedBox(width: 4),

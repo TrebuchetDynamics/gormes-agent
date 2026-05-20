@@ -106,7 +106,6 @@ class _DesktopShell extends StatelessWidget {
             selectedIndex: selectedIndex,
             onDestinationSelected: onSelected,
             extended: true,
-            labelType: NavigationRailLabelType.all,
             destinations: [
               for (final d in destinations)
                 NavigationRailDestination(

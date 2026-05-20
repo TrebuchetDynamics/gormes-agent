@@ -65,10 +65,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('New profile'), findsOneWidget);
       expect(find.text('Add server'), findsOneWidget);
-      await tester.tapAt(const Offset(20, 20));
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Support Triage'));
+      await tester.tap(
+        find.byKey(const ValueKey('profile-contact-office-support')),
+      );
       await tester.pumpAndSettle();
 
       expect(channel.selectedProfileScope, (
@@ -76,8 +78,8 @@ void main() {
         profileId: 'support',
       ));
       expect(find.text('Support Triage'), findsOneWidget);
-      expect(find.byKey(const ValueKey('chat-active-profile')), findsOneWidget);
-      expect(find.text('office'), findsOneWidget);
+      expect(find.byKey(const ValueKey('chat-active-profile')), findsNothing);
+      expect(find.byKey(const ValueKey('chat-context-action')), findsOneWidget);
 
       await tester.enterText(
         find.widgetWithText(TextField, 'Message Gormes'),

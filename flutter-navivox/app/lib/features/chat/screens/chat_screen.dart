@@ -126,28 +126,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
         actions: [
-          if (activeProfile != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Center(
-                child: Chip(
-                  key: const ValueKey('chat-active-profile'),
-                  avatar: const Icon(Icons.person, size: 16),
-                  label: Text(activeProfile.serverLabel),
-                ),
-              ),
+          IconButton(
+            key: const ValueKey('chat-context-action'),
+            tooltip: 'Chat info',
+            onPressed: () => _showChatInfo(
+              context,
+              profile: activeProfile,
+              server: server,
+              agent: selectedAgent,
             ),
-          if (selectedAgent != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Center(
-                child: Chip(
-                  key: const ValueKey('chat-active-agent'),
-                  avatar: const Icon(Icons.smart_toy, size: 16),
-                  label: Text(selectedAgent.name),
-                ),
-              ),
-            ),
+            icon: const Icon(Icons.more_vert),
+          ),
         ],
       ),
       body: Column(
@@ -184,6 +173,71 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showChatInfo(
+    BuildContext context, {
+    required NavivoxProfileContact? profile,
+    required NavivoxServer? server,
+    required NavivoxAgent? agent,
+  }) {
+    final theme = Theme.of(context);
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Chat info', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 12),
+              if (profile != null) ...[
+                _ChatInfoRow(
+                  icon: Icons.person,
+                  label: 'Profile',
+                  value: profile.displayName,
+                ),
+                _ChatInfoRow(
+                  icon: Icons.dns,
+                  label: 'Server',
+                  value: profile.serverLabel,
+                ),
+                _ChatInfoRow(
+                  icon: Icons.circle,
+                  label: 'Status',
+                  value: _profileHealthLabel(profile.health),
+                ),
+              ] else if (server != null) ...[
+                _ChatInfoRow(
+                  icon: Icons.dns,
+                  label: 'Server',
+                  value: server.name,
+                ),
+                _ChatInfoRow(
+                  icon: Icons.circle,
+                  label: 'Status',
+                  value: server.status,
+                ),
+              ] else
+                const _ChatInfoRow(
+                  icon: Icons.chat_bubble_outline,
+                  label: 'Profile',
+                  value: 'Select a chat',
+                ),
+              if (agent != null)
+                _ChatInfoRow(
+                  icon: Icons.smart_toy,
+                  label: 'Agent',
+                  value: agent.name,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -438,6 +492,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       channel.selectProfileContact(serverId: serverId, profileId: profileId);
       _routeProfileSynced = true;
     });
+  }
+}
+
+class _ChatInfoRow extends StatelessWidget {
+  const _ChatInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon),
+      title: Text(label, style: theme.textTheme.labelLarge),
+      subtitle: Text(value),
+    );
   }
 }
 

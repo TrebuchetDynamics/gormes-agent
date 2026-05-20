@@ -35,7 +35,7 @@ void main() {
     },
   );
 
-  testWidgets('chat AppBar shows the selected agent name as an indicator', (
+  testWidgets('chat AppBar keeps agent context behind a compact info action', (
     tester,
   ) async {
     final channel = TestNavivoxChannel()
@@ -49,11 +49,14 @@ void main() {
       ),
     );
 
-    final indicator = find.byKey(const ValueKey('chat-active-agent'));
-    expect(indicator, findsOneWidget);
-    expect(
-      find.descendant(of: indicator, matching: find.text('Architect')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('chat-active-agent')), findsNothing);
+    expect(find.byKey(const ValueKey('chat-context-action')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('chat-context-action')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chat info'), findsOneWidget);
+    expect(find.text('Agent'), findsOneWidget);
+    expect(find.text('Architect'), findsOneWidget);
   });
 }

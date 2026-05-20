@@ -27,7 +27,9 @@ void main() {
         ),
       );
 
-      expect(find.text('shell.run • completed\nls -la'), findsOneWidget);
+      expect(find.text('shell.run'), findsOneWidget);
+      expect(find.text('completed'), findsOneWidget);
+      expect(find.text('ls -la'), findsOneWidget);
       expect(find.byIcon(Icons.attachment), findsNothing);
     },
   );
