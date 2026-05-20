@@ -100,6 +100,9 @@ Pick the primary intent:
 - **Broad plan, PRD, parity gap, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces.
 - **Throwaway design, state-machine, protocol, or UI experiment**: use `gormes-prototype-spike`; route validated production work to `gormes-tdd-slice`.
 - **Repeated runtime mechanics or service-layer cleanup** after a feature works: use `gormes-service-layer-refactor`; route unclear package boundaries to `gormes-interface-designer` first.
+- **PR readiness audit before external review or merge**: use `gormes-pr-check`; route actionable findings to `gormes-review-loop` or `gormes-greptile-loop`.
+- **Greptile review feedback, unresolved Greptile comments, or sub-5/5 confidence**: use `gormes-greptile-loop`; route behavior fixes through `gormes-tdd-slice` and stop only on fetched 5/5 evidence or documented blocker.
+- **Local 1-5 production-readiness score when Greptile is unavailable**: use `gormes-review-scorecard`; it cannot replace CI or fetched Greptile evidence.
 - **PR feedback, CI failures, review comments, or bounded review-to-green iteration**: use `gormes-review-loop`; route code behavior fixes through `gormes-tdd-slice`.
 - **Design a Go interface/package boundary**: use `gormes-interface-designer`.
 - **Implement one row**: use `gormes-builder`, then `gormes-tdd-slice` for the red-green loop.
@@ -187,6 +190,9 @@ Use names like:
 - `gormes-progress-slicer`
 - `gormes-prototype-spike`
 - `gormes-architecture-zoomout`
+- `gormes-greptile-loop`
+- `gormes-pr-check`
+- `gormes-review-scorecard`
 - `gormes-channel-adapter`
 - `gormes-docs-web-sync`
 - `gormes-e2e-operator`
