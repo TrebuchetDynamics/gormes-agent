@@ -96,9 +96,29 @@ type ServerEvent struct {
 	ToolName   string          `json:"tool_name,omitempty"`
 	ToolCallID string          `json:"tool_call_id,omitempty"`
 	Status     string          `json:"status,omitempty"`
+	SafetyID   string          `json:"safety_id,omitempty"`
+	ApprovalID string          `json:"approval_id,omitempty"`
+	Severity   string          `json:"severity,omitempty"`
+	Risk       string          `json:"risk,omitempty"`
 	Seq        int             `json:"seq,omitempty"`
 	Metadata   map[string]any  `json:"metadata,omitempty"`
 	Contact    *ProfileContact `json:"contact,omitempty"`
+}
+
+type SafetyEvent struct {
+	ID       string
+	Severity string
+	Message  string
+	Risk     string
+	Metadata map[string]any
+}
+
+type ApprovalEvent struct {
+	ID         string
+	ToolCallID string
+	Prompt     string
+	Risk       string
+	Metadata   map[string]any
 }
 
 type turnRequest struct {
@@ -232,6 +252,44 @@ func (c *Channel) SendToolProgress(ctx context.Context, chatID string, progress 
 	return toolCallID, ctx.Err()
 }
 
+func (c *Channel) SendSafetyWarning(ctx context.Context, chatID string, warning SafetyEvent) (string, error) {
+	id := strings.TrimSpace(warning.ID)
+	if id == "" {
+		id = c.newID()
+	}
+	severity := strings.TrimSpace(warning.Severity)
+	if severity == "" {
+		severity = "warning"
+	}
+	c.broadcast(chatID, ServerEvent{
+		Type:      "safety_warning",
+		SessionID: chatID,
+		SafetyID:  id,
+		Severity:  severity,
+		Message:   safeNavivoxToolSummary(warning.Message),
+		Risk:      safeNavivoxToolSummary(warning.Risk),
+		Metadata:  safeNavivoxToolMetadata(warning.Metadata),
+	})
+	return id, ctx.Err()
+}
+
+func (c *Channel) SendApprovalRequired(ctx context.Context, chatID string, approval ApprovalEvent) (string, error) {
+	id := strings.TrimSpace(approval.ID)
+	if id == "" {
+		id = c.newID()
+	}
+	c.broadcast(chatID, ServerEvent{
+		Type:       "approval_required",
+		SessionID:  chatID,
+		ApprovalID: id,
+		ToolCallID: strings.TrimSpace(approval.ToolCallID),
+		Message:    safeNavivoxToolSummary(approval.Prompt),
+		Risk:       safeNavivoxToolSummary(approval.Risk),
+		Metadata:   safeNavivoxToolMetadata(approval.Metadata),
+	})
+	return id, ctx.Err()
+}
+
 func (c *Channel) EditMessage(ctx context.Context, chatID, msgID, text string) error {
 	return c.edit(chatID, msgID, text, false)
 }
@@ -311,6 +369,8 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 			"profile_contacts",
 			"stream_turns",
 			"tool_progress",
+			"safety_warnings",
+			"approval_required",
 			"turn_control",
 		},
 		"sessions":       sessionCount,

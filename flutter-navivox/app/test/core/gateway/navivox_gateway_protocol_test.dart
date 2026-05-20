@@ -69,6 +69,36 @@ void main() {
     expect(event.isError, isFalse);
   });
 
+  test('parses safety and approval event fields', () {
+    final warning = NavivoxGatewayEvent.fromJson({
+      'type': 'safety_warning',
+      'request_id': 'req-safe',
+      'session_id': 's-safe',
+      'safety_id': 'safe-1',
+      'severity': 'high',
+      'message': 'Shell command wants to modify files',
+      'risk': 'Writes may change the workspace',
+    });
+    expect(warning.safetyId, 'safe-1');
+    expect(warning.severity, 'high');
+    expect(warning.message, 'Shell command wants to modify files');
+    expect(warning.risk, 'Writes may change the workspace');
+
+    final approval = NavivoxGatewayEvent.fromJson({
+      'type': 'approval_required',
+      'request_id': 'req-safe',
+      'session_id': 's-safe',
+      'approval_id': 'approval-1',
+      'tool_call_id': 'call-shell',
+      'message': 'Approve shell.run?',
+      'risk': 'Command can edit files',
+    });
+    expect(approval.approvalId, 'approval-1');
+    expect(approval.toolCallId, 'call-shell');
+    expect(approval.message, 'Approve shell.run?');
+    expect(approval.risk, 'Command can edit files');
+  });
+
   test('client sends auth headers and decodes status capabilities', () async {
     final seen = <Uri, Map<String, String>>{};
     final client = NavivoxGatewayClient(

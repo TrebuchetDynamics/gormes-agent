@@ -223,6 +223,10 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
         _upsertToolCall(event, event.status ?? 'updated');
       case 'tool_call_finished':
         _upsertToolCall(event, event.status ?? 'finished');
+      case 'safety_warning':
+        _putSafetyWarning(event);
+      case 'approval_required':
+        _putApprovalRequest(event);
       case 'profile_contact_update':
         final contact = event.contact;
         if (contact != null) {
@@ -294,6 +298,54 @@ class GatewayNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
           summary: summary,
           artifacts: prior?.artifacts ?? const [],
         ),
+      ),
+    );
+  }
+
+  void _putSafetyWarning(NavivoxGatewayEvent event) {
+    final id = event.safetyId ?? 'safety-${_uuid.v4()}';
+    _putMessage(
+      NavivoxChatMessage(
+        id: id,
+        author: NavivoxMessageAuthor.system,
+        kind: NavivoxMessageKind.safetyWarning,
+        createdAt: _clock(),
+        safetyNotice: NavivoxSafetyNotice(
+          id: id,
+          severity: event.severity ?? 'warning',
+          message: event.message ?? 'Safety warning',
+          risk: event.risk,
+        ),
+      ),
+    );
+  }
+
+  void _putApprovalRequest(NavivoxGatewayEvent event) {
+    final id = event.approvalId ?? 'approval-${_uuid.v4()}';
+    final toolCallId = event.toolCallId ?? '';
+    final prompt = event.message ?? 'Approval required';
+    final risk = event.risk;
+    _putMessage(
+      NavivoxChatMessage(
+        id: id,
+        author: NavivoxMessageAuthor.system,
+        kind: NavivoxMessageKind.approvalRequest,
+        createdAt: _clock(),
+        safetyNotice: NavivoxSafetyNotice(
+          id: id,
+          approvalId: id,
+          toolCallId: toolCallId,
+          message: prompt,
+          risk: risk,
+        ),
+      ),
+    );
+    _approvals.add(
+      NavivoxApprovalRequest(
+        id: id,
+        toolCallId: toolCallId,
+        prompt: prompt,
+        risk: risk,
       ),
     );
   }

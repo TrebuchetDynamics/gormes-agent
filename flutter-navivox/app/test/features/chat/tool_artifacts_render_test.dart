@@ -79,4 +79,57 @@ void main() {
       expect(find.text('file'), findsOneWidget);
     },
   );
+
+  testWidgets('safety and approval messages render as first-class cards', (
+    tester,
+  ) async {
+    final messages = [
+      NavivoxChatMessage(
+        id: 'safe-1',
+        author: NavivoxMessageAuthor.system,
+        kind: NavivoxMessageKind.safetyWarning,
+        createdAt: DateTime(2026, 5, 7, 10),
+        safetyNotice: const NavivoxSafetyNotice(
+          id: 'safe-1',
+          severity: 'high',
+          message: 'Shell command wants to modify files',
+          risk: 'Writes may change the workspace',
+        ),
+      ),
+      NavivoxChatMessage(
+        id: 'approval-1',
+        author: NavivoxMessageAuthor.system,
+        kind: NavivoxMessageKind.approvalRequest,
+        createdAt: DateTime(2026, 5, 7, 10, 1),
+        safetyNotice: const NavivoxSafetyNotice(
+          id: 'approval-1',
+          approvalId: 'approval-1',
+          toolCallId: 'call-shell',
+          message: 'Approve shell.run?',
+          risk: 'Command can edit files',
+        ),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SimpleChatAdapter(messages: messages, onSend: (_) {}),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('safety-warning-card')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('approval-required-card')),
+      findsOneWidget,
+    );
+    expect(find.text('Safety warning'), findsOneWidget);
+    expect(find.text('Approval required'), findsOneWidget);
+    expect(find.text('high'), findsOneWidget);
+    expect(find.text('Shell command wants to modify files'), findsOneWidget);
+    expect(find.text('Writes may change the workspace'), findsOneWidget);
+    expect(find.text('Approve shell.run?'), findsOneWidget);
+    expect(find.text('Command can edit files'), findsOneWidget);
+  });
 }

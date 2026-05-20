@@ -194,6 +194,91 @@ void main() {
     },
   );
 
+  test('safety events render as typed safety and approval messages', () async {
+    final server = await _FakeGatewayServer.start(
+      streamEvents: (requestId) => [
+        {
+          'type': 'session_started',
+          'request_id': requestId,
+          'session_id': 's-safe',
+        },
+        {
+          'type': 'safety_warning',
+          'request_id': requestId,
+          'session_id': 's-safe',
+          'safety_id': 'safe-1',
+          'severity': 'high',
+          'message': 'Shell command wants to modify files',
+          'risk': 'Writes may change the workspace',
+        },
+        {
+          'type': 'approval_required',
+          'request_id': requestId,
+          'session_id': 's-safe',
+          'approval_id': 'approval-1',
+          'tool_call_id': 'call-shell',
+          'message': 'Approve shell.run?',
+          'risk': 'Command can edit files',
+        },
+      ],
+    );
+    addTearDown(server.close);
+
+    final channel = GatewayNavivoxChannel();
+    addTearDown(channel.dispose);
+
+    await channel.connect(
+      baseUrl: server.baseUrl,
+      token: _FakeGatewayServer.token,
+    );
+
+    final approvalCompleter = Completer<NavivoxApprovalRequest>();
+    final approvalSub = channel.approvalRequests.listen((request) {
+      if (!approvalCompleter.isCompleted) approvalCompleter.complete(request);
+    });
+    addTearDown(approvalSub.cancel);
+
+    final completed = Completer<void>();
+    channel.addListener(() {
+      final kinds = channel.state.messagesList.map((message) => message.kind);
+      if (kinds.contains(NavivoxMessageKind.safetyWarning) &&
+          kinds.contains(NavivoxMessageKind.approvalRequest) &&
+          !completed.isCompleted) {
+        completed.complete();
+      }
+    });
+
+    channel.sendText('run shell command');
+    await server.nextClientMessage;
+    await completed.future.timeout(const Duration(seconds: 2));
+
+    final messages = channel.state.messagesList;
+    expect(
+      messages.where((m) => m.text == 'Shell command wants to modify files'),
+      isEmpty,
+      reason: 'safety warnings must not masquerade as normal text messages',
+    );
+    final warning = messages.singleWhere(
+      (message) => message.kind == NavivoxMessageKind.safetyWarning,
+    );
+    expect(warning.safetyNotice?.severity, 'high');
+    expect(warning.safetyNotice?.risk, 'Writes may change the workspace');
+
+    final approval = messages.singleWhere(
+      (message) => message.kind == NavivoxMessageKind.approvalRequest,
+    );
+    expect(approval.safetyNotice?.approvalId, 'approval-1');
+    expect(approval.safetyNotice?.toolCallId, 'call-shell');
+
+    final approvalRequest = await approvalCompleter.future.timeout(
+      const Duration(seconds: 2),
+    );
+    expect(approvalRequest.id, 'approval-1');
+    expect(approvalRequest.toolCallId, 'call-shell');
+    expect(approvalRequest.prompt, 'Approve shell.run?');
+    expect(approvalRequest.risk, 'Command can edit files');
+  });
+
   test('tool progress events render as one durable tool-call card', () async {
     final server = await _FakeGatewayServer.start(
       streamEvents: (requestId) => [

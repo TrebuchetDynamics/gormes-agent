@@ -328,6 +328,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         message.toolCall?.status,
         message.toolCall?.summary,
       ].whereType<String>().where((part) => part.isNotEmpty).join('\n'),
+      NavivoxMessageKind.safetyWarning ||
+      NavivoxMessageKind.approvalRequest => [
+        message.safetyNotice?.message,
+        message.safetyNotice?.risk,
+      ].whereType<String>().where((part) => part.isNotEmpty).join('\n'),
     };
   }
 

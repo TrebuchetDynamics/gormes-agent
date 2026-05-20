@@ -366,6 +366,69 @@ func TestNavivoxWebSocketStopTurnEnqueuesCancel(t *testing.T) {
 	}
 }
 
+func TestNavivoxSafetyEventsStreamAsTypedEvents(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-safe", SessionID: "s-safe"}); err != nil {
+		t.Fatal(err)
+	}
+	var subscribed ServerEvent
+	if err := conn.ReadJSON(&subscribed); err != nil {
+		t.Fatal(err)
+	}
+	if subscribed.Type != "session_started" || subscribed.SessionID != "s-safe" {
+		t.Fatalf("session_started = %+v", subscribed)
+	}
+
+	warningID, err := ch.SendSafetyWarning(context.Background(), "s-safe", SafetyEvent{
+		ID:       "safe-1",
+		Severity: "high",
+		Message:  "Shell command wants to modify files",
+		Risk:     "Writes may change the workspace",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if warningID != "safe-1" {
+		t.Fatalf("warning id = %q, want safe-1", warningID)
+	}
+	var warning ServerEvent
+	if err := conn.ReadJSON(&warning); err != nil {
+		t.Fatal(err)
+	}
+	if warning.Type != "safety_warning" || warning.RequestID != "req-safe" || warning.SessionID != "s-safe" {
+		t.Fatalf("warning envelope = %+v", warning)
+	}
+	if warning.SafetyID != "safe-1" || warning.Severity != "high" || warning.Message != "Shell command wants to modify files" || warning.Risk != "Writes may change the workspace" {
+		t.Fatalf("warning fields = %+v", warning)
+	}
+
+	approvalID, err := ch.SendApprovalRequired(context.Background(), "s-safe", ApprovalEvent{
+		ID:         "approval-1",
+		ToolCallID: "call-shell",
+		Prompt:     "Approve shell.run?",
+		Risk:       "Command can edit files",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if approvalID != "approval-1" {
+		t.Fatalf("approval id = %q, want approval-1", approvalID)
+	}
+	var approval ServerEvent
+	if err := conn.ReadJSON(&approval); err != nil {
+		t.Fatal(err)
+	}
+	if approval.Type != "approval_required" || approval.ApprovalID != "approval-1" || approval.ToolCallID != "call-shell" || approval.Message != "Approve shell.run?" || approval.Risk != "Command can edit files" {
+		t.Fatalf("approval event = %+v", approval)
+	}
+}
+
 func TestNavivoxSendToolProgressStreamsStructuredToolEvent(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)

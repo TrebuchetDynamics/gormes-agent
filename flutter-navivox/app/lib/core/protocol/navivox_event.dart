@@ -1,4 +1,10 @@
-enum NavivoxMessageKind { text, toolCall, voice }
+enum NavivoxMessageKind {
+  text,
+  toolCall,
+  voice,
+  safetyWarning,
+  approvalRequest,
+}
 
 enum NavivoxMessageAuthor { user, assistant, system }
 
@@ -11,6 +17,7 @@ class NavivoxChatMessage {
     this.text,
     this.toolCall,
     this.voice,
+    this.safetyNotice,
   });
 
   final String id;
@@ -20,6 +27,7 @@ class NavivoxChatMessage {
   final String? text;
   final NavivoxToolCall? toolCall;
   final NavivoxVoiceMessage? voice;
+  final NavivoxSafetyNotice? safetyNotice;
 }
 
 class NavivoxToolCall {
@@ -64,6 +72,24 @@ class NavivoxToolArtifact {
   final String title;
   final String? summary;
   final String? ref;
+}
+
+class NavivoxSafetyNotice {
+  const NavivoxSafetyNotice({
+    required this.id,
+    required this.message,
+    this.severity,
+    this.risk,
+    this.approvalId,
+    this.toolCallId,
+  });
+
+  final String id;
+  final String message;
+  final String? severity;
+  final String? risk;
+  final String? approvalId;
+  final String? toolCallId;
 }
 
 class NavivoxVoiceMessage {

@@ -439,6 +439,10 @@ String _messageActionText(NavivoxChatMessage message) {
       message.toolCall?.status,
       message.toolCall?.summary,
     ].whereType<String>().where((part) => part.isNotEmpty).join('\n'),
+    NavivoxMessageKind.safetyWarning || NavivoxMessageKind.approvalRequest => [
+      message.safetyNotice?.message,
+      message.safetyNotice?.risk,
+    ].whereType<String>().where((part) => part.isNotEmpty).join('\n'),
   };
 }
 
@@ -489,6 +493,16 @@ class _MessageBody extends StatelessWidget {
       ),
       NavivoxMessageKind.voice => _VoiceBody(
         voice: message.voice!,
+        textColor: textColor,
+      ),
+      NavivoxMessageKind.safetyWarning => _SafetyNoticeBody(
+        notice: message.safetyNotice!,
+        approval: false,
+        textColor: textColor,
+      ),
+      NavivoxMessageKind.approvalRequest => _SafetyNoticeBody(
+        notice: message.safetyNotice!,
+        approval: true,
         textColor: textColor,
       ),
     };
@@ -605,6 +619,84 @@ class _ToolCallBody extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _SafetyNoticeBody extends StatelessWidget {
+  const _SafetyNoticeBody({
+    required this.notice,
+    required this.approval,
+    this.textColor,
+  });
+
+  final NavivoxSafetyNotice notice;
+  final bool approval;
+  final Color? textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = approval
+        ? theme.colorScheme.tertiary
+        : theme.colorScheme.error;
+    return Container(
+      key: ValueKey(
+        approval ? 'approval-required-card' : 'safety-warning-card',
+      ),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                approval ? Icons.verified_user_outlined : Icons.warning_amber,
+                size: 16,
+                color: accent,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                approval ? 'Approval required' : 'Safety warning',
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              if (!approval && notice.severity != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  notice.severity!,
+                  style: TextStyle(color: accent, fontSize: 11),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            notice.message,
+            style: TextStyle(color: textColor, fontSize: 13),
+          ),
+          if (notice.risk != null && notice.risk!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              notice.risk!,
+              style: TextStyle(
+                color: textColor?.withValues(alpha: 0.75),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

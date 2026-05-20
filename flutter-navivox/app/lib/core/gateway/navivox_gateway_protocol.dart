@@ -158,6 +158,10 @@ class NavivoxGatewayEvent {
     this.toolName,
     this.toolCallId,
     this.status,
+    this.safetyId,
+    this.approvalId,
+    this.severity,
+    this.risk,
     this.contact,
   });
 
@@ -173,6 +177,10 @@ class NavivoxGatewayEvent {
       toolName: json['tool_name']?.toString(),
       toolCallId: json['tool_call_id']?.toString(),
       status: json['status']?.toString(),
+      safetyId: json['safety_id']?.toString(),
+      approvalId: json['approval_id']?.toString(),
+      severity: json['severity']?.toString(),
+      risk: json['risk']?.toString(),
       contact: contact is Map ? Map<String, Object?>.from(contact) : null,
     );
   }
@@ -186,6 +194,10 @@ class NavivoxGatewayEvent {
   final String? toolName;
   final String? toolCallId;
   final String? status;
+  final String? safetyId;
+  final String? approvalId;
+  final String? severity;
+  final String? risk;
   final Map<String, Object?>? contact;
 
   bool get isError => type == 'error';
