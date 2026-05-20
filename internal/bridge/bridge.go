@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	DefaultBindHost   = "127.0.0.1"
-	DefaultBindPort   = 8765
+	DefaultBindHost    = "127.0.0.1"
+	DefaultBindPort    = 8765
 	DefaultGatewayHost = "127.0.0.1"
 	DefaultGatewayPort = 8766
 )
@@ -64,21 +64,21 @@ func (c Config) GatewayAddr() string {
 }
 
 type Server struct {
-	cfg     Config
-	mux     *http.ServeMux
-	server  *http.Server
-	proxy   *httputil.ReverseProxy
+	cfg    Config
+	mux    *http.ServeMux
+	server *http.Server
+	proxy  *httputil.ReverseProxy
 
-	mu          sync.Mutex
-	gatewayCmd  *exec.Cmd
+	mu             sync.Mutex
+	gatewayCmd     *exec.Cmd
 	gatewayRunning bool
 }
 
 func New(cfg Config) *Server {
 	mux := http.NewServeMux()
 	srv := &Server{
-		cfg: cfg,
-		mux: mux,
+		cfg:   cfg,
+		mux:   mux,
 		proxy: newGatewayProxy(cfg),
 	}
 
@@ -148,8 +148,8 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"bridge":  "running",
-		"gateway": gatewayStatus,
+		"bridge":       "running",
+		"gateway":      gatewayStatus,
 		"gateway_addr": s.cfg.GatewayAddr(),
 	})
 }
@@ -223,7 +223,7 @@ func (s *Server) stopGateway(ctx context.Context) error {
 		}
 	}
 
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	go func() {
 		_ = s.gatewayCmd.Wait()
 		close(done)
@@ -253,7 +253,7 @@ func newGatewayProxy(cfg Config) *httputil.ReverseProxy {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadGateway)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "gateway unreachable",
+			"error":  "gateway unreachable",
 			"detail": err.Error(),
 		})
 	}

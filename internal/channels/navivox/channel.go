@@ -418,7 +418,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			requests: map[string]string{},
 			identity: identity,
 			events:   make(chan ServerEvent, navivoxEventBufferCap),
-			done:     make(chan struct{}),
+			done:     make(chan struct{}, 1),
 		}
 		go cl.eventPump()
 		c.addClient(cl)
