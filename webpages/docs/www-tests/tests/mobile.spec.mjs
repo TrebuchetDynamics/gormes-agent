@@ -39,6 +39,30 @@ for (const vp of VIEWPORTS) {
   });
 }
 
+test('mobile operator install journey keeps code blocks and next links usable', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/install/linux-macos/');
+
+  await expect(page.getByRole('heading', { name: 'Linux and macOS' }).first()).toBeVisible();
+  await expect(page.getByText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh').first()).toBeVisible();
+  await expect(page.locator('main')).not.toContainText('raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh');
+
+  const codeBlocks = page.locator('main pre, main .expressive-code');
+  const count = await codeBlocks.count();
+  expect(count, 'expected install article code blocks').toBeGreaterThan(1);
+  for (let i = 0; i < count; i++) {
+    const box = await codeBlocks.nth(i).boundingBox();
+    expect(box, `code block ${i} has no layout box`).not.toBeNull();
+    expect(box.width, `code block ${i} overflows mobile viewport`).toBeLessThanOrEqual(320);
+  }
+
+  const next = page.getByRole('link', { name: /Next Windows/ });
+  await expect(next).toBeVisible();
+  await next.click();
+  await expect(page).toHaveURL(/\/install\/windows\//);
+  await expect(page.getByRole('heading', { name: 'Windows' }).first()).toBeVisible();
+});
+
 test('mobile menu button is accessible and desktop hides it', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 760 });
   await page.goto('/getting-started/first-run/');

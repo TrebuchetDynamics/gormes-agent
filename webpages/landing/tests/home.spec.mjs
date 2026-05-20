@@ -160,6 +160,23 @@ test('static SEO helper files are shipped', async ({ page }) => {
   expect(redirects).toContain('/roadmap https://docs.gormes.ai/reference/status-readiness/ 302');
 });
 
+test('primary landing CTAs navigate without leaving stale sections visible', async ({ page }) => {
+  await page.goto('/');
+
+  await page.locator('.hero-ctas .btn-primary').click();
+  await expect(page).toHaveURL(/#install$/);
+  await expect(page.getByRole('heading', { name: 'Install Gormes' })).toBeVisible();
+
+  await page.locator('.final-cta-actions .btn-primary').click();
+  await expect(page).toHaveURL(/#install$/);
+  await expect(page.locator('#install pre code')).toContainText('gormes doctor --offline');
+
+  await expect(page.locator('.hero-ctas .btn-secondary')).toHaveAttribute('href', /github\.com\/TrebuchetDynamics\/gormes-agent/);
+  await expect(page.locator('#trust')).toHaveCount(0);
+  await expect(page.locator('#methodology')).toHaveCount(0);
+  await expect(page.locator('#explore')).toHaveCount(0);
+});
+
 test('built-with page lists truthful deployments and submission template', async ({ page }) => {
   await page.goto('/built-with');
 

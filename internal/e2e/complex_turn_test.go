@@ -209,6 +209,96 @@ func TestComplexE2E_MixedToolBatchPreservesEveryOutcomeAndRecovers(t *testing.T)
 	assertComplexPersistedTurn(t, mem.DB(), "telegram:complex-mixed", "assistant", finalText)
 }
 
+func TestComplexE2E_ConcurrentToolBatchPreservesCallOrderDespiteSlowCompletion(t *testing.T) {
+	dir := t.TempDir()
+	mem, err := memory.OpenSqlite(filepath.Join(dir, "memory.db"), 32, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := mem.Close(ctx); err != nil {
+			t.Fatalf("close memory store: %v", err)
+		}
+	})
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(complexE2ETool{name: "slow_first_fixture", response: `{"rank":1,"completed":"slow"}`, delay: 80 * time.Millisecond})
+	reg.MustRegister(complexE2ETool{name: "fast_second_fixture", response: `{"rank":2,"completed":"fast"}`})
+	reg.MustRegister(complexE2ETool{name: "slow_third_fixture", response: `{"rank":3,"completed":"slow"}`, delay: 40 * time.Millisecond})
+
+	provider := hermes.NewMockClient()
+	provider.Script([]hermes.Event{{
+		Kind:         hermes.EventDone,
+		FinishReason: "tool_calls",
+		ToolCalls: []hermes.ToolCall{
+			{ID: "call_slow_first", Name: "slow_first_fixture", Arguments: json.RawMessage(`{"rank":1}`)},
+			{ID: "call_fast_second", Name: "fast_second_fixture", Arguments: json.RawMessage(`{"rank":2}`)},
+			{ID: "call_slow_third", Name: "slow_third_fixture", Arguments: json.RawMessage(`{"rank":3}`)},
+		},
+		TokensIn:  70,
+		TokensOut: 4,
+	}}, "ordered-tool-session")
+	finalText := "Concurrent tool batch preserved provider call order while executing safely."
+	provider.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: finalText, TokensOut: 9},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 130, TokensOut: 9},
+	}, "ordered-tool-session")
+
+	auditPath := filepath.Join(dir, "tool-audit.jsonl")
+	k := kernel.New(kernel.Config{
+		Model:             "complex-e2e-model",
+		Endpoint:          "mock://complex-e2e-ordered",
+		Admission:         kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		Tools:             reg,
+		MaxToolIterations: 2,
+		MaxToolDuration:   time.Second,
+		InitialSessionID:  "sess-complex-ordered",
+		ChatKey:           "telegram:complex-ordered",
+		ToolAudit:         audit.NewJSONLWriter(auditPath),
+	}, provider, mem, telemetry.New(), nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- k.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("kernel run: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("kernel did not stop after cleanup cancel")
+		}
+	})
+	waitForFrame(t, k.Render(), func(f kernel.RenderFrame) bool { return f.Phase == kernel.PhaseIdle }, time.Second)
+
+	userInput := "Run slow and fast tools together, then preserve their provider order."
+	if err := k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: userInput}); err != nil {
+		t.Fatalf("submit turn: %v", err)
+	}
+	final := waitForFrame(t, k.Render(), func(f kernel.RenderFrame) bool {
+		return f.Phase == kernel.PhaseIdle && len(f.History) >= 2 && f.History[len(f.History)-1].Role == "assistant"
+	}, 5*time.Second)
+	if got := final.History[len(final.History)-1].Content; got != finalText {
+		t.Fatalf("final assistant content = %q, want %q", got, finalText)
+	}
+
+	requests := provider.Requests()
+	if len(requests) != 2 {
+		t.Fatalf("provider request count = %d, want 2", len(requests))
+	}
+	assertComplexToolReplyOrder(t, requests[1], []string{"call_slow_first", "call_fast_second", "call_slow_third"})
+	assertComplexToolReplyContains(t, requests[1], "call_slow_first", `"rank":1`)
+	assertComplexToolReplyContains(t, requests[1], "call_fast_second", `"rank":2`)
+	assertComplexToolReplyContains(t, requests[1], "call_slow_third", `"rank":3`)
+	assertComplexAudits(t, auditPath, []string{"slow_first_fixture", "fast_second_fixture", "slow_third_fixture"})
+	assertComplexPersistedTurn(t, mem.DB(), "telegram:complex-ordered", "user", userInput)
+	assertComplexPersistedTurn(t, mem.DB(), "telegram:complex-ordered", "assistant", finalText)
+}
+
 func TestComplexE2E_ToolFailureIsAuditedAndConversationRecovers(t *testing.T) {
 	dir := t.TempDir()
 	mem, err := memory.OpenSqlite(filepath.Join(dir, "memory.db"), 32, nil)
@@ -298,6 +388,7 @@ type complexE2ETool struct {
 	name     string
 	response string
 	err      error
+	delay    time.Duration
 }
 
 func (t complexE2ETool) Name() string        { return t.name }
@@ -306,7 +397,14 @@ func (t complexE2ETool) Schema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","additionalProperties":true}`)
 }
 func (t complexE2ETool) Timeout() time.Duration { return time.Second }
-func (t complexE2ETool) Execute(context.Context, json.RawMessage) (json.RawMessage, error) {
+func (t complexE2ETool) Execute(ctx context.Context, _ json.RawMessage) (json.RawMessage, error) {
+	if t.delay > 0 {
+		select {
+		case <-time.After(t.delay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 	if t.err != nil {
 		return nil, t.err
 	}
@@ -341,6 +439,19 @@ func assertComplexContinuation(t *testing.T, req hermes.ChatRequest, wantToolRep
 		if !strings.Contains(content, "{") {
 			t.Fatalf("tool reply %q content = %q, want JSON object", id, content)
 		}
+	}
+}
+
+func assertComplexToolReplyOrder(t *testing.T, req hermes.ChatRequest, want []string) {
+	t.Helper()
+	var got []string
+	for _, msg := range req.Messages {
+		if msg.Role == "tool" {
+			got = append(got, msg.ToolCallID)
+		}
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("tool reply order = %+v, want %+v in messages %+v", got, want, req.Messages)
 	}
 }
 
