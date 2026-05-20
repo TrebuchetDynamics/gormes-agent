@@ -81,6 +81,55 @@ func TestWizardChassis_ViewHardeningBoundsSetupUX(t *testing.T) {
 	}
 }
 
+func TestWizardChassis_ViewHardeningBoundsShortSetupTerminal(t *testing.T) {
+	long := strings.Repeat("x", 240)
+	cases := []struct {
+		name  string
+		steps []Step
+		want  []string
+	}{
+		{
+			name:  "text input keeps prompt and help visible",
+			steps: []Step{Text("endpoint", "Gateway endpoint "+long, WithStringValue("https://127.0.0.1:8765/"+long))},
+			want:  []string{"Gateway endpoint", "omitted", "resize", "Enter submit"},
+		},
+		{
+			name:  "picker keeps selected option and help visible",
+			steps: []Step{Pick("provider", "Provider selection "+long, []Choice{{ID: "anthropic", Label: "Anthropic Claude provider " + long}, {ID: "openai", Label: "OpenAI provider " + long}})},
+			want:  []string{"Provider selection", "omitted", "resize", "1. Anthropic", "Enter submit"},
+		},
+		{
+			name:  "checklist keeps selected option and help visible",
+			steps: []Step{Checklist("tools", "Tool setup "+long, []Choice{{ID: "browser", Label: "Browser automation toolset " + long}, {ID: "shell", Label: "Shell command toolset " + long}})},
+			want:  []string{"Tool setup", "omitted", "resize", "Browser", "ENTER confirm"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newModel(tc.steps)
+			updated, _ := m.Update(tea.WindowSizeMsg{Width: 24, Height: 8})
+			m = updated.(model)
+			got := m.View()
+			lines := strings.Split(got, "\n")
+			if len(lines) > 8 {
+				t.Fatalf("wizard View height = %d, want <= 8:\n%s", len(lines), got)
+			}
+			for _, line := range lines {
+				if width := lipgloss.Width(line); width > 24 {
+					t.Fatalf("wizard line width %d exceeds terminal width 24:\n%q\n\nfull output:\n%s", width, line, got)
+				}
+			}
+			collapsed := strings.Join(strings.Fields(got), " ")
+			for _, want := range tc.want {
+				if !strings.Contains(collapsed, want) {
+					t.Fatalf("wizard short View missing %q:\n%s", want, got)
+				}
+			}
+		})
+	}
+}
+
 func TestWizardChassis_TextStepCapturesInput(t *testing.T) {
 	m := newModel([]Step{
 		Text("name", "Agent name"),

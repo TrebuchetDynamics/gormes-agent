@@ -232,7 +232,7 @@ func (m model) View() string {
 		help = "Enter submit  Ctrl+J newline  Esc abort"
 	}
 	b.WriteString(wrapSetupText(help, m.viewWidth()))
-	return trimSetupTrailingWhitespace(b.String())
+	return clampSetupView(trimSetupTrailingWhitespace(b.String()), m.viewWidth(), m.viewHeight())
 }
 
 func (m model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -584,6 +584,13 @@ func (m model) viewWidth() int {
 	return max(1, m.width)
 }
 
+func (m model) viewHeight() int {
+	if m.height <= 0 {
+		return 24
+	}
+	return max(1, m.height)
+}
+
 func setupInputWidth(terminalWidth int) int {
 	if terminalWidth <= 0 {
 		return 76
@@ -679,6 +686,77 @@ func trimSetupTrailingWhitespace(s string) string {
 		lines[i] = strings.TrimRight(line, " \t")
 	}
 	return strings.Join(lines, "\n")
+}
+
+func clampSetupView(s string, width, height int) string {
+	if height <= 0 || height >= 10 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) <= height {
+		return s
+	}
+	if height <= 2 {
+		return setupTrimToWidth("terminal too small; resize", width)
+	}
+	marker := setupTrimToWidth("… omitted; resize", width)
+	out := make([]string, 0, height)
+	out = append(out, lines[0])
+	if height > 5 && len(lines) > 1 && strings.TrimSpace(lines[1]) != "" {
+		out = append(out, lines[1])
+	}
+	out = append(out, marker)
+	if focal := setupFocalLine(lines); focal != "" && len(out) < height-2 {
+		out = append(out, setupTrimToWidth(focal, width))
+	}
+	for _, line := range setupHelpTail(lines, height-len(out)) {
+		out = append(out, line)
+	}
+	for len(out) > height {
+		out = append(out[:len(out)-2], out[len(out)-1])
+	}
+	return strings.Join(out, "\n")
+}
+
+func setupFocalLine(lines []string) string {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, ">") || strings.HasPrefix(trimmed, "→") {
+			return line
+		}
+	}
+	return ""
+}
+
+func setupHelpTail(lines []string, limit int) []string {
+	if limit <= 0 {
+		return nil
+	}
+	start := len(lines) - limit
+	if start < 0 {
+		start = 0
+	}
+	return append([]string(nil), lines[start:]...)
+}
+
+func setupTrimToWidth(text string, width int) string {
+	if width <= 0 || lipgloss.Width(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+	ellipsis := "…"
+	limit := width - lipgloss.Width(ellipsis)
+	used := 0
+	for i, r := range text {
+		rw := lipgloss.Width(string(r))
+		if used+rw > limit {
+			return strings.TrimRight(text[:i], " \t") + ellipsis
+		}
+		used += rw
+	}
+	return text
 }
 
 func max(a, b int) int {
