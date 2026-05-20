@@ -1,6 +1,6 @@
 ---
 name: gormes-release
-description: Prepare, commit all intended changes, push development, make CI green, PR-merge to main, tag, and publish a Gormes release. Use when the user asks to release Gormes, bump the operator-facing version, create a GitHub release tag, or run the full development-to-main release lane.
+description: Use when the user asks to release Gormes, bump the operator-facing version, create a GitHub release tag, publish artifacts, recover a release, or run the full development-to-main release lane.
 ---
 
 # Gormes Release

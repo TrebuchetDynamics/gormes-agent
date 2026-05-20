@@ -1,6 +1,6 @@
 ---
 name: gormes-builder
-description: Build Gormes from progress.json rows toward full Hermes-in-Go parity. Use when an agent must select or execute a builder-ready row, implement Go runtime/docs/web changes, run TDD and e2e verification, build Goncho inside Gormes, or continue delivery from docs/content/building-gormes/architecture_plan/progress.json without inventing a separate backlog.
+description: Use when an agent must select or execute a builder-ready progress.json row, implement Go runtime/docs/web changes, run TDD and e2e verification, build Goncho inside Gormes, or continue Gormes delivery without inventing a separate backlog.
 ---
 
 # Gormes Builder

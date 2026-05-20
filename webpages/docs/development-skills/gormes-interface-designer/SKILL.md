@@ -1,6 +1,6 @@
 ---
 name: gormes-interface-designer
-description: Design deep Go interfaces for Gormes subsystems before implementation. Use when shaping provider, gateway, tool, session, memory, Goncho, plugin, API, or TUI package boundaries; when a progress row's write_scope or contract is unclear; or when the user asks to compare API/interface designs.
+description: Use when shaping Gormes provider, gateway, tool, session, memory, Goncho, plugin, API, or TUI package boundaries; when a progress row's write_scope or contract is unclear; or when the user asks to compare API/interface designs before implementation.
 ---
 
 # Gormes Interface Designer

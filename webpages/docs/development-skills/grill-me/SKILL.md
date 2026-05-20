@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions "grill me".
+description: Use when the user wants to stress-test a plan, get grilled on a design, resolve decision-tree branches, challenge assumptions, or mentions "grill me".
 ---
 
 Repository branch rule: for Gormes work, stay on the existing `development`

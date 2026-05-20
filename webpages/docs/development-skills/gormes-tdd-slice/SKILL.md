@@ -1,6 +1,6 @@
 ---
 name: gormes-tdd-slice
-description: Implement one Gormes progress.json row using tracer-bullet test-driven development. Use when building or fixing a Gormes feature with tests, when a row has test_commands, when the user asks for TDD/red-green-refactor, or when implementing Goncho/Hermes parity behavior one vertical slice at a time.
+description: Use when building or fixing a Gormes feature with tests, when a progress.json row has test_commands, when the user asks for TDD or red-green-refactor, or when implementing Goncho/Hermes parity behavior one vertical slice at a time.
 ---
 
 # Gormes TDD Slice

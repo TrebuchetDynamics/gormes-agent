@@ -1,6 +1,6 @@
 ---
 name: gormes-install
-description: Test and validate Gormes install + setup paths, or build/install Gormes from the existing development branch onto this PC when the operator explicitly asks. Use when verifying a tagged release end-to-end, exercising install.sh / install.ps1 in isolation, installing the current development checkout with --local, refreshing the live gateway binary, finding install-time issues that don't surface in CI, documenting install regressions, or proving that a fresh user can go from `curl ... | bash` to a working `gormes` command without disturbing existing state.
+description: Use when verifying Gormes install or setup paths, exercising install.sh or install.ps1, installing the current development checkout with --local, refreshing the live gateway binary, finding install-time issues that do not surface in CI, documenting install regressions, or proving a fresh user can reach a working gormes command without disturbing existing state.
 ---
 
 # Gormes Install

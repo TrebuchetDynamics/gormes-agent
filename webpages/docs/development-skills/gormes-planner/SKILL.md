@@ -1,6 +1,6 @@
 ---
 name: gormes-planner
-description: Plan Gormes as a complete Hermes-in-Go delivery program. Use when an agent must inspect upstream hermes-agent, honcho, docs, or progress.json; map Hermes/Honcho features into Go phases; refine or split roadmap rows; plan Goncho as the Honcho-compatible Go port inside Gormes; or update planning/docs/progress surfaces without implementing runtime feature code.
+description: Use when an agent must inspect upstream hermes-agent, honcho, docs, or progress.json; map Hermes/Honcho features into Go phases; refine or split roadmap rows; plan Goncho as the Honcho-compatible Go port inside Gormes; or update planning/docs/progress surfaces without implementing runtime feature code.
 ---
 
 # Gormes Planner

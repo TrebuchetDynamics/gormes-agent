@@ -1,0 +1,32 @@
+# Gormes Skill Routing Reference
+
+Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when selecting the smallest repo-local skill chain.
+
+| Intent | Primary skill | Typical follow-up |
+|---|---|---|
+| Unsure which Gormes workflow applies | `gormes-skill-manager` | One or two targeted skills below |
+| Persistent long-running Gormes objective or `/goal` command | `gormes-goal` | Skill selected from active goal |
+| Recurring Hermes/Gormes parity sweep or taxonomy refresh | `gormes-hermes-parity` | `gormes-parity-auditor`, `gormes-planner`, `gormes-tdd-slice` |
+| Map missing Hermes/Honcho behavior before implementation | `gormes-parity-auditor` | `gormes-planner` |
+| Discover OpenClaw-only behavior worth adopting | `gormes-openclaw-parity` | `gormes-planner` |
+| Refine phases, rows, dependencies, or progress docs | `gormes-planner` | none unless implementation starts |
+| Implement one builder-ready row | `gormes-builder` | `gormes-tdd-slice` |
+| Red-green-refactor one behavior or failing row | `gormes-tdd-slice` | `gormes-builder` if row metadata changes |
+| Provider/auth/model/streaming/rate-limit behavior | `gormes-provider-parity` | `gormes-tdd-slice` |
+| Browser Use, CDP, Browserbase, Firecrawl, or `/browser connect` | `gormes-browser-harness` | `gormes-planner` or `gormes-tdd-slice` |
+| Local binary, install, gateway process, PATH, or sessions.db locks | `gormes-dev-runtime` | `gormes-install` for installer-specific validation |
+| End-to-end installer or setup validation | `gormes-install` | `gormes-dev-runtime`, `gormes-planner` |
+| API/package boundary design | `gormes-interface-designer` | `gormes-builder` |
+| Find Go implementation donor shapes | `gormes-references` | `gormes-tdd-slice` |
+| README/public repository messaging | `gormes-readme` | `gormes-git` when committing |
+| Landing page content or UI | `gormes-landing-web` | `gormes-git` when committing |
+| Commit all dirty development work and push | `gormes-git` | none |
+| Release development to main and tag | `gormes-release` | `gormes-git` as subroutine |
+| Stress-test a plan with the user | `grill-me` | skill selected from outcome |
+
+Rules:
+
+- Keep chains to at most three skills.
+- Edit canonical skills under `docs/development-skills/<name>/SKILL.md` only; `.agents/skills`, `.claude/skills`, and `.codex/skills` are symlink loader views.
+- Do not create side backlogs; implementation intent belongs in `progress.json` through `internal/progress` or `cmd/progress`.
+- Stay on the existing `development` branch for Gormes work.

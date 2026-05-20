@@ -1,6 +1,6 @@
 ---
 name: gormes-parity-auditor
-description: Audit upstream Hermes and Honcho behavior against current Gormes implementation and progress.json. Use when the user asks what is missing for full Hermes-in-Go parity, wants upstream feature mapping, wants Goncho/Honcho compatibility gaps, or needs progress.json-ready parity rows before builder work.
+description: Use when the user asks what is missing for full Hermes-in-Go parity, wants upstream Hermes or Honcho feature mapping, wants Goncho/Honcho compatibility gaps, or needs progress.json-ready parity rows before builder work.
 ---
 
 # Gormes Parity Auditor

@@ -1,6 +1,6 @@
 ---
 name: gormes-landing-web
-description: Improve the www.gormes.ai landing page content, UI, visual hierarchy, install flow, and public trust signals from current Gormes evidence. Use when the user asks to audit, redesign, polish, rewrite, or periodically improve the Gormes landing page or homepage UI.
+description: Use when the user asks to audit, redesign, polish, rewrite, or periodically improve the www.gormes.ai landing page, homepage UI, visual hierarchy, install flow, public trust signals, or conversion copy from current Gormes evidence.
 ---
 
 # Gormes Landing Web

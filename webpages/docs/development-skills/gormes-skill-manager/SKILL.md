@@ -1,6 +1,6 @@
 ---
 name: gormes-skill-manager
-description: Select the right repo-local Gormes skill or skill chain for building gormes-agent and identify when a new Gormes skill is needed. Use when starting any substantial Gormes planning/building task, when unsure whether to use gormes-planner, gormes-builder, gormes-parity-auditor, gormes-tdd-slice, or gormes-interface-designer, or when repeated Gormes work suggests creating another skill.
+description: Use when starting any substantial Gormes planning or building task, when unsure whether to use gormes-planner, gormes-builder, gormes-parity-auditor, gormes-tdd-slice, or gormes-interface-designer, or when repeated Gormes work suggests creating or improving a repo-local skill.
 ---
 
 # Gormes Skill Manager
@@ -37,6 +37,7 @@ and, when implementation intent exists, the matching row in
 Pick the primary intent:
 
 - **Decide direction**: use `grill-me` and optionally `gormes-planner`.
+- **Persistent long-running objective or `/goal` command**: use `gormes-goal` first to set, inspect, pause, resume, clear, or complete the active goal. Route the goal's concrete work through the smallest applicable Gormes skill chain.
 - **Run recurring or periodic Hermes/Gormes parity progress sweeps**:
   use `gormes-hermes-parity` as the orchestrator. It loads only the needed
   parity reference and manages follow-up subskills such as
