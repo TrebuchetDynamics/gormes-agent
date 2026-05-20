@@ -36,7 +36,11 @@ var (
 // View never panics on any non-negative (width, height) input.
 func (m Model) View() string {
 	if m.width < 20 || m.height < 10 {
-		return "terminal too narrow — resize to at least 20×10"
+		return fmt.Sprintf(
+			"terminal too small: %d×%d — resize to at least 20×10 for the Bubble Tea chat UI",
+			m.width,
+			m.height,
+		)
 	}
 
 	editor := m.editor
