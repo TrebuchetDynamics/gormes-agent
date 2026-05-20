@@ -165,6 +165,170 @@ func TestOneshotChatComplexE2E_ForcedSkillsInjectOnlyAllowlistedProcedures(t *te
 	}
 }
 
+func TestOneshotChatComplexE2E_ToolBudgetSummaryFallbackStaysClean(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	mock := hermes.NewMockClient()
+	mock.Script([]hermes.Event{{
+		Kind:         hermes.EventDone,
+		FinishReason: "tool_calls",
+		ToolCalls: []hermes.ToolCall{
+			{ID: "call_first", Name: "loop_probe", Arguments: json.RawMessage(`{"step":1}`)},
+		},
+		TokensIn:  20,
+		TokensOut: 1,
+	}}, "sess-budget-first")
+	mock.Script([]hermes.Event{{
+		Kind:         hermes.EventDone,
+		FinishReason: "tool_calls",
+		ToolCalls: []hermes.ToolCall{
+			{ID: "call_second_forbidden_by_budget", Name: "loop_probe", Arguments: json.RawMessage(`{"step":2}`)},
+		},
+		TokensIn:  40,
+		TokensOut: 1,
+	}}, "sess-budget-second")
+	mock.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "budget-safe operator summary", TokensOut: 4},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 80, TokensOut: 4},
+	}, "sess-budget-summary")
+
+	reg := tools.NewRegistry()
+	reg.MustRegister(&tools.MockTool{NameStr: "loop_probe", ExecuteFn: staticJSONToolResult(`{"loop":"first result"}`)})
+
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runTUI: func(*cobra.Command, []string) error {
+			t.Fatal("runTUI was called for budget oneshot")
+			return nil
+		},
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+			return mock, nil
+		},
+		configureOneshotKernel: func(cfg *kernel.Config) {
+			cfg.Tools = reg
+			cfg.MaxToolIterations = 1
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "fixture-model", "chat", "-q", "summarize if the tool loop keeps asking for more work")
+	if err != nil {
+		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	if stdout != "budget-safe operator summary\n" {
+		t.Fatalf("stdout = %q, want only budget summary", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty on summary fallback", stderr)
+	}
+	for _, forbidden := range []string{"call_first", "call_second_forbidden_by_budget", "loop_probe", "sess-budget", "maximum number of tool-calling iterations"} {
+		if strings.Contains(stdout, forbidden) {
+			t.Fatalf("stdout leaked budget/tool internals %q: %q", forbidden, stdout)
+		}
+	}
+
+	requests := mock.Requests()
+	if len(requests) != 3 {
+		t.Fatalf("OpenStream requests = %d, want original, post-tool, and summary requests", len(requests))
+	}
+	assertOneshotToolMessageOrder(t, requests[1].Messages, []string{"call_first"})
+	assertOneshotToolMessageOrder(t, requests[2].Messages, []string{"call_first"})
+	if len(requests[2].Tools) != 0 {
+		t.Fatalf("summary request exposed %d tools, want none", len(requests[2].Tools))
+	}
+	last := requests[2].Messages[len(requests[2].Messages)-1]
+	if last.Role != "user" || !strings.Contains(last.Content, "maximum number of tool-calling iterations") {
+		t.Fatalf("summary request last message = %#v, want tool-budget summary prompt", last)
+	}
+
+	records := readOneshotAuditRecords(t)
+	assertOneshotAuditCompleted(t, records, []string{"loop_probe"})
+}
+
+func TestOneshotChatComplexE2E_AdmissionRejectsHugePromptBeforeProvider(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	mock := hermes.NewMockClient()
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runTUI: func(*cobra.Command, []string) error {
+			t.Fatal("runTUI was called for rejected oneshot prompt")
+			return nil
+		},
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+			return mock, nil
+		},
+		configureOneshotKernel: func(cfg *kernel.Config) {
+			cfg.Admission = kernel.Admission{MaxBytes: 8, MaxLines: 2}
+		},
+	})
+
+	secretLikePrompt := "operator prompt contains sk-chat-admission-secret and is far too large"
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "fixture-model", "chat", "-q", secretLikePrompt)
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want admission failure\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if code := exitCodeFromError(err); code != 1 {
+		t.Fatalf("exit code = %d, want 1 (err=%v)", code, err)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty when prompt is rejected", stdout)
+	}
+	for _, want := range []string{"gormes chat -q:", "admission: input exceeds byte limit"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr missing %q\nstderr=%s", want, stderr)
+		}
+	}
+	for _, forbidden := range []string{"sk-chat-admission-secret", secretLikePrompt, "fixture-model", "session_id", "sess-"} {
+		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) {
+			t.Fatalf("admission failure leaked %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	if requests := mock.Requests(); len(requests) != 0 {
+		t.Fatalf("provider OpenStream requests = %d, want none after local admission rejection: %#v", len(requests), requests)
+	}
+}
+
+func TestOneshotChatComplexE2E_StreamFailureRedactsSecretAndDropsPartialTokens(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	secret := "sk-stream-secret-must-not-leak"
+	client := &oneshotFailingStreamClient{
+		events: []hermes.Event{{Kind: hermes.EventToken, Token: "partial provider text must not print", TokensOut: 5}},
+		err:    errors.New("provider stream crashed after Authorization Bearer " + secret),
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runTUI: func(*cobra.Command, []string) error {
+			t.Fatal("runTUI was called for stream-failure oneshot")
+			return nil
+		},
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+			return client, nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "fixture-model", "--api-key", secret, "chat", "-q", "trigger provider stream failure")
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want stream failure\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if code := exitCodeFromError(err); code != 1 {
+		t.Fatalf("exit code = %d, want 1 (err=%v)", code, err)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want no partial provider tokens", stdout)
+	}
+	for _, want := range []string{"gormes chat -q:", "provider stream crashed", "[REDACTED]"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr missing %q\nstderr=%s", want, stderr)
+		}
+	}
+	for _, forbidden := range []string{secret, "Bearer " + secret, "partial provider text", "sess-stream-failure", "session_id"} {
+		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) {
+			t.Fatalf("stream failure leaked %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+	if client.openStreamCalls != 1 {
+		t.Fatalf("OpenStream calls = %d, want 1", client.openStreamCalls)
+	}
+}
+
 func TestOneshotChatComplexE2E_ProviderSetupFailureRedactsAPIKeyFlag(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	secret := "sk-live-super-secret-chat-token"
@@ -202,6 +366,49 @@ func TestOneshotChatComplexE2E_ProviderSetupFailureRedactsAPIKeyFlag(t *testing.
 			t.Fatalf("failure output leaked %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
 	}
+}
+
+type oneshotFailingStreamClient struct {
+	events          []hermes.Event
+	err             error
+	openStreamCalls int
+}
+
+func (c *oneshotFailingStreamClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+	c.openStreamCalls++
+	return &oneshotFailingStream{events: append([]hermes.Event(nil), c.events...), err: c.err}, nil
+}
+
+func (*oneshotFailingStreamClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
+	return nil, hermes.ErrRunEventsNotSupported
+}
+
+func (*oneshotFailingStreamClient) Health(context.Context) error { return nil }
+
+type oneshotFailingStream struct {
+	events []hermes.Event
+	err    error
+	pos    int
+	closed bool
+}
+
+func (s *oneshotFailingStream) Recv(context.Context) (hermes.Event, error) {
+	if s.closed {
+		return hermes.Event{}, s.err
+	}
+	if s.pos < len(s.events) {
+		event := s.events[s.pos]
+		s.pos++
+		return event, nil
+	}
+	return hermes.Event{}, s.err
+}
+
+func (*oneshotFailingStream) SessionID() string { return "sess-stream-failure" }
+
+func (s *oneshotFailingStream) Close() error {
+	s.closed = true
+	return nil
 }
 
 func staticJSONToolResult(body string) func(context.Context, json.RawMessage) (json.RawMessage, error) {
