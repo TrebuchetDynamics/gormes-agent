@@ -93,7 +93,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	}
 
 	authDefault := firstNonEmptySetup(cfg.Navivox.AuthMode, config.NavivoxAuthPairingToken)
-	authInput, err := promptString(cmd, "Auth mode (pairing_token/static_token/tailscale_identity) [pairing_token]: ", authDefault)
+	authInput, err := promptString(cmd, "Auth mode (pairing_token/static_token/tailscale_identity/token_and_tailscale_identity) [pairing_token]: ", authDefault)
 	if err != nil {
 		return err
 	}
@@ -102,13 +102,13 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		authMode = config.NavivoxAuthPairingToken
 	}
 	switch authMode {
-	case config.NavivoxAuthPairingToken, config.NavivoxAuthStaticToken, config.NavivoxAuthTailscaleIdentity:
+	case config.NavivoxAuthPairingToken, config.NavivoxAuthStaticToken, config.NavivoxAuthTailscaleIdentity, config.NavivoxAuthTokenAndTailscaleIdentity:
 	default:
 		return fmt.Errorf("setup navivox: unsupported auth mode %q", authInput)
 	}
 
 	var token string
-	if authMode == config.NavivoxAuthPairingToken || authMode == config.NavivoxAuthStaticToken {
+	if authMode == config.NavivoxAuthPairingToken || authMode == config.NavivoxAuthStaticToken || authMode == config.NavivoxAuthTokenAndTailscaleIdentity {
 		token = strings.TrimSpace(cfg.Navivox.Token)
 		if token == "" {
 			generated, err := generateNavivoxSetupToken()
@@ -120,7 +120,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	}
 
 	var allowedIdentities string
-	if authMode == config.NavivoxAuthTailscaleIdentity {
+	if authMode == config.NavivoxAuthTailscaleIdentity || authMode == config.NavivoxAuthTokenAndTailscaleIdentity {
 		allowedInput, err := promptString(cmd, "Allowed Tailscale identities (comma-separated, blank to allow Tailscale-authenticated clients): ", strings.Join(cfg.Navivox.AllowedTailnetIdentities, ","))
 		if err != nil {
 			return err

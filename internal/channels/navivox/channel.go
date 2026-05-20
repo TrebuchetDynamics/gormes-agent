@@ -741,37 +741,51 @@ func (c *Channel) authenticate(r *http.Request) (string, bool) {
 	mode := strings.ToLower(strings.TrimSpace(c.cfg.AuthMode))
 	switch mode {
 	case config.NavivoxAuthTailscaleIdentity:
-		identity := firstHeader(r, "Tailscale-User-Login", "X-Tailscale-User-Login", "Tailscale-Device-Name", "X-Tailscale-Device-Name")
-		if identity == "" {
-			return "", false
-		}
-		if len(c.cfg.AllowedTailnetIdentities) == 0 {
-			return identity, true
-		}
-		for _, allowed := range c.cfg.AllowedTailnetIdentities {
-			if strings.EqualFold(identity, allowed) {
-				return identity, true
-			}
-		}
-		return "", false
+		return c.authenticateTailscaleIdentity(r)
 	case config.NavivoxAuthPairingToken, config.NavivoxAuthStaticToken:
-		token := bearerToken(r)
-		if token == "" {
-			token = strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token"))
-		}
-		if token == "" {
-			token = webSocketProtocolToken(r)
-		}
-		if token == "" || c.cfg.Token == "" {
-			return "", false
-		}
-		if hmac.Equal([]byte(token), []byte(c.cfg.Token)) {
+		if c.authenticateToken(r) {
 			return "token", true
 		}
 		return "", false
+	case config.NavivoxAuthTokenAndTailscaleIdentity:
+		identity, ok := c.authenticateTailscaleIdentity(r)
+		if !ok || !c.authenticateToken(r) {
+			return "", false
+		}
+		return identity, true
 	default:
 		return "", false
 	}
+}
+
+func (c *Channel) authenticateTailscaleIdentity(r *http.Request) (string, bool) {
+	identity := firstHeader(r, "Tailscale-User-Login", "X-Tailscale-User-Login", "Tailscale-Device-Name", "X-Tailscale-Device-Name")
+	if identity == "" {
+		return "", false
+	}
+	if len(c.cfg.AllowedTailnetIdentities) == 0 {
+		return identity, true
+	}
+	for _, allowed := range c.cfg.AllowedTailnetIdentities {
+		if strings.EqualFold(identity, allowed) {
+			return identity, true
+		}
+	}
+	return "", false
+}
+
+func (c *Channel) authenticateToken(r *http.Request) bool {
+	token := bearerToken(r)
+	if token == "" {
+		token = strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token"))
+	}
+	if token == "" {
+		token = webSocketProtocolToken(r)
+	}
+	if token == "" || c.cfg.Token == "" {
+		return false
+	}
+	return hmac.Equal([]byte(token), []byte(c.cfg.Token))
 }
 
 func bearerToken(r *http.Request) string {

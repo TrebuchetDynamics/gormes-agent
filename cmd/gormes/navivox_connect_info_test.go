@@ -105,6 +105,40 @@ func TestNavivoxConnectInfo_NeverLeaksTokenValue(t *testing.T) {
 	}
 }
 
+func TestNavivoxConnectInfo_LayeredAuthRequiresToken(t *testing.T) {
+	prev := vpnhostList
+	t.Cleanup(func() { vpnhostList = prev })
+	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"}}, nil
+	}
+
+	cmd, buf := newConnectInfoTestCommand(t)
+	cfg := config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "100.64.1.2",
+		Port:         8765,
+		ExposureMode: config.NavivoxExposureTailscale,
+		AuthMode:     config.NavivoxAuthTokenAndTailscaleIdentity,
+		Token:        "secret-token-do-not-leak",
+	}
+	if err := runNavivoxConnectInfo(cmd, cfg, true); err != nil {
+		t.Fatal(err)
+	}
+	var got navivoxConnectInfoReport
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if len(got.Entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(got.Entries))
+	}
+	if !got.Entries[0].TokenRequired {
+		t.Error("token_required = false, want true for layered token+identity auth")
+	}
+	if strings.Contains(buf.String(), cfg.Token) {
+		t.Fatalf("connect-info leaked token: %s", buf.String())
+	}
+}
+
 func TestNavivoxConnectInfo_TailscaleMode_JSONShowsVPNEntries(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })

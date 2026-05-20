@@ -151,6 +151,77 @@ func TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken(t *testing.T) {
 	}
 }
 
+func TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity(t *testing.T) {
+	prev := vpnHostLister
+	t.Cleanup(func() { vpnHostLister = prev })
+	vpnHostLister = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"}}, nil
+	}
+
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:                  true,
+		BindHost:                 "100.64.1.2",
+		Port:                     config.NavivoxDefaultPort,
+		ExposureMode:             config.NavivoxExposureTailscale,
+		AuthMode:                 config.NavivoxAuthTokenAndTailscaleIdentity,
+		Token:                    "nvbx_test_token",
+		AllowedTailnetIdentities: []string{"juan@example.com"},
+		AllowOrigins:             []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	for name, headers := range map[string]map[string]string{
+		"token-only": {
+			"Authorization": "Bearer nvbx_test_token",
+		},
+		"identity-only": {
+			"Tailscale-User-Login": "juan@example.com",
+		},
+		"wrong-identity": {
+			"Authorization":        "Bearer nvbx_test_token",
+			"Tailscale-User-Login": "intruder@example.com",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for key, value := range headers {
+				req.Header.Set(key, value)
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want 401", resp.StatusCode)
+			}
+		})
+	}
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Tailscale-User-Login", "juan@example.com")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+}
+
 func TestNavivoxWebSocketAuthRejectsBadBrowserSubprotocolToken(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)

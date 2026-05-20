@@ -72,7 +72,8 @@ func runNavivoxConnectInfo(cmd *cobra.Command, cfg config.NavivoxCfg, jsonOut bo
 
 func buildNavivoxConnectInfoEntries(cmd *cobra.Command, cfg config.NavivoxCfg) []navivoxConnectInfoEntry {
 	tokenRequired := cfg.AuthMode == config.NavivoxAuthStaticToken ||
-		cfg.AuthMode == config.NavivoxAuthPairingToken
+		cfg.AuthMode == config.NavivoxAuthPairingToken ||
+		cfg.AuthMode == config.NavivoxAuthTokenAndTailscaleIdentity
 	makeEntry := func(host, source string) navivoxConnectInfoEntry {
 		base := fmt.Sprintf("http://%s:%d", host, cfg.Port)
 		return navivoxConnectInfoEntry{
