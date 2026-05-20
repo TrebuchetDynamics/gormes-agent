@@ -554,6 +554,11 @@ func setupProfilesClampHeight(lines []string, width, height int) []string {
 	}
 	tailStart := len(lines) - tailCount
 	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.TrimSpace(lines[i]) == "Channels" {
+			tailStart = i
+			tailCount = min(6, len(lines)-tailStart)
+			break
+		}
 		if strings.Contains(lines[i], "directories:") && i > 0 {
 			tailStart = i - 1
 			break
@@ -562,6 +567,10 @@ func setupProfilesClampHeight(lines []string, width, height int) []string {
 			tailStart = i
 			break
 		}
+	}
+	headCount = height - tailCount - 1
+	if headCount < 1 {
+		headCount = 1
 	}
 	if tailStart+tailCount > len(lines) {
 		tailStart = max(0, len(lines)-tailCount)

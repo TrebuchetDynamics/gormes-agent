@@ -123,6 +123,41 @@ func TestSetupProfilesTUIHardeningBoundsShortTerminalHeight(t *testing.T) {
 	}
 }
 
+func TestSetupProfilesTUIHardeningBoundsShortChannelPicker(t *testing.T) {
+	long := strings.Repeat("x", 180)
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{{
+			Name:       "default",
+			Root:       "/home/operator/.gormes/profiles/default-" + long,
+			Active:     true,
+			Workspaces: []string{"/srv/" + long},
+			Channels:   []string{"telegram"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 28, Height: 8})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m = updated.(setupProfilesModel)
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("setup profiles channel view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 28 {
+			t.Fatalf("setup profiles channel line width %d exceeds 28:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Gormes profile setup", "Channels", "telegram", "Space toggle", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup profiles channel view missing %q:\n%s", want, view)
+		}
+	}
+}
+
 func TestSetupProfilesTUIAddsEditsAndReturnsSelection(t *testing.T) {
 	m := newSetupProfilesModel(setupProfilesTUIState{
 		Active: "default",
