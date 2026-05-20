@@ -86,6 +86,45 @@ func TestAdminHealth_SetupScreenBoundsCrampedLongRows(t *testing.T) {
 	}
 }
 
+func TestAdminHealth_ProviderFixWizardBoundsCrampedLongDefaults(t *testing.T) {
+	long := strings.Repeat("x", 220)
+	cfg := config.Config{}
+	cfg.Hermes.Provider = "openai-codex"
+	cfg.Hermes.Endpoint = "https://chatgpt.com/backend-api/codex/" + long
+	cfg.Hermes.Model = "gpt-5.2-codex-" + long
+	fix := newProviderFixState(cfg)
+	fix.resize(28, 8)
+
+	view := fix.View()
+	assertCrampedSetupView(t, view, 28, 8, []string{"Provider setup", "OpenAI Codex", "Enter submit"})
+
+	done, err := fix.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if err != nil || done {
+		t.Fatalf("provider select done=%v err=%v", done, err)
+	}
+	view = fix.View()
+	assertCrampedSetupView(t, view, 28, 8, []string{"Provider setup", "Endpoint URL", "omitted", "resize", "Enter submit"})
+}
+
+func assertCrampedSetupView(t *testing.T, view string, width, height int, wants []string) {
+	t.Helper()
+	lines := strings.Split(view, "\n")
+	if len(lines) > height {
+		t.Fatalf("view height = %d, want <= %d:\n%s", len(lines), height, view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > width {
+			t.Fatalf("line width %d exceeds %d:\n%q\n\nfull output:\n%s", got, width, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range wants {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("view missing %q:\n%s", want, view)
+		}
+	}
+}
+
 func TestAdminHealth_FixActionRunsWizardAndRefreshesRow(t *testing.T) {
 	isolateHealthHome(t)
 

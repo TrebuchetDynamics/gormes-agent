@@ -150,6 +150,7 @@ func (s *SetupHealthScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			if item, ok := s.selectedItem(); ok && item.Fixable {
 				cfg, _ := config.Load(nil)
 				s.fix = newProviderFixState(cfg)
+				s.fix.resize(s.viewWidth(), s.viewHeight())
 				s.message = ""
 			}
 		}
@@ -329,6 +330,11 @@ func (s *SetupHealthScreen) selectedItem() (HealthItem, bool) {
 }
 
 func (s *SetupHealthScreen) updateFix(msg tea.Msg) (Screen, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		s.width, s.height = size.Width, size.Height
+		s.fix.resize(s.viewWidth(), s.viewHeight())
+		return s, nil
+	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return s, nil
@@ -404,6 +410,8 @@ type providerFixState struct {
 	index      int
 	input      textinput.Model
 	pickCursor int
+	width      int
+	height     int
 }
 
 var adminProviderEndpoints = map[string]string{
@@ -447,6 +455,8 @@ func newProviderFixState(cfg config.Config) *providerFixState {
 		answers:    map[string]wizard.Answer{},
 		defaults:   defaults,
 		pickCursor: providerChoiceIndex(defaults.Provider),
+		width:      80,
+		height:     24,
 	}
 	f.prepareInput()
 	return f
@@ -499,19 +509,78 @@ func (f *providerFixState) View() string {
 	fmt.Fprintf(&b, "%s\n\n", step.Prompt)
 	switch step.Kind {
 	case wizard.KindPick:
-		for i, choice := range step.Choices {
-			cursor := " "
-			if i == f.pickCursor {
-				cursor = ">"
-			}
-			fmt.Fprintf(&b, "%s %s\n", cursor, choice.Label)
-		}
+		f.writePickView(&b, step)
 	case wizard.KindText, wizard.KindPassword:
 		b.WriteString(f.input.View())
 		b.WriteByte('\n')
+		if lipgloss.Width(f.input.Value()) > setupHealthInputWidth(f.viewWidth()) {
+			b.WriteString(setupHealthTrimToWidth("… value omitted; resize", f.viewWidth()))
+			b.WriteByte('\n')
+		}
 	}
 	b.WriteString("\nEnter submit  Esc cancel")
-	return b.String()
+	return clampSetupHealthView(b.String(), f.viewWidth(), f.viewHeight())
+}
+
+func (f *providerFixState) writePickView(b *strings.Builder, step wizard.Step) {
+	if f.viewHeight() <= 8 && f.pickCursor >= 0 && f.pickCursor < len(step.Choices) {
+		fmt.Fprintf(b, "> %s\n", step.Choices[f.pickCursor].Label)
+		return
+	}
+	start, end := 0, len(step.Choices)
+	if f.viewHeight() <= 10 && len(step.Choices) > 3 {
+		start = f.pickCursor - 1
+		if start < 0 {
+			start = 0
+		}
+		end = start + 3
+		if end > len(step.Choices) {
+			end = len(step.Choices)
+			start = max(0, end-3)
+		}
+		if start > 0 {
+			fmt.Fprintln(b, "… earlier providers omitted; resize")
+		}
+	}
+	for i := start; i < end; i++ {
+		choice := step.Choices[i]
+		cursor := " "
+		if i == f.pickCursor {
+			cursor = ">"
+		}
+		fmt.Fprintf(b, "%s %s\n", cursor, choice.Label)
+	}
+	if end < len(step.Choices) {
+		fmt.Fprintln(b, "… more providers omitted; resize")
+	}
+}
+
+func (f *providerFixState) resize(width, height int) {
+	if width > 0 {
+		f.width = width
+	}
+	if height > 0 {
+		f.height = height
+	}
+	f.input.Width = setupHealthInputWidth(f.viewWidth())
+}
+
+func (f *providerFixState) viewWidth() int {
+	if f.width <= 0 {
+		return 80
+	}
+	return max(1, f.width)
+}
+
+func (f *providerFixState) viewHeight() int {
+	if f.height <= 0 {
+		return 24
+	}
+	return max(1, f.height)
+}
+
+func setupHealthInputWidth(terminalWidth int) int {
+	return max(1, terminalWidth-4)
 }
 
 func (f *providerFixState) Result() (providerSetupResult, error) {
@@ -571,6 +640,7 @@ func (f *providerFixState) prepareInput() {
 	input := textinput.New()
 	input.Focus()
 	input.Prompt = "> "
+	input.Width = setupHealthInputWidth(f.viewWidth())
 	switch step.Kind {
 	case wizard.KindPassword:
 		input.EchoMode = textinput.EchoPassword
