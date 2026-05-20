@@ -135,15 +135,15 @@ func TestSetupProfilesTUIHardeningBoundsShortChannelPicker(t *testing.T) {
 			Channels:   []string{"telegram"},
 		}},
 	})
-	updated, _ := m.Update(tea.WindowSizeMsg{Width: 28, Height: 8})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 28, Height: 6})
 	m = updated.(setupProfilesModel)
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
 	m = updated.(setupProfilesModel)
 
 	view := m.View()
 	lines := strings.Split(view, "\n")
-	if len(lines) > 8 {
-		t.Fatalf("setup profiles channel view height = %d, want <= 8:\n%s", len(lines), view)
+	if len(lines) > 6 {
+		t.Fatalf("setup profiles channel view height = %d, want <= 6:\n%s", len(lines), view)
 	}
 	for _, line := range lines {
 		if got := lipgloss.Width(line); got > 28 {
@@ -154,6 +154,42 @@ func TestSetupProfilesTUIHardeningBoundsShortChannelPicker(t *testing.T) {
 	for _, want := range []string{"Gormes profile setup", "Channels", "telegram", "Space toggle", "resize"} {
 		if !strings.Contains(collapsed, want) {
 			t.Fatalf("setup profiles channel view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestSetupProfilesTUIHardeningBoundsShortAddProfile(t *testing.T) {
+	long := strings.Repeat("x", 180)
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{{
+			Name:       "default",
+			Root:       "/home/operator/.gormes/profiles/default-" + long,
+			Active:     true,
+			Workspaces: []string{"/srv/" + long},
+			Channels:   []string{"telegram"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 28, Height: 6})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m = updated.(setupProfilesModel)
+	m.input = "new-profile-" + long
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 6 {
+		t.Fatalf("setup profiles add view height = %d, want <= 6:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 28 {
+			t.Fatalf("setup profiles add line width %d exceeds 28:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Gormes profile setup", "New profile", "new-profile", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup profiles add view missing %q:\n%s", want, view)
 		}
 	}
 }

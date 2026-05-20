@@ -553,10 +553,15 @@ func setupProfilesClampHeight(lines []string, width, height int) []string {
 		headCount = 1
 	}
 	tailStart := len(lines) - tailCount
+	var explicitTail []string
 	for i := len(lines) - 1; i >= 0; i-- {
 		if strings.TrimSpace(lines[i]) == "Channels" {
-			tailStart = i
-			tailCount = min(6, len(lines)-tailStart)
+			if height <= 6 {
+				explicitTail = setupProfilesCompactChannelTail(lines[i:], width)
+			} else {
+				tailStart = i
+				tailCount = min(6, len(lines)-tailStart)
+			}
 			break
 		}
 		if strings.Contains(lines[i], "directories:") && i > 0 {
@@ -568,6 +573,16 @@ func setupProfilesClampHeight(lines []string, width, height int) []string {
 			break
 		}
 	}
+	if len(explicitTail) > 0 {
+		headCount = height - len(explicitTail) - 1
+		if headCount < 1 {
+			headCount = 1
+		}
+		out := append([]string(nil), lines[:headCount]...)
+		out = append(out, marker)
+		out = append(out, explicitTail...)
+		return out
+	}
 	headCount = height - tailCount - 1
 	if headCount < 1 {
 		headCount = 1
@@ -578,6 +593,23 @@ func setupProfilesClampHeight(lines []string, width, height int) []string {
 	out := append([]string(nil), lines[:headCount]...)
 	out = append(out, marker)
 	out = append(out, lines[tailStart:tailStart+tailCount]...)
+	return out
+}
+
+func setupProfilesCompactChannelTail(lines []string, width int) []string {
+	out := []string{"Channels"}
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), ">") {
+			out = append(out, line)
+			break
+		}
+	}
+	for _, line := range lines {
+		if strings.Contains(line, "Space toggle") {
+			out = append(out, setupProfilesTrimToWidth(line, width))
+			break
+		}
+	}
 	return out
 }
 
