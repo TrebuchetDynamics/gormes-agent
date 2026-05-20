@@ -11,7 +11,7 @@ import (
 )
 
 func TestGonchoRecallDiagnosticsCommandTextExplainsTrace(t *testing.T) {
-	tracePath := filepath.Join("..", "..", "internal", "goncho", "testdata", "recall_trace", "stable_trace.golden.json")
+	tracePath := writeStableGonchoRecallTraceFixture(t)
 
 	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}),
 		"goncho", "recall-diagnostics", "--trace", tracePath,

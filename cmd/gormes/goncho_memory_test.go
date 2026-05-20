@@ -7,11 +7,13 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 
 func TestGonchoMemoryCommand_SearchDisplaysResults(t *testing.T) {
-	store, err := memory.OpenSqlite(t.TempDir()+"/memory.db", 0, nil)
+	setupGonchoDoctorEnv(t)
+	store, err := memory.OpenSqlite(config.MemoryDBPath(), 0, nil)
 	if err != nil {
 		t.Fatalf("OpenSqlite: %v", err)
 	}
@@ -44,7 +46,8 @@ func TestGonchoMemoryCommand_SearchDisplaysResults(t *testing.T) {
 }
 
 func TestGonchoMemoryCommand_SearchJSON(t *testing.T) {
-	store, err := memory.OpenSqlite(t.TempDir()+"/memory.db", 0, nil)
+	setupGonchoDoctorEnv(t)
+	store, err := memory.OpenSqlite(config.MemoryDBPath(), 0, nil)
 	if err != nil {
 		t.Fatalf("OpenSqlite: %v", err)
 	}
@@ -77,7 +80,8 @@ func TestGonchoMemoryCommand_SearchJSON(t *testing.T) {
 }
 
 func TestGonchoContinueCommand_ListsRecentSessions(t *testing.T) {
-	store, err := memory.OpenSqlite(t.TempDir()+"/memory.db", 0, nil)
+	setupGonchoDoctorEnv(t)
+	store, err := memory.OpenSqlite(config.MemoryDBPath(), 0, nil)
 	if err != nil {
 		t.Fatalf("OpenSqlite: %v", err)
 	}

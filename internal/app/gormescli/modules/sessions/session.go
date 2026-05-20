@@ -18,6 +18,7 @@ type SessionCommandSeams struct {
 	RunDelete          func(*cobra.Command, []string) error
 	RunPrune           func(*cobra.Command, []string) error
 	RunBrowse          func(*cobra.Command, []string) error
+	RunRecap           func(*cobra.Command, []string) error
 	UnavailableCommand func(UnavailableCommandSpec) *cobra.Command
 }
 
@@ -35,6 +36,7 @@ func NewSessionCommandWithSeams(seams SessionCommandSeams) *cobra.Command {
 		newSessionDeleteCommand(seams),
 		newSessionPruneCommand(seams),
 		newSessionBrowseCommand(seams),
+		newSessionRecapCommand(seams),
 		seams.UnavailableCommand(UnavailableCommandSpec{
 			Use:   "stats",
 			Short: "Show Hermes-compatible session statistics",
@@ -64,6 +66,9 @@ func (s SessionCommandSeams) withDefaults() SessionCommandSeams {
 	}
 	if s.RunBrowse == nil {
 		s.RunBrowse = missingSessionSeam("browse")
+	}
+	if s.RunRecap == nil {
+		s.RunRecap = missingSessionSeam("recap")
 	}
 	if s.UnavailableCommand == nil {
 		s.UnavailableCommand = func(spec UnavailableCommandSpec) *cobra.Command {
@@ -143,5 +148,20 @@ func newSessionBrowseCommand(seams SessionCommandSeams) *cobra.Command {
 	cmd.Flags().String("source", "", "only browse sessions from this source")
 	cmd.Flags().Int("limit", 500, "max sessions to load")
 	cmd.Flags().Bool("no-curses", false, "use the numbered fallback picker")
+	return cmd
+}
+
+func newSessionRecapCommand(seams SessionCommandSeams) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "recap [session-id]",
+		Short: "Show a read-only session recap (no live provider required)",
+		Long: `Generate a recap of session activity from local storage only.
+Without a session-id, lists all sessions with metadata.
+With a session-id, shows detailed recap for that specific session.
+No live provider or model connection is required.`,
+		RunE: seams.RunRecap,
+	}
+	cmd.Flags().Int("limit", 10, "max sessions to show in list mode")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON output")
 	return cmd
 }

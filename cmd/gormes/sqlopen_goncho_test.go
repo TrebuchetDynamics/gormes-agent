@@ -53,6 +53,26 @@ func TestSqlOpenGoncho_SetsBusyTimeout(t *testing.T) {
 	}
 }
 
+func TestSqlOpenGoncho_AppliesObservationMigrations(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "memory.db")
+	db, err := sqlOpenGoncho(tmp)
+	if err != nil {
+		t.Fatalf("sqlOpenGoncho: %v", err)
+	}
+	defer db.Close()
+
+	for _, table := range []string{"goncho_observations", "goncho_audit_events"} {
+		var name string
+		if err := db.QueryRowContext(context.Background(), `
+			SELECT name
+			FROM sqlite_master
+			WHERE type = 'table' AND name = ?
+		`, table).Scan(&name); err != nil {
+			t.Fatalf("missing %s table after sqlOpenGoncho: %v", table, err)
+		}
+	}
+}
+
 // TestSqlOpenGoncho_ConcurrentConnectionsDoNotLockOut proves the runtime
 // payoff: when one connection holds a write transaction briefly, a second
 // connection opened via sqlOpenGoncho waits and succeeds rather than
