@@ -2,7 +2,3 @@
 	path = hermes-agent
 	url = https://github.com/NousResearch/hermes-agent.git
 	branch = main
-[submodule "goscrapling"]
-	path = goscrapling
-	url = git@github.com:TrebuchetDynamics/goscrapling.git
-	branch = main

@@ -4,6 +4,8 @@ github.com/PuerkitoBio/goquery v1.10.3 h1:pFYcNSqHxBD06Fpj/KsbStFRsgRATgnf3LeXiU
 github.com/PuerkitoBio/goquery v1.10.3/go.mod h1:tMUX0zDMHXYlAQk6p35XxQMqMweEKB7iK7iLNd4RH4Y=
 github.com/TrebuchetDynamics/goncho v0.1.0 h1:tFYdhBLazvuyr0kei1UtkoGqDMpxcp2b13DDH21irNM=
 github.com/TrebuchetDynamics/goncho v0.1.0/go.mod h1:EbJ5IR5zy8qexidIDROXOvr7EFx++WSO8TxX+BY+IB8=
+github.com/TrebuchetDynamics/goscrapling v0.0.0-20260520210007-f8458a6f1b89 h1:jF+9QR1uHxvOS8C0L5uZNEUxVL4RuixgHRNaJpbDY58=
+github.com/TrebuchetDynamics/goscrapling v0.0.0-20260520210007-f8458a6f1b89/go.mod h1:OP0ROWM/ALMcgVjkZa4pzlLY2AmB1iEvmccm/BjbQNs=
 github.com/a-h/templ v0.3.1001 h1:yHDTgexACdJttyiyamcTHXr2QkIeVF1MukLy44EAhMY=
 github.com/a-h/templ v0.3.1001/go.mod h1:oCZcnKRf5jjsGpf2yELzQfodLphd2mwecwG4Crk5HBo=
 github.com/andybalholm/cascadia v1.3.3 h1:AG2YHrzJIm4BZ19iwJ/DAua6Btl3IwJX+VI4kktS1LM=
