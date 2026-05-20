@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 )
 
@@ -113,6 +114,38 @@ func TestAdminShell_HelpOverlayShowsRegisteredKeybindings(t *testing.T) {
 	got = shell.View()
 	if !strings.Contains(got, "Setup body") || strings.Contains(got, "Admin help") {
 		t.Fatalf("help overlay did not close back to active screen:\n%s", got)
+	}
+}
+
+func TestAdminShell_HelpOverlayBoundsCrampedSetupTerminal(t *testing.T) {
+	long := strings.Repeat("x", 160)
+	shell := New(
+		&stubScreen{name: "Setup", help: []KeyHelp{
+			{Keys: []string{"r"}, Description: "refresh setup checks " + long},
+			{Keys: []string{"enter"}, Description: "run provider setup fix " + long},
+		}},
+		&stubScreen{name: "Agents", help: []KeyHelp{{Keys: []string{"n"}, Description: "spawn agent " + long}}},
+	)
+	updated, _ := shell.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	shell = updated.(*Shell)
+	updated, _ = shell.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	shell = updated.(*Shell)
+
+	view := shell.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("help overlay height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("help overlay line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Admin help", "Setup", "refresh", "omitted", "help"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("help overlay missing %q:\n%s", want, view)
+		}
 	}
 }
 

@@ -274,7 +274,7 @@ func (s *Shell) renderHelpOverlayLocked() string {
 			fmt.Fprintf(&b, "    %s  %s\n", strings.Join(e.Keys, "/"), e.Description)
 		}
 	}
-	return b.String()
+	return clampAdminShellBlock(b.String(), s.width, adminShellBodyHeight(s.height))
 }
 
 func (s *Shell) renderTabBarLocked() string {
@@ -303,6 +303,40 @@ func adminShellBodyHeight(total int) int {
 	// screen body. Give screens the remaining row budget so real terminal output
 	// stays within the operator's current height.
 	return max(1, total-2)
+}
+
+func clampAdminShellBlock(text string, width, height int) string {
+	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	trimmed := false
+	for i, line := range lines {
+		if width > 0 && lipgloss.Width(line) > width {
+			trimmed = true
+		}
+		lines[i] = trimAdminShellLine(line, width)
+	}
+	if height <= 0 {
+		return strings.Join(lines, "\n")
+	}
+	if trimmed && len(lines) >= height && height > 2 {
+		lines[height-1] = trimAdminShellLine("… omitted; resize for full help", width)
+		lines = lines[:height]
+	}
+	if len(lines) <= height {
+		return strings.Join(lines, "\n")
+	}
+	if height <= 2 {
+		return trimAdminShellLine("terminal too small; resize", width)
+	}
+	marker := trimAdminShellLine("… omitted; resize for full help", width)
+	tailCount := 1
+	headCount := height - tailCount - 1
+	if headCount < 1 {
+		headCount = 1
+	}
+	out := append([]string(nil), lines[:headCount]...)
+	out = append(out, marker)
+	out = append(out, lines[len(lines)-tailCount:]...)
+	return strings.Join(out, "\n")
 }
 
 func trimAdminShellLine(text string, width int) string {
