@@ -630,9 +630,9 @@
     "item": {
       "name": "Morning degraded-status summary over latest run report",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add a read-only operator summary surface that renders the latest OperatorRunReport into text and JSON for morning review. The summary must show whether the unattended run succeeded, degraded, or failed; include job/run identity, delivery status, provider/auth readiness, redacted error details, and a recommended next command; and integrate with existing gormes status-style output without mutating cron or gateway state.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "orchestrator",
       "module": "runtime",
@@ -681,6 +681,19 @@
       "done_signal": [
         "Builder reports status text/JSON fixtures for latest operator run report, unavailable-report degradation, redaction, and unchanged existing status output."
       ],
+      "evidence": {
+        "completed_at": "2026-05-19T00:00:00Z",
+        "implementation": [
+          "cmd/gormes/status.go: Added --operator-report-dir flag, findLatestOperatorReport, runStatusJSON, runStatusText, formatOperatorRunReportText, operatorRunReportJSON",
+          "cmd/gormes/status_operator_report_test.go: 4 TDD tests (renders report, JSON includes report, missing report, malformed report)"
+        ],
+        "tests": [
+          "RED: go test ./cmd/gormes -run TestStatusRendersLatestOperatorRunReport -count=1 failed before implementation",
+          "GREEN: go test ./cmd/gormes -run 'TestStatusRendersLatestOperatorRunReport|TestStatusJSONIncludesOperatorRunReport|TestStatusMissingOperatorRunReport|TestStatusMalformedOperatorRunReport' -count=1 -> ok (4 tests)",
+          "GREEN: go test ./internal/cron -run TestOperatorRunReport -count=1 -> ok (6 subtests)",
+          "go run ./cmd/progress validate -> validated 9 phases"
+        ]
+      },
       "provenance": {
         "origin_type": "gormes",
         "owned_since": "2026-05-18T00:00:00Z",

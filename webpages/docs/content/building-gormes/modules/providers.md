@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `providers`
 **Rows:** 119
-**Status counts:** `complete`: 117 · `in_progress`: 0 · `planned`: 2
+**Status counts:** `complete`: 118 · `in_progress`: 0 · `planned`: 1
 **Priority counts:** `P0`: 9 · `P1`: 50 · `P2`: 23 · `P3`: 2 · `unset`: 35
 
 ## Phase 3 — The Black Box (Memory)
@@ -185,7 +185,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P1` | `providers` | Cron partial legacy job read-model normalization |
-| `planned` | `P1` | `providers` | Provider/auth readiness preflight for unattended jobs |
+| `complete` | `P1` | `providers` | Provider/auth readiness preflight for unattended jobs |
 
 ### 5.O — Hermes CLI Parity
 

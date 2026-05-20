@@ -29,12 +29,12 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Planner](planner/) | 9 | 9 | 0 | 0 | `P0`: 1 · `P1`: 3 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Profiles](profiles/) | 24 | 20 | 0 | 4 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `unset`: 6 |
 | [Progress](progress/) | 17 | 17 | 0 | 0 | `P1`: 2 · `P2`: 15 |
-| [Providers](providers/) | 119 | 117 | 0 | 2 | `P0`: 9 · `P1`: 50 · `P2`: 23 · `P3`: 2 · `unset`: 35 |
+| [Providers](providers/) | 119 | 118 | 0 | 1 | `P0`: 9 · `P1`: 50 · `P2`: 23 · `P3`: 2 · `unset`: 35 |
 | [Release](release/) | 11 | 10 | 0 | 1 | `P0`: 1 · `P1`: 10 |
-| [Runtime](runtime/) | 18 | 16 | 0 | 2 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
-| [Sessions](sessions/) | 28 | 27 | 0 | 1 | `P1`: 8 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
+| [Runtime](runtime/) | 18 | 17 | 0 | 1 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
+| [Sessions](sessions/) | 28 | 28 | 0 | 0 | `P1`: 8 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
 | [Skills](skills/) | 46 | 42 | 0 | 4 | `P0`: 6 · `P1`: 8 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9 |
 | [STT](stt/) | 4 | 4 | 0 | 0 | `P0`: 1 · `P1`: 3 |
-| [Tools](tools/) | 143 | 140 | 0 | 3 | `P0`: 23 · `P1`: 49 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
+| [Tools](tools/) | 143 | 141 | 0 | 2 | `P0`: 23 · `P1`: 49 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
 | [TTS](tts/) | 23 | 23 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 4 · `P3`: 6 · `unset`: 1 |
 | [TUI](tui/) | 47 | 44 | 0 | 3 | `P0`: 3 · `P1`: 12 · `P2`: 21 · `P3`: 1 · `unset`: 10 |

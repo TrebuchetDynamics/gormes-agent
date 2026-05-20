@@ -188,44 +188,44 @@ selection.
 - Source refs: ../hermes-agent/agent/lsp/manager.py, ../hermes-agent/agent/lsp/range_shift.py, ../hermes-agent/tests/agent/lsp/test_delta_key.py, ../hermes-agent/tests/agent/lsp/test_service.py, internal/tools/file_task_tools.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Hermes x_search tool and auth surface
+## 9. Long-term plan: profile fleet supervisor and single control-plane gateway
 
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `medium`
+- Phase: 5 / 5.O
+- Owner: `orchestrator`
+- Size: `large`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Expose Hermes' first-class `x_search` tool in Gormes with a descriptor, OAuth/API-key auth status, query/result envelope, rate-limit/degraded errors, and registry/toolset visibility without requiring live X credentials in tests.
-- Trust class: -
-- Ready when: Tool registry and auth status helpers can be exercised with fake HTTP and temp config.
-- Not ready when: The slice requires a live X OAuth/API-key credential., The slice hides x_search from tool descriptors while adding only a CLI helper.
-- Degraded mode: -
-- Fixture: `internal/tools x_search fake transport fixtures`
-- Write scope: `internal/tools`, `internal/config`, `cmd/gormes/registry.go`
-- Test commands: `go test ./internal/tools -run 'TestXSearch\|TestToolRegistry' -count=1`, `go test ./internal/config -run 'TestXSearch\|TestAuth' -count=1`, `go run ./cmd/progress validate`
-- Done signal: x_search descriptor, auth status, fake-result normalization, and degraded errors are proven without live X credentials.
-- Acceptance: `x_search` appears in the registry with Hermes-compatible schema and toolset availability., OAuth and API-key auth modes produce redacted status and missing-auth diagnostics., Fake search results normalize into a bounded model-visible result envelope; rate-limit and auth failures degrade explicitly.
-- Source refs: ../hermes-agent/tools/x_search_tool.py, ../hermes-agent/tools/xai_http.py, ../hermes-agent/tests/tools/test_x_search_tool.py, ../hermes-agent/website/docs/user-guide/features/x-search.md, internal/tools, internal/config
+- Priority: `P2`
+- Contract: Define Gormes' long-term profile-fleet runtime so operators get one control surface for all named profiles while preserving Hermes-compatible profile state separation. The near-term per-profile gateway services remain a compatibility bridge; the target is a fleet supervisor that can enumerate configured profiles, start/stop/restart profile-scoped workers or a proven profile-scoped in-process equivalent, validate token ownership, surface per-profile health, and coordinate update/restart-all flows without sharing config, auth, sessions, memory, tool state, or kernels across profiles.
+- Trust class: operator, gateway, system
+- Ready when: The current per-profile gateway-service bridge is documented as migration/runtime compatibility, not the final operator model., Gormes-owned profile workspace/channel config and token-scoped gateway locks are available as inputs., The implementation shape chooses either isolated worker processes or a tested profile-scoped in-process runtime, with the same operator-facing fleet contract.
+- Not ready when: The design treats a single gateway process as permission to reuse one GORMES_HOME, one auth store, one session DB, one memory DB, or one kernel across multiple named profiles., The slice deletes or disables the per-profile service bridge before the fleet supervisor can prove profile/token isolation and restart-all behavior., Tests require live Telegram tokens, live systemd units, or Juan's real profile directories.
+- Degraded mode: If fleet supervision is unavailable, Gormes must keep the Hermes-compatible per-profile service/process bridge and report exact per-profile service state instead of collapsing profiles into the default GORMES_HOME.
+- Fixture: `internal/gateway/fleet_supervisor_test.go; cmd/gormes/gateway_fleet_test.go`
+- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_fleet_test.go`, `internal/gateway/fleet_supervisor.go`, `internal/gateway/fleet_supervisor_test.go`, `internal/config/agents.go`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`, `webpages/docs/content/building-gormes/modules/profiles.md`
+- Test commands: `go test ./internal/gateway -run 'TestFleetSupervisor\|TestGatewayFleet' -count=1`, `go test ./cmd/gormes -run 'TestGatewayFleet' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: The profiles module documents one operator-facing fleet gateway/supervisor target, preserves profile isolation as non-negotiable, and makes the current per-profile services an explicit compatibility bridge rather than silent architecture drift.
+- Acceptance: Fleet status JSON lists every configured profile with desired channels, runtime owner, version, health, last error, and token-lock evidence., Start/stop/restart-all paths operate on all configured profiles while preserving isolated GORMES_HOME, config, auth, session, memory, and tool state per profile., A duplicate Telegram token across profiles is detected and reported as a per-profile conflict rather than racing two pollers., Update/release restart hooks can target the fleet through one operator-facing command or service instead of requiring hand-managed unit names., Regression tests use fake profile roots and fake supervisors only; no live systemd, Telegram, or provider credentials are required.
+- Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Morning degraded-status summary over latest run report
+## 10. Hermes ui-tui strict-fidelity action matrix
 
-- Phase: 5 / 5.N
-- Owner: `orchestrator`
-- Size: `small`
+- Phase: 5 / 5.Q
+- Owner: `docs`
+- Size: `large`
 - Status: `planned`
 - Priority: `P1`
-- Contract: Add a read-only operator summary surface that renders the latest OperatorRunReport into text and JSON for morning review. The summary must show whether the unattended run succeeded, degraded, or failed; include job/run identity, delivery status, provider/auth readiness, redacted error details, and a recommended next command; and integrate with existing gormes status-style output without mutating cron or gateway state.
+- Contract: Map the unmapped Hermes `ui-tui` source and test surface into Gormes-native TUI rows, owned-divergence notes, or explicit exclusions. The matrix must cover command dispatch, viewport/history stores, RPC/gateway client events, terminal modes, clipboard/OSC52, provider/model UI, approval actions, and state isolation before the strict-fidelity report can stop treating `ui-tui` as an undifferentiated blocker bucket.
 - Trust class: operator, system
-- Ready when: Durable operator run report for unattended jobs is complete., The status command already has text/JSON degraded-output conventions., The first version reads only local report files and does not query live gateways/providers.
-- Not ready when: The implementation starts cron, gateway, or provider clients to compute status., The surface hides failed runs because there is no successful briefing content., Raw error text leaks API keys, token-bearing URLs, or unredacted home paths.
-- Degraded mode: If no report exists or the latest report cannot be decoded, the command returns status=operator_report_unavailable with the path/reason redacted and points operators to the scheduler/doctor command rather than failing with raw filesystem errors.
-- Fixture: `cmd/gormes/status_operator_report_test.go::TestStatusRendersLatestOperatorRunReport`
-- Write scope: `cmd/gormes/status.go`, `cmd/gormes/status_operator_report_test.go`, `internal/cli/status.go`, `internal/cron/operator_run_report.go`
-- Test commands: `go test ./cmd/gormes -run 'TestStatusRendersLatestOperatorRunReport\|TestStatusJSON' -count=1`, `go test ./cmd/gormes ./internal/cron -run 'Test(Status\|OperatorRunReport)' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Builder reports status text/JSON fixtures for latest operator run report, unavailable-report degradation, redaction, and unchanged existing status output.
-- Acceptance: gormes status text output includes latest unattended run status, job/run id, delivery state, degraded reason, and recommended next command when a report exists., gormes status --json includes a stable operator_run_report object with empty/absent fields normalized for automation., Missing, unreadable, or malformed reports render operator_report_unavailable evidence without non-zero exit for read-only status., Existing status progress/system output remains present.
-- Source refs: cmd/gormes/status.go, internal/cli/status.go, internal/cron/operator_run_report.go, internal/doctor/durable_ledger.go, internal/gateway/status.go
+- Ready when: `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA., The row uses exact Hermes files/tests as evidence, not only broad directory globs., The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests.
+- Not ready when: The implementation treats low-confidence taxonomy matches as proof of coverage., The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping., The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first.
+- Degraded mode: Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.
+- Fixture: `internal/tui hermes-ui-tui strict-fidelity matrix fixtures`
+- Write scope: `internal/tui`, `internal/tuigateway`, `internal/repoctl`, `webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tui ./internal/tuigateway -count=1`, `go run ./cmd/repoctl hermes-contract-inventory --repo-root .`, `go run ./cmd/progress validate`
+- Done signal: Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim.
+- Acceptance: The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes., `go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence., `go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits., `go run ./cmd/progress validate` passes and generated docs show the row in the correct module.
+- Source refs: hermes-agent/ui-tui/src/__tests__/slashParity.test.ts, hermes-agent/ui-tui/src/__tests__/gatewayClient.test.ts, hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts, hermes-agent/ui-tui/src/__tests__/stateIsolation.test.ts, hermes-agent/ui-tui/src/__tests__/approvalAction.test.ts, internal/tui, internal/tuigateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

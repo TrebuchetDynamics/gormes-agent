@@ -102,7 +102,7 @@ export const page = {
     {
       value: 'offline',
       label: 'doctor before credentials',
-      detail: 'Local readiness can be checked before provider setup.',
+      detail: 'Local readiness can be checked without credentials, network calls, Python, Node, npm, or Docker.',
     },
     {
       value: 'SHA-256 + SBOM',

@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `runtime`
 **Rows:** 18
-**Status counts:** `complete`: 16 · `in_progress`: 0 · `planned`: 2
+**Status counts:** `complete`: 17 · `in_progress`: 0 · `planned`: 1
 **Priority counts:** `P0`: 2 · `P1`: 10 · `P2`: 6
 
 ## Phase 4 — The Brain Transplant
@@ -43,7 +43,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `planned` | `P1` | `runtime` | Morning degraded-status summary over latest run report |
+| `complete` | `P1` | `runtime` | Morning degraded-status summary over latest run report |
 
 ### 5.O — Hermes CLI Parity
 

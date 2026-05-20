@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 89/111 subphases shipped · 22 in progress · 0 planned
+**Overall:** 90/111 subphases shipped · 21 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 19/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 16/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 17/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
@@ -986,7 +986,7 @@ classification and row-backed implementation queue.
 - [x] `kanban` Kanban worker heartbeat, reclaim, and zombie detection
 - [x] `kanban` Hermes Kanban specify triage parity
 
-### 5.N — Misc Operator Tools 🔨
+### 5.N — Misc Operator Tools ✅
 
 - [x] `tools` Todo
 - [x] `tools` Clarify
@@ -1042,13 +1042,13 @@ classification and row-backed implementation queue.
 - [x] `tools` Cron dashboard partial-record page
 - [x] `navivox` Navivox host setup apply with transient sudo
 - [x] `gateway` Gateway auto-resume on restart
-- [ ] `tools` Hermes x_search tool and auth surface
+- [x] `tools` Hermes x_search tool and auth surface
 - [x] `goncho` Goncho durable recall trace IR + fused ranking pipeline
 - [x] `goncho` Goncho recall diagnostics CLI over RecallTrace
 - [x] `goncho` Goncho replayable retrieval traces
 - [x] `goncho` Goncho proof matrix and fixture harness
-- [ ] `runtime` Morning degraded-status summary over latest run report
-- [ ] `providers` Provider/auth readiness preflight for unattended jobs
+- [x] `runtime` Morning degraded-status summary over latest run report
+- [x] `providers` Provider/auth readiness preflight for unattended jobs
 - [x] `goncho` Goncho golden transcript e2e harness
 - [x] `goncho` Goncho retrieval benchmark corpus
 
@@ -1173,7 +1173,7 @@ classification and row-backed implementation queue.
 - [x] `runtime` Agent lifecycle hooks (agent:start, agent:step, agent:end)
 - [x] `providers` Nous OAuth device code + refresh token + agent key provisioning
 - [x] `cli` Hermes send command stdin/file payload parity
-- [ ] `sessions` Hermes session recap command surface
+- [x] `sessions` Hermes session recap command surface
 - [x] `profiles` Profile workspace allow-list enforcement policy
 - [x] `profiles` Profile-local subprocess HOME parity
 - [ ] `profiles` Long-term plan: profile fleet supervisor and single control-plane gateway

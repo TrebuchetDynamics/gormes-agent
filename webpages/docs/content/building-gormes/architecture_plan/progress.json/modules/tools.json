@@ -9132,9 +9132,9 @@
     "item": {
       "name": "Hermes x_search tool and auth surface",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Expose Hermes' first-class `x_search` tool in Gormes with a descriptor, OAuth/API-key auth status, query/result envelope, rate-limit/degraded errors, and registry/toolset visibility without requiring live X credentials in tests.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
       "module": "tools",
@@ -9171,7 +9171,20 @@
       ],
       "done_signal": [
         "x_search descriptor, auth status, fake-result normalization, and degraded errors are proven without live X credentials."
-      ]
+      ],
+      "note": "Complete 2026-05-19: TDD shipped internal/tools/x_search.go with XSearchTool implementing Name/Description/Schema/Execute, XSearchConfig with AuthMode/APIKey/OAuthToken/OAuthExpiry/Fake/RateLimit, AuthStatus() returning redacted key or expired diagnostics, fake result normalization with bounded XSearchResponse/XSearchResult/XSearchMetrics envelopes, and rate-limit/auth-failure degradation. Registered in cmd/gormes/registry.go via RegisterXSearchTools with Fake mode. 10 tests cover auth status (missing/API-key/OAuth/expired), execution (missing-auth/fake-results/rate-limit), registry integration, and schema query field.",
+      "evidence": {
+        "completed_at": "2026-05-19T00:00:00Z",
+        "implementation": [
+          "internal/tools/x_search.go: XSearchTool, XSearchConfig, XSearchAuthStatus, XSearchResponse, XSearchResult, XSearchMetrics, NewXSearchTools(), RegisterXSearchTools()",
+          "cmd/gormes/registry.go: RegisterXSearchTools call with Fake mode"
+        ],
+        "tests": [
+          "RED: go test ./internal/tools -run TestXSearch -count=1 failed before implementation",
+          "GREEN: go test ./internal/tools -run 'TestXSearch|TestToolRegistry' -count=1 -> ok (10 tests)",
+          "go run ./cmd/progress validate -> validated 9 phases"
+        ]
+      }
     }
   },
   {
