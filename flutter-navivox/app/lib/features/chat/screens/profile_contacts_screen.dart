@@ -66,6 +66,11 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
             onPressed: _toggleSearch,
             icon: Icon(_searching ? Icons.close : Icons.search),
           ),
+          IconButton(
+            tooltip: 'Manage gateways',
+            onPressed: () => context.go('/servers'),
+            icon: const Icon(Icons.dns),
+          ),
         ],
       ),
       body: allContacts.isEmpty
@@ -133,6 +138,7 @@ class _ProfileContactsScreenState extends ConsumerState<ProfileContactsScreen> {
               [
                 contact.displayName,
                 contact.profileId,
+                contact.serverId,
                 contact.serverLabel,
                 contact.latestPreview,
                 ...contact.attentionBadges,
