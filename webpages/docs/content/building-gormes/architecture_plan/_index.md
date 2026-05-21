@@ -1460,7 +1460,7 @@ classification and row-backed implementation queue.
 - [x] `landing` gormes.ai landing page positioning audit
 - [x] `docs` Gormes market comparison positioning brief
 - [ ] `docs` Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents
-- [ ] `channels` Channel capability matrix with stable/fixture/planned labels
+- [x] `channels` Channel capability matrix with stable/fixture/planned labels
 - [x] `learning-loop` Learning-loop proof demo for skills, memory, and curator
 - [x] `install` No-stack first-run proof path from install to offline doctor
 - [x] `docs` Canonical config.toml v2 profile schema docs

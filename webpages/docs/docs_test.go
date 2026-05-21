@@ -429,6 +429,42 @@ func TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials(t *testing.T) 
 	}
 }
 
+func TestChannelCapabilityMatrixDocs(t *testing.T) {
+	channels := readDoc(t, "content/cli/channels.md")
+	for _, want := range []string{
+		"## Capability Matrix",
+		"Runtime-ready",
+		"Fixture-backed",
+		"Planned",
+		"gormes channels capabilities",
+		"gormes gateway status --json",
+		"[Telegram](../../operate/telegram-bot/)",
+		"[Discord](../gateway/)",
+		"[Slack](../slack/)",
+		"WhatsApp",
+	} {
+		if !strings.Contains(channels, want) {
+			t.Fatalf("channels docs missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"50+ integrations", "fully runtime-ready"} {
+		if strings.Contains(channels, forbidden) {
+			t.Fatalf("channels docs overclaim %q", forbidden)
+		}
+	}
+
+	recipe := readDoc(t, "content/operate/multi-channel-gateway.md")
+	assertOrdered(t, "multi-channel recipe", recipe,
+		"gormes channels capabilities",
+		"gormes gateway status --json",
+	)
+	for _, want := range []string{"Runtime-ready", "Fixture-backed", "Planned"} {
+		if !strings.Contains(recipe, want) {
+			t.Fatalf("multi-channel recipe missing readiness label %q", want)
+		}
+	}
+}
+
 func TestLearningLoopOperatorProofDocs(t *testing.T) {
 	learningLoop := readDoc(t, "content/building-gormes/core-systems/learning-loop.md")
 	for _, want := range []string{

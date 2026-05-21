@@ -11,7 +11,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 |---|---:|---:|---:|---:|---|
 | [Browser](browser/) | 25 | 24 | 0 | 1 | `P1`: 14 · `P2`: 7 · `P3`: 1 · `unset`: 3 |
 | [Builder](builder/) | 12 | 12 | 0 | 0 | `P0`: 1 · `P1`: 6 · `P2`: 3 · `unset`: 2 |
-| [Channels](channels/) | 135 | 129 | 0 | 6 | `P0`: 7 · `P1`: 47 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47 |
+| [Channels](channels/) | 135 | 130 | 0 | 5 | `P0`: 7 · `P1`: 47 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47 |
 | [CLI](cli/) | 33 | 33 | 0 | 0 | `P1`: 12 · `P2`: 8 · `P3`: 3 · `unset`: 10 |
 | [Config](config/) | 31 | 30 | 0 | 1 | `P0`: 3 · `P1`: 8 · `P2`: 7 · `P3`: 1 · `unset`: 12 |
 | [Cross Cutting](cross-cutting/) | 0 | 0 | 0 | 0 | - |
