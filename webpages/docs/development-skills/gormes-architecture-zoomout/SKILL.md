@@ -30,28 +30,46 @@ Default to zoom-out map for vague debugging. Use architecture review when the us
 ## Workflow
 
 1. **Read local maps first.** Start with `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent/codemap.md`; read folder `codemap.md` when present.
-2. **Map the subsystem.** List modules, owners, entry points, data flow, persistence, and test surfaces.
-3. **Find user-visible contracts.** CLI flags, TUI text, gateway protocol, files on disk, progress rows, and Hermes parity refs.
-4. **Evaluate module depth.** Use these terms consistently:
+2. **Choose one subsystem.** Do not review the whole repository at once. Good first cuts are `cmd/gormes` setup/CLI, `internal/tools`, `internal/gateway`, `internal/channels/<name>`, `internal/goncho`, `internal/memory`, `internal/tui`, or `internal/provider`.
+3. **Run targeted discovery.** Use commands like these, scoped to the subsystem:
+
+   ```sh
+   find <area> -maxdepth 2 -type f -name '*.go' | sort
+   rg -n "type .*interface|func New|func \(.*\)|TODO|panic\(|os\.Getenv|http\.Client|time\.Now|json\.Marshal|AtomicReplace|Status|Evidence" <area>
+   rg -n "<public command/tool/error/status text>" cmd internal docs/content/building-gormes
+   go test ./<package> -run '<focused existing test pattern>' -count=1
+   ```
+
+4. **Map the subsystem.** List modules, owners, entry points, data flow, persistence, and test surfaces.
+5. **Find user-visible contracts.** CLI flags, TUI text, gateway protocol, files on disk, progress rows, and Hermes parity refs.
+6. **Evaluate module depth.** Use these terms consistently:
    - **Module:** package/function/type with an interface and implementation.
    - **Interface:** everything callers must know: types, invariants, errors, config, ordering, persistence, and tests.
    - **Implementation:** behavior hidden behind the interface.
    - **Seam:** where alternate behavior can be injected without editing callers.
    - **Adapter:** concrete implementation behind a seam.
    - **Depth:** leverage behind a small interface. Deep modules improve locality; shallow modules move complexity to callers.
-5. **Apply architecture tests.** For each candidate:
+7. **Classify architecture smells.** Prefer candidates that match one or more of these Gormes-specific smells:
+   - **Scattered evidence shaping:** multiple callers build similar status/degraded/error maps.
+   - **Config fan-out:** many packages parse the same env/config defaults or validation rules.
+   - **Transport-policy mixing:** channel/provider transport code decides product policy.
+   - **Test harness sprawl:** tests duplicate large setup to reach one public behavior.
+   - **Persistence ordering leaks:** callers must know lock/order/atomic-write details.
+   - **Parity drift risk:** Hermes/Honcho contract knowledge is copied into unrelated packages.
+   - **One-off public seam:** exported interface exists for one adapter and mirrors implementation.
+8. **Apply architecture tests.** For each candidate:
    - **Deletion test:** if the module disappeared, would complexity vanish or spread across callers?
    - **Two-adapter test:** is this a real seam with multiple adapters, or a hypothetical abstraction with one caller?
    - **Interface-as-test-surface test:** can public behavior be tested at the seam without fragile private-helper tests?
    - **Parity test:** would the change preserve Hermes/Honcho/Gormes public contracts?
-6. **Score candidates.** Use the scorecard below; discard candidates below 3 unless the user specifically asks to see speculative ideas.
-7. **List anti-candidates.** Name tempting refactors you rejected and why, so future agents do not re-suggest them.
-8. **Separate facts from guesses.** Every claim gets a file path, function, test, progress row, or command.
-9. **Recommend the smallest next skill.** Usually `gormes-tdd-slice`, `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-progress-slicer`.
+9. **Score candidates.** Use the scorecard below; discard candidates below 3 unless the user specifically asks to see speculative ideas.
+10. **List anti-candidates.** Name tempting refactors you rejected and why, so future agents do not re-suggest them.
+11. **Separate facts from guesses.** Every claim gets a file path, function, test, progress row, or command.
+12. **Recommend the smallest next skill.** Usually `gormes-tdd-slice`, `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-progress-slicer`.
 
 ## Candidate Scorecard
 
-Score each candidate 0-8:
+Score each candidate 0-10:
 
 | Points | Signal |
 |---|---|
@@ -61,6 +79,8 @@ Score each candidate 0-8:
 | +1 | Refactor reduces caller knowledge/config/error handling |
 | +1 | Existing tests or fixtures can protect behavior |
 | +1 | Change preserves Hermes/Honcho/Gormes user-visible contracts |
+| +1 | Candidate removes or centralizes one Gormes-specific smell from the taxonomy |
+| +1 | First slice can update one package or one caller family without broad churn |
 | -2 | Needs public behavior change without a progress row |
 | -2 | Only one adapter/caller and no near-term second adapter |
 | -2 | Mainly renames/moves code without improving locality |
@@ -68,8 +88,8 @@ Score each candidate 0-8:
 
 Recommendation strength:
 
-- `Strong`: 6-8 and first slice is clear.
-- `Worth exploring`: 3-5 or needs interface design first.
+- `Strong`: 7-10 and first slice is clear.
+- `Worth exploring`: 3-6 or needs interface design first.
 - `Speculative`: 0-2; usually report as anti-candidate, not a task.
 
 ## Output Shape
@@ -93,6 +113,7 @@ Architecture candidates:
    two-adapter test: <real seam/hypothetical seam>
    characterization test: <focused test to write before refactor>
    first safe slice: <TDD/refactor/planner action>
+   validation: <focused command + full gate if implemented>
 
 Anti-candidates:
 - <tempting refactor rejected> — <why>
@@ -108,6 +129,30 @@ Next skill packet:
 ```
 
 For broad architecture review requests, produce 2-4 candidates, not a grand rewrite plan. Keep the report text-first for Juan. Do not write HTML reports inside this repo; if a visual report is useful, put it under `/tmp` and report the absolute path.
+
+## Review Packet Template
+
+Use this compact packet when handing off implementation:
+
+```text
+architecture_review_packet:
+  area: <subsystem>
+  candidate: <title>
+  score: <n>/10
+  smell: <taxonomy item>
+  preserve_contracts:
+    - <CLI/tool/API/status behavior>
+  characterization_test:
+    name: <test to add or existing test to extend>
+    command: <focused go test command>
+  allowed_write_scope:
+    - <package/file family>
+  forbidden_scope:
+    - <public behavior or package not to touch>
+  next_skill: <gormes-service-layer-refactor|gormes-interface-designer|gormes-tdd-slice|gormes-progress-slicer>
+```
+
+If the packet cannot name a characterization test and allowed write scope, the candidate is not ready for implementation.
 
 ## Rules
 

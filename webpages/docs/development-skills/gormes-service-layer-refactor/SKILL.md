@@ -31,6 +31,23 @@ Do not use for speculative architecture. If only one caller exists and no duplic
 8. Update callers one at a time; preserve public CLI/runtime contracts.
 9. Run focused tests, then the repo gate when appropriate.
 
+## Refactor Slice Shape
+
+Keep each implementation slice narrow:
+
+```text
+refactor_slice:
+  source_candidate: <architecture_review_packet candidate>
+  preserved_behavior: <public behavior under test>
+  characterization_test: <test/command>
+  seam: <function/type/package-local interface>
+  adapters: <existing/new/fake>
+  callers_updated: <one caller family>
+  stop_before: <second subsystem or public behavior change>
+```
+
+If the slice cannot name one preserved behavior and one caller family, return to `gormes-architecture-zoomout`.
+
 ## Quick Reference
 
 | Smell | Preferred move |
@@ -44,6 +61,8 @@ Do not use for speculative architecture. If only one caller exists and no duplic
 | Interface mirrors implementation complexity | Deepen or delete the seam |
 | Callers repeat config/status/error evidence shaping | Extract an evidence builder behind tests |
 | Tests duplicate large setup just to reach one behavior | Move setup behind a fakeable seam and test through the caller interface |
+| Same clock/env/filesystem/network dependency appears in many tests | Add one package-local adapter seam with fake and production adapters |
+| Public helper exists only for tests | Prefer package-local seam or test through public behavior |
 
 ## Common Mistakes
 
