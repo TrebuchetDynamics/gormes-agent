@@ -15,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 )
 
 // Seams collects every helper the gormes profile command
@@ -30,6 +31,7 @@ type Seams struct {
 	CreateProfile            func(name string, cloneAll bool) (cli.ProfileCreateResult, error)
 	ListKnownProfiles        func() ([]string, error)
 	ReadDistributionManifest func(root string) (cli.ProfileDistributionManifest, bool, error)
+	ProviderReadiness        func() ([]provider.ProfileProviderReadiness, error)
 }
 
 // Options carries binary-owned process metadata into the importable profile
@@ -91,6 +93,7 @@ func NewCommandWithSeams(seams Seams, opts ...Options) *cobra.Command {
 	cmd.AddCommand(newProfileListCommand(seams, options))
 	cmd.AddCommand(newProfileUseCommand(seams, options))
 	cmd.AddCommand(newProfileCreateCommand(seams, options))
+	cmd.AddCommand(newProfileProvidersCommand(seams, options))
 	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
 		Name:        "delete",
 		Use:         "delete <name>",
@@ -159,6 +162,69 @@ func newProfileShowCommand(seams Seams, options Options) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, active, root}` JSON document with the same redacted root path the human surface prints")
 	return cmd
+}
+
+func newProfileProvidersCommand(seams Seams, options Options) *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:          "providers",
+		Short:        "Show per-profile provider credential readiness",
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runProfileProvidersCommand(cmd, seams, asJSON, options)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit `{build, active, providers}` JSON with redacted provider credential readiness")
+	return cmd
+}
+
+func runProfileProvidersCommand(cmd *cobra.Command, seams Seams, asJSON bool, options Options) error {
+	if seams.ProviderReadiness == nil {
+		return fmt.Errorf("gormes profile providers: %w", cli.ErrSelectorHelperUnavailable)
+	}
+	active := ""
+	if seams.ReadActiveProfileName != nil {
+		if value, err := seams.ReadActiveProfileName(); err == nil {
+			active = value
+		}
+	}
+	reports, err := seams.ProviderReadiness()
+	if err != nil {
+		return fmt.Errorf("gormes profile providers: %w", err)
+	}
+	if asJSON {
+		body, err := json.MarshalIndent(profileProvidersReportJSON{Build: buildProvenance(options), Active: active, Providers: reports}, "", "  ")
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
+	if active != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "active profile: %s\n", active)
+	}
+	if len(reports) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "providers: none configured")
+		return nil
+	}
+	for _, report := range reports {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s/%s: %s", report.ProfileID, report.ProviderID, report.Status)
+		if report.CredentialID != "" {
+			fmt.Fprintf(cmd.OutOrStdout(), " credential=%s", report.CredentialID)
+		}
+		if report.DefaultModel != "" {
+			fmt.Fprintf(cmd.OutOrStdout(), " model=%s", report.DefaultModel)
+		}
+		fmt.Fprintln(cmd.OutOrStdout())
+		if len(report.Warnings) > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "  warnings: %s\n", strings.Join(report.Warnings, ", "))
+		}
+		if len(report.Evidence) > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "  evidence: %s\n", strings.Join(report.Evidence, ", "))
+		}
+	}
+	return nil
 }
 
 func newProfileUseCommand(seams Seams, options Options) *cobra.Command {
@@ -598,6 +664,12 @@ type profileListEntryJSON struct {
 	Distribution *profileDistributionSummaryJSON `json:"distribution,omitempty"`
 }
 
+type profileProvidersReportJSON struct {
+	Build     gormescli.BuildProvenance           `json:"build"`
+	Active    string                              `json:"active"`
+	Providers []provider.ProfileProviderReadiness `json:"providers"`
+}
+
 type profileInfoReportJSON struct {
 	Build        gormescli.BuildProvenance        `json:"build"`
 	Name         string                           `json:"name"`
@@ -778,6 +850,13 @@ func DefaultSeams() Seams {
 			return DefaultListKnownProfiles()
 		},
 		ReadDistributionManifest: cli.ReadProfileDistributionManifest,
+		ProviderReadiness: func() ([]provider.ProfileProviderReadiness, error) {
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return nil, err
+			}
+			return provider.BuildProfileProviderReadiness(cfg, provider.ProfileProviderReadinessOptions{}), nil
+		},
 	}
 }
 
