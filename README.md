@@ -56,20 +56,22 @@ irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/script
 After installation:
 
 ```bash
+gormes version
 gormes doctor --offline
 gormes setup
 gormes chat
 ```
 
-That is the shortest path: prove the runtime locally, configure provider/model, then open a provider-backed terminal chat.
+That is the shortest path: verify the installed binary, prove the runtime locally before credentials, configure provider/model, then open a provider-backed terminal chat. The proof path is no-stack local ownership: no pip, no venv, no Docker daemon.
 
 ## First Setup
 
 ```bash
+gormes version               # confirm the binary on PATH
+gormes doctor --offline      # local runtime, TUI, gateway, memory — no credentials needed
 gormes setup                 # guided setup for provider, model, terminal, gateway, tools
 gormes setup provider        # direct provider setup shortcut
 gormes chat                  # provider-backed terminal chat
-gormes doctor --offline      # local runtime, TUI, gateway, memory — no credentials needed
 gormes --offline             # native TUI, no network
 ```
 
@@ -213,7 +215,7 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the b
 
 ## Status
 
-Latest public release: [v0.2.19](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.19) (`v2026.5.20`).
+Latest public release: [v0.2.20](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.20) (`v2026.5.21`).
 
 CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~47.7 MB (`benchmarks.json`).
 
@@ -224,10 +226,10 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 20/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 17/23 subphases |
+| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |

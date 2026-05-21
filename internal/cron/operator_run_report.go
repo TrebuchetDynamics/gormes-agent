@@ -57,6 +57,7 @@ type OperatorRunReport struct {
 	Model                  string                      `json:"model,omitempty"`
 	Runtime                OperatorRunRuntimeEvidence  `json:"runtime"`
 	DeliveryTargets        []OperatorRunDeliveryTarget `json:"delivery_targets,omitempty"`
+	DeliveryResults        []OperatorRunDeliveryResult `json:"delivery_results,omitempty"`
 	DeliveryEvidence       []OperatorRunEvidence       `json:"delivery_evidence,omitempty"`
 	StartedAtUnix          int64                       `json:"started_at_unix"`
 	FinishedAtUnix         int64                       `json:"finished_at_unix,omitempty"`
@@ -86,6 +87,14 @@ type OperatorRunDeliveryTarget struct {
 	Local    bool   `json:"local,omitempty"`
 	Origin   bool   `json:"origin,omitempty"`
 	Explicit bool   `json:"explicit,omitempty"`
+}
+
+type OperatorRunDeliveryResult struct {
+	Target          string                `json:"target"`
+	Delivered       bool                  `json:"delivered"`
+	Path            string                `json:"path,omitempty"`
+	FallbackPath    string                `json:"fallback_path,omitempty"`
+	FailureEvidence []OperatorRunEvidence `json:"failure_evidence,omitempty"`
 }
 
 type OperatorRunEvidence struct {
@@ -121,6 +130,7 @@ func BuildOperatorRunReport(in OperatorRunReportInput) OperatorRunReport {
 		Model:                  runtimeEvidence.Model,
 		Runtime:                runtimeEvidence,
 		DeliveryTargets:        normalizeOperatorDeliveryTargets(deliveryPlan.Targets, sanitizer),
+		DeliveryResults:        normalizeOperatorDeliveryResults(deliveryPlan, in.DeliveryOutcome, sanitizer),
 		DeliveryEvidence:       normalizeOperatorDeliveryEvidence(appendDeliveryEvidence(deliveryPlan.Evidence, in.DeliveryOutcome.Evidence), sanitizer),
 		StartedAtUnix:          in.Run.StartedAt,
 		FinishedAtUnix:         in.Run.FinishedAt,
@@ -224,6 +234,80 @@ func normalizeOperatorDeliveryTargets(targets []DeliveryTarget, sanitizer *opera
 		})
 	}
 	return out
+}
+
+func normalizeOperatorDeliveryResults(plan DeliveryPlan, outcome DeliveryOutcome, sanitizer *operatorReportSanitizer) []OperatorRunDeliveryResult {
+	if len(plan.Targets) == 0 {
+		return nil
+	}
+	evidenceByTarget := map[string][]DeliveryEvidence{}
+	for _, item := range appendDeliveryEvidence(plan.Evidence, outcome.Evidence) {
+		target := strings.TrimSpace(item.Target)
+		if target == "" {
+			continue
+		}
+		evidenceByTarget[target] = append(evidenceByTarget[target], item)
+	}
+	out := make([]OperatorRunDeliveryResult, 0, len(plan.Targets))
+	for _, target := range plan.Targets {
+		normalized := target.Normalized()
+		if strings.TrimSpace(normalized) == "" {
+			continue
+		}
+		evidence := evidenceByTarget[normalized]
+		result := OperatorRunDeliveryResult{
+			Target:    sanitizer.text(normalized),
+			Delivered: deliveryResultDelivered(target, outcome, evidence),
+			Path:      sanitizer.text(deliveryResultPath(target, evidence)),
+		}
+		if hasDeliveryEvidence(evidence, DeliveryEvidenceFallbackSinkUsed) {
+			result.FallbackPath = "fallback_sink"
+		}
+		failures := deliveryResultFailureEvidence(evidence)
+		result.FailureEvidence = normalizeOperatorDeliveryEvidence(failures, sanitizer)
+		out = append(out, result)
+	}
+	return out
+}
+
+func deliveryResultDelivered(target DeliveryTarget, outcome DeliveryOutcome, evidence []DeliveryEvidence) bool {
+	if hasDeliveryEvidence(evidence, DeliveryEvidenceStandaloneSenderFailed) || hasDeliveryEvidence(evidence, DeliveryEvidenceTargetParseFailed) || hasDeliveryEvidence(evidence, DeliveryEvidenceChannelDirectoryMissing) {
+		return false
+	}
+	if target.Local || hasDeliveryEvidence(evidence, DeliveryEvidenceFallbackSinkUsed) || hasDeliveryEvidence(evidence, DeliveryEvidenceStandaloneSenderUsed) {
+		return outcome.Delivered
+	}
+	return outcome.Delivered && outcome.Err == nil
+}
+
+func deliveryResultPath(target DeliveryTarget, evidence []DeliveryEvidence) string {
+	if target.Local {
+		return "local"
+	}
+	if hasDeliveryEvidence(evidence, DeliveryEvidenceStandaloneSenderUsed) {
+		return "standalone_sender"
+	}
+	return "live_adapter"
+}
+
+func deliveryResultFailureEvidence(evidence []DeliveryEvidence) []DeliveryEvidence {
+	var out []DeliveryEvidence
+	for _, item := range evidence {
+		switch strings.TrimSpace(item.Code) {
+		case DeliveryEvidenceTargetParseFailed, DeliveryEvidenceChannelDirectoryMissing, DeliveryEvidenceStandaloneSenderFailed:
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func hasDeliveryEvidence(evidence []DeliveryEvidence, code string) bool {
+	for _, item := range evidence {
+		if strings.TrimSpace(item.Code) == code {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeOperatorDeliveryEvidence(evidence []DeliveryEvidence, sanitizer *operatorReportSanitizer) []OperatorRunEvidence {

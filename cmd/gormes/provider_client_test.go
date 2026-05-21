@@ -480,6 +480,37 @@ func TestProviderHTTPClient_OpenRouterDefaultRuntimeUsesOpenRouterKey(t *testing
 	}
 }
 
+func TestProviderHTTPClient_OpenRouterFreeAliasUsesCanonicalOpenRouterCredentialPool(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: "openrouter"}, []config.PooledCredential{{
+		ID:               "openrouter-free-primary",
+		Label:            "OpenRouter free models",
+		AuthType:         config.CredentialAuthAPIKey,
+		Source:           "manual",
+		AccessToken:      "openrouter-free-test-key",
+		BaseURL:          "https://openrouter.ai/api/v1",
+		InferenceBaseURL: "https://openrouter.ai/api/v1",
+		LastStatus:       config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	endpoint, apiKey, err := resolveProviderHTTPClientCredentials(config.Config{Hermes: config.HermesCfg{
+		Model:    "deepseek/deepseek-chat-v3-0324:free",
+		Provider: "openrouter-free",
+	}}, "openrouter-free")
+	if err != nil {
+		t.Fatalf("resolveProviderHTTPClientCredentials: %v", err)
+	}
+	if endpoint != "https://openrouter.ai/api/v1" {
+		t.Fatalf("endpoint = %q, want OpenRouter base URL", endpoint)
+	}
+	if apiKey != "openrouter-free-test-key" {
+		t.Fatalf("apiKey = %q, want OpenRouter credential pool key", apiKey)
+	}
+}
+
 func TestProviderHTTPClient_OpenRouterMissingKeyFailsBeforeRelativeURL(t *testing.T) {
 	t.Setenv("GORMES_HOME", t.TempDir())
 	t.Setenv("OPENROUTER_API_KEY", "")
@@ -501,6 +532,38 @@ func TestProviderHTTPClient_OpenRouterMissingKeyFailsBeforeRelativeURL(t *testin
 	}
 	if got == `post "/v1/chat/completions": unsupported protocol scheme ""` {
 		t.Fatalf("error = %q, want setup evidence before relative URL", err)
+	}
+}
+
+func TestProviderHTTPClient_GoogleAIStudioAliasUsesCanonicalGeminiCredentialPool(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
+	const geminiBaseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: "gemini"}, []config.PooledCredential{{
+		ID:               "gemini-primary",
+		Label:            "Google AI Studio primary",
+		AuthType:         config.CredentialAuthAPIKey,
+		Source:           "manual",
+		AccessToken:      "gemini-test-key",
+		BaseURL:          geminiBaseURL,
+		InferenceBaseURL: geminiBaseURL,
+		LastStatus:       config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	endpoint, apiKey, err := resolveProviderHTTPClientCredentials(config.Config{Hermes: config.HermesCfg{
+		Model:    "gemini-2.5-flash",
+		Provider: "google-ai-studio",
+	}}, "google-ai-studio")
+	if err != nil {
+		t.Fatalf("resolveProviderHTTPClientCredentials: %v", err)
+	}
+	if endpoint != geminiBaseURL {
+		t.Fatalf("endpoint = %q, want Gemini OpenAI-compatible base URL", endpoint)
+	}
+	if apiKey != "gemini-test-key" {
+		t.Fatalf("apiKey = %q, want Gemini credential pool key", apiKey)
 	}
 }
 

@@ -31,3 +31,15 @@ The Unix and Windows installers are release-first: they fetch the latest signed 
 | Termux (Android) | yes | yes | Release archive `gormes-${version}-android-arm64.tar.gz`. |
 
 Each tagged release publishes `gormes-${version}-${os}-${arch}.tar.gz` together with a `.sha256` checksum file. The installer downloads both and verifies the archive SHA-256 before extracting the binary.
+
+## First-run proof order
+
+After install or source build, prove the local runtime before credentials / before entering provider credentials:
+
+```bash
+gormes version
+gormes doctor --offline
+gormes setup
+```
+
+This path is local no-stack ownership, not hosted SaaS: no pip, no venv, no Docker daemon, and no provider credentials before `gormes doctor --offline` passes.

@@ -132,15 +132,9 @@ func TestInstall_DryRunVerboseDefault_SurfacesReleaseArchAndApi(t *testing.T) {
 // is not treated as ordinary Linux arm64 for binary-fetch installs. The release
 // workflow publishes a GOOS=android/GOARCH=arm64 artifact for this host shape.
 func TestInstall_DryRunTermuxArm64_PrefersAndroidReleaseAsset(t *testing.T) {
-	sb := t.TempDir()
-	out := runInstallDryRun(t, map[string]string{
-		"GORMES_INSTALL_HOME":         filepath.Join(sb, "home"),
-		"GORMES_SKIP_SETUP":           "1",
-		"GORMES_RESTART_GATEWAY":      "never",
-		"GORMES_INSTALL_TEST_UNAME_M": "aarch64",
-		"PREFIX":                      "/data/data/com.termux/files/usr",
-		"TERMUX_VERSION":              "0.119.0",
-	}, "--verbose")
+	fixture := newTermuxDryRunFixture(t.TempDir())
+	fixture.Prefix = "/data/data/com.termux/files/usr"
+	out := runInstallDryRun(t, fixture.env(nil), "--verbose")
 
 	if !strings.Contains(out, "install_method: binary-fetch") {
 		t.Fatalf("Termux arm64 dry-run should prefer binary-fetch; got:\n%s", out)

@@ -514,7 +514,15 @@ func isMoonshotOrKimiModel(id string) bool {
 }
 
 func normalizeCatalogProvider(provider string) string {
-	return strings.ToLower(strings.TrimSpace(provider))
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	switch provider {
+	case "google", "google-ai-studio", "google-gemini":
+		return "gemini"
+	case "open-router", "openrouter-free", "or":
+		return "openrouter"
+	default:
+		return provider
+	}
 }
 
 var modelsDevPreferredProviders = map[string]struct{}{
@@ -537,6 +545,10 @@ var modelsDevPreferredProviders = map[string]struct{}{
 
 var providerModelCatalogFloor = map[string][]string{
 	"openrouter": {
+		"deepseek/deepseek-chat-v3-0324:free",
+		"deepseek/deepseek-r1:free",
+		"meta-llama/llama-4-maverick:free",
+		"qwen/qwen3-235b-a22b:free",
 		"anthropic/claude-opus-4.7",
 		"anthropic/claude-opus-4.6",
 		"anthropic/claude-sonnet-4.6",
@@ -569,6 +581,9 @@ var providerModelCatalogFloor = map[string][]string{
 		"nvidia/nemotron-3-super-120b-a12b:free",
 		"inclusionai/ring-2.6-1t:free",
 	},
+	"gemini": {
+		"gemini-2.5-flash",
+	},
 	"openai-codex": {
 		"gpt-5.5",
 		"gpt-5.4-mini",
@@ -593,5 +608,8 @@ var providerModelCatalogFloor = map[string][]string{
 		"kimi-k2.6",
 		"glm-5.1",
 		"claude-opus-4-7",
+	},
+	"groq": {
+		"llama-3.3-70b-versatile",
 	},
 }

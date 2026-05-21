@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -47,6 +48,41 @@ func TestSlashRegistry_NonSlashInputIsNotHandled(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSlashRegistry_HelpHandlerShowsNativeInventory(t *testing.T) {
+	res := NewDefaultSlashRegistry().Dispatch("/help", nil)
+	if !res.Handled {
+		t.Fatalf("Handled = false for /help, want true")
+	}
+	if res.StatusMessage == "" {
+		t.Fatal("StatusMessage is empty, want native TUI help inventory")
+	}
+	for _, want := range []string{
+		"Native TUI commands",
+		"/model",
+		"/save",
+		"/branch",
+		"/mouse",
+		"recognized but unavailable",
+	} {
+		if !strings.Contains(res.StatusMessage, want) {
+			t.Fatalf("StatusMessage = %q, want it to contain %q", res.StatusMessage, want)
+		}
+	}
+	if strings.Contains(res.StatusMessage, "is recognized but unavailable in the native TUI") {
+		t.Fatalf("/help fell through to unavailable fallback: %q", res.StatusMessage)
+	}
+}
+
+func TestSlashRegistry_HelpAdvertisedWhileBusy(t *testing.T) {
+	names := NewDefaultSlashRegistry().BusyAvailableSlashes()
+	for _, name := range names {
+		if name == "help" {
+			return
+		}
+	}
+	t.Fatalf("BusyAvailableSlashes() = %v, want help", names)
 }
 
 func TestSlashRegistry_MouseHandlerMigrationParity(t *testing.T) {

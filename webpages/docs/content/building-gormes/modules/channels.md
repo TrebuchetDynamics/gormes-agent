@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `channels`
 **Rows:** 135
-**Status counts:** `complete`: 129 · `in_progress`: 0 · `planned`: 6
+**Status counts:** `complete`: 130 · `in_progress`: 0 · `planned`: 5
 **Priority counts:** `P0`: 7 · `P1`: 47 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47
 
 ## Phase 2 — The Gateway
@@ -269,4 +269,4 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `planned` | `P1` | `channels` | Channel capability matrix with stable/fixture/planned labels |
+| `complete` | `P1` | `channels` | Channel capability matrix with stable/fixture/planned labels |

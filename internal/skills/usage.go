@@ -184,9 +184,7 @@ func MarkAgentCreated(root, name string) error {
 		if rec.CreatedAt.IsZero() {
 			rec.CreatedAt = now
 		}
-		if rec.State == "" {
-			rec.State = SkillStateActive
-		}
+		ensureActiveUsageState(rec)
 	})
 }
 
@@ -201,9 +199,7 @@ func IsAgentCreated(root, name string) bool {
 func SetPinned(root, name string, pinned bool) error {
 	return updateUsageRecord(root, name, func(rec *SkillUsageRecord) {
 		rec.Pinned = pinned
-		if rec.State == "" {
-			rec.State = SkillStateActive
-		}
+		ensureActiveUsageState(rec)
 	})
 }
 
@@ -223,9 +219,7 @@ func BumpPatch(root, name string) error {
 	return updateUsageRecord(root, name, func(rec *SkillUsageRecord) {
 		rec.PatchCount++
 		rec.LastPatchedAt = now
-		if rec.State == "" {
-			rec.State = SkillStateActive
-		}
+		ensureActiveUsageState(rec)
 	})
 }
 
@@ -234,9 +228,7 @@ func BumpUse(root, name string) error {
 	return updateUsageRecord(root, name, func(rec *SkillUsageRecord) {
 		rec.UseCount++
 		rec.LastUsedAt = now
-		if rec.State == "" || rec.State == SkillStateStale {
-			rec.State = SkillStateActive
-		}
+		reactivateUsageState(rec)
 	})
 }
 
@@ -245,9 +237,7 @@ func BumpView(root, name string) error {
 	return updateUsageRecord(root, name, func(rec *SkillUsageRecord) {
 		rec.ViewCount++
 		rec.LastViewedAt = now
-		if rec.State == "" {
-			rec.State = SkillStateActive
-		}
+		ensureActiveUsageState(rec)
 	})
 }
 
@@ -297,9 +287,7 @@ func ListAgentCreatedSkillUsage(root string) ([]AgentCreatedSkillUsage, error) {
 		if isArchivedSkillPath(root, dir) || isHubSkillPath(root, dir) || isBundledSkill(root, name) {
 			continue
 		}
-		if rec.State == "" {
-			rec.State = SkillStateActive
-		}
+		ensureActiveUsageState(&rec)
 		out = append(out, AgentCreatedSkillUsage{
 			Name:           name,
 			Record:         rec,
@@ -353,24 +341,45 @@ func ArchiveAgentCreatedSkill(root, name string, now time.Time) (string, error) 
 	if isArchivedSkillPath(root, skillDir) || isHubSkillPath(root, skillDir) || isBundledSkill(root, name) {
 		return "", fmt.Errorf("skill %q is bundled or hub-installed; never archive", name)
 	}
-	if now.IsZero() {
-		now = time.Now().UTC()
-	}
-	archiveRoot := filepath.Join(root, "active", ".archive")
-	if err := os.MkdirAll(archiveRoot, 0o755); err != nil {
-		return "", err
-	}
-	dest := filepath.Join(archiveRoot, name)
-	if _, err := os.Stat(dest); err == nil {
-		dest = filepath.Join(archiveRoot, fmt.Sprintf("%s-%s", name, timestampID(now)))
-	}
-	if err := os.Rename(skillDir, dest); err != nil {
+	dest, archivedAt, err := moveSkillDirToArchive(root, name, skillDir, now)
+	if err != nil {
 		return "", err
 	}
 	return dest, updateUsageRecord(root, name, func(rec *SkillUsageRecord) {
 		rec.State = SkillStateArchived
-		rec.ArchivedAt = now.UTC()
+		rec.ArchivedAt = archivedAt
 	})
+}
+
+func ensureActiveUsageState(rec *SkillUsageRecord) {
+	if rec.State == "" {
+		rec.State = SkillStateActive
+	}
+}
+
+func reactivateUsageState(rec *SkillUsageRecord) {
+	if rec.State == "" || rec.State == SkillStateStale {
+		rec.State = SkillStateActive
+	}
+}
+
+func moveSkillDirToArchive(root, name, skillDir string, now time.Time) (string, time.Time, error) {
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	archivedAt := now.UTC()
+	archiveRoot := filepath.Join(root, "active", ".archive")
+	if err := os.MkdirAll(archiveRoot, 0o755); err != nil {
+		return "", time.Time{}, err
+	}
+	dest := filepath.Join(archiveRoot, name)
+	if _, err := os.Stat(dest); err == nil {
+		dest = filepath.Join(archiveRoot, fmt.Sprintf("%s-%s", name, timestampID(archivedAt)))
+	}
+	if err := os.Rename(skillDir, dest); err != nil {
+		return "", time.Time{}, err
+	}
+	return dest, archivedAt, nil
 }
 
 func lastSkillActivity(rec SkillUsageRecord) time.Time {

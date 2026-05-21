@@ -51,8 +51,9 @@ Use this order when several skills could apply:
    "map parity", "why does Hermes do X", "source refs", external API docs,
    or a freshly tagged external dependency/release. Route to
    `gormes-hermes-parity`, `gormes-parity-auditor`,
-   `gormes-openclaw-parity`, `gormes-context-sourcing`, or
-   `gormes-architecture-zoomout` before builder work.
+   `gormes-openclaw-parity`, `gormes-pi-parity`,
+   `gormes-context-sourcing`, or `gormes-architecture-zoomout` before builder
+   work.
 3. **Backlog-shaping intent** — plan, split, rows, roadmap, progress,
    acceptance, PRD, review finding becomes work. Route to
    `gormes-progress-slicer` or `gormes-planner`.
@@ -65,9 +66,11 @@ Use this order when several skills could apply:
    module shape, cleanup after working behavior. Route to
    `gormes-interface-designer`, `gormes-service-layer-refactor`, or
    `gormes-prototype-spike`.
-6. **Communication/content intent** — README, landing page, public claims,
-   handoff-like status, or user-facing messaging. Route to `gormes-readme` or
-   `gormes-landing-web` unless the request is actually release prep.
+6. **Communication/content intent** — README, landing page, dashboard screenshot,
+   image-based dashboard asset, public claims, handoff-like status, or
+   user-facing messaging. Route dashboard visuals to `dashboard-image-design`;
+   route public copy to `gormes-readme` or `gormes-landing-web` unless the
+   request is actually release prep.
 
 #### Fast Signal Table
 
@@ -86,9 +89,11 @@ Use this order when several skills could apply:
 | Navivox, Telegram-like, Flutter chat/contact | mobile UI | `navivox-telegram-ui` |
 | what is missing, compare Hermes/Honcho | parity discovery | `gormes-parity-auditor` or `gormes-hermes-parity` |
 | OpenClaw-only behavior | owned enhancement triage | `gormes-openclaw-parity` |
+| Pi, pi.dev, pi-coding-agent, extension API, SDK/RPC harness, TUI components | harness technique donor triage | `gormes-pi-parity` |
 | external API/library docs | source context | `gormes-context-sourcing` |
 | tagged external repo release, `go get`, GitHub release, use module from release | dependency integration evidence | `gormes-context-sourcing` then `gormes-tdd-slice` |
 | `goscrapling v0.1.0`, tagged sibling repo, scrape dependency, use from GitHub release | released-module E2E integration | `gormes-context-sourcing` then `gormes-tdd-slice` |
+| architecture/planner/parity/builder loop, delivery loop extension | bounded delivery orchestration | `gormes-delivery-loop` |
 | plan, roadmap, progress row | planner pass | `gormes-planner` |
 | split plan/PRD/review into rows | vertical slicing | `gormes-progress-slicer` |
 | implement row, build slice | builder pass | `gormes-builder` + `gormes-tdd-slice` |
@@ -100,11 +105,12 @@ Use this order when several skills could apply:
 | try designs, prototype | throwaway experiment | `gormes-prototype-spike` |
 | README | public repo messaging | `gormes-readme` |
 | landing, homepage, www.gormes.ai | website copy/UI | `gormes-landing-web` |
+| dashboard screenshot, hero image, social card, image-based dashboard | visual asset design | `dashboard-image-design` |
 | create/update skills | skill management | `gormes-skill-manager` |
 
 Pick the primary intent:
 
-- **Decide direction**: use `grill-me` and optionally `gormes-planner`.
+- **Decide direction**: use the global `grill-me` skill and optionally `gormes-planner`; do not create a repo-local `grill-me` shadow skill.
 - **Persistent long-running objective or `/goal` command**: use `gormes-goal` first to set, inspect, pause, resume, clear, or complete the active goal. Route the goal's concrete work through the smallest applicable Gormes skill chain.
 - **Run recurring or periodic Hermes/Gormes parity progress sweeps**:
   use `gormes-hermes-parity` as the orchestrator. It loads only the needed
@@ -117,6 +123,11 @@ Pick the primary intent:
   `gormes-openclaw-parity` to classify the candidate as adopt, adapt, covered,
   Hermes parity, exclude, or blocked. Route adopt/adapt findings to
   `gormes-planner` for progress rows before implementation.
+- **Learn from Pi harness techniques** such as extension APIs, tool
+  middleware, SDK/RPC embedding, TUI components, session trees, compaction,
+  packages, prompt templates, safety gates, or provider hooks: use
+  `gormes-pi-parity`. Pi is a donor for harness design, not a Hermes or
+  OpenClaw parity contract.
 - **Concrete Gormes-vs-Hermes UX bug** such as ugly TUI chrome, duplicate
   replies, visible hourglass/status messages, hidden tool-progress mismatch,
   Telegram formatting drift, or stale product labels: use
@@ -167,6 +178,7 @@ Pick the primary intent:
 - **Use a freshly tagged external Go module release** such as a sibling repo tag pushed to GitHub: use `gormes-context-sourcing` first to verify the module path, tag, release commit, public availability, and absence of local `replace` assumptions. Then use `gormes-tdd-slice` for a failing E2E/import test that proves Gormes consumes the released module, not a local checkout. If the integration changes public behavior or lacks a progress row, insert `gormes-progress-slicer`/`gormes-planner` before implementation.
   - For Juan's `goscrapling v0.1.0` handoff, preserve the supplied evidence (`/home/xel/git/sages-openclaw/workspace-mineru/goscrapling`, branch `main`, tag commit `ca1f046aa942c0739a73cb0715b67aec608b8e39`, tag `v0.1.0`, pre-tag validation) as context, but do not import from that sibling checkout. Verify the public GitHub module/tag with Go tooling, update Gormes via the release version, and write a failing E2E/TDD proof before implementation.
 - **Architecture zoom-out, codebase architecture improvement, or unfamiliar cross-package work**: use `gormes-architecture-zoomout` before implementation; route unclear package boundaries to `gormes-interface-designer` and repeated mechanics to `gormes-service-layer-refactor`.
+- **Bounded architecture -> planner -> parity -> builder cycles**: use `gormes-delivery-loop` when Juan explicitly asks for the chain or an extension that repeats it. Keep each iteration budgeted, progress-row-backed, test-validated, committed, and pushed before continuing.
 - **Broad plan, PRD, parity gap, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces.
 - **Throwaway design, state-machine, protocol, or UI experiment**: use `gormes-prototype-spike`; route validated production work to `gormes-tdd-slice`.
 - **Repeated runtime mechanics or service-layer cleanup** after a feature works: use `gormes-service-layer-refactor`; route unclear package boundaries to `gormes-interface-designer` first.
@@ -341,6 +353,6 @@ new_skill_needed:
 
 - Do not let skill management replace delivery.
 - Do not create side backlogs. Implementation intent goes into `progress.json`, the single logical backlog accessed via `internal/progress.Load`/`cmd/progress` (monolithic file or split/per-module layout, transparently; never hand-parse member files).
-- Do not recreate deleted loop commands. Planning/building now happens through bounded skill-driven passes.
+- Loop/orchestrator commands require explicit user intent, progress-row-backed scope, validation gates, and operator controls; otherwise prefer bounded skill-driven passes.
 - Use Context7 for external library/framework/API docs when required by repo instructions.
 - Preserve dirty user work.

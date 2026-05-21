@@ -26,6 +26,7 @@ coverage.html
 # ── Runtime logs and crash dumps ─────────────────────
 gormes.log
 crash-*.log
+.pi/gormes-loop/*.jsonl
 
 # ── Local state directories (when run in-repo) ───────
 .env

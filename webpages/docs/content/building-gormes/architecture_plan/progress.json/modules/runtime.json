@@ -349,9 +349,9 @@
     "item": {
       "name": "Hermes agent runtime strict-fidelity source-pair expansion",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Expand source-pair and progress mappings for unmapped Hermes `agent` runtime files before treating them as runtime implementation gaps. The pass must classify transports, LSP helpers, context/compression helpers, prompt caching, retry/rate diagnostics, conversation loop helpers, tool dispatch helpers, and safety/redaction helpers into existing Gormes provider/runtime/tool rows or new builder rows.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "runtime",
@@ -388,7 +388,7 @@
         "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
-      "note": "draft_until: classifier pass narrows this strict-fidelity bucket into exact child rows, source-pair mappings, or exclusions; strict_fidelity_origin: 2026-05-18 report shows 87 unmapped `agent` source files and 24 `agent`-adjacent unmapped tests.",
+      "note": "Complete 2026-05-21: hermes-source-pairs now classifies agent runtime tails for conversation_loop, tool_executor, context_engine, Codex transport, chat-completions transport, and LSP manager. Contract inventory strict failures dropped from 3000 to 2984 by linking these source/test files to source-pair evidence and progress rows without claiming unsupported full runtime parity.",
       "write_scope": [
         "internal/runtime",
         "internal/provider",
@@ -408,7 +408,24 @@
         "origin_type": "hybrid",
         "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
         "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
-      }
+      },
+      "implementation": [
+        "internal/repoctl/source_pairs_repository_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md"
+      ],
+      "validation": [
+        "go test ./internal/repoctl -run TestRepositorySourcePairsClassifyHermesAgentRuntimeTail -count=1",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/repoctl hermes-source-pairs report",
+        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go test ./internal/runtime ./internal/provider ./internal/tools -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ]
     }
   },
   {

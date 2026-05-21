@@ -8028,7 +8028,7 @@
     "item": {
       "name": "Channel capability matrix with stable/fixture/planned labels",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Turn channel breadth into proof instead of a raw count: publish a channel capability matrix that separates runtime-ready, fixture-backed, and planned adapters, links each stable top-channel setup path, and states that gateway readiness comes from `gormes channels capabilities` plus `gormes gateway status`, not from roadmap row count.",
       "contract_status": "validated",
       "slice_size": "small",
@@ -8038,11 +8038,11 @@
         "operator"
       ],
       "degraded_mode": "Without labeled channel proof, Gormes either undersells existing gateway breadth or overclaims long-tail adapters as runtime-ready support.",
-      "fixture": "webpages/docs/content/cli/channels.md::capability matrix",
+      "fixture": "webpages/docs/docs_test.go::TestChannelCapabilityMatrixDocs",
       "source_refs": [
         "docs/content/building-gormes/strategy/market-positioning.md",
         "webpages/docs/content/cli/channels.md",
-        "webpages/docs/content/recipes/multi-channel.md",
+        "webpages/docs/content/operate/multi-channel-gateway.md",
         "webpages/docs/content/cli/gateway.md",
         "webpages/docs/content/building-gormes/modules/channels.md",
         "cmd/gormes/channels.go"
@@ -8066,7 +8066,7 @@
       "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. OpenClaw owns broad integration perception; Gormes should answer with labeled proof, not inflated counts.",
       "write_scope": [
         "webpages/docs/content/cli/channels.md",
-        "webpages/docs/content/recipes/multi-channel.md",
+        "webpages/docs/content/operate/multi-channel-gateway.md",
         "webpages/docs/docs_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -8081,6 +8081,20 @@
       "provenance": {
         "origin_type": "gormes",
         "note": "Gormes-owned public proof row; channel runtime work remains in dedicated channel rows."
+      },
+      "completed_at": "2026-05-21T00:00:00Z",
+      "evidence": {
+        "implementation": [
+          "webpages/docs/content/cli/channels.md now publishes a capability matrix with Runtime-ready, Fixture-backed, and Planned labels tied to `gormes channels capabilities` and `gormes gateway status --json`.",
+          "webpages/docs/content/operate/multi-channel-gateway.md points runtime verification at channel capabilities plus gateway status instead of roadmap row counts."
+        ],
+        "tests": [
+          "go test ./webpages/docs -run 'Test.*Channel.*(Capability|Matrix|Recipe)' -count=1",
+          "go test ./... -count=1",
+          "go run ./cmd/progress validate",
+          "git diff --check"
+        ],
+        "note": "Completed 2026-05-21 in delivery-loop iteration 5/10; docs-only proof slice, no channel runtime changes."
       }
     }
   }

@@ -432,8 +432,8 @@ func TestSetupFullWizardSwitchingProviderUsesSelectedProviderDefaultModel(t *tes
 		if current.Provider != "openrouter" {
 			t.Fatalf("active model picker provider = %q, want openrouter", current.Provider)
 		}
-		if current.Model != "moonshotai/kimi-k2.6" {
-			t.Fatalf("active model picker model seed = %q, want OpenRouter default moonshotai/kimi-k2.6", current.Model)
+		if current.Model != "deepseek/deepseek-chat-v3-0324:free" {
+			t.Fatalf("active model picker model seed = %q, want OpenRouter free default deepseek/deepseek-chat-v3-0324:free", current.Model)
 		}
 		return nil
 	}
@@ -628,9 +628,10 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 		"Select provider:",
 		"OpenRouter (100+ models, pay-per-use)  ← currently active",
 		"Select model for openrouter:",
-		"1. anthropic/claude-opus-4.7",
-		"4. moonshotai/kimi-k2.6",
-		"31. inclusionai/ring-2.6-1t:free",
+		"1. deepseek/deepseek-chat-v3-0324:free",
+		"4. qwen/qwen3-235b-a22b:free",
+		"8. moonshotai/kimi-k2.6",
+		"35. inclusionai/ring-2.6-1t:free",
 		"Provider: openrouter",
 		"Endpoint: https://openrouter.ai/api/v1",
 		"Model:    moonshotai/kimi-k2.6",
@@ -726,6 +727,66 @@ func TestSetupProviderOpenAICodexUsesOAuthFlow(t *testing.T) {
 	}
 	if _, err := os.Stat(config.EnvPath()); !os.IsNotExist(err) {
 		t.Fatalf("Codex OAuth setup should not write GORMES_API_KEY env path %s: %v", config.EnvPath(), err)
+	}
+}
+
+func TestSetupProviderAnthropicUsesOAuthFlow(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY: true,
+		current: cli.ProviderModel{
+			Provider: "openrouter",
+			Model:    "moonshotai/kimi-k2.6",
+		},
+		providerAuthStatus: cli.ProviderAuthStatus{
+			Provider:      config.AnthropicProvider,
+			AuthType:      config.CredentialAuthOAuth,
+			Status:        cli.AuthStatusLoggedOut,
+			Authenticated: false,
+		},
+	}
+	fake.chooseSetupProvider = func(_ *cobra.Command, entries []cli.ProviderMenuEntry, _ int) (int, error) {
+		for i, entry := range entries {
+			if entry.ID == config.AnthropicProvider {
+				return i, nil
+			}
+		}
+		t.Fatalf("provider menu missing anthropic: %#v", entries)
+		return -1, nil
+	}
+	fake.runProviderAuth = func(_ *cobra.Command, provider string) error {
+		events = append(events, "auth:"+provider)
+		return nil
+	}
+	seams := fake.seams()
+	seams.RunActiveProviderModelPicker = func(_ *cobra.Command, current cli.ProviderModel) error {
+		events = append(events, "model:"+current.Provider)
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, seams, "2\n", "provider")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got, want := strings.Join(events, ","), "auth:anthropic,model:anthropic"; got != want {
+		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+	for _, want := range []string{
+		"Selected provider: Anthropic",
+		"Not logged into Anthropic. Starting login...",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "API key:") {
+		t.Fatalf("Anthropic OAuth setup must not ask for an API key:\n%s", stdout)
+	}
+	if _, err := os.Stat(config.EnvPath()); !os.IsNotExist(err) {
+		t.Fatalf("Anthropic OAuth setup should not write GORMES_API_KEY env path %s: %v", config.EnvPath(), err)
 	}
 }
 

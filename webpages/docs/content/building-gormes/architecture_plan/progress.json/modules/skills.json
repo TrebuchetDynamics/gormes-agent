@@ -2134,9 +2134,9 @@
     "item": {
       "name": "Hermes v0.14 optional skill catalog refresh",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Refresh the Gormes skill catalog and metadata compatibility checks against Hermes v0.14 optional skills, including devops/pinggy-tunnel, research/darwinian-evolver, research/osint-investigation, and the updated Notion skill, without blindly copying unsupported Python scripts into runtime packages.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "skills",
       "module": "skills",
@@ -2171,6 +2171,18 @@
       ],
       "done_signal": [
         "Optional skill fixtures prove v0.14 metadata/catalog visibility and guarded unsupported-script handling."
+      ],
+      "note": "Complete 2026-05-21: TDD added parser coverage for Hermes v0.14 optional/catalog frontmatter shape using osint/notion-style metadata. internal/skills.Parse now preserves metadata.hermes.category and metadata.hermes.homepage in typed Skill fields while keeping tags, related_skills, platforms, env prerequisites, and body parsing intact. No Hermes optional Python scripts were vendored and no runtime enablement changed.",
+      "implementation": [
+        "internal/skills/types.go",
+        "internal/skills/parser.go",
+        "internal/skills/parser_test.go"
+      ],
+      "validation": [
+        "go test ./internal/skills -run 'Test.*Skill.*Catalog|Test.*Optional' -count=1",
+        "go test ./internal/skills -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
       ]
     }
   },

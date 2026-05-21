@@ -249,6 +249,9 @@ var upstreamProviderAliases = map[string]string{
 	"deep-seek":           "deepseek",
 	"gemini-cli":          "google-gemini-cli",
 	"gemini-oauth":        "google-gemini-cli",
+	"google":              "gemini",
+	"google-ai-studio":    "gemini",
+	"google-gemini":       "gemini",
 	"github":              "github-copilot",
 	"github-copilot-acp":  "copilot-acp",
 	"glm":                 "zai",
@@ -388,6 +391,9 @@ func TestHermesProviderRegistryManifestRecordsRequiredMetadata(t *testing.T) {
 		{"minimax-oauth", "anthropic_messages", "oauth_minimax", "row_backed", false},
 		{"copilot-acp", "codex_responses", "external_process", "row_backed", false},
 		{"openrouter", "openai_chat", "api_key", "implemented", true},
+		{"openrouter-free", "openai_chat", "api_key", "implemented", true},
+		{"gemini", "openai_chat", "api_key", "implemented", false},
+		{"groq", "openai_chat", "api_key", "implemented", false},
 		{"novita-ai", "openai_chat", "api_key", "implemented", true},
 		{"opencode-zen", "openai_chat", "api_key", "implemented", true},
 		{"opencode-go", "openai_chat", "api_key", "implemented", true},
@@ -412,9 +418,22 @@ func TestHermesProviderRegistryManifestRecordsRequiredMetadata(t *testing.T) {
 			if entry.Aggregator != tt.aggregator {
 				t.Fatalf("Aggregator = %v, want %v", entry.Aggregator, tt.aggregator)
 			}
-			if tt.provider == "openrouter" {
-				if !hasString(entry.EnvVars, "OPENROUTER_API_KEY") || !hasString(entry.EnvVars, "OPENAI_API_KEY") {
-					t.Fatalf("OpenRouter EnvVars = %v, want OPENROUTER_API_KEY primary with OPENAI_API_KEY fallback", entry.EnvVars)
+			if tt.provider == "openrouter" || tt.provider == "openrouter-free" {
+				if entry.ID != "openrouter" {
+					t.Fatalf("%s resolved to %q, want canonical openrouter", tt.provider, entry.ID)
+				}
+				if !hasString(entry.EnvVars, "OPENROUTER_API_KEY") || !hasString(entry.EnvVars, "OPENAI_API_KEY") || entry.BaseURLOverride != "https://openrouter.ai/api/v1" || entry.BaseURLEnvVar != "OPENROUTER_BASE_URL" {
+					t.Fatalf("OpenRouter EnvVars = %v base=%q base_env=%q, want canonical OpenRouter metadata", entry.EnvVars, entry.BaseURLOverride, entry.BaseURLEnvVar)
+				}
+			}
+			if tt.provider == "gemini" {
+				if !hasString(entry.EnvVars, "GOOGLE_API_KEY") || !hasString(entry.EnvVars, "GEMINI_API_KEY") || entry.BaseURLOverride != "https://generativelanguage.googleapis.com/v1beta/openai" || entry.BaseURLEnvVar != "GEMINI_BASE_URL" {
+					t.Fatalf("Gemini metadata = env=%v base=%q base_env=%q", entry.EnvVars, entry.BaseURLOverride, entry.BaseURLEnvVar)
+				}
+			}
+			if tt.provider == "groq" {
+				if !hasString(entry.EnvVars, "GROQ_API_KEY") || entry.BaseURLOverride != "https://api.groq.com/openai/v1" || entry.BaseURLEnvVar != "GROQ_BASE_URL" {
+					t.Fatalf("Groq metadata = env=%v base=%q base_env=%q", entry.EnvVars, entry.BaseURLOverride, entry.BaseURLEnvVar)
 				}
 			}
 			if tt.provider == "novita-ai" {

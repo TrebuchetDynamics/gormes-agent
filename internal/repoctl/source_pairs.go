@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	sourcePairsManifestRel = "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json"
-	sourcePairsReportRel   = "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md"
+	sourcePairsManifestRel       = "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json"
+	sourcePairsLegacyManifestRel = "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json"
+	sourcePairsReportRel         = "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.md"
+	sourcePairsLegacyReportRel   = "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md"
 )
 
 var highPriorityHermesSources = []string{
@@ -216,7 +218,7 @@ func WriteSourcePairsReport(opts SourcePairOptions) error {
 	root := sourcePairRoot(opts)
 	path := opts.ReportPath
 	if path == "" {
-		path = filepath.Join(root, sourcePairsReportRel)
+		path = sourcePairDefaultPath(root, sourcePairsReportRel, sourcePairsLegacyReportRel)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -321,7 +323,19 @@ func sourcePairManifestPath(opts SourcePairOptions) string {
 	if opts.ManifestPath != "" {
 		return opts.ManifestPath
 	}
-	return filepath.Join(root, sourcePairsManifestRel)
+	return sourcePairDefaultPath(root, sourcePairsManifestRel, sourcePairsLegacyManifestRel)
+}
+
+func sourcePairDefaultPath(root, primaryRel, legacyRel string) string {
+	primary := filepath.Join(root, primaryRel)
+	if sourcePairPathExists(primary) {
+		return primary
+	}
+	legacy := filepath.Join(root, legacyRel)
+	if sourcePairPathExists(legacy) {
+		return legacy
+	}
+	return primary
 }
 
 func sortSourcePairs(pairs []SourcePair) {

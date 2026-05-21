@@ -1068,7 +1068,7 @@
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
       ],
-      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable",
+      "no_test_required": "Documentation/research/planning row — automated tests not applicable",
       "done_signal": [
         "The pure-core tool tranche is represented by concrete child rows and this umbrella is not selected for implementation."
       ],
@@ -1284,9 +1284,9 @@
     "item": {
       "name": "Hermes tool tail strict-fidelity source-pair expansion",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Classify remaining unmapped Hermes tools into covered Gormes tool rows, focused builder rows, or explicit exclusions. The pass must cover web/search providers, voice/TTS/STT tools, video/image tools, environment backends, tool result storage, process/zombie guards, URL and website policy helpers, and x_search auth behavior without hiding them behind the existing broad 61-tool row.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "tools",
@@ -1322,7 +1322,7 @@
         "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
-      "note": "strict_fidelity_origin: 2026-05-18 report shows 79 unmapped `tools` source files plus many one-file `tests/tools` blockers.",
+      "note": "Complete 2026-05-21: hermes-source-pairs now classifies the named tool-tail refs for web_tools, x_search, TTS, transcription, image generation, URL safety, and website policy. Contract inventory strict failures dropped from 3025 to 3000 by linking these files/tests to source-pair evidence and progress rows without changing runtime tool schemas or claiming unsupported full parity.",
       "write_scope": [
         "internal/tools",
         "internal/tools/safety",
@@ -1342,7 +1342,25 @@
         "origin_type": "hybrid",
         "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
         "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
-      }
+      },
+      "implementation": [
+        "internal/repoctl/source_pairs_repository_test.go",
+        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md"
+      ],
+      "validation": [
+        "go test ./internal/repoctl -run TestRepositorySourcePairsClassifyHermesToolTail -count=1",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/repoctl hermes-source-pairs report",
+        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ]
     }
   },
   {
@@ -2263,7 +2281,7 @@
         "TestVideoAnalyze_LocalPathSanitization proves directory-traversal and absolute-path inputs are bounded by the workspace root and rejected with workspace_root_violation evidence.",
         "TestVideoAnalyze_URLSchemeAllowlist proves only http/https URL schemes pass to a fake fetcher; file/ftp/data are rejected."
       ],
-      "note": "Complete: video_analyze tool registered via NewVideoAnalyzeTool/VideoAnalyzeConfig. Fixture-proven against fakeVideoAnalyzeProvider with vision routing, unsupported provider rejection, workspace path sanitization, and URL scheme allowlist. No real Gemini transport \u2014 provider seam ready for downstream adapter rows.",
+      "note": "Complete: video_analyze tool registered via NewVideoAnalyzeTool/VideoAnalyzeConfig. Fixture-proven against fakeVideoAnalyzeProvider with vision routing, unsupported provider rejection, workspace path sanitization, and URL scheme allowlist. No real Gemini transport — provider seam ready for downstream adapter rows.",
       "write_scope": [
         "internal/tools/video_analyze.go",
         "internal/tools/video_analyze_test.go",
@@ -2315,7 +2333,7 @@
     "item": {
       "name": "MCP stdio transport + tool/list discovery",
       "status": "complete",
-      "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests \u2014 deterministic over an in-process fake server with no real subprocess",
+      "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests — deterministic over an in-process fake server with no real subprocess",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2389,7 +2407,7 @@
     "item": {
       "name": "MCP HTTP transport + tool/list discovery",
       "status": "complete",
-      "contract": "internal/tools/mcp_http.go exposes an HTTP MCP client (NewHTTPClient(def MCPServerDefinition, opts HTTPClientOpts) (*HTTPClient, error); (*HTTPClient).Initialize(ctx) error; (*HTTPClient).ListTools(ctx) ([]MCPRawTool, error); (*HTTPClient).Close() error) that speaks JSON-RPC over an injectable http.RoundTripper \u2014 deterministic over httptest.Server in unit tests with no real network egress",
+      "contract": "internal/tools/mcp_http.go exposes an HTTP MCP client (NewHTTPClient(def MCPServerDefinition, opts HTTPClientOpts) (*HTTPClient, error); (*HTTPClient).Initialize(ctx) error; (*HTTPClient).ListTools(ctx) ([]MCPRawTool, error); (*HTTPClient).Close() error) that speaks JSON-RPC over an injectable http.RoundTripper — deterministic over httptest.Server in unit tests with no real network egress",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2458,7 +2476,7 @@
     "item": {
       "name": "MCP schema normalization + structured-content adapter",
       "status": "complete",
-      "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings \u2014 sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
+      "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings — sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2848,7 +2866,7 @@
         "docs/content/building-gormes/openclaw-platform-parity-audit.md"
       ],
       "ready_when": [
-        "ACP server side (5.H) is validated \u2014 server manifest, auth, session, tools, permissions, events.",
+        "ACP server side (5.H) is validated — server manifest, auth, session, tools, permissions, events.",
         "Gateway session store supports key/label resolution."
       ],
       "not_ready_when": [
@@ -4301,7 +4319,7 @@
         "TestRedactionDefaultOn_NewConfigEnablesRedaction proves a fresh Gormes config has redaction enabled by default.",
         "TestRedactionDefaultOn_ExplicitOptOutHonored proves `redaction.enabled: false` in config disables redaction and is logged as an explicit operator choice."
       ],
-      "note": "Complete 2026-05-07T19:23:35Z: writeCredentialPoolAuthStore now uses tools.AtomicReplace (tempfile \u2192 fsync \u2192 rename) instead of raw os.WriteFile, closing the auth.json TOCTOU window. New internal/redaction package provides RedactionConfig with default-on contract and explicit operator opt-out via Enabled=false. Tests prove no-torn-write, mode preservation, tempfile cleanup, and default-on/opt-out redaction behavior.",
+      "note": "Complete 2026-05-07T19:23:35Z: writeCredentialPoolAuthStore now uses tools.AtomicReplace (tempfile → fsync → rename) instead of raw os.WriteFile, closing the auth.json TOCTOU window. New internal/redaction package provides RedactionConfig with default-on contract and explicit operator opt-out via Enabled=false. Tests prove no-torn-write, mode preservation, tempfile cleanup, and default-on/opt-out redaction behavior.",
       "write_scope": [
         "internal/auth/atomic_write.go",
         "internal/auth/atomic_write_test.go",
@@ -4458,7 +4476,7 @@
       "name": "Checkpoints CLI (status/list/prune/clear/clear-legacy)",
       "priority": "P2",
       "status": "complete",
-      "contract": "Gormes exposes a `gormes checkpoints` CLI commandtree mirroring Hermes' `hermes_cli/checkpoints.py` (faa13e49f): bare `gormes checkpoints` \u2192 status, `gormes checkpoints status [--limit N]` \u2192 total size + project count + per-project breakdown with workdir/commits/last-touch/state, `gormes checkpoints list [--limit N]` \u2192 alias for status, `gormes checkpoints prune [--retention-days N] [--max-size-mb N] [--keep-orphans]` \u2192 delete orphan/stale checkpoints and GC the store with a confirmation prompt, `gormes checkpoints clear [-f|--force]` \u2192 delete the entire checkpoint base (asks confirmation unless -f), `gormes checkpoints clear-legacy [-f|--force]` \u2192 delete only legacy archive directories. All commands consume the existing internal/tools.CheckpointManager read model (store_status, prune, clear, clear_legacy) and require no live agent, provider, network, or gateway. Output formatting mirrors Hermes: bytes in human-readable units (B/KB/MB/GB/TB), timestamps in relative age (Xs/m/h/d ago), orphan/live state flags, and per-project columnar layout.",
+      "contract": "Gormes exposes a `gormes checkpoints` CLI commandtree mirroring Hermes' `hermes_cli/checkpoints.py` (faa13e49f): bare `gormes checkpoints` → status, `gormes checkpoints status [--limit N]` → total size + project count + per-project breakdown with workdir/commits/last-touch/state, `gormes checkpoints list [--limit N]` → alias for status, `gormes checkpoints prune [--retention-days N] [--max-size-mb N] [--keep-orphans]` → delete orphan/stale checkpoints and GC the store with a confirmation prompt, `gormes checkpoints clear [-f|--force]` → delete the entire checkpoint base (asks confirmation unless -f), `gormes checkpoints clear-legacy [-f|--force]` → delete only legacy archive directories. All commands consume the existing internal/tools.CheckpointManager read model (store_status, prune, clear, clear_legacy) and require no live agent, provider, network, or gateway. Output formatting mirrors Hermes: bytes in human-readable units (B/KB/MB/GB/TB), timestamps in relative age (Xs/m/h/d ago), orphan/live state flags, and per-project columnar layout.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -4477,8 +4495,8 @@
         "cmd/gormes/checkpoints.go"
       ],
       "ready_when": [
-        "Checkpoint shadow-repo GC policy is complete (verified \u2014 internal/tools/checkpoint_manager.go exists with NewCheckpointManager, Status, store_status semantics).",
-        "File read dedup cache invalidation and wrapper guard is complete (verified \u2014 this is the read-contract guard).",
+        "Checkpoint shadow-repo GC policy is complete (verified — internal/tools/checkpoint_manager.go exists with NewCheckpointManager, Status, store_status semantics).",
+        "File read dedup cache invalidation and wrapper guard is complete (verified — this is the read-contract guard).",
         "The slice can test with t.TempDir checkpoint roots and synthetic shadow repos only; no live git, provider, network, gateway, or write-capable file tools are needed.",
         "internal/tools/checkpoint_manager.go exposes or can be extended to expose store_status, prune, clear_all, and clear_legacy as exported functions the CLI can call."
       ],
@@ -6441,9 +6459,9 @@
     "item": {
       "name": "Hermes LSP write-time semantic diagnostics",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "After `write_file` or `patch`, Gormes runs a language-server diagnostic pass equivalent to Hermes' write-time LSP surface, shifts baseline ranges through edits, and returns new semantic errors to the agent without blocking unsupported languages.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
       "module": "tools",
@@ -6479,6 +6497,21 @@
       ],
       "done_signal": [
         "File write/patch fixtures prove LSP diagnostic deltas, range shifting, and graceful unsupported-language degradation."
+      ],
+      "note": "Complete 2026-05-21: added internal/lsp diagnostic delta core with line-shifted baseline filtering plus injectable write/patch file-tool LSP evidence. Hermetic tests cover shifted baseline filtering, insert/delete/replace line shifts, write_file diagnostic deltas, and patch degraded/unsupported LSP evidence without launching real language servers or failing successful edits.",
+      "implementation": [
+        "internal/lsp/diagnostics.go",
+        "internal/lsp/diagnostics_test.go",
+        "internal/tools/file_task_tools.go",
+        "internal/tools/file_lsp_diagnostics_test.go"
+      ],
+      "validation": [
+        "go test ./internal/lsp -count=1",
+        "go test ./internal/tools -run 'Test.*LSP|Test.*Diagnostic|TestWrite|TestPatch' -count=1",
+        "go test ./internal/tools -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check",
+        "go test ./... -count=1"
       ]
     }
   },
@@ -7160,7 +7193,7 @@
       "write_scope": [
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
-      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable",
+      "no_test_required": "Documentation/research/planning row — automated tests not applicable",
       "done_signal": [
         "Parent row remains non-selectable and source-backed while the dependency-ordered child rows provide the runnable implementation and tests."
       ]
@@ -7807,7 +7840,7 @@
         "The row is assigned directly instead of the smaller `Cron prompt/script safety + pre-run script contract` helper row above."
       ],
       "note": "Deprecated umbrella retained for roadmap continuity; the executable safety helper is the earlier row with the same title and full contract metadata. Do not assign this duplicate note-only row.",
-      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable"
+      "no_test_required": "Documentation/research/planning row — automated tests not applicable"
     }
   },
   {
@@ -9938,7 +9971,7 @@
         "summarize_memories(filter) compresses related entries",
         "forget_memory(id) removes from active index (soft delete)",
         "All operations are tool-descriptor compatible (MCP-style schema)",
-        "Agent can chain operations (retrieve \u2192 summarize \u2192 store)",
+        "Agent can chain operations (retrieve → summarize → store)",
         "Agent memory is isolated by agent/workspace/peer in shared local stores"
       ],
       "note": "Complete: store_memory now persists metadata into Goncho provenance; retrieve/update/summarize/forget are proven through tool calls; summarize_memories returns deterministic chainable summary text; all five tools expose MCP-compatible descriptors plus tools.OperationSpec memory audit metadata; local stores scope active retrieval and mutation by agent/workspace/peer so multi-agent memory remains independent.",

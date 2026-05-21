@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `skills`
 **Rows:** 46
-**Status counts:** `complete`: 42 · `in_progress`: 0 · `planned`: 4
+**Status counts:** `complete`: 43 · `in_progress`: 0 · `planned`: 3
 **Priority counts:** `P0`: 6 · `P1`: 8 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9
 
 ## Phase 1 — The Dashboard
@@ -82,7 +82,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `skills` | SKILL.md frontmatter validation guard |
 | `complete` | `P3` | `skills` | Hermes creative skill metadata compatibility |
 | `complete` | `unset` | `skills` | Portable SKILL.md format |
-| `planned` | `P2` | `skills` | Hermes v0.14 optional skill catalog refresh |
+| `complete` | `P2` | `skills` | Hermes v0.14 optional skill catalog refresh |
 | `planned` | `P1` | `skills` | Hermes skill catalog strict-fidelity classifier |
 
 ### 6.D — Skill Retrieval + Matching

@@ -8,6 +8,28 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.20] - 2026-05-21
+
+Date alias: `v2026.5.21`.
+
+> **Provider credential fallbacks, native TUI slash parity, and Navivox channel hardening.**
+
+### Added
+- Native TUI `/help`, `/clear`/`/new`, and `/compact` slash handlers with regression coverage for local dispatch, busy-time visibility, reset behavior, and compact transcript rendering.
+- Provider credential-pool and model-catalog coverage for setup/auth flows, including fallback-provider documentation refreshes.
+- Navivox gateway channel authentication, streaming, turn handling, and memory overview helpers with focused tests.
+- Dashboard image design skill routing for future screenshot/visual asset work.
+
+### Changed
+- Slash-command ownership, gateway recognition, and generated progress surfaces now track the newly ported TUI handlers.
+- Provider setup docs and fallback-provider operations guidance now reflect the credential-pool/provider readiness path.
+- Development-loop evidence is captured in the repo-local `.pi/development-loop/logs.jsonl` log.
+
+### Fixed
+- Native TUI reset and compact commands no longer fall through to recognized-unavailable evidence or model submission.
+- Provider setup/auth tests now cover manual API-key persistence and credential-pool authorization selection.
+- Navivox channel code is split into focused auth, stream, turn, and memory-overview helpers for clearer gateway behavior.
+
 ## [0.2.19] - 2026-05-20
 
 Date alias: `v2026.5.20`.

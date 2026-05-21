@@ -72,11 +72,12 @@ func TestSetupModelPickerUsesOpenRouterFullModelSet(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Select model for openrouter:",
-		"1. anthropic/claude-opus-4.7",
-		"4. moonshotai/kimi-k2.6",
-		"8. openai/gpt-5.5",
-		"31. inclusionai/ring-2.6-1t:free",
-		"Choice [1-31] (4), custom model, or q to cancel:",
+		"1. deepseek/deepseek-chat-v3-0324:free",
+		"4. qwen/qwen3-235b-a22b:free",
+		"8. moonshotai/kimi-k2.6",
+		"12. openai/gpt-5.5",
+		"35. inclusionai/ring-2.6-1t:free",
+		"Choice [1-35] (8), custom model, or q to cancel:",
 		"model selection saved: provider=openrouter model=moonshotai/kimi-k2.6",
 	} {
 		if !strings.Contains(stdout.String(), want) {

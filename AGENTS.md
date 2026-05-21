@@ -47,11 +47,13 @@ Use these skills as the default routing surface:
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
 | Running a recurring full Hermes-in-Go parity sweep or recording periodic parity progress | `gormes-hermes-parity` as the subskill orchestrator |
 | Discovering useful OpenClaw-only behavior absent from Hermes for possible Gormes-owned adoption | `gormes-openclaw-parity` |
+| Discovering reusable Pi harness techniques without making Pi a parity contract | `gormes-pi-parity` |
 | Mapping Hermes/Honcho parity gaps | `gormes-parity-auditor` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
 | Local run/install/runtime work: `go run ./cmd/gormes`, `bin/gormes`, `install.sh`, managed source checkouts, PATH shadowing, gateway process ownership, or `sessions.db` locks | `gormes-dev-runtime` |
 | Updating roadmap rows, phases, dependencies, or planning docs | `gormes-planner` |
+| Running a bounded architecture -> planner -> parity -> builder delivery cycle | `gormes-delivery-loop` |
 | Implementing one `progress.json` row | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
@@ -61,9 +63,15 @@ Use these skills as the default routing surface:
 | PR feedback, CI failures, or bounded review-to-green iteration | `gormes-review-loop` |
 | Auditing or periodically refreshing README/public repository messaging | `gormes-readme` |
 | Improving `www.gormes.ai` landing page content or UI | `gormes-landing-web` |
+| Designing, critiquing, or polishing dashboard screenshots, hero images, social cards, or image-based dashboard assets | `dashboard-image-design` |
 | Committing all dirty work, making `development` green, and pushing it | `gormes-git` |
 | Preparing, PR-merging, tagging, and verifying a Gormes release | `gormes-release` |
-| Stress-testing a plan or decision tree with the user | `grill-me` |
+| Stress-testing a plan or decision tree with the user | global `grill-me`; pair with repo-local `gormes-skill-manager` when Gormes routing is needed |
+
+The global `/home/xel/.agents/skills/grill-me` skill is canonical; do not add a
+repo-local `grill-me` shadow skill. For Gormes-specific safety, keep branch
+rules in this `AGENTS.md` and load `gormes-skill-manager` alongside global
+`grill-me` when needed.
 
 If none of these skills fits repeated Gormes work, use
 `gormes-skill-manager` plus the system `skill-creator` workflow to create or
@@ -72,11 +80,10 @@ bounded, validate it, and do not use skill creation as a substitute for
 shipping Gormes. Recreate symlinks into `.agents/skills/`, `.claude/skills/`,
 and `.codex/skills/` instead of copying skill files.
 
-`gormes-planner` and `gormes-builder` are manual skill-routed workflows. The
-old autonomous command binaries were intentionally removed: do not recreate
-`cmd/planner-loop` or `cmd/builder-loop` as part of Gormes delivery. If a
-future orchestrator is needed, plan it as a fresh subsystem with new names,
-interfaces, and progress rows.
+`gormes-planner` and `gormes-builder` are skill-routed workflows. Delivery
+orchestrators are allowed when explicitly requested by Juan, but they must be
+planned as first-class subsystems with clear names, interfaces, progress rows,
+validation gates, and operator controls.
 
 ## Skill-Driven Delivery Architecture
 
@@ -140,6 +147,7 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Unsure which workflow applies | `docs/development-skills/gormes-skill-manager/SKILL.md` |
 | Running a recurring Hermes/Gormes parity sweep or checking periodic parity progress | `docs/development-skills/gormes-hermes-parity/SKILL.md` |
 | Discovering useful OpenClaw-only behavior that Hermes lacks | `docs/development-skills/gormes-openclaw-parity/SKILL.md` |
+| Learning reusable Pi harness techniques without conflicting with Hermes/OpenClaw parity | `docs/development-skills/gormes-pi-parity/SKILL.md` |
 | Planning phases, dependencies, or roadmap rows | `docs/development-skills/gormes-planner/SKILL.md` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `docs/development-skills/gormes-provider-parity/SKILL.md` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `docs/development-skills/gormes-browser-harness/SKILL.md` |

@@ -212,6 +212,24 @@ func RenderHermesContractInventoryMarkdown(report fidelity.Report) string {
 	fmt.Fprintf(&b, "| Tests | `%d` | %s |\n", len(report.UnmappedUpstream.TestFiles), markdownCodeList(limitStrings(report.UnmappedUpstream.TestFiles, 10)))
 	b.WriteString("\n")
 
+	b.WriteString("## Unmapped Test Suite Classification\n\n")
+	if len(report.UnmappedUpstream.TestSuites) == 0 {
+		b.WriteString("No unmapped upstream test suites remain.\n\n")
+	} else {
+		b.WriteString("| Suite | Count | Source under test | Progress rows | Examples |\n")
+		b.WriteString("|---|---:|---|---|---|\n")
+		for _, suite := range report.UnmappedUpstream.TestSuites {
+			fmt.Fprintf(&b, "| `%s` | `%d` | `%s` | %s | %s |\n",
+				escapeMarkdownCell(suite.Suite),
+				suite.Count,
+				escapeMarkdownCell(suite.SourcePrefix),
+				markdownCodeList(suite.ProgressRows),
+				markdownCodeList(limitStrings(suite.Examples, 5)),
+			)
+		}
+		b.WriteString("\n")
+	}
+
 	b.WriteString("## Candidate Inventory\n\n")
 	b.WriteString("| Candidate family | Count | Examples |\n")
 	b.WriteString("|---|---:|---|\n")

@@ -913,8 +913,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 	operatorItems := itemsByName(operator.Items)
 	deliveryReport := operatorItems["Gateway delivery evidence in operator run report"]
-	if deliveryReport.Status != StatusPlanned || deliveryReport.ContractStatus != ContractStatusDraft || deliveryReport.ExecutionOwner != ExecutionOwnerGateway {
-		t.Fatalf("Phase 2.F.4 operator delivery report metadata = status %q contract_status %q owner %q, want planned draft gateway", deliveryReport.Status, deliveryReport.ContractStatus, deliveryReport.ExecutionOwner)
+	if deliveryReport.Status != StatusComplete || deliveryReport.ContractStatus != ContractStatusValidated || deliveryReport.ExecutionOwner != ExecutionOwnerGateway {
+		t.Fatalf("Phase 2.F.4 operator delivery report metadata = status %q contract_status %q owner %q, want complete validated gateway", deliveryReport.Status, deliveryReport.ContractStatus, deliveryReport.ExecutionOwner)
 	}
 	if containsString(deliveryReport.BlockedBy, "Durable operator run report for unattended jobs") || !strings.Contains(deliveryReport.Contract, "OperatorRunReport") {
 		t.Fatalf("Phase 2.F.4 operator delivery report readiness = blocked_by %v contract %q, want unblocked by durable report and report contract", deliveryReport.BlockedBy, deliveryReport.Contract)

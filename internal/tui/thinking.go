@@ -133,13 +133,17 @@ func treeBranch(isLast bool) string {
 func toolIcon(name string) string {
 	name = strings.ToLower(name)
 	switch {
+	case strings.Contains(name, "skill"):
+		return "📚"
+	case strings.Contains(name, "todo"):
+		return "📋"
 	case strings.Contains(name, "memory"):
 		return "🧠"
 	case strings.Contains(name, "search"):
 		return "🔎"
 	case strings.Contains(name, "read") || strings.Contains(name, "file"):
 		return "📖"
-	case strings.Contains(name, "write") || strings.Contains(name, "edit"):
+	case strings.Contains(name, "write") || strings.Contains(name, "edit") || strings.Contains(name, "patch"):
 		return "✏️"
 	case strings.Contains(name, "bash") || strings.Contains(name, "shell") || strings.Contains(name, "exec"):
 		return "⚡"

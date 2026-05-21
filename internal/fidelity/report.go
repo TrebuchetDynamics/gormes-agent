@@ -82,9 +82,18 @@ type CandidateInventory struct {
 }
 
 type UpstreamUnmappedInventory struct {
-	SourceFiles []string `json:"source_files,omitempty"`
-	DocsFiles   []string `json:"docs_files,omitempty"`
-	TestFiles   []string `json:"test_files,omitempty"`
+	SourceFiles []string                    `json:"source_files,omitempty"`
+	DocsFiles   []string                    `json:"docs_files,omitempty"`
+	TestFiles   []string                    `json:"test_files,omitempty"`
+	TestSuites  []UpstreamUnmappedTestSuite `json:"test_suites,omitempty"`
+}
+
+type UpstreamUnmappedTestSuite struct {
+	Suite        string   `json:"suite"`
+	Count        int      `json:"count"`
+	SourcePrefix string   `json:"source_prefix,omitempty"`
+	Examples     []string `json:"examples,omitempty"`
+	ProgressRows []string `json:"progress_rows,omitempty"`
 }
 
 type ReleaseCheckpoint struct {
@@ -258,7 +267,7 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 	rows := flattenProgress(prog)
 	definitions := defaultSurfaces()
 	mappedUpstream := mappedUpstreamRefs(definitions, sourcePairs.Pairs, rows)
-	report.UnmappedUpstream = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream)
+	report.UnmappedUpstream = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream, rows)
 	report.ReleaseCheckpoints = buildReleaseCheckpoints(repoRoot, hermesPath)
 	for _, def := range definitions {
 		surface := buildSurfaceReport(def, hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
@@ -967,7 +976,7 @@ func addMappedUpstreamRef(mapped map[string]bool, ref string) {
 	}
 }
 
-func buildUnmappedUpstreamInventory(root string, mapped map[string]bool) UpstreamUnmappedInventory {
+func buildUnmappedUpstreamInventory(root string, mapped map[string]bool, rows []progressRow) UpstreamUnmappedInventory {
 	var unmapped UpstreamUnmappedInventory
 	if root == "" {
 		return unmapped
@@ -1006,7 +1015,75 @@ func buildUnmappedUpstreamInventory(root string, mapped map[string]bool) Upstrea
 	unmapped.SourceFiles = uniqueSorted(unmapped.SourceFiles)
 	unmapped.DocsFiles = uniqueSorted(unmapped.DocsFiles)
 	unmapped.TestFiles = uniqueSorted(unmapped.TestFiles)
+	unmapped.TestSuites = buildUnmappedTestSuites(unmapped.TestFiles, rows)
 	return unmapped
+}
+
+func buildUnmappedTestSuites(testFiles []string, rows []progressRow) []UpstreamUnmappedTestSuite {
+	bySuite := map[string]*UpstreamUnmappedTestSuite{}
+	for _, file := range testFiles {
+		suite, sourcePrefix := classifyUpstreamTestSuite(file)
+		if suite == "" {
+			continue
+		}
+		row := bySuite[suite]
+		if row == nil {
+			row = &UpstreamUnmappedTestSuite{Suite: suite, SourcePrefix: sourcePrefix}
+			bySuite[suite] = row
+		}
+		row.Count++
+		if len(row.Examples) < 5 {
+			row.Examples = append(row.Examples, file)
+		}
+	}
+	out := make([]UpstreamUnmappedTestSuite, 0, len(bySuite))
+	for _, row := range bySuite {
+		row.Examples = uniqueSorted(row.Examples)
+		row.ProgressRows = progressRowsForSourcePrefix(row.SourcePrefix, rows)
+		out = append(out, *row)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Suite < out[j].Suite })
+	return out
+}
+
+func classifyUpstreamTestSuite(file string) (suite string, sourcePrefix string) {
+	file = filepath.ToSlash(strings.TrimSpace(file))
+	parts := strings.Split(file, "/")
+	if len(parts) >= 2 && parts[0] == "tests" {
+		suite = parts[1]
+		if len(parts) >= 3 && parts[1] == "agent" {
+			suite = strings.Join(parts[1:3], "/")
+		}
+		return suite, suite
+	}
+	if len(parts) >= 3 && parts[1] == "src" && parts[2] == "__tests__" {
+		return parts[0], parts[0]
+	}
+	return "", ""
+}
+
+func progressRowsForSourcePrefix(sourcePrefix string, rows []progressRow) []string {
+	if sourcePrefix == "" {
+		return nil
+	}
+	var matches []string
+	for _, row := range rows {
+		for _, ref := range row.Item.SourceRefs {
+			normalized := normalizeUpstreamRef(ref)
+			if normalized == "" {
+				continue
+			}
+			if normalized == sourcePrefix || strings.HasPrefix(normalized, sourcePrefix+"/") {
+				matches = append(matches, row.Item.Name)
+				break
+			}
+		}
+	}
+	matches = uniqueSorted(matches)
+	if len(matches) > 5 {
+		return matches[:5]
+	}
+	return matches
 }
 
 func buildReleaseCheckpoints(repoRoot, hermesPath string) []ReleaseCheckpoint {

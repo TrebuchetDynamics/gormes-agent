@@ -37,6 +37,9 @@ func TestHermesReportClassifiesCriticalSurfacesFromStaticEvidence(t *testing.T) 
 	if report.Summary.UnmappedUpstreamFiles == 0 || len(report.UnmappedUpstream.SourceFiles) == 0 || len(report.UnmappedUpstream.DocsFiles) == 0 || len(report.UnmappedUpstream.TestFiles) == 0 {
 		t.Fatalf("unmapped upstream evidence missing from report: summary=%+v unmapped=%+v", report.Summary, report.UnmappedUpstream)
 	}
+	if suite := unmappedTestSuiteByID(report, "hermes_cli"); suite.Count != 1 || suite.SourcePrefix != "hermes_cli" || len(suite.Examples) != 1 || len(suite.ProgressRows) == 0 {
+		t.Fatalf("hermes_cli unmapped test suite = %+v, want actionable suite/source/progress grouping", suite)
+	}
 	if len(report.ReleaseCheckpoints) == 0 {
 		t.Fatalf("release checkpoints missing from report")
 	}
@@ -94,6 +97,15 @@ func TestHermesReportStrictModeFailsOnUncoveredCriticalSurface(t *testing.T) {
 	if report.OK {
 		t.Fatalf("strict report OK=true with uncovered surfaces: %+v", report.Summary)
 	}
+}
+
+func unmappedTestSuiteByID(report Report, id string) UpstreamUnmappedTestSuite {
+	for _, suite := range report.UnmappedUpstream.TestSuites {
+		if suite.Suite == id {
+			return suite
+		}
+	}
+	return UpstreamUnmappedTestSuite{}
 }
 
 func surfaceByID(t *testing.T, report Report, id string) SurfaceReport {

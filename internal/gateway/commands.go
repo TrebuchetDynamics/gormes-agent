@@ -81,6 +81,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "topic", Description: "Manage Telegram multi-session topics", Kind: EventTopic, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "clear", Description: "Clear screen and start a new session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "commands", Description: "Browse all commands and skills", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "compact", Description: "Toggle compact transcript", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "config", Description: "Show current configuration", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "copy", Description: "Copy the last assistant response to clipboard", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "cron", Description: "Manage scheduled tasks", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},

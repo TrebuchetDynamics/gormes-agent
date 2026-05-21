@@ -401,6 +401,70 @@ func TestGatewayDonorMapInvariants(t *testing.T) {
 	}
 }
 
+func TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials(t *testing.T) {
+	pages := map[string]string{
+		"README":        snippetAfter(t, "README", readDoc(t, "../../README.md"), "After installation:"),
+		"start-here":    snippetAfter(t, "start-here", readDoc(t, "content/start-here/_index.md"), "## Fast path"),
+		"install":       snippetAfter(t, "install", readDoc(t, "content/install/_index.md"), "## First-run proof order"),
+		"doctor-recipe": snippetAfter(t, "doctor-recipe", readDoc(t, "content/recipes/doctor-offline.md"), "## First-run proof order"),
+		"landing":       snippetAfter(t, "landing", readDoc(t, "../landing/src/data/landing.js"), "installIntro:"),
+	}
+
+	for name, raw := range pages {
+		assertOrdered(t, name, raw,
+			"gormes version",
+			"gormes doctor --offline",
+			"gormes setup",
+		)
+		for _, want := range []string{
+			"no pip",
+			"no venv",
+			"no Docker daemon",
+			"before credentials",
+		} {
+			if !strings.Contains(strings.ToLower(raw), strings.ToLower(want)) {
+				t.Fatalf("%s missing first-run proof wording %q", name, want)
+			}
+		}
+	}
+}
+
+func TestChannelCapabilityMatrixDocs(t *testing.T) {
+	channels := readDoc(t, "content/cli/channels.md")
+	for _, want := range []string{
+		"## Capability Matrix",
+		"Runtime-ready",
+		"Fixture-backed",
+		"Planned",
+		"gormes channels capabilities",
+		"gormes gateway status --json",
+		"[Telegram](../../operate/telegram-bot/)",
+		"[Discord](../gateway/)",
+		"[Slack](../slack/)",
+		"WhatsApp",
+	} {
+		if !strings.Contains(channels, want) {
+			t.Fatalf("channels docs missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"50+ integrations", "fully runtime-ready"} {
+		if strings.Contains(channels, forbidden) {
+			t.Fatalf("channels docs overclaim %q", forbidden)
+		}
+	}
+
+	recipe := readDoc(t, "content/operate/multi-channel-gateway.md")
+	assertOrdered(t, "multi-channel recipe", recipe,
+		"gormes channels capabilities",
+		"gormes gateway status --json",
+	)
+	for _, want := range []string{"Runtime-ready", "Fixture-backed", "Planned"} {
+		if !strings.Contains(recipe, want) {
+			t.Fatalf("multi-channel recipe missing readiness label %q", want)
+		}
+	}
+}
+
 func TestLearningLoopOperatorProofDocs(t *testing.T) {
 	learningLoop := readDoc(t, "content/building-gormes/core-systems/learning-loop.md")
 	for _, want := range []string{
@@ -587,6 +651,33 @@ func mapSourceToContent(rel string) string {
 		return mirrorPrefix + strings.TrimSuffix(rel, ".mdx") + ".md"
 	}
 	return mirrorPrefix + rel
+}
+
+func snippetAfter(t *testing.T, name, raw, marker string) string {
+	t.Helper()
+
+	idx := strings.Index(raw, marker)
+	if idx < 0 {
+		t.Fatalf("%s missing marker %q", name, marker)
+	}
+	return raw[idx:]
+}
+
+func assertOrdered(t *testing.T, name, raw string, needles ...string) {
+	t.Helper()
+
+	search := strings.ToLower(raw)
+	last := -1
+	for _, needle := range needles {
+		idx := strings.Index(search, strings.ToLower(needle))
+		if idx < 0 {
+			t.Fatalf("%s missing %q", name, needle)
+		}
+		if idx <= last {
+			t.Fatalf("%s has %q out of first-run order", name, needle)
+		}
+		last = idx
+	}
 }
 
 func firstStrings(values []string, limit int) []string {

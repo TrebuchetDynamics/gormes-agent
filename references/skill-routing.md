@@ -9,6 +9,7 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | Recurring Hermes/Gormes parity sweep or taxonomy refresh | `gormes-hermes-parity` | `gormes-parity-auditor`, `gormes-planner`, `gormes-tdd-slice` |
 | Map missing Hermes/Honcho behavior before implementation | `gormes-parity-auditor` | `gormes-planner` |
 | Discover OpenClaw-only behavior worth adopting | `gormes-openclaw-parity` | `gormes-planner` |
+| Discover reusable Pi harness techniques without treating Pi as a parity contract | `gormes-pi-parity` | `gormes-planner`, `gormes-interface-designer`, or `gormes-tdd-slice` |
 | Refine phases, rows, dependencies, or progress docs | `gormes-planner` | none unless implementation starts |
 | Slice a broad plan, PRD, parity gap, or review finding into progress rows | `gormes-progress-slicer` | `gormes-planner` to write/update rows |
 | Implement one builder-ready row | `gormes-builder` | `gormes-tdd-slice` |
@@ -31,9 +32,10 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | PR feedback, CI failures, or bounded review-to-green loops | `gormes-review-loop` | `gormes-tdd-slice`, then `gormes-git` when committing |
 | README/public repository messaging | `gormes-readme` | `gormes-git` when committing |
 | Landing page content or UI | `gormes-landing-web` | `gormes-git` when committing |
+| Dashboard screenshots, hero images, social cards, or image-based dashboard assets | `dashboard-image-design` | `gormes-landing-web` only when the asset ships on www.gormes.ai |
 | Commit all dirty development work and push | `gormes-git` | none |
 | Release development to main and tag | `gormes-release` | `gormes-git` as subroutine |
-| Stress-test a plan with the user | `grill-me` | skill selected from outcome |
+| Stress-test a plan with the user | global `grill-me` | skill selected from outcome |
 | Flutter Navivox Telegram-like chat/contact UI | `navivox-telegram-ui` | `gormes-tdd-slice` for widget-test implementation |
 
 Rules:

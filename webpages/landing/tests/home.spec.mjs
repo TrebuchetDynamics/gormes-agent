@@ -73,6 +73,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Install Gormes' })).toBeVisible();
   const installCommand = page.locator('#install pre code');
   await expect(installCommand).toContainText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh');
+  await expect(installCommand).toContainText('gormes version');
   await expect(installCommand).toContainText('gormes doctor --offline');
   await expect(installCommand).toContainText('gormes setup');
   await expect(installCommand).toContainText('gormes chat');
@@ -127,6 +128,7 @@ test('install copy interaction copies the exact release-first command', async ({
   const install = page.locator('#install');
   const command = await install.locator('pre code').innerText();
   expect(command).toContain('https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh');
+  expect(command).toContain('gormes version');
   expect(command).toContain('gormes doctor --offline');
   expect(command).toContain('gormes setup');
   expect(command).toContain('gormes chat');

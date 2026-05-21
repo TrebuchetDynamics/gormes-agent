@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `install`
 **Rows:** 28
-**Status counts:** `complete`: 27 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 28 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 2 · `P1`: 15 · `P2`: 4 · `P3`: 3 · `unset`: 4
 
 ## Phase 1 — The Dashboard
@@ -63,7 +63,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `planned` | `P1` | `install` | No-stack first-run proof path from install to offline doctor |
+| `complete` | `P1` | `install` | No-stack first-run proof path from install to offline doctor |
 
 ### 8.D — Sharp v1.0
 

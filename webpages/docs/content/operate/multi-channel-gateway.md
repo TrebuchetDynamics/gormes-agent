@@ -30,12 +30,13 @@ aliases:
    ```
    The Gateway Manager binds every configured channel adapter; per-channel lifecycle errors are reported on startup.
 
-4. **Inspect runtime state**
+4. **Inspect capability and runtime state**
    ```bash
+   gormes channels capabilities
    gormes gateway status
    gormes gateway status --json
    ```
-   For each channel, the status block lists `lifecycle`, `pairing`, and `target` allowlists. Runtime-ready channel readiness comes from this output — not from roadmap rows.
+   The capability matrix separates `Runtime-ready`, `Fixture-backed`, and `Planned` adapters. For each configured channel, the status block lists `lifecycle`, `pairing`, and `target` allowlists. Runtime-ready channel readiness comes from `gormes channels capabilities` plus `gormes gateway status --json` — not from roadmap rows.
 
 5. **Reload config without restarting**
    ```bash

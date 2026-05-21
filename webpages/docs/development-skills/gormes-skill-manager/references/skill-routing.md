@@ -13,7 +13,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 
 | Situation | Use | Then |
 |---|---|---|
-| User wants to stress-test direction or make a hard decision | `grill-me` | `gormes-planner` after decision |
+| User wants to stress-test direction or make a hard decision | global `grill-me` | `gormes-planner` after decision |
 | User wants a recurring/periodic Hermes-in-Go parity sweep or to record current parity progress | `gormes-hermes-parity` | Let it load the needed reference and route to the smallest subskill chain |
 | User wants useful OpenClaw-only behavior that Hermes lacks considered for Gormes | `gormes-openclaw-parity` | `gormes-planner` for adopt/adapt rows, then `gormes-builder` and `gormes-tdd-slice` |
 | Need to safely rename or restructure parity taxonomy, feature-map groupings, or progress row categories | `gormes-hermes-parity` | `gormes-planner` for progress/docs edits, then `gormes-builder` only if runtime compatibility code is needed |
@@ -25,6 +25,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | Need strict red-green-refactor on one behavior | `gormes-tdd-slice` | `gormes-builder` final report |
 | Need to audit or periodically refresh README/public repository messaging | `gormes-readme` | `gormes-planner` only if roadmap rows need edits |
 | Need to improve `www.gormes.ai` landing page content or UI | `gormes-landing-web` | `gormes-planner` only if roadmap/progress claims need edits |
+| Need to design, critique, or polish dashboard screenshots, hero images, social cards, or image-based dashboard assets | `dashboard-image-design` | `gormes-landing-web` only when the asset ships on www.gormes.ai |
 | Need to commit all dirty work, make `development` green, and push it | `gormes-git` | stop on unsafe secrets, failed gates, or ambiguous rebase |
 | Need to prepare, publish, tag, verify, or recover a Gormes release | `gormes-release` | use `gormes-git` for green commit/push/PR substeps |
 | Stuck on a Go implementation shape and want a donor file to read before writing code | `gormes-references` | `gormes-tdd-slice` once the donor pattern is identified |
@@ -80,7 +81,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
   `gormes-interface-designer` -> `gormes-planner` -> `gormes-builder`
 
 - User is uncertain about direction:
-  `grill-me` -> `gormes-skill-manager` -> selected Gormes skill
+  global `grill-me` -> `gormes-skill-manager` -> selected Gormes skill
 
 - Broken implementation row:
   `gormes-tdd-slice` -> `gormes-builder`

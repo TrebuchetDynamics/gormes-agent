@@ -21,15 +21,16 @@ is what `gormes auth add <provider>` and `gormes config set hermes.provider
 | `anthropic` | OAuth | `claude-opus-4-7` |
 | `openai` | API-key | `gpt-5.4` |
 | `openai-codex` | OAuth | resolves from `~/.codex/config.toml`, then the Codex cache, else `gpt-5.5` |
-| `openrouter` | API-key | `moonshotai/kimi-k2.6` |
+| `openrouter` (`openrouter-free`) | API-key | `deepseek/deepseek-chat-v3-0324:free` |
 | `ai-gateway` | API-key | `moonshotai/kimi-k2.6` |
 | `alibaba` / `alibaba-coding-plan` | API-key | `qwen3.6-plus` |
 | `bedrock` | API-key | `us.anthropic.claude-sonnet-4-6` |
 | `copilot` | API-key | `gpt-5.4` |
 | `copilot-acp` | API-key | `copilot-acp` |
 | `deepseek` | API-key | `deepseek-v4-pro` |
-| `gemini` | API-key | `gemini-3.1-pro-preview` |
+| `gemini` (`google-ai-studio`, `google-gemini`, `google`) | API-key | `gemini-2.5-flash` |
 | `google-gemini-cli` | OAuth | `gemini-3.1-pro-preview` |
+| `groq` | API-key | `llama-3.3-70b-versatile` |
 | `gmi` | API-key | `zai-org/GLM-5.1-FP8` |
 | `huggingface` | API-key | `moonshotai/Kimi-K2.5` |
 | `kilocode` | API-key | `anthropic/claude-opus-4.6` |
@@ -60,9 +61,15 @@ gormes setup model                          # interactive model wizard
 gormes model                                # standalone interactive model picker
 gormes auth add openai --api-key sk-...     # store an API key in .env + auth.json
 gormes auth add anthropic --type oauth      # OAuth flow with browser
-gormes auth add openrouter --type api-key --api-key sk-or-...
+gormes auth add openrouter-free --type api-key --api-key sk-or-...  # OpenRouter free models
+gormes auth add google-ai-studio --type api-key --api-key AIza...  # Gemini Flash free tier
+gormes auth add groq --type api-key --api-key gsk-...        # fast free-tier fallback
 gormes auth add openai-codex                # OAuth defaults for the Codex provider
 ```
+
+For Google AI Studio, create the key at `https://aistudio.google.com/app/apikey` and paste it into `gormes auth add google-ai-studio`. Gormes stores it under the canonical `gemini` provider and uses the OpenAI-compatible Gemini endpoint automatically.
+
+For OpenRouter, create the key at `https://openrouter.ai/keys` and paste it into `gormes auth add openrouter-free`. Gormes stores it under canonical `openrouter`, uses `https://openrouter.ai/api/v1`, and defaults to the free DeepSeek V3 model. OpenRouter's free pool is request-limited; adding a small paid balance can raise daily request limits while still letting you choose `:free` models.
 
 Direct file edits work but skip the auth pool:
 

@@ -286,20 +286,13 @@ func (c *Curator) ApplyAutomaticTransitions(ctx context.Context) (CuratorTransit
 }
 
 func (c *Curator) archiveSkill(name, skillDir string, now time.Time) error {
-	archiveRoot := filepath.Join(c.root(), "active", ".archive")
-	if err := os.MkdirAll(archiveRoot, 0o755); err != nil {
-		return err
-	}
-	dest := filepath.Join(archiveRoot, name)
-	if _, err := os.Stat(dest); err == nil {
-		dest = filepath.Join(archiveRoot, fmt.Sprintf("%s-%s", name, timestampID(now)))
-	}
-	if err := os.Rename(skillDir, dest); err != nil {
+	_, archivedAt, err := moveSkillDirToArchive(c.root(), name, skillDir, now)
+	if err != nil {
 		return err
 	}
 	return updateUsageRecord(c.root(), name, func(rec *SkillUsageRecord) {
 		rec.State = SkillStateArchived
-		rec.ArchivedAt = now.UTC()
+		rec.ArchivedAt = archivedAt
 	})
 }
 

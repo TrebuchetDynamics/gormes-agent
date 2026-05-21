@@ -223,6 +223,7 @@ func DefaultContracts() []ModuleContract {
 			),
 			SetupSections: setupSections("terminal"),
 			SlashCommands: slashCommands(
+				"compact",
 				"copy",
 				"details",
 				"image",

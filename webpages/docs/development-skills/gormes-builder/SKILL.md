@@ -16,9 +16,10 @@ blocker.
 
 Build Gormes until it is Hermes in Go, with Goncho as the in-repo Honcho-compatible Go port. No smaller "MVP" is the final goal. Each builder pass still works as one bounded, test-proven slice.
 
-This skill replaces the deleted autonomous builder-loop command: read
-`progress.json`, pick one ready row, implement it with tests, and report
-evidence.
+This skill runs bounded builder passes: read `progress.json`, pick one ready
+row, implement it with tests, and report evidence. If Juan explicitly asks for
+a builder-loop style subsystem, plan it as a first-class Gormes feature with
+clear interfaces, progress rows, validation gates, and operator controls.
 
 If the task might be planning, parity audit, interface design, or skill creation instead of implementation, route through `gormes-skill-manager` first.
 

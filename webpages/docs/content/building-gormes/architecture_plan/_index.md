@@ -91,15 +91,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 91/111 subphases shipped · 20 in progress · 0 planned
+**Overall:** 95/111 subphases shipped · 16 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 20/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 17/23 subphases |
+| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
@@ -398,7 +398,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Session expiry hook cleanup retry evidence
 - [x] `gateway` Channel lifecycle writers into status model
 
-### 2.F.4 — Home Channel + Operator Surfaces 🔨
+### 2.F.4 — Home Channel + Operator Surfaces ✅
 
 - [x] `gateway` Home channel ownership resolver fixtures
 - [x] `gateway` Notify-to delivery routing
@@ -406,7 +406,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Channel directory refresh + stale-target invalidation
 - [x] `gateway` Manager remember-source hook
 - [x] `gateway` Mirror + sticker cache surfaces
-- [ ] `gateway` Gateway delivery evidence in operator run report
+- [x] `gateway` Gateway delivery evidence in operator run report
 
 ### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ✅
 
@@ -559,7 +559,7 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho skill-outcome tracking as conclusions
 - [x] `goncho` Goncho workspace isolation with explicit global scope
 
-## Phase 4 — The Brain Transplant 🔨
+## Phase 4 — The Brain Transplant ✅
 
 *Native Go agent orchestrator + prompt builder*
 
@@ -697,7 +697,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Provider rate guard — degraded-state + last-known-good evidence
 - [x] `providers` Hermes fast-mode request override serializer
 
-### 4.I — Native Agent Turn Closure 🔨
+### 4.I — Native Agent Turn Closure ✅
 
 - [x] `runtime` Python-free normal agent turn e2e harness
 - [x] `providers` Provider-tool-memory golden transcript suite
@@ -710,7 +710,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Gormes setup/channel/provider docs webpage parity gate
 - [x] `gateway` Native runtime provider gateway binding
 - [x] `runtime` Hermes compatibility namespace retirement boundary
-- [ ] `runtime` Hermes agent runtime strict-fidelity source-pair expansion
+- [x] `runtime` Hermes agent runtime strict-fidelity source-pair expansion
 
 ### 4.J — Permission-Hardened Tool Execution ✅
 
@@ -739,7 +739,7 @@ classification and row-backed implementation queue.
 
 *Python tool scripts ported to Go or WASM*
 
-### 5.A — Tool Surface Port 🔨
+### 5.A — Tool Surface Port ✅
 
 - [x] `tools` 61-tool registry port
 - [x] `tools` Tool registry inventory + schema parity harness
@@ -757,7 +757,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Terminal process watch notification throttle contract
 - [x] `tools` Tool output budget persisted artifact pointer
 - [x] `tools` Tool descriptor layer (OperationSpec)
-- [ ] `tools` Hermes tool tail strict-fidelity source-pair expansion
+- [x] `tools` Hermes tool tail strict-fidelity source-pair expansion
 
 ### 5.B — Sandboxing Backends ✅
 
@@ -921,7 +921,7 @@ classification and row-backed implementation queue.
 
 - [x] `tools` Sandboxed exec
 
-### 5.L — File Ops + Patches 🔨
+### 5.L — File Ops + Patches ✅
 
 - [x] `tools` Atomic file write helper with temp+rename pattern
 - [x] `tools` File tool atomic checkpoint integration
@@ -948,7 +948,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Context-aware fuzzy replace for native patch tool
 - [x] `tools` V4A patch apply rollback for native patch tool
 - [x] `tools` Patch replace post-write verification
-- [ ] `tools` Hermes LSP write-time semantic diagnostics
+- [x] `tools` Hermes LSP write-time semantic diagnostics
 
 ### 5.M — Mixture of Agents ✅
 
@@ -1265,11 +1265,14 @@ classification and row-backed implementation queue.
 - [x] `gateway` Provider client lazy-init for TUI cold-start budget
 - [x] `tui` Native TUI /model slash command binding over the existing model picker
 - [x] `tui` Kernel in-session model-switch seam for the native TUI
-- [ ] `gateway` Kernel cross-provider client swap for in-session model switch
+- [x] `gateway` Kernel cross-provider client swap for in-session model switch
 - [ ] `tui` Native TUI slash handler-port coverage
 - [x] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
 - [ ] `tui` Hermes ui-tui strict-fidelity action matrix
 - [ ] `gateway` Hermes web dashboard strict-fidelity contract map
+- [x] `tui` Native TUI /help slash command binding
+- [x] `tui` Native TUI /clear and /new reset-session binding
+- [x] `tui` Native TUI /compact transcript toggle binding
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1329,7 +1332,7 @@ classification and row-backed implementation queue.
 - [x] `skills` SKILL.md frontmatter validation guard
 - [x] `skills` Hermes creative skill metadata compatibility
 - [x] `skills` Portable SKILL.md format
-- [ ] `skills` Hermes v0.14 optional skill catalog refresh
+- [x] `skills` Hermes v0.14 optional skill catalog refresh
 - [ ] `skills` Hermes skill catalog strict-fidelity classifier
 
 ### 6.D — Skill Retrieval + Matching ✅
@@ -1460,9 +1463,9 @@ classification and row-backed implementation queue.
 - [x] `landing` gormes.ai landing page positioning audit
 - [x] `docs` Gormes market comparison positioning brief
 - [ ] `docs` Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents
-- [ ] `channels` Channel capability matrix with stable/fixture/planned labels
+- [x] `channels` Channel capability matrix with stable/fixture/planned labels
 - [x] `learning-loop` Learning-loop proof demo for skills, memory, and curator
-- [ ] `install` No-stack first-run proof path from install to offline doctor
+- [x] `install` No-stack first-run proof path from install to offline doctor
 - [x] `docs` Canonical config.toml v2 profile schema docs
 
 ### 8.C — Engineering Writeups 🔨
@@ -1470,7 +1473,7 @@ classification and row-backed implementation queue.
 - [ ] `docs` Engineering writeup #1: autonomous Hermes-porting loop
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
 - [x] `docs` Hermes contract inventory gate
-- [ ] `docs` Strict-fidelity upstream test-suite classifier
+- [x] `docs` Strict-fidelity upstream test-suite classifier
 
 ### 8.D — Sharp v1.0 🔨
 
@@ -1494,7 +1497,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Gormes-owned session-aware welcome panel
 - [x] `tui` Gormes-owned semantic chat style system
 - [x] `tui` Gormes-owned streaming feedback uplift
-- [ ] `tui` Gormes streaming tool-trail status + spinner cadence wiring
+- [x] `tui` Gormes streaming tool-trail status + spinner cadence wiring
 - [x] `tui` Gormes welcome panel version/tool-count wiring
 
 ### 8.E — Toolkit Extraction 🔨
