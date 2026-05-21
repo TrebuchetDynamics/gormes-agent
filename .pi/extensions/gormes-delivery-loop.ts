@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 
 type LoopState = {
@@ -7,15 +9,30 @@ type LoopState = {
   maxIterations: number;
   startedAt: string;
   lastDecision?: string;
+  logPath?: string;
+  selfImproveQueued?: boolean;
+};
+
+type LoopLogEvent = {
+  at: string;
+  event: string;
+  topic: string;
+  iteration: number;
+  maxIterations: number;
+  decision?: string;
+  reason?: string;
+  logPath?: string;
 };
 
 const CUSTOM_STATE_TYPE = "gormes-delivery-loop-state";
 const DEFAULT_TOPIC = "auto-select the highest-impact builder-ready progress.json row toward finishing full Hermes-in-Go parity";
 const DEFAULT_ITERATIONS = 10;
 const HARD_MAX_ITERATIONS = 50;
+const DEFAULT_LOG_PATH = path.join(".pi", "gormes-loop", "logs.jsonl");
 
 let state: LoopState = inactiveState();
 let sendingFollowUp = false;
+let pendingSelfImproveReason: string | undefined;
 
 export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
@@ -29,26 +46,41 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
     if (!state.active || event.message?.role !== "assistant") return;
     const text = messageText(event.message);
     const decision = parseDecision(text);
-    if (decision) state.lastDecision = decision;
+    if (decision) {
+      state.lastDecision = decision;
+      appendLoopLog("assistant_decision", { decision });
+    }
     if (decision === "stop" || decision === "blocked" || decision === "done") {
       state = { ...state, active: false };
+      if (decision !== "stop" && !state.selfImproveQueued) {
+        pendingSelfImproveReason = decision;
+      }
       pi.appendEntry(CUSTOM_STATE_TYPE, state);
     }
   });
 
   pi.on("agent_end", async (_event, ctx) => {
+    if (pendingSelfImproveReason && !sendingFollowUp) {
+      queueSelfImprovement(pi, ctx, pendingSelfImproveReason);
+      pendingSelfImproveReason = undefined;
+      return;
+    }
+
     if (!state.active || sendingFollowUp) return;
     if (state.iteration >= state.maxIterations) {
       state = { ...state, active: false, lastDecision: "max_iterations_reached" };
+      appendLoopLog("loop_finished", { reason: "max_iterations_reached" });
       pi.appendEntry(CUSTOM_STATE_TYPE, state);
       if (ctx.hasUI) {
         ctx.ui.notify(`Gormes loop stopped after ${state.iteration}/${state.maxIterations} iteration(s).`, "info");
         ctx.ui.setStatus("gormes-loop", statusLine(state));
       }
+      queueSelfImprovement(pi, ctx, "max_iterations_reached");
       return;
     }
 
     state = { ...state, iteration: state.iteration + 1 };
+    appendLoopLog("iteration_queued");
     pi.appendEntry(CUSTOM_STATE_TYPE, state);
     if (ctx.hasUI) ctx.ui.setStatus("gormes-loop", statusLine(state));
 
@@ -71,12 +103,13 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
       switch (parsed.command) {
         case "stop":
           state = { ...state, active: false, lastDecision: "stopped_by_user" };
+          appendLoopLog("loop_stopped", { reason: "stopped_by_user" });
           pi.appendEntry(CUSTOM_STATE_TYPE, state);
           ctx.ui.notify("Gormes delivery loop stopped.", "info");
           ctx.ui.setStatus("gormes-loop", statusLine(state));
           return;
         case "status":
-          ctx.ui.notify(statusLine(state), "info");
+          ctx.ui.notify(`${statusLine(state)}\nlog: ${state.logPath ?? DEFAULT_LOG_PATH}`, "info");
           return;
         case "start":
         default:
@@ -104,10 +137,13 @@ async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: 
     iteration: 1,
     maxIterations,
     startedAt: new Date().toISOString(),
+    logPath: DEFAULT_LOG_PATH,
+    selfImproveQueued: false,
   };
+  appendLoopLog("loop_started");
   pi.appendEntry(CUSTOM_STATE_TYPE, state);
   ctx.ui.setStatus("gormes-loop", statusLine(state));
-  ctx.ui.notify(`Starting Gormes delivery loop: 1/${maxIterations}`, "info");
+  ctx.ui.notify(`Starting Gormes delivery loop: 1/${maxIterations}; log: ${state.logPath}`, "info");
   await ctx.sendUserMessage(buildIterationPrompt(state));
 }
 
@@ -138,6 +174,8 @@ function buildIterationPrompt(s: LoopState): string {
 
 Topic/objective: ${s.topic}.
 
+Loop log path: ${s.logPath ?? DEFAULT_LOG_PATH}. At the end of this iteration, include exact changed files, validations, commit hash, push status, and the final LOOP_DECISION line so the extension can learn from the run.
+
 Run one complete vertical Gormes delivery iteration:
 1. Start with scope lock and preflight for /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent on development.
 2. Preserve unrelated dirty work; stage only this iteration's explicit files.
@@ -150,6 +188,59 @@ Run one complete vertical Gormes delivery iteration:
 9. End with exactly one line: LOOP_DECISION: continue, LOOP_DECISION: stop, LOOP_DECISION: blocked, or LOOP_DECISION: done.
 
 Stop instead of coding if the next row is not builder-ready, upstream evidence is missing, validation fails twice with the same blocker, or the slice would touch unrelated dirty Navivox work.`;
+}
+
+function buildSelfImprovementPrompt(s: LoopState, reason: string): string {
+  return `Improve the project-local Pi extension that just ran the Gormes delivery loop.
+
+Reason the loop ended: ${reason}.
+Loop log path: ${s.logPath ?? DEFAULT_LOG_PATH}.
+Extension file: /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent/.pi/extensions/gormes-delivery-loop.ts.
+Repo: /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent on development.
+
+Use the gormes-delivery-loop skill and improve-codebase-architecture on the extension itself:
+1. Read the loop log and this extension file.
+2. Identify one concrete improvement to loop reliability, logging, stop conditions, prompts, or self-learning behavior.
+3. Add or run a smoke test with mocked Pi API proving the extension still loads and the changed behavior works.
+4. Preserve unrelated dirty Navivox work.
+5. Commit and push the extension improvement to origin/development.
+6. End with LOOP_DECISION: stop.`;
+}
+
+function queueSelfImprovement(pi: ExtensionAPI, ctx: { hasUI?: boolean; ui?: { notify(message: string, level?: string): void; setStatus(key: string, value: string): void } }, reason: string) {
+  if (state.selfImproveQueued || sendingFollowUp) return;
+  state = { ...state, selfImproveQueued: true, active: false, lastDecision: reason };
+  appendLoopLog("self_improvement_queued", { reason });
+  pi.appendEntry(CUSTOM_STATE_TYPE, state);
+  if (ctx.hasUI && ctx.ui) {
+    ctx.ui.notify(`Gormes loop ended (${reason}); queued extension self-improvement.`, "info");
+    ctx.ui.setStatus("gormes-loop", statusLine(state));
+  }
+  sendingFollowUp = true;
+  try {
+    pi.sendUserMessage(buildSelfImprovementPrompt(state, reason), { deliverAs: "followUp" });
+  } finally {
+    sendingFollowUp = false;
+  }
+}
+
+function appendLoopLog(event: string, extra: Partial<LoopLogEvent> = {}) {
+  const logPath = state.logPath ?? DEFAULT_LOG_PATH;
+  const record: LoopLogEvent = {
+    at: new Date().toISOString(),
+    event,
+    topic: state.topic,
+    iteration: state.iteration,
+    maxIterations: state.maxIterations,
+    logPath,
+    ...extra,
+  };
+  try {
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    fs.appendFileSync(logPath, `${JSON.stringify(record)}\n`, "utf8");
+  } catch {
+    // Logging must never break the delivery loop.
+  }
 }
 
 function parseDecision(text: string): LoopState["lastDecision"] | undefined {
@@ -169,6 +260,8 @@ function inactiveState(): LoopState {
     iteration: 0,
     maxIterations: DEFAULT_ITERATIONS,
     startedAt: new Date(0).toISOString(),
+    logPath: DEFAULT_LOG_PATH,
+    selfImproveQueued: false,
   };
 }
 
@@ -176,7 +269,7 @@ function restoreState(entries: Array<{ type?: string; customType?: string; data?
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i];
     if (entry.type === "custom" && entry.customType === CUSTOM_STATE_TYPE && isLoopState(entry.data)) {
-      return entry.data;
+      return { ...entry.data, logPath: entry.data.logPath ?? DEFAULT_LOG_PATH };
     }
   }
   return undefined;
