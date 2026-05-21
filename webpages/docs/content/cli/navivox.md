@@ -24,7 +24,7 @@ gormes navivox [command]
 
 `connect-info` is the supported host-facing setup command for the Flutter
 Navivox app. It prints base URLs the app can paste or scan, plus the matching
-health URL.
+health and WebSocket stream URLs.
 
 Supported runtime endpoints:
 
@@ -32,6 +32,7 @@ Supported runtime endpoints:
 |---|---|
 | `GET /healthz` | Basic readiness probe |
 | `GET /v1/navivox/status` | Authenticated channel status |
+| `GET /v1/navivox/profile-contacts` | Authenticated profile contact snapshot |
 | `GET /v1/navivox/sessions` | Authenticated session list |
 | `GET /v1/navivox/sessions/{session_id}` | Authenticated session detail |
 | `POST /v1/navivox/turn` | Authenticated text turn enqueue |
@@ -41,11 +42,14 @@ Supported runtime endpoints:
 
 - The Navivox channel is disabled unless `[navivox].enabled` is true.
 - Local exposure prints loopback URLs.
-- VPN-class exposure prints active VPN interface URLs.
+- VPN-class exposure prints active VPN interface URLs, including Tailscale,
+  WireGuard, and generic tun-class VPN interfaces.
 - Public exposure is validated by server config and requires explicit
   confirmation.
 - Token values are never printed; output only reports whether a token is
   required.
+- JSON entries include `base_url`, `healthz_url`, and `websocket_url`; IPv6
+  hosts are bracketed in emitted URLs.
 
 ## Flags
 

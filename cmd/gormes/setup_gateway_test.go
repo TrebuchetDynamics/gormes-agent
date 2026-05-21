@@ -486,6 +486,45 @@ func TestSetupGatewayNavivoxLocalModeWritesSafeConfig(t *testing.T) {
 	}
 }
 
+func TestSetupGatewayNavivoxVPNExposureModesWriteConfig(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		mode     string
+		bindHost string
+	}{
+		{name: "wireguard", mode: config.NavivoxExposureWireGuard, bindHost: "10.0.0.1"},
+		{name: "vpn", mode: config.NavivoxExposureVPN, bindHost: "10.8.0.5"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("GORMES_HOME", home)
+
+			fake := &setupCommandFakeSeams{isTTY: true}
+			input := strings.Join([]string{"navivox", "y", tc.mode, tc.bindHost, "", "", ""}, "\n") + "\n"
+			stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), input, "gateway")
+			if err != nil {
+				t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+			}
+			if !strings.Contains(stdout, "Navivox gateway channel configured.") {
+				t.Fatalf("stdout missing configured message:\n%s", stdout)
+			}
+			cfg, err := config.Load(nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.Navivox.ExposureMode != tc.mode || cfg.Navivox.BindHost != tc.bindHost {
+				t.Fatalf("Navivox config = %+v, want exposure %s bind %s", cfg.Navivox, tc.mode, tc.bindHost)
+			}
+			if cfg.Navivox.Token == "" {
+				t.Fatal("Navivox token was not generated for token auth")
+			}
+			if strings.Contains(stdout, cfg.Navivox.Token) {
+				t.Fatal("setup output leaked generated Navivox token")
+			}
+		})
+	}
+}
+
 func TestSetupGatewaySelectedPlatformDelegatesOrReportsRowBacked(t *testing.T) {
 	t.Run("future platform row backed by default", func(t *testing.T) {
 		cmd := &cobra.Command{}

@@ -139,6 +139,45 @@ func TestNavivoxConnectInfo_LayeredAuthRequiresToken(t *testing.T) {
 	}
 }
 
+func TestNavivoxConnectInfo_JSONIncludesWebSocketURLAndBracketsIPv6(t *testing.T) {
+	prev := vpnhostList
+	t.Cleanup(func() { vpnhostList = prev })
+	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{
+			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv6: "fd7a:115c:a1e0::1"},
+		}, nil
+	}
+
+	cmd, buf := newConnectInfoTestCommand(t)
+	cfg := config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "fd7a:115c:a1e0::1",
+		Port:         8765,
+		ExposureMode: config.NavivoxExposureTailscale,
+		AuthMode:     config.NavivoxAuthStaticToken,
+		Token:        "x",
+	}
+	if err := runNavivoxConnectInfo(cmd, cfg, true); err != nil {
+		t.Fatal(err)
+	}
+	var raw struct {
+		Entries []map[string]any `json:"entries"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &raw); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if len(raw.Entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1: %+v", len(raw.Entries), raw.Entries)
+	}
+	entry := raw.Entries[0]
+	if entry["base_url"] != "http://[fd7a:115c:a1e0::1]:8765" {
+		t.Fatalf("base_url = %v, want bracketed IPv6 URL", entry["base_url"])
+	}
+	if entry["websocket_url"] != "ws://[fd7a:115c:a1e0::1]:8765/v1/navivox/stream" {
+		t.Fatalf("websocket_url = %v, want stream URL", entry["websocket_url"])
+	}
+}
+
 func TestNavivoxConnectInfo_TailscaleMode_JSONShowsVPNEntries(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
@@ -238,7 +277,7 @@ func TestNavivoxConnectInfo_TextOutputShowsKindLabel(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := buf.String()
-	for _, want := range []string{"http://100.64.1.2:8765", "tailscale", "/healthz"} {
+	for _, want := range []string{"http://100.64.1.2:8765", "ws://100.64.1.2:8765/v1/navivox/stream", "tailscale", "/healthz"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("text output missing %q\noutput: %s", want, s)
 		}

@@ -26,14 +26,17 @@ gormes setup gateway
 Select `navivox`, then answer:
 
 - `Enable Navivox Gateway Channel?`
-- `Exposure mode`: `local`, `tailscale`, or `public`
+- `Exposure mode`: `local`, `tailscale`, `wireguard`, `vpn`, or `public`
 - `Bind host`
 - `Port`
-- `Auth mode`: `pairing_token`, `static_token`, or `tailscale_identity`
+- `Auth mode`: `pairing_token`, `static_token`, `tailscale_identity`, or `token_and_tailscale_identity`
 - `Open firewall rule for this port now?`
 
 Setup writes the channel config and generates a pairing token when token auth
 is selected. It prints the HTTP/WebSocket URLs but does not print the token.
+`gormes navivox connect-info --json` also emits `base_url`, `healthz_url`, and
+`websocket_url` for each reachable interface; IPv6 addresses are bracketed in
+emitted URLs.
 
 In the Flutter Navivox app setup screen, enter the gateway base URL, for
 example `http://127.0.0.1:8765` or the Tailscale host URL, then enter the
@@ -68,6 +71,15 @@ GORMES_NAVIVOX_TOKEN=...
 : Preferred production/mobile mode. Bind to the host's Tailscale IP or use
   Tailscale Serve in front of the selected local port.
 
+`wireguard`
+: VPN-class mode for WireGuard interfaces. The gateway startup path validates
+  that `bind_host` matches an active WireGuard interface IP.
+
+`vpn`
+: Generic VPN-class mode for active Tailscale, WireGuard, or tun-class VPN
+  interfaces. The gateway startup path validates that `bind_host` matches an
+  active VPN interface IP.
+
 `public`
 : Discouraged. Requires `public_confirmed = true`; never enable this casually.
 
@@ -75,13 +87,17 @@ GORMES_NAVIVOX_TOKEN=...
 
 - `GET /healthz`
 - `GET /v1/navivox/status`
+- `GET /v1/navivox/profile-contacts`
 - `GET /v1/navivox/sessions`
 - `GET /v1/navivox/sessions/{session_id}`
 - `POST /v1/navivox/turn`
 - `WS /v1/navivox/stream`
 
-HTTP and WebSocket requests use bearer auth unless `auth_mode` is
-`tailscale_identity`.
+HTTP and WebSocket requests use bearer auth for `pairing_token`,
+`static_token`, and `token_and_tailscale_identity`. `tailscale_identity` uses
+Tailnet identity headers. `token_and_tailscale_identity` requires both layers.
+Browser WebSocket clients may pass the bearer token through the supported
+Navivox token subprotocol.
 
 ## WebSocket Messages
 
@@ -90,6 +106,7 @@ Client messages:
 - `ping`
 - `start_turn`
 - `cancel_turn`
+- `stop_turn`
 - `subscribe_session`
 
 Server events:
@@ -99,13 +116,17 @@ Server events:
 - `assistant_delta`
 - `assistant_message`
 - `tool_call_started`
-- `tool_call_updated`
 - `tool_call_finished`
+- `safety_warning`
+- `approval_required`
+- `profile_contact_update`
 - `error`
 - `done`
 
 Every client request must include `request_id`. Runtime actions use
-`session_id` when available.
+`session_id` when available. Profile contact rows are keyed by `server_id` plus
+`profile_id`; local-only metadata such as pins, aliases, command word,
+calibration, and trusted-server state stays in the app.
 
 Tool events are structured Navivox events, not assistant text. They include
 `tool_call_id`, `tool_name`, `status`, and a bounded `message` summary. The

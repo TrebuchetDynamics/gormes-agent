@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -20,6 +22,7 @@ type navivoxConnectInfoEntry struct {
 	Port          int    `json:"port"`
 	BaseURL       string `json:"base_url"`
 	HealthzURL    string `json:"healthz_url"`
+	WebSocketURL  string `json:"websocket_url"`
 	TokenRequired bool   `json:"token_required"`
 }
 
@@ -75,13 +78,14 @@ func buildNavivoxConnectInfoEntries(cmd *cobra.Command, cfg config.NavivoxCfg) [
 		cfg.AuthMode == config.NavivoxAuthPairingToken ||
 		cfg.AuthMode == config.NavivoxAuthTokenAndTailscaleIdentity
 	makeEntry := func(host, source string) navivoxConnectInfoEntry {
-		base := fmt.Sprintf("http://%s:%d", host, cfg.Port)
+		base, stream := navivoxConnectInfoURLs(host, cfg.Port)
 		return navivoxConnectInfoEntry{
 			Host:          host,
 			HostSource:    source,
 			Port:          cfg.Port,
 			BaseURL:       base,
 			HealthzURL:    base + "/healthz",
+			WebSocketURL:  stream,
 			TokenRequired: tokenRequired,
 		}
 	}
@@ -111,6 +115,14 @@ func buildNavivoxConnectInfoEntries(cmd *cobra.Command, cfg config.NavivoxCfg) [
 	return out
 }
 
+func navivoxConnectInfoURLs(host string, port int) (baseURL, webSocketURL string) {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	hostPort := net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	baseURL = "http://" + hostPort
+	webSocketURL = "ws://" + hostPort + "/v1/navivox/stream"
+	return baseURL, webSocketURL
+}
+
 func writeNavivoxConnectInfoJSON(out io.Writer, entries []navivoxConnectInfoEntry) error {
 	enc := json.NewEncoder(out)
 	enc.SetIndent("", "  ")
@@ -130,6 +142,7 @@ func writeNavivoxConnectInfoText(out io.Writer, entries []navivoxConnectInfoEntr
 		}
 		fmt.Fprintf(out, "  - %s  (%s)%s\n", e.BaseURL, e.HostSource, tokenNote)
 		fmt.Fprintf(out, "    healthz: %s\n", e.HealthzURL)
+		fmt.Fprintf(out, "    websocket: %s\n", e.WebSocketURL)
 	}
 	return nil
 }
