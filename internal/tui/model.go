@@ -135,6 +135,7 @@ type Model struct {
 	statusMessage  string
 	busyGuard      BusyInputEvaluator
 	offlineSmoke   bool
+	spinnerFrame   int
 
 	// sessionID, when non-empty, is the locally-tracked active session
 	// owned by a successful /branch fork. SessionID() prefers it over

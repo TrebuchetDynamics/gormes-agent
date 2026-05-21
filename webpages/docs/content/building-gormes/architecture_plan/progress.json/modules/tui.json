@@ -3110,9 +3110,9 @@
     "pos": 20,
     "item": {
       "name": "Gormes streaming tool-trail status + spinner cadence wiring",
-      "status": "planned",
+      "status": "complete",
       "contract": "Layer the richer reused renderers onto the R3 streaming feedback: wire thinking.go RenderToolTrail (tree + per-tool ⏳/✅/❌ status icons + duration) into the live kernel.RenderFrame path so in-turn tool start vs done vs error are visibly distinct beyond the flat tooltrace line, and drive RenderSpinnerFrame as an animated activity cue via an update.go tick command. Reuse the existing thinking.go/spinner.go renderers (do not reimplement); do NOT replace the gateway coalescer; preserve FinalAssistantNotDuplicated, tool-output-not-absorbed, transcript ordering, and the R3 thinking-indicator/collapse behavior.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tui",
       "module": "tui",
@@ -3140,7 +3140,7 @@
         "Fidelity goldens, R1/R2, no-sidebar, and the R3 thinking-indicator/collapse tests all stay green.",
         "RenderToolTrail/RenderSpinnerFrame are reused, not duplicated; coalescer untouched."
       ],
-      "note": "owned follow-up. Carries the richer RenderToolTrail status-icon + RenderSpinnerFrame animation wiring deliberately split out of R3 (R3 shipped the thinking indicator + collapsible output). Upstream baseline: Hermes ui-tui streaming chrome. ccx-go patterns-only donor. swarm_origin: builder-pass 2026-05-15/ccx-go-tui-refine — filed when R3 shipped the safe thinking/collapse slice and the tool-trail/spinner cadence needed an update.go tick beyond R3's tested scope.",
+      "note": "Complete 2026-05-21: live TUI frame path now reuses RenderToolTrail for per-tool running/done/error status icons and labels, including tool result completion projection from history, and reuses RenderSpinnerFrame via active-turn Bubble Tea tick cadence. Preserved R3 thinking fallback, transcript ordering, no final assistant duplication, and gateway coalescer boundaries.",
       "write_scope": [
         "internal/tui/view.go",
         "internal/tui/update.go",
@@ -3158,7 +3158,22 @@
         "upstream_ref": "hermes:ui-tui@./hermes-agent/ui-tui",
         "owned_since": "2026-05-15T00:00:00Z",
         "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
-      }
+      },
+      "implementation": [
+        "internal/tui/model.go",
+        "internal/tui/update.go",
+        "internal/tui/view.go",
+        "internal/tui/thinking.go",
+        "internal/tui/thinking_test.go",
+        "internal/tui/viewport_history_test.go"
+      ],
+      "validation": [
+        "go test ./internal/tui -run 'Stream|Thinking|Spinner|Frame|Fidelity' -count=1",
+        "go test ./internal/tui -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check",
+        "go test ./... -count=1"
+      ]
     }
   },
   {

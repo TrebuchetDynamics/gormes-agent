@@ -86,9 +86,10 @@ func TestConversationViewportTail_RendersHermesToolProgress(t *testing.T) {
 	got := conversationViewportTail(frame, 90, 8)
 
 	for _, want := range []string{
-		`📚 skill_view: "gormes-hermes-parity"`,
-		`📋 todo: "planning 4 task(s)"`,
-		`📖 read_file: "/tmp/one.go" (×2)`,
+		`📚 ⏳ skill_view: gormes-hermes-parity`,
+		`📋 ⏳ todo: planning 4 task(s)`,
+		`📖 ⏳ read_file: /tmp/one.go`,
+		`⚡ ✅ execute_code`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("conversationViewportTail() missing %q in:\n%s", want, got)

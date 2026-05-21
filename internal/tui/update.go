@@ -397,6 +397,12 @@ type submittedMsg struct{}
 // cancelledMsg is the symmetric signal for cancel Cmds.
 type cancelledMsg struct{}
 
+type activeTurnTickMsg struct{}
+
+func activeTurnTickCmd() tea.Cmd {
+	return tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg { return activeTurnTickMsg{} })
+}
+
 // Update is the Bubble Tea event loop. MUST NOT block: every kernel
 // interaction is dispatched via tea.Cmd returned values.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -497,6 +503,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// success and PhaseFailed on terminal failure.
 		if m.frame.Phase == kernel.PhaseIdle || m.frame.Phase == kernel.PhaseFailed {
 			m.inFlight = false
+			m.spinnerFrame = 0
+		} else if turnIsActive(m.frame.Phase) {
+			cmds = append(cmds, activeTurnTickCmd())
 		}
 		// Extract and store active panel state so View() can render it.
 		m.ExtractPanelStateFromFrame(m.frame)
@@ -509,6 +518,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case submittedMsg, cancelledMsg:
 		// No-op — submit/cancel are fire-and-forget. The render-frame pump
 		// provides authoritative feedback via frameMsg / m.frame.Phase.
+
+	case activeTurnTickMsg:
+		if turnIsActive(m.frame.Phase) {
+			m.spinnerFrame++
+			cmds = append(cmds, activeTurnTickCmd())
+			return m, tea.Batch(cmds...)
+		}
 
 	case modelPickerConfirmedMsg:
 		cmd := m.handleModelPickerConfirmed(ModelPickerResult(msg))

@@ -72,7 +72,7 @@ func (m Model) View() string {
 
 	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
 
-	hint := renderHermesHint(m.frame, m.statusMessage, m.width)
+	hint := m.renderHermesHint()
 	completions := renderSlashCompletionMenu(editor.Value(), m.width)
 
 	// Render the active modal panel if one is present.
@@ -99,9 +99,14 @@ func (m Model) View() string {
 	})
 }
 
-func renderHermesHint(f kernel.RenderFrame, statusMessage string, width int) string {
+func (m Model) renderHermesHint() string {
+	return renderHermesHint(m.frame, m.statusMessage, m.width, m.spinnerFrame)
+}
+
+func renderHermesHint(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int) string {
 	var parts []string
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
+		parts = append(parts, RenderSpinnerFrame("", spinnerFrame))
 		parts = append(parts, strings.ToLower(f.Phase.String()))
 		if f.SessionID != "" {
 			parts = append(parts, "session "+shortSessionID(f.SessionID))
@@ -305,6 +310,15 @@ func lastAssistantContent(history []hermes.Message) string {
 }
 
 func conversationToolProgressBlock(f kernel.RenderFrame, wrapWidth int, compact bool) string {
+	if trail := RenderToolTrail(conversationToolTrailNodes(f)); trail != "" {
+		if compact {
+			return compactViewportText(trail)
+		}
+		if wrapWidth > 0 {
+			trail = RenderMarkdownSoftWrapTrim(trail, wrapWidth)
+		}
+		return toolOutStyle.Render(trail)
+	}
 	texts := make([]string, 0, len(f.SoulEvents))
 	for _, event := range f.SoulEvents {
 		texts = append(texts, event.Text)
@@ -320,6 +334,66 @@ func conversationToolProgressBlock(f kernel.RenderFrame, wrapWidth int, compact 
 		progress = RenderMarkdownSoftWrapTrim(progress, wrapWidth)
 	}
 	return toolOutStyle.Render(progress)
+}
+
+func conversationToolTrailNodes(f kernel.RenderFrame) []ToolCallNode {
+	seen := map[string]int{}
+	var nodes []ToolCallNode
+	upsert := func(key, label string, status ToolCallStatus) {
+		key = strings.TrimSpace(key)
+		label = strings.TrimSpace(label)
+		if key == "" {
+			return
+		}
+		if label == "" {
+			label = key
+		}
+		if idx, ok := seen[key]; ok {
+			nodes[idx].Status = status
+			return
+		}
+		seen[key] = len(nodes)
+		nodes = append(nodes, ToolCallNode{Name: label, Status: status})
+	}
+	for _, event := range f.SoulEvents {
+		key, label, status, ok := toolTrailEvent(event.Text)
+		if ok {
+			upsert(key, label, status)
+		}
+	}
+	for _, msg := range f.History {
+		if msg.Role == "tool" {
+			upsert(msg.Name, msg.Name, ToolCallDone)
+		}
+	}
+	return nodes
+}
+
+func toolTrailEvent(text string) (string, string, ToolCallStatus, bool) {
+	text = strings.TrimSpace(text)
+	switch {
+	case strings.HasPrefix(text, "tool error:"):
+		name, _, _ := strings.Cut(strings.TrimSpace(strings.TrimPrefix(text, "tool error:")), ":")
+		return name, name, ToolCallError, strings.TrimSpace(name) != ""
+	case strings.HasPrefix(text, "tool cancelled:"):
+		name := strings.TrimSpace(strings.TrimPrefix(text, "tool cancelled:"))
+		return name, name, ToolCallError, name != ""
+	case strings.HasPrefix(text, "tool done:"), strings.HasPrefix(text, "tool completed:"):
+		text = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(text, "tool done:"), "tool completed:"))
+		name, _, _ := strings.Cut(text, ":")
+		return name, name, ToolCallDone, strings.TrimSpace(name) != ""
+	case strings.HasPrefix(text, "tool: "):
+		payload := strings.TrimSpace(strings.TrimPrefix(text, "tool: "))
+		name, arg, hasArg := strings.Cut(payload, ":")
+		name = strings.TrimSpace(name)
+		label := name
+		if hasArg && strings.TrimSpace(arg) != "" {
+			label = name + ": " + strings.TrimSpace(arg)
+		}
+		return name, label, ToolCallRunning, name != ""
+	default:
+		return "", "", ToolCallRunning, false
+	}
 }
 
 func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) string {

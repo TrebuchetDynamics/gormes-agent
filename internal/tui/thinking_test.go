@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
 // TestThinking_RenderEmpty verifies that RenderThinking returns empty for invisible state.
@@ -473,5 +476,51 @@ func TestSpinner_RenderSpinnerFrame(t *testing.T) {
 	}
 	if len(toolFrames) < 3 {
 		t.Errorf("RenderSpinnerFrame tool cycling should produce multiple frames, got %d unique", len(toolFrames))
+	}
+}
+
+func TestConversationForcedBlocksRendersToolTrailStatusIcons(t *testing.T) {
+	f := kernel.RenderFrame{
+		Phase: kernel.PhaseStreaming,
+		SoulEvents: []kernel.SoulEntry{
+			{Text: "tool: read_file: README.md"},
+			{Text: "tool: patch: internal/tui/view.go"},
+			{Text: "tool error: patch: no match"},
+		},
+		History: []hermes.Message{{Role: "tool", Name: "read_file", Content: "ok"}},
+	}
+	blocks := conversationForcedBlocks(f, 100, false)
+	got := strings.Join(blocks, "\n")
+	for _, want := range []string{"📖 ✅ read_file", "✏️ ❌ patch"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("tool trail = %q, want %q", got, want)
+		}
+	}
+	if strings.Contains(got, "ACTION [") {
+		t.Fatalf("tool trail fell back to flat tooltrace block: %q", got)
+	}
+}
+
+func TestStreamingSpinnerTickAdvancesActiveHintOnly(t *testing.T) {
+	m := NewModel(nil, nil, nil)
+	m.width = 80
+	m.frame = kernel.RenderFrame{Phase: kernel.PhaseStreaming, SessionID: "sess-abcdef"}
+	first := m.renderHermesHint()
+	updated, cmd := m.Update(activeTurnTickMsg{})
+	if cmd == nil {
+		t.Fatal("active tick returned nil cmd, want rescheduled spinner tick")
+	}
+	m2 := updated.(Model)
+	second := m2.renderHermesHint()
+	if first == second {
+		t.Fatalf("spinner hint did not advance: %q", first)
+	}
+	m2.frame = kernel.RenderFrame{Phase: kernel.PhaseIdle}
+	idle, cmd := m2.Update(activeTurnTickMsg{})
+	if cmd != nil {
+		t.Fatal("idle tick returned cmd, want no reschedule")
+	}
+	if hint := idle.(Model).renderHermesHint(); hint != "" {
+		t.Fatalf("idle hint = %q, want empty", hint)
 	}
 }
