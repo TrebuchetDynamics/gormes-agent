@@ -22,6 +22,7 @@ type LoopLogEvent = {
   decision?: string;
   reason?: string;
   logPath?: string;
+  ciGreen?: boolean;
 };
 
 const CUSTOM_STATE_TYPE = "gormes-delivery-loop-state";
@@ -29,6 +30,20 @@ const DEFAULT_TOPIC = "auto-select the highest-impact builder-ready progress.jso
 const DEFAULT_ITERATIONS = 10;
 const HARD_MAX_ITERATIONS = 50;
 const DEFAULT_LOG_PATH = path.join(".pi", "gormes-loop", "logs.jsonl");
+const RECENT_LOG_RECORDS = 12;
+const REQUIRED_ITERATION_SKILLS = [
+  "gormes-skill-manager",
+  "gormes-delivery-loop",
+  "gormes-pi-parity",
+  "gormes-tdd-slice (gormes-tdd)",
+  "gormes-git",
+  "caveman",
+];
+const FULL_CI_GATE = [
+  "go test ./... -count=1",
+  "go run ./cmd/progress validate",
+  "git diff --check",
+];
 
 let state: LoopState = inactiveState();
 let sendingFollowUp = false;
@@ -46,9 +61,17 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
     if (!state.active || event.message?.role !== "assistant") return;
     const text = messageText(event.message);
     const decision = parseDecision(text);
+    const ciGreen = parseCIGreen(text);
+    if (decision && requiresCIGreen(decision) && !ciGreen) {
+      state = { ...state, active: false, lastDecision: "blocked" };
+      appendLoopLog("ci_gate_missing", { decision, reason: "missing_CI_GREEN_yes", ciGreen: false });
+      pendingSelfImproveReason = "ci_gate_missing";
+      pi.appendEntry(CUSTOM_STATE_TYPE, state);
+      return;
+    }
     if (decision) {
       state.lastDecision = decision;
-      appendLoopLog("assistant_decision", { decision });
+      appendLoopLog("assistant_decision", { decision, ciGreen });
     }
     if (decision === "stop" || decision === "blocked" || decision === "done") {
       state = { ...state, active: false };
@@ -95,7 +118,7 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
   pi.registerCommand("gormes-loop", {
     description: "Run a bounded Gormes architecture→planner→parity→builder TDD delivery loop",
     getArgumentCompletions: (prefix) => {
-      const values = ["start", "stop", "status"];
+      const values = ["start", "restart", "stop", "status"];
       return values.filter((v) => v.startsWith(prefix)).map((value) => ({ value, label: value }));
     },
     handler: async (args, ctx) => {
@@ -111,23 +134,32 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
         case "status":
           ctx.ui.notify(`${statusLine(state)}\nlog: ${state.logPath ?? DEFAULT_LOG_PATH}`, "info");
           return;
+        case "restart":
+          await startLoop(pi, ctx, parsed.topic, parsed.iterations, true);
+          return;
         case "start":
         default:
-          await startLoop(pi, ctx, parsed.topic, parsed.iterations);
+          await startLoop(pi, ctx, parsed.topic, parsed.iterations, false);
           return;
       }
     },
   });
 }
 
-async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: string, requestedIterations: number) {
+async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: string, requestedIterations: number, replaceActive: boolean) {
   const maxIterations = Math.max(1, Math.min(requestedIterations, HARD_MAX_ITERATIONS));
   if (requestedIterations > HARD_MAX_ITERATIONS) {
     ctx.ui.notify(`Capped Gormes loop at ${HARD_MAX_ITERATIONS} iterations.`, "warning");
   }
 
+  if (state.active && !replaceActive) {
+    ctx.ui.notify(`${statusLine(state)}\nUse /gormes-loop restart to replace it; /gormes-loop status to inspect; /gormes-loop stop to stop.`, "info");
+    ctx.ui.setStatus("gormes-loop", statusLine(state));
+    return;
+  }
+
   if (state.active) {
-    const ok = await ctx.ui.confirm("Gormes loop already active", "Replace the current delivery loop state?");
+    const ok = await ctx.ui.confirm("Restart Gormes delivery loop", "Replace the current active loop state?");
     if (!ok) return;
   }
 
@@ -147,9 +179,9 @@ async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: 
   pi.sendUserMessage(buildIterationPrompt(state));
 }
 
-function parseArgs(raw: string): { command: "start" | "stop" | "status"; topic: string; iterations: number } {
+function parseArgs(raw: string): { command: "start" | "restart" | "stop" | "status"; topic: string; iterations: number } {
   const tokens = raw.trim().split(/\s+/).filter(Boolean);
-  const command = tokens[0] === "stop" || tokens[0] === "status" || tokens[0] === "start" ? tokens.shift()! : "start";
+  const command = tokens[0] === "stop" || tokens[0] === "status" || tokens[0] === "start" || tokens[0] === "restart" ? tokens.shift()! : "start";
   let iterations = DEFAULT_ITERATIONS;
   const topicParts: string[] = [];
 
@@ -163,18 +195,26 @@ function parseArgs(raw: string): { command: "start" | "stop" | "status"; topic: 
   }
 
   return {
-    command: command as "start" | "stop" | "status",
+    command: command as "start" | "restart" | "stop" | "status",
     topic: topicParts.join(" ").trim() || DEFAULT_TOPIC,
     iterations: Number.isFinite(iterations) && iterations > 0 ? Math.floor(iterations) : DEFAULT_ITERATIONS,
   };
 }
 
 function buildIterationPrompt(s: LoopState): string {
+  const logPath = s.logPath ?? DEFAULT_LOG_PATH;
   return `Use the gormes-delivery-loop skill now. Delivery loop iteration ${s.iteration}/${s.maxIterations}.
 
 Topic/objective: ${s.topic}.
 
-Loop log path: ${s.logPath ?? DEFAULT_LOG_PATH}. At the end of this iteration, include exact changed files, validations, commit hash, push status, and the final LOOP_DECISION line so the extension can learn from the run.
+Required skills this iteration: ${REQUIRED_ITERATION_SKILLS.join(", ")}.
+Load and use these before action where they apply. Use gormes-git for green-gate and commit/push discipline only when the worktree is safe for this slice; if unrelated dirty work would be staged, stop blocked instead.
+
+Loop log path: ${logPath}. The extension read the recent log records before queuing this prompt.
+Recent loop log records (newest last):
+${recentLoopLogSnippet(logPath)}
+
+At the end of this iteration, include exact changed files, validations, commit hash, push status, CI_GREEN status, and the final LOOP_DECISION line so the extension can learn from the run.
 
 Run one complete vertical Gormes delivery iteration:
 1. Start with scope lock and preflight for /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent on development.
@@ -182,29 +222,38 @@ Run one complete vertical Gormes delivery iteration:
 3. Use gormes-architecture-zoomout to find one A/B-evidence architecture candidate for the topic.
 4. Use gormes-planner if progress.json or feature-map row shaping is required; progress.json is the only backlog.
 5. Use gormes-hermes-parity to confirm the active Hermes/Honcho contract and source refs.
-6. Use gormes-builder plus TDD: add or identify a failing characterization test first, implement the smallest builder-ready slice, include E2E/focused coverage where appropriate.
-7. Validate with row tests, focused package tests, go run ./cmd/progress validate, git diff --check, and full go test ./... -count=1 when the slice touches shared runtime behavior.
-8. Commit and push the validated slice to origin/development with a coherent commit.
-9. End with exactly one line: LOOP_DECISION: continue, LOOP_DECISION: stop, LOOP_DECISION: blocked, or LOOP_DECISION: done.
+6. Use gormes-builder plus gormes-tdd-slice: add or identify a failing characterization test first, implement the smallest builder-ready slice, include E2E/focused coverage where appropriate.
+7. Make CI green every iteration before commit, push, or LOOP_DECISION: continue/done. Required full CI gate:
+${FULL_CI_GATE.map((command) => `   - ${command}`).join("\n")}
+8. If the full CI gate fails, fix the failure inside this iteration and rerun the failed command plus affected gate. After two same-failure attempts, stop with LOOP_DECISION: blocked and first failing stderr line.
+9. Commit and push the validated slice to origin/development with a coherent commit.
+10. End with CI_GREEN: yes only after the full CI gate above passes, then exactly one line: LOOP_DECISION: continue, LOOP_DECISION: stop, LOOP_DECISION: blocked, or LOOP_DECISION: done.
 
-Stop instead of coding if the next row is not builder-ready, upstream evidence is missing, validation fails twice with the same blocker, or the slice would touch unrelated dirty Navivox work.`;
+Stop instead of coding if the next row is not builder-ready, upstream evidence is missing, validation fails twice with the same blocker, CI cannot be made green, or the slice would touch unrelated dirty Navivox work.`;
 }
 
 function buildSelfImprovementPrompt(s: LoopState, reason: string): string {
+  const logPath = s.logPath ?? DEFAULT_LOG_PATH;
   return `Improve the project-local Pi extension that just ran the Gormes delivery loop.
 
 Reason the loop ended: ${reason}.
-Loop log path: ${s.logPath ?? DEFAULT_LOG_PATH}.
+Loop log path: ${logPath}.
 Extension file: /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent/.pi/extensions/gormes-delivery-loop.ts.
 Repo: /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent on development.
 
-Use the gormes-delivery-loop skill and improve-codebase-architecture on the extension itself:
+Required skills for extension self-improvement: ${REQUIRED_ITERATION_SKILLS.join(", ")}.
+Recent loop log records (newest last):
+${recentLoopLogSnippet(logPath)}
+
+Use the gormes-delivery-loop skill, gormes-pi-parity, and improve-codebase-architecture on the extension itself:
 1. Read the loop log and this extension file.
 2. Identify one concrete improvement to loop reliability, logging, stop conditions, prompts, or self-learning behavior.
 3. Add or run a smoke test with mocked Pi API proving the extension still loads and the changed behavior works.
 4. Preserve unrelated dirty Navivox work.
-5. Commit and push the extension improvement to origin/development.
-6. End with LOOP_DECISION: stop.`;
+5. Make CI green before commit/push. Required full CI gate:
+${FULL_CI_GATE.map((command) => `   - ${command}`).join("\n")}
+6. Commit and push the extension improvement to origin/development if the worktree is safe.
+7. End with CI_GREEN: yes only after the full CI gate passes, then LOOP_DECISION: stop.`;
 }
 
 function queueSelfImprovement(pi: ExtensionAPI, ctx: { hasUI?: boolean; ui?: { notify(message: string, level?: string): void; setStatus(key: string, value: string): void } }, reason: string) {
@@ -246,6 +295,28 @@ function appendLoopLog(event: string, extra: Partial<LoopLogEvent> = {}) {
 function parseDecision(text: string): LoopState["lastDecision"] | undefined {
   const match = text.match(/LOOP_DECISION:\s*(continue|stop|blocked|done)/i);
   return match?.[1]?.toLowerCase() as LoopState["lastDecision"] | undefined;
+}
+
+function parseCIGreen(text: string): boolean {
+  return /CI_GREEN:\s*yes/i.test(text);
+}
+
+function requiresCIGreen(decision: string): boolean {
+  return decision === "continue" || decision === "done";
+}
+
+function recentLoopLogSnippet(logPath: string): string {
+  try {
+    const content = fs.readFileSync(logPath, "utf8").trim();
+    if (!content) return "(no prior loop log records)";
+    return content.split(/\r?\n/).filter(Boolean).slice(-RECENT_LOG_RECORDS).join("\n");
+  } catch (error) {
+    return `(no readable loop log at ${logPath}: ${errorMessage(error)})`;
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function statusLine(s: LoopState): string {
