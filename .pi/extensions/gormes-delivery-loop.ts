@@ -144,7 +144,7 @@ async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: 
   pi.appendEntry(CUSTOM_STATE_TYPE, state);
   ctx.ui.setStatus("gormes-loop", statusLine(state));
   ctx.ui.notify(`Starting Gormes delivery loop: 1/${maxIterations}; log: ${state.logPath}`, "info");
-  await ctx.sendUserMessage(buildIterationPrompt(state));
+  pi.sendUserMessage(buildIterationPrompt(state));
 }
 
 function parseArgs(raw: string): { command: "start" | "stop" | "status"; topic: string; iterations: number } {
