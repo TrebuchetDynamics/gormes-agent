@@ -28,6 +28,16 @@ func TestListPickerProvidersCarriesModelLists(t *testing.T) {
 			t.Fatalf("openrouter models missing %s: %#v", want, openRouter.Models)
 		}
 	}
+	for _, want := range []string{
+		"deepseek/deepseek-r1:free",
+		"deepseek/deepseek-chat-v3-0324:free",
+		"meta-llama/llama-4-maverick:free",
+		"qwen/qwen3-235b-a22b:free",
+	} {
+		if !containsPickerModelForTest(openRouter.Models, want) {
+			t.Fatalf("openrouter free-model catalog missing %s: %#v", want, openRouter.Models)
+		}
+	}
 
 	opencodeGo, ok := findPickerProviderForTest(providers, "opencode-go")
 	if !ok {
@@ -35,6 +45,22 @@ func TestListPickerProvidersCarriesModelLists(t *testing.T) {
 	}
 	if !containsPickerModelForTest(opencodeGo.Models, "kimi-k2.6") {
 		t.Fatalf("opencode-go models missing kimi-k2.6: %#v", opencodeGo.Models)
+	}
+
+	groq, ok := findPickerProviderForTest(providers, "groq")
+	if !ok {
+		t.Fatalf("ListPickerProviders() missing groq provider for free fallback setup")
+	}
+	if !containsPickerModelForTest(groq.Models, "llama-3.3-70b-versatile") {
+		t.Fatalf("groq models missing llama-3.3-70b-versatile: %#v", groq.Models)
+	}
+
+	gemini, ok := findPickerProviderForTest(providers, "gemini")
+	if !ok {
+		t.Fatalf("ListPickerProviders() missing gemini provider for Google AI Studio fallback setup")
+	}
+	if !containsPickerModelForTest(gemini.Models, "gemini-2.5-flash") {
+		t.Fatalf("gemini models missing gemini-2.5-flash: %#v", gemini.Models)
 	}
 }
 

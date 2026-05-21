@@ -432,8 +432,8 @@ func TestSetupFullWizardSwitchingProviderUsesSelectedProviderDefaultModel(t *tes
 		if current.Provider != "openrouter" {
 			t.Fatalf("active model picker provider = %q, want openrouter", current.Provider)
 		}
-		if current.Model != "moonshotai/kimi-k2.6" {
-			t.Fatalf("active model picker model seed = %q, want OpenRouter default moonshotai/kimi-k2.6", current.Model)
+		if current.Model != "deepseek/deepseek-chat-v3-0324:free" {
+			t.Fatalf("active model picker model seed = %q, want OpenRouter free default deepseek/deepseek-chat-v3-0324:free", current.Model)
 		}
 		return nil
 	}
@@ -628,9 +628,10 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 		"Select provider:",
 		"OpenRouter (100+ models, pay-per-use)  ← currently active",
 		"Select model for openrouter:",
-		"1. anthropic/claude-opus-4.7",
-		"4. moonshotai/kimi-k2.6",
-		"31. inclusionai/ring-2.6-1t:free",
+		"1. deepseek/deepseek-chat-v3-0324:free",
+		"4. qwen/qwen3-235b-a22b:free",
+		"8. moonshotai/kimi-k2.6",
+		"35. inclusionai/ring-2.6-1t:free",
 		"Provider: openrouter",
 		"Endpoint: https://openrouter.ai/api/v1",
 		"Model:    moonshotai/kimi-k2.6",

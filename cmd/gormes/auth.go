@@ -904,10 +904,12 @@ func findCredentialIndex(entries []config.PooledCredential, target string) int {
 func normalizeAuthProvider(provider string) string {
 	normalized := normalizeProviderName(provider)
 	switch normalized {
-	case "or", "open-router":
+	case "or", "open-router", "openrouter-free":
 		return "openrouter"
 	case "novita-ai", "novitaai":
 		return "novita"
+	case "google", "google-ai-studio", "google-gemini":
+		return "gemini"
 	case "minimax-global", "minimax-portal", "minimax-oauth":
 		return "minimax-oauth"
 	default:
@@ -951,6 +953,10 @@ func providerBaseURL(provider, override string) string {
 		return "https://chatgpt.com/backend-api/codex"
 	case config.NousOAuthProvider:
 		return "https://inference-api.nousresearch.com/v1"
+	case "gemini":
+		return "https://generativelanguage.googleapis.com/v1beta/openai"
+	case "groq":
+		return "https://api.groq.com/openai/v1"
 	case "novita":
 		return "https://api.novita.ai/openai/v1"
 	case "google-gemini-cli":

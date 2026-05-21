@@ -49,6 +49,105 @@ func TestGormesAuthAddAPIKeyPersistsManualEntry(t *testing.T) {
 	}
 }
 
+func TestGormesAuthAddOpenRouterFreeAliasUsesOpenRouterCredentialPool(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "openrouter-free",
+		"--type", "api-key",
+		"--label", "free-models",
+		"--api-key", "plain-openrouter-free-token",
+	)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "plain-openrouter-free-token") {
+		t.Fatalf("auth add leaked OpenRouter API key:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "provider=openrouter") {
+		t.Fatalf("stdout = %q, want canonical openrouter provider evidence", stdout)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "openrouter"})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v, want one OpenRouter credential", entries)
+	}
+	entry := entries[0]
+	if entry.BaseURL != "https://openrouter.ai/api/v1" || entry.InferenceBaseURL != "https://openrouter.ai/api/v1" {
+		t.Fatalf("entry base URLs = base %q inference %q", entry.BaseURL, entry.InferenceBaseURL)
+	}
+}
+
+func TestGormesAuthAddGroqAPIKeyUsesDefaultInferenceBaseURL(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "groq",
+		"--type", "api-key",
+		"--label", "free-tier",
+		"--api-key", "plain-groq-token",
+	)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "plain-groq-token") {
+		t.Fatalf("auth add leaked Groq API key:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "groq"})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v, want one Groq credential", entries)
+	}
+	entry := entries[0]
+	if entry.BaseURL != "https://api.groq.com/openai/v1" || entry.InferenceBaseURL != "https://api.groq.com/openai/v1" {
+		t.Fatalf("entry base URLs = base %q inference %q", entry.BaseURL, entry.InferenceBaseURL)
+	}
+}
+
+func TestGormesAuthAddGoogleAIStudioAPIKeyUsesGeminiCredentialPool(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"auth", "add", "google-ai-studio",
+		"--type", "api-key",
+		"--label", "free-flash",
+		"--api-key", "plain-google-token",
+	)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "plain-google-token") {
+		t.Fatalf("auth add leaked Google AI Studio API key:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "provider=gemini") {
+		t.Fatalf("stdout = %q, want canonical gemini provider evidence", stdout)
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "gemini"})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v, want one Gemini credential", entries)
+	}
+	entry := entries[0]
+	if entry.BaseURL != "https://generativelanguage.googleapis.com/v1beta/openai" || entry.InferenceBaseURL != "https://generativelanguage.googleapis.com/v1beta/openai" {
+		t.Fatalf("entry base URLs = base %q inference %q", entry.BaseURL, entry.InferenceBaseURL)
+	}
+}
+
 func TestGormesAuthAddBedrockRefusesCredentialPoolMutation(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 

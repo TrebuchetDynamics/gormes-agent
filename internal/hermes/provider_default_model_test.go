@@ -63,3 +63,24 @@ func TestProviderDefaultModel_OpenAICodexFallsBackToCuratedCatalog(t *testing.T)
 		t.Fatalf("ResolveProviderDefaultModel = %#v, want curated gpt-5.5 fallback", got)
 	}
 }
+
+func TestProviderDefaultModel_OpenRouterUsesFreeModelFallback(t *testing.T) {
+	got := ResolveProviderDefaultModel("openrouter-free", ProviderDefaultModelOptions{})
+	if got.Provider != "openrouter" || got.Model != "deepseek/deepseek-chat-v3-0324:free" || got.Source != ProviderDefaultModelSourceStaticCatalog {
+		t.Fatalf("ResolveProviderDefaultModel(openrouter-free) = %#v, want OpenRouter free DeepSeek V3 fallback via canonical openrouter provider", got)
+	}
+}
+
+func TestProviderDefaultModel_GroqUsesFreeTierFriendlyFallback(t *testing.T) {
+	got := ResolveProviderDefaultModel("groq", ProviderDefaultModelOptions{})
+	if got.Model != "llama-3.3-70b-versatile" || got.Source != ProviderDefaultModelSourceStaticCatalog {
+		t.Fatalf("ResolveProviderDefaultModel(groq) = %#v, want Groq llama-3.3-70b free-tier fallback", got)
+	}
+}
+
+func TestProviderDefaultModel_GoogleAIStudioAliasUsesGeminiFlash(t *testing.T) {
+	got := ResolveProviderDefaultModel("google-ai-studio", ProviderDefaultModelOptions{})
+	if got.Provider != "gemini" || got.Model != "gemini-2.5-flash" || got.Source != ProviderDefaultModelSourceStaticCatalog {
+		t.Fatalf("ResolveProviderDefaultModel(google-ai-studio) = %#v, want Gemini Flash via canonical gemini provider", got)
+	}
+}

@@ -231,8 +231,12 @@ func codexOAuthSetupError(reason string) error {
 func normalizeProviderName(provider string) string {
 	normalized := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(provider)), "_", "-")
 	switch normalized {
+	case "or", "open-router", "openrouter-free":
+		return "openrouter"
 	case "novita-ai", "novitaai":
 		return "novita"
+	case "google", "google-ai-studio", "google-gemini":
+		return "gemini"
 	default:
 		return normalized
 	}

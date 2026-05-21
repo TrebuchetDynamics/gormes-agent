@@ -164,6 +164,10 @@ func normalizeModelContextProvider(provider string) string {
 		return "openai-codex"
 	case "copilot", "copilot-acp", "github", "github-copilot", "github-models":
 		return "copilot"
+	case "google", "google-ai-studio", "google-gemini":
+		return "gemini"
+	case "open-router", "openrouter-free", "or":
+		return "openrouter"
 	case "ollama_cloud", "ollama-cloud":
 		return OllamaCloudProviderID
 	default:

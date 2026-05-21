@@ -29,6 +29,15 @@ aliases:
    ```
    The interactive picker asks for the provider and model to append. Repeat the command to chain more entries; order is the order you add them.
 
+   For a low-cost personal-agent chain, add API-key providers such as Google AI Studio, OpenRouter, and Groq first:
+   ```bash
+   gormes auth add google-ai-studio --type api-key --api-key AIza...
+   gormes auth add openrouter-free --type api-key --api-key sk-or-...
+   gormes auth add groq --type api-key --api-key gsk-...
+   gormes fallback add
+   ```
+   Pick `gemini` with `gemini-2.5-flash` for generous free summarization/briefing fallback, `openrouter` with `deepseek/deepseek-chat-v3-0324:free` or another `:free` model for research/conversation variety, then `groq` with `llama-3.3-70b-versatile` for fast heartbeat or background-task fallback.
+
 3. **Inspect the chain**
    ```bash
    gormes fallback list
