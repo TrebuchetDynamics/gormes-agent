@@ -17,7 +17,7 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | Browser Use, CDP, Browserbase, Firecrawl, or `/browser connect` | `gormes-browser-harness` | `gormes-planner` or `gormes-tdd-slice` |
 | Local binary, install, gateway process, PATH, or sessions.db locks | `gormes-dev-runtime` | `gormes-install` for installer-specific validation |
 | End-to-end installer or setup validation | `gormes-install` | `gormes-dev-runtime`, `gormes-planner` |
-| Architecture zoom-out before unfamiliar or cross-package work | `gormes-architecture-zoomout` | `gormes-interface-designer` or `gormes-tdd-slice` |
+| Architecture zoom-out before unfamiliar/cross-package work or architecture improvement | `gormes-architecture-zoomout` | `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-tdd-slice` |
 | API/package boundary design | `gormes-interface-designer` | `gormes-builder` |
 | Find Go implementation donor shapes | `gormes-references` | `gormes-tdd-slice` |
 | Throwaway design/state/UI experiment before production work | `gormes-prototype-spike` | `gormes-tdd-slice` after decision |

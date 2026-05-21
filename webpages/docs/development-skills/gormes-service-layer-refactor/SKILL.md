@@ -7,7 +7,7 @@ description: Use when a Gormes change creates or reveals duplicated runtime mech
 
 ## Overview
 
-After a feature works, make the reusable mechanics obvious. Gormes should keep domain policy at the edge and shared runtime behavior behind small, tested functions or packages.
+After a feature works, make the reusable mechanics obvious. Gormes should keep domain policy at the edge and shared runtime behavior behind deep modules: small caller-facing interfaces with substantial hidden implementation and strong locality.
 
 ## When to Use
 
@@ -23,9 +23,11 @@ Do not use for speculative architecture. If only one caller exists and no duplic
 
 1. Verify behavior is already green or write a failing characterization test first.
 2. List the repeated mechanics and the domain policy that must stay at the caller.
-3. Extract the smallest reusable seam: function, method, adapter, or package-local helper.
-4. Update callers one at a time; preserve public CLI/runtime contracts.
-5. Run focused tests, then the repo gate when appropriate.
+3. Apply the deletion test: if the helper vanished, would complexity spread across callers? If not, do not extract it.
+4. Apply the two-adapter test: a seam with one caller/adapter is provisional and should usually stay package-local.
+5. Extract the smallest reusable seam: function, method, adapter, or package-local helper.
+6. Update callers one at a time; preserve public CLI/runtime contracts.
+7. Run focused tests, then the repo gate when appropriate.
 
 ## Quick Reference
 
@@ -36,10 +38,13 @@ Do not use for speculative architecture. If only one caller exists and no duplic
 | Provider behavior drift | Route through `gormes-provider-parity` first |
 | Unclear package boundary | Route through `gormes-interface-designer` first |
 | No test around old behavior | Add characterization test before refactor |
+| Pass-through helper with one caller | Do not extract; keep locality |
+| Interface mirrors implementation complexity | Deepen or delete the seam |
 
 ## Common Mistakes
 
 - Refactoring before the feature works or before behavior is characterized.
 - Moving domain decisions into generic services.
 - Creating a large abstraction when a small helper would remove the duplicate.
+- Creating a public seam for a one-adapter implementation without a near-term second adapter.
 - Cleaning unrelated old code in the same slice.
