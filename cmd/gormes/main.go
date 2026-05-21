@@ -860,6 +860,7 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 	}
 	kernelCfg := kernel.Config{
 		Model:             model,
+		Provider:          cfg.Hermes.Provider,
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		MaxToolIterations: configuredMaxToolIterations(cfg),
@@ -1155,6 +1156,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	registry := buildDefaultRegistry(rootCtx, cfg, c, modelName)
 	k := kernel.New(kernel.Config{
 		Model:             modelName,
+		Provider:          cfg.Hermes.Provider,
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
 		Tools:             registry,

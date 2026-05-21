@@ -38,6 +38,7 @@ type FallbackClientFactory func(context.Context, hermes.ModelRoute) (hermes.Clie
 
 type Config struct {
 	Model    string
+	Provider string
 	Endpoint string
 	// ReasoningEffort, when non-empty, is the resident request default sent
 	// on each supported provider request. Empty leaves reasoning to the
@@ -225,6 +226,87 @@ func (k *Kernel) toolRegistered(name string) bool {
 	return ok
 }
 
+func (k *Kernel) applySessionModel(ctx context.Context, e PlatformEvent) error {
+	model := strings.TrimSpace(e.Model)
+	provider := strings.TrimSpace(e.Provider)
+	if k.shouldSwapSessionProvider(provider) {
+		route, ok := sessionModelRoute(provider, model)
+		if !ok {
+			return fmt.Errorf("kernel: unknown model provider %q", provider)
+		}
+		if k.cfg.FallbackClientFactory == nil {
+			return fmt.Errorf("kernel: cross-provider model switch requires fallback client factory")
+		}
+		client, err := k.cfg.FallbackClientFactory(ctx, route)
+		if err != nil {
+			return fmt.Errorf("kernel: switch model client: %w", err)
+		}
+		k.client = client
+	}
+	k.sessionModel = model
+	k.sessionProvider = provider
+	// Keep telemetry/context-engine model in sync with the new resident
+	// override, mirroring New(). History is intentionally preserved (unlike
+	// ResetSession): the conversation continues against the switched model.
+	k.tm.SetModel(k.residentModel())
+	if k.cfg.ContextEngine != nil {
+		k.cfg.ContextEngine.UpdateModelContext(hermes.ContextModelContext{Model: k.residentModel()})
+	}
+	return nil
+}
+
+func (k *Kernel) shouldSwapSessionProvider(next string) bool {
+	current := strings.TrimSpace(firstNonEmpty(k.sessionProvider, k.cfg.Provider))
+	next = strings.TrimSpace(next)
+	return next != "" && next != current
+}
+
+func sessionModelRoute(provider, model string) (hermes.ModelRoute, bool) {
+	entry, ok := hermes.ResolveProviderManifestEntry(provider)
+	if !ok {
+		return hermes.ModelRoute{}, false
+	}
+	if entry.ImplementationStatus != hermes.ProviderImplemented && entry.ImplementationStatus != hermes.ProviderOwned {
+		return hermes.ModelRoute{}, false
+	}
+	route := hermes.ModelRoute{
+		Provider:  strings.ToLower(strings.TrimSpace(entry.ID)),
+		Model:     strings.TrimSpace(model),
+		BaseURL:   strings.TrimSpace(entry.BaseURLOverride),
+		APIMode:   sessionModelAPIMode(entry.TransportFamily),
+		APIKeyEnv: firstString(entry.EnvVars),
+		KeyEnv:    strings.TrimSpace(entry.BaseURLEnvVar),
+	}
+	return route, route.Provider != "" && route.Model != ""
+}
+
+func sessionModelAPIMode(transport string) string {
+	switch strings.TrimSpace(transport) {
+	case "openai_chat":
+		return "chat_completions"
+	default:
+		return strings.TrimSpace(transport)
+	}
+}
+
+func firstString(values []string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
 func modelMatchesAny(model string, needles []string) bool {
 	for _, needle := range needles {
 		needle = strings.ToLower(strings.TrimSpace(needle))
@@ -382,15 +464,13 @@ func (k *Kernel) Run(ctx context.Context) error {
 					}
 					continue
 				}
-				k.sessionModel = strings.TrimSpace(e.Model)
-				k.sessionProvider = strings.TrimSpace(e.Provider)
-				// Keep telemetry/context-engine model in sync with the new
-				// resident override, mirroring New(). History is intentionally
-				// preserved (unlike ResetSession): the conversation continues
-				// against the switched model.
-				k.tm.SetModel(k.residentModel())
-				if k.cfg.ContextEngine != nil {
-					k.cfg.ContextEngine.UpdateModelContext(hermes.ContextModelContext{Model: k.residentModel()})
+				if err := k.applySessionModel(ctx, e); err != nil {
+					k.lastError = err.Error()
+					k.emitFrame("model switch failed")
+					if e.ack != nil {
+						e.ack <- err
+					}
+					continue
 				}
 				k.emitFrame("model switched")
 				if e.ack != nil {

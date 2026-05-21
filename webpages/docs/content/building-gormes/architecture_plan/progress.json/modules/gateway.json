@@ -9532,9 +9532,9 @@
     "item": {
       "name": "Kernel cross-provider client swap for in-session model switch",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Extend the shipped PlatformEventSetModel handler so that when the requested provider (k.sessionProvider, already captured by the prerequisite row) differs from the resident k.client's provider, a new k.client is resolved on the Run-loop goroutine through the EXISTING FallbackClientFactory(ctx, hermes.ModelRoute) machinery (internal/kernel/kernel.go:37) — NOT a bespoke client builder. Requires a pure provider+model -> hermes.ModelRoute resolver (ModelRoute needs BaseURL/APIMode/KeyEnv); source it from the existing provider catalog (internal/hermes ListPickerProviders / provider config) rather than inventing a new catalog. Same-provider switches keep the resident client untouched (already shipped). History is still NOT cleared. The gateway SessionModelOverride stays untouched.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tui",
       "module": "gateway",
@@ -9566,7 +9566,7 @@
         "Session history is preserved across the cross-provider switch; the gateway SessionModelOverride is untouched.",
         "The provider+model -> hermes.ModelRoute resolution reuses existing internal/hermes provider/picker data, with a fixture covering an unknown provider/model degraded path."
       ],
-      "note": "Filed by builder-pass 2026-05-15/tui-slash-model as the honest scope split from the prerequisite 'Kernel in-session model-switch seam for the native TUI'. The same-provider apply seam shipped clean and fixture-proven; the cross-provider k.client swap was deferred because resolving provider+model -> hermes.ModelRoute (needs BaseURL/APIMode/KeyEnv) has no clean existing path and would have forced a bespoke builder or invented catalog (both not_ready_when violations). k.sessionProvider is already captured by the shipped handler, so this follow-up is purely the client-resolution layer. swarm_origin: builder-pass 2026-05-15/tui-slash-model.",
+      "note": "Complete 2026-05-21: PlatformEventSetModel now swaps k.client on the Run-loop goroutine when the requested provider differs from the resident session provider. The swap reuses the existing FallbackClientFactory(ctx, hermes.ModelRoute) and resolves provider metadata from hermes.ResolveProviderManifestEntry rather than adding a bespoke client builder or new catalog. Same-provider/blank-provider switches keep existing behavior; history is preserved; unknown providers return typed operator evidence without mutating the resident model; gateway SessionModelOverride remains untouched.",
       "write_scope": [
         "internal/kernel/kernel.go",
         "internal/kernel/kernel_test.go",
@@ -9579,6 +9579,17 @@
       ],
       "done_signal": [
         "A cross-provider PlatformEventSetModel is fixture-proven to swap k.client via the existing FallbackClientFactory while preserving history and leaving same-provider switches and the gateway override untouched."
+      ],
+      "implementation": [
+        "internal/kernel/kernel.go",
+        "internal/kernel/kernel_test.go"
+      ],
+      "validation": [
+        "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel|CrossProvider' -count=1",
+        "go test ./internal/kernel -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
       ]
     }
   },

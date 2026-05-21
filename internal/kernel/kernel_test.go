@@ -601,3 +601,76 @@ func TestKernel_PerEventModelWinsOverSessionOverride(t *testing.T) {
 		t.Fatalf("turn model = %q, want per-event override per-event-model to win over session override", got)
 	}
 }
+
+func TestKernel_SetSessionModelCrossProviderSwapsClientViaFallbackFactory(t *testing.T) {
+	resident := hermes.NewMockClient()
+	swapped := hermes.NewMockClient()
+	swapped.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "swapped"},
+		{Kind: hermes.EventDone, FinishReason: "stop"},
+	}, "sess-cross-provider")
+	var captured hermes.ModelRoute
+	var factoryCalls int
+	k := New(Config{
+		Model:     "hermes-agent",
+		Endpoint:  "http://mock",
+		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		FallbackClientFactory: func(_ context.Context, route hermes.ModelRoute) (hermes.Client, error) {
+			factoryCalls++
+			captured = route
+			return swapped, nil
+		},
+	}, resident, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+
+	if err := k.SetSessionModel("openrouter", "openai/gpt-4o-mini"); err != nil {
+		t.Fatalf("SetSessionModel cross-provider = %v, want nil", err)
+	}
+	if factoryCalls != 1 {
+		t.Fatalf("factoryCalls = %d, want 1", factoryCalls)
+	}
+	if captured.Provider != "openrouter" || captured.Model != "openai/gpt-4o-mini" {
+		t.Fatalf("captured route = %+v, want openrouter/openai/gpt-4o-mini", captured)
+	}
+	if captured.KeyEnv == "" || captured.APIMode == "" {
+		t.Fatalf("captured route missing provider metadata: %+v", captured)
+	}
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "hi"}); err != nil {
+		t.Fatal(err)
+	}
+	final := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && countRole(f.History, "assistant") >= 1
+	}, 3*time.Second)
+	if got := final.History[len(final.History)-1].Content; got != "swapped" {
+		t.Fatalf("assistant reply = %q, want swapped client response", got)
+	}
+	if len(resident.Requests()) != 0 {
+		t.Fatalf("resident client handled %d requests, want 0 after cross-provider swap", len(resident.Requests()))
+	}
+	if len(swapped.Requests()) != 1 {
+		t.Fatalf("swapped client handled %d requests, want 1", len(swapped.Requests()))
+	}
+}
+
+func TestKernel_SetSessionModelUnknownProviderDoesNotMutateResidentModel(t *testing.T) {
+	k, _ := fixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+
+	err := k.SetSessionModel("missing-provider", "missing-model")
+	if err == nil || !strings.Contains(err.Error(), "unknown model provider") {
+		t.Fatalf("SetSessionModel unknown err = %v, want unknown provider", err)
+	}
+	frame := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.LastError != ""
+	}, 3*time.Second)
+	if frame.Model != "hermes-agent" || frame.LastError == "" {
+		t.Fatalf("frame = %+v, want resident model unchanged with error evidence", frame)
+	}
+}
