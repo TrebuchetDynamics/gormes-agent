@@ -13,21 +13,11 @@ func TestInstall_DryRunTermuxPublishesOnlyToPrefixBin(t *testing.T) {
 		t.Fatalf("create Termux install fixture root: %v", err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(sb) })
-	home := filepath.Join(sb, "home")
-	installHome := filepath.Join(sb, "install-home")
-	prefix := filepath.Join(sb, "com.termux", "files", "usr")
-	out := runInstallDryRun(t, map[string]string{
-		"HOME":                        home,
-		"GORMES_INSTALL_HOME":         installHome,
-		"GORMES_SKIP_SETUP":           "1",
-		"GORMES_RESTART_GATEWAY":      "never",
-		"GORMES_INSTALL_TEST_UNAME_M": "aarch64",
-		"PREFIX":                      prefix,
-		"TERMUX_VERSION":              "0.119.0",
-	}, "--verbose")
+	fixture := newTermuxDryRunFixture(sb)
+	out := runInstallDryRun(t, fixture.env(nil), "--verbose")
 
-	wantPublished := filepath.Join(prefix, "bin", "gormes")
-	wantManaged := filepath.Join(installHome, "bin", "gormes")
+	wantPublished := filepath.Join(fixture.Prefix, "bin", "gormes")
+	wantManaged := filepath.Join(fixture.InstallHome, "bin", "gormes")
 	for _, want := range []string{
 		"termux: yes",
 		"release_arch: android-arm64",
@@ -40,7 +30,7 @@ func TestInstall_DryRunTermuxPublishesOnlyToPrefixBin(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{
-		filepath.Join(home, ".local", "bin", "gormes"),
+		filepath.Join(fixture.Home, ".local", "bin", "gormes"),
 		"/home/xel",
 		"workspace-mineru",
 		"workspace-gormes",
