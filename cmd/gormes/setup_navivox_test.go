@@ -52,6 +52,38 @@ func TestNavivoxSetupBindDefault_TailscaleExposure_SkipsTailscaleEntryWithoutIPv
 	}
 }
 
+func TestNavivoxSetupBindDefault_WireGuardExposure_PicksDetectedWireGuardIPv4(t *testing.T) {
+	prev := vpnhostList
+	t.Cleanup(func() { vpnhostList = prev })
+	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{
+			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+			{Iface: "wg0", Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.1"},
+		}, nil
+	}
+
+	got := navivoxSetupBindDefault(context.Background(), "", config.NavivoxExposureWireGuard)
+	if got != "10.0.0.1" {
+		t.Fatalf("bind_host = %q, want wireguard IPv4 10.0.0.1", got)
+	}
+}
+
+func TestNavivoxSetupBindDefault_VPNExposure_PicksFirstDetectedVPNIP(t *testing.T) {
+	prev := vpnhostList
+	t.Cleanup(func() { vpnhostList = prev })
+	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{
+			{Iface: "tun0", Kind: vpnhost.KindTunOther, IPv4: "10.8.0.5"},
+			{Iface: "wg0", Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.1"},
+		}, nil
+	}
+
+	got := navivoxSetupBindDefault(context.Background(), "", config.NavivoxExposureVPN)
+	if got != "10.8.0.5" {
+		t.Fatalf("bind_host = %q, want first VPN IPv4 10.8.0.5", got)
+	}
+}
+
 func TestNavivoxSetupBindDefault_CurrentValuePreservedRegardlessOfExposure(t *testing.T) {
 	got := navivoxSetupBindDefault(context.Background(), "192.168.5.5", config.NavivoxExposureTailscale)
 	if got != "192.168.5.5" {

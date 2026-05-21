@@ -42,7 +42,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	}
 
 	exposureDefault := firstNonEmptySetup(cfg.Navivox.ExposureMode, config.NavivoxExposureLocal)
-	exposureInput, err := promptString(cmd, "Exposure mode (local/tailscale/public) [local]: ", exposureDefault)
+	exposureInput, err := promptString(cmd, "Exposure mode (local/tailscale/wireguard/vpn/public) [local]: ", exposureDefault)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,11 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		exposureMode = config.NavivoxExposureLocal
 	}
 	switch exposureMode {
-	case config.NavivoxExposureLocal, config.NavivoxExposureTailscale, config.NavivoxExposurePublic:
+	case config.NavivoxExposureLocal,
+		config.NavivoxExposureTailscale,
+		config.NavivoxExposureWireGuard,
+		config.NavivoxExposureVPN,
+		config.NavivoxExposurePublic:
 	default:
 		return fmt.Errorf("setup navivox: unsupported exposure mode %q", exposureInput)
 	}
@@ -205,16 +209,31 @@ func navivoxSetupBindDefault(ctx context.Context, current, exposureMode string) 
 	case config.NavivoxExposurePublic:
 		return "0.0.0.0"
 	case config.NavivoxExposureTailscale:
-		hosts, _ := vpnhostList(ctx)
-		for _, h := range hosts {
-			if h.Kind == vpnhost.KindTailscale && h.IPv4 != "" {
-				return h.IPv4
-			}
-		}
-		return config.NavivoxDefaultBindHost
+		return navivoxSetupVPNBindDefault(ctx, func(h vpnhost.Host) bool {
+			return h.Kind == vpnhost.KindTailscale
+		})
+	case config.NavivoxExposureWireGuard:
+		return navivoxSetupVPNBindDefault(ctx, func(h vpnhost.Host) bool {
+			return h.Kind == vpnhost.KindWireGuard
+		})
+	case config.NavivoxExposureVPN:
+		return navivoxSetupVPNBindDefault(ctx, func(vpnhost.Host) bool { return true })
 	default:
 		return config.NavivoxDefaultBindHost
 	}
+}
+
+func navivoxSetupVPNBindDefault(ctx context.Context, match func(vpnhost.Host) bool) string {
+	hosts, _ := vpnhostList(ctx)
+	for _, h := range hosts {
+		if !match(h) {
+			continue
+		}
+		if h.IPv4 != "" {
+			return h.IPv4
+		}
+	}
+	return config.NavivoxDefaultBindHost
 }
 
 func generateNavivoxSetupToken() (string, error) {
