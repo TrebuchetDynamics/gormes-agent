@@ -47,6 +47,7 @@ Use these skills as the default routing surface:
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
 | Running a recurring full Hermes-in-Go parity sweep or recording periodic parity progress | `gormes-hermes-parity` as the subskill orchestrator |
 | Discovering useful OpenClaw-only behavior absent from Hermes for possible Gormes-owned adoption | `gormes-openclaw-parity` |
+| Discovering reusable Pi harness techniques without making Pi a parity contract | `gormes-pi-parity` |
 | Mapping Hermes/Honcho parity gaps | `gormes-parity-auditor` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
@@ -140,6 +141,7 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Unsure which workflow applies | `docs/development-skills/gormes-skill-manager/SKILL.md` |
 | Running a recurring Hermes/Gormes parity sweep or checking periodic parity progress | `docs/development-skills/gormes-hermes-parity/SKILL.md` |
 | Discovering useful OpenClaw-only behavior that Hermes lacks | `docs/development-skills/gormes-openclaw-parity/SKILL.md` |
+| Learning reusable Pi harness techniques without conflicting with Hermes/OpenClaw parity | `docs/development-skills/gormes-pi-parity/SKILL.md` |
 | Planning phases, dependencies, or roadmap rows | `docs/development-skills/gormes-planner/SKILL.md` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `docs/development-skills/gormes-provider-parity/SKILL.md` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `docs/development-skills/gormes-browser-harness/SKILL.md` |

@@ -51,8 +51,9 @@ Use this order when several skills could apply:
    "map parity", "why does Hermes do X", "source refs", external API docs,
    or a freshly tagged external dependency/release. Route to
    `gormes-hermes-parity`, `gormes-parity-auditor`,
-   `gormes-openclaw-parity`, `gormes-context-sourcing`, or
-   `gormes-architecture-zoomout` before builder work.
+   `gormes-openclaw-parity`, `gormes-pi-parity`,
+   `gormes-context-sourcing`, or `gormes-architecture-zoomout` before builder
+   work.
 3. **Backlog-shaping intent** — plan, split, rows, roadmap, progress,
    acceptance, PRD, review finding becomes work. Route to
    `gormes-progress-slicer` or `gormes-planner`.
@@ -86,6 +87,7 @@ Use this order when several skills could apply:
 | Navivox, Telegram-like, Flutter chat/contact | mobile UI | `navivox-telegram-ui` |
 | what is missing, compare Hermes/Honcho | parity discovery | `gormes-parity-auditor` or `gormes-hermes-parity` |
 | OpenClaw-only behavior | owned enhancement triage | `gormes-openclaw-parity` |
+| Pi, pi.dev, pi-coding-agent, extension API, SDK/RPC harness, TUI components | harness technique donor triage | `gormes-pi-parity` |
 | external API/library docs | source context | `gormes-context-sourcing` |
 | tagged external repo release, `go get`, GitHub release, use module from release | dependency integration evidence | `gormes-context-sourcing` then `gormes-tdd-slice` |
 | `goscrapling v0.1.0`, tagged sibling repo, scrape dependency, use from GitHub release | released-module E2E integration | `gormes-context-sourcing` then `gormes-tdd-slice` |
@@ -118,6 +120,11 @@ Pick the primary intent:
   `gormes-openclaw-parity` to classify the candidate as adopt, adapt, covered,
   Hermes parity, exclude, or blocked. Route adopt/adapt findings to
   `gormes-planner` for progress rows before implementation.
+- **Learn from Pi harness techniques** such as extension APIs, tool
+  middleware, SDK/RPC embedding, TUI components, session trees, compaction,
+  packages, prompt templates, safety gates, or provider hooks: use
+  `gormes-pi-parity`. Pi is a donor for harness design, not a Hermes or
+  OpenClaw parity contract.
 - **Concrete Gormes-vs-Hermes UX bug** such as ugly TUI chrome, duplicate
   replies, visible hourglass/status messages, hidden tool-progress mismatch,
   Telegram formatting drift, or stale product labels: use

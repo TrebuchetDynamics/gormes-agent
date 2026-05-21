@@ -9,6 +9,7 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | Recurring Hermes/Gormes parity sweep or taxonomy refresh | `gormes-hermes-parity` | `gormes-parity-auditor`, `gormes-planner`, `gormes-tdd-slice` |
 | Map missing Hermes/Honcho behavior before implementation | `gormes-parity-auditor` | `gormes-planner` |
 | Discover OpenClaw-only behavior worth adopting | `gormes-openclaw-parity` | `gormes-planner` |
+| Discover reusable Pi harness techniques without treating Pi as a parity contract | `gormes-pi-parity` | `gormes-planner`, `gormes-interface-designer`, or `gormes-tdd-slice` |
 | Refine phases, rows, dependencies, or progress docs | `gormes-planner` | none unless implementation starts |
 | Slice a broad plan, PRD, parity gap, or review finding into progress rows | `gormes-progress-slicer` | `gormes-planner` to write/update rows |
 | Implement one builder-ready row | `gormes-builder` | `gormes-tdd-slice` |
