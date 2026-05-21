@@ -88,6 +88,7 @@ Use this order when several skills could apply:
 | OpenClaw-only behavior | owned enhancement triage | `gormes-openclaw-parity` |
 | external API/library docs | source context | `gormes-context-sourcing` |
 | tagged external repo release, `go get`, GitHub release, use module from release | dependency integration evidence | `gormes-context-sourcing` then `gormes-tdd-slice` |
+| `goscrapling v0.1.0`, tagged sibling repo, scrape dependency, use from GitHub release | released-module E2E integration | `gormes-context-sourcing` then `gormes-tdd-slice` |
 | plan, roadmap, progress row | planner pass | `gormes-planner` |
 | split plan/PRD/review into rows | vertical slicing | `gormes-progress-slicer` |
 | implement row, build slice | builder pass | `gormes-builder` + `gormes-tdd-slice` |
@@ -163,6 +164,7 @@ Pick the primary intent:
   missing or builder-ready.
 - **External library/framework/upstream source context** before planning or implementation: use `gormes-context-sourcing`, then route to the smallest parity/planner/builder skill.
 - **Use a freshly tagged external Go module release** such as a sibling repo tag pushed to GitHub: use `gormes-context-sourcing` first to verify the module path, tag, release commit, public availability, and absence of local `replace` assumptions. Then use `gormes-tdd-slice` for a failing E2E/import test that proves Gormes consumes the released module, not a local checkout. If the integration changes public behavior or lacks a progress row, insert `gormes-progress-slicer`/`gormes-planner` before implementation.
+  - For Juan's `goscrapling v0.1.0` handoff, preserve the supplied evidence (`/home/xel/git/sages-openclaw/workspace-mineru/goscrapling`, branch `main`, tag commit `ca1f046aa942c0739a73cb0715b67aec608b8e39`, tag `v0.1.0`, pre-tag validation) as context, but do not import from that sibling checkout. Verify the public GitHub module/tag with Go tooling, update Gormes via the release version, and write a failing E2E/TDD proof before implementation.
 - **Architecture zoom-out or unfamiliar cross-package work**: use `gormes-architecture-zoomout` before implementation; route unclear package boundaries to `gormes-interface-designer`.
 - **Broad plan, PRD, parity gap, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces.
 - **Throwaway design, state-machine, protocol, or UI experiment**: use `gormes-prototype-spike`; route validated production work to `gormes-tdd-slice`.
@@ -208,7 +210,8 @@ Use these composition rules:
 - If the user says to **use a release/tag from another repo**, never rely on a
   sibling checkout or local `replace` by default. Verify the upstream module tag
   first, then write an E2E/TDD proof that imports or exercises the released
-  artifact.
+  artifact. Treat supplied local release notes as evidence to verify, not as a
+  substitute for public module/tag resolution.
 - If the user gives **a concrete failure artifact**, reproduce or inspect that
   artifact before broad parity audits.
 - If the user asks to **make it better** without an artifact, use the ladder:

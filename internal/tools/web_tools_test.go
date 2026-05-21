@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,6 +18,35 @@ import (
 	"github.com/TrebuchetDynamics/goscrapling"
 	goscraplingbrowser "github.com/TrebuchetDynamics/goscrapling/engines/browser"
 )
+
+func TestGoscraplingDependencyUsesPublicV010Release(t *testing.T) {
+	cmd := exec.Command("go", "list", "-m", "-json", "github.com/TrebuchetDynamics/goscrapling")
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go list goscrapling module: %v\n%s", err, out)
+	}
+	var mod struct {
+		Path    string
+		Version string
+		Replace *struct {
+			Path    string
+			Version string
+		}
+	}
+	if err := json.Unmarshal(out, &mod); err != nil {
+		t.Fatalf("parse go list module JSON: %v\n%s", err, out)
+	}
+	if mod.Path != "github.com/TrebuchetDynamics/goscrapling" {
+		t.Fatalf("module path = %q, want github.com/TrebuchetDynamics/goscrapling", mod.Path)
+	}
+	if mod.Replace != nil {
+		t.Fatalf("goscrapling dependency is replaced by %s %s, want public v0.1.0 release", mod.Replace.Path, mod.Replace.Version)
+	}
+	if mod.Version != "v0.1.0" {
+		t.Fatalf("goscrapling version = %q, want public v0.1.0 release", mod.Version)
+	}
+}
 
 func TestWebToolsExposeHermesNamesAndSchemas(t *testing.T) {
 	webTools := NewWebTools(WebToolsConfig{

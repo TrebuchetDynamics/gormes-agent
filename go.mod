@@ -55,7 +55,7 @@ require (
 )
 
 require (
-	github.com/TrebuchetDynamics/goscrapling v0.0.0-20260520210007-f8458a6f1b89
+	github.com/TrebuchetDynamics/goscrapling v0.1.0
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymanbagabas/go-udiff v0.3.1 // indirect
