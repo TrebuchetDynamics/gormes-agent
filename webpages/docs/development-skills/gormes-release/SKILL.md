@@ -9,8 +9,9 @@ description: Use when the user asks to release Gormes, bump the operator-facing 
 
 Use this skill only for the public release lane: version prep, commit-all
 development cleanup, local and remote validation, development-to-main PR merge,
-post-merge CI/CD validation on `main`, annotated tag creation, GitHub release
-artifact verification, and post-release development sync.
+post-merge CI/CD validation on `main`, README/public-status freshness,
+annotated tag creation, GitHub release artifact verification, and post-release
+development sync.
 
 If the user asks to improve `gormes-release` itself, treat that as skill
 maintenance first: use `gormes-skill-manager` plus system `skill-creator`, edit
@@ -55,6 +56,10 @@ Stop and report instead of continuing when:
   source, or changes too ambiguous to include safely. For an explicit full
   release/publish request, treat current dirty work as agreed for inclusion
   after the safety scan;
+- `README.md`, `CHANGELOG.md`, `webpages/landing/src/data/release.json`, or
+  benchmark-derived public status claims still mention the previous release,
+  previous date alias, stale release URL, or stale binary size after version
+  prep;
 - `go test ./...`, `go run ./cmd/progress validate`, `git diff --check`, or
   required remote checks fail;
 - any post-merge `main` workflow for the release merge commit fails or remains
@@ -129,15 +134,32 @@ git fetch origin main development --tags
 4. Apply release prep on `development`:
    - update `cmd/gormes/version.go`;
    - add a dated section to `CHANGELOG.md`;
+   - refresh `README.md` public status so latest release, date alias, release
+     URL, CI/CD wording, artifact matrix, and benchmark-derived binary size
+     match the release being prepared;
+   - regenerate public release metadata with `node webpages/landing/scripts/sync-assets.mjs`
+     when `cmd/gormes/version.go`, installer mirrors, benchmarks, or landing
+     data changed;
    - regenerate progress docs if progress files changed;
    - keep `.github/workflows/release.yml` validate prerequisites aligned with
      `.github/workflows/ci.yml`; `go test ./...` includes docs tests that need
      `docs` npm dependencies installed;
    - include any current dirty runtime/docs/skill changes after scanning for
      credentials or accidental artifacts.
-5. Run local gates one at a time:
+5. Run local gates one at a time, including a public-status freshness check:
 
 ```sh
+python3 - <<'PY'
+from pathlib import Path
+version = '<version>'
+tag = f'v{version}'
+date_alias = '<date-alias>'
+readme = Path('README.md').read_text()
+release_json = Path('webpages/landing/src/data/release.json').read_text()
+assert tag in readme and date_alias in readme, 'README release status is stale'
+assert tag in release_json and date_alias in release_json, 'landing release metadata is stale'
+assert '<previous-tag>' not in readme, 'README still names previous release'
+PY
 timeout 20m go test ./... -count=1
 timeout 5m go run ./cmd/progress validate
 git diff --check
