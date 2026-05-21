@@ -110,6 +110,26 @@ Recommendation strength:
 - `Worth exploring`: 3-6 or needs interface design first.
 - `Speculative`: 0-2; usually report as anti-candidate, not a task.
 
+## Score Calibration Examples
+
+Use these examples to keep reviews consistent:
+
+| Example | Likely score | Why |
+|---|---:|---|
+| Three channel runtimes independently redact the same token/error/status shape | 8-10 | repeated mechanics, clear caller burden, public behavior can be characterized with transcript fixtures |
+| `cmd/gormes setup` and `internal/tui/admin` both clamp terminal layout with copied width/height math | 6-8 | repeated mechanics and focused TUI tests, but user-visible layout must be preserved exactly |
+| A package exports an interface with one implementation and tests use it only to mock private helpers | 1-3 | likely one-off seam; prefer package-local helper or deletion unless a second adapter is imminent |
+| Moving files into a new package because the old package is large | 0-2 | layout aesthetics only unless caller knowledge, tests, or locality improve |
+| Replacing provider-specific behavior with one generic provider abstraction | 2-5 | may reduce duplication, but high parity drift risk; route through provider parity/interface design first |
+
+## Evidence Quality Levels
+
+Prefer candidates with `A` or `B` evidence. Mark `C` as speculative unless the user asks for exploration.
+
+- **A — executable evidence:** focused test, fixture, command output, or failing/repeated code path proves the friction.
+- **B — source evidence:** two or more file paths/functions show duplicated mechanics or leaked interface burden.
+- **C — impression evidence:** “this feels messy” without caller/test/contract proof.
+
 ## Output Shape
 
 ```text
@@ -125,6 +145,7 @@ Architecture candidates:
    files: <paths>
    current shape: <modules/callers>
    interface burden: <facts callers/tests must know today>
+   evidence_quality: <A executable/B source/C impression>
    friction: <why locality/leverage/testability is weak>
    deepening move: <smaller interface or better seam>
    deletion test: <complexity vanishes/spreads>
@@ -174,6 +195,7 @@ architecture_review_packet:
   candidate: <title>
   score: <n>/10
   smell: <taxonomy item>
+  evidence_quality: <A/B/C>
   preserve_contracts:
     - <CLI/tool/API/status behavior>
   characterization_test:
@@ -186,7 +208,7 @@ architecture_review_packet:
   next_skill: <gormes-service-layer-refactor|gormes-interface-designer|gormes-tdd-slice|gormes-progress-slicer>
 ```
 
-If the packet cannot name a characterization test and allowed write scope, the candidate is not ready for implementation.
+If the packet cannot name a characterization test and allowed write scope, the candidate is not ready for implementation. If evidence quality is `C`, the next skill must be `gormes-architecture-zoomout` or `gormes-interface-designer`, not implementation.
 
 ## Rules
 

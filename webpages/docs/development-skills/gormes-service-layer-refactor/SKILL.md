@@ -48,7 +48,7 @@ refactor_slice:
   stop_before: <second subsystem or public behavior change>
 ```
 
-If the slice cannot name one preserved behavior and one caller family, return to `gormes-architecture-zoomout`. If it cannot name a focused validation command, the slice starts by adding or finding the characterization test.
+If the slice cannot name one preserved behavior and one caller family, return to `gormes-architecture-zoomout`. If it cannot name a focused validation command, the slice starts by adding or finding the characterization test. If the source architecture packet has evidence quality `C`, do not refactor yet; gather executable or source evidence first.
 
 ## Quick Reference
 
@@ -65,6 +65,7 @@ If the slice cannot name one preserved behavior and one caller family, return to
 | Tests duplicate large setup just to reach one behavior | Move setup behind a fakeable seam and test through the caller interface |
 | Same clock/env/filesystem/network dependency appears in many tests | Add one package-local adapter seam with fake and production adapters |
 | Public helper exists only for tests | Prefer package-local seam or test through public behavior |
+| Architecture packet has only impression evidence | Gather executable/source evidence before editing |
 
 ## Stop Conditions
 
