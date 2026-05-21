@@ -353,24 +353,33 @@ func ArchiveAgentCreatedSkill(root, name string, now time.Time) (string, error) 
 	if isArchivedSkillPath(root, skillDir) || isHubSkillPath(root, skillDir) || isBundledSkill(root, name) {
 		return "", fmt.Errorf("skill %q is bundled or hub-installed; never archive", name)
 	}
-	if now.IsZero() {
-		now = time.Now().UTC()
-	}
-	archiveRoot := filepath.Join(root, "active", ".archive")
-	if err := os.MkdirAll(archiveRoot, 0o755); err != nil {
-		return "", err
-	}
-	dest := filepath.Join(archiveRoot, name)
-	if _, err := os.Stat(dest); err == nil {
-		dest = filepath.Join(archiveRoot, fmt.Sprintf("%s-%s", name, timestampID(now)))
-	}
-	if err := os.Rename(skillDir, dest); err != nil {
+	dest, archivedAt, err := moveSkillDirToArchive(root, name, skillDir, now)
+	if err != nil {
 		return "", err
 	}
 	return dest, updateUsageRecord(root, name, func(rec *SkillUsageRecord) {
 		rec.State = SkillStateArchived
-		rec.ArchivedAt = now.UTC()
+		rec.ArchivedAt = archivedAt
 	})
+}
+
+func moveSkillDirToArchive(root, name, skillDir string, now time.Time) (string, time.Time, error) {
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	archivedAt := now.UTC()
+	archiveRoot := filepath.Join(root, "active", ".archive")
+	if err := os.MkdirAll(archiveRoot, 0o755); err != nil {
+		return "", time.Time{}, err
+	}
+	dest := filepath.Join(archiveRoot, name)
+	if _, err := os.Stat(dest); err == nil {
+		dest = filepath.Join(archiveRoot, fmt.Sprintf("%s-%s", name, timestampID(archivedAt)))
+	}
+	if err := os.Rename(skillDir, dest); err != nil {
+		return "", time.Time{}, err
+	}
+	return dest, archivedAt, nil
 }
 
 func lastSkillActivity(rec SkillUsageRecord) time.Time {
