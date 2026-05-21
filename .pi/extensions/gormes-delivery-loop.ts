@@ -10,8 +10,8 @@ type LoopState = {
 };
 
 const CUSTOM_STATE_TYPE = "gormes-delivery-loop-state";
-const DEFAULT_TOPIC = "finish all builder-ready progress.json rows toward full Hermes-in-Go parity";
-const DEFAULT_ITERATIONS = 1;
+const DEFAULT_TOPIC = "auto-select the highest-impact builder-ready progress.json row toward finishing full Hermes-in-Go parity";
+const DEFAULT_ITERATIONS = 10;
 const HARD_MAX_ITERATIONS = 50;
 
 let state: LoopState = inactiveState();
