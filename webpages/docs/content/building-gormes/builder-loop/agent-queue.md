@@ -47,27 +47,7 @@ selection.
 - Source refs: hermes-agent/gateway/platforms/base.py, hermes-agent/gateway/platforms/api_server.py, hermes-agent/gateway/platforms/telegram.py, hermes-agent/gateway/platforms/yuanbao.py, hermes-agent/tui_gateway/server.py, hermes-agent/tui_gateway/render.py, internal/channels, internal/gateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Hermes agent runtime strict-fidelity source-pair expansion
-
-- Phase: 4 / 4.I
-- Owner: `docs`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Expand source-pair and progress mappings for unmapped Hermes `agent` runtime files before treating them as runtime implementation gaps. The pass must classify transports, LSP helpers, context/compression helpers, prompt caching, retry/rate diagnostics, conversation loop helpers, tool dispatch helpers, and safety/redaction helpers into existing Gormes provider/runtime/tool rows or new builder rows.
-- Trust class: operator, system
-- Ready when: `webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA., The row uses exact Hermes files/tests as evidence, not only broad directory globs., The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests.
-- Not ready when: The implementation treats low-confidence taxonomy matches as proof of coverage., The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping., The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first.
-- Degraded mode: Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.
-- Fixture: `internal/fidelity agent runtime strict-fidelity mapping fixture`
-- Write scope: `internal/runtime`, `internal/provider`, `internal/tools`, `webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/runtime ./internal/provider ./internal/tools -count=1`, `go run ./cmd/repoctl hermes-source-pairs validate`, `go run ./cmd/repoctl hermes-contract-inventory --repo-root .`
-- Done signal: Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim.
-- Acceptance: The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes., `go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence., `go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits., `go run ./cmd/progress validate` passes and generated docs show the row in the correct module.
-- Source refs: hermes-agent/agent/conversation_loop.py, hermes-agent/agent/tool_executor.py, hermes-agent/agent/context_engine.py, hermes-agent/agent/transports/codex.py, hermes-agent/agent/transports/chat_completions.py, hermes-agent/agent/lsp/manager.py, hermes-agent/tests/agent/lsp/test_lifecycle.py, internal/runtime, internal/provider
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Hermes plugin catalog strict-fidelity classifier
+## 2. Hermes plugin catalog strict-fidelity classifier
 
 - Phase: 5 / 5.I
 - Owner: `docs`
@@ -87,7 +67,7 @@ selection.
 - Source refs: hermes-agent/plugins/model-providers/openrouter/plugin.yaml, hermes-agent/plugins/model-providers/openai-codex/plugin.yaml, hermes-agent/plugins/memory/honcho/plugin.yaml, hermes-agent/plugins/platforms/simplex/adapter.py, hermes-agent/plugins/google_meet/meet_bot.py, internal/plugins, internal/provider
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Long-term plan: profile fleet supervisor and single control-plane gateway
+## 3. Long-term plan: profile fleet supervisor and single control-plane gateway
 
 - Phase: 5 / 5.O
 - Owner: `orchestrator`
@@ -107,7 +87,7 @@ selection.
 - Source refs: webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation, webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking, webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all, webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens, cmd/gormes/gateway.go:gatewayManagerConfig, internal/config/agents.go:AgentDefaultsCfg, internal/gateway/manager.go:ManagerConfig.ContextFilesProfile
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Hermes ui-tui strict-fidelity action matrix
+## 4. Hermes ui-tui strict-fidelity action matrix
 
 - Phase: 5 / 5.Q
 - Owner: `docs`
@@ -127,7 +107,7 @@ selection.
 - Source refs: hermes-agent/ui-tui/src/__tests__/slashParity.test.ts, hermes-agent/ui-tui/src/__tests__/gatewayClient.test.ts, hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts, hermes-agent/ui-tui/src/__tests__/stateIsolation.test.ts, hermes-agent/ui-tui/src/__tests__/approvalAction.test.ts, internal/tui, internal/tuigateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Hermes web dashboard strict-fidelity contract map
+## 5. Hermes web dashboard strict-fidelity contract map
 
 - Phase: 5 / 5.Q
 - Owner: `docs`
@@ -147,7 +127,7 @@ selection.
 - Source refs: hermes-agent/web/src/lib/gatewayClient.ts, hermes-agent/web/src/pages/ChatPage.tsx, hermes-agent/web/src/pages/ProfilesPage.tsx, hermes-agent/web/src/pages/PluginsPage.tsx, hermes-agent/web/src/components/ModelPickerDialog.tsx, hermes-agent/web/src/plugins/registry.ts, internal/apiserver, internal/tuigateway
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Hermes skill catalog strict-fidelity classifier
+## 6. Hermes skill catalog strict-fidelity classifier
 
 - Phase: 6 / 6.C
 - Owner: `docs`
@@ -167,7 +147,7 @@ selection.
 - Source refs: hermes-agent/skills/yuanbao/SKILL.md, hermes-agent/skills/creative/popular-web-designs/SKILL.md, hermes-agent/skills/productivity/notion/SKILL.md, hermes-agent/optional-skills/research/osint-investigation/SKILL.md, hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md, internal/skills
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. SimpleX Chat platform plugin parity
+## 7. SimpleX Chat platform plugin parity
 
 - Phase: 7 / 7.E
 - Owner: `gateway`
@@ -187,7 +167,7 @@ selection.
 - Source refs: ../hermes-agent/plugins/platforms/simplex/plugin.yaml, ../hermes-agent/plugins/platforms/simplex/adapter.py, internal/gateway/platform_manifest.go, internal/gateway/platform_connected_checkers.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Agentic-porting-kit public repo scaffold
+## 8. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

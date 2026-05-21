@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `runtime`
 **Rows:** 18
-**Status counts:** `complete`: 17 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 18 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 2 · `P1`: 10 · `P2`: 6
 
 ## Phase 4 — The Brain Transplant
@@ -21,7 +21,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `runtime` | Nested feature-level coverage test matrix for swarm gaps |
 | `complete` | `P1` | `runtime` | Hermes website docs mirror coverage gate |
 | `complete` | `P2` | `runtime` | Hermes compatibility namespace retirement boundary |
-| `planned` | `P1` | `runtime` | Hermes agent runtime strict-fidelity source-pair expansion |
+| `complete` | `P1` | `runtime` | Hermes agent runtime strict-fidelity source-pair expansion |
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC)
 

@@ -91,14 +91,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 94/111 subphases shipped · 17 in progress · 0 planned
+**Overall:** 95/111 subphases shipped · 16 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
@@ -559,7 +559,7 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho skill-outcome tracking as conclusions
 - [x] `goncho` Goncho workspace isolation with explicit global scope
 
-## Phase 4 — The Brain Transplant 🔨
+## Phase 4 — The Brain Transplant ✅
 
 *Native Go agent orchestrator + prompt builder*
 
@@ -697,7 +697,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Provider rate guard — degraded-state + last-known-good evidence
 - [x] `providers` Hermes fast-mode request override serializer
 
-### 4.I — Native Agent Turn Closure 🔨
+### 4.I — Native Agent Turn Closure ✅
 
 - [x] `runtime` Python-free normal agent turn e2e harness
 - [x] `providers` Provider-tool-memory golden transcript suite
@@ -710,7 +710,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Gormes setup/channel/provider docs webpage parity gate
 - [x] `gateway` Native runtime provider gateway binding
 - [x] `runtime` Hermes compatibility namespace retirement boundary
-- [ ] `runtime` Hermes agent runtime strict-fidelity source-pair expansion
+- [x] `runtime` Hermes agent runtime strict-fidelity source-pair expansion
 
 ### 4.J — Permission-Hardened Tool Execution ✅
 

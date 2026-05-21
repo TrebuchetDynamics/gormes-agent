@@ -3,6 +3,75 @@
   "hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
   "pairs": [
     {
+      "hermes_file": "agent/context_engine.py",
+      "gormes_targets": [
+        "internal/hermes/context_engine.go",
+        "internal/hermes/context_references.go",
+        "internal/hermes/context_compressor_budget.go"
+      ],
+      "status": "covered",
+      "contract": "Hermes context-engine assembly, context references, compression budget/headroom decisions, and provider context-boundary behavior.",
+      "tests": [
+        "go test ./internal/hermes -run 'TestContextEngine|TestContextReference|TestContextCompressor' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes agent runtime strict-fidelity source-pair expansion"
+      ],
+      "upstream_tests": [
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_context_compressor.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Gormes implements this contract as Go-native context engine and compressor helpers with hermetic provider-boundary tests."
+    },
+    {
+      "hermes_file": "agent/conversation_loop.py",
+      "gormes_targets": [
+        "internal/kernel/kernel.go",
+        "internal/hermes/prompt_assembly.go",
+        "internal/hermes/stream.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes conversation loop turn orchestration, prompt assembly, streaming events, retry boundaries, and final assistant/tool ordering.",
+      "tests": [
+        "go test ./internal/kernel ./internal/hermes -run 'Test.*Turn|Test.*Stream|TestPrompt' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes agent runtime strict-fidelity source-pair expansion",
+        "Kernel tool loop"
+      ],
+      "upstream_tests": [
+        "tests/agent/test_streaming_context_scrubber.py",
+        "tests/agent/test_unsupported_parameter_retry.py",
+        "tests/agent/test_unsupported_temperature_retry.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Kernel and Hermes client split the Python conversation loop; partial remains until every helper in the strict-fidelity bucket is classified or covered."
+    },
+    {
+      "hermes_file": "agent/lsp/manager.py",
+      "gormes_targets": [
+        "internal/lsp/diagnostics.go",
+        "internal/tools/file_task_tools.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes LSP manager diagnostics, workspace/service lifecycle, diagnostic delta projection, and file-tool write-time semantic feedback.",
+      "tests": [
+        "go test ./internal/lsp ./internal/tools -run 'Test.*LSP|Test.*Diagnostic' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes agent runtime strict-fidelity source-pair expansion",
+        "Hermes LSP write-time semantic diagnostics"
+      ],
+      "upstream_tests": [
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
+        "tests/agent/lsp/test_diagnostics_field.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Gormes currently covers diagnostic deltas at the file-tool seam; full LSP lifecycle/workspace parity remains partial."
+    },
+    {
       "hermes_file": "agent/prompt_builder.py",
       "gormes_targets": [
         "internal/hermes/prompt_assembly.go",
@@ -26,6 +95,78 @@
       ],
       "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
       "notes": "Prompt fragments are split across Go-native helpers; file-shape parity means named homes for contract families, not one monolithic prompt_builder.go."
+    },
+    {
+      "hermes_file": "agent/tool_executor.py",
+      "gormes_targets": [
+        "internal/kernel/toolexec.go",
+        "internal/kernel/tool_safety.go",
+        "internal/tools"
+      ],
+      "status": "partial",
+      "contract": "Hermes tool dispatch, tool-result classification, guardrails, cancellation, audit/error envelopes, and tool budget behavior.",
+      "tests": [
+        "go test ./internal/kernel ./internal/tools -run 'Test.*Tool|Test.*Budget|Test.*Safety' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes agent runtime strict-fidelity source-pair expansion",
+        "Kernel tool loop",
+        "Hermes tool tail strict-fidelity source-pair expansion"
+      ],
+      "upstream_tests": [
+        "tests/agent/test_tool_result_classification.py",
+        "tests/agent/test_tool_guardrails.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Gormes owns Go-native tool execution inside kernel plus tool registry packages; remaining helper parity is tracked as partial, not covered."
+    },
+    {
+      "hermes_file": "agent/transports/chat_completions.py",
+      "gormes_targets": [
+        "internal/hermes/provider_transport.go",
+        "internal/hermes/openrouter_compatible.go",
+        "internal/hermes/stream.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes OpenAI-compatible chat completions transport, streaming/tool-call projection, provider URL handling, retry diagnostics, and compatibility shims.",
+      "tests": [
+        "go test ./internal/hermes -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes agent runtime strict-fidelity source-pair expansion",
+        "Kernel cross-provider client swap for in-session model switch"
+      ],
+      "upstream_tests": [
+        "tests/agent/transports/test_chat_completions.py",
+        "tests/agent/transports/test_transport.py",
+        "tests/agent/test_direct_provider_url_detection.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Gormes provider transport is Go-native and broadly covered; partial remains for exact upstream transport taxonomy and edge-provider shims."
+    },
+    {
+      "hermes_file": "agent/transports/codex.py",
+      "gormes_targets": [
+        "internal/hermes/codex_responses_adapter.go",
+        "internal/hermes/codex_responses_stream.go",
+        "internal/hermes/codex_cloudflare_headers.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes Codex transport request projection, Responses API stream repair, role/content mapping, Cloudflare headers, temperature/model compatibility, and multimodal tool-result handling.",
+      "tests": [
+        "go test ./internal/hermes -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes agent runtime strict-fidelity source-pair expansion",
+        "Kernel cross-provider client swap for in-session model switch"
+      ],
+      "upstream_tests": [
+        "tests/agent/transports/test_codex_transport.py",
+        "tests/agent/transports/test_codex_app_server_runtime.py",
+        "tests/agent/transports/test_codex_event_projector.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Codex transport is substantially mapped but remains partial while app-server/session transport details are still separate parity work."
     },
     {
       "hermes_file": "cli.py",

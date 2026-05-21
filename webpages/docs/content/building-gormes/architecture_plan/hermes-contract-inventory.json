@@ -1,6 +1,6 @@
 {
   "schema_version": "hermes-fidelity/v1",
-  "generated_at": "2026-05-21T15:11:39Z",
+  "generated_at": "2026-05-21T15:24:48Z",
   "hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
   "hermes_path": "hermes-agent",
   "progress_path": "webpages/docs/content/building-gormes/architecture_plan/progress.json",
@@ -3406,12 +3406,10 @@
       "tests/agent/lsp/test_broken_set.py",
       "tests/agent/lsp/test_client_e2e.py",
       "tests/agent/lsp/test_delta_key.py",
-      "tests/agent/lsp/test_diagnostics_field.py",
       "tests/agent/lsp/test_eventlog.py",
       "tests/agent/lsp/test_install_and_lint_fixes.py",
       "tests/agent/lsp/test_protocol.py",
       "tests/agent/lsp/test_reporter.py",
-      "tests/agent/lsp/test_service.py",
       "tests/agent/test_anthropic_adapter.py",
       "tests/agent/test_anthropic_keychain.py",
       "tests/agent/test_anthropic_oauth_pkce.py",
@@ -3430,9 +3428,7 @@
       "tests/agent/test_compress_focus.py",
       "tests/agent/test_compressor_historical_media.py",
       "tests/agent/test_compressor_image_tokens.py",
-      "tests/agent/test_context_compressor.py",
       "tests/agent/test_context_compressor_summary_continuity.py",
-      "tests/agent/test_context_engine.py",
       "tests/agent/test_context_references.py",
       "tests/agent/test_copilot_acp_client.py",
       "tests/agent/test_copilot_acp_deprecation.py",
@@ -3445,7 +3441,6 @@
       "tests/agent/test_curator_classification.py",
       "tests/agent/test_curator_reports.py",
       "tests/agent/test_deepseek_anthropic_thinking.py",
-      "tests/agent/test_direct_provider_url_detection.py",
       "tests/agent/test_display.py",
       "tests/agent/test_display_emoji.py",
       "tests/agent/test_error_classifier.py",
@@ -3487,28 +3482,18 @@
       "tests/agent/test_skill_commands.py",
       "tests/agent/test_skill_commands_reload.py",
       "tests/agent/test_skill_utils.py",
-      "tests/agent/test_streaming_context_scrubber.py",
       "tests/agent/test_subagent_progress.py",
       "tests/agent/test_subagent_stop_hook.py",
       "tests/agent/test_subdirectory_hints.py",
       "tests/agent/test_think_scrubber.py",
       "tests/agent/test_title_generator.py",
-      "tests/agent/test_tool_guardrails.py",
-      "tests/agent/test_tool_result_classification.py",
-      "tests/agent/test_unsupported_parameter_retry.py",
-      "tests/agent/test_unsupported_temperature_retry.py",
       "tests/agent/test_usage_pricing.py",
       "tests/agent/test_video_gen_registry.py",
       "tests/agent/test_vision_resolved_args.py",
       "tests/agent/transports/__init__.py",
       "tests/agent/transports/test_bedrock_transport.py",
-      "tests/agent/transports/test_chat_completions.py",
-      "tests/agent/transports/test_codex_app_server_runtime.py",
       "tests/agent/transports/test_codex_app_server_session.py",
-      "tests/agent/transports/test_codex_event_projector.py",
-      "tests/agent/transports/test_codex_transport.py",
       "tests/agent/transports/test_hermes_tools_mcp_server.py",
-      "tests/agent/transports/test_transport.py",
       "tests/agent/transports/test_types.py",
       "tests/cli/__init__.py",
       "tests/cli/test_branch_command.py",
@@ -4598,7 +4583,7 @@
       },
       {
         "suite": "agent/lsp",
-        "count": 12,
+        "count": 10,
         "source_prefix": "agent/lsp",
         "examples": [
           "tests/agent/lsp/__init__.py",
@@ -4756,27 +4741,11 @@
         ]
       },
       {
-        "suite": "agent/test_context_compressor.py",
-        "count": 1,
-        "source_prefix": "agent/test_context_compressor.py",
-        "examples": [
-          "tests/agent/test_context_compressor.py"
-        ]
-      },
-      {
         "suite": "agent/test_context_compressor_summary_continuity.py",
         "count": 1,
         "source_prefix": "agent/test_context_compressor_summary_continuity.py",
         "examples": [
           "tests/agent/test_context_compressor_summary_continuity.py"
-        ]
-      },
-      {
-        "suite": "agent/test_context_engine.py",
-        "count": 1,
-        "source_prefix": "agent/test_context_engine.py",
-        "examples": [
-          "tests/agent/test_context_engine.py"
         ]
       },
       {
@@ -4873,14 +4842,6 @@
         "source_prefix": "agent/test_deepseek_anthropic_thinking.py",
         "examples": [
           "tests/agent/test_deepseek_anthropic_thinking.py"
-        ]
-      },
-      {
-        "suite": "agent/test_direct_provider_url_detection.py",
-        "count": 1,
-        "source_prefix": "agent/test_direct_provider_url_detection.py",
-        "examples": [
-          "tests/agent/test_direct_provider_url_detection.py"
         ]
       },
       {
@@ -5212,14 +5173,6 @@
         ]
       },
       {
-        "suite": "agent/test_streaming_context_scrubber.py",
-        "count": 1,
-        "source_prefix": "agent/test_streaming_context_scrubber.py",
-        "examples": [
-          "tests/agent/test_streaming_context_scrubber.py"
-        ]
-      },
-      {
         "suite": "agent/test_subagent_progress.py",
         "count": 1,
         "source_prefix": "agent/test_subagent_progress.py",
@@ -5260,38 +5213,6 @@
         ]
       },
       {
-        "suite": "agent/test_tool_guardrails.py",
-        "count": 1,
-        "source_prefix": "agent/test_tool_guardrails.py",
-        "examples": [
-          "tests/agent/test_tool_guardrails.py"
-        ]
-      },
-      {
-        "suite": "agent/test_tool_result_classification.py",
-        "count": 1,
-        "source_prefix": "agent/test_tool_result_classification.py",
-        "examples": [
-          "tests/agent/test_tool_result_classification.py"
-        ]
-      },
-      {
-        "suite": "agent/test_unsupported_parameter_retry.py",
-        "count": 1,
-        "source_prefix": "agent/test_unsupported_parameter_retry.py",
-        "examples": [
-          "tests/agent/test_unsupported_parameter_retry.py"
-        ]
-      },
-      {
-        "suite": "agent/test_unsupported_temperature_retry.py",
-        "count": 1,
-        "source_prefix": "agent/test_unsupported_temperature_retry.py",
-        "examples": [
-          "tests/agent/test_unsupported_temperature_retry.py"
-        ]
-      },
-      {
         "suite": "agent/test_usage_pricing.py",
         "count": 1,
         "source_prefix": "agent/test_usage_pricing.py",
@@ -5317,14 +5238,14 @@
       },
       {
         "suite": "agent/transports",
-        "count": 10,
+        "count": 5,
         "source_prefix": "agent/transports",
         "examples": [
           "tests/agent/transports/__init__.py",
           "tests/agent/transports/test_bedrock_transport.py",
-          "tests/agent/transports/test_chat_completions.py",
-          "tests/agent/transports/test_codex_app_server_runtime.py",
-          "tests/agent/transports/test_codex_app_server_session.py"
+          "tests/agent/transports/test_codex_app_server_session.py",
+          "tests/agent/transports/test_hermes_tools_mcp_server.py",
+          "tests/agent/transports/test_types.py"
         ],
         "progress_rows": [
           "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -6251,7 +6172,10 @@
         "Generative Agents reflection mechanism (Park et al. 2023)",
         "Hermes Agent GEPA engine",
         "Hermes Agent MEMORY.md persistence model",
+        "agent/context_engine.py",
         "agent/prompt_builder.py",
+        "agent/transports/chat_completions.py",
+        "agent/transports/codex.py",
         "cmd/gormes/goncho.go",
         "cmd/gormes/hermes_cli_parity.go:sessions",
         "cmd/gormes/session.go",
@@ -6273,6 +6197,10 @@
         "internal/goncho/service.go",
         "internal/goncho/session.go",
         "internal/goncho/store.go",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_content.go:compressionContentLength",
         "internal/hermes/context_compressor_headroom_test.go",
@@ -6288,11 +6216,14 @@
         "internal/hermes/context_references.go",
         "internal/hermes/default_soul.go",
         "internal/hermes/model_context_resolver.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/pattern_extractor.go",
         "internal/hermes/pattern_extractor_test.go",
         "internal/hermes/prompt_assembly.go",
+        "internal/hermes/provider_transport.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/hermes/title_generator.go",
         "internal/kernel/",
@@ -6300,12 +6231,17 @@
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:204",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
         "internal/kernel/toolexec.go",
         "internal/memory/session_catalog.go",
         "internal/memory/session_lineage_search_test.go",
+        "internal/provider",
+        "internal/runtime",
         "internal/session",
         "internal/session/",
         "internal/session/directory.go",
@@ -6320,6 +6256,14 @@
         "internal/transcript/refs.go",
         "internal/tui/auto_title.go",
         "run_agent.py",
+        "tests/agent/test_context_compressor.py",
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_direct_provider_url_detection.py",
+        "tests/agent/transports/test_chat_completions.py",
+        "tests/agent/transports/test_codex_app_server_runtime.py",
+        "tests/agent/transports/test_codex_event_projector.py",
+        "tests/agent/transports/test_codex_transport.py",
+        "tests/agent/transports/test_transport.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/tools/test_transcription.py",
@@ -6645,6 +6589,8 @@
       "status": "covered",
       "gap_severity": "none",
       "evidence_refs": [
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/agent/prompt_builder.py",
         "../hermes-agent/agent/prompt_builder.py:32-73",
         "../hermes-agent/agent/prompt_builder.py:89-127",
@@ -6684,6 +6630,8 @@
         "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
         "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
         "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/gateway/test_config_cwd_bridge.py",
         "../hermes-agent/tests/hermes_cli/test_cmd_update.py@20edca75e",
         "../hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
@@ -6700,6 +6648,7 @@
         "../hermes-agent/website/docs/user-guide/configuration.md:terminal.cwd",
         "../hermes-agent/website/docs/user-guide/profiles.md:terminal.cwd profile/workspace distinction",
         "Shipped sibling: 'gormes setup <section> boxed header + completion footer (UX parity)' (chrome to reuse)",
+        "agent/lsp/manager.py",
         "agent/prompt_builder.py",
         "cmd/gormes/config.go",
         "cmd/gormes/config.go:config migrate",
@@ -6788,6 +6737,9 @@
         "internal/kernel/frame.go",
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go:204",
+        "internal/lsp/diagnostics.go",
+        "internal/provider",
+        "internal/runtime",
         "internal/skills/delta_maintenance.go",
         "internal/skills/list.go:bundledSkillsRoot",
         "internal/skills/profile_sync.go",
@@ -6795,6 +6747,7 @@
         "internal/skills/store.go:Runtime.BuildSkillBlockWithOptions",
         "internal/skills/store.go:Store.SnapshotActive",
         "internal/tools/execute_code.go:LocalCodeSandbox.Execute",
+        "internal/tools/file_task_tools.go",
         "internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase",
         "internal/tools/filesystem_scope.go:NewFilesystemScope",
         "internal/tools/profile_workspace_scope.go:ProfileWorkspaceScope",
@@ -6806,6 +6759,9 @@
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
         "internal/tui/",
         "internal/tui/wizard/",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_config.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
@@ -6829,8 +6785,8 @@
         "sessions",
         "prompt_assembly"
       ],
-      "status": "partial",
-      "gap_severity": "warning",
+      "status": "covered",
+      "gap_severity": "none",
       "evidence_refs": [
         "../agent-zero/agent.py@7c71185f:agent_init,monologue_start,message_loop_start,before_main_llm_call,response_stream_chunk,reasoning_stream_chunk,message_loop_end,monologue_end",
         "../agent-zero/helpers/extension.py@7c71185f:extensible,call_extensions_async,call_extensions_sync",
@@ -6904,10 +6860,15 @@
         "Generative Agents reflection mechanism (Park et al. 2023)",
         "Hermes Agent GEPA engine",
         "Hermes Agent MEMORY.md persistence model",
+        "agent/context_engine.py",
+        "agent/conversation_loop.py",
         "agent/prompt_builder.py",
         "agent/skill_commands.py",
         "agent/skill_preprocessing.py",
         "agent/skill_utils.py",
+        "agent/tool_executor.py",
+        "agent/transports/chat_completions.py",
+        "agent/transports/codex.py",
         "cmd/gormes/goncho.go",
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/hermes_cli_parity.go:sessions",
@@ -6968,9 +6929,13 @@
         "internal/goncho/session.go",
         "internal/goncho/store.go",
         "internal/gonchotools/",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
         "internal/hermes/",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_content.go:compressionContentLength",
         "internal/hermes/context_compressor_headroom_test.go",
@@ -6986,11 +6951,14 @@
         "internal/hermes/context_references.go",
         "internal/hermes/default_soul.go",
         "internal/hermes/model_context_resolver.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/pattern_extractor.go",
         "internal/hermes/pattern_extractor_test.go",
         "internal/hermes/prompt_assembly.go",
+        "internal/hermes/provider_transport.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/hermes/title_generator.go",
         "internal/kernel/",
@@ -7000,10 +6968,14 @@
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:100-126 (Kernel struct), 304-310 (runTurn signature), 464 (toolLoop label), 604-606 (tool loop exit), 626 (executeToolCallsInterruptible)",
         "internal/kernel/kernel.go:204",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
+        "internal/kernel/tool_safety.go",
         "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible",
         "internal/memory/",
@@ -7053,6 +7025,19 @@
         "internal/tui/auto_title.go",
         "run_agent.py",
         "space-agent/src/skills/schema.js",
+        "tests/agent/test_context_compressor.py",
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_direct_provider_url_detection.py",
+        "tests/agent/test_streaming_context_scrubber.py",
+        "tests/agent/test_tool_guardrails.py",
+        "tests/agent/test_tool_result_classification.py",
+        "tests/agent/test_unsupported_parameter_retry.py",
+        "tests/agent/test_unsupported_temperature_retry.py",
+        "tests/agent/transports/test_chat_completions.py",
+        "tests/agent/transports/test_codex_app_server_runtime.py",
+        "tests/agent/transports/test_codex_event_projector.py",
+        "tests/agent/transports/test_codex_transport.py",
+        "tests/agent/transports/test_transport.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/tools/test_transcription.py",
@@ -7079,7 +7064,7 @@
         "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md"
       ],
-      "reason": "Mapped through surfaces: sessions, prompt_assembly; worst status is prompt_assembly=partial."
+      "reason": "Mapped surfaces are strictly covered: sessions, prompt_assembly."
     },
     {
       "id": "summaries_conclusions_search",
@@ -7137,7 +7122,10 @@
         "Generative Agents reflection mechanism (Park et al. 2023)",
         "Hermes Agent GEPA engine",
         "Hermes Agent MEMORY.md persistence model",
+        "agent/context_engine.py",
         "agent/prompt_builder.py",
+        "agent/transports/chat_completions.py",
+        "agent/transports/codex.py",
         "cmd/gormes/goncho.go",
         "cmd/gormes/hermes_cli_parity.go:sessions",
         "cmd/gormes/session.go",
@@ -7159,6 +7147,10 @@
         "internal/goncho/service.go",
         "internal/goncho/session.go",
         "internal/goncho/store.go",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_content.go:compressionContentLength",
         "internal/hermes/context_compressor_headroom_test.go",
@@ -7174,11 +7166,14 @@
         "internal/hermes/context_references.go",
         "internal/hermes/default_soul.go",
         "internal/hermes/model_context_resolver.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/pattern_extractor.go",
         "internal/hermes/pattern_extractor_test.go",
         "internal/hermes/prompt_assembly.go",
+        "internal/hermes/provider_transport.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/hermes/title_generator.go",
         "internal/kernel/",
@@ -7186,12 +7181,17 @@
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:204",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
         "internal/kernel/toolexec.go",
         "internal/memory/session_catalog.go",
         "internal/memory/session_lineage_search_test.go",
+        "internal/provider",
+        "internal/runtime",
         "internal/session",
         "internal/session/",
         "internal/session/directory.go",
@@ -7206,6 +7206,14 @@
         "internal/transcript/refs.go",
         "internal/tui/auto_title.go",
         "run_agent.py",
+        "tests/agent/test_context_compressor.py",
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_direct_provider_url_detection.py",
+        "tests/agent/transports/test_chat_completions.py",
+        "tests/agent/transports/test_codex_app_server_runtime.py",
+        "tests/agent/transports/test_codex_event_projector.py",
+        "tests/agent/transports/test_codex_transport.py",
+        "tests/agent/transports/test_transport.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/tools/test_transcription.py",
@@ -7236,6 +7244,8 @@
         "../hermes-agent/agent/context_compressor.py@ec671c41:_IMAGE_TOKEN_ESTIMATE",
         "../hermes-agent/agent/context_compressor.py@ec671c41:_content_length_for_budget",
         "../hermes-agent/agent/context_references.py",
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/agent/prompt_builder.py",
         "../hermes-agent/agent/prompt_builder.py:32-73",
         "../hermes-agent/agent/prompt_builder.py:89-127",
@@ -7270,6 +7280,8 @@
         "../hermes-agent/skills/productivity/airtable/SKILL.md@0d4247d9",
         "../hermes-agent/skills/productivity/airtable/SKILL.md@7e3c8a31",
         "../hermes-agent/skills/productivity/airtable/SKILL.md@c997183f",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/agent/test_compressor_image_tokens.py@ec671c41",
         "../hermes-agent/tests/agent/test_context_compressor.py@5401a008",
         "../hermes-agent/tests/agent/test_context_compressor.py@cfc8befe:TestTokenBudgetTailProtection",
@@ -7289,11 +7301,15 @@
         "../hermes-agent/tools/skills_tool.py:skills_list",
         "../hermes-agent/website/docs/reference/skills-catalog.md@7e3c8a31",
         "Generative Agents (Park et al. 2023) recency+importance+relevance retrieval",
+        "agent/context_engine.py",
+        "agent/conversation_loop.py",
         "agent/curator.py",
+        "agent/lsp/manager.py",
         "agent/prompt_builder.py",
         "agent/skill_commands.py",
         "agent/skill_preprocessing.py",
         "agent/skill_utils.py",
+        "agent/tool_executor.py",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
@@ -7393,6 +7409,7 @@
         "internal/hermes/prompt_assembly.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/kernel/",
         "internal/kernel/contextengine_test.go",
@@ -7406,7 +7423,10 @@
         "internal/kernel/kernel.go:204",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/tool_safety.go",
+        "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
@@ -7442,6 +7462,7 @@
         "internal/tools",
         "internal/tools/",
         "internal/tools/ (tool execution surface)",
+        "internal/tools/file_task_tools.go",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
@@ -7458,6 +7479,16 @@
         "references/go-agent-os/engram/internal/store/store.go",
         "run_agent.py",
         "space-agent/src/skills/schema.js",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
+        "tests/agent/test_context_compressor.py",
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_streaming_context_scrubber.py",
+        "tests/agent/test_tool_guardrails.py",
+        "tests/agent/test_tool_result_classification.py",
+        "tests/agent/test_unsupported_parameter_retry.py",
+        "tests/agent/test_unsupported_temperature_retry.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/tools/test_web_providers.py",
@@ -7503,6 +7534,8 @@
         "../hermes-agent/agent/context_compressor.py@ec671c41:_IMAGE_TOKEN_ESTIMATE",
         "../hermes-agent/agent/context_compressor.py@ec671c41:_content_length_for_budget",
         "../hermes-agent/agent/context_references.py",
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/agent/prompt_builder.py",
         "../hermes-agent/agent/prompt_builder.py:32-73",
         "../hermes-agent/agent/prompt_builder.py:89-127",
@@ -7537,6 +7570,8 @@
         "../hermes-agent/skills/productivity/airtable/SKILL.md@0d4247d9",
         "../hermes-agent/skills/productivity/airtable/SKILL.md@7e3c8a31",
         "../hermes-agent/skills/productivity/airtable/SKILL.md@c997183f",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/agent/test_compressor_image_tokens.py@ec671c41",
         "../hermes-agent/tests/agent/test_context_compressor.py@5401a008",
         "../hermes-agent/tests/agent/test_context_compressor.py@cfc8befe:TestTokenBudgetTailProtection",
@@ -7556,11 +7591,15 @@
         "../hermes-agent/tools/skills_tool.py:skills_list",
         "../hermes-agent/website/docs/reference/skills-catalog.md@7e3c8a31",
         "Generative Agents (Park et al. 2023) recency+importance+relevance retrieval",
+        "agent/context_engine.py",
+        "agent/conversation_loop.py",
         "agent/curator.py",
+        "agent/lsp/manager.py",
         "agent/prompt_builder.py",
         "agent/skill_commands.py",
         "agent/skill_preprocessing.py",
         "agent/skill_utils.py",
+        "agent/tool_executor.py",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
@@ -7660,6 +7699,7 @@
         "internal/hermes/prompt_assembly.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/kernel/",
         "internal/kernel/contextengine_test.go",
@@ -7673,7 +7713,10 @@
         "internal/kernel/kernel.go:204",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/tool_safety.go",
+        "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
@@ -7709,6 +7752,7 @@
         "internal/tools",
         "internal/tools/",
         "internal/tools/ (tool execution surface)",
+        "internal/tools/file_task_tools.go",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
@@ -7725,6 +7769,16 @@
         "references/go-agent-os/engram/internal/store/store.go",
         "run_agent.py",
         "space-agent/src/skills/schema.js",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
+        "tests/agent/test_context_compressor.py",
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_streaming_context_scrubber.py",
+        "tests/agent/test_tool_guardrails.py",
+        "tests/agent/test_tool_result_classification.py",
+        "tests/agent/test_unsupported_parameter_retry.py",
+        "tests/agent/test_unsupported_temperature_retry.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/tools/test_web_providers.py",
@@ -7759,11 +7813,15 @@
       "status": "partial",
       "gap_severity": "warning",
       "evidence_refs": [
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/hermes_cli/skills_hub.py@e63929d4:_is_valid_installed_skill_name",
         "../hermes-agent/hermes_cli/skills_hub.py@e63929d4:do_install,_prompt_for_skill_name,_prompt_for_category,_existing_categories",
         "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
         "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
         "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_actionable_error_on_non_interactive_with_no_name",
         "../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_uses_name_override_on_non_interactive_surface,test_url_install_rejects_invalid_name_override,test_url_install_prompts_category_and_uses_typed_value",
         "../hermes-agent/tools/skills_hub.py@e63929d4:UrlSource.fetch,_validate_skill_name",
@@ -7771,6 +7829,7 @@
         "../hermes-agent/tools/skills_tool.py:skills_list",
         "Generative Agents (Park et al. 2023) recency+importance+relevance retrieval",
         "agent/curator.py",
+        "agent/lsp/manager.py",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
@@ -7809,13 +7868,16 @@
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
         "internal/kernel/kernel.go (session lifecycle hooks)",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
         "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/progress/progress.go:Item",
+        "internal/provider",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
+        "internal/runtime",
         "internal/skills",
         "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
@@ -7829,6 +7891,7 @@
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
         "internal/tools/ (tool execution surface)",
+        "internal/tools/file_task_tools.go",
         "internal/tools/skill_manager.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
@@ -7836,6 +7899,9 @@
         "references/go-agent-os/engram/internal/mcp/write_queue.go",
         "references/go-agent-os/engram/internal/store/relations.go",
         "references/go-agent-os/engram/internal/store/store.go",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
         "tools/skill_manager_tool.py",
         "tools/skill_usage.py",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
@@ -7862,6 +7928,8 @@
       "evidence_refs": [
         "../hermes-agent/acp_adapter/",
         "../hermes-agent/agent/",
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/agent/memory_manager.py",
         "../hermes-agent/agent/memory_manager.py:178",
         "../hermes-agent/agent/memory_manager.py:210",
@@ -7892,6 +7960,8 @@
         "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
         "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
         "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_actionable_error_on_non_interactive_with_no_name",
         "../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_uses_name_override_on_non_interactive_surface,test_url_install_rejects_invalid_name_override,test_url_install_prompts_category_and_uses_typed_value",
         "../hermes-agent/tests/honcho_plugin/test_async_memory.py@b816fd4e2",
@@ -8029,6 +8099,7 @@
         "User directive, 2026-05-03: plan V1 so V2 and later do not break user memory.",
         "User-provided Reddit r/openclaw post, 2026-05-03: frustration with mem0/Zep/cloud-hosted/heavy/API-key memory; requested fully local markdown MCP memory for GONCHO.",
         "agent/curator.py",
+        "agent/lsp/manager.py",
         "agent/memory_manager.py",
         "agent/prompt_builder.py",
         "arXiv:2601.01885 (AgeMem 2026)",
@@ -8136,6 +8207,7 @@
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go:204",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/migrate.go (3l→3m migration chain entry)",
@@ -8154,7 +8226,9 @@
         "internal/memory/status.go",
         "internal/memory/vector_divergence.go:VectorStoreDivergenceRows",
         "internal/progress/progress.go:Item",
+        "internal/provider",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
+        "internal/runtime",
         "internal/session/directory.go",
         "internal/skills",
         "internal/skills/ (skill execution surface)",
@@ -8169,6 +8243,7 @@
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
         "internal/tools/ (tool execution surface)",
+        "internal/tools/file_task_tools.go",
         "internal/tools/skill_manager.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
@@ -8178,6 +8253,9 @@
         "references/go-agent-os/engram/internal/mcp/write_queue.go",
         "references/go-agent-os/engram/internal/store/relations.go",
         "references/go-agent-os/engram/internal/store/store.go",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tools/memory_tool.py",
@@ -8204,11 +8282,15 @@
       "status": "partial",
       "gap_severity": "warning",
       "evidence_refs": [
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/hermes_cli/skills_hub.py@e63929d4:_is_valid_installed_skill_name",
         "../hermes-agent/hermes_cli/skills_hub.py@e63929d4:do_install,_prompt_for_skill_name,_prompt_for_category,_existing_categories",
         "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
         "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
         "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_actionable_error_on_non_interactive_with_no_name",
         "../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_uses_name_override_on_non_interactive_surface,test_url_install_rejects_invalid_name_override,test_url_install_prompts_category_and_uses_typed_value",
         "../hermes-agent/tools/skills_hub.py@e63929d4:UrlSource.fetch,_validate_skill_name",
@@ -8216,6 +8298,7 @@
         "../hermes-agent/tools/skills_tool.py:skills_list",
         "Generative Agents (Park et al. 2023) recency+importance+relevance retrieval",
         "agent/curator.py",
+        "agent/lsp/manager.py",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
@@ -8254,13 +8337,16 @@
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
         "internal/kernel/kernel.go (session lifecycle hooks)",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
         "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/progress/progress.go:Item",
+        "internal/provider",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
+        "internal/runtime",
         "internal/skills",
         "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
@@ -8274,6 +8360,7 @@
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
         "internal/tools/ (tool execution surface)",
+        "internal/tools/file_task_tools.go",
         "internal/tools/skill_manager.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
@@ -8281,6 +8368,9 @@
         "references/go-agent-os/engram/internal/mcp/write_queue.go",
         "references/go-agent-os/engram/internal/store/relations.go",
         "references/go-agent-os/engram/internal/store/store.go",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
         "tools/skill_manager_tool.py",
         "tools/skill_usage.py",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
@@ -8615,8 +8705,14 @@
         "Hermes Agent MEMORY.md persistence model",
         "OpenSandbox (github.com/alibaba/OpenSandbox)",
         "SHARED-PROTOCOLS.md",
+        "agent/context_engine.py",
+        "agent/conversation_loop.py",
         "agent/curator.py",
+        "agent/lsp/manager.py",
         "agent/prompt_builder.py",
+        "agent/tool_executor.py",
+        "agent/transports/chat_completions.py",
+        "agent/transports/codex.py",
         "arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025)",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/acp.go",
@@ -8791,10 +8887,14 @@
         "internal/gonchotools/honcho_tools.go",
         "internal/gonchotools/honcho_tools.go:HonchoSearchTool.Schema",
         "internal/gonchotools/memory_v1_mcp_catalog.go",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
         "internal/hermes/client.go:MessageContentPart",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
         "internal/hermes/codex_responses_adapter.go:buildCodexResponsesPayload",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_budget_test.go",
         "internal/hermes/context_compressor_content.go:compressionContentLength",
@@ -8815,13 +8915,16 @@
         "internal/hermes/image_routing.go",
         "internal/hermes/model_context_resolver.go",
         "internal/hermes/model_registry.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/pattern_extractor.go",
         "internal/hermes/pattern_extractor_test.go",
         "internal/hermes/prompt_assembly.go",
+        "internal/hermes/provider_transport.go",
         "internal/hermes/safety_tool_gate.go",
         "internal/hermes/safety_tool_gate_test.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/hermes/title_generator.go",
         "internal/hermes/tool_call_argument_repair_test.go",
@@ -8837,11 +8940,16 @@
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:204",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
+        "internal/kernel/tool_safety.go",
         "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:toolResult",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
@@ -8855,9 +8963,11 @@
         "internal/plugins/",
         "internal/plugins/mcp_oauth_state.go",
         "internal/progress/progress.go:Item",
+        "internal/provider",
         "internal/provider/",
         "internal/redaction/",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
+        "internal/runtime",
         "internal/runtime/secretref_runtime.go",
         "internal/session",
         "internal/session/",
@@ -9005,6 +9115,22 @@
         "references/go-agent-os/trpc-agent-go/tool/tool.go",
         "run_agent.py",
         "space-agent:server/api/AGENTS.md (path normalization, batch preflight)",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
+        "tests/agent/test_context_compressor.py",
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_direct_provider_url_detection.py",
+        "tests/agent/test_streaming_context_scrubber.py",
+        "tests/agent/test_tool_guardrails.py",
+        "tests/agent/test_tool_result_classification.py",
+        "tests/agent/test_unsupported_parameter_retry.py",
+        "tests/agent/test_unsupported_temperature_retry.py",
+        "tests/agent/transports/test_chat_completions.py",
+        "tests/agent/transports/test_codex_app_server_runtime.py",
+        "tests/agent/transports/test_codex_event_projector.py",
+        "tests/agent/transports/test_codex_transport.py",
+        "tests/agent/transports/test_transport.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/tools/test_browser_ssrf_local.py",
@@ -9498,9 +9624,14 @@
         "User directive, 2026-05-03: multi-agent memory must be independent by default; normal Gormes runtime must not read other agents' config or private memory except through explicit migrate commands.",
         "User directive, 2026-05-03: plan V1 so V2 and later do not break user memory.",
         "User-provided Reddit r/openclaw post, 2026-05-03: frustration with mem0/Zep/cloud-hosted/heavy/API-key memory; requested fully local markdown MCP memory for GONCHO.",
+        "agent/conversation_loop.py",
         "agent/curator.py",
+        "agent/lsp/manager.py",
         "agent/memory_manager.py",
         "agent/prompt_builder.py",
+        "agent/tool_executor.py",
+        "agent/transports/chat_completions.py",
+        "agent/transports/codex.py",
         "arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025)",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/acp.go",
@@ -9712,10 +9843,14 @@
         "internal/gonchotools/honcho_tools.go:HonchoProfileTool",
         "internal/gonchotools/honcho_tools.go:HonchoSearchTool.Schema",
         "internal/gonchotools/memory_v1_mcp_catalog.go",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
         "internal/hermes/client.go:MessageContentPart",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
         "internal/hermes/codex_responses_adapter.go:buildCodexResponsesPayload",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_budget_test.go",
         "internal/hermes/context_files.go",
@@ -9726,11 +9861,14 @@
         "internal/hermes/http_client.go:openAICompatibleMessageContent",
         "internal/hermes/image_routing.go",
         "internal/hermes/model_registry.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/prompt_assembly.go",
+        "internal/hermes/provider_transport.go",
         "internal/hermes/safety_tool_gate.go",
         "internal/hermes/safety_tool_gate_test.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/tool_call_argument_repair_test.go",
         "internal/hermes/tool_call_repair.go",
         "internal/hermes/turn_events.go",
@@ -9743,8 +9881,14 @@
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:204",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
+        "internal/kernel/tool_safety.go",
+        "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:toolResult",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/migrate.go (3l→3m migration chain entry)",
@@ -9769,9 +9913,11 @@
         "internal/plugins/",
         "internal/plugins/mcp_oauth_state.go",
         "internal/progress/progress.go:Item",
+        "internal/provider",
         "internal/provider/",
         "internal/redaction/",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
+        "internal/runtime",
         "internal/runtime/secretref_runtime.go",
         "internal/session/directory.go",
         "internal/session/index_mirror.go:writeAtomic",
@@ -9915,6 +10061,20 @@
         "references/go-agent-os/trpc-agent-go/tool/tool.go",
         "run_agent.py",
         "space-agent:server/api/AGENTS.md (path normalization, batch preflight)",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
+        "tests/agent/test_direct_provider_url_detection.py",
+        "tests/agent/test_streaming_context_scrubber.py",
+        "tests/agent/test_tool_guardrails.py",
+        "tests/agent/test_tool_result_classification.py",
+        "tests/agent/test_unsupported_parameter_retry.py",
+        "tests/agent/test_unsupported_temperature_retry.py",
+        "tests/agent/transports/test_chat_completions.py",
+        "tests/agent/transports/test_codex_app_server_runtime.py",
+        "tests/agent/transports/test_codex_event_projector.py",
+        "tests/agent/transports/test_codex_transport.py",
+        "tests/agent/transports/test_transport.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/tools/test_browser_ssrf_local.py",
@@ -9999,6 +10159,8 @@
         "../hermes-agent/agent/context_compressor.py@ec671c41:_IMAGE_TOKEN_ESTIMATE",
         "../hermes-agent/agent/context_compressor.py@ec671c41:_content_length_for_budget",
         "../hermes-agent/agent/context_references.py",
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/agent/memory_manager.py",
         "../hermes-agent/agent/memory_manager.py:178",
         "../hermes-agent/agent/memory_manager.py:210",
@@ -10056,6 +10218,8 @@
         "../hermes-agent/skills/productivity/airtable/SKILL.md@0d4247d9",
         "../hermes-agent/skills/productivity/airtable/SKILL.md@7e3c8a31",
         "../hermes-agent/skills/productivity/airtable/SKILL.md@c997183f",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/agent/test_compressor_image_tokens.py@ec671c41",
         "../hermes-agent/tests/agent/test_context_compressor.py@5401a008",
         "../hermes-agent/tests/agent/test_context_compressor.py@cfc8befe:TestTokenBudgetTailProtection",
@@ -10214,12 +10378,18 @@
         "User directive, 2026-05-03: multi-agent memory must be independent by default; normal Gormes runtime must not read other agents' config or private memory except through explicit migrate commands.",
         "User directive, 2026-05-03: plan V1 so V2 and later do not break user memory.",
         "User-provided Reddit r/openclaw post, 2026-05-03: frustration with mem0/Zep/cloud-hosted/heavy/API-key memory; requested fully local markdown MCP memory for GONCHO.",
+        "agent/context_engine.py",
+        "agent/conversation_loop.py",
         "agent/curator.py",
+        "agent/lsp/manager.py",
         "agent/memory_manager.py",
         "agent/prompt_builder.py",
         "agent/skill_commands.py",
         "agent/skill_preprocessing.py",
         "agent/skill_utils.py",
+        "agent/tool_executor.py",
+        "agent/transports/chat_completions.py",
+        "agent/transports/codex.py",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/doctor.go",
@@ -10356,9 +10526,13 @@
         "internal/gonchotools/honcho_mcp_catalog.go",
         "internal/gonchotools/honcho_tools.go",
         "internal/gonchotools/honcho_tools.go:HonchoProfileTool",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
         "internal/hermes/",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_content.go:compressionContentLength",
         "internal/hermes/context_compressor_headroom_test.go",
@@ -10375,11 +10549,14 @@
         "internal/hermes/default_soul.go",
         "internal/hermes/durable_user_context.go",
         "internal/hermes/model_context_resolver.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/pattern_extractor.go",
         "internal/hermes/pattern_extractor_test.go",
         "internal/hermes/prompt_assembly.go",
+        "internal/hermes/provider_transport.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/hermes/title_generator.go",
         "internal/kernel/",
@@ -10390,12 +10567,17 @@
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:100-126 (Kernel struct), 304-310 (runTurn signature), 464 (toolLoop label), 604-606 (tool loop exit), 626 (executeToolCallsInterruptible)",
         "internal/kernel/kernel.go:204",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
+        "internal/kernel/tool_safety.go",
         "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/migrate.go (3l→3m migration chain entry)",
@@ -10446,6 +10628,7 @@
         "internal/tools",
         "internal/tools/",
         "internal/tools/ (tool execution surface)",
+        "internal/tools/file_task_tools.go",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
@@ -10468,6 +10651,22 @@
         "references/go-agent-os/engram/internal/store/store.go",
         "run_agent.py",
         "space-agent/src/skills/schema.js",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
+        "tests/agent/test_context_compressor.py",
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_direct_provider_url_detection.py",
+        "tests/agent/test_streaming_context_scrubber.py",
+        "tests/agent/test_tool_guardrails.py",
+        "tests/agent/test_tool_result_classification.py",
+        "tests/agent/test_unsupported_parameter_retry.py",
+        "tests/agent/test_unsupported_temperature_retry.py",
+        "tests/agent/transports/test_chat_completions.py",
+        "tests/agent/transports/test_codex_app_server_runtime.py",
+        "tests/agent/transports/test_codex_event_projector.py",
+        "tests/agent/transports/test_codex_transport.py",
+        "tests/agent/transports/test_transport.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/tools/test_transcription.py",
@@ -10497,7 +10696,7 @@
         "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md"
       ],
-      "reason": "Mapped through surfaces: prompt_assembly, goncho_memory, sessions, learning_loop; worst status is prompt_assembly=partial."
+      "reason": "Mapped through surfaces: prompt_assembly, goncho_memory, sessions, learning_loop; worst status is goncho_memory=partial."
     },
     {
       "id": "profile_scoped_isolation",
@@ -10521,6 +10720,8 @@
         "../hermes-agent/agent/context_compressor.py@ec671c41:_content_length_for_budget",
         "../hermes-agent/agent/context_references.py",
         "../hermes-agent/agent/display.py:build_tool_preview",
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/agent/prompt_builder.py",
         "../hermes-agent/agent/prompt_builder.py:32-73",
         "../hermes-agent/agent/prompt_builder.py:89-127",
@@ -10844,6 +11045,8 @@
         "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
         "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
         "../hermes-agent/skills/yuanbao/SKILL.md@ab687963",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/agent/test_bedrock_adapter.py:457:TestNormalizeConverseStreamEvents",
         "../hermes-agent/tests/agent/test_bedrock_adapter.py:868:TestStreamConverseWithCallbacks",
         "../hermes-agent/tests/agent/test_compressor_image_tokens.py@ec671c41",
@@ -11048,7 +11251,11 @@
         "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
         "Shipped sibling: 'gormes setup <section> boxed header + completion footer (UX parity)' (chrome to reuse)",
         "User design: 2026-05-13 coding-agent delegation plan",
+        "agent/context_engine.py",
+        "agent/lsp/manager.py",
         "agent/prompt_builder.py",
+        "agent/transports/chat_completions.py",
+        "agent/transports/codex.py",
         "cmd/gormes/agent.go",
         "cmd/gormes/agent.go (CLI surface from 2.H.2 — same registry mutation, different entry point)",
         "cmd/gormes/agent.go (existing agent command parent + reset child)",
@@ -11480,7 +11687,10 @@
         "internal/hermes/client.go:Event,EventToken,EventReasoning,EventDone",
         "internal/hermes/client.go:Message",
         "internal/hermes/client.go:MessageContentPart",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
         "internal/hermes/codex_responses_adapter.go:322 (Codex Responses image_url serializer)",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_content.go:compressionContentLength",
         "internal/hermes/context_compressor_headroom_test.go",
@@ -11511,6 +11721,7 @@
         "internal/hermes/model_alias_resolver.go",
         "internal/hermes/model_context_resolver.go",
         "internal/hermes/model_registry.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/pattern_extractor.go",
         "internal/hermes/pattern_extractor_test.go",
         "internal/hermes/prompt_assembly.go",
@@ -11519,6 +11730,7 @@
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/self_help_guidance.go:GormesSelfHelpGuidanceForPrompt",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/hermes/title_generator.go",
         "internal/hermes/title_generator.go:91 (GenerateTitle, TitleModelFunc)",
@@ -11549,6 +11761,7 @@
         "internal/kernel/tool_interrupt_test.go",
         "internal/kernel/toolexec.go",
         "internal/kernel/tools_test.go:TestKernel_ToolIterationBudgetRequestsToollessSummary",
+        "internal/lsp/diagnostics.go",
         "internal/memory/mirror.go (USER.md producer; do not modify)",
         "internal/memory/semantic_sql.go",
         "internal/memory/session_catalog.go",
@@ -11556,6 +11769,8 @@
         "internal/migrate/hermes/manifest.go:supportedEnvKeys",
         "internal/migrate/hermes/writer.go:ApplyManifest",
         "internal/migrate/openclaw/manifest.go:135-136 (MEMORY.md / USER.md migration target paths)",
+        "internal/provider",
+        "internal/runtime",
         "internal/session",
         "internal/session/",
         "internal/session/auto_title.go:126-144",
@@ -11596,6 +11811,7 @@
         "internal/tools/discord_toolset.go:discordSchemaProperties",
         "internal/tools/discord_toolset_test.go",
         "internal/tools/execute_code.go:LocalCodeSandbox.Execute",
+        "internal/tools/file_task_tools.go",
         "internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase",
         "internal/tools/filesystem_scope.go:NewFilesystemScope",
         "internal/tools/gateway_discover.go",
@@ -11645,6 +11861,17 @@
         "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
         "references/go-agent-os/trpc-agent-go/model/callbacks.go",
         "run_agent.py",
+        "tests/agent/lsp/test_diagnostics_field.py",
+        "tests/agent/lsp/test_lifecycle.py",
+        "tests/agent/lsp/test_service.py",
+        "tests/agent/test_context_compressor.py",
+        "tests/agent/test_context_engine.py",
+        "tests/agent/test_direct_provider_url_detection.py",
+        "tests/agent/transports/test_chat_completions.py",
+        "tests/agent/transports/test_codex_app_server_runtime.py",
+        "tests/agent/transports/test_codex_event_projector.py",
+        "tests/agent/transports/test_codex_transport.py",
+        "tests/agent/transports/test_transport.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_config.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
@@ -11682,18 +11909,17 @@
   "summary": {
     "total": 10,
     "critical": 10,
-    "surface_strict_failures": 5,
-    "unmapped_upstream_files": 2995,
-    "strict_failures": 3000,
+    "surface_strict_failures": 4,
+    "unmapped_upstream_files": 2980,
+    "strict_failures": 2984,
     "by_status": {
-      "covered": 5,
-      "partial": 5
+      "covered": 6,
+      "partial": 4
     }
   },
   "unmapped_surfaces": [
     "goncho_memory",
     "learning_loop",
-    "prompt_assembly",
     "gateway_channels",
     "mcp_acp"
   ],
@@ -11712,6 +11938,8 @@
         "hermes_cli/profiles.py"
       ],
       "gormes_refs": [
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/agent/prompt_builder.py",
         "../hermes-agent/agent/prompt_builder.py:32-73",
         "../hermes-agent/agent/prompt_builder.py:89-127",
@@ -11751,6 +11979,8 @@
         "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
         "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
         "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/gateway/test_config_cwd_bridge.py",
         "../hermes-agent/tests/hermes_cli/test_cmd_update.py@20edca75e",
         "../hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
@@ -11851,6 +12081,9 @@
         "internal/kernel/frame.go",
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go:204",
+        "internal/lsp/diagnostics.go",
+        "internal/provider",
+        "internal/runtime",
         "internal/skills/delta_maintenance.go",
         "internal/skills/list.go:bundledSkillsRoot",
         "internal/skills/profile_sync.go",
@@ -11858,6 +12091,7 @@
         "internal/skills/store.go:Runtime.BuildSkillBlockWithOptions",
         "internal/skills/store.go:Store.SnapshotActive",
         "internal/tools/execute_code.go:LocalCodeSandbox.Execute",
+        "internal/tools/file_task_tools.go",
         "internal/tools/file_task_tools.go:FileTaskToolConfig / resolveWorkspacePathFromBase",
         "internal/tools/filesystem_scope.go:NewFilesystemScope",
         "internal/tools/profile_workspace_scope.go:ProfileWorkspaceScope",
@@ -11877,6 +12111,28 @@
         "webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens"
       ],
       "source_pairs": [
+        {
+          "hermes_file": "agent/lsp/manager.py",
+          "status": "partial",
+          "contract": "Hermes LSP manager diagnostics, workspace/service lifecycle, diagnostic delta projection, and file-tool write-time semantic feedback.",
+          "gormes_targets": [
+            "internal/lsp/diagnostics.go",
+            "internal/tools/file_task_tools.go"
+          ],
+          "tests": [
+            "go test ./internal/lsp ./internal/tools -run 'Test.*LSP|Test.*Diagnostic' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes LSP write-time semantic diagnostics",
+            "Hermes agent runtime strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/agent/lsp/test_diagnostics_field.py",
+            "tests/agent/lsp/test_lifecycle.py",
+            "tests/agent/lsp/test_service.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
         {
           "hermes_file": "agent/prompt_builder.py",
           "status": "partial",
@@ -12411,6 +12667,59 @@
           ],
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.L",
+          "name": "Hermes LSP write-time semantic diagnostics",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "tools",
+          "source_refs": [
+            "../hermes-agent/agent/lsp/manager.py",
+            "../hermes-agent/agent/lsp/range_shift.py",
+            "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+            "../hermes-agent/tests/agent/lsp/test_service.py",
+            "internal/tools/file_task_tools.go"
+          ],
+          "test_commands": [
+            "go run ./cmd/progress validate",
+            "go test ./internal/lsp -count=1",
+            "go test ./internal/tools -run 'Test.*LSP|Test.*Diagnostic|TestWrite|TestPatch' -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
+          "phase_id": "4",
+          "subphase_id": "4.I",
+          "name": "Hermes agent runtime strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "runtime",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/agent/context_engine.py",
+            "hermes-agent/agent/conversation_loop.py",
+            "hermes-agent/agent/lsp/manager.py",
+            "hermes-agent/agent/tool_executor.py",
+            "hermes-agent/agent/transports/chat_completions.py",
+            "hermes-agent/agent/transports/codex.py",
+            "hermes-agent/tests/agent/lsp/test_lifecycle.py",
+            "internal/provider",
+            "internal/runtime"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/runtime ./internal/provider ./internal/tools -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -13008,6 +13317,10 @@
         "internal/goncho/service.go",
         "internal/goncho/session.go",
         "internal/goncho/store.go",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_content.go:compressionContentLength",
         "internal/hermes/context_compressor_headroom_test.go",
@@ -13023,11 +13336,14 @@
         "internal/hermes/context_references.go",
         "internal/hermes/default_soul.go",
         "internal/hermes/model_context_resolver.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/pattern_extractor.go",
         "internal/hermes/pattern_extractor_test.go",
         "internal/hermes/prompt_assembly.go",
+        "internal/hermes/provider_transport.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/hermes/title_generator.go",
         "internal/kernel/",
@@ -13035,12 +13351,17 @@
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:204",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
         "internal/kernel/toolexec.go",
         "internal/memory/session_catalog.go",
         "internal/memory/session_lineage_search_test.go",
+        "internal/provider",
+        "internal/runtime",
         "internal/session",
         "internal/session/",
         "internal/session/directory.go",
@@ -13056,6 +13377,27 @@
         "internal/tui/auto_title.go"
       ],
       "source_pairs": [
+        {
+          "hermes_file": "agent/context_engine.py",
+          "status": "covered",
+          "contract": "Hermes context-engine assembly, context references, compression budget/headroom decisions, and provider context-boundary behavior.",
+          "gormes_targets": [
+            "internal/hermes/context_compressor_budget.go",
+            "internal/hermes/context_engine.go",
+            "internal/hermes/context_references.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'TestContextEngine|TestContextReference|TestContextCompressor' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_context_compressor.py",
+            "tests/agent/test_context_engine.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
         {
           "hermes_file": "agent/prompt_builder.py",
           "status": "partial",
@@ -13077,6 +13419,52 @@
           "upstream_tests": [
             "tests/cron/test_cron_workdir.py",
             "tests/hermes_cli/test_ignore_user_config_flags.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/transports/chat_completions.py",
+          "status": "partial",
+          "contract": "Hermes OpenAI-compatible chat completions transport, streaming/tool-call projection, provider URL handling, retry diagnostics, and compatibility shims.",
+          "gormes_targets": [
+            "internal/hermes/openrouter_compatible.go",
+            "internal/hermes/provider_transport.go",
+            "internal/hermes/stream.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel cross-provider client swap for in-session model switch"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_direct_provider_url_detection.py",
+            "tests/agent/transports/test_chat_completions.py",
+            "tests/agent/transports/test_transport.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/transports/codex.py",
+          "status": "partial",
+          "contract": "Hermes Codex transport request projection, Responses API stream repair, role/content mapping, Cloudflare headers, temperature/model compatibility, and multimodal tool-result handling.",
+          "gormes_targets": [
+            "internal/hermes/codex_cloudflare_headers.go",
+            "internal/hermes/codex_responses_adapter.go",
+            "internal/hermes/codex_responses_stream.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel cross-provider client swap for in-session model switch"
+          ],
+          "upstream_tests": [
+            "tests/agent/transports/test_codex_app_server_runtime.py",
+            "tests/agent/transports/test_codex_event_projector.py",
+            "tests/agent/transports/test_codex_transport.py"
           ],
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         },
@@ -13463,6 +13851,35 @@
           ]
         },
         {
+          "phase_id": "4",
+          "subphase_id": "4.I",
+          "name": "Hermes agent runtime strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "runtime",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/agent/context_engine.py",
+            "hermes-agent/agent/conversation_loop.py",
+            "hermes-agent/agent/lsp/manager.py",
+            "hermes-agent/agent/tool_executor.py",
+            "hermes-agent/agent/transports/chat_completions.py",
+            "hermes-agent/agent/transports/codex.py",
+            "hermes-agent/tests/agent/lsp/test_lifecycle.py",
+            "internal/provider",
+            "internal/runtime"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/runtime ./internal/provider ./internal/tools -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
           "phase_id": "2",
           "subphase_id": "2.B.5",
           "name": "Hermes live-turn prompt assembly parity (channel-neutral)",
@@ -13595,6 +14012,29 @@
           ],
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.Q",
+          "name": "Kernel cross-provider client swap for in-session model switch",
+          "priority": "P2",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "gateway",
+          "source_refs": [
+            "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+            "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
+            "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
+            "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)"
+          ],
+          "test_commands": [
+            "go run ./cmd/progress validate",
+            "go test ./internal/kernel -count=1",
+            "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel|CrossProvider' -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -15912,11 +16352,15 @@
         "tools/skill_usage.py"
       ],
       "gormes_refs": [
+        "../hermes-agent/agent/lsp/manager.py",
+        "../hermes-agent/agent/lsp/range_shift.py",
         "../hermes-agent/hermes_cli/skills_hub.py@e63929d4:_is_valid_installed_skill_name",
         "../hermes-agent/hermes_cli/skills_hub.py@e63929d4:do_install,_prompt_for_skill_name,_prompt_for_category,_existing_categories",
         "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
         "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
         "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
+        "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+        "../hermes-agent/tests/agent/lsp/test_service.py",
         "../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_actionable_error_on_non_interactive_with_no_name",
         "../hermes-agent/tests/hermes_cli/test_skills_hub.py@e63929d4:test_url_install_uses_name_override_on_non_interactive_surface,test_url_install_rejects_invalid_name_override,test_url_install_prompts_category_and_uses_typed_value",
         "../hermes-agent/tools/skills_hub.py@e63929d4:UrlSource.fetch,_validate_skill_name",
@@ -15960,13 +16404,16 @@
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
         "internal/kernel/kernel.go (session lifecycle hooks)",
+        "internal/lsp/diagnostics.go",
         "internal/memory/",
         "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
         "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/progress/progress.go:Item",
+        "internal/provider",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
+        "internal/runtime",
         "internal/skills",
         "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
@@ -15980,6 +16427,7 @@
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
         "internal/tools/ (tool execution surface)",
+        "internal/tools/file_task_tools.go",
         "internal/tools/skill_manager.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
@@ -15998,6 +16446,28 @@
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md"
       ],
       "source_pairs": [
+        {
+          "hermes_file": "agent/lsp/manager.py",
+          "status": "partial",
+          "contract": "Hermes LSP manager diagnostics, workspace/service lifecycle, diagnostic delta projection, and file-tool write-time semantic feedback.",
+          "gormes_targets": [
+            "internal/lsp/diagnostics.go",
+            "internal/tools/file_task_tools.go"
+          ],
+          "tests": [
+            "go test ./internal/lsp ./internal/tools -run 'Test.*LSP|Test.*Diagnostic' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes LSP write-time semantic diagnostics",
+            "Hermes agent runtime strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/agent/lsp/test_diagnostics_field.py",
+            "tests/agent/lsp/test_lifecycle.py",
+            "tests/agent/lsp/test_service.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
         {
           "hermes_file": "tools/skill_manager_tool.py",
           "status": "partial",
@@ -16284,6 +16754,59 @@
           ],
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.L",
+          "name": "Hermes LSP write-time semantic diagnostics",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "tools",
+          "source_refs": [
+            "../hermes-agent/agent/lsp/manager.py",
+            "../hermes-agent/agent/lsp/range_shift.py",
+            "../hermes-agent/tests/agent/lsp/test_delta_key.py",
+            "../hermes-agent/tests/agent/lsp/test_service.py",
+            "internal/tools/file_task_tools.go"
+          ],
+          "test_commands": [
+            "go run ./cmd/progress validate",
+            "go test ./internal/lsp -count=1",
+            "go test ./internal/tools -run 'Test.*LSP|Test.*Diagnostic|TestWrite|TestPatch' -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
+          "phase_id": "4",
+          "subphase_id": "4.I",
+          "name": "Hermes agent runtime strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "runtime",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/agent/context_engine.py",
+            "hermes-agent/agent/conversation_loop.py",
+            "hermes-agent/agent/lsp/manager.py",
+            "hermes-agent/agent/tool_executor.py",
+            "hermes-agent/agent/transports/chat_completions.py",
+            "hermes-agent/agent/transports/codex.py",
+            "hermes-agent/tests/agent/lsp/test_lifecycle.py",
+            "internal/provider",
+            "internal/runtime"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/runtime ./internal/provider ./internal/tools -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -16633,10 +17156,10 @@
       "category": "continuity",
       "priority": "P0",
       "critical": true,
-      "status": "partial",
-      "reason": "Some source-pair or complete-row evidence exists, but the surface is not strictly covered.",
-      "confidence": "medium",
-      "gap_severity": "warning",
+      "status": "covered",
+      "reason": "Covered source-pair evidence joins to a validated complete progress row with test evidence.",
+      "confidence": "high",
+      "gap_severity": "none",
       "upstream_refs": [
         "agent/prompt_builder.py",
         "agent/skill_commands.py",
@@ -16768,6 +17291,7 @@
         "internal/hermes/prompt_assembly.go",
         "internal/hermes/self_help_guidance.go",
         "internal/hermes/skills_prompt.go",
+        "internal/hermes/stream.go",
         "internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json",
         "internal/kernel/",
         "internal/kernel/contextengine_test.go",
@@ -16780,6 +17304,8 @@
         "internal/kernel/kernel.go:204",
         "internal/kernel/kernel.go:PlatformEventResetSession",
         "internal/kernel/kernel.go:updateContextEngineUsage",
+        "internal/kernel/tool_safety.go",
+        "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible",
         "internal/memory/",
         "internal/memory/semantic_sql.go",
@@ -16832,6 +17358,50 @@
       ],
       "source_pairs": [
         {
+          "hermes_file": "agent/context_engine.py",
+          "status": "covered",
+          "contract": "Hermes context-engine assembly, context references, compression budget/headroom decisions, and provider context-boundary behavior.",
+          "gormes_targets": [
+            "internal/hermes/context_compressor_budget.go",
+            "internal/hermes/context_engine.go",
+            "internal/hermes/context_references.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'TestContextEngine|TestContextReference|TestContextCompressor' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_context_compressor.py",
+            "tests/agent/test_context_engine.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/conversation_loop.py",
+          "status": "partial",
+          "contract": "Hermes conversation loop turn orchestration, prompt assembly, streaming events, retry boundaries, and final assistant/tool ordering.",
+          "gormes_targets": [
+            "internal/hermes/prompt_assembly.go",
+            "internal/hermes/stream.go",
+            "internal/kernel/kernel.go"
+          ],
+          "tests": [
+            "go test ./internal/kernel ./internal/hermes -run 'Test.*Turn|Test.*Stream|TestPrompt' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel tool loop"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_streaming_context_scrubber.py",
+            "tests/agent/test_unsupported_parameter_retry.py",
+            "tests/agent/test_unsupported_temperature_retry.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
           "hermes_file": "agent/prompt_builder.py",
           "status": "partial",
           "contract": "Hermes system-prompt assembly, identity fallback, context-file loading, skill guidance, memory guidance, and provider-visible prompt fragment ordering.",
@@ -16852,6 +17422,29 @@
           "upstream_tests": [
             "tests/cron/test_cron_workdir.py",
             "tests/hermes_cli/test_ignore_user_config_flags.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/tool_executor.py",
+          "status": "partial",
+          "contract": "Hermes tool dispatch, tool-result classification, guardrails, cancellation, audit/error envelopes, and tool budget behavior.",
+          "gormes_targets": [
+            "internal/kernel/tool_safety.go",
+            "internal/kernel/toolexec.go",
+            "internal/tools"
+          ],
+          "tests": [
+            "go test ./internal/kernel ./internal/tools -run 'Test.*Tool|Test.*Budget|Test.*Safety' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Hermes tool tail strict-fidelity source-pair expansion",
+            "Kernel tool loop"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_tool_guardrails.py",
+            "tests/agent/test_tool_result_classification.py"
           ],
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         },
@@ -17311,8 +17904,8 @@
           "subphase_id": "4.I",
           "name": "Hermes agent runtime strict-fidelity source-pair expansion",
           "priority": "P1",
-          "status": "planned",
-          "contract_status": "draft",
+          "status": "complete",
+          "contract_status": "validated",
           "module": "runtime",
           "provenance_origin_type": "hybrid",
           "source_refs": [
@@ -17332,6 +17925,7 @@
             "go test ./internal/runtime ./internal/provider ./internal/tools -count=1"
           ],
           "match_reasons": [
+            "source_pair_progress_row",
             "taxonomy_keyword"
           ]
         },
@@ -18575,6 +19169,7 @@
         "internal/gateway/status.go RuntimeStatusStore.ReadRuntimeStatusSnapshot — recorded gateway_state.json state without live PID validation",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/gateway/turn_adapter.go:imageContentPartsFromAttachments (helper to gate)",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
         "internal/hermes/account_usage.go",
         "internal/hermes/anthropic_client.go",
         "internal/hermes/azure_anthropic_transport_test.go",
@@ -18589,6 +19184,7 @@
         "internal/hermes/client.go",
         "internal/hermes/client.go:ChatRequest",
         "internal/hermes/client.go:ChatRequest and MessageContentPart types",
+        "internal/hermes/codex_cloudflare_headers.go",
         "internal/hermes/codex_responses_adapter.go",
         "internal/hermes/codex_responses_adapter.go (one provider that may emit vision-rejection)",
         "internal/hermes/codex_responses_adapter_test.go",
@@ -18596,8 +19192,10 @@
         "internal/hermes/codex_responses_temperature_test.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_headroom_test.go",
+        "internal/hermes/context_engine.go",
         "internal/hermes/context_files.go",
         "internal/hermes/context_files.go:BuildContextFilesPrompt",
+        "internal/hermes/context_references.go",
         "internal/hermes/default_soul.go",
         "internal/hermes/durable_user_context.go",
         "internal/hermes/error_classifier.go:DefaultChainErrorClassifier",
@@ -18624,6 +19222,7 @@
         "internal/hermes/model_routing.go:NormalizeFallbackModelConfig",
         "internal/hermes/moonshot_schema.go",
         "internal/hermes/moonshot_schema_test.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/openrouter_compatible.go:ApplyOpenRouterAttributionHeaders",
         "internal/hermes/openrouter_compatible.go:ApplyOpenRouterGrokPromptCacheAffinityHeader",
         "internal/hermes/picker_providers.go:24:ListPickerProviders / :7:PickerProvider (existing dynamic picker port)",
@@ -18651,10 +19250,13 @@
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:204",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
         "internal/kernel/kernel.go:emitStreamDropRetryFrame",
         "internal/kernel/kernel.go:runTurn",
         "internal/kernel/kernel.go:streamInner",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
         "internal/kernel/provider_fallback.go",
         "internal/kernel/provider_fallback.go:activateFallback",
         "internal/kernel/reset_test.go",
@@ -18668,7 +19270,9 @@
         "internal/plugins/loader.go",
         "internal/plugins/manifest_test.go",
         "internal/plugins/spotify_plugin_test.go",
+        "internal/provider",
         "internal/provider/",
+        "internal/runtime",
         "internal/runtime/binding.go",
         "internal/sandbox/paths.go",
         "internal/sandbox/provider.go",
@@ -18737,6 +19341,27 @@
       ],
       "source_pairs": [
         {
+          "hermes_file": "agent/context_engine.py",
+          "status": "covered",
+          "contract": "Hermes context-engine assembly, context references, compression budget/headroom decisions, and provider context-boundary behavior.",
+          "gormes_targets": [
+            "internal/hermes/context_compressor_budget.go",
+            "internal/hermes/context_engine.go",
+            "internal/hermes/context_references.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'TestContextEngine|TestContextReference|TestContextCompressor' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_context_compressor.py",
+            "tests/agent/test_context_engine.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
           "hermes_file": "agent/prompt_builder.py",
           "status": "partial",
           "contract": "Hermes system-prompt assembly, identity fallback, context-file loading, skill guidance, memory guidance, and provider-visible prompt fragment ordering.",
@@ -18757,6 +19382,52 @@
           "upstream_tests": [
             "tests/cron/test_cron_workdir.py",
             "tests/hermes_cli/test_ignore_user_config_flags.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/transports/chat_completions.py",
+          "status": "partial",
+          "contract": "Hermes OpenAI-compatible chat completions transport, streaming/tool-call projection, provider URL handling, retry diagnostics, and compatibility shims.",
+          "gormes_targets": [
+            "internal/hermes/openrouter_compatible.go",
+            "internal/hermes/provider_transport.go",
+            "internal/hermes/stream.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel cross-provider client swap for in-session model switch"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_direct_provider_url_detection.py",
+            "tests/agent/transports/test_chat_completions.py",
+            "tests/agent/transports/test_transport.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/transports/codex.py",
+          "status": "partial",
+          "contract": "Hermes Codex transport request projection, Responses API stream repair, role/content mapping, Cloudflare headers, temperature/model compatibility, and multimodal tool-result handling.",
+          "gormes_targets": [
+            "internal/hermes/codex_cloudflare_headers.go",
+            "internal/hermes/codex_responses_adapter.go",
+            "internal/hermes/codex_responses_stream.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel cross-provider client swap for in-session model switch"
+          ],
+          "upstream_tests": [
+            "tests/agent/transports/test_codex_app_server_runtime.py",
+            "tests/agent/transports/test_codex_event_projector.py",
+            "tests/agent/transports/test_codex_transport.py"
           ],
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         },
@@ -20547,6 +21218,35 @@
           ]
         },
         {
+          "phase_id": "4",
+          "subphase_id": "4.I",
+          "name": "Hermes agent runtime strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "runtime",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/agent/context_engine.py",
+            "hermes-agent/agent/conversation_loop.py",
+            "hermes-agent/agent/lsp/manager.py",
+            "hermes-agent/agent/tool_executor.py",
+            "hermes-agent/agent/transports/chat_completions.py",
+            "hermes-agent/agent/transports/codex.py",
+            "hermes-agent/tests/agent/lsp/test_lifecycle.py",
+            "internal/provider",
+            "internal/runtime"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/runtime ./internal/provider ./internal/tools -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
           "phase_id": "5",
           "subphase_id": "5.O",
           "name": "Hermes auth OAuth provider adapters",
@@ -21109,6 +21809,29 @@
           "module": "providers",
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.Q",
+          "name": "Kernel cross-provider client swap for in-session model switch",
+          "priority": "P2",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "gateway",
+          "source_refs": [
+            "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+            "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
+            "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
+            "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)"
+          ],
+          "test_commands": [
+            "go run ./cmd/progress validate",
+            "go test ./internal/kernel -count=1",
+            "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel|CrossProvider' -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -31190,17 +31913,24 @@
         "internal/goncho/service.go",
         "internal/gonchotools/honcho_tools.go:HonchoSearchTool.Schema",
         "internal/gonchotools/memory_v1_mcp_catalog.go",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
         "internal/hermes/client.go:MessageContentPart",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
         "internal/hermes/codex_responses_adapter.go:buildCodexResponsesPayload",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_compressor_budget.go",
         "internal/hermes/context_compressor_budget_test.go",
         "internal/hermes/errors.go:ProviderErrorKind",
         "internal/hermes/http_client.go:openAICompatibleMessageContent",
         "internal/hermes/image_routing.go",
         "internal/hermes/model_registry.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/prompt_assembly.go",
+        "internal/hermes/provider_transport.go",
         "internal/hermes/safety_tool_gate.go",
         "internal/hermes/safety_tool_gate_test.go",
+        "internal/hermes/stream.go",
         "internal/hermes/tool_call_argument_repair_test.go",
         "internal/hermes/tool_call_repair.go",
         "internal/hermes/turn_events.go",
@@ -31211,15 +31941,23 @@
         "internal/kernel/frame.go:PlatformEvent.SessionContext",
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
+        "internal/kernel/tool_safety.go",
+        "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:toolResult",
+        "internal/lsp/diagnostics.go",
         "internal/memory/session_catalog.go:SearchMessages",
         "internal/memory/session_catalog.go:SearchSessions",
         "internal/memory/session_lineage_search_test.go",
         "internal/memory/shutdown_test.go",
         "internal/plugins/",
         "internal/plugins/mcp_oauth_state.go",
+        "internal/provider",
         "internal/provider/",
         "internal/redaction/",
+        "internal/runtime",
         "internal/runtime/secretref_runtime.go",
         "internal/session/index_mirror.go:writeAtomic",
         "internal/session/session.go",
@@ -31361,6 +32099,120 @@
         "workspace-riju/skills/fecim-physics-validation/SKILL.md"
       ],
       "source_pairs": [
+        {
+          "hermes_file": "agent/conversation_loop.py",
+          "status": "partial",
+          "contract": "Hermes conversation loop turn orchestration, prompt assembly, streaming events, retry boundaries, and final assistant/tool ordering.",
+          "gormes_targets": [
+            "internal/hermes/prompt_assembly.go",
+            "internal/hermes/stream.go",
+            "internal/kernel/kernel.go"
+          ],
+          "tests": [
+            "go test ./internal/kernel ./internal/hermes -run 'Test.*Turn|Test.*Stream|TestPrompt' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel tool loop"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_streaming_context_scrubber.py",
+            "tests/agent/test_unsupported_parameter_retry.py",
+            "tests/agent/test_unsupported_temperature_retry.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/lsp/manager.py",
+          "status": "partial",
+          "contract": "Hermes LSP manager diagnostics, workspace/service lifecycle, diagnostic delta projection, and file-tool write-time semantic feedback.",
+          "gormes_targets": [
+            "internal/lsp/diagnostics.go",
+            "internal/tools/file_task_tools.go"
+          ],
+          "tests": [
+            "go test ./internal/lsp ./internal/tools -run 'Test.*LSP|Test.*Diagnostic' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes LSP write-time semantic diagnostics",
+            "Hermes agent runtime strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/agent/lsp/test_diagnostics_field.py",
+            "tests/agent/lsp/test_lifecycle.py",
+            "tests/agent/lsp/test_service.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/tool_executor.py",
+          "status": "partial",
+          "contract": "Hermes tool dispatch, tool-result classification, guardrails, cancellation, audit/error envelopes, and tool budget behavior.",
+          "gormes_targets": [
+            "internal/kernel/tool_safety.go",
+            "internal/kernel/toolexec.go",
+            "internal/tools"
+          ],
+          "tests": [
+            "go test ./internal/kernel ./internal/tools -run 'Test.*Tool|Test.*Budget|Test.*Safety' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Hermes tool tail strict-fidelity source-pair expansion",
+            "Kernel tool loop"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_tool_guardrails.py",
+            "tests/agent/test_tool_result_classification.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/transports/chat_completions.py",
+          "status": "partial",
+          "contract": "Hermes OpenAI-compatible chat completions transport, streaming/tool-call projection, provider URL handling, retry diagnostics, and compatibility shims.",
+          "gormes_targets": [
+            "internal/hermes/openrouter_compatible.go",
+            "internal/hermes/provider_transport.go",
+            "internal/hermes/stream.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel cross-provider client swap for in-session model switch"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_direct_provider_url_detection.py",
+            "tests/agent/transports/test_chat_completions.py",
+            "tests/agent/transports/test_transport.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/transports/codex.py",
+          "status": "partial",
+          "contract": "Hermes Codex transport request projection, Responses API stream repair, role/content mapping, Cloudflare headers, temperature/model compatibility, and multimodal tool-result handling.",
+          "gormes_targets": [
+            "internal/hermes/codex_cloudflare_headers.go",
+            "internal/hermes/codex_responses_adapter.go",
+            "internal/hermes/codex_responses_stream.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel cross-provider client swap for in-session model switch"
+          ],
+          "upstream_tests": [
+            "tests/agent/transports/test_codex_app_server_runtime.py",
+            "tests/agent/transports/test_codex_event_projector.py",
+            "tests/agent/transports/test_codex_transport.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
         {
           "hermes_file": "gateway/run.py",
           "status": "partial",
@@ -33125,7 +33977,37 @@
             "go test ./internal/tools -run 'Test.*LSP|Test.*Diagnostic|TestWrite|TestPatch' -count=1"
           ],
           "match_reasons": [
+            "source_pair_progress_row",
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "4",
+          "subphase_id": "4.I",
+          "name": "Hermes agent runtime strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "runtime",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/agent/context_engine.py",
+            "hermes-agent/agent/conversation_loop.py",
+            "hermes-agent/agent/lsp/manager.py",
+            "hermes-agent/agent/tool_executor.py",
+            "hermes-agent/agent/transports/chat_completions.py",
+            "hermes-agent/agent/transports/codex.py",
+            "hermes-agent/tests/agent/lsp/test_lifecycle.py",
+            "internal/provider",
+            "internal/runtime"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/runtime ./internal/provider ./internal/tools -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -33357,6 +34239,29 @@
           "module": "tools",
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.Q",
+          "name": "Kernel cross-provider client swap for in-session model switch",
+          "priority": "P2",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "gateway",
+          "source_refs": [
+            "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+            "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
+            "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
+            "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)"
+          ],
+          "test_commands": [
+            "go run ./cmd/progress validate",
+            "go test ./internal/kernel -count=1",
+            "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel|CrossProvider' -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -36544,10 +37449,17 @@
         "internal/gateway/model_picker.go SessionModelOverride (gateway-only prior art — NOT reused for the local kernel path)",
         "internal/goncho/dynamic_agents.go (registry from 2.H.1 — Create/List/Bind/Unbind/Resolve)",
         "internal/goncho/dynamic_agents.go (registry from 2.H.1 — chat reads to populate agent swap)",
+        "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+        "internal/hermes/codex_cloudflare_headers.go",
+        "internal/hermes/codex_responses_adapter.go",
+        "internal/hermes/codex_responses_stream.go",
         "internal/hermes/context_files.go",
         "internal/hermes/default_soul.go",
         "internal/hermes/durable_user_context.go",
+        "internal/hermes/openrouter_compatible.go",
         "internal/hermes/picker_providers.go ListPickerProviders() (catalog seam 2 — already importable by internal/tui, no new code)",
+        "internal/hermes/provider_transport.go",
+        "internal/hermes/stream.go",
         "internal/kernel/",
         "internal/kernel/frame.go (PlatformEventKind + PlatformEvent.Model/.Provider — add PlatformEventSetModel; PlatformEvent.Model already exists as a per-submit override)",
         "internal/kernel/frame.go (PlatformEventKind {Submit,Cancel,Quit,ResetSession,Steer} — NO model override; proves the missing seam)",
@@ -36555,13 +37467,18 @@
         "internal/kernel/frame.go:RenderFrame",
         "internal/kernel/kernel.go",
         "internal/kernel/kernel.go PlatformEventResetSession + ErrResetDuringTurn + ack pattern (the proven resident-mutation template to mirror, history-clear excluded)",
+        "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
         "internal/kernel/kernel.go:1431 selectTurnModel(residentModel, override) (precedence merge point)",
+        "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
         "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing cross-provider client-build machinery to reuse)",
         "internal/kernel/kernel.go:runTurn final assistant history append",
+        "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)",
         "internal/kernel/tool_metadata_test.go",
         "internal/migrate/hermes/manifest.go",
         "internal/migrate/hermes/writer.go",
+        "internal/provider",
         "internal/provider/ (one-shot provider call path the chat send wires through)",
+        "internal/runtime",
         "internal/session/lineage.go:LineageKindFork,ResolveLineageTip",
         "internal/tools",
         "internal/tools/dangerous_command_test.go",
@@ -36645,6 +37562,52 @@
         "www.gormes.ai/internal/site/content.go"
       ],
       "source_pairs": [
+        {
+          "hermes_file": "agent/transports/chat_completions.py",
+          "status": "partial",
+          "contract": "Hermes OpenAI-compatible chat completions transport, streaming/tool-call projection, provider URL handling, retry diagnostics, and compatibility shims.",
+          "gormes_targets": [
+            "internal/hermes/openrouter_compatible.go",
+            "internal/hermes/provider_transport.go",
+            "internal/hermes/stream.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'Test.*Transport|Test.*Stream|TestOpenRouter|TestProvider' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel cross-provider client swap for in-session model switch"
+          ],
+          "upstream_tests": [
+            "tests/agent/test_direct_provider_url_detection.py",
+            "tests/agent/transports/test_chat_completions.py",
+            "tests/agent/transports/test_transport.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "agent/transports/codex.py",
+          "status": "partial",
+          "contract": "Hermes Codex transport request projection, Responses API stream repair, role/content mapping, Cloudflare headers, temperature/model compatibility, and multimodal tool-result handling.",
+          "gormes_targets": [
+            "internal/hermes/codex_cloudflare_headers.go",
+            "internal/hermes/codex_responses_adapter.go",
+            "internal/hermes/codex_responses_stream.go"
+          ],
+          "tests": [
+            "go test ./internal/hermes -run 'TestCodex|TestResponses|TestCloudflare' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes agent runtime strict-fidelity source-pair expansion",
+            "Kernel cross-provider client swap for in-session model switch"
+          ],
+          "upstream_tests": [
+            "tests/agent/transports/test_codex_app_server_runtime.py",
+            "tests/agent/transports/test_codex_event_projector.py",
+            "tests/agent/transports/test_codex_transport.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
         {
           "hermes_file": "cli.py",
           "status": "partial",
@@ -37434,6 +38397,35 @@
           ]
         },
         {
+          "phase_id": "4",
+          "subphase_id": "4.I",
+          "name": "Hermes agent runtime strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "runtime",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/agent/context_engine.py",
+            "hermes-agent/agent/conversation_loop.py",
+            "hermes-agent/agent/lsp/manager.py",
+            "hermes-agent/agent/tool_executor.py",
+            "hermes-agent/agent/transports/chat_completions.py",
+            "hermes-agent/agent/transports/codex.py",
+            "hermes-agent/tests/agent/lsp/test_lifecycle.py",
+            "internal/provider",
+            "internal/runtime"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/runtime ./internal/provider ./internal/tools -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
           "phase_id": "5",
           "subphase_id": "5.O",
           "name": "Hermes auth command-tree manifest refresh",
@@ -37520,6 +38512,29 @@
           ],
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.Q",
+          "name": "Kernel cross-provider client swap for in-session model switch",
+          "priority": "P2",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "gateway",
+          "source_refs": [
+            "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+            "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
+            "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
+            "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)"
+          ],
+          "test_commands": [
+            "go run ./cmd/progress validate",
+            "go test ./internal/kernel -count=1",
+            "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel|CrossProvider' -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
