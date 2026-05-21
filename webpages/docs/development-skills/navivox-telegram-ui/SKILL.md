@@ -7,7 +7,7 @@ description: Use when planning, implementing, or reviewing Flutter Navivox chat/
 
 ## Mission
 
-Make `flutter-navivox/app` feel Telegram-like while keeping it Gormes-owned. Borrow navigation density, bubble rhythm, composer behavior, sheets, and contact-list scanning; do not import Telegram network assumptions, TDLib, MTProto, Telegram credentials, or consumer-messenger scope unless a future row explicitly authorizes it.
+Make the Navivox Flutter app feel Telegram-like while keeping it Gormes-owned. Borrow navigation density, bubble rhythm, composer behavior, sheets, and contact-list scanning; do not import Telegram network assumptions, TDLib, MTProto, Telegram credentials, or consumer-messenger scope unless a future row explicitly authorizes it.
 
 ## Use This For
 
@@ -19,6 +19,15 @@ Make `flutter-navivox/app` feel Telegram-like while keeping it Gormes-owned. Bor
 - The user provides Telegram official repos, Flutter clones, or UI kits as references.
 
 Do not use this for Gormes backend provider/runtime work unless UI changes require a typed Navivox API contract; then route backend work through `gormes-tdd-slice` or `gormes-interface-designer`.
+
+## Current App Root
+
+The Navivox Flutter app is now a sibling repo, not an in-repo `flutter-navivox/` tree.
+
+- Local app root: `/home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app`
+- Before UI work, run `test -d /home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app` and then `cd /home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app`.
+- Historical Gormes progress rows may mention `flutter-navivox/app`; treat those as old evidence. For new work and tests, use the sibling repo path.
+- Keep Gormes backend/progress edits in `gormes-agent` and Flutter implementation edits in `navivox-app` unless Juan explicitly scopes both repos.
 
 ## Reference Rules
 
@@ -62,7 +71,7 @@ Telegram backend | Never: Navivox talks to Gormes gateway only
 ## Implementation Workflow
 
 1. **Scope the surface**
-   - Work under `flutter-navivox/app` unless docs/tests require updates.
+   - Work under `/home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app` for Flutter UI changes unless docs/tests require Gormes repo updates.
    - State whether the change is chat thread, contact list, composer, bubbles, voice, or action sheet.
 
 2. **Write/adjust widget tests first**
@@ -82,9 +91,9 @@ Telegram backend | Never: Navivox talks to Gormes gateway only
 
 5. **Validate**
    - Run focused Flutter tests first, for example:
-     `cd flutter-navivox/app && flutter test test/shared/app_shell_test.dart`
+     `cd /home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app && flutter test test/shared/app_shell_test.dart`
    - Then run the relevant broader Flutter suite when practical:
-     `cd flutter-navivox/app && flutter test`
+     `cd /home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app && flutter test`
    - If generated files or progress docs changed, route through `gormes-git` before push.
 
 ## Common Mistakes

@@ -703,7 +703,7 @@
     "item": {
       "name": "Navivox HTTP gateway connect-info command",
       "status": "complete",
-      "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel \u2014 one per active VPN interface returned by internal/network/vpnhost \u2014 with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
+      "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel \u2014 one per active VPN interface returned by internal/network/vpnhost \u2014 with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url, websocket_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -727,13 +727,13 @@
         "Navivox HTTP gateway mandatory-VPN bind"
       ],
       "acceptance": [
-        "`gormes navivox connect-info --json` returns one entry per VPN interface with `base_url=http://<vpn-ip>:<port>`, `host_source` \u2208 {tailscale,wireguard,tun-other}, `healthz_url=base_url+/healthz`, `token_required=true` when auth_mode \u2208 {static_token, pairing_token}.",
+        "`gormes navivox connect-info --json` returns one entry per VPN interface with `base_url=http://<vpn-ip>:<port>`, `host_source` \u2208 {tailscale,wireguard,tun-other}, `healthz_url=base_url+/healthz`, `websocket_url=ws://<vpn-ip>:<port>/v1/navivox/stream`, `token_required=true` when auth_mode \u2208 {static_token, pairing_token}.",
         "Without --json, a human-readable list is printed (one URL per line) with the VPN kind shown next to each.",
         "When exposure_mode=local, only `http://127.0.0.1:<port>` is printed.",
         "When the channel is disabled, the command exits non-zero with a typed error pointing at `[navivox] enabled`.",
         "The static_token value never appears in stdout or JSON output."
       ],
-      "note": "Shipped 2026-05-14. New cmd/gormes/navivox_connect_info.go (and reintroduced top-level `gormes navivox` cobra command). `gormes navivox connect-info [--json]` emits one entry per reachable Navivox interface: loopback for exposure_mode=local; tailscale/wireguard/tun-other entries from vpnhostList for VPN-class modes. JSON shape {entries:[{host, host_source, port, base_url, healthz_url, token_required}]}; never includes the static_token value. Disabled config returns a typed error pointing at [navivox].enabled. Tests (6): disabled, local-mode JSON, never-leaks-token (both formats), tailscale-mode JSON, vpn-mode lists all kinds, text-output includes URL+kind+healthz.",
+      "note": "Shipped 2026-05-14; refreshed 2026-05-20. New cmd/gormes/navivox_connect_info.go (and reintroduced top-level `gormes navivox` cobra command). `gormes navivox connect-info [--json]` emits one entry per reachable Navivox interface: loopback for exposure_mode=local; tailscale/wireguard/tun-other entries from vpnhostList for VPN-class modes. JSON shape {entries:[{host, host_source, port, base_url, healthz_url, websocket_url, token_required}]}; never includes the static_token value. Disabled config returns a typed error pointing at [navivox].enabled. Tests cover disabled, local-mode JSON, never-leaks-token (both formats), tailscale-mode JSON, vpn-mode lists all kinds, IPv6 bracketed URLs, and text output includes URL+kind+healthz+websocket.",
       "write_scope": [
         "cmd/gormes/navivox_connect_info.go",
         "cmd/gormes/navivox_connect_info_test.go",
@@ -1119,10 +1119,10 @@
         "gateway"
       ],
       "degraded_mode": "If `v_chat_bubbles` is unsuitable, Navivox keeps the current simple adapter and implements only local Telegram-like preview tiles, grouped bubbles, status ticks, and sheets. Text chat, tool cards, and voice transcript fallback remain usable.",
-      "fixture": "flutter-navivox/app/test/features/chat/navivox_telegram_polish_test.dart",
+      "fixture": "../navivox-app/app/test/features/chat/navivox_telegram_polish_test.dart",
       "source_refs": [
-        "flutter-navivox/navivox-chat-ui-research.md:2",
-        "flutter-navivox/navivox-ui-design.md:2.1",
+        "../navivox-app/navivox-chat-ui-research.md:2",
+        "../navivox-app/navivox-ui-design.md:2.1",
         "https://pub.dev/packages/v_chat_bubbles",
         "https://docs.flutter.dev/ui/design/material",
         "https://api.flutter.dev/flutter/widgets/DraggableScrollableSheet-class.html",
@@ -1154,18 +1154,18 @@
         "A package gate documents whether `v_chat_bubbles` was adopted or rejected, including accessibility, theming, performance, license, and dependency findings."
       ],
       "write_scope": [
-        "flutter-navivox/app/pubspec.yaml",
-        "flutter-navivox/app/lib/features/chat/",
-        "flutter-navivox/app/lib/features/servers/",
-        "flutter-navivox/app/lib/shared/widgets/",
-        "flutter-navivox/app/test/features/chat/",
-        "flutter-navivox/app/test/features/servers/",
-        "flutter-navivox/navivox-chat-ui-research.md",
-        "flutter-navivox/navivox-ui-design.md",
+        "../navivox-app/app/pubspec.yaml",
+        "../navivox-app/app/lib/features/chat/",
+        "../navivox-app/app/lib/features/servers/",
+        "../navivox-app/app/lib/shared/widgets/",
+        "../navivox-app/app/test/features/chat/",
+        "../navivox-app/app/test/features/servers/",
+        "../navivox-app/navivox-chat-ui-research.md",
+        "../navivox-app/navivox-ui-design.md",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "sh -c 'cd flutter-navivox/app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart'",
+        "sh -c 'cd ../navivox-app/app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1204,8 +1204,8 @@
         "internal/cli/profile_create.go",
         "cmd/gormes/setup.go:runSetupProfilesInteractive",
         "internal/cli/profile_root.go",
-        "flutter-navivox/navivox-ui-design.md:2.8",
-        "flutter-navivox/navivox-chat-ui-research.md:10",
+        "../navivox-app/navivox-ui-design.md:2.8",
+        "../navivox-app/navivox-chat-ui-research.md:10",
         "https://docs.dograh.com/core-concepts/workflows-and-agents"
       ],
       "ready_when": [
@@ -1241,16 +1241,16 @@
         "cmd/gormes/setup_profiles_test.go",
         "internal/channels/navivox/channel.go",
         "internal/channels/navivox/channel_test.go",
-        "flutter-navivox/app/lib/features/chat/",
-        "flutter-navivox/app/lib/features/profiles/",
-        "flutter-navivox/app/test/features/chat/",
-        "flutter-navivox/app/test/features/profiles/",
+        "../navivox-app/app/lib/features/chat/",
+        "../navivox-app/app/lib/features/profiles/",
+        "../navivox-app/app/test/features/chat/",
+        "../navivox-app/app/test/features/profiles/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestProfileSeed|TestProfileCreate|TestSetupProfiles' -count=1",
         "go test ./internal/profileseed ./internal/cli -run 'Test.*Profile.*Seed|Test.*Profile.*Create' -count=1",
-        "sh -c 'cd flutter-navivox/app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart'",
+        "sh -c 'cd ../navivox-app/app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1288,9 +1288,9 @@
         "internal/gateway/manager.go:dispatchToolProgress",
         "internal/gateway/render.go:FormatToolProgressPlainMode",
         "internal/channels/navivox/channel.go:ServerEvent",
-        "flutter-navivox/app/lib/core/protocol/navivox_event.dart:NavivoxToolCall",
-        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall",
-        "flutter-navivox/app/lib/features/chat/widgets/simple_chat_adapter.dart:_ToolCallBody"
+        "../navivox-app/app/lib/core/protocol/navivox_event.dart:NavivoxToolCall",
+        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall",
+        "../navivox-app/app/lib/features/chat/widgets/simple_chat_adapter.dart:_ToolCallBody"
       ],
       "ready_when": [
         "`Navivox connect-and-talk first screen` has landed so a streaming chat fixture exists.",
@@ -1318,17 +1318,17 @@
         "internal/channels/navivox/channel.go",
         "internal/channels/navivox/channel_test.go",
         "internal/channels/navivox/tool_events_test.go",
-        "flutter-navivox/app/lib/core/gateway/navivox_gateway_protocol.dart",
-        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
-        "flutter-navivox/app/lib/core/protocol/navivox_event.dart",
-        "flutter-navivox/app/lib/features/chat/widgets/simple_chat_adapter.dart",
-        "flutter-navivox/app/test/core/channel/gateway_navivox_channel_test.dart",
-        "flutter-navivox/app/test/features/chat/",
+        "../navivox-app/app/lib/core/gateway/navivox_gateway_protocol.dart",
+        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/app/lib/core/protocol/navivox_event.dart",
+        "../navivox-app/app/lib/features/chat/widgets/simple_chat_adapter.dart",
+        "../navivox-app/app/test/core/channel/gateway_navivox_channel_test.dart",
+        "../navivox-app/app/test/features/chat/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels/navivox ./internal/gateway -run 'Test.*Tool.*Progress|Test.*Navivox.*Tool' -count=1",
-        "sh -c 'cd flutter-navivox/app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
+        "sh -c 'cd ../navivox-app/app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1362,13 +1362,13 @@
       "degraded_mode": "When config validation fails, Navivox shows typed field errors and keeps the last-good server config active; secret values are never returned, logged, or echoed, only status/source/redacted evidence.",
       "fixture": "internal/channels/navivox/config_admin_test.go",
       "source_refs": [
-        "flutter-navivox/navivox-decision-record.md:141",
+        "../navivox-app/navivox-decision-record.md:141",
         "internal/config/writer.go",
         "cmd/gormes/config.go",
         "internal/gateway/config_reload.go",
         "internal/channels/navivox/channel.go:Handler",
-        "flutter-navivox/app/lib/features/config/screens/config_screen.dart",
-        "flutter-navivox/app/test/features/config/config_screen_test.dart"
+        "../navivox-app/app/lib/features/config/screens/config_screen.dart",
+        "../navivox-app/app/test/features/config/config_screen_test.dart"
       ],
       "ready_when": [
         "`Navivox HTTP/WS documentation refresh` has landed so config admin docs describe HTTP/WS events, not stdio frames.",
@@ -1399,15 +1399,15 @@
         "internal/channels/navivox/config_admin_test.go",
         "internal/config/",
         "internal/gateway/config_reload.go",
-        "flutter-navivox/app/lib/core/channel/navivox_channel.dart",
-        "flutter-navivox/app/lib/core/channel/gateway_navivox_channel.dart",
-        "flutter-navivox/app/lib/features/config/",
-        "flutter-navivox/app/test/features/config/",
+        "../navivox-app/app/lib/core/channel/navivox_channel.dart",
+        "../navivox-app/app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/app/lib/features/config/",
+        "../navivox-app/app/test/features/config/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/channels/navivox ./internal/config ./internal/gateway -run 'Test.*Config.*Admin|Test.*Navivox.*Config|Test.*ConfigReload' -count=1",
-        "sh -c 'cd flutter-navivox/app && flutter test test/features/config'",
+        "sh -c 'cd ../navivox-app/app && flutter test test/features/config'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1446,7 +1446,7 @@
         "internal/store/recording.go",
         "cmd/gormes/session.go",
         "internal/channels/navivox/channel.go:sessionState",
-        "flutter-navivox/app/lib/core/protocol/navivox_event.dart:NavivoxVoiceMessage",
+        "../navivox-app/app/lib/core/protocol/navivox_event.dart:NavivoxVoiceMessage",
         "https://docs.dograh.com/core-concepts/how-dograh-works"
       ],
       "ready_when": [
@@ -1482,14 +1482,14 @@
         "internal/channels/navivox/channel_test.go",
         "cmd/gormes/session.go",
         "cmd/gormes/session_test.go",
-        "flutter-navivox/app/lib/core/protocol/navivox_event.dart",
-        "flutter-navivox/app/lib/features/chat/",
+        "../navivox-app/app/lib/core/protocol/navivox_event.dart",
+        "../navivox-app/app/lib/features/chat/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/session ./internal/store ./internal/apiserver ./internal/channels/navivox -run 'Test.*Navivox.*Run|Test.*Voice.*Run|Test.*RunRecord' -count=1",
         "go test ./cmd/gormes -run 'TestSession.*Run|TestNavivox.*Run' -count=1",
-        "sh -c 'cd flutter-navivox/app && flutter test test/features/chat'",
+        "sh -c 'cd ../navivox-app/app && flutter test test/features/chat'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1530,8 +1530,8 @@
         "internal/tools/tts_providers.go:BuiltinTTSProviderNames",
         "internal/tools/transcription_providers.go",
         "cmd/gormes/registry_audio.go",
-        "flutter-navivox/navivox-decision-record.md:120",
-        "flutter-navivox/navivox-ui-design.md:2.8"
+        "../navivox-app/navivox-decision-record.md:120",
+        "../navivox-app/navivox-ui-design.md:2.8"
       ],
       "ready_when": [
         "`Navivox natural-language profile seed flow` has landed so profiles have editable draft metadata.",
@@ -1564,15 +1564,15 @@
         "cmd/gormes/registry_audio.go",
         "internal/channels/navivox/channel.go",
         "internal/channels/navivox/channel_test.go",
-        "flutter-navivox/app/lib/features/profiles/",
-        "flutter-navivox/app/lib/features/config/",
-        "flutter-navivox/app/test/features/profiles/",
-        "flutter-navivox/app/test/features/config/",
+        "../navivox-app/app/lib/features/profiles/",
+        "../navivox-app/app/lib/features/config/",
+        "../navivox-app/app/test/features/profiles/",
+        "../navivox-app/app/test/features/config/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./internal/config ./internal/tools ./cmd/gormes ./internal/channels/navivox -run 'Test.*VoiceProfile|Test.*TTS|Test.*Transcription|Test.*Navivox.*Voice' -count=1",
-        "sh -c 'cd flutter-navivox/app && flutter test test/features/profiles test/features/config test/features/voice'",
+        "sh -c 'cd ../navivox-app/app && flutter test test/features/profiles test/features/config test/features/voice'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
