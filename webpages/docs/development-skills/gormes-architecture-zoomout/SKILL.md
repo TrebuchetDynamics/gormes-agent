@@ -66,7 +66,24 @@ Default to zoom-out map for vague debugging. Use architecture review when the us
 10. **Score candidates.** Use the scorecard below; discard candidates below 3 unless the user specifically asks to see speculative ideas.
 11. **List anti-candidates.** Name tempting refactors you rejected and why, so future agents do not re-suggest them.
 12. **Separate facts from guesses.** Every claim gets a file path, function, test, progress row, or command.
-13. **Recommend the smallest next skill.** Usually `gormes-tdd-slice`, `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-progress-slicer`.
+13. **Run the architecture stop/ask gates.** If any gate below trips, stop the review at a recommendation instead of implementation.
+14. **Recommend the smallest next skill.** Usually `gormes-tdd-slice`, `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-progress-slicer`.
+
+## Stop / Ask Gates
+
+Stop and ask Juan, or route to planner, when:
+
+- The candidate changes a public CLI/tool/gateway/channel contract and no progress row says to change it.
+- The candidate requires moving code across more than one subsystem in the first slice.
+- The candidate would remove a feature, fixture, channel, provider, or integration rather than deepen it.
+- The candidate depends on external credentials, live providers, browser runtimes, or user data to prove safety.
+- The candidate mostly improves aesthetics of package layout without reducing caller burden.
+
+Continue without asking when:
+
+- The first slice preserves public behavior and only moves duplicated mechanics behind a smaller seam.
+- A focused characterization test can prove old and new behavior through the same public surface.
+- The write scope is one package or one caller family and the rollback is obvious.
 
 ## Candidate Scorecard
 
@@ -127,9 +144,25 @@ Next skill packet:
   behavior_to_preserve: <contract>
   first_test: <command/test name>
   stop_if: <risk or blocker>
+  validation_matrix_row: <row from table above>
 ```
 
 For broad architecture review requests, produce 2-4 candidates, not a grand rewrite plan. Keep the report text-first for Juan. Do not write HTML reports inside this repo; if a visual report is useful, put it under `/tmp` and report the absolute path.
+
+## Validation Matrix
+
+Match the proposed next slice to the smallest proof:
+
+| Next slice type | Minimum proof before implementation | Green gate after implementation |
+|---|---|---|
+| Package-local helper extraction | Characterization test through existing public caller | focused package test + `git diff --check` |
+| New seam or adapter | Interface test with fake and production adapter evidence | focused package test + affected caller test |
+| Progress-row refactor plan | `go run ./cmd/progress validate` before and after row edit | `go test ./internal/progress ./webpages/docs -count=1` |
+| CLI/tool behavior-preserving refactor | CLI/tool golden or fixture test before moving code | focused command/tool test + full Go gate when feasible |
+| Channel/gateway refactor | transcript/status fixture proving no duplicate/leaked output | channel/gateway focused test + progress validate |
+| Persistence/config refactor | temp-home/temp-db fixture proving ordering, redaction, and atomicity | package test plus migration/config focused tests |
+
+If no minimum proof exists, the first safe slice is to add the characterization test, not to refactor.
 
 ## Review Packet Template
 
@@ -164,3 +197,4 @@ If the packet cannot name a characterization test and allowed write scope, the c
 - Keep domain policy at the edge; move only shared mechanics behind deeper modules.
 - If the answer changes public behavior, require source-backed Hermes/Gormes evidence before implementation.
 - For implementation, require a characterization test before refactoring behavior that is already working.
+- Prefer deleting shallow abstractions over adding new ones when the deletion test says complexity does not spread.

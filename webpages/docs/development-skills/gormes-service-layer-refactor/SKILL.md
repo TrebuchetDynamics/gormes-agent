@@ -31,6 +31,7 @@ Do not use for speculative architecture. If only one caller exists and no duplic
 8. Extract the smallest reusable seam: function, method, adapter, or package-local helper.
 9. Update callers one at a time; preserve public CLI/runtime contracts.
 10. Run focused tests, then the repo gate when appropriate.
+11. If the refactor reveals a public behavior change, stop and route to `gormes-progress-slicer` or `gormes-planner` instead of smuggling the behavior change into the cleanup.
 
 ## Refactor Slice Shape
 
@@ -47,7 +48,7 @@ refactor_slice:
   stop_before: <second subsystem or public behavior change>
 ```
 
-If the slice cannot name one preserved behavior and one caller family, return to `gormes-architecture-zoomout`.
+If the slice cannot name one preserved behavior and one caller family, return to `gormes-architecture-zoomout`. If it cannot name a focused validation command, the slice starts by adding or finding the characterization test.
 
 ## Quick Reference
 
@@ -64,6 +65,16 @@ If the slice cannot name one preserved behavior and one caller family, return to
 | Tests duplicate large setup just to reach one behavior | Move setup behind a fakeable seam and test through the caller interface |
 | Same clock/env/filesystem/network dependency appears in many tests | Add one package-local adapter seam with fake and production adapters |
 | Public helper exists only for tests | Prefer package-local seam or test through public behavior |
+
+## Stop Conditions
+
+Stop the refactor and report before continuing when:
+
+- A caller starts needing new config, ordering, or error-handling knowledge.
+- The seam grows to mirror the implementation instead of hiding it.
+- A second subsystem must change to keep tests green.
+- A public CLI/tool/channel/gateway behavior changes without an explicit row.
+- A focused characterization test cannot be written without live credentials or user data.
 
 ## Common Mistakes
 
