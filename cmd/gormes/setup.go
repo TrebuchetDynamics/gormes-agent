@@ -1054,8 +1054,8 @@ func runSetupSelectedProviderFlow(cmd *cobra.Command, seams setupCommandSeams, c
 		return cli.ErrSelectorNoMatch
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Selected provider: %s\n", setupProviderDisplayLabel(provider))
-	if provider == config.CodexOAuthProvider {
-		return runSetupOpenAICodexProviderFlow(cmd, seams, current)
+	if authProviderDefaultsToOAuth(provider) {
+		return runSetupOAuthProviderFlow(cmd, seams, current, provider)
 	}
 	if err := seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: provider, Model: setupModelSeedForProvider(current, provider)}); err != nil {
 		return err
@@ -1076,11 +1076,15 @@ func setupModelSeedForProvider(current cli.ProviderModel, provider string) strin
 }
 
 func runSetupOpenAICodexProviderFlow(cmd *cobra.Command, seams setupCommandSeams, current cli.ProviderModel) error {
-	status, statusErr := seams.LoadProviderAuthStatus(config.CodexOAuthProvider)
-	label := setupProviderDisplayLabel(config.CodexOAuthProvider)
+	return runSetupOAuthProviderFlow(cmd, seams, current, config.CodexOAuthProvider)
+}
+
+func runSetupOAuthProviderFlow(cmd *cobra.Command, seams setupCommandSeams, current cli.ProviderModel, provider string) error {
+	status, statusErr := seams.LoadProviderAuthStatus(provider)
+	label := setupProviderDisplayLabel(provider)
 	fmt.Fprintf(cmd.OutOrStdout(), "  %s credentials: %s\n", label, setupCredentialStatusMark(status, statusErr))
 	if status.Authenticated || status.Status == cli.AuthStatusLoggedIn {
-		prompt := setupProviderCredentialPrompt{Provider: config.CodexOAuthProvider, ProviderLabel: label, Status: status}
+		prompt := setupProviderCredentialPrompt{Provider: provider, ProviderLabel: label, Status: status}
 		printSetupProviderCredentialChoices(cmd)
 		action, err := seams.ChooseProviderCredentialAction(cmd, prompt)
 		if err != nil {
@@ -1090,7 +1094,7 @@ func runSetupOpenAICodexProviderFlow(cmd *cobra.Command, seams setupCommandSeams
 		case setupProviderCredentialUseExisting:
 		case setupProviderCredentialReauthenticate:
 			fmt.Fprintf(cmd.OutOrStdout(), "Starting a fresh %s login...\n\n", label)
-			if err := seams.RunProviderAuth(cmd, config.CodexOAuthProvider); err != nil {
+			if err := seams.RunProviderAuth(cmd, provider); err != nil {
 				return err
 			}
 		case setupProviderCredentialCancel:
@@ -1099,13 +1103,13 @@ func runSetupOpenAICodexProviderFlow(cmd *cobra.Command, seams setupCommandSeams
 			return newExitCodeError(2, fmt.Errorf("setup_provider_credentials_invalid_selection: %s", action))
 		}
 	} else {
-		fmt.Fprintln(cmd.OutOrStdout(), "Not logged into OpenAI Codex. Starting login...")
+		fmt.Fprintf(cmd.OutOrStdout(), "Not logged into %s. Starting login...\n", label)
 		fmt.Fprintln(cmd.OutOrStdout())
-		if err := seams.RunProviderAuth(cmd, config.CodexOAuthProvider); err != nil {
+		if err := seams.RunProviderAuth(cmd, provider); err != nil {
 			return err
 		}
 	}
-	return seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: config.CodexOAuthProvider, Model: setupModelSeedForProvider(current, config.CodexOAuthProvider)})
+	return seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: provider, Model: setupModelSeedForProvider(current, provider)})
 }
 
 func promptSetupProviderCredentialAction(cmd *cobra.Command, _ setupProviderCredentialPrompt) (setupProviderCredentialAction, error) {
@@ -1347,7 +1351,7 @@ func setupProviderInteractive(cmd *cobra.Command, seams setupCommandSeams) error
 	}
 
 	provider := setupCanonicalProviderID(entries[idx].ID)
-	if provider == config.CodexOAuthProvider {
+	if authProviderDefaultsToOAuth(provider) {
 		return runSetupSelectedProviderFlow(cmd, seams, current, provider)
 	}
 	var endpoint string

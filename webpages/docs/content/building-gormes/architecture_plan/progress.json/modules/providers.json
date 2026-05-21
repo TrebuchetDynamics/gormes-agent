@@ -8157,7 +8157,9 @@
         "internal/provider/profile_provider_config.go",
         "internal/provider/profile_provider_config_test.go",
         "internal/app/gormescli/modules/profiles/profile.go",
-        "internal/app/gormescli/modules/profiles/profile_command_test.go"
+        "internal/app/gormescli/modules/profiles/profile_command_test.go",
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_minimal_test.go"
       ],
       "ready_when": [
         "Root config.toml v2 profile service schema exists.",
@@ -8181,7 +8183,7 @@
         "Missing/invalid provider credential and provider catalog failure produce redacted readiness evidence.",
         "OpenRouter model catalog fixtures render all returned models in stable order with search/filter, not just a static hand-picked subset."
       ],
-      "note": "This row directly covers the reported provider setup issues: wrong API-key prompts for OAuth providers and incomplete OpenRouter model display must be impossible in the v2 profile editor. 2026-05-21 partial provider-readiness seam shipped: internal/provider/profile_provider_config.go builds a redacted per-profile readiness read model with separate credential ids, explicit sharing warnings, missing-credential evidence, provider catalog failure evidence, and full fake OpenRouter catalog ordering. Iteration 2 added `gormes profile providers` JSON/text rendering through the profiles command module so operators can inspect redacted per-profile provider readiness before setup/profile editor wiring lands. Remaining work: wire setup/auth/profile editor prompt correctness and model-picker UI surfaces before marking complete.",
+      "note": "This row directly covers the reported provider setup issues: wrong API-key prompts for OAuth providers and incomplete OpenRouter model display must be impossible in the v2 profile editor. 2026-05-21 partial provider-readiness seam shipped: internal/provider/profile_provider_config.go builds a redacted per-profile readiness read model with separate credential ids, explicit sharing warnings, missing-credential evidence, provider catalog failure evidence, and full fake OpenRouter catalog ordering. Iteration 2 added `gormes profile providers` JSON/text rendering through the profiles command module so operators can inspect redacted per-profile provider readiness before setup/profile editor wiring lands. Iteration 4 routed setup provider selection for OAuth-default providers such as Anthropic through `gormes auth add <provider> --type oauth` before model selection, preventing the legacy API-key prompt and env write path from appearing for OAuth providers. Remaining work: wire profile editor prompt correctness and model-picker UI surfaces before marking complete.",
       "write_scope": [
         "internal/config/profile_config_v2.go",
         "internal/provider/",
@@ -8194,7 +8196,7 @@
       ],
       "test_commands": [
         "go test ./internal/provider ./internal/hermes ./internal/config -run 'TestProfileProvider|TestOpenRouter|TestProviderRegistry' -count=1",
-        "go test ./cmd/gormes -run 'TestSetupModel|TestAuth|TestSetupProfiles' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupModel|TestAuth|TestSetupProfiles|TestSetupProvider(Anthropic|OpenAICodex)UsesOAuthFlow' -count=1",
         "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileModule.*Provider' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"

@@ -729,6 +729,66 @@ func TestSetupProviderOpenAICodexUsesOAuthFlow(t *testing.T) {
 	}
 }
 
+func TestSetupProviderAnthropicUsesOAuthFlow(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY: true,
+		current: cli.ProviderModel{
+			Provider: "openrouter",
+			Model:    "moonshotai/kimi-k2.6",
+		},
+		providerAuthStatus: cli.ProviderAuthStatus{
+			Provider:      config.AnthropicProvider,
+			AuthType:      config.CredentialAuthOAuth,
+			Status:        cli.AuthStatusLoggedOut,
+			Authenticated: false,
+		},
+	}
+	fake.chooseSetupProvider = func(_ *cobra.Command, entries []cli.ProviderMenuEntry, _ int) (int, error) {
+		for i, entry := range entries {
+			if entry.ID == config.AnthropicProvider {
+				return i, nil
+			}
+		}
+		t.Fatalf("provider menu missing anthropic: %#v", entries)
+		return -1, nil
+	}
+	fake.runProviderAuth = func(_ *cobra.Command, provider string) error {
+		events = append(events, "auth:"+provider)
+		return nil
+	}
+	seams := fake.seams()
+	seams.RunActiveProviderModelPicker = func(_ *cobra.Command, current cli.ProviderModel) error {
+		events = append(events, "model:"+current.Provider)
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, seams, "2\n", "provider")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got, want := strings.Join(events, ","), "auth:anthropic,model:anthropic"; got != want {
+		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+	for _, want := range []string{
+		"Selected provider: Anthropic",
+		"Not logged into Anthropic. Starting login...",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "API key:") {
+		t.Fatalf("Anthropic OAuth setup must not ask for an API key:\n%s", stdout)
+	}
+	if _, err := os.Stat(config.EnvPath()); !os.IsNotExist(err) {
+		t.Fatalf("Anthropic OAuth setup should not write GORMES_API_KEY env path %s: %v", config.EnvPath(), err)
+	}
+}
+
 func TestSetupProviderDoesNotPrintShortSecretMaterial(t *testing.T) {
 	home := t.TempDir()
 	secret := "abcd"
