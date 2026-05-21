@@ -23,6 +23,7 @@ type LoopLogEvent = {
   reason?: string;
   logPath?: string;
   ciGreen?: boolean;
+  ciGreenSource?: string;
 };
 
 const CUSTOM_STATE_TYPE = "gormes-delivery-loop-state";
@@ -61,8 +62,8 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
     if (!state.active || event.message?.role !== "assistant") return;
     const text = messageText(event.message);
     const decision = parseDecision(text);
-    const ciGreen = parseCIGreen(text);
-    if (decision && requiresCIGreen(decision) && !ciGreen) {
+    const ciGate = parseCIGate(text, state);
+    if (decision && requiresCIGreen(decision) && !ciGate.green) {
       state = { ...state, active: false, lastDecision: "blocked" };
       appendLoopLog("ci_gate_missing", { decision, reason: "missing_CI_GREEN_yes", ciGreen: false });
       pendingSelfImproveReason = "ci_gate_missing";
@@ -71,7 +72,7 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
     }
     if (decision) {
       state.lastDecision = decision;
-      appendLoopLog("assistant_decision", { decision, ciGreen });
+      appendLoopLog("assistant_decision", { decision, ciGreen: ciGate.green, ciGreenSource: ciGate.source });
     }
     if (decision === "stop" || decision === "blocked" || decision === "done") {
       state = { ...state, active: false };
@@ -297,8 +298,12 @@ function parseDecision(text: string): LoopState["lastDecision"] | undefined {
   return match?.[1]?.toLowerCase() as LoopState["lastDecision"] | undefined;
 }
 
-function parseCIGreen(text: string): boolean {
-  return /CI_GREEN:\s*yes/i.test(text);
+function parseCIGate(text: string, s: LoopState): { green: boolean; source: string } {
+  if (/CI_GREEN:\s*yes/i.test(text)) return { green: true, source: "assistant_text" };
+  if (iterationHasRecentFullCIGateEvidence(s.logPath ?? DEFAULT_LOG_PATH, s.startedAt)) {
+    return { green: true, source: "loop_log_full_gate" };
+  }
+  return { green: false, source: "missing" };
 }
 
 function requiresCIGreen(decision: string): boolean {
@@ -312,6 +317,41 @@ function recentLoopLogSnippet(logPath: string): string {
     return content.split(/\r?\n/).filter(Boolean).slice(-RECENT_LOG_RECORDS).join("\n");
   } catch (error) {
     return `(no readable loop log at ${logPath}: ${errorMessage(error)})`;
+  }
+}
+
+function iterationHasRecentFullCIGateEvidence(logPath: string, startedAt: string): boolean {
+  try {
+    const content = fs.readFileSync(logPath, "utf8").trim();
+    if (!content) return false;
+    const started = Date.parse(startedAt);
+    const recentRecords = content.split(/\r?\n/).filter(Boolean).slice(-RECENT_LOG_RECORDS).map((line) => parseLogRecord(line)).filter((record): record is Record<string, unknown> => Boolean(record));
+    for (let i = recentRecords.length - 1; i >= 0; i--) {
+      const record = recentRecords[i];
+      if (record.event === "ci_gate_missing") return false;
+      if (Number.isFinite(started) && typeof record.at === "string" && Date.parse(record.at) < started) continue;
+      if (record.event !== "iteration_result") continue;
+      if (record.ci_green === "yes" || record.ciGreen === true) return true;
+      if (hasFullCIGateValidation(record.validation)) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function hasFullCIGateValidation(validation: unknown): boolean {
+  if (!Array.isArray(validation)) return false;
+  const normalized = validation.map((item) => String(item).trim());
+  return FULL_CI_GATE.every((required) => normalized.includes(required));
+}
+
+function parseLogRecord(line: string): Record<string, unknown> | undefined {
+  try {
+    const value = JSON.parse(line);
+    return value && typeof value === "object" ? value as Record<string, unknown> : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -355,6 +395,12 @@ function isLoopState(value: unknown): value is LoopState {
     typeof candidate.maxIterations === "number" &&
     typeof candidate.startedAt === "string";
 }
+
+export const __test__ = {
+  parseCIGate,
+  iterationHasRecentFullCIGateEvidence,
+  hasFullCIGateValidation,
+};
 
 function messageText(message: { content?: unknown }): string {
   const content = message.content;
