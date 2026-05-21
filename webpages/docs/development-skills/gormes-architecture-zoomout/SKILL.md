@@ -17,6 +17,16 @@ Inspired by `mattpocock/skills` `zoom-out` and `improve-codebase-architecture`; 
 - Tests are green but user-visible behavior is still uncertain.
 - The user asks for architecture improvement, deeper modules, reduced coupling, AI-navigability, or better test seams.
 
+## Modes
+
+Pick one mode before exploring:
+
+- **Zoom-out map:** answer where behavior lives and what skill should run next.
+- **Architecture review:** find 2-4 deepening opportunities in one subsystem.
+- **Refactor preflight:** decide whether a proposed extraction is worth doing before code changes.
+
+Default to zoom-out map for vague debugging. Use architecture review when the user says “improve codebase architecture,” “find refactors,” “make this more testable,” “reduce coupling,” or “AI-navigable.”
+
 ## Workflow
 
 1. **Read local maps first.** Start with `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent/codemap.md`; read folder `codemap.md` when present.
@@ -34,8 +44,33 @@ Inspired by `mattpocock/skills` `zoom-out` and `improve-codebase-architecture`; 
    - **Two-adapter test:** is this a real seam with multiple adapters, or a hypothetical abstraction with one caller?
    - **Interface-as-test-surface test:** can public behavior be tested at the seam without fragile private-helper tests?
    - **Parity test:** would the change preserve Hermes/Honcho/Gormes public contracts?
-6. **Separate facts from guesses.** Every claim gets a file path, function, test, progress row, or command.
-7. **Recommend the smallest next skill.** Usually `gormes-tdd-slice`, `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-progress-slicer`.
+6. **Score candidates.** Use the scorecard below; discard candidates below 3 unless the user specifically asks to see speculative ideas.
+7. **List anti-candidates.** Name tempting refactors you rejected and why, so future agents do not re-suggest them.
+8. **Separate facts from guesses.** Every claim gets a file path, function, test, progress row, or command.
+9. **Recommend the smallest next skill.** Usually `gormes-tdd-slice`, `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-progress-slicer`.
+
+## Candidate Scorecard
+
+Score each candidate 0-8:
+
+| Points | Signal |
+|---|---|
+| +2 | Repeated mechanics exist in two or more callers |
+| +2 | Public behavior can be characterized through one seam |
+| +1 | Deletion test says complexity would spread across callers |
+| +1 | Refactor reduces caller knowledge/config/error handling |
+| +1 | Existing tests or fixtures can protect behavior |
+| +1 | Change preserves Hermes/Honcho/Gormes user-visible contracts |
+| -2 | Needs public behavior change without a progress row |
+| -2 | Only one adapter/caller and no near-term second adapter |
+| -2 | Mainly renames/moves code without improving locality |
+| -2 | Requires broad edits across unrelated subsystems |
+
+Recommendation strength:
+
+- `Strong`: 6-8 and first slice is clear.
+- `Worth exploring`: 3-5 or needs interface design first.
+- `Speculative`: 0-2; usually report as anti-candidate, not a task.
 
 ## Output Shape
 
@@ -48,25 +83,37 @@ Tests/evidence: <commands/files>
 Risks: <seam/persistence/security/parity>
 
 Architecture candidates:
-1. <candidate title> — <Strong/Worth exploring/Speculative>
+1. <candidate title> — <Strong/Worth exploring/Speculative> (<score>/8)
    files: <paths>
    current shape: <modules/callers>
+   interface burden: <facts callers/tests must know today>
    friction: <why locality/leverage/testability is weak>
    deepening move: <smaller interface or better seam>
    deletion test: <complexity vanishes/spreads>
    two-adapter test: <real seam/hypothetical seam>
+   characterization test: <focused test to write before refactor>
    first safe slice: <TDD/refactor/planner action>
 
+Anti-candidates:
+- <tempting refactor rejected> — <why>
+
 Top recommendation: <one candidate + why>
-Next skill: <one skill + why>
+Next skill packet:
+  selected_skill: <skill>
+  intent: <implementation/design/planning>
+  scope: <files/packages>
+  behavior_to_preserve: <contract>
+  first_test: <command/test name>
+  stop_if: <risk or blocker>
 ```
 
-For broad architecture review requests, produce 2-4 candidates, not a grand rewrite plan. Do not write HTML reports inside this repo; if a visual report is useful, put it under `/tmp` and report the absolute path.
+For broad architecture review requests, produce 2-4 candidates, not a grand rewrite plan. Keep the report text-first for Juan. Do not write HTML reports inside this repo; if a visual report is useful, put it under `/tmp` and report the absolute path.
 
 ## Rules
 
 - Do not edit production code during the zoom-out pass unless the user explicitly asks.
 - Do not create a new backlog; route row work through `gormes-progress-slicer` or `gormes-planner`.
+- Do not mark an architecture review as implementation-complete; it only selects the next safe slice.
 - Do not propose speculative seams just because code could be abstracted; require repeated mechanics, hard-to-test behavior, or cross-package coupling evidence.
 - Keep domain policy at the edge; move only shared mechanics behind deeper modules.
 - If the answer changes public behavior, require source-backed Hermes/Gormes evidence before implementation.
