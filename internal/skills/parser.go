@@ -43,6 +43,8 @@ func Parse(raw []byte, maxBytes int) (Skill, error) {
 	skill.Author = frontmatterString(frontmatter, "author")
 	skill.License = frontmatterString(frontmatter, "license")
 	skill.HermesTags = hermesTags(frontmatter)
+	skill.HermesCategory = hermesMetadataString(frontmatter, "category")
+	skill.HermesHomepage = hermesMetadataString(frontmatter, "homepage")
 	skill.RelatedSkills = relatedSkills(frontmatter)
 	skill.Platforms = frontmatterStringList(frontmatter["platforms"])
 	skill.RequiredEnvVars = requiredEnvVars(frontmatter)
@@ -239,6 +241,13 @@ func relatedSkills(frontmatter map[string]any) []string {
 	}
 	out = append(out, frontmatterStringList(frontmatter["related_skills"])...)
 	return dedupeStrings(out)
+}
+
+func hermesMetadataString(frontmatter map[string]any, key string) string {
+	if value := frontmatterString(hermesMetadata(frontmatter), key); value != "" {
+		return value
+	}
+	return frontmatterString(frontmatter, key)
 }
 
 func reviewState(frontmatter map[string]any) string {

@@ -37,6 +37,42 @@ func TestParseSkillValidDocument(t *testing.T) {
 	}
 }
 
+func TestOptionalSkillCatalogHermesV014Metadata(t *testing.T) {
+	raw := strings.Join([]string{
+		"---",
+		"name: osint-investigation",
+		"description: Public-records OSINT investigation framework",
+		"version: 0.1.0",
+		"platforms: [linux, macos, windows]",
+		"metadata:",
+		"  hermes:",
+		"    tags: [osint, investigation, public-records]",
+		"    category: research",
+		"    homepage: https://developers.notion.com",
+		"    related_skills: [domain-intel, arxiv]",
+		"---",
+		"",
+		"# OSINT Investigation",
+		"",
+		"Use public records only.",
+		"",
+	}, "\n")
+
+	skill, err := Parse([]byte(raw), 8*1024)
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+	if skill.HermesCategory != "research" {
+		t.Fatalf("HermesCategory = %q, want research", skill.HermesCategory)
+	}
+	if skill.HermesHomepage != "https://developers.notion.com" {
+		t.Fatalf("HermesHomepage = %q, want Notion homepage", skill.HermesHomepage)
+	}
+	if strings.Join(skill.RelatedSkills, ",") != "domain-intel,arxiv" {
+		t.Fatalf("RelatedSkills = %v, want domain-intel/arxiv", skill.RelatedSkills)
+	}
+}
+
 func TestParseSkillRejectsMissingRequiredHeaderFields(t *testing.T) {
 	tests := []struct {
 		name string
