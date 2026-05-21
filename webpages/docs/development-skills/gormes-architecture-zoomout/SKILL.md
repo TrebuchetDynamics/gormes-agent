@@ -29,9 +29,10 @@ Default to zoom-out map for vague debugging. Use architecture review when the us
 
 ## Workflow
 
-1. **Read local maps first.** Start with `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent/codemap.md`; read folder `codemap.md` when present.
-2. **Choose one subsystem.** Do not review the whole repository at once. Good first cuts are `cmd/gormes` setup/CLI, `internal/tools`, `internal/gateway`, `internal/channels/<name>`, `internal/goncho`, `internal/memory`, `internal/tui`, or `internal/provider`.
-3. **Run targeted discovery.** Use commands like these, scoped to the subsystem:
+1. **Protect the worktree first.** Run `git status --short --branch --untracked-files=all`. If unrelated dirty work exists, name it in the report, avoid broad formatters/regenerators, and stage only explicit architecture-skill files.
+2. **Read local maps first.** Start with `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent/codemap.md`; read folder `codemap.md` when present.
+3. **Choose one subsystem.** Do not review the whole repository at once. Good first cuts are `cmd/gormes` setup/CLI, `internal/tools`, `internal/gateway`, `internal/channels/<name>`, `internal/goncho`, `internal/memory`, `internal/tui`, or `internal/provider`.
+4. **Run targeted discovery.** Use commands like these, scoped to the subsystem:
 
    ```sh
    find <area> -maxdepth 2 -type f -name '*.go' | sort
@@ -40,16 +41,16 @@ Default to zoom-out map for vague debugging. Use architecture review when the us
    go test ./<package> -run '<focused existing test pattern>' -count=1
    ```
 
-4. **Map the subsystem.** List modules, owners, entry points, data flow, persistence, and test surfaces.
-5. **Find user-visible contracts.** CLI flags, TUI text, gateway protocol, files on disk, progress rows, and Hermes parity refs.
-6. **Evaluate module depth.** Use these terms consistently:
+5. **Map the subsystem.** List modules, owners, entry points, data flow, persistence, and test surfaces.
+6. **Find user-visible contracts.** CLI flags, TUI text, gateway protocol, files on disk, progress rows, and Hermes parity refs.
+7. **Evaluate module depth.** Use these terms consistently:
    - **Module:** package/function/type with an interface and implementation.
    - **Interface:** everything callers must know: types, invariants, errors, config, ordering, persistence, and tests.
    - **Implementation:** behavior hidden behind the interface.
    - **Seam:** where alternate behavior can be injected without editing callers.
    - **Adapter:** concrete implementation behind a seam.
    - **Depth:** leverage behind a small interface. Deep modules improve locality; shallow modules move complexity to callers.
-7. **Classify architecture smells.** Prefer candidates that match one or more of these Gormes-specific smells:
+8. **Classify architecture smells.** Prefer candidates that match one or more of these Gormes-specific smells:
    - **Scattered evidence shaping:** multiple callers build similar status/degraded/error maps.
    - **Config fan-out:** many packages parse the same env/config defaults or validation rules.
    - **Transport-policy mixing:** channel/provider transport code decides product policy.
@@ -57,15 +58,15 @@ Default to zoom-out map for vague debugging. Use architecture review when the us
    - **Persistence ordering leaks:** callers must know lock/order/atomic-write details.
    - **Parity drift risk:** Hermes/Honcho contract knowledge is copied into unrelated packages.
    - **One-off public seam:** exported interface exists for one adapter and mirrors implementation.
-8. **Apply architecture tests.** For each candidate:
+9. **Apply architecture tests.** For each candidate:
    - **Deletion test:** if the module disappeared, would complexity vanish or spread across callers?
    - **Two-adapter test:** is this a real seam with multiple adapters, or a hypothetical abstraction with one caller?
    - **Interface-as-test-surface test:** can public behavior be tested at the seam without fragile private-helper tests?
    - **Parity test:** would the change preserve Hermes/Honcho/Gormes public contracts?
-9. **Score candidates.** Use the scorecard below; discard candidates below 3 unless the user specifically asks to see speculative ideas.
-10. **List anti-candidates.** Name tempting refactors you rejected and why, so future agents do not re-suggest them.
-11. **Separate facts from guesses.** Every claim gets a file path, function, test, progress row, or command.
-12. **Recommend the smallest next skill.** Usually `gormes-tdd-slice`, `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-progress-slicer`.
+10. **Score candidates.** Use the scorecard below; discard candidates below 3 unless the user specifically asks to see speculative ideas.
+11. **List anti-candidates.** Name tempting refactors you rejected and why, so future agents do not re-suggest them.
+12. **Separate facts from guesses.** Every claim gets a file path, function, test, progress row, or command.
+13. **Recommend the smallest next skill.** Usually `gormes-tdd-slice`, `gormes-interface-designer`, `gormes-service-layer-refactor`, or `gormes-progress-slicer`.
 
 ## Candidate Scorecard
 
@@ -103,7 +104,7 @@ Tests/evidence: <commands/files>
 Risks: <seam/persistence/security/parity>
 
 Architecture candidates:
-1. <candidate title> — <Strong/Worth exploring/Speculative> (<score>/8)
+1. <candidate title> — <Strong/Worth exploring/Speculative> (<score>/10)
    files: <paths>
    current shape: <modules/callers>
    interface burden: <facts callers/tests must know today>

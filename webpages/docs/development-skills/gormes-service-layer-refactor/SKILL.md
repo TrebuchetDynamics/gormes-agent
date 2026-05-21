@@ -21,15 +21,16 @@ Do not use for speculative architecture. If only one caller exists and no duplic
 
 ## Workflow
 
-1. Start from a `gormes-architecture-zoomout` candidate or a concrete duplication smell. Do not refactor from vibes.
-2. Verify behavior is already green or write a failing characterization test first.
-3. List the repeated mechanics and the domain policy that must stay at the caller.
-4. Apply the deletion test: if the helper vanished, would complexity spread across callers? If not, do not extract it.
-5. Apply the two-adapter test: a seam with one caller/adapter is provisional and should usually stay package-local.
-6. Name the interface burden callers should no longer carry: config normalization, retries, redaction, persistence ordering, status evidence, or error shaping.
-7. Extract the smallest reusable seam: function, method, adapter, or package-local helper.
-8. Update callers one at a time; preserve public CLI/runtime contracts.
-9. Run focused tests, then the repo gate when appropriate.
+1. Check `git status --short --branch --untracked-files=all` and preserve unrelated dirty work. If another agent/user has deletions or edits, do not run broad formatters or stage outside the refactor slice.
+2. Start from a `gormes-architecture-zoomout` candidate or a concrete duplication smell. Do not refactor from vibes.
+3. Verify behavior is already green or write a failing characterization test first.
+4. List the repeated mechanics and the domain policy that must stay at the caller.
+5. Apply the deletion test: if the helper vanished, would complexity spread across callers? If not, do not extract it.
+6. Apply the two-adapter test: a seam with one caller/adapter is provisional and should usually stay package-local.
+7. Name the interface burden callers should no longer carry: config normalization, retries, redaction, persistence ordering, status evidence, or error shaping.
+8. Extract the smallest reusable seam: function, method, adapter, or package-local helper.
+9. Update callers one at a time; preserve public CLI/runtime contracts.
+10. Run focused tests, then the repo gate when appropriate.
 
 ## Refactor Slice Shape
 
