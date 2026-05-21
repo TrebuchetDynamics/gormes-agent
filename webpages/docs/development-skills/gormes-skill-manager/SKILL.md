@@ -66,9 +66,11 @@ Use this order when several skills could apply:
    module shape, cleanup after working behavior. Route to
    `gormes-interface-designer`, `gormes-service-layer-refactor`, or
    `gormes-prototype-spike`.
-6. **Communication/content intent** — README, landing page, public claims,
-   handoff-like status, or user-facing messaging. Route to `gormes-readme` or
-   `gormes-landing-web` unless the request is actually release prep.
+6. **Communication/content intent** — README, landing page, dashboard screenshot,
+   image-based dashboard asset, public claims, handoff-like status, or
+   user-facing messaging. Route dashboard visuals to `dashboard-image-design`;
+   route public copy to `gormes-readme` or `gormes-landing-web` unless the
+   request is actually release prep.
 
 #### Fast Signal Table
 
@@ -103,11 +105,12 @@ Use this order when several skills could apply:
 | try designs, prototype | throwaway experiment | `gormes-prototype-spike` |
 | README | public repo messaging | `gormes-readme` |
 | landing, homepage, www.gormes.ai | website copy/UI | `gormes-landing-web` |
+| dashboard screenshot, hero image, social card, image-based dashboard | visual asset design | `dashboard-image-design` |
 | create/update skills | skill management | `gormes-skill-manager` |
 
 Pick the primary intent:
 
-- **Decide direction**: use `grill-me` and optionally `gormes-planner`.
+- **Decide direction**: use the global `grill-me` skill and optionally `gormes-planner`; do not create a repo-local `grill-me` shadow skill.
 - **Persistent long-running objective or `/goal` command**: use `gormes-goal` first to set, inspect, pause, resume, clear, or complete the active goal. Route the goal's concrete work through the smallest applicable Gormes skill chain.
 - **Run recurring or periodic Hermes/Gormes parity progress sweeps**:
   use `gormes-hermes-parity` as the orchestrator. It loads only the needed

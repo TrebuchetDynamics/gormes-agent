@@ -63,9 +63,15 @@ Use these skills as the default routing surface:
 | PR feedback, CI failures, or bounded review-to-green iteration | `gormes-review-loop` |
 | Auditing or periodically refreshing README/public repository messaging | `gormes-readme` |
 | Improving `www.gormes.ai` landing page content or UI | `gormes-landing-web` |
+| Designing, critiquing, or polishing dashboard screenshots, hero images, social cards, or image-based dashboard assets | `dashboard-image-design` |
 | Committing all dirty work, making `development` green, and pushing it | `gormes-git` |
 | Preparing, PR-merging, tagging, and verifying a Gormes release | `gormes-release` |
-| Stress-testing a plan or decision tree with the user | `grill-me` |
+| Stress-testing a plan or decision tree with the user | global `grill-me`; pair with repo-local `gormes-skill-manager` when Gormes routing is needed |
+
+The global `/home/xel/.agents/skills/grill-me` skill is canonical; do not add a
+repo-local `grill-me` shadow skill. For Gormes-specific safety, keep branch
+rules in this `AGENTS.md` and load `gormes-skill-manager` alongside global
+`grill-me` when needed.
 
 If none of these skills fits repeated Gormes work, use
 `gormes-skill-manager` plus the system `skill-creator` workflow to create or

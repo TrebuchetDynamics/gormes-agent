@@ -32,9 +32,10 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | PR feedback, CI failures, or bounded review-to-green loops | `gormes-review-loop` | `gormes-tdd-slice`, then `gormes-git` when committing |
 | README/public repository messaging | `gormes-readme` | `gormes-git` when committing |
 | Landing page content or UI | `gormes-landing-web` | `gormes-git` when committing |
+| Dashboard screenshots, hero images, social cards, or image-based dashboard assets | `dashboard-image-design` | `gormes-landing-web` only when the asset ships on www.gormes.ai |
 | Commit all dirty development work and push | `gormes-git` | none |
 | Release development to main and tag | `gormes-release` | `gormes-git` as subroutine |
-| Stress-test a plan with the user | `grill-me` | skill selected from outcome |
+| Stress-test a plan with the user | global `grill-me` | skill selected from outcome |
 | Flutter Navivox Telegram-like chat/contact UI | `navivox-telegram-ui` | `gormes-tdd-slice` for widget-test implementation |
 
 Rules:
