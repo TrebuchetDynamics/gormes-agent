@@ -89,6 +89,7 @@ Use this order when several skills could apply:
 | external API/library docs | source context | `gormes-context-sourcing` |
 | tagged external repo release, `go get`, GitHub release, use module from release | dependency integration evidence | `gormes-context-sourcing` then `gormes-tdd-slice` |
 | `goscrapling v0.1.0`, tagged sibling repo, scrape dependency, use from GitHub release | released-module E2E integration | `gormes-context-sourcing` then `gormes-tdd-slice` |
+| architecture/planner/parity/builder loop, delivery loop extension | bounded delivery orchestration | `gormes-delivery-loop` |
 | plan, roadmap, progress row | planner pass | `gormes-planner` |
 | split plan/PRD/review into rows | vertical slicing | `gormes-progress-slicer` |
 | implement row, build slice | builder pass | `gormes-builder` + `gormes-tdd-slice` |
@@ -167,6 +168,7 @@ Pick the primary intent:
 - **Use a freshly tagged external Go module release** such as a sibling repo tag pushed to GitHub: use `gormes-context-sourcing` first to verify the module path, tag, release commit, public availability, and absence of local `replace` assumptions. Then use `gormes-tdd-slice` for a failing E2E/import test that proves Gormes consumes the released module, not a local checkout. If the integration changes public behavior or lacks a progress row, insert `gormes-progress-slicer`/`gormes-planner` before implementation.
   - For Juan's `goscrapling v0.1.0` handoff, preserve the supplied evidence (`/home/xel/git/sages-openclaw/workspace-mineru/goscrapling`, branch `main`, tag commit `ca1f046aa942c0739a73cb0715b67aec608b8e39`, tag `v0.1.0`, pre-tag validation) as context, but do not import from that sibling checkout. Verify the public GitHub module/tag with Go tooling, update Gormes via the release version, and write a failing E2E/TDD proof before implementation.
 - **Architecture zoom-out, codebase architecture improvement, or unfamiliar cross-package work**: use `gormes-architecture-zoomout` before implementation; route unclear package boundaries to `gormes-interface-designer` and repeated mechanics to `gormes-service-layer-refactor`.
+- **Bounded architecture -> planner -> parity -> builder cycles**: use `gormes-delivery-loop` when Juan explicitly asks for the chain or an extension that repeats it. Keep each iteration budgeted, progress-row-backed, test-validated, committed, and pushed before continuing.
 - **Broad plan, PRD, parity gap, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces.
 - **Throwaway design, state-machine, protocol, or UI experiment**: use `gormes-prototype-spike`; route validated production work to `gormes-tdd-slice`.
 - **Repeated runtime mechanics or service-layer cleanup** after a feature works: use `gormes-service-layer-refactor`; route unclear package boundaries to `gormes-interface-designer` first.
@@ -341,6 +343,6 @@ new_skill_needed:
 
 - Do not let skill management replace delivery.
 - Do not create side backlogs. Implementation intent goes into `progress.json`, the single logical backlog accessed via `internal/progress.Load`/`cmd/progress` (monolithic file or split/per-module layout, transparently; never hand-parse member files).
-- Do not recreate deleted loop commands. Planning/building now happens through bounded skill-driven passes.
+- Loop/orchestrator commands require explicit user intent, progress-row-backed scope, validation gates, and operator controls; otherwise prefer bounded skill-driven passes.
 - Use Context7 for external library/framework/API docs when required by repo instructions.
 - Preserve dirty user work.

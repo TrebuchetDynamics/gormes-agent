@@ -23,11 +23,11 @@ paths or row source refs. It is behavior evidence, not a Gormes runtime
 dependency.
 
 This skill is for bounded planner passes by Codex, Claude, or another agent.
-It replaces the deleted autonomous planner-loop command.
-
-Hard rule: do not recreate or invoke `cmd/planner-loop`. Inspect the
-repository, upstream sources, docs, ledgers, and `progress.json` directly.
-Repository evidence is the source of truth.
+If Juan explicitly asks for a planner-loop style subsystem, plan it as a
+first-class Gormes feature with clear interfaces, progress rows, validation
+gates, and operator controls. Otherwise inspect the repository, upstream
+sources, docs, ledgers, and `progress.json` directly. Repository evidence is
+the source of truth.
 
 If the task might instead be parity audit, implementation, TDD, interface design, or skill creation, route through `gormes-skill-manager` first.
 
@@ -260,7 +260,8 @@ go test ./internal/progress -count=1
 go test ./webpages/docs -count=1
 ```
 
-Do not recreate `cmd/planner-loop` here. If validation exposes stale loop
+If this pass introduces planner-loop behavior, keep it explicitly scoped,
+progress-row-backed, and validated. If validation exposes stale loop
 assumptions, fix the docs/rows/tests that encode those assumptions.
 
 If `www.gormes.ai` content/data changed, also run:

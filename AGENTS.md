@@ -52,6 +52,7 @@ Use these skills as the default routing surface:
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
 | Local run/install/runtime work: `go run ./cmd/gormes`, `bin/gormes`, `install.sh`, managed source checkouts, PATH shadowing, gateway process ownership, or `sessions.db` locks | `gormes-dev-runtime` |
 | Updating roadmap rows, phases, dependencies, or planning docs | `gormes-planner` |
+| Running a bounded architecture -> planner -> parity -> builder delivery cycle | `gormes-delivery-loop` |
 | Implementing one `progress.json` row | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
@@ -72,11 +73,10 @@ bounded, validate it, and do not use skill creation as a substitute for
 shipping Gormes. Recreate symlinks into `.agents/skills/`, `.claude/skills/`,
 and `.codex/skills/` instead of copying skill files.
 
-`gormes-planner` and `gormes-builder` are manual skill-routed workflows. The
-old autonomous command binaries were intentionally removed: do not recreate
-`cmd/planner-loop` or `cmd/builder-loop` as part of Gormes delivery. If a
-future orchestrator is needed, plan it as a fresh subsystem with new names,
-interfaces, and progress rows.
+`gormes-planner` and `gormes-builder` are skill-routed workflows. Delivery
+orchestrators are allowed when explicitly requested by Juan, but they must be
+planned as first-class subsystems with clear names, interfaces, progress rows,
+validation gates, and operator controls.
 
 ## Skill-Driven Delivery Architecture
 
