@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 )
 
 type bootstrapStep struct {
@@ -18,9 +17,9 @@ type bootstrapStep struct {
 }
 
 type bootstrapResult struct {
-	Status  string         `json:"status"`
-	DryRun  bool           `json:"dry_run"`
-	Message string         `json:"message,omitempty"`
+	Status  string          `json:"status"`
+	DryRun  bool            `json:"dry_run"`
+	Message string          `json:"message,omitempty"`
 	Steps   []bootstrapStep `json:"steps"`
 }
 
@@ -94,7 +93,7 @@ func (s *Server) handleBootstrapTermuxSSE(w http.ResponseWriter, r *http.Request
 	}
 
 	finalData, _ := json.Marshal(map[string]interface{}{
-		"status": finalStatus,
+		"status":  finalStatus,
 		"dry_run": dryRun,
 	})
 	fmt.Fprintf(w, "event: complete\ndata: %s\n\n", finalData)
@@ -321,9 +320,4 @@ func stepVerifyGateway(ctx context.Context, cfg Config, dryRun bool) bootstrapSt
 		Status: "warning",
 		Detail: "Gateway not responding (may need manual start)",
 	}
-}
-
-func isTermuxEnvironment() bool {
-	prefix := os.Getenv("PREFIX")
-	return strings.Contains(prefix, "com.termux") || runtime.GOOS == "android"
 }
