@@ -314,7 +314,8 @@ function parseDecision(text: string): LoopState["lastDecision"] | undefined {
 
 function parseCIGate(text: string, s: LoopState): { green: boolean; source: string } {
   if (/CI_GREEN:\s*yes/i.test(text)) return { green: true, source: "assistant_text" };
-  if (iterationHasRecentFullCIGateEvidence(s.logPath ?? DEFAULT_LOG_PATH, s.startedAt, s.iteration)) {
+  const targetIteration = parseReportedIterationNumber(text) ?? s.iteration;
+  if (iterationHasRecentFullCIGateEvidence(s.logPath ?? DEFAULT_LOG_PATH, s.startedAt, targetIteration)) {
     return { green: true, source: "loop_log_full_gate" };
   }
   return { green: false, source: "missing" };
@@ -342,11 +343,11 @@ function iterationHasRecentFullCIGateEvidence(logPath: string, startedAt: string
     const recentRecords = content.split(/\r?\n/).filter(Boolean).slice(-RECENT_LOG_RECORDS).map((line) => parseLogRecord(line)).filter((record): record is Record<string, unknown> => Boolean(record));
     for (let i = recentRecords.length - 1; i >= 0; i--) {
       const record = recentRecords[i];
-      if (record.event === "ci_gate_missing") return false;
-      if (Number.isFinite(started) && typeof record.at === "string" && Date.parse(record.at) < started) continue;
-      if (record.event !== "iteration_result") continue;
+      if (Number.isFinite(started) && recordTimestamp(record) < started) continue;
       if (!recordMatchesCurrentIteration(record, currentIteration)) continue;
-      if (record.ci_green === "yes" || record.ciGreen === true) return true;
+      if (recordEvent(record) === "ci_gate_missing") return false;
+      if (recordEvent(record) !== "iteration_result") continue;
+      if (record.ci_green === "yes" || record.ciGreen === true || record.ci_gate === "local_full_gate_passed") return true;
       if (hasFullCIGateValidation(record.validation)) return true;
     }
   } catch {
@@ -355,9 +356,36 @@ function iterationHasRecentFullCIGateEvidence(logPath: string, startedAt: string
   return false;
 }
 
+function parseReportedIterationNumber(text: string): number | undefined {
+  const match = text.match(/iteration\s+(\d+)\s*\/\s*\d+/i);
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
 function recordMatchesCurrentIteration(record: Record<string, unknown>, currentIteration: number): boolean {
-  const iteration = typeof record.iteration === "number" ? record.iteration : Number(record.iteration);
+  const iteration = recordIteration(record);
   return Number.isFinite(iteration) && iteration === currentIteration;
+}
+
+function recordEvent(record: Record<string, unknown>): string | undefined {
+  const value = record.event ?? record.type;
+  return typeof value === "string" ? value : undefined;
+}
+
+function recordTimestamp(record: Record<string, unknown>): number {
+  const value = record.at ?? record.timestamp;
+  return typeof value === "string" ? Date.parse(value) : NaN;
+}
+
+function recordIteration(record: Record<string, unknown>): number {
+  const value = record.iteration;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const match = value.match(/^(\d+)(?:\s*\/\s*\d+)?$/);
+    if (match) return Number(match[1]);
+  }
+  return Number(value);
 }
 
 function hasFullCIGateValidation(validation: unknown): boolean {

@@ -68,6 +68,33 @@ func TestGormesLoopExtensionAcceptsLoggedFullCIGateEvidence(t *testing.T) {
 	runNodeScript(t, script)
 }
 
+func TestGormesLoopExtensionAcceptsCompletedPreviousIterationLogSchema(t *testing.T) {
+	repoRoot := repoRootFromTest(t)
+	jitiEntry := piJitiEntry(t)
+
+	script := filepath.Join(t.TempDir(), "smoke-previous-iteration-ci-gate.mjs")
+	mustWriteFile(t, script, strings.Join([]string{
+		`import fs from "node:fs";`,
+		`import path from "node:path";`,
+		`import { createRequire } from "node:module";`,
+		`const require = createRequire(import.meta.url);`,
+		`const { createJiti } = require("` + jitiEntry + `");`,
+		`const jiti = createJiti(import.meta.url, { interopDefault: true });`,
+		`const mod = await jiti.import("` + filepath.ToSlash(filepath.Join(repoRoot, ".pi", "extensions", "gormes-delivery-loop.ts")) + `");`,
+		`const logDir = path.join(process.cwd(), ".pi", "gormes-loop");`,
+		`fs.mkdirSync(logDir, { recursive: true });`,
+		`const logPath = path.join(logDir, "logs.jsonl");`,
+		`fs.writeFileSync(logPath, JSON.stringify({ timestamp: "2026-05-21T15:36:00.661188+00:00", type: "iteration_result", iteration: "4/10", loop_decision: "continue", ci_gate: "local_full_gate_passed", validation: ["go test ./... -count=1", "go run ./cmd/progress validate", "git diff --check"] }) + "\n");`,
+		`const text = "Delivery loop iteration 4/10 complete.\\nCI_GREEN: omitted by mistake\\nLOOP_DECISION: continue".replace("CI_GREEN: omitted by mistake\\n", "");`,
+		`const gate = mod.__test__.parseCIGate(text, { logPath, startedAt: "2026-05-21T15:00:00.000Z", iteration: 5 });`,
+		`if (!gate.green || gate.source !== "loop_log_full_gate") {`,
+		`  throw new Error("expected loop_log_full_gate from completed previous iteration schema, got " + JSON.stringify(gate));`,
+		`}`,
+	}, "\n"))
+
+	runNodeScript(t, script)
+}
+
 func TestGormesLoopStatusCommandSendsDisplayedMessage(t *testing.T) {
 	repoRoot := repoRootFromTest(t)
 	jitiEntry := piJitiEntry(t)
