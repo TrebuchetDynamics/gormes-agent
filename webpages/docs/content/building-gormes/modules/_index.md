@@ -29,7 +29,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Planner](planner/) | 10 | 10 | 0 | 0 | `P0`: 1 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Profiles](profiles/) | 24 | 20 | 0 | 4 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `unset`: 6 |
 | [Progress](progress/) | 17 | 17 | 0 | 0 | `P1`: 2 · `P2`: 15 |
-| [Providers](providers/) | 119 | 118 | 0 | 1 | `P0`: 9 · `P1`: 50 · `P2`: 23 · `P3`: 2 · `unset`: 35 |
+| [Providers](providers/) | 119 | 118 | 1 | 0 | `P0`: 9 · `P1`: 50 · `P2`: 23 · `P3`: 2 · `unset`: 35 |
 | [Release](release/) | 11 | 10 | 0 | 1 | `P0`: 1 · `P1`: 10 |
 | [Runtime](runtime/) | 18 | 18 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
 | [Sessions](sessions/) | 28 | 28 | 0 | 0 | `P1`: 8 · `P2`: 5 · `P3`: 1 · `unset`: 14 |

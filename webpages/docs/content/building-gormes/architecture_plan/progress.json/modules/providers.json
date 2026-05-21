@@ -8134,7 +8134,7 @@
     "item": {
       "name": "Per-profile provider credential readiness",
       "priority": "P1",
-      "status": "planned",
+      "status": "in_progress",
       "contract": "Add provider setup/readiness for v2 profiles: each `[profiles.<id>.providers.<provider>]` block references an explicit credential id, default model, optional endpoint/base URL, and allowed model list; each `[credentials.<id>]` provider credential records kind/provider/owner_profile/secret_ref. Setup must never ask for provider credentials globally when editing a profile, must not silently share credentials across profiles, and must surface provider catalog/model-picker readiness so OpenRouter and other aggregators show their available model set instead of a truncated static list.",
       "contract_status": "fixture_ready",
       "slice_size": "medium",
@@ -8153,7 +8153,9 @@
         "internal/provider/",
         "cmd/gormes/setup_model.go",
         "cmd/gormes/auth.go",
-        "internal/config/config.go"
+        "internal/config/config.go",
+        "internal/provider/profile_provider_config.go",
+        "internal/provider/profile_provider_config_test.go"
       ],
       "ready_when": [
         "Root config.toml v2 profile service schema exists.",
@@ -8177,7 +8179,7 @@
         "Missing/invalid provider credential and provider catalog failure produce redacted readiness evidence.",
         "OpenRouter model catalog fixtures render all returned models in stable order with search/filter, not just a static hand-picked subset."
       ],
-      "note": "This row directly covers the reported provider setup issues: wrong API-key prompts for OAuth providers and incomplete OpenRouter model display must be impossible in the v2 profile editor.",
+      "note": "This row directly covers the reported provider setup issues: wrong API-key prompts for OAuth providers and incomplete OpenRouter model display must be impossible in the v2 profile editor. 2026-05-21 partial provider-readiness seam shipped: internal/provider/profile_provider_config.go builds a redacted per-profile readiness read model with separate credential ids, explicit sharing warnings, missing-credential evidence, provider catalog failure evidence, and full fake OpenRouter catalog ordering. Remaining work: wire setup/auth/profile editor prompt correctness and model-picker UI surfaces before marking complete.",
       "write_scope": [
         "internal/config/profile_config_v2.go",
         "internal/provider/",
