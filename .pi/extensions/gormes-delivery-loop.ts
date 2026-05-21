@@ -133,7 +133,7 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
           ctx.ui.setStatus("gormes-loop", statusLine(state));
           return;
         case "status":
-          ctx.ui.notify(`${statusLine(state)}\nlog: ${state.logPath ?? DEFAULT_LOG_PATH}`, "info");
+          publishStatus(pi, ctx);
           return;
         case "restart":
           await startLoop(pi, ctx, parsed.topic, parsed.iterations, true);
@@ -145,6 +145,20 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
       }
     },
   });
+}
+
+function publishStatus(pi: ExtensionAPI, ctx: { ui?: { notify(message: string, level?: string): void } }) {
+  const text = statusReport(state);
+  ctx.ui?.notify(text, "info");
+  pi.sendMessage({
+    customType: "gormes-loop-status",
+    content: text,
+    display: true,
+  });
+}
+
+function statusReport(s: LoopState): string {
+  return `${statusLine(s)}\nlog: ${s.logPath ?? DEFAULT_LOG_PATH}`;
 }
 
 async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: string, requestedIterations: number, replaceActive: boolean) {
@@ -406,6 +420,7 @@ export const __test__ = {
   parseCIGate,
   iterationHasRecentFullCIGateEvidence,
   hasFullCIGateValidation,
+  statusReport,
 };
 
 function messageText(message: { content?: unknown }): string {

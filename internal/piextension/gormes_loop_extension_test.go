@@ -68,6 +68,40 @@ func TestGormesLoopExtensionAcceptsLoggedFullCIGateEvidence(t *testing.T) {
 	runNodeScript(t, script)
 }
 
+func TestGormesLoopStatusCommandSendsDisplayedMessage(t *testing.T) {
+	repoRoot := repoRootFromTest(t)
+	jitiEntry := piJitiEntry(t)
+
+	script := filepath.Join(t.TempDir(), "smoke-status-command.mjs")
+	mustWriteFile(t, script, strings.Join([]string{
+		`import { createRequire } from "node:module";`,
+		`const require = createRequire(import.meta.url);`,
+		`const { createJiti } = require("` + jitiEntry + `");`,
+		`const jiti = createJiti(import.meta.url, { interopDefault: true });`,
+		`const mod = await jiti.import("` + filepath.ToSlash(filepath.Join(repoRoot, ".pi", "extensions", "gormes-delivery-loop.ts")) + `");`,
+		`const handlers = new Map();`,
+		`let statusCommand;`,
+		`const sent = [];`,
+		`const pi = {`,
+		`  on(name, handler) { handlers.set(name, handler); },`,
+		`  registerCommand(name, command) { if (name === "gormes-loop") statusCommand = command; },`,
+		`  appendEntry() {},`,
+		`  sendUserMessage() {},`,
+		`  sendMessage(message) { sent.push(message); },`,
+		`};`,
+		`mod.default(pi);`,
+		`await handlers.get("session_start")({}, { hasUI: true, ui: { setStatus() {}, notify() {} }, sessionManager: { getEntries() { return [{ type: "custom", customType: "gormes-delivery-loop-state", data: { active: true, topic: "auto-select", iteration: 3, maxIterations: 10, startedAt: "2026-05-21T15:00:00.000Z", logPath: ".pi/gormes-loop/logs.jsonl" } }]; } } });`,
+		`await statusCommand.handler("status", { ui: { notify() {} } });`,
+		`if (sent.length !== 1) throw new Error("expected one displayed status message, got " + sent.length);`,
+		`if (sent[0].customType !== "gormes-loop-status" || sent[0].display !== true) throw new Error("unexpected status message envelope: " + JSON.stringify(sent[0]));`,
+		`if (!String(sent[0].content).includes("Gormes loop: active 3/10 auto-select") || !String(sent[0].content).includes("log: .pi/gormes-loop/logs.jsonl")) {`,
+		`  throw new Error("unexpected status content: " + sent[0].content);`,
+		`}`,
+	}, "\n"))
+
+	runNodeScript(t, script)
+}
+
 func TestGormesLoopExtensionRejectsStaleLoggedFullCIGateEvidence(t *testing.T) {
 	repoRoot := repoRootFromTest(t)
 	jitiEntry := piJitiEntry(t)
