@@ -77,13 +77,13 @@ jobs:
         working-directory: webpages/landing
         run: |
           grep -F 'data-site-runtime="astro-tailwind"' dist/index.html >/dev/null
-          grep -F "Run AI agents from a single binary." dist/index.html >/dev/null
-          grep -F "Systematic porting with full test coverage." dist/index.html >/dev/null
-          grep -F "HOW IT&#39;S BUILT" dist/index.html >/dev/null
-          grep -F "30 Hermes skills" dist/index.html >/dev/null
-          grep -F "Validated rows shipped" dist/index.html >/dev/null
-          grep -F "Current scout release:" dist/index.html >/dev/null
-          grep -F "Runtime-ready" dist/index.html >/dev/null
+          grep -F "Go-native AI agent runtime without Python or Docker." dist/index.html >/dev/null
+          grep -F "Python agents break for boring reasons." dist/index.html >/dev/null
+          grep -F "What works today" dist/index.html >/dev/null
+          grep -F "CLI and offline TUI" dist/index.html >/dev/null
+          grep -F "Evidence, not a sidecar stack" dist/index.html >/dev/null
+          grep -F "Current release:" dist/index.html >/dev/null
+          grep -F "Static Go binary" dist/index.html >/dev/null
           grep -F 'href="/static/favicon.ico"' dist/index.html >/dev/null
           grep -F 'property="og:image" content="https://gormes.ai/static/social-card.png"' dist/index.html >/dev/null
           grep -F '/static/go-gopher-bear-lowpoly.png' dist/index.html >/dev/null
