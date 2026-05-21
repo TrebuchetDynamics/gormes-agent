@@ -1,6 +1,6 @@
 {
   "schema_version": "hermes-fidelity/v1",
-  "generated_at": "2026-05-18T15:36:56Z",
+  "generated_at": "2026-05-21T15:00:13Z",
   "hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
   "hermes_path": "hermes-agent",
   "progress_path": "webpages/docs/content/building-gormes/architecture_plan/progress.json",
@@ -4575,6 +4575,1563 @@
       "ui-tui/src/lib/openExternalUrl.test.ts",
       "ui-tui/src/lib/text.test.ts",
       "ui-tui/src/lib/todo.test.ts"
+    ],
+    "test_suites": [
+      {
+        "suite": "__init__.py",
+        "count": 1,
+        "source_prefix": "__init__.py",
+        "examples": [
+          "tests/__init__.py"
+        ]
+      },
+      {
+        "suite": "acp",
+        "count": 12,
+        "source_prefix": "acp",
+        "examples": [
+          "tests/acp/__init__.py",
+          "tests/acp/test_approval_isolation.py",
+          "tests/acp/test_auth.py",
+          "tests/acp/test_entry.py",
+          "tests/acp/test_events.py"
+        ]
+      },
+      {
+        "suite": "acp_adapter",
+        "count": 2,
+        "source_prefix": "acp_adapter",
+        "examples": [
+          "tests/acp_adapter/test_acp_commands.py",
+          "tests/acp_adapter/test_acp_images.py"
+        ],
+        "progress_rows": [
+          "ACP session CWD propagation into prompt runners",
+          "ACP stdio benign ping/probe suppression"
+        ]
+      },
+      {
+        "suite": "agent/__init__.py",
+        "count": 1,
+        "source_prefix": "agent/__init__.py",
+        "examples": [
+          "tests/agent/__init__.py"
+        ]
+      },
+      {
+        "suite": "agent/lsp",
+        "count": 12,
+        "source_prefix": "agent/lsp",
+        "examples": [
+          "tests/agent/lsp/__init__.py",
+          "tests/agent/lsp/_mock_lsp_server.py",
+          "tests/agent/lsp/test_backend_gate.py",
+          "tests/agent/lsp/test_broken_set.py",
+          "tests/agent/lsp/test_client_e2e.py"
+        ],
+        "progress_rows": [
+          "Hermes agent runtime strict-fidelity source-pair expansion"
+        ]
+      },
+      {
+        "suite": "agent/test_anthropic_adapter.py",
+        "count": 1,
+        "source_prefix": "agent/test_anthropic_adapter.py",
+        "examples": [
+          "tests/agent/test_anthropic_adapter.py"
+        ]
+      },
+      {
+        "suite": "agent/test_anthropic_keychain.py",
+        "count": 1,
+        "source_prefix": "agent/test_anthropic_keychain.py",
+        "examples": [
+          "tests/agent/test_anthropic_keychain.py"
+        ]
+      },
+      {
+        "suite": "agent/test_anthropic_oauth_pkce.py",
+        "count": 1,
+        "source_prefix": "agent/test_anthropic_oauth_pkce.py",
+        "examples": [
+          "tests/agent/test_anthropic_oauth_pkce.py"
+        ]
+      },
+      {
+        "suite": "agent/test_arcee_trinity_overrides.py",
+        "count": 1,
+        "source_prefix": "agent/test_arcee_trinity_overrides.py",
+        "examples": [
+          "tests/agent/test_arcee_trinity_overrides.py"
+        ]
+      },
+      {
+        "suite": "agent/test_async_utils.py",
+        "count": 1,
+        "source_prefix": "agent/test_async_utils.py",
+        "examples": [
+          "tests/agent/test_async_utils.py"
+        ]
+      },
+      {
+        "suite": "agent/test_auxiliary_client.py",
+        "count": 1,
+        "source_prefix": "agent/test_auxiliary_client.py",
+        "examples": [
+          "tests/agent/test_auxiliary_client.py"
+        ]
+      },
+      {
+        "suite": "agent/test_auxiliary_client_anthropic_custom.py",
+        "count": 1,
+        "source_prefix": "agent/test_auxiliary_client_anthropic_custom.py",
+        "examples": [
+          "tests/agent/test_auxiliary_client_anthropic_custom.py"
+        ]
+      },
+      {
+        "suite": "agent/test_auxiliary_config_bridge.py",
+        "count": 1,
+        "source_prefix": "agent/test_auxiliary_config_bridge.py",
+        "examples": [
+          "tests/agent/test_auxiliary_config_bridge.py"
+        ]
+      },
+      {
+        "suite": "agent/test_auxiliary_main_first.py",
+        "count": 1,
+        "source_prefix": "agent/test_auxiliary_main_first.py",
+        "examples": [
+          "tests/agent/test_auxiliary_main_first.py"
+        ]
+      },
+      {
+        "suite": "agent/test_auxiliary_named_custom_providers.py",
+        "count": 1,
+        "source_prefix": "agent/test_auxiliary_named_custom_providers.py",
+        "examples": [
+          "tests/agent/test_auxiliary_named_custom_providers.py"
+        ]
+      },
+      {
+        "suite": "agent/test_auxiliary_transport_autodetect.py",
+        "count": 1,
+        "source_prefix": "agent/test_auxiliary_transport_autodetect.py",
+        "examples": [
+          "tests/agent/test_auxiliary_transport_autodetect.py"
+        ]
+      },
+      {
+        "suite": "agent/test_bedrock_1m_context.py",
+        "count": 1,
+        "source_prefix": "agent/test_bedrock_1m_context.py",
+        "examples": [
+          "tests/agent/test_bedrock_1m_context.py"
+        ]
+      },
+      {
+        "suite": "agent/test_bedrock_adapter.py",
+        "count": 1,
+        "source_prefix": "agent/test_bedrock_adapter.py",
+        "examples": [
+          "tests/agent/test_bedrock_adapter.py"
+        ]
+      },
+      {
+        "suite": "agent/test_bedrock_integration.py",
+        "count": 1,
+        "source_prefix": "agent/test_bedrock_integration.py",
+        "examples": [
+          "tests/agent/test_bedrock_integration.py"
+        ]
+      },
+      {
+        "suite": "agent/test_codex_cloudflare_headers.py",
+        "count": 1,
+        "source_prefix": "agent/test_codex_cloudflare_headers.py",
+        "examples": [
+          "tests/agent/test_codex_cloudflare_headers.py"
+        ]
+      },
+      {
+        "suite": "agent/test_compress_focus.py",
+        "count": 1,
+        "source_prefix": "agent/test_compress_focus.py",
+        "examples": [
+          "tests/agent/test_compress_focus.py"
+        ]
+      },
+      {
+        "suite": "agent/test_compressor_historical_media.py",
+        "count": 1,
+        "source_prefix": "agent/test_compressor_historical_media.py",
+        "examples": [
+          "tests/agent/test_compressor_historical_media.py"
+        ]
+      },
+      {
+        "suite": "agent/test_compressor_image_tokens.py",
+        "count": 1,
+        "source_prefix": "agent/test_compressor_image_tokens.py",
+        "examples": [
+          "tests/agent/test_compressor_image_tokens.py"
+        ]
+      },
+      {
+        "suite": "agent/test_context_compressor.py",
+        "count": 1,
+        "source_prefix": "agent/test_context_compressor.py",
+        "examples": [
+          "tests/agent/test_context_compressor.py"
+        ]
+      },
+      {
+        "suite": "agent/test_context_compressor_summary_continuity.py",
+        "count": 1,
+        "source_prefix": "agent/test_context_compressor_summary_continuity.py",
+        "examples": [
+          "tests/agent/test_context_compressor_summary_continuity.py"
+        ]
+      },
+      {
+        "suite": "agent/test_context_engine.py",
+        "count": 1,
+        "source_prefix": "agent/test_context_engine.py",
+        "examples": [
+          "tests/agent/test_context_engine.py"
+        ]
+      },
+      {
+        "suite": "agent/test_context_references.py",
+        "count": 1,
+        "source_prefix": "agent/test_context_references.py",
+        "examples": [
+          "tests/agent/test_context_references.py"
+        ]
+      },
+      {
+        "suite": "agent/test_copilot_acp_client.py",
+        "count": 1,
+        "source_prefix": "agent/test_copilot_acp_client.py",
+        "examples": [
+          "tests/agent/test_copilot_acp_client.py"
+        ]
+      },
+      {
+        "suite": "agent/test_copilot_acp_deprecation.py",
+        "count": 1,
+        "source_prefix": "agent/test_copilot_acp_deprecation.py",
+        "examples": [
+          "tests/agent/test_copilot_acp_deprecation.py"
+        ]
+      },
+      {
+        "suite": "agent/test_credential_pool.py",
+        "count": 1,
+        "source_prefix": "agent/test_credential_pool.py",
+        "examples": [
+          "tests/agent/test_credential_pool.py"
+        ]
+      },
+      {
+        "suite": "agent/test_credential_pool_routing.py",
+        "count": 1,
+        "source_prefix": "agent/test_credential_pool_routing.py",
+        "examples": [
+          "tests/agent/test_credential_pool_routing.py"
+        ]
+      },
+      {
+        "suite": "agent/test_crossloop_client_cache.py",
+        "count": 1,
+        "source_prefix": "agent/test_crossloop_client_cache.py",
+        "examples": [
+          "tests/agent/test_crossloop_client_cache.py"
+        ]
+      },
+      {
+        "suite": "agent/test_curator.py",
+        "count": 1,
+        "source_prefix": "agent/test_curator.py",
+        "examples": [
+          "tests/agent/test_curator.py"
+        ]
+      },
+      {
+        "suite": "agent/test_curator_activity.py",
+        "count": 1,
+        "source_prefix": "agent/test_curator_activity.py",
+        "examples": [
+          "tests/agent/test_curator_activity.py"
+        ]
+      },
+      {
+        "suite": "agent/test_curator_backup.py",
+        "count": 1,
+        "source_prefix": "agent/test_curator_backup.py",
+        "examples": [
+          "tests/agent/test_curator_backup.py"
+        ]
+      },
+      {
+        "suite": "agent/test_curator_classification.py",
+        "count": 1,
+        "source_prefix": "agent/test_curator_classification.py",
+        "examples": [
+          "tests/agent/test_curator_classification.py"
+        ]
+      },
+      {
+        "suite": "agent/test_curator_reports.py",
+        "count": 1,
+        "source_prefix": "agent/test_curator_reports.py",
+        "examples": [
+          "tests/agent/test_curator_reports.py"
+        ]
+      },
+      {
+        "suite": "agent/test_deepseek_anthropic_thinking.py",
+        "count": 1,
+        "source_prefix": "agent/test_deepseek_anthropic_thinking.py",
+        "examples": [
+          "tests/agent/test_deepseek_anthropic_thinking.py"
+        ]
+      },
+      {
+        "suite": "agent/test_direct_provider_url_detection.py",
+        "count": 1,
+        "source_prefix": "agent/test_direct_provider_url_detection.py",
+        "examples": [
+          "tests/agent/test_direct_provider_url_detection.py"
+        ]
+      },
+      {
+        "suite": "agent/test_display.py",
+        "count": 1,
+        "source_prefix": "agent/test_display.py",
+        "examples": [
+          "tests/agent/test_display.py"
+        ]
+      },
+      {
+        "suite": "agent/test_display_emoji.py",
+        "count": 1,
+        "source_prefix": "agent/test_display_emoji.py",
+        "examples": [
+          "tests/agent/test_display_emoji.py"
+        ]
+      },
+      {
+        "suite": "agent/test_error_classifier.py",
+        "count": 1,
+        "source_prefix": "agent/test_error_classifier.py",
+        "examples": [
+          "tests/agent/test_error_classifier.py"
+        ]
+      },
+      {
+        "suite": "agent/test_external_skills.py",
+        "count": 1,
+        "source_prefix": "agent/test_external_skills.py",
+        "examples": [
+          "tests/agent/test_external_skills.py"
+        ]
+      },
+      {
+        "suite": "agent/test_external_skills_dirs_cache.py",
+        "count": 1,
+        "source_prefix": "agent/test_external_skills_dirs_cache.py",
+        "examples": [
+          "tests/agent/test_external_skills_dirs_cache.py"
+        ]
+      },
+      {
+        "suite": "agent/test_gemini_cloudcode.py",
+        "count": 1,
+        "source_prefix": "agent/test_gemini_cloudcode.py",
+        "examples": [
+          "tests/agent/test_gemini_cloudcode.py"
+        ]
+      },
+      {
+        "suite": "agent/test_gemini_fast_fallback.py",
+        "count": 1,
+        "source_prefix": "agent/test_gemini_fast_fallback.py",
+        "examples": [
+          "tests/agent/test_gemini_fast_fallback.py"
+        ]
+      },
+      {
+        "suite": "agent/test_gemini_free_tier_gate.py",
+        "count": 1,
+        "source_prefix": "agent/test_gemini_free_tier_gate.py",
+        "examples": [
+          "tests/agent/test_gemini_free_tier_gate.py"
+        ]
+      },
+      {
+        "suite": "agent/test_gemini_native_adapter.py",
+        "count": 1,
+        "source_prefix": "agent/test_gemini_native_adapter.py",
+        "examples": [
+          "tests/agent/test_gemini_native_adapter.py"
+        ]
+      },
+      {
+        "suite": "agent/test_gemini_schema.py",
+        "count": 1,
+        "source_prefix": "agent/test_gemini_schema.py",
+        "examples": [
+          "tests/agent/test_gemini_schema.py"
+        ]
+      },
+      {
+        "suite": "agent/test_image_gen_registry.py",
+        "count": 1,
+        "source_prefix": "agent/test_image_gen_registry.py",
+        "examples": [
+          "tests/agent/test_image_gen_registry.py"
+        ]
+      },
+      {
+        "suite": "agent/test_image_routing.py",
+        "count": 1,
+        "source_prefix": "agent/test_image_routing.py",
+        "examples": [
+          "tests/agent/test_image_routing.py"
+        ]
+      },
+      {
+        "suite": "agent/test_insights.py",
+        "count": 1,
+        "source_prefix": "agent/test_insights.py",
+        "examples": [
+          "tests/agent/test_insights.py"
+        ]
+      },
+      {
+        "suite": "agent/test_kimi_coding_anthropic_thinking.py",
+        "count": 1,
+        "source_prefix": "agent/test_kimi_coding_anthropic_thinking.py",
+        "examples": [
+          "tests/agent/test_kimi_coding_anthropic_thinking.py"
+        ]
+      },
+      {
+        "suite": "agent/test_local_stream_timeout.py",
+        "count": 1,
+        "source_prefix": "agent/test_local_stream_timeout.py",
+        "examples": [
+          "tests/agent/test_local_stream_timeout.py"
+        ]
+      },
+      {
+        "suite": "agent/test_markdown_tables.py",
+        "count": 1,
+        "source_prefix": "agent/test_markdown_tables.py",
+        "examples": [
+          "tests/agent/test_markdown_tables.py"
+        ]
+      },
+      {
+        "suite": "agent/test_memory_provider.py",
+        "count": 1,
+        "source_prefix": "agent/test_memory_provider.py",
+        "examples": [
+          "tests/agent/test_memory_provider.py"
+        ]
+      },
+      {
+        "suite": "agent/test_memory_session_switch.py",
+        "count": 1,
+        "source_prefix": "agent/test_memory_session_switch.py",
+        "examples": [
+          "tests/agent/test_memory_session_switch.py"
+        ]
+      },
+      {
+        "suite": "agent/test_memory_user_id.py",
+        "count": 1,
+        "source_prefix": "agent/test_memory_user_id.py",
+        "examples": [
+          "tests/agent/test_memory_user_id.py"
+        ]
+      },
+      {
+        "suite": "agent/test_minimax_auxiliary_url.py",
+        "count": 1,
+        "source_prefix": "agent/test_minimax_auxiliary_url.py",
+        "examples": [
+          "tests/agent/test_minimax_auxiliary_url.py"
+        ]
+      },
+      {
+        "suite": "agent/test_minimax_provider.py",
+        "count": 1,
+        "source_prefix": "agent/test_minimax_provider.py",
+        "examples": [
+          "tests/agent/test_minimax_provider.py"
+        ]
+      },
+      {
+        "suite": "agent/test_model_metadata.py",
+        "count": 1,
+        "source_prefix": "agent/test_model_metadata.py",
+        "examples": [
+          "tests/agent/test_model_metadata.py"
+        ]
+      },
+      {
+        "suite": "agent/test_model_metadata_local_ctx.py",
+        "count": 1,
+        "source_prefix": "agent/test_model_metadata_local_ctx.py",
+        "examples": [
+          "tests/agent/test_model_metadata_local_ctx.py"
+        ]
+      },
+      {
+        "suite": "agent/test_model_metadata_ssl.py",
+        "count": 1,
+        "source_prefix": "agent/test_model_metadata_ssl.py",
+        "examples": [
+          "tests/agent/test_model_metadata_ssl.py"
+        ]
+      },
+      {
+        "suite": "agent/test_models_dev.py",
+        "count": 1,
+        "source_prefix": "agent/test_models_dev.py",
+        "examples": [
+          "tests/agent/test_models_dev.py"
+        ]
+      },
+      {
+        "suite": "agent/test_moonshot_schema.py",
+        "count": 1,
+        "source_prefix": "agent/test_moonshot_schema.py",
+        "examples": [
+          "tests/agent/test_moonshot_schema.py"
+        ]
+      },
+      {
+        "suite": "agent/test_nous_rate_guard.py",
+        "count": 1,
+        "source_prefix": "agent/test_nous_rate_guard.py",
+        "examples": [
+          "tests/agent/test_nous_rate_guard.py"
+        ]
+      },
+      {
+        "suite": "agent/test_onboarding.py",
+        "count": 1,
+        "source_prefix": "agent/test_onboarding.py",
+        "examples": [
+          "tests/agent/test_onboarding.py"
+        ]
+      },
+      {
+        "suite": "agent/test_openrouter_response_cache.py",
+        "count": 1,
+        "source_prefix": "agent/test_openrouter_response_cache.py",
+        "examples": [
+          "tests/agent/test_openrouter_response_cache.py"
+        ]
+      },
+      {
+        "suite": "agent/test_plugin_llm.py",
+        "count": 1,
+        "source_prefix": "agent/test_plugin_llm.py",
+        "examples": [
+          "tests/agent/test_plugin_llm.py"
+        ]
+      },
+      {
+        "suite": "agent/test_portal_tags.py",
+        "count": 1,
+        "source_prefix": "agent/test_portal_tags.py",
+        "examples": [
+          "tests/agent/test_portal_tags.py"
+        ]
+      },
+      {
+        "suite": "agent/test_prompt_builder.py",
+        "count": 1,
+        "source_prefix": "agent/test_prompt_builder.py",
+        "examples": [
+          "tests/agent/test_prompt_builder.py"
+        ]
+      },
+      {
+        "suite": "agent/test_prompt_caching.py",
+        "count": 1,
+        "source_prefix": "agent/test_prompt_caching.py",
+        "examples": [
+          "tests/agent/test_prompt_caching.py"
+        ]
+      },
+      {
+        "suite": "agent/test_proxy_and_url_validation.py",
+        "count": 1,
+        "source_prefix": "agent/test_proxy_and_url_validation.py",
+        "examples": [
+          "tests/agent/test_proxy_and_url_validation.py"
+        ]
+      },
+      {
+        "suite": "agent/test_rate_limit_tracker.py",
+        "count": 1,
+        "source_prefix": "agent/test_rate_limit_tracker.py",
+        "examples": [
+          "tests/agent/test_rate_limit_tracker.py"
+        ]
+      },
+      {
+        "suite": "agent/test_redact.py",
+        "count": 1,
+        "source_prefix": "agent/test_redact.py",
+        "examples": [
+          "tests/agent/test_redact.py"
+        ]
+      },
+      {
+        "suite": "agent/test_shell_hooks.py",
+        "count": 1,
+        "source_prefix": "agent/test_shell_hooks.py",
+        "examples": [
+          "tests/agent/test_shell_hooks.py"
+        ]
+      },
+      {
+        "suite": "agent/test_shell_hooks_consent.py",
+        "count": 1,
+        "source_prefix": "agent/test_shell_hooks_consent.py",
+        "examples": [
+          "tests/agent/test_shell_hooks_consent.py"
+        ]
+      },
+      {
+        "suite": "agent/test_skill_commands.py",
+        "count": 1,
+        "source_prefix": "agent/test_skill_commands.py",
+        "examples": [
+          "tests/agent/test_skill_commands.py"
+        ]
+      },
+      {
+        "suite": "agent/test_skill_commands_reload.py",
+        "count": 1,
+        "source_prefix": "agent/test_skill_commands_reload.py",
+        "examples": [
+          "tests/agent/test_skill_commands_reload.py"
+        ]
+      },
+      {
+        "suite": "agent/test_skill_utils.py",
+        "count": 1,
+        "source_prefix": "agent/test_skill_utils.py",
+        "examples": [
+          "tests/agent/test_skill_utils.py"
+        ]
+      },
+      {
+        "suite": "agent/test_streaming_context_scrubber.py",
+        "count": 1,
+        "source_prefix": "agent/test_streaming_context_scrubber.py",
+        "examples": [
+          "tests/agent/test_streaming_context_scrubber.py"
+        ]
+      },
+      {
+        "suite": "agent/test_subagent_progress.py",
+        "count": 1,
+        "source_prefix": "agent/test_subagent_progress.py",
+        "examples": [
+          "tests/agent/test_subagent_progress.py"
+        ]
+      },
+      {
+        "suite": "agent/test_subagent_stop_hook.py",
+        "count": 1,
+        "source_prefix": "agent/test_subagent_stop_hook.py",
+        "examples": [
+          "tests/agent/test_subagent_stop_hook.py"
+        ]
+      },
+      {
+        "suite": "agent/test_subdirectory_hints.py",
+        "count": 1,
+        "source_prefix": "agent/test_subdirectory_hints.py",
+        "examples": [
+          "tests/agent/test_subdirectory_hints.py"
+        ]
+      },
+      {
+        "suite": "agent/test_think_scrubber.py",
+        "count": 1,
+        "source_prefix": "agent/test_think_scrubber.py",
+        "examples": [
+          "tests/agent/test_think_scrubber.py"
+        ]
+      },
+      {
+        "suite": "agent/test_title_generator.py",
+        "count": 1,
+        "source_prefix": "agent/test_title_generator.py",
+        "examples": [
+          "tests/agent/test_title_generator.py"
+        ]
+      },
+      {
+        "suite": "agent/test_tool_guardrails.py",
+        "count": 1,
+        "source_prefix": "agent/test_tool_guardrails.py",
+        "examples": [
+          "tests/agent/test_tool_guardrails.py"
+        ]
+      },
+      {
+        "suite": "agent/test_tool_result_classification.py",
+        "count": 1,
+        "source_prefix": "agent/test_tool_result_classification.py",
+        "examples": [
+          "tests/agent/test_tool_result_classification.py"
+        ]
+      },
+      {
+        "suite": "agent/test_unsupported_parameter_retry.py",
+        "count": 1,
+        "source_prefix": "agent/test_unsupported_parameter_retry.py",
+        "examples": [
+          "tests/agent/test_unsupported_parameter_retry.py"
+        ]
+      },
+      {
+        "suite": "agent/test_unsupported_temperature_retry.py",
+        "count": 1,
+        "source_prefix": "agent/test_unsupported_temperature_retry.py",
+        "examples": [
+          "tests/agent/test_unsupported_temperature_retry.py"
+        ]
+      },
+      {
+        "suite": "agent/test_usage_pricing.py",
+        "count": 1,
+        "source_prefix": "agent/test_usage_pricing.py",
+        "examples": [
+          "tests/agent/test_usage_pricing.py"
+        ]
+      },
+      {
+        "suite": "agent/test_video_gen_registry.py",
+        "count": 1,
+        "source_prefix": "agent/test_video_gen_registry.py",
+        "examples": [
+          "tests/agent/test_video_gen_registry.py"
+        ]
+      },
+      {
+        "suite": "agent/test_vision_resolved_args.py",
+        "count": 1,
+        "source_prefix": "agent/test_vision_resolved_args.py",
+        "examples": [
+          "tests/agent/test_vision_resolved_args.py"
+        ]
+      },
+      {
+        "suite": "agent/transports",
+        "count": 10,
+        "source_prefix": "agent/transports",
+        "examples": [
+          "tests/agent/transports/__init__.py",
+          "tests/agent/transports/test_bedrock_transport.py",
+          "tests/agent/transports/test_chat_completions.py",
+          "tests/agent/transports/test_codex_app_server_runtime.py",
+          "tests/agent/transports/test_codex_app_server_session.py"
+        ],
+        "progress_rows": [
+          "Hermes agent runtime strict-fidelity source-pair expansion",
+          "Hermes fast-mode request override serializer",
+          "OpenRouter Pareto router request plugin"
+        ]
+      },
+      {
+        "suite": "cli",
+        "count": 61,
+        "source_prefix": "cli",
+        "examples": [
+          "tests/cli/__init__.py",
+          "tests/cli/test_branch_command.py",
+          "tests/cli/test_busy_input_mode_command.py",
+          "tests/cli/test_cli_approval_ui.py",
+          "tests/cli/test_cli_background_status_indicator.py"
+        ]
+      },
+      {
+        "suite": "conftest.py",
+        "count": 1,
+        "source_prefix": "conftest.py",
+        "examples": [
+          "tests/conftest.py"
+        ]
+      },
+      {
+        "suite": "cron",
+        "count": 13,
+        "source_prefix": "cron",
+        "examples": [
+          "tests/cron/__init__.py",
+          "tests/cron/test_codex_execution_paths.py",
+          "tests/cron/test_compute_next_run_last_run_at.py",
+          "tests/cron/test_cron_context_from.py",
+          "tests/cron/test_cron_inactivity_timeout.py"
+        ],
+        "progress_rows": [
+          "Cron deliver=all routing intent expansion",
+          "Cron env-ref expansion + parallel run state serialization",
+          "Cron no-agent script-only short-circuit",
+          "Cron origin delivery isolation from session identity",
+          "Cron partial legacy job read-model normalization"
+        ]
+      },
+      {
+        "suite": "e2e",
+        "count": 7,
+        "source_prefix": "e2e",
+        "examples": [
+          "tests/e2e/__init__.py",
+          "tests/e2e/conftest.py",
+          "tests/e2e/matrix_xsign_bootstrap/README.md",
+          "tests/e2e/matrix_xsign_bootstrap/docker-compose.yml",
+          "tests/e2e/matrix_xsign_bootstrap/test_bootstrap.py"
+        ]
+      },
+      {
+        "suite": "fakes",
+        "count": 2,
+        "source_prefix": "fakes",
+        "examples": [
+          "tests/fakes/__init__.py",
+          "tests/fakes/fake_ha_server.py"
+        ]
+      },
+      {
+        "suite": "gateway",
+        "count": 249,
+        "source_prefix": "gateway",
+        "examples": [
+          "tests/gateway/__init__.py",
+          "tests/gateway/_plugin_adapter_loader.py",
+          "tests/gateway/conftest.py",
+          "tests/gateway/feishu_helpers.py",
+          "tests/gateway/restart_test_helpers.py"
+        ],
+        "progress_rows": [
+          "Agent lifecycle hooks (agent:start, agent:step, agent:end)",
+          "Agent turn and tool execution events on bus",
+          "Discord gateway event-bus adapter",
+          "Discord native slash/thread command registration parity",
+          "Email allowlist pre-dispatch loop guard"
+        ]
+      },
+      {
+        "suite": "hermes_cli",
+        "count": 212,
+        "source_prefix": "hermes_cli",
+        "examples": [
+          "tests/hermes_cli/__init__.py",
+          "tests/hermes_cli/conftest.py",
+          "tests/hermes_cli/test_ai_gateway_models.py",
+          "tests/hermes_cli/test_anthropic_model_flow_stale_oauth.py",
+          "tests/hermes_cli/test_anthropic_oauth_flow.py"
+        ],
+        "progress_rows": [
+          "Agent personalities + enhanced display config",
+          "Auth state TOCTOU close + redaction default-on parity",
+          "CLI setup/onboard/help text fidelity matrix",
+          "Checkpoints CLI (status/list/prune/clear/clear-legacy)",
+          "Credential non-ASCII sanitizer + one-shot warning"
+        ]
+      },
+      {
+        "suite": "hermes_state",
+        "count": 1,
+        "source_prefix": "hermes_state",
+        "examples": [
+          "tests/hermes_state/test_resolve_resume_session_id.py"
+        ]
+      },
+      {
+        "suite": "honcho_plugin",
+        "count": 7,
+        "source_prefix": "honcho_plugin",
+        "examples": [
+          "tests/honcho_plugin/__init__.py",
+          "tests/honcho_plugin/test_async_memory.py",
+          "tests/honcho_plugin/test_cli.py",
+          "tests/honcho_plugin/test_client.py",
+          "tests/honcho_plugin/test_empty_profile_hint.py"
+        ]
+      },
+      {
+        "suite": "integration",
+        "count": 8,
+        "source_prefix": "integration",
+        "examples": [
+          "tests/integration/__init__.py",
+          "tests/integration/test_batch_runner.py",
+          "tests/integration/test_checkpoint_resumption.py",
+          "tests/integration/test_daytona_terminal.py",
+          "tests/integration/test_ha_integration.py"
+        ]
+      },
+      {
+        "suite": "openviking_plugin",
+        "count": 1,
+        "source_prefix": "openviking_plugin",
+        "examples": [
+          "tests/openviking_plugin/test_openviking.py"
+        ]
+      },
+      {
+        "suite": "plugins",
+        "count": 30,
+        "source_prefix": "plugins",
+        "examples": [
+          "tests/plugins/__init__.py",
+          "tests/plugins/browser/__init__.py",
+          "tests/plugins/browser/check_parity_vs_main.py",
+          "tests/plugins/browser/test_browser_provider_plugins.py",
+          "tests/plugins/image_gen/__init__.py"
+        ],
+        "progress_rows": [
+          "Bundled platform plugin manifest drift guard",
+          "Google Chat install dependency hint refresh",
+          "Google Chat relay sender-type self-filter",
+          "Google Chat shared-chassis platform adapter seam",
+          "Google Chat standalone cron sender"
+        ]
+      },
+      {
+        "suite": "providers",
+        "count": 6,
+        "source_prefix": "providers",
+        "examples": [
+          "tests/providers/__init__.py",
+          "tests/providers/test_e2e_wiring.py",
+          "tests/providers/test_plugin_discovery.py",
+          "tests/providers/test_profile_wiring.py",
+          "tests/providers/test_provider_profiles.py"
+        ]
+      },
+      {
+        "suite": "run_agent",
+        "count": 91,
+        "source_prefix": "run_agent",
+        "examples": [
+          "tests/run_agent/__init__.py",
+          "tests/run_agent/conftest.py",
+          "tests/run_agent/test_1630_context_overflow_loop.py",
+          "tests/run_agent/test_413_compression.py",
+          "tests/run_agent/test_860_dedup.py"
+        ]
+      },
+      {
+        "suite": "run_interrupt_test.py",
+        "count": 1,
+        "source_prefix": "run_interrupt_test.py",
+        "examples": [
+          "tests/run_interrupt_test.py"
+        ]
+      },
+      {
+        "suite": "scripts",
+        "count": 1,
+        "source_prefix": "scripts",
+        "examples": [
+          "tests/scripts/test_release_acp_registry.py"
+        ]
+      },
+      {
+        "suite": "skills",
+        "count": 11,
+        "source_prefix": "skills",
+        "examples": [
+          "tests/skills/test_darwinian_evolver_skill.py",
+          "tests/skills/test_fetch_transcript.py",
+          "tests/skills/test_google_oauth_setup.py",
+          "tests/skills/test_google_workspace_api.py",
+          "tests/skills/test_google_workspace_credential_files.py"
+        ],
+        "progress_rows": [
+          "Hermes skill catalog strict-fidelity classifier",
+          "Sharp v1.0 differentiator decision"
+        ]
+      },
+      {
+        "suite": "stress",
+        "count": 11,
+        "source_prefix": "stress",
+        "examples": [
+          "tests/stress/README.md",
+          "tests/stress/_fake_worker.py",
+          "tests/stress/conftest.py",
+          "tests/stress/test_atypical_scenarios.py",
+          "tests/stress/test_benchmarks.py"
+        ]
+      },
+      {
+        "suite": "test_account_usage.py",
+        "count": 1,
+        "source_prefix": "test_account_usage.py",
+        "examples": [
+          "tests/test_account_usage.py"
+        ]
+      },
+      {
+        "suite": "test_atomic_replace_symlinks.py",
+        "count": 1,
+        "source_prefix": "test_atomic_replace_symlinks.py",
+        "examples": [
+          "tests/test_atomic_replace_symlinks.py"
+        ]
+      },
+      {
+        "suite": "test_base_url_hostname.py",
+        "count": 1,
+        "source_prefix": "test_base_url_hostname.py",
+        "examples": [
+          "tests/test_base_url_hostname.py"
+        ]
+      },
+      {
+        "suite": "test_batch_runner_checkpoint.py",
+        "count": 1,
+        "source_prefix": "test_batch_runner_checkpoint.py",
+        "examples": [
+          "tests/test_batch_runner_checkpoint.py"
+        ]
+      },
+      {
+        "suite": "test_cli_file_drop.py",
+        "count": 1,
+        "source_prefix": "test_cli_file_drop.py",
+        "examples": [
+          "tests/test_cli_file_drop.py"
+        ]
+      },
+      {
+        "suite": "test_cli_manual_compress.py",
+        "count": 1,
+        "source_prefix": "test_cli_manual_compress.py",
+        "examples": [
+          "tests/test_cli_manual_compress.py"
+        ]
+      },
+      {
+        "suite": "test_cli_skin_integration.py",
+        "count": 1,
+        "source_prefix": "test_cli_skin_integration.py",
+        "examples": [
+          "tests/test_cli_skin_integration.py"
+        ]
+      },
+      {
+        "suite": "test_ctx_halving_fix.py",
+        "count": 1,
+        "source_prefix": "test_ctx_halving_fix.py",
+        "examples": [
+          "tests/test_ctx_halving_fix.py"
+        ]
+      },
+      {
+        "suite": "test_empty_model_fallback.py",
+        "count": 1,
+        "source_prefix": "test_empty_model_fallback.py",
+        "examples": [
+          "tests/test_empty_model_fallback.py"
+        ]
+      },
+      {
+        "suite": "test_evidence_store.py",
+        "count": 1,
+        "source_prefix": "test_evidence_store.py",
+        "examples": [
+          "tests/test_evidence_store.py"
+        ]
+      },
+      {
+        "suite": "test_gateway_streaming_nested_config.py",
+        "count": 1,
+        "source_prefix": "test_gateway_streaming_nested_config.py",
+        "examples": [
+          "tests/test_gateway_streaming_nested_config.py"
+        ]
+      },
+      {
+        "suite": "test_get_tool_definitions_cache_isolation.py",
+        "count": 1,
+        "source_prefix": "test_get_tool_definitions_cache_isolation.py",
+        "examples": [
+          "tests/test_get_tool_definitions_cache_isolation.py"
+        ]
+      },
+      {
+        "suite": "test_hermes_bootstrap.py",
+        "count": 1,
+        "source_prefix": "test_hermes_bootstrap.py",
+        "examples": [
+          "tests/test_hermes_bootstrap.py"
+        ]
+      },
+      {
+        "suite": "test_hermes_constants.py",
+        "count": 1,
+        "source_prefix": "test_hermes_constants.py",
+        "examples": [
+          "tests/test_hermes_constants.py"
+        ]
+      },
+      {
+        "suite": "test_hermes_home_profile_warning.py",
+        "count": 1,
+        "source_prefix": "test_hermes_home_profile_warning.py",
+        "examples": [
+          "tests/test_hermes_home_profile_warning.py"
+        ]
+      },
+      {
+        "suite": "test_hermes_logging.py",
+        "count": 1,
+        "source_prefix": "test_hermes_logging.py",
+        "examples": [
+          "tests/test_hermes_logging.py"
+        ]
+      },
+      {
+        "suite": "test_hermes_state.py",
+        "count": 1,
+        "source_prefix": "test_hermes_state.py",
+        "examples": [
+          "tests/test_hermes_state.py"
+        ]
+      },
+      {
+        "suite": "test_hermes_state_wal_fallback.py",
+        "count": 1,
+        "source_prefix": "test_hermes_state_wal_fallback.py",
+        "examples": [
+          "tests/test_hermes_state_wal_fallback.py"
+        ]
+      },
+      {
+        "suite": "test_honcho_client_config.py",
+        "count": 1,
+        "source_prefix": "test_honcho_client_config.py",
+        "examples": [
+          "tests/test_honcho_client_config.py"
+        ]
+      },
+      {
+        "suite": "test_install_sh_browser_install.py",
+        "count": 1,
+        "source_prefix": "test_install_sh_browser_install.py",
+        "examples": [
+          "tests/test_install_sh_browser_install.py"
+        ]
+      },
+      {
+        "suite": "test_install_sh_pythonpath_sanitization.py",
+        "count": 1,
+        "source_prefix": "test_install_sh_pythonpath_sanitization.py",
+        "examples": [
+          "tests/test_install_sh_pythonpath_sanitization.py"
+        ]
+      },
+      {
+        "suite": "test_install_sh_setup_wizard_tty_probe.py",
+        "count": 1,
+        "source_prefix": "test_install_sh_setup_wizard_tty_probe.py",
+        "examples": [
+          "tests/test_install_sh_setup_wizard_tty_probe.py"
+        ]
+      },
+      {
+        "suite": "test_install_sh_symlink_stomp.py",
+        "count": 1,
+        "source_prefix": "test_install_sh_symlink_stomp.py",
+        "examples": [
+          "tests/test_install_sh_symlink_stomp.py"
+        ]
+      },
+      {
+        "suite": "test_install_sh_termux_network_prereqs.py",
+        "count": 1,
+        "source_prefix": "test_install_sh_termux_network_prereqs.py",
+        "examples": [
+          "tests/test_install_sh_termux_network_prereqs.py"
+        ]
+      },
+      {
+        "suite": "test_ipv4_preference.py",
+        "count": 1,
+        "source_prefix": "test_ipv4_preference.py",
+        "examples": [
+          "tests/test_ipv4_preference.py"
+        ]
+      },
+      {
+        "suite": "test_lazy_session_regressions.py",
+        "count": 1,
+        "source_prefix": "test_lazy_session_regressions.py",
+        "examples": [
+          "tests/test_lazy_session_regressions.py"
+        ]
+      },
+      {
+        "suite": "test_lint_config.py",
+        "count": 1,
+        "source_prefix": "test_lint_config.py",
+        "examples": [
+          "tests/test_lint_config.py"
+        ]
+      },
+      {
+        "suite": "test_live_system_guard_self_test.py",
+        "count": 1,
+        "source_prefix": "test_live_system_guard_self_test.py",
+        "examples": [
+          "tests/test_live_system_guard_self_test.py"
+        ]
+      },
+      {
+        "suite": "test_mcp_serve.py",
+        "count": 1,
+        "source_prefix": "test_mcp_serve.py",
+        "examples": [
+          "tests/test_mcp_serve.py"
+        ]
+      },
+      {
+        "suite": "test_mini_swe_runner.py",
+        "count": 1,
+        "source_prefix": "test_mini_swe_runner.py",
+        "examples": [
+          "tests/test_mini_swe_runner.py"
+        ]
+      },
+      {
+        "suite": "test_minimax_model_validation.py",
+        "count": 1,
+        "source_prefix": "test_minimax_model_validation.py",
+        "examples": [
+          "tests/test_minimax_model_validation.py"
+        ]
+      },
+      {
+        "suite": "test_minimax_oauth.py",
+        "count": 1,
+        "source_prefix": "test_minimax_oauth.py",
+        "examples": [
+          "tests/test_minimax_oauth.py"
+        ]
+      },
+      {
+        "suite": "test_minisweagent_path.py",
+        "count": 1,
+        "source_prefix": "test_minisweagent_path.py",
+        "examples": [
+          "tests/test_minisweagent_path.py"
+        ]
+      },
+      {
+        "suite": "test_model_picker_scroll.py",
+        "count": 1,
+        "source_prefix": "test_model_picker_scroll.py",
+        "examples": [
+          "tests/test_model_picker_scroll.py"
+        ]
+      },
+      {
+        "suite": "test_model_tools.py",
+        "count": 1,
+        "source_prefix": "test_model_tools.py",
+        "examples": [
+          "tests/test_model_tools.py"
+        ]
+      },
+      {
+        "suite": "test_model_tools_async_bridge.py",
+        "count": 1,
+        "source_prefix": "test_model_tools_async_bridge.py",
+        "examples": [
+          "tests/test_model_tools_async_bridge.py"
+        ]
+      },
+      {
+        "suite": "test_ollama_num_ctx.py",
+        "count": 1,
+        "source_prefix": "test_ollama_num_ctx.py",
+        "examples": [
+          "tests/test_ollama_num_ctx.py"
+        ]
+      },
+      {
+        "suite": "test_package_json_lazy_deps.py",
+        "count": 1,
+        "source_prefix": "test_package_json_lazy_deps.py",
+        "examples": [
+          "tests/test_package_json_lazy_deps.py"
+        ]
+      },
+      {
+        "suite": "test_packaging_metadata.py",
+        "count": 1,
+        "source_prefix": "test_packaging_metadata.py",
+        "examples": [
+          "tests/test_packaging_metadata.py"
+        ]
+      },
+      {
+        "suite": "test_plugin_skills.py",
+        "count": 1,
+        "source_prefix": "test_plugin_skills.py",
+        "examples": [
+          "tests/test_plugin_skills.py"
+        ]
+      },
+      {
+        "suite": "test_process_loop_event_loop_warning.py",
+        "count": 1,
+        "source_prefix": "test_process_loop_event_loop_warning.py",
+        "examples": [
+          "tests/test_process_loop_event_loop_warning.py"
+        ]
+      },
+      {
+        "suite": "test_project_metadata.py",
+        "count": 1,
+        "source_prefix": "test_project_metadata.py",
+        "examples": [
+          "tests/test_project_metadata.py"
+        ]
+      },
+      {
+        "suite": "test_retry_utils.py",
+        "count": 1,
+        "source_prefix": "test_retry_utils.py",
+        "examples": [
+          "tests/test_retry_utils.py"
+        ]
+      },
+      {
+        "suite": "test_sanitize_tool_error.py",
+        "count": 1,
+        "source_prefix": "test_sanitize_tool_error.py",
+        "examples": [
+          "tests/test_sanitize_tool_error.py"
+        ]
+      },
+      {
+        "suite": "test_sql_injection.py",
+        "count": 1,
+        "source_prefix": "test_sql_injection.py",
+        "examples": [
+          "tests/test_sql_injection.py"
+        ]
+      },
+      {
+        "suite": "test_subprocess_home_isolation.py",
+        "count": 1,
+        "source_prefix": "test_subprocess_home_isolation.py",
+        "examples": [
+          "tests/test_subprocess_home_isolation.py"
+        ]
+      },
+      {
+        "suite": "test_termux_all_extra_compat.py",
+        "count": 1,
+        "source_prefix": "test_termux_all_extra_compat.py",
+        "examples": [
+          "tests/test_termux_all_extra_compat.py"
+        ]
+      },
+      {
+        "suite": "test_timezone.py",
+        "count": 1,
+        "source_prefix": "test_timezone.py",
+        "examples": [
+          "tests/test_timezone.py"
+        ]
+      },
+      {
+        "suite": "test_toolset_distributions.py",
+        "count": 1,
+        "source_prefix": "test_toolset_distributions.py",
+        "examples": [
+          "tests/test_toolset_distributions.py"
+        ]
+      },
+      {
+        "suite": "test_toolsets.py",
+        "count": 1,
+        "source_prefix": "test_toolsets.py",
+        "examples": [
+          "tests/test_toolsets.py"
+        ]
+      },
+      {
+        "suite": "test_trajectory_compressor.py",
+        "count": 1,
+        "source_prefix": "test_trajectory_compressor.py",
+        "examples": [
+          "tests/test_trajectory_compressor.py"
+        ]
+      },
+      {
+        "suite": "test_trajectory_compressor_async.py",
+        "count": 1,
+        "source_prefix": "test_trajectory_compressor_async.py",
+        "examples": [
+          "tests/test_trajectory_compressor_async.py"
+        ]
+      },
+      {
+        "suite": "test_transform_llm_output_hook.py",
+        "count": 1,
+        "source_prefix": "test_transform_llm_output_hook.py",
+        "examples": [
+          "tests/test_transform_llm_output_hook.py"
+        ]
+      },
+      {
+        "suite": "test_transform_tool_result_hook.py",
+        "count": 1,
+        "source_prefix": "test_transform_tool_result_hook.py",
+        "examples": [
+          "tests/test_transform_tool_result_hook.py"
+        ]
+      },
+      {
+        "suite": "test_tui_gateway_server.py",
+        "count": 1,
+        "source_prefix": "test_tui_gateway_server.py",
+        "examples": [
+          "tests/test_tui_gateway_server.py"
+        ]
+      },
+      {
+        "suite": "test_utils_truthy_values.py",
+        "count": 1,
+        "source_prefix": "test_utils_truthy_values.py",
+        "examples": [
+          "tests/test_utils_truthy_values.py"
+        ]
+      },
+      {
+        "suite": "test_yuanbao_integration.py",
+        "count": 1,
+        "source_prefix": "test_yuanbao_integration.py",
+        "examples": [
+          "tests/test_yuanbao_integration.py"
+        ]
+      },
+      {
+        "suite": "test_yuanbao_markdown.py",
+        "count": 1,
+        "source_prefix": "test_yuanbao_markdown.py",
+        "examples": [
+          "tests/test_yuanbao_markdown.py"
+        ]
+      },
+      {
+        "suite": "test_yuanbao_pipeline.py",
+        "count": 1,
+        "source_prefix": "test_yuanbao_pipeline.py",
+        "examples": [
+          "tests/test_yuanbao_pipeline.py"
+        ]
+      },
+      {
+        "suite": "test_yuanbao_proto.py",
+        "count": 1,
+        "source_prefix": "test_yuanbao_proto.py",
+        "examples": [
+          "tests/test_yuanbao_proto.py"
+        ]
+      },
+      {
+        "suite": "tools",
+        "count": 213,
+        "source_prefix": "tools",
+        "examples": [
+          "tests/tools/__init__.py",
+          "tests/tools/test_accretion_caps.py",
+          "tests/tools/test_ansi_strip.py",
+          "tests/tools/test_approval.py",
+          "tests/tools/test_approval_heartbeat.py"
+        ],
+        "progress_rows": [
+          "ACP session CWD propagation into prompt runners",
+          "Audio preprocessing and chunking pipeline",
+          "Block-anchor fuzzy replace for native patch tool",
+          "Brave Search + DDGS web search provider parity",
+          "Browser console expression CDP result shaping"
+        ]
+      },
+      {
+        "suite": "tui_gateway",
+        "count": 7,
+        "source_prefix": "tui_gateway",
+        "examples": [
+          "tests/tui_gateway/__init__.py",
+          "tests/tui_gateway/test_entry_sys_path.py",
+          "tests/tui_gateway/test_goal_command.py",
+          "tests/tui_gateway/test_make_agent_provider.py",
+          "tests/tui_gateway/test_protocol.py"
+        ],
+        "progress_rows": [
+          "Hermes fast-mode request override serializer",
+          "Hermes gateway platform strict-fidelity source-pair expansion",
+          "TUI gateway config health null-section probe",
+          "TUI websocket attach transport",
+          "Voice record-key config binding for native TUI"
+        ]
+      },
+      {
+        "suite": "ui-tui",
+        "count": 50,
+        "source_prefix": "ui-tui",
+        "examples": [
+          "ui-tui/src/__tests__/asCommandDispatch.test.ts",
+          "ui-tui/src/__tests__/clipboard.test.ts",
+          "ui-tui/src/__tests__/constants.test.ts",
+          "ui-tui/src/__tests__/createGatewayEventHandler.test.ts",
+          "ui-tui/src/__tests__/createSlashHandler.test.ts"
+        ],
+        "progress_rows": [
+          "CLI setup/onboard/help text fidelity matrix",
+          "Gormes-owned chat TUI divergence ratification",
+          "Gormes-owned semantic chat style system",
+          "Gormes-owned session-aware welcome panel",
+          "Hermes ui-tui strict-fidelity action matrix"
+        ]
+      },
+      {
+        "suite": "website",
+        "count": 2,
+        "source_prefix": "website",
+        "examples": [
+          "tests/website/__init__.py",
+          "tests/website/test_generate_skill_docs.py"
+        ],
+        "progress_rows": [
+          "Google Chat install dependency hint refresh",
+          "Gormes profile distribution metadata readout",
+          "Gormes setup/channel/provider docs webpage parity gate",
+          "Hermes config migration dry-run manifest",
+          "Hermes website docs mirror coverage gate"
+        ]
+      }
     ]
   },
   "release_checkpoints": [
@@ -4958,9 +6515,13 @@
         "agent/prompt_builder.py",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/doctor.go",
+        "cmd/gormes/goncho*.go (existing Goncho CLI commands)",
         "cmd/gormes/goncho.go",
         "cmd/gormes/goncho_cli_parity.go",
         "cmd/gormes/goncho_cli_parity_test.go",
+        "cmd/gormes/goncho_cli_parity_test.go (existing CLI parity tests)",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/memory.go",
         "cmd/gormes/registry.go",
         "cmd/repoctl/main.go",
@@ -4988,28 +6549,49 @@
         "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/session/spaces.go",
         "internal/config/agents.go (AgentsCfg, AgentCfg, AgentBindingCfg schema this layers on top of)",
         "internal/config/config.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
+        "internal/e2e/testdata/goncho_memory_turn/golden.json",
         "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — thread-aware peer resolution already wired)",
         "internal/gateway/manager.go:1534",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
+        "internal/goncho/contradiction_detector.go (existing contradiction detection)",
+        "internal/goncho/cross_session.go (cross-session recall)",
+        "internal/goncho/dream_scheduler.go (existing dream scheduler)",
         "internal/goncho/host_integration.go",
         "internal/goncho/host_integration_test.go",
         "internal/goncho/http/routes.go",
         "internal/goncho/importance_scorer.go",
+        "internal/goncho/importance_scorer.go (existing importance scoring)",
         "internal/goncho/keys.go",
         "internal/goncho/local_markdown_memory.go (AgentID partition key precedent)",
         "internal/goncho/memory_tools.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_ir.go (recall intermediate representation)",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_pipeline.go (existing recall pipeline)",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Conclude — conclusion writing)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
+        "internal/goncho/service.go (Search, Context — existing retrieval surfaces)",
+        "internal/goncho/service.go (normalizeScope, scope-aware Conclude/Search)",
         "internal/goncho/service.go:Profile",
         "internal/goncho/sql.go",
+        "internal/goncho/sql.go (conclusionRow.Scope, upsertConclusion, findConclusions with global cross-boundary)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
         "internal/goncho/types.go",
+        "internal/goncho/types.go (Config.WorkspaceID, ConcludeParams.Scope)",
+        "internal/goncho/types.go (SessionSummary struct)",
         "internal/goncho/types.go:ProfileResult",
         "internal/goncho/webhooks.go",
+        "internal/goncho/workspace_detection.go (DetectWorkspaceFromPath, WorkspaceIDForPath, GlobalWorkspaceID)",
         "internal/gonchotools/",
         "internal/gonchotools/honcho_mcp_catalog.go",
         "internal/gonchotools/honcho_tools.go",
@@ -5023,14 +6605,21 @@
         "internal/hermes/skills_prompt.go",
         "internal/kernel/",
         "internal/kernel/frame.go:112",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go:204",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
+        "internal/memory/migrate.go (3l→3m migration chain entry)",
         "internal/memory/migrate.go:migrate",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing 4-layer waterfall)",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/schema.go",
+        "internal/memory/schema.go (migration3lTo3m adds scope column to goncho_conclusions)",
         "internal/memory/schema.go:migration3cTo3d",
         "internal/memory/schema.go:schemaVersion",
         "internal/memory/semantic_sql.go",
+        "internal/memory/semantic_sql.go (embedding search)",
         "internal/memory/semantic_sql.go:semanticSeeds",
         "internal/memory/session_catalog.go",
         "internal/memory/status.go",
@@ -5038,6 +6627,8 @@
         "internal/progress/progress.go:Item",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
         "internal/session/directory.go",
+        "internal/skills/ (skill execution surface)",
+        "internal/tools/ (tool execution surface)",
         "mercury-agent/src/core/memory.ts",
         "plugins/memory/__init__.py",
         "references/go-agent-os/GORMES-REUSE-AUDIT.md#5-deterministic-serialized-mcpmemory-write-queue",
@@ -5125,6 +6716,7 @@
         "Shipped sibling: 'gormes setup <section> boxed header + completion footer (UX parity)' (chrome to reuse)",
         "agent/prompt_builder.py",
         "cmd/gormes/config.go",
+        "cmd/gormes/config.go:config migrate",
         "cmd/gormes/gateway.go",
         "cmd/gormes/gateway.go:gatewayManagerConfig",
         "cmd/gormes/gateway_agent_templates.go",
@@ -5143,8 +6735,10 @@
         "cmd/gormes/setup.go:34 setupSections; :528 runSetupSection (no per-section box); :755-760 printSetupWizardHeader (existing 59-wide box to reuse); :1146-1148 boxed Setup Complete; :1547 runSetupModelSection (plain cli.PrintHeader evidence of the gap)",
         "cmd/gormes/setup.go:36 setupSections / :43 setupSectionLabels / :528 runSetupSection (shipped boxed-header+footer chrome — reuse) / :562 dispatch / :1499 runSetupAgentSection (advisory workspace section — keep coherent, do not duplicate its advisory-only behavior; this section actually persists)",
         "cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces",
+        "cmd/gormes/setup.go:runSetupSection",
         "cmd/gormes/setup_entry_mode_test.go",
         "cmd/gormes/setup_minimal_test.go",
+        "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/skills.go",
         "cmd/gormes/telegram.go",
         "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
@@ -5152,6 +6746,10 @@
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:104-114",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree",
         "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
         "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md",
         "hermes_cli/config.py",
         "hermes_cli/default_soul.py",
@@ -5159,6 +6757,8 @@
         "internal/agenttemplate/default_templates.go",
         "internal/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files",
         "internal/agenttemplate/parity_manifest.go",
+        "internal/app/gormescli/modules/profiles/control_center_model.go",
+        "internal/app/gormescli/modules/profiles/setup.go",
         "internal/cli/active_profile.go",
         "internal/cli/banner.go",
         "internal/cli/profile_create.go:profileCreateDefaultDirs",
@@ -5175,10 +6775,12 @@
         "internal/config/config.go Agents AgentsCfg agents.defaults workspace (~:356) + Bindings []AgentBindingCfg; internal/config/writer.go real TOML round-trip (list fields as arrays)",
         "internal/config/config.go:ConfigPath,loadFile,loadEnv,loadFlags,CurrentConfigVersion",
         "internal/config/config.go:HermesCfg",
+        "internal/config/config.go:migrateConfig",
         "internal/config/dotenv.go:dotenvCandidatePaths,parseDotenv",
         "internal/config/writer.go",
         "internal/config/writer.go coerceTOMLValue (shipped `agents.defaults.workspaces`/`.skills` case ~:609 — add symmetric `agents.defaults.channels`)",
         "internal/doctor RenderDoctorHeader (shipped this session — same box shape; reuse the pattern, do not duplicate a third chrome)",
+        "internal/doctor/",
         "internal/gateway/channel_setup.go:43 whatsapp `gormes whatsapp --plan` (per-channel credential/QR setup — OUT OF SCOPE, do not reimplement/fake)",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt.go:defaultLiveTurnMemoryDir",
@@ -5187,6 +6789,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/manager.go:1534",
         "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile",
+        "internal/gateway/token_lock_test.go",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/hermes/context_files.go",
         "internal/hermes/context_files.go:BuildContextFilesPrompt",
@@ -5216,6 +6819,7 @@
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
         "internal/tui/",
+        "internal/tui/wizard/",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_config.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
@@ -5224,6 +6828,7 @@
         "tests/hermes_cli/test_profiles.py",
         "tools/skills_sync.py",
         "user transcript: Hermes profile has `terminal.cwd: \".\"`; `hermes config set terminal.cwd /absolute/path/to/project`; gateway restart after config change",
+        "webpages/docs/content/building-gormes/modules/profiles.md",
         "webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation",
         "webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking",
         "webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all",
@@ -5675,6 +7280,8 @@
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/update.go",
         "cmd/repoctl/main.go",
@@ -5717,6 +7324,8 @@
         "internal/cron/heartbeat_test.go",
         "internal/cron/store.go",
         "internal/e2e/",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
         "internal/gateway/channel.go",
         "internal/gateway/coalesce.go",
         "internal/gateway/commands.go",
@@ -5727,14 +7336,21 @@
         "internal/gateway/session_context.go",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
         "internal/goncho/importance_scorer.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "internal/goncho/types.go (SessionSummary struct)",
         "internal/gonchotools/",
+        "internal/gonchotools/honcho_tools.go",
         "internal/hermes/",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
@@ -5763,6 +7379,7 @@
         "internal/kernel/extensions_test.go",
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
         "internal/kernel/kernel.go:100-126 (Kernel struct), 304-310 (runTurn signature), 464 (toolLoop label), 604-606 (tool loop exit), 626 (executeToolCallsInterruptible)",
         "internal/kernel/kernel.go:204",
@@ -5770,7 +7387,9 @@
         "internal/kernel/kernel.go:updateContextEngineUsage",
         "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/memory/session_catalog.go",
         "internal/plugins/discovery.go",
@@ -5784,6 +7403,7 @@
         "internal/runtime/",
         "internal/session/",
         "internal/skills",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/commands.go:BuildSkillSlashCommandMessage",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
@@ -5799,6 +7419,7 @@
         "internal/skills/usage.go",
         "internal/subagent",
         "internal/tools/",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
@@ -5910,6 +7531,8 @@
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/update.go",
         "cmd/repoctl/main.go",
@@ -5952,6 +7575,8 @@
         "internal/cron/heartbeat_test.go",
         "internal/cron/store.go",
         "internal/e2e/",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
         "internal/gateway/channel.go",
         "internal/gateway/coalesce.go",
         "internal/gateway/commands.go",
@@ -5962,14 +7587,21 @@
         "internal/gateway/session_context.go",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
         "internal/goncho/importance_scorer.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "internal/goncho/types.go (SessionSummary struct)",
         "internal/gonchotools/",
+        "internal/gonchotools/honcho_tools.go",
         "internal/hermes/",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
@@ -5998,6 +7630,7 @@
         "internal/kernel/extensions_test.go",
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
         "internal/kernel/kernel.go:100-126 (Kernel struct), 304-310 (runTurn signature), 464 (toolLoop label), 604-606 (tool loop exit), 626 (executeToolCallsInterruptible)",
         "internal/kernel/kernel.go:204",
@@ -6005,7 +7638,9 @@
         "internal/kernel/kernel.go:updateContextEngineUsage",
         "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/memory/session_catalog.go",
         "internal/plugins/discovery.go",
@@ -6019,6 +7654,7 @@
         "internal/runtime/",
         "internal/session/",
         "internal/skills",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/commands.go:BuildSkillSlashCommandMessage",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
@@ -6034,6 +7670,7 @@
         "internal/skills/usage.go",
         "internal/subagent",
         "internal/tools/",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
@@ -6088,6 +7725,8 @@
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/update.go",
         "cmd/repoctl/main.go",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho",
@@ -6100,23 +7739,36 @@
         "internal/cli/skills_command.go",
         "internal/cron/curator_skill_rewrite_test.go",
         "internal/cron/store.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
         "internal/gateway/commands.go",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
         "internal/goncho/importance_scorer.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "internal/goncho/types.go (SessionSummary struct)",
+        "internal/gonchotools/honcho_tools.go",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/progress/progress.go:Item",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
         "internal/skills",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
         "internal/skills/list.go:bundledSkillsRoot",
@@ -6127,6 +7779,7 @@
         "internal/skills/types.go",
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
@@ -6332,9 +7985,13 @@
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/doctor.go",
+        "cmd/gormes/goncho*.go (existing Goncho CLI commands)",
         "cmd/gormes/goncho.go",
         "cmd/gormes/goncho_cli_parity.go",
         "cmd/gormes/goncho_cli_parity_test.go",
+        "cmd/gormes/goncho_cli_parity_test.go (existing CLI parity tests)",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/memory.go",
         "cmd/gormes/registry.go",
         "cmd/gormes/update.go",
@@ -6369,29 +8026,50 @@
         "internal/config/config.go",
         "internal/cron/curator_skill_rewrite_test.go",
         "internal/cron/store.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
+        "internal/e2e/testdata/goncho_memory_turn/golden.json",
         "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — thread-aware peer resolution already wired)",
         "internal/gateway/commands.go",
         "internal/gateway/manager.go:1534",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
+        "internal/goncho/contradiction_detector.go (existing contradiction detection)",
+        "internal/goncho/cross_session.go (cross-session recall)",
+        "internal/goncho/dream_scheduler.go (existing dream scheduler)",
         "internal/goncho/host_integration.go",
         "internal/goncho/host_integration_test.go",
         "internal/goncho/http/routes.go",
         "internal/goncho/importance_scorer.go",
+        "internal/goncho/importance_scorer.go (existing importance scoring)",
         "internal/goncho/keys.go",
         "internal/goncho/local_markdown_memory.go (AgentID partition key precedent)",
         "internal/goncho/memory_tools.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_ir.go (recall intermediate representation)",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_pipeline.go (existing recall pipeline)",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Conclude — conclusion writing)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
+        "internal/goncho/service.go (Search, Context — existing retrieval surfaces)",
+        "internal/goncho/service.go (normalizeScope, scope-aware Conclude/Search)",
         "internal/goncho/service.go:Profile",
         "internal/goncho/sql.go",
+        "internal/goncho/sql.go (conclusionRow.Scope, upsertConclusion, findConclusions with global cross-boundary)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
         "internal/goncho/types.go",
+        "internal/goncho/types.go (Config.WorkspaceID, ConcludeParams.Scope)",
+        "internal/goncho/types.go (SessionSummary struct)",
         "internal/goncho/types.go:ProfileResult",
         "internal/goncho/webhooks.go",
+        "internal/goncho/workspace_detection.go (DetectWorkspaceFromPath, WorkspaceIDForPath, GlobalWorkspaceID)",
         "internal/gonchotools/",
         "internal/gonchotools/honcho_mcp_catalog.go",
         "internal/gonchotools/honcho_tools.go",
@@ -6407,14 +8085,21 @@
         "internal/hermes/skills_prompt.go",
         "internal/kernel/",
         "internal/kernel/frame.go:112",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go:204",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
+        "internal/memory/migrate.go (3l→3m migration chain entry)",
         "internal/memory/migrate.go:migrate",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing 4-layer waterfall)",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/schema.go",
+        "internal/memory/schema.go (migration3lTo3m adds scope column to goncho_conclusions)",
         "internal/memory/schema.go:migration3cTo3d",
         "internal/memory/schema.go:schemaVersion",
         "internal/memory/semantic_sql.go",
+        "internal/memory/semantic_sql.go (embedding search)",
         "internal/memory/semantic_sql.go:semanticSeeds",
         "internal/memory/session_catalog.go",
         "internal/memory/status.go",
@@ -6423,6 +8108,7 @@
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
         "internal/session/directory.go",
         "internal/skills",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
         "internal/skills/list.go:bundledSkillsRoot",
@@ -6433,6 +8119,7 @@
         "internal/skills/types.go",
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
@@ -6483,6 +8170,8 @@
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/update.go",
         "cmd/repoctl/main.go",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho",
@@ -6495,23 +8184,36 @@
         "internal/cli/skills_command.go",
         "internal/cron/curator_skill_rewrite_test.go",
         "internal/cron/store.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
         "internal/gateway/commands.go",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
         "internal/goncho/importance_scorer.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "internal/goncho/types.go (SessionSummary struct)",
+        "internal/gonchotools/honcho_tools.go",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/progress/progress.go:Item",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
         "internal/skills",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
         "internal/skills/list.go:bundledSkillsRoot",
@@ -6522,6 +8224,7 @@
         "internal/skills/types.go",
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
@@ -6877,6 +8580,8 @@
         "cmd/gormes/gateway_status.go:configuredGatewayStatusChannels",
         "cmd/gormes/gateway_stop.go",
         "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/hermes_cli_parity.go:sessions",
         "cmd/gormes/main.go",
         "cmd/gormes/oneshot_safety_test.go",
@@ -6996,6 +8701,8 @@
         "internal/cron/sink.go",
         "internal/cron/store.go",
         "internal/doctor/doctor.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
         "internal/events/bus.go",
         "internal/gateway",
         "internal/gateway/",
@@ -7012,16 +8719,23 @@
         "internal/gateway/typing_action.go",
         "internal/gateway/typing_action_test.go",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
         "internal/goncho/importance_scorer.go",
         "internal/goncho/local_markdown_memory.go",
         "internal/goncho/memory_tools.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
         "internal/goncho/session.go",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "internal/goncho/types.go (SessionSummary struct)",
+        "internal/gonchotools/honcho_tools.go",
         "internal/gonchotools/honcho_tools.go:HonchoSearchTool.Schema",
         "internal/gonchotools/memory_v1_mcp_catalog.go",
         "internal/hermes/background_review.go",
@@ -7068,6 +8782,7 @@
         "internal/kernel/frame.go:112",
         "internal/kernel/frame.go:PlatformEvent.SessionContext",
         "internal/kernel/kernel.go",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
         "internal/kernel/kernel.go:204",
         "internal/kernel/kernel.go:PlatformEventResetSession",
@@ -7075,7 +8790,9 @@
         "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:toolResult",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/memory/session_catalog.go",
         "internal/memory/session_catalog.go:SearchMessages",
@@ -7096,6 +8813,7 @@
         "internal/session/session.go",
         "internal/skills",
         "internal/skills/",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
         "internal/skills/list.go:bundledSkillsRoot",
@@ -7114,6 +8832,7 @@
         "internal/subagent/manager.go",
         "internal/tools",
         "internal/tools/",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/approval_mode.go",
         "internal/tools/checkpoint_manager.go",
         "internal/tools/checkpoint_manager_test.go",
@@ -7698,9 +9417,13 @@
         "cmd/gormes/gateway_status.go",
         "cmd/gormes/gateway_status.go:configuredGatewayStatusChannels",
         "cmd/gormes/gateway_stop.go",
+        "cmd/gormes/goncho*.go (existing Goncho CLI commands)",
         "cmd/gormes/goncho.go",
         "cmd/gormes/goncho_cli_parity.go",
         "cmd/gormes/goncho_cli_parity_test.go",
+        "cmd/gormes/goncho_cli_parity_test.go (existing CLI parity tests)",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/main.go",
         "cmd/gormes/memory.go",
         "cmd/gormes/oneshot_safety_test.go",
@@ -7828,6 +9551,9 @@
         "internal/cron/sink.go",
         "internal/cron/store.go",
         "internal/doctor/doctor.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
+        "internal/e2e/testdata/goncho_memory_turn/golden.json",
         "internal/events/bus.go",
         "internal/gateway",
         "internal/gateway/agent_isolation.go",
@@ -7844,25 +9570,43 @@
         "internal/gateway/typing_action.go",
         "internal/gateway/typing_action_test.go",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
+        "internal/goncho/contradiction_detector.go (existing contradiction detection)",
+        "internal/goncho/cross_session.go (cross-session recall)",
+        "internal/goncho/dream_scheduler.go (existing dream scheduler)",
         "internal/goncho/host_integration.go",
         "internal/goncho/host_integration_test.go",
         "internal/goncho/http/routes.go",
         "internal/goncho/importance_scorer.go",
+        "internal/goncho/importance_scorer.go (existing importance scoring)",
         "internal/goncho/keys.go",
         "internal/goncho/local_markdown_memory.go",
         "internal/goncho/local_markdown_memory.go (AgentID partition key precedent)",
         "internal/goncho/memory_tools.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_ir.go (recall intermediate representation)",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_pipeline.go (existing recall pipeline)",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Conclude — conclusion writing)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
+        "internal/goncho/service.go (Search, Context — existing retrieval surfaces)",
+        "internal/goncho/service.go (normalizeScope, scope-aware Conclude/Search)",
         "internal/goncho/service.go:Profile",
         "internal/goncho/sql.go",
+        "internal/goncho/sql.go (conclusionRow.Scope, upsertConclusion, findConclusions with global cross-boundary)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
         "internal/goncho/types.go",
+        "internal/goncho/types.go (Config.WorkspaceID, ConcludeParams.Scope)",
+        "internal/goncho/types.go (SessionSummary struct)",
         "internal/goncho/types.go:ProfileResult",
         "internal/goncho/webhooks.go",
+        "internal/goncho/workspace_detection.go (DetectWorkspaceFromPath, WorkspaceIDForPath, GlobalWorkspaceID)",
         "internal/gonchotools/",
         "internal/gonchotools/honcho_mcp_catalog.go",
         "internal/gonchotools/honcho_tools.go",
@@ -7898,16 +9642,23 @@
         "internal/kernel/frame.go:112",
         "internal/kernel/frame.go:PlatformEvent.SessionContext",
         "internal/kernel/kernel.go",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
         "internal/kernel/kernel.go:204",
         "internal/kernel/toolexec.go:toolResult",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
+        "internal/memory/migrate.go (3l→3m migration chain entry)",
         "internal/memory/migrate.go:migrate",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing 4-layer waterfall)",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/schema.go",
+        "internal/memory/schema.go (migration3lTo3m adds scope column to goncho_conclusions)",
         "internal/memory/schema.go:migration3cTo3d",
         "internal/memory/schema.go:schemaVersion",
         "internal/memory/semantic_sql.go",
+        "internal/memory/semantic_sql.go (embedding search)",
         "internal/memory/semantic_sql.go:semanticSeeds",
         "internal/memory/session_catalog.go",
         "internal/memory/session_catalog.go:SearchMessages",
@@ -7928,6 +9679,7 @@
         "internal/session/session.go",
         "internal/skills",
         "internal/skills/",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
         "internal/skills/list.go:bundledSkillsRoot",
@@ -7945,6 +9697,7 @@
         "internal/subagent/manager.go",
         "internal/tools",
         "internal/tools/",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/approval_mode.go",
         "internal/tools/checkpoint_manager.go",
         "internal/tools/checkpoint_manager_test.go",
@@ -8329,9 +10082,13 @@
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/doctor.go",
+        "cmd/gormes/goncho*.go (existing Goncho CLI commands)",
         "cmd/gormes/goncho.go",
         "cmd/gormes/goncho_cli_parity.go",
         "cmd/gormes/goncho_cli_parity_test.go",
+        "cmd/gormes/goncho_cli_parity_test.go (existing CLI parity tests)",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/hermes_cli_parity.go",
         "cmd/gormes/hermes_cli_parity.go:sessions",
         "cmd/gormes/memory.go",
@@ -8398,6 +10155,9 @@
         "internal/cron/heartbeat_test.go",
         "internal/cron/store.go",
         "internal/e2e/",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
+        "internal/e2e/testdata/goncho_memory_turn/golden.json",
         "internal/gateway/",
         "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — thread-aware peer resolution already wired)",
         "internal/gateway/channel.go",
@@ -8410,25 +10170,43 @@
         "internal/gateway/session_context.go",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
+        "internal/goncho/contradiction_detector.go (existing contradiction detection)",
+        "internal/goncho/cross_session.go (cross-session recall)",
+        "internal/goncho/dream_scheduler.go (existing dream scheduler)",
         "internal/goncho/host_integration.go",
         "internal/goncho/host_integration_test.go",
         "internal/goncho/http/routes.go",
         "internal/goncho/importance_scorer.go",
+        "internal/goncho/importance_scorer.go (existing importance scoring)",
         "internal/goncho/keys.go",
         "internal/goncho/local_markdown_memory.go (AgentID partition key precedent)",
         "internal/goncho/memory_tools.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_ir.go (recall intermediate representation)",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_pipeline.go (existing recall pipeline)",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Conclude — conclusion writing)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
+        "internal/goncho/service.go (Search, Context — existing retrieval surfaces)",
+        "internal/goncho/service.go (normalizeScope, scope-aware Conclude/Search)",
         "internal/goncho/service.go:Profile",
         "internal/goncho/session.go",
         "internal/goncho/sql.go",
+        "internal/goncho/sql.go (conclusionRow.Scope, upsertConclusion, findConclusions with global cross-boundary)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
         "internal/goncho/types.go",
+        "internal/goncho/types.go (Config.WorkspaceID, ConcludeParams.Scope)",
+        "internal/goncho/types.go (SessionSummary struct)",
         "internal/goncho/types.go:ProfileResult",
         "internal/goncho/webhooks.go",
+        "internal/goncho/workspace_detection.go (DetectWorkspaceFromPath, WorkspaceIDForPath, GlobalWorkspaceID)",
         "internal/gonchotools/",
         "internal/gonchotools/honcho_mcp_catalog.go",
         "internal/gonchotools/honcho_tools.go",
@@ -8465,6 +10243,7 @@
         "internal/kernel/extensions_test.go",
         "internal/kernel/frame.go:112",
         "internal/kernel/kernel.go",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go (tool loop and requestMaxIterationSummary)",
         "internal/kernel/kernel.go:100-126 (Kernel struct), 304-310 (runTurn signature), 464 (toolLoop label), 604-606 (tool loop exit), 626 (executeToolCallsInterruptible)",
         "internal/kernel/kernel.go:204",
@@ -8473,12 +10252,18 @@
         "internal/kernel/toolexec.go",
         "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
+        "internal/memory/migrate.go (3l→3m migration chain entry)",
         "internal/memory/migrate.go:migrate",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing 4-layer waterfall)",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/schema.go",
+        "internal/memory/schema.go (migration3lTo3m adds scope column to goncho_conclusions)",
         "internal/memory/schema.go:migration3cTo3d",
         "internal/memory/schema.go:schemaVersion",
         "internal/memory/semantic_sql.go",
+        "internal/memory/semantic_sql.go (embedding search)",
         "internal/memory/semantic_sql.go:semanticSeeds",
         "internal/memory/session_catalog.go",
         "internal/memory/session_lineage_search_test.go",
@@ -8497,6 +10282,7 @@
         "internal/session/",
         "internal/session/directory.go",
         "internal/skills",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/commands.go:BuildSkillSlashCommandMessage",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
@@ -8513,6 +10299,7 @@
         "internal/store",
         "internal/subagent",
         "internal/tools/",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
@@ -9105,6 +10892,7 @@
         "cmd/gormes/channels_capabilities.go",
         "cmd/gormes/channels_capabilities.go:configuredChannelCapabilityDetails currently omits teams",
         "cmd/gormes/config.go",
+        "cmd/gormes/config.go:config migrate",
         "cmd/gormes/dashboard.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/gateway.go",
@@ -9146,14 +10934,18 @@
         "cmd/gormes/registry.go:buildDefaultRegistry registers file, execute_code, terminal tools",
         "cmd/gormes/remote_tui.go",
         "cmd/gormes/security.go",
+        "cmd/gormes/send.go",
         "cmd/gormes/session.go",
         "cmd/gormes/setup.go",
         "cmd/gormes/setup.go runSetupProfilesInteractive (shipped child 1 — extend after the workspace-list step) ; runSetupBindingsSection ~:1678 (ADVISORY-ONLY, no persistence — NOT reused for persistence) ; :1954 known-channel list []string{telegram,discord,slack,whatsapp,navivox}",
         "cmd/gormes/setup.go:34 setupSections; :528 runSetupSection (no per-section box); :755-760 printSetupWizardHeader (existing 59-wide box to reuse); :1146-1148 boxed Setup Complete; :1547 runSetupModelSection (plain cli.PrintHeader evidence of the gap)",
         "cmd/gormes/setup.go:36 setupSections / :43 setupSectionLabels / :528 runSetupSection (shipped boxed-header+footer chrome — reuse) / :562 dispatch / :1499 runSetupAgentSection (advisory workspace section — keep coherent, do not duplicate its advisory-only behavior; this section actually persists)",
         "cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces",
+        "cmd/gormes/setup.go:runSetupSection",
         "cmd/gormes/setup_entry_mode_test.go",
+        "cmd/gormes/setup_gateway.go",
         "cmd/gormes/setup_minimal_test.go",
+        "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/skills.go",
         "cmd/gormes/slack.go",
         "cmd/gormes/telegram.go",
@@ -9182,6 +10974,11 @@
         "docs/content/building-gormes/architecture_plan/phase-3-memory.md",
         "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md",
         "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#channels",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
         "docs/content/building-gormes/architecture_plan/progress.json:7.B Email ingress + outbound delivery contract",
         "docs/content/building-gormes/architecture_plan/progress.json:Channels Capabilities Introspection",
         "docs/content/building-gormes/architecture_plan/progress.json:Gormes model interactive provider/model picker (CLI row 41975, coordinated)",
@@ -9239,6 +11036,8 @@
         "internal/app/gormescli/modules/gateway/dashboard.go",
         "internal/app/gormescli/modules/gateway/live.go",
         "internal/app/gormescli/modules/gateway/rowbacked.go",
+        "internal/app/gormescli/modules/profiles/control_center_model.go",
+        "internal/app/gormescli/modules/profiles/setup.go",
         "internal/audit/jsonl.go",
         "internal/audit/trajectory_link.go",
         "internal/channels",
@@ -9348,13 +11147,16 @@
         "internal/config/config.go:Load,loadEnv",
         "internal/config/config.go:RuntimeCfg",
         "internal/config/config.go:TelegramCfg",
+        "internal/config/config.go:TelegramCfg DiscordCfg SlackCfg",
         "internal/config/config.go:TelegramCfg,DiscordCfg,SlackCfg",
+        "internal/config/config.go:migrateConfig",
         "internal/config/config_test.go:TestLoad_IgnoresHermesConfigYAML,TestLoad_TelegramHermesEnvAliases",
         "internal/config/dotenv.go:dotenvCandidatePaths,parseDotenv",
         "internal/config/writer.go",
         "internal/config/writer.go coerceTOMLValue (shipped `agents.defaults.workspaces`/`.skills` case ~:609 — add symmetric `agents.defaults.channels`)",
         "internal/contextrefs/refs.go",
         "internal/cron/",
+        "internal/cron/delivery_plan.go",
         "internal/cron/delivery_plan.go:PlanCronDeliveryForJob",
         "internal/cron/delivery_plan.go:StandaloneDeliveryAdapter",
         "internal/cron/executor.go",
@@ -9381,6 +11183,7 @@
         "internal/gateway/channel_directory.go (ChannelDirectoryStore with Platforms map)",
         "internal/gateway/channel_directory.go:ChannelDirectoryEntry",
         "internal/gateway/channel_neutral_turn_adapter_test.go",
+        "internal/gateway/channel_setup.go",
         "internal/gateway/channel_setup.go:43 whatsapp `gormes whatsapp --plan` (per-channel credential/QR setup — OUT OF SCOPE, do not reimplement/fake)",
         "internal/gateway/coalesce.go",
         "internal/gateway/coalesce.go (flushImmediate, flushImmediateFinal, editCoalescedMessage)",
@@ -9490,6 +11293,7 @@
         "internal/gateway/thread_delivery.go",
         "internal/gateway/thread_delivery_test.go",
         "internal/gateway/title_command.go",
+        "internal/gateway/token_lock_test.go",
         "internal/gateway/turn_adapter.go",
         "internal/gateway/turn_adapter.go:Dispatch (wire-up — populates kernel.PlatformEvent.ContentParts)",
         "internal/gateway/turn_adapter.go:TurnRequest",
@@ -9655,6 +11459,7 @@
         "internal/tui/update.go:Update,frameMsg,PhaseIdle",
         "internal/tui/view.go",
         "internal/tui/view.go:renderConv",
+        "internal/tui/wizard/",
         "internal/tuigateway",
         "internal/tuigateway/gateway_mux.go",
         "internal/tuigateway/media_personality_event_test.go",
@@ -9685,6 +11490,7 @@
         "user transcript: Hermes profile has `terminal.cwd: \".\"`; `hermes config set terminal.cwd /absolute/path/to/project`; gateway restart after config change",
         "user transcript: Sidon Hermes v0.10.0 reports `hermes whatsapp` as the pairing wizard command",
         "webpages/docs/content/building-gormes/modules/channels.md",
+        "webpages/docs/content/building-gormes/modules/profiles.md",
         "webpages/docs/content/cli/channels.md",
         "webpages/docs/content/cli/gateway.md",
         "webpages/docs/content/install/linux-macos.md",
@@ -9793,6 +11599,7 @@
         "../hermes-agent/website/docs/user-guide/profiles.md:terminal.cwd profile/workspace distinction",
         "Shipped sibling: 'gormes setup <section> boxed header + completion footer (UX parity)' (chrome to reuse)",
         "cmd/gormes/config.go",
+        "cmd/gormes/config.go:config migrate",
         "cmd/gormes/gateway.go",
         "cmd/gormes/gateway.go:gatewayManagerConfig",
         "cmd/gormes/gateway_agent_templates.go",
@@ -9811,8 +11618,10 @@
         "cmd/gormes/setup.go:34 setupSections; :528 runSetupSection (no per-section box); :755-760 printSetupWizardHeader (existing 59-wide box to reuse); :1146-1148 boxed Setup Complete; :1547 runSetupModelSection (plain cli.PrintHeader evidence of the gap)",
         "cmd/gormes/setup.go:36 setupSections / :43 setupSectionLabels / :528 runSetupSection (shipped boxed-header+footer chrome — reuse) / :562 dispatch / :1499 runSetupAgentSection (advisory workspace section — keep coherent, do not duplicate its advisory-only behavior; this section actually persists)",
         "cmd/gormes/setup.go:runSetupProfilesInteractive writes agents.defaults.workspaces",
+        "cmd/gormes/setup.go:runSetupSection",
         "cmd/gormes/setup_entry_mode_test.go",
         "cmd/gormes/setup_minimal_test.go",
+        "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/skills.go",
         "cmd/gormes/telegram.go",
         "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
@@ -9820,10 +11629,16 @@
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:104-114",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree",
         "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
         "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md",
         "internal/agenttemplate/default_templates.go",
         "internal/agenttemplate/default_templates.go:SOUL.md and IDENTITY.md identity files",
         "internal/agenttemplate/parity_manifest.go",
+        "internal/app/gormescli/modules/profiles/control_center_model.go",
+        "internal/app/gormescli/modules/profiles/setup.go",
         "internal/cli/active_profile.go",
         "internal/cli/banner.go",
         "internal/cli/profile_create.go:profileCreateDefaultDirs",
@@ -9840,10 +11655,12 @@
         "internal/config/config.go Agents AgentsCfg agents.defaults workspace (~:356) + Bindings []AgentBindingCfg; internal/config/writer.go real TOML round-trip (list fields as arrays)",
         "internal/config/config.go:ConfigPath,loadFile,loadEnv,loadFlags,CurrentConfigVersion",
         "internal/config/config.go:HermesCfg",
+        "internal/config/config.go:migrateConfig",
         "internal/config/dotenv.go:dotenvCandidatePaths,parseDotenv",
         "internal/config/writer.go",
         "internal/config/writer.go coerceTOMLValue (shipped `agents.defaults.workspaces`/`.skills` case ~:609 — add symmetric `agents.defaults.channels`)",
         "internal/doctor RenderDoctorHeader (shipped this session — same box shape; reuse the pattern, do not duplicate a third chrome)",
+        "internal/doctor/",
         "internal/gateway/channel_setup.go:43 whatsapp `gormes whatsapp --plan` (per-channel credential/QR setup — OUT OF SCOPE, do not reimplement/fake)",
         "internal/gateway/live_turn_prompt.go",
         "internal/gateway/live_turn_prompt.go:defaultLiveTurnMemoryDir",
@@ -9852,6 +11669,7 @@
         "internal/gateway/manager.go",
         "internal/gateway/manager.go:1534",
         "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile",
+        "internal/gateway/token_lock_test.go",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/hermes/context_files.go",
         "internal/hermes/context_files.go:BuildContextFilesPrompt",
@@ -9881,7 +11699,9 @@
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
         "internal/tui/",
+        "internal/tui/wizard/",
         "user transcript: Hermes profile has `terminal.cwd: \".\"`; `hermes config set terminal.cwd /absolute/path/to/project`; gateway restart after config change",
+        "webpages/docs/content/building-gormes/modules/profiles.md",
         "webpages/docs/content/upstream-hermes/developer-guide/architecture.md:Profile isolation",
         "webpages/docs/content/upstream-hermes/developer-guide/gateway-internals.md:profile-scoped process tracking",
         "webpages/docs/content/upstream-hermes/reference/cli-commands.md:gateway --all",
@@ -10480,6 +12300,32 @@
         {
           "phase_id": "5",
           "subphase_id": "5.O",
+          "name": "Legacy profile config v2 migration planner",
+          "priority": "P1",
+          "status": "planned",
+          "contract_status": "fixture_ready",
+          "module": "config",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/config.go:config migrate",
+            "cmd/gormes/profile.go",
+            "cmd/gormes/setup_profiles_tui.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+            "internal/config/config.go:migrateConfig"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestConfigMigrate|TestSetupProfilesMigration' -count=1",
+            "go test ./internal/config -run 'TestProfileMigrationV2' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.O",
           "name": "Long-term plan: profile fleet supervisor and single control-plane gateway",
           "priority": "P2",
           "status": "planned",
@@ -10586,6 +12432,82 @@
         {
           "phase_id": "5",
           "subphase_id": "5.O",
+          "name": "Profile Control Center TUI shell and draft apply flow",
+          "priority": "P1",
+          "status": "planned",
+          "contract_status": "fixture_ready",
+          "module": "profiles",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/setup.go:runSetupSection",
+            "cmd/gormes/setup_profiles_tui.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+            "internal/app/gormescli/modules/profiles/control_center_model.go",
+            "internal/tui/wizard/"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestSetupProfiles' -count=1",
+            "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterTUI|TestProfileDraft' -count=1",
+            "go test ./webpages/docs -run 'TestProfile|TestSetup' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.O",
+          "name": "Profile Control Center read model",
+          "priority": "P1",
+          "status": "planned",
+          "contract_status": "fixture_ready",
+          "module": "profiles",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/setup_profiles_tui.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+            "internal/app/gormescli/modules/profiles/setup.go",
+            "internal/config/config.go",
+            "internal/doctor/",
+            "internal/gateway/token_lock_test.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestSetupProfiles' -count=1",
+            "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterModel' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.O",
+          "name": "Profile Control Center v2 umbrella — single root config and active services",
+          "priority": "P1",
+          "status": "planned",
+          "contract_status": "draft",
+          "module": "profiles",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/setup_profiles_tui.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+            "internal/app/gormescli/modules/profiles/setup.go",
+            "internal/config/config.go",
+            "internal/config/writer.go",
+            "webpages/docs/content/building-gormes/modules/profiles.md"
+          ],
+          "no_test_required": "Inventory-only umbrella; executable child rows carry focused tests.",
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.O",
           "name": "Profile workspace allow-list enforcement policy",
           "priority": "P1",
           "status": "complete",
@@ -10639,6 +12561,33 @@
             "go test ./cmd/gormes -run 'Profile|ChatCommandProfileFlag' -count=1",
             "go test ./internal/cli ./internal/config ./internal/tools -run 'Profile|SubprocessHome|Terminal|ExecuteCode' -count=1",
             "go test ./webpages/docs -run 'Profile|DocsContent' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.O",
+          "name": "Root config.toml v2 profile service schema",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "config",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/setup.go",
+            "cmd/gormes/setup_profiles_tui.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
+            "internal/config/agents.go",
+            "internal/config/config.go",
+            "internal/config/writer.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestSetupProfiles|TestConfig' -count=1",
+            "go test ./internal/config -run 'TestProfileConfigV2|TestConfigMigrate|TestConfigDefaults' -count=1"
           ],
           "match_reasons": [
             "taxonomy_keyword"
@@ -11349,8 +13298,8 @@
           "subphase_id": "5.O",
           "name": "Hermes session recap command surface",
           "priority": "P2",
-          "status": "planned",
-          "contract_status": "draft",
+          "status": "complete",
+          "contract_status": "validated",
           "module": "sessions",
           "source_refs": [
             "../hermes-agent/hermes_cli/main.py",
@@ -11830,9 +13779,13 @@
         "User-provided Reddit r/openclaw post, 2026-05-03: frustration with mem0/Zep/cloud-hosted/heavy/API-key memory; requested fully local markdown MCP memory for GONCHO.",
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/doctor.go",
+        "cmd/gormes/goncho*.go (existing Goncho CLI commands)",
         "cmd/gormes/goncho.go",
         "cmd/gormes/goncho_cli_parity.go",
         "cmd/gormes/goncho_cli_parity_test.go",
+        "cmd/gormes/goncho_cli_parity_test.go (existing CLI parity tests)",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/memory.go",
         "cmd/gormes/registry.go",
         "cmd/repoctl/main.go",
@@ -11860,28 +13813,49 @@
         "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/session/spaces.go",
         "internal/config/agents.go (AgentsCfg, AgentCfg, AgentBindingCfg schema this layers on top of)",
         "internal/config/config.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
+        "internal/e2e/testdata/goncho_memory_turn/golden.json",
         "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — thread-aware peer resolution already wired)",
         "internal/gateway/manager.go:1534",
         "internal/gateway/turn_adapter.go:TurnRequest.SessionContext",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
+        "internal/goncho/contradiction_detector.go (existing contradiction detection)",
+        "internal/goncho/cross_session.go (cross-session recall)",
+        "internal/goncho/dream_scheduler.go (existing dream scheduler)",
         "internal/goncho/host_integration.go",
         "internal/goncho/host_integration_test.go",
         "internal/goncho/http/routes.go",
         "internal/goncho/importance_scorer.go",
+        "internal/goncho/importance_scorer.go (existing importance scoring)",
         "internal/goncho/keys.go",
         "internal/goncho/local_markdown_memory.go (AgentID partition key precedent)",
         "internal/goncho/memory_tools.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
+        "internal/goncho/recall_ir.go (recall intermediate representation)",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_pipeline.go (existing recall pipeline)",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Conclude — conclusion writing)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
+        "internal/goncho/service.go (Search, Context — existing retrieval surfaces)",
+        "internal/goncho/service.go (normalizeScope, scope-aware Conclude/Search)",
         "internal/goncho/service.go:Profile",
         "internal/goncho/sql.go",
+        "internal/goncho/sql.go (conclusionRow.Scope, upsertConclusion, findConclusions with global cross-boundary)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
         "internal/goncho/types.go",
+        "internal/goncho/types.go (Config.WorkspaceID, ConcludeParams.Scope)",
+        "internal/goncho/types.go (SessionSummary struct)",
         "internal/goncho/types.go:ProfileResult",
         "internal/goncho/webhooks.go",
+        "internal/goncho/workspace_detection.go (DetectWorkspaceFromPath, WorkspaceIDForPath, GlobalWorkspaceID)",
         "internal/gonchotools/",
         "internal/gonchotools/honcho_mcp_catalog.go",
         "internal/gonchotools/honcho_tools.go",
@@ -11895,14 +13869,21 @@
         "internal/hermes/skills_prompt.go",
         "internal/kernel/",
         "internal/kernel/frame.go:112",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/kernel/kernel.go:204",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
+        "internal/memory/migrate.go (3l→3m migration chain entry)",
         "internal/memory/migrate.go:migrate",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing 4-layer waterfall)",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/schema.go",
+        "internal/memory/schema.go (migration3lTo3m adds scope column to goncho_conclusions)",
         "internal/memory/schema.go:migration3cTo3d",
         "internal/memory/schema.go:schemaVersion",
         "internal/memory/semantic_sql.go",
+        "internal/memory/semantic_sql.go (embedding search)",
         "internal/memory/semantic_sql.go:semanticSeeds",
         "internal/memory/session_catalog.go",
         "internal/memory/status.go",
@@ -11910,6 +13891,8 @@
         "internal/progress/progress.go:Item",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
         "internal/session/directory.go",
+        "internal/skills/ (skill execution surface)",
+        "internal/tools/ (tool execution surface)",
         "mercury-agent/src/core/memory.ts",
         "references/go-agent-os/GORMES-REUSE-AUDIT.md#5-deterministic-serialized-mcpmemory-write-queue",
         "references/go-agent-os/engram/internal/mcp/write_queue.go",
@@ -12265,6 +14248,56 @@
         },
         {
           "phase_id": "3",
+          "subphase_id": "3.H",
+          "name": "Goncho /memory and /continue CLI commands",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/goncho*.go (existing Goncho CLI commands)",
+            "cmd/gormes/goncho_cli_parity_test.go (existing CLI parity tests)",
+            "internal/goncho/cross_session.go (cross-session recall)",
+            "internal/goncho/service.go (Search, Context — existing retrieval surfaces)"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestMemoryCommand|TestContinueCommand' -count=1",
+            "go test ./cmd/gormes ./internal/goncho -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "3",
+          "subphase_id": "3.H",
+          "name": "Goncho BM25 + RRF parallel retrieval fusion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "internal/goncho/recall_ir.go (recall intermediate representation)",
+            "internal/goncho/recall_pipeline.go (existing recall pipeline)",
+            "internal/memory/recall.go (Provider.GetContext — existing 4-layer waterfall)",
+            "internal/memory/semantic_sql.go (embedding search)"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/memory -run 'TestRRF' -count=1",
+            "go test ./internal/memory ./internal/goncho -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "3",
           "subphase_id": "3.G",
           "name": "Goncho CLI command-tree parity",
           "priority": "P2",
@@ -12589,6 +14622,31 @@
         },
         {
           "phase_id": "3",
+          "subphase_id": "3.H",
+          "name": "Goncho dream fact extraction and memory compression",
+          "priority": "P2",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "internal/goncho/contradiction_detector.go (existing contradiction detection)",
+            "internal/goncho/dream_scheduler.go (existing dream scheduler)",
+            "internal/goncho/importance_scorer.go (existing importance scoring)",
+            "internal/goncho/service.go (Conclude — conclusion writing)"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/goncho -count=1",
+            "go test ./internal/goncho -run 'TestDream' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "3",
           "subphase_id": "3.F",
           "name": "Goncho dreaming scheduler contract",
           "priority": "P3",
@@ -12689,6 +14747,35 @@
           ],
           "test_commands": [
             "go test ./internal/goncho ./internal/memory ./cmd/gormes -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.N",
+          "name": "Goncho golden transcript e2e harness",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho",
+            "internal/e2e/golden_transcript_test.go",
+            "internal/e2e/normal_turn_test.go",
+            "internal/goncho/recall_diagnostics.go",
+            "internal/goncho/recall_ir.go",
+            "internal/goncho/recall_projector.go",
+            "internal/goncho/recall_replay.go",
+            "internal/goncho/service.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/e2e -run 'TestGonchoGoldenTranscriptE2E' -count=1",
+            "go test ./internal/e2e ./internal/goncho ./internal/memory -count=1"
           ],
           "match_reasons": [
             "taxonomy_keyword"
@@ -12811,6 +14898,41 @@
           ]
         },
         {
+          "phase_id": "5",
+          "subphase_id": "5.N",
+          "name": "Goncho proof matrix and fixture harness",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/goncho.go",
+            "cmd/gormes/goncho_recall_diagnostics.go",
+            "cmd/gormes/goncho_recall_replay.go",
+            "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho",
+            "internal/goncho/recall_diagnostics.go",
+            "internal/goncho/recall_ir.go",
+            "internal/goncho/recall_pipeline.go",
+            "internal/goncho/recall_replay.go",
+            "internal/goncho/service.go",
+            "internal/gonchotools/honcho_tools.go",
+            "internal/memory/goncho_v1.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestGonchoProofMatrix' -count=1",
+            "go test ./internal/goncho -run 'TestGonchoProofMatrix' -count=1",
+            "go test ./internal/goncho ./internal/gonchotools ./internal/memory ./cmd/gormes -count=1",
+            "go test ./internal/gonchotools -run 'TestGonchoProofMatrix' -count=1",
+            "go test ./internal/memory -run 'TestGonchoProofMatrix' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
           "phase_id": "3",
           "subphase_id": "3.F",
           "name": "Goncho queue status read model",
@@ -12888,6 +15010,33 @@
           ]
         },
         {
+          "phase_id": "5",
+          "subphase_id": "5.N",
+          "name": "Goncho retrieval benchmark corpus",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho",
+            "internal/e2e/testdata/goncho_memory_turn/golden.json",
+            "internal/goncho/recall_ir.go",
+            "internal/goncho/recall_pipeline.go",
+            "internal/goncho/recall_projector.go",
+            "internal/goncho/testdata/recall_trace/stable_trace.golden.json"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/goncho -run 'TestRecallBenchmark' -count=1",
+            "go test ./internal/goncho ./internal/memory -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
           "phase_id": "3",
           "subphase_id": "3.F",
           "name": "Goncho search filter grammar",
@@ -12931,6 +15080,56 @@
             "go run ./cmd/progress validate",
             "go test ./internal/goncho ./internal/memory -count=1",
             "go test ./internal/goncho ./internal/memory -run 'WriteQueue|Relation|Conflict|Supersede' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "3",
+          "subphase_id": "3.H",
+          "name": "Goncho session-end structured summary capture",
+          "priority": "P0",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "internal/goncho/service.go (Context, Search — existing session summary loading)",
+            "internal/goncho/types.go (SessionSummary struct)",
+            "internal/kernel/kernel.go (session lifecycle hooks)",
+            "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/goncho -run 'TestSessionEndSummary' -count=1",
+            "go test ./internal/goncho ./internal/kernel -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "3",
+          "subphase_id": "3.H",
+          "name": "Goncho skill-outcome tracking as conclusions",
+          "priority": "P2",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "internal/goncho/conclusions.go (conclusion schema)",
+            "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+            "internal/skills/ (skill execution surface)",
+            "internal/tools/ (tool execution surface)"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/goncho -run 'TestSkillOutcome' -count=1",
+            "go test ./internal/goncho ./internal/skills -count=1"
           ],
           "match_reasons": [
             "taxonomy_keyword"
@@ -13036,6 +15235,33 @@
             "git diff --check",
             "go run ./cmd/progress validate",
             "go test ./internal/goncho -run 'TestWebhookDelivery' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "3",
+          "subphase_id": "3.H",
+          "name": "Goncho workspace isolation with explicit global scope",
+          "priority": "P2",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "internal/goncho/service.go (normalizeScope, scope-aware Conclude/Search)",
+            "internal/goncho/sql.go (conclusionRow.Scope, upsertConclusion, findConclusions with global cross-boundary)",
+            "internal/goncho/types.go (Config.WorkspaceID, ConcludeParams.Scope)",
+            "internal/goncho/workspace_detection.go (DetectWorkspaceFromPath, WorkspaceIDForPath, GlobalWorkspaceID)",
+            "internal/memory/migrate.go (3l→3m migration chain entry)",
+            "internal/memory/schema.go (migration3lTo3m adds scope column to goncho_conclusions)"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/goncho -count=1",
+            "go test ./internal/goncho -run 'TestWorkspace' -count=1"
           ],
           "match_reasons": [
             "taxonomy_keyword"
@@ -13477,6 +15703,8 @@
         "arXiv:2601.01885 (AgeMem 2026)",
         "cmd/gormes/curator.go",
         "cmd/gormes/goncho.go",
+        "cmd/gormes/goncho_recall_diagnostics.go",
+        "cmd/gormes/goncho_recall_replay.go",
         "cmd/gormes/update.go",
         "cmd/repoctl/main.go",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho",
@@ -13488,23 +15716,36 @@
         "internal/cli/skills_command.go",
         "internal/cron/curator_skill_rewrite_test.go",
         "internal/cron/store.go",
+        "internal/e2e/golden_transcript_test.go",
+        "internal/e2e/normal_turn_test.go",
         "internal/gateway/commands.go",
         "internal/goncho/",
+        "internal/goncho/conclusions.go (conclusion schema)",
         "internal/goncho/importance_scorer.go",
         "internal/goncho/recall_diagnostics.go",
         "internal/goncho/recall_ir.go",
         "internal/goncho/recall_pipeline.go",
+        "internal/goncho/recall_projector.go",
+        "internal/goncho/recall_replay.go",
         "internal/goncho/service.go",
+        "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+        "internal/goncho/service.go (Context, Search — existing session summary loading)",
         "internal/goncho/store.go",
         "internal/goncho/testdata/recall_trace/stable_trace.golden.json",
+        "internal/goncho/types.go (SessionSummary struct)",
+        "internal/gonchotools/honcho_tools.go",
         "internal/hermes/background_review.go",
         "internal/hermes/background_review_test.go",
+        "internal/kernel/kernel.go (session lifecycle hooks)",
         "internal/memory/",
+        "internal/memory/goncho_v1.go",
         "internal/memory/recall.go",
+        "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)",
         "internal/memory/semantic_sql.go",
         "internal/progress/progress.go:Item",
         "internal/repoctl/source_pairs.go:ValidateSourcePairs",
         "internal/skills",
+        "internal/skills/ (skill execution surface)",
         "internal/skills/curator.go",
         "internal/skills/curator_test.go",
         "internal/skills/list.go:bundledSkillsRoot",
@@ -13515,6 +15756,7 @@
         "internal/skills/types.go",
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
+        "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
@@ -13629,6 +15871,70 @@
         {
           "phase_id": "5",
           "subphase_id": "5.N",
+          "name": "Goncho golden transcript e2e harness",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho",
+            "internal/e2e/golden_transcript_test.go",
+            "internal/e2e/normal_turn_test.go",
+            "internal/goncho/recall_diagnostics.go",
+            "internal/goncho/recall_ir.go",
+            "internal/goncho/recall_projector.go",
+            "internal/goncho/recall_replay.go",
+            "internal/goncho/service.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/e2e -run 'TestGonchoGoldenTranscriptE2E' -count=1",
+            "go test ./internal/e2e ./internal/goncho ./internal/memory -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.N",
+          "name": "Goncho proof matrix and fixture harness",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/goncho.go",
+            "cmd/gormes/goncho_recall_diagnostics.go",
+            "cmd/gormes/goncho_recall_replay.go",
+            "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#honcho-feature-map-for-goncho",
+            "internal/goncho/recall_diagnostics.go",
+            "internal/goncho/recall_ir.go",
+            "internal/goncho/recall_pipeline.go",
+            "internal/goncho/recall_replay.go",
+            "internal/goncho/service.go",
+            "internal/gonchotools/honcho_tools.go",
+            "internal/memory/goncho_v1.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestGonchoProofMatrix' -count=1",
+            "go test ./internal/goncho -run 'TestGonchoProofMatrix' -count=1",
+            "go test ./internal/goncho ./internal/gonchotools ./internal/memory ./cmd/gormes -count=1",
+            "go test ./internal/gonchotools -run 'TestGonchoProofMatrix' -count=1",
+            "go test ./internal/memory -run 'TestGonchoProofMatrix' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.N",
           "name": "Goncho recall diagnostics CLI over RecallTrace",
           "priority": "P1",
           "status": "complete",
@@ -13702,6 +16008,56 @@
             "go run ./cmd/progress validate",
             "go test ./internal/goncho ./internal/memory -count=1",
             "go test ./internal/goncho ./internal/memory -run 'WriteQueue|Relation|Conflict|Supersede' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "3",
+          "subphase_id": "3.H",
+          "name": "Goncho session-end structured summary capture",
+          "priority": "P0",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "internal/goncho/service.go (Context, Search — existing session summary loading)",
+            "internal/goncho/types.go (SessionSummary struct)",
+            "internal/kernel/kernel.go (session lifecycle hooks)",
+            "internal/memory/recall.go (Provider.GetContext — existing recall pipeline)"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/goncho -run 'TestSessionEndSummary' -count=1",
+            "go test ./internal/goncho ./internal/kernel -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "3",
+          "subphase_id": "3.H",
+          "name": "Goncho skill-outcome tracking as conclusions",
+          "priority": "P2",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "goncho",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "internal/goncho/conclusions.go (conclusion schema)",
+            "internal/goncho/service.go (Conclude — conclusion writing with source field)",
+            "internal/skills/ (skill execution surface)",
+            "internal/tools/ (tool execution surface)"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./internal/goncho -run 'TestSkillOutcome' -count=1",
+            "go test ./internal/goncho ./internal/skills -count=1"
           ],
           "match_reasons": [
             "taxonomy_keyword"
@@ -15352,6 +17708,7 @@
         "../hermes-agent/agent/account_usage.py:AccountUsageSnapshot,AccountUsageWindow,render_account_usage_lines,fetch_account_usage,_fetch_codex_account_usage,_fetch_anthropic_account_usage,_fetch_openrouter_account_usage",
         "../hermes-agent/agent/anthropic_adapter.py",
         "../hermes-agent/agent/anthropic_adapter.py:run_hermes_oauth_login_pure",
+        "../hermes-agent/agent/anthropic_adapter.py@73407b1e3",
         "../hermes-agent/agent/anthropic_adapter.py@c15064fa",
         "../hermes-agent/agent/auxiliary_client.py",
         "../hermes-agent/agent/auxiliary_client.py:OPENROUTER_APP_ATTRIBUTION_HEADERS",
@@ -15727,8 +18084,11 @@
         "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
         "cmd/gormes/auth.go",
         "cmd/gormes/auth_command.go",
+        "cmd/gormes/auth_status_command_test.go",
         "cmd/gormes/config.go",
+        "cmd/gormes/config.go:config migrate",
         "cmd/gormes/config.go:newConfigSetCommand",
+        "cmd/gormes/config_command_test.go",
         "cmd/gormes/dashboard.go",
         "cmd/gormes/doctor.go",
         "cmd/gormes/doctor.go (--offline exists; add --fix; currently prints no end-of-report summary)",
@@ -15756,14 +18116,18 @@
         "cmd/gormes/model.go:173:promptModelChoice / cmd/gormes/model.go:169:defaultModelCatalogSuggestions (passes nil → no live catalog)",
         "cmd/gormes/onboard.go",
         "cmd/gormes/onboard_wizard_test.go",
+        "cmd/gormes/profile.go",
         "cmd/gormes/profile.go profileCommandSeams{ListKnownProfiles,ReadActiveProfileName,ResolveProfileRoot,ReadDistributionManifest}, runProfileListCommand, defaultProfileCommandSeams; config.GormesHome()+\"profiles\" (profile.go:762) — Gormes-owned profile source of truth",
         "cmd/gormes/provider_auth.go",
+        "cmd/gormes/provider_client.go",
         "cmd/gormes/setup.go",
         "cmd/gormes/setup.go:1020:runSetupActiveProviderModelPicker (provider := current.Provider; calls promptModelChoice with static suggestions)",
         "cmd/gormes/setup.go:34 setupSections; :528 runSetupSection (no per-section box); :755-760 printSetupWizardHeader (existing 59-wide box to reuse); :1146-1148 boxed Setup Complete; :1547 runSetupModelSection (plain cli.PrintHeader evidence of the gap)",
         "cmd/gormes/setup.go:751:runSetupInferenceProviderSection (provider not carried to model step)",
         "cmd/gormes/setup_entry_mode_test.go",
         "cmd/gormes/setup_minimal_test.go",
+        "cmd/gormes/setup_model.go",
+        "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/telegram.go",
         "cmd/gormes/telegram.go:runTelegram",
         "cmd/gormes/usage.go",
@@ -15787,6 +18151,9 @@
         "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Telemetry and reasoning traces",
         "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#providers",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/architecture_plan/progress.json:19063 (the static promptModelChoice seam this supersedes)",
         "docs/content/building-gormes/architecture_plan/progress.json:OpenRouter compatible-provider routing",
@@ -15836,6 +18203,7 @@
         "internal/cli/toolset_config.go",
         "internal/config",
         "internal/config config.toml/config.yaml parser tags and internal/hermes ResolveProviderDefaultModel — effective local profile provider/model summary",
+        "internal/config/agents.go",
         "internal/config/anthropic_auth_state.go",
         "internal/config/codex_oauth_state.go",
         "internal/config/config.go",
@@ -15850,6 +18218,7 @@
         "internal/config/config.go:ResolveInference",
         "internal/config/config.go:hermesConfigPath,xdgConfigHome,xdgDataHome",
         "internal/config/config.go:loadHermesConfigYAML",
+        "internal/config/config.go:migrateConfig",
         "internal/config/config.go:xdgDataHome",
         "internal/config/credential_pool.go",
         "internal/config/credential_pool.go:CredentialPoolStatus",
@@ -15981,6 +18350,8 @@
         "internal/plugins/loader.go",
         "internal/plugins/manifest_test.go",
         "internal/plugins/spotify_plugin_test.go",
+        "internal/provider/",
+        "internal/runtime/binding.go",
         "internal/sandbox/paths.go",
         "internal/sandbox/provider.go",
         "internal/sandbox/sandbox.go",
@@ -16214,6 +18585,7 @@
           "module": "providers",
           "provenance_origin_type": "upstream",
           "source_refs": [
+            "../hermes-agent/agent/anthropic_adapter.py@73407b1e3",
             "../hermes-agent/agent/anthropic_adapter.py@c15064fa",
             "../hermes-agent/hermes_cli/runtime_provider.py@7bfa9442",
             "../hermes-agent/hermes_cli/runtime_provider.py@d8e4c721",
@@ -18294,6 +20666,32 @@
         },
         {
           "phase_id": "5",
+          "subphase_id": "5.O",
+          "name": "Legacy profile config v2 migration planner",
+          "priority": "P1",
+          "status": "planned",
+          "contract_status": "fixture_ready",
+          "module": "config",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/config.go:config migrate",
+            "cmd/gormes/profile.go",
+            "cmd/gormes/setup_profiles_tui.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+            "internal/config/config.go:migrateConfig"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestConfigMigrate|TestSetupProfilesMigration' -count=1",
+            "go test ./internal/config -run 'TestProfileMigrationV2' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
           "subphase_id": "5.G",
           "name": "MCP OAuth refresh + 401 session-expired recovery",
           "status": "complete",
@@ -18759,6 +21157,33 @@
           ],
           "test_commands": [
             "go test ./internal/hermes -run TestLatencyRouter -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.O",
+          "name": "Per-profile provider credential readiness",
+          "priority": "P1",
+          "status": "planned",
+          "contract_status": "fixture_ready",
+          "module": "providers",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/auth.go",
+            "cmd/gormes/setup_model.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md#providers",
+            "internal/config/config.go",
+            "internal/hermes/provider_registry_manifest.go",
+            "internal/provider/"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestSetupModel|TestAuth|TestSetupProfiles' -count=1",
+            "go test ./internal/provider ./internal/hermes ./internal/config -run 'TestProfileProvider|TestOpenRouter|TestProviderRegistry' -count=1"
           ],
           "match_reasons": [
             "taxonomy_keyword"
@@ -19270,6 +21695,33 @@
           ]
         },
         {
+          "phase_id": "5",
+          "subphase_id": "5.N",
+          "name": "Provider/auth readiness preflight for unattended jobs",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "providers",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/auth_status_command_test.go",
+            "cmd/gormes/config_command_test.go",
+            "cmd/gormes/provider_client.go",
+            "cmd/gormes/setup.go",
+            "internal/config/config.go",
+            "internal/runtime/binding.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestAuthStatus|TestConfigCheck|TestProviderHTTPClient' -count=1",
+            "go test ./internal/runtime -run 'TestOperatorPreflight' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
           "phase_id": "4",
           "subphase_id": "4.K",
           "name": "Resilient provider chain dispatch",
@@ -19297,6 +21749,33 @@
           "priority": "P1",
           "status": "complete",
           "module": "providers",
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.O",
+          "name": "Root config.toml v2 profile service schema",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "config",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/setup.go",
+            "cmd/gormes/setup_profiles_tui.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
+            "internal/config/agents.go",
+            "internal/config/config.go",
+            "internal/config/writer.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestSetupProfiles|TestConfig' -count=1",
+            "go test ./internal/config -run 'TestProfileConfigV2|TestConfigMigrate|TestConfigDefaults' -count=1"
+          ],
           "match_reasons": [
             "taxonomy_keyword"
           ]
@@ -20538,6 +23017,9 @@
         "cmd/gormes/provider_client.go",
         "cmd/gormes/remote_tui.go",
         "cmd/gormes/security.go",
+        "cmd/gormes/send.go",
+        "cmd/gormes/setup_gateway.go",
+        "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/slack.go",
         "cmd/gormes/telegram.go",
         "cmd/gormes/telegram.go:telegramManagerConfig",
@@ -20560,6 +23042,7 @@
         "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Provider account usage reporting",
         "docs/content/building-gormes/architecture_plan/phase-2-gateway.md",
         "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#channels",
         "docs/content/building-gormes/architecture_plan/progress.json:7.B Email ingress + outbound delivery contract",
         "docs/content/building-gormes/architecture_plan/progress.json:Channels Capabilities Introspection",
         "docs/content/building-gormes/architecture_plan/progress.json:Gormes model interactive provider/model picker (CLI row 41975, coordinated)",
@@ -20697,9 +23180,11 @@
         "internal/config/config.go:Load,loadEnv",
         "internal/config/config.go:RuntimeCfg",
         "internal/config/config.go:TelegramCfg",
+        "internal/config/config.go:TelegramCfg DiscordCfg SlackCfg",
         "internal/config/config.go:TelegramCfg,DiscordCfg,SlackCfg",
         "internal/config/config_test.go:TestLoad_IgnoresHermesConfigYAML,TestLoad_TelegramHermesEnvAliases",
         "internal/cron/",
+        "internal/cron/delivery_plan.go",
         "internal/cron/delivery_plan.go:PlanCronDeliveryForJob",
         "internal/cron/delivery_plan.go:StandaloneDeliveryAdapter",
         "internal/cron/executor.go",
@@ -20724,6 +23209,7 @@
         "internal/gateway/channel_directory.go (ChannelDirectoryStore with Platforms map)",
         "internal/gateway/channel_directory.go:ChannelDirectoryEntry",
         "internal/gateway/channel_neutral_turn_adapter_test.go",
+        "internal/gateway/channel_setup.go",
         "internal/gateway/coalesce.go",
         "internal/gateway/coalesce.go (flushImmediate, flushImmediateFinal, editCoalescedMessage)",
         "internal/gateway/coalesce.go (typing-capable initial text send instead of static hourglass-only placeholder)",
@@ -20829,6 +23315,7 @@
         "internal/gateway/thread_delivery.go",
         "internal/gateway/thread_delivery_test.go",
         "internal/gateway/title_command.go",
+        "internal/gateway/token_lock_test.go",
         "internal/gateway/turn_adapter.go",
         "internal/gateway/turn_adapter.go:Dispatch (wire-up — populates kernel.PlatformEvent.ContentParts)",
         "internal/gateway/turn_adapter.go:TurnRequest",
@@ -22938,6 +25425,32 @@
         },
         {
           "phase_id": "2",
+          "subphase_id": "2.F.4",
+          "name": "Gateway delivery evidence in operator run report",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "gateway",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/gateway_status.go",
+            "cmd/gormes/send.go",
+            "internal/cron/delivery_plan.go",
+            "internal/cron/executor.go",
+            "internal/gateway/status.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestGatewayStatus' -count=1",
+            "go test ./internal/cron -run 'TestOperatorRunReportIncludesDeliveryEvidence|TestPlanCronDelivery|TestCronDelivery' -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "2",
           "subphase_id": "2.B.5",
           "name": "Gateway fresh-final eligibility helper",
           "priority": "P0",
@@ -24304,8 +26817,8 @@
           "subphase_id": "5.Q",
           "name": "Kernel cross-provider client swap for in-session model switch",
           "priority": "P2",
-          "status": "planned",
-          "contract_status": "draft",
+          "status": "complete",
+          "contract_status": "validated",
           "module": "gateway",
           "source_refs": [
             "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
@@ -25130,6 +27643,33 @@
             "go run ./cmd/progress validate",
             "go test ./internal/config -count=1",
             "go test ./internal/gateway -run MultiAgent.*Token -count=1"
+          ],
+          "match_reasons": [
+            "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.O",
+          "name": "Per-profile channel credential readiness and allow-lists",
+          "priority": "P1",
+          "status": "planned",
+          "contract_status": "fixture_ready",
+          "module": "channels",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "cmd/gormes/setup_gateway.go",
+            "cmd/gormes/setup_profiles_tui.go",
+            "docs/content/building-gormes/architecture_plan/profile-config-v2.md#channels",
+            "internal/config/config.go:TelegramCfg DiscordCfg SlackCfg",
+            "internal/gateway/channel_setup.go",
+            "internal/gateway/token_lock_test.go"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run 'TestSetupGateway|TestSetupProfiles' -count=1",
+            "go test ./internal/gateway ./internal/channels/telegram ./internal/channels/discord ./internal/channels/whatsapp ./internal/slack -run 'TestProfileChannel|TestTokenLock|TestWhitelist' -count=1"
           ],
           "match_reasons": [
             "taxonomy_keyword"
@@ -29870,8 +32410,8 @@
           "subphase_id": "5.L",
           "name": "Hermes LSP write-time semantic diagnostics",
           "priority": "P1",
-          "status": "planned",
-          "contract_status": "draft",
+          "status": "complete",
+          "contract_status": "validated",
           "module": "tools",
           "source_refs": [
             "../hermes-agent/agent/lsp/manager.py",
@@ -29959,8 +32499,8 @@
           "subphase_id": "5.N",
           "name": "Hermes x_search tool and auth surface",
           "priority": "P1",
-          "status": "planned",
-          "contract_status": "draft",
+          "status": "complete",
+          "contract_status": "validated",
           "module": "tools",
           "source_refs": [
             "../hermes-agent/tests/tools/test_x_search_tool.py",
@@ -32684,8 +35224,8 @@
           "subphase_id": "5.L",
           "name": "Hermes LSP write-time semantic diagnostics",
           "priority": "P1",
-          "status": "planned",
-          "contract_status": "draft",
+          "status": "complete",
+          "contract_status": "validated",
           "module": "tools",
           "source_refs": [
             "../hermes-agent/agent/lsp/manager.py",
@@ -33909,8 +36449,8 @@
           "phase_id": "8",
           "subphase_id": "8.D",
           "name": "Gormes streaming tool-trail status + spinner cadence wiring",
-          "status": "planned",
-          "contract_status": "draft",
+          "status": "complete",
+          "contract_status": "validated",
           "module": "tui",
           "provenance_origin_type": "gormes",
           "source_refs": [

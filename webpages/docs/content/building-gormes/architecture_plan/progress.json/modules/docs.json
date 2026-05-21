@@ -686,9 +686,9 @@
     "item": {
       "name": "Strict-fidelity upstream test-suite classifier",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Classify the strict-fidelity test blockers by upstream suite, exact Hermes source under test, current Gormes progress row or explicit exclusion. The row must turn the 1,206 unmapped upstream test files from one giant blocker count into deterministic report groups that builders can chase without creating a side backlog.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "docs",
@@ -722,7 +722,7 @@
         "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
-      "note": "strict_fidelity_origin: 2026-05-18 report shows 1,206 unmapped upstream test files; classify suites before asking builders to port runtime behavior.",
+      "note": "Complete 2026-05-21: strict-fidelity inventory now groups unmapped upstream tests by suite, inferred source-under-test prefix, examples, and matching progress rows. Generated JSON/Markdown expose actionable test-suite classifications without side queues or unsupported parity claims.",
       "write_scope": [
         "internal/fidelity",
         "internal/repoctl",
@@ -741,7 +741,23 @@
         "origin_type": "hybrid",
         "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
         "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
-      }
+      },
+      "implementation": [
+        "internal/fidelity/report.go",
+        "internal/repoctl/hermes_contract_inventory.go",
+        "internal/fidelity/report_test.go",
+        "internal/repoctl/hermes_contract_inventory_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md"
+      ],
+      "validation": [
+        "go test ./internal/fidelity ./internal/repoctl -run 'TestHermesReport|TestWriteHermesContractInventory' -count=1",
+        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ]
     }
   },
   {

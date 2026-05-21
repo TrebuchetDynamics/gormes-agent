@@ -45,6 +45,9 @@ func TestWriteHermesContractInventoryWritesJSONAndMarkdown(t *testing.T) {
 	if len(report.UnmappedUpstream.SourceFiles) == 0 || len(report.UnmappedUpstream.DocsFiles) == 0 || len(report.UnmappedUpstream.TestFiles) == 0 {
 		t.Fatalf("unmapped upstream evidence must include source/docs/tests: %+v", report.UnmappedUpstream)
 	}
+	if suite := findUnmappedTestSuite(report, "hermes_cli"); suite.Count != 1 || suite.SourcePrefix != "hermes_cli" || len(suite.ProgressRows) == 0 {
+		t.Fatalf("hermes_cli unmapped test suite = %+v, want count/source/progress evidence", suite)
+	}
 	if got := findInventorySurface(report, "goncho_memory").Status; got != fidelity.StatusCovered {
 		t.Fatalf("goncho_memory status = %q, want covered", got)
 	}
@@ -62,6 +65,8 @@ func TestWriteHermesContractInventoryWritesJSONAndMarkdown(t *testing.T) {
 		"## Per-Module Gap Summary",
 		"## Continuity Categories",
 		"## Unmapped Upstream Evidence",
+		"## Unmapped Test Suite Classification",
+		"| `hermes_cli` | `1` | `hermes_cli` |",
 		"## Candidate Inventory",
 	} {
 		if !strings.Contains(string(md), want) {
@@ -118,6 +123,15 @@ func readFileForInventoryTest(t *testing.T, path string) []byte {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return raw
+}
+
+func findUnmappedTestSuite(report fidelity.Report, suite string) fidelity.UpstreamUnmappedTestSuite {
+	for _, row := range report.UnmappedUpstream.TestSuites {
+		if row.Suite == suite {
+			return row
+		}
+	}
+	return fidelity.UpstreamUnmappedTestSuite{}
 }
 
 func findInventorySurface(report fidelity.Report, id string) fidelity.SurfaceReport {
@@ -233,6 +247,16 @@ func writeInventoryProgress(t *testing.T, root string) {
 								Contract:       "Goncho memory recall mirrors Hermes memory behavior.",
 								SourceRefs:     []string{"hermes-agent/tools/memory_tool.py", "internal/goncho/memory.go"},
 								TestCommands:   []string{"go test ./internal/goncho -count=1"},
+							},
+							{
+								Name:           "Provider auth setup parity",
+								Priority:       "P0",
+								Status:         progress.StatusPlanned,
+								ContractStatus: progress.ContractStatusDraft,
+								Module:         "providers",
+								Contract:       "Provider auth setup must mirror Hermes auth commands.",
+								SourceRefs:     []string{"hermes-agent/hermes_cli/auth_commands.py", "cmd/gormes/auth.go"},
+								TestCommands:   []string{"go test ./cmd/gormes -run TestAuth -count=1"},
 							},
 						},
 					},

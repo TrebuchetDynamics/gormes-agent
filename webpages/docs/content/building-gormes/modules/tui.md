@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `tui`
 **Rows:** 47
-**Status counts:** `complete`: 44 · `in_progress`: 0 · `planned`: 3
+**Status counts:** `complete`: 45 · `in_progress`: 0 · `planned`: 2
 **Priority counts:** `P0`: 3 · `P1`: 12 · `P2`: 21 · `P3`: 1 · `unset`: 10
 
 ## Phase 1 — The Dashboard
@@ -86,5 +86,5 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `tui` | Gormes-owned session-aware welcome panel |
 | `complete` | `unset` | `tui` | Gormes-owned semantic chat style system |
 | `complete` | `unset` | `tui` | Gormes-owned streaming feedback uplift |
-| `planned` | `unset` | `tui` | Gormes streaming tool-trail status + spinner cadence wiring |
+| `complete` | `unset` | `tui` | Gormes streaming tool-trail status + spinner cadence wiring |
 | `complete` | `unset` | `tui` | Gormes welcome panel version/tool-count wiring |

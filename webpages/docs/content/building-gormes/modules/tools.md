@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `tools`
 **Rows:** 143
-**Status counts:** `complete`: 141 · `in_progress`: 0 · `planned`: 2
+**Status counts:** `complete`: 142 · `in_progress`: 0 · `planned`: 1
 **Priority counts:** `P0`: 23 · `P1`: 49 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
@@ -173,7 +173,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | Context-aware fuzzy replace for native patch tool |
 | `complete` | `P1` | `tools` | V4A patch apply rollback for native patch tool |
 | `complete` | `P1` | `tools` | Patch replace post-write verification |
-| `planned` | `P1` | `tools` | Hermes LSP write-time semantic diagnostics |
+| `complete` | `P1` | `tools` | Hermes LSP write-time semantic diagnostics |
 
 ### 5.N — Misc Operator Tools
 
