@@ -123,15 +123,18 @@ func normalizeSlashName(name string) string {
 	return strings.ToLower(strings.TrimPrefix(name, "/"))
 }
 
-// NewDefaultSlashRegistry returns a registry pre-populated with the slash
-// commands the Gormes TUI ships today: /mouse and its /scroll alias,
-// /save which exports the canonical persisted transcript via the
-// SessionExportFunc injected on the Model, and /branch which forks the
-// active session into a child via the SessionBranchFunc injected on the
-// Model.
+// NewDefaultSlashRegistry returns a registry pre-populated with the local
+// slash commands the Gormes TUI ships today: /help, /clear and /new over the
+// reset seam, /compact over the transcript view mode, /mouse and its /scroll
+// alias, /save over the canonical transcript export seam, /branch over the
+// session fork seam, plus the model, browser, kanban, copy, and quit helpers.
 func NewDefaultSlashRegistry() *SlashRegistry {
 	r := NewSlashRegistry()
 	r.consumeFallbacks = true
+	r.Register("help", helpSlashHandler, WithBusyAvailable())
+	r.Register("clear", sessionResetSlashHandler)
+	r.Register("new", sessionResetSlashHandler)
+	r.Register("compact", compactSlashHandler, WithBusyAvailable())
 	r.Register("mouse", mouseSlashHandler)
 	r.Register("scroll", mouseSlashHandler)
 	r.Register("save", saveSlashHandler)

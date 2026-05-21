@@ -61,7 +61,7 @@ func (m Model) View() string {
 		convW = 4
 	}
 
-	conv := conversationViewportTail(m.frame, convW, convH)
+	conv := conversationViewportTailWithMode(m.frame, convW, convH, m.compactTranscript)
 
 	editorW := m.width
 	if editorW < 10 {
@@ -198,6 +198,10 @@ func renderConv(f kernel.RenderFrame, width, height int) string {
 }
 
 func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
+	return conversationViewportTailWithMode(f, width, height, false)
+}
+
+func conversationViewportTailWithMode(f kernel.RenderFrame, width, height int, forceCompact bool) string {
 	if width < 4 {
 		width = 4
 	}
@@ -205,7 +209,7 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 		height = 1
 	}
 	wrapWidth := width - 4
-	compact := width < 8 || height < 3
+	compact := forceCompact || width < 8 || height < 3
 	forced := conversationForcedBlocks(f, wrapWidth, compact)
 	maxLines := height + 1 + len(forced)
 

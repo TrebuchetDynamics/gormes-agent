@@ -27,6 +27,10 @@ type Canceller func()
 // current transcript.
 type SetSessionModelFunc func(provider, model string) error
 
+// SessionResetFunc is the TUI-local bridge to the kernel's reset-session seam.
+// It clears the active conversation only when the kernel is idle/failed.
+type SessionResetFunc func() error
+
 // Options carries local TUI settings that do not belong to kernel state.
 type Options struct {
 	MouseTracking bool
@@ -72,6 +76,13 @@ type Options struct {
 	// provider/model before the first kernel frame arrives.
 	ModelProvider string
 	ModelName     string
+	// SessionReset is the injected kernel reset helper invoked by /clear and
+	// /new. nil keeps those commands consumed with visible degraded evidence.
+	SessionReset SessionResetFunc
+	// CompactTranscript starts the transcript in the Hermes compact view mode.
+	// /compact mutates this at runtime; tiny terminals still auto-compact even
+	// when this option is false.
+	CompactTranscript bool
 	// TodoReader returns the current session's active todo items for the TUI
 	// todo panel. nil disables the panel.
 	TodoReader func(sessionID string) []TodoItem
@@ -129,13 +140,14 @@ type Model struct {
 	cancel   Canceller
 	inFlight bool // true between a user submit and the next terminal frame
 
-	mouseTracking  bool
-	mouseModeCmd   func(enabled bool) tea.Cmd
-	voiceRecordKey string
-	statusMessage  string
-	busyGuard      BusyInputEvaluator
-	offlineSmoke   bool
-	spinnerFrame   int
+	mouseTracking     bool
+	mouseModeCmd      func(enabled bool) tea.Cmd
+	voiceRecordKey    string
+	statusMessage     string
+	busyGuard         BusyInputEvaluator
+	offlineSmoke      bool
+	compactTranscript bool
+	spinnerFrame      int
 
 	// sessionID, when non-empty, is the locally-tracked active session
 	// owned by a successful /branch fork. SessionID() prefers it over
@@ -154,6 +166,7 @@ type Model struct {
 	modelPickerCatalog ModelPickerCatalogFunc
 	modelProvider      string
 	modelName          string
+	sessionReset       SessionResetFunc
 	modelPicker        *ModelPickerState
 	modelPickerChoices []ModelPickerCatalogProvider
 
@@ -210,6 +223,8 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		modelPickerCatalog: opts.ModelPickerCatalog,
 		modelProvider:      opts.ModelProvider,
 		modelName:          opts.ModelName,
+		sessionReset:       opts.SessionReset,
+		compactTranscript:  opts.CompactTranscript,
 		offlineSmoke:       opts.OfflineSmoke,
 		slashRegistry:      NewDefaultSlashRegistry(),
 	}

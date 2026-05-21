@@ -1210,6 +1210,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		},
 		SetSessionModelFunc: k.SetSessionModel,
 		ModelPickerCatalog:  tui.DefaultModelPickerCatalog,
+		SessionReset:        k.ResetSession,
 		ModelProvider:       providerName,
 		ModelName:           modelName,
 		OfflineSmoke:        offline,

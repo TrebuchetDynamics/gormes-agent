@@ -1270,6 +1270,9 @@ classification and row-backed implementation queue.
 - [x] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
 - [ ] `tui` Hermes ui-tui strict-fidelity action matrix
 - [ ] `gateway` Hermes web dashboard strict-fidelity contract map
+- [x] `tui` Native TUI /help slash command binding
+- [x] `tui` Native TUI /clear and /new reset-session binding
+- [x] `tui` Native TUI /compact transcript toggle binding
 
 ### 5.R — Code Execution Mode Policy ✅
 

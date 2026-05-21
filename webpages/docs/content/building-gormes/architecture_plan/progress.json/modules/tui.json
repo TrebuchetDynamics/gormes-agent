@@ -2723,7 +2723,7 @@
       "name": "Native TUI slash handler-port coverage",
       "priority": "P2",
       "status": "planned",
-      "contract": "Inventory-only umbrella tracking the native Bubble Tea TUI slash commands that are recognized-but-unavailable. NewDefaultSlashRegistry (internal/tui/slash_dispatch.go) wires real handlers for only 9 commands (mouse, scroll, save, branch, copy, browser, kanban, quit, exit); the remaining recognized commands (/model [split into its own row], /help, /clear, /new, /skills, /compact, /cost, /skin, /voice, /config, /tools, ...) fall through slashFallbackResult and reply 'recognized but unavailable in the native TUI' by design per the completed 2.F.1 'Gateway slash registry parity sweep (recognized-name expansion)'. Actual handler ports are tracked as individual small 5.Q rows mirroring the completed /save, /branch, /kanban and the new /model rows. This umbrella is the single source-backed backlog (no parallel queue); it is split into per-command rows when picked up, prioritising quick wins whose engine already exists (e.g., /model picker, /skin over HermesSkin/BuiltinSkins, /voice over the voice record-key config) over commands needing real ports.",
+      "contract": "Inventory-only umbrella tracking the native Bubble Tea TUI slash commands that are recognized-but-unavailable. NewDefaultSlashRegistry (internal/tui/slash_dispatch.go) wires real handlers for the shipped local commands (help, clear, new, compact, mouse, scroll, save, branch, copy, browser, kanban, model/m, quit, exit); remaining recognized commands (/skills, /cost, /skin, /voice, /config, /tools, ...) fall through slashFallbackResult and reply 'recognized but unavailable in the native TUI' by design per the completed 2.F.1 'Gateway slash registry parity sweep (recognized-name expansion)'. Actual handler ports are tracked as individual small 5.Q rows mirroring the completed /save, /branch, /kanban, /model, /help, /clear/new, and /compact rows. This umbrella is the single source-backed backlog (no parallel queue); it is split into per-command rows when picked up, prioritising quick wins whose engine already exists (e.g., /skin over HermesSkin/BuiltinSkins, /voice over the voice record-key config) over commands needing real ports.",
       "contract_status": "draft",
       "slice_size": "umbrella",
       "execution_owner": "tui",
@@ -2735,7 +2735,7 @@
         "./hermes-agent/ui-tui/src/app/slash/registry.ts (upstream slash registry parity reference)"
       ],
       "ready_when": [
-        "Inventory-only: child per-command rows (the 'Native TUI /model slash command binding' row, plus future /help, /clear, /new, /skills, /compact, /cost rows) carry the contracts and tests."
+        "Inventory-only: child per-command rows (the completed 'Native TUI /model slash command binding', 'Native TUI /help slash command binding', and 'Native TUI /clear and /new reset-session binding' rows, plus future /skills, /compact, /cost rows) carry the contracts and tests."
       ],
       "not_ready_when": [
         "The umbrella is assigned as one combined implementation slice.",
@@ -2745,7 +2745,7 @@
         "Remains non-selectable and source-backed; each native-TUI slash command binding is delivered as its own small 5.Q row mirroring the /save, /branch, /kanban, /model pattern.",
         "No parallel backlog is created outside progress.json for native-TUI slash handler ports."
       ],
-      "note": "Filed planner-pass 2026-05-15/tui-slash-model after the root cause of '/m -> /model recognized but unavailable / many slash commands unrecognized' was established. Captures existing intended staging (2.F.1 shipped recognition; handler ports staged) as a single tracked backlog so the work does not fork from progress.json. Sequencing: P1 /model (split out, engine exists); next /help, /clear, /new (high operator value); then /skills, /compact, /cost, /skin, /voice, /config, /tools.",
+      "note": "Filed planner-pass 2026-05-15/tui-slash-model after the root cause of '/m -> /model recognized but unavailable / many slash commands unrecognized' was established. Captures existing intended staging (2.F.1 shipped recognition; handler ports staged) as a single tracked backlog so the work does not fork from progress.json. Sequencing: P1 /model (complete, engine exists); /help completed 2026-05-21 as a native status-row inventory; /clear and /new completed 2026-05-21 as a kernel.ResetSession binding; /compact completed 2026-05-21 as a local transcript view toggle; next /skills, /cost, /skin, /voice, /config, /tools.",
       "write_scope": [
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
@@ -2870,6 +2870,248 @@
         "origin_type": "hybrid",
         "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
         "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 58,
+    "item": {
+      "name": "Native TUI /help slash command binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Bind `/help` in the native Bubble Tea TUI as a local operator command. It must be consumed before kernel submit, clear the editor, never fall through to the recognized-but-unavailable fallback, advertise the shipped native TUI slash commands, and explain that remaining recognized commands are consumed with visible unavailable evidence rather than being sent to the model. This is the first small local help port; Hermes' richer panel rendering remains source evidence for future panel-style help, not a blocker for this status-row slice.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "fixture": "internal/tui/slash_dispatch_test.go TestSlashRegistry_HelpHandlerShowsNativeInventory / TestSlashRegistry_HelpAdvertisedWhileBusy",
+      "source_refs": [
+        "./hermes-agent/ui-tui/src/app/slash/commands/core.ts (coreCommands /help local panel behavior)",
+        "./hermes-agent/ui-tui/src/app/createSlashHandler.ts (local slash commands run before gateway fallback)",
+        "internal/tui/slash_dispatch.go (NewDefaultSlashRegistry; slashFallbackResult fallback that /help must avoid)",
+        "internal/cli/command_registry.go (help command is bypass/ported command inventory evidence)"
+      ],
+      "ready_when": [
+        "The slice stays local to internal/tui slash dispatch and does not require a live gateway, provider, or transcript panel subsystem."
+      ],
+      "not_ready_when": [
+        "The implementation forwards `/help` to kernel.Submit or the model.",
+        "The implementation weakens the unavailable-command fallback for other recognized-but-unported commands.",
+        "The implementation claims full Hermes /help panel fidelity without a panel fixture."
+      ],
+      "unblocks": [
+        "Native TUI slash handler-port coverage"
+      ],
+      "acceptance": [
+        "Default slash registry dispatch handles `/help` locally with a status inventory containing `/model`, `/save`, `/branch`, and `/mouse`.",
+        "The `/help` output does not equal the previous 'recognized but unavailable in the native TUI' fallback.",
+        "Busy-time placeholder metadata advertises `/help` as available while an agent turn is running."
+      ],
+      "note": "Completed 2026-05-21 during development-loop iteration 1/3 for topic gormes chat tui. This is a small status-row help port over the current native command inventory; richer Hermes panel-style help can be split later if the TUI gains a local transcript panel seam.",
+      "write_scope": [
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_help.go",
+        "internal/tui/slash_dispatch_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestSlashRegistry_Help|TestHermesSlashDispatchBehavior' -count=1",
+        "go test ./internal/tui -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI `/help` dispatch is fixture-proven as local, visible, busy-available, and no longer routed through the recognized-unavailable fallback."
+      ],
+      "blocked_by": [],
+      "completed_at": "2026-05-21T15:07:08-06:00",
+      "evidence": {
+        "implementation": [
+          "internal/tui/slash_help.go adds helpSlashHandler and nativeTUIHelpStatus for compact in-TUI command inventory.",
+          "internal/tui/slash_dispatch.go registers /help with WithBusyAvailable before the fallback path."
+        ],
+        "tests": [
+          "internal/tui/slash_dispatch_test.go:TestSlashRegistry_HelpHandlerShowsNativeInventory",
+          "internal/tui/slash_dispatch_test.go:TestSlashRegistry_HelpAdvertisedWhileBusy"
+        ],
+        "verification": [
+          "RED: go test ./internal/tui -run 'TestSlashRegistry_Help' -count=1 failed because /help returned the recognized-unavailable fallback and busy slashes were [browser kanban].",
+          "GREEN: go test ./internal/tui -run 'TestSlashRegistry_Help|TestHermesSlashDispatchBehavior' -count=1 passed."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 59,
+    "item": {
+      "name": "Native TUI /clear and /new reset-session binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Bind `/clear` and its `/new` alias in the native Bubble Tea TUI as local reset-session commands. They must be consumed before kernel submit, clear the editor, call the injected kernel ResetSession seam only while idle/failed, clear visible transcript/error/session state after a successful reset, and surface explicit degraded evidence when reset is unavailable or rejected. This slice ports the observable local reset behavior without claiming Hermes' richer confirmation overlay or title-setting support.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "fixture": "internal/tui/slash_reset_test.go; cmd/gormes/tui_reset_slash_test.go",
+      "source_refs": [
+        "./hermes-agent/ui-tui/src/app/slash/commands/core.ts (coreCommands clear with alias new, guardBusySessionSwitch, newSession)",
+        "./hermes-agent/ui-tui/src/app/useSessionLifecycle.ts (resetSession/newSession/guardBusySessionSwitch state reset contract)",
+        "internal/kernel/kernel.go (Kernel.ResetSession and ErrResetDuringTurn single-owner reset seam)",
+        "internal/tui/slash_dispatch.go (NewDefaultSlashRegistry and fallback path)",
+        "internal/cli/command_registry.go (clear/new active-turn policy and completion inventory)"
+      ],
+      "ready_when": [
+        "The existing kernel.ResetSession seam is available and fixture-proven; no live provider, gateway RPC, or private session store is required.",
+        "The slice can stay local to internal/tui plus cmd/gormes startup injection, with internal/cli registry metadata updated only so completions/active-turn evidence stop marking `/clear` unavailable."
+      ],
+      "not_ready_when": [
+        "The implementation creates a second reset mechanism instead of using kernel.ResetSession.",
+        "The implementation attempts to port Hermes' confirmation overlay or title-setting RPC in the same slice.",
+        "The implementation clears history during an active turn or forwards `/clear`/`/new` as model prompt text."
+      ],
+      "unblocks": [
+        "Native TUI slash handler-port coverage"
+      ],
+      "acceptance": [
+        "Default slash registry handles `/clear` and `/new` locally, clears the editor, never calls Submitter, and never returns the recognized-unavailable fallback.",
+        "A successful reset calls the injected ResetSession seam exactly once and clears visible history, draft, last error, frame session id, and locally tracked session id.",
+        "Running-turn and unavailable-reset fixtures consume the slash text with visible evidence and preserve the active conversation.",
+        "Local TUI startup injects kernel.ResetSession; remote TUI startup leaves the reset seam nil."
+      ],
+      "note": "Completed 2026-05-21 during development-loop iteration 2/3 for topic gormes chat tui. This is intentionally the small local reset binding after `/help`; richer Hermes confirmation panel and `/new <title>` session-title behavior should be split later if needed.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_help.go",
+        "internal/tui/slash_reset.go",
+        "internal/tui/slash_reset_test.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/cli/command_registry.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_reset_slash_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json/index.json",
+        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestSessionSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1",
+        "go test ./cmd/gormes -run TestTUIResetSlash -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI `/clear` and `/new` dispatch are fixture-proven as local reset commands over the injected kernel.ResetSession seam, with active-turn/unavailable degraded evidence and local-vs-remote startup wiring covered."
+      ],
+      "blocked_by": [],
+      "completed_at": "2026-05-21T15:14:00-06:00",
+      "evidence": {
+        "implementation": [
+          "internal/tui/slash_reset.go adds sessionResetSlashHandler over the injected SessionResetFunc, including active-turn, unavailable, error, and visible-state-clear branches.",
+          "internal/tui/model.go exposes SessionResetFunc through Options and stores it on Model; internal/tui/slash_dispatch.go registers /clear and /new before fallback; internal/tui/slash_help.go advertises the new local commands.",
+          "internal/cli/command_registry.go marks /clear ported/busy-reject so completions and active-turn evidence stop marking it unavailable; /new remains the existing ported canonical command.",
+          "cmd/gormes/main.go wires local Bubble Tea startup to kernel.ResetSession while remote TUI remains unbound."
+        ],
+        "tests": [
+          "internal/tui/slash_reset_test.go:TestSessionSlashClearAndNewResetWithoutSubmitting",
+          "internal/tui/slash_reset_test.go:TestSessionSlashResetUnavailableAndErrorsDoNotLeak",
+          "internal/tui/slash_reset_test.go:TestSessionSlashResetRejectedWhileTurnRunning",
+          "internal/tui/slash_reset_test.go:TestSessionSlashCompletionsMarkClearAndNewAvailable",
+          "internal/tui/slash_reset_test.go:TestSessionSlashRegistryConsumesClearAndNew",
+          "cmd/gormes/tui_reset_slash_test.go:TestTUIResetSlashBindingLocalModelReceivesSessionResetSeam",
+          "cmd/gormes/tui_reset_slash_test.go:TestTUIResetSlashBindingRemoteTUIUnchanged"
+        ],
+        "verification": [
+          "RED: go test ./internal/tui -run 'TestSessionSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1 failed because SessionResetFunc/Options.SessionReset/model.sessionReset did not exist.",
+          "RED: go test ./cmd/gormes -run TestTUIResetSlash -count=1 failed because tui.SessionResetFunc did not exist.",
+          "GREEN: go test ./internal/tui -run 'TestSessionSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1 passed.",
+          "GREEN: go test ./cmd/gormes -run TestTUIResetSlash -count=1 passed."
+        ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 60,
+    "item": {
+      "name": "Native TUI /compact transcript toggle binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Bind `/compact [on|off|toggle]` in the native Bubble Tea TUI as a local transcript view toggle. It must be consumed before kernel submit, update the visible transcript renderer immediately, return Hermes-style `compact on/off` or usage evidence, remain safe while a turn is running, and keep tiny-terminal auto-compact behavior unchanged. This slice intentionally does not persist `display.compact`/`tui_compact` through gateway config; that belongs to a later config-sync row.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "fixture": "internal/tui/slash_compact_test.go",
+      "source_refs": [
+        "./hermes-agent/ui-tui/src/app/slash/commands/core.ts (compact command, flagFromArg, usage/status strings)",
+        "./hermes-agent/ui-tui/src/app/uiStore.ts (compact UI state default)",
+        "./hermes-agent/ui-tui/src/components/appLayout.tsx (compact passed into transcript/message renderers)",
+        "internal/tui/view.go (conversationViewportTail and compactViewportText renderer)",
+        "internal/tui/slash_dispatch.go (NewDefaultSlashRegistry and fallback path)",
+        "internal/cli/command_registry.go (compact active-turn policy and completion inventory)"
+      ],
+      "ready_when": [
+        "Existing Gormes compact rendering helpers already distinguish compact vs full transcript rows, so the slice only needs a local model flag plus slash handler.",
+        "The command can stay local to internal/tui without live provider, gateway RPC, config file writes, private session store, or external services."
+      ],
+      "not_ready_when": [
+        "The implementation attempts to persist config or call gateway config.set/config.get in this slice.",
+        "The implementation changes tiny-terminal auto-compact fallback behavior or renderConv legacy semantics.",
+        "The implementation forwards `/compact` text to kernel.Submit or returns recognized-unavailable fallback evidence."
+      ],
+      "unblocks": [
+        "Native TUI slash handler-port coverage"
+      ],
+      "acceptance": [
+        "Default slash registry handles `/compact`, `/compact on`, `/compact off`, and `/compact toggle` locally, clears the editor, never calls Submitter, and never returns the recognized-unavailable fallback.",
+        "`/compact on` immediately renders the current transcript in compact mode; `/compact off` restores full transcript separators/wrapping while preserving existing tiny-terminal auto-compact behavior.",
+        "Invalid arguments return `usage: /compact [on|off|toggle]` with no submit.",
+        "Command registry marks `/compact` as ported and busy-safe so completions show it available and the running placeholder advertises it."
+      ],
+      "note": "Completed 2026-05-21 during development-loop iteration 3/3 for topic gormes chat tui. This is the next smallest local slash handler after `/help` and `/clear`/`/new`; config persistence and config-sync parity remain explicitly out of scope.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/view.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_help.go",
+        "internal/tui/slash_compact.go",
+        "internal/tui/slash_compact_test.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/cli/command_registry.go",
+        "internal/gateway/commands.go",
+        "internal/app/gormescli/default_contracts.go",
+        "docs/content/building-gormes/architecture_plan/progress.json/index.json",
+        "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestCompactSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI `/compact` dispatch is fixture-proven as a local busy-safe transcript view toggle with usage evidence, immediate renderer effect, and no fallback/submit leak."
+      ],
+      "blocked_by": [],
+      "completed_at": "2026-05-21T15:22:12-06:00",
+      "evidence": {
+        "implementation": [
+          "internal/tui/slash_compact.go adds compactSlashHandler with Hermes-style on/off/toggle parsing, usage evidence, and local model state mutation.",
+          "internal/tui/model.go adds Options.CompactTranscript and Model.compactTranscript; internal/tui/view.go routes View through conversationViewportTailWithMode so /compact affects visible transcript rendering while renderConv and tiny-terminal auto-compact remain unchanged.",
+          "internal/tui/slash_dispatch.go registers /compact with WithBusyAvailable; internal/tui/slash_help.go advertises /compact; internal/cli/command_registry.go marks /compact ported, bypass-safe, and exposes static on/off/toggle completions.",
+          "internal/app/gormescli/default_contracts.go owns /compact under the TUI module and internal/gateway/commands.go recognizes /compact as gateway-unavailable so the shared slash registry contract remains complete."
+        ],
+        "tests": [
+          "internal/tui/slash_compact_test.go:TestCompactSlashTogglesTranscriptRenderingWithoutSubmitting",
+          "internal/tui/slash_compact_test.go:TestCompactSlashToggleAndUsage",
+          "internal/tui/slash_compact_test.go:TestCompactSlashCompletionsAndBusyAvailability",
+          "internal/tui/slash_compact_test.go:TestCompactSlashKeepsTinyTerminalAutoCompact"
+        ],
+        "verification": [
+          "RED: go test ./internal/tui -run 'TestCompactSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1 failed because Model.compactTranscript and Options.CompactTranscript did not exist.",
+          "GREEN: go test ./internal/tui -run 'TestCompactSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1 passed.",
+          "First full gate failed on missing /compact module owner and gateway registry recognition; metadata was added and focused cmd/gormes/internal/gateway tests rerun before the final full gate."
+        ]
       }
     }
   },
