@@ -31,7 +31,7 @@ The demo above is a real operator path: install, setup, provider setup, first ta
 |---|---|
 | Runtime shape | One Go binary for CLI, TUI, provider turns, tools, skills, memory, sessions, dashboard, and gateways |
 | Install proof | `gormes doctor --offline` and `gormes --offline` run before any provider token is needed |
-| Release artifact | Linux build ~47.1 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |
+| Release artifact | Linux build ~47.7 MB; no local Python, Node, Redis, vector DB, or Docker daemon required |
 | Bundled skills | 30 Hermes skills across coding, GitHub, browser/web, research, productivity, and media workflows |
 | Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
 | Stable channels | Telegram, Discord, and Slack through one gateway process |
@@ -213,9 +213,9 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the b
 
 ## Status
 
-Latest public release: [v0.2.18](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.18) (`v2026.5.20`).
+Latest public release: [v0.2.19](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.19) (`v2026.5.20`).
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~47.1 MB (`benchmarks.json`).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~47.7 MB (`benchmarks.json`).
 
 <details>
 <summary>Roadmap phase rollup</summary>

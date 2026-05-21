@@ -8,6 +8,24 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.19] - 2026-05-20
+
+Date alias: `v2026.5.20`.
+
+> **Navivox VPN setup, deploy hardening, and release freshness gates.**
+
+### Added
+- Navivox connect-info now reports WebSocket stream URLs and brackets IPv6 hosts correctly in generated connection metadata.
+- Navivox setup now supports WireGuard and generic VPN exposure modes with detected bind defaults.
+
+### Changed
+- Docs and landing deploy smoke checks now assert the current generated page copy instead of stale pre-redesign strings.
+- `gormes-release` now requires post-merge main CI/CD checks and README/public-status freshness before tagging.
+- README public release status now tracks the current public release and benchmark-derived binary size.
+
+### Fixed
+- Restored green `Deploy docs.gormes.ai` and `Deploy gormes.ai` paths after stale smoke-check assertions blocked CD.
+
 ## [0.2.18] - 2026-05-20
 
 Date alias: `v2026.5.20`.
