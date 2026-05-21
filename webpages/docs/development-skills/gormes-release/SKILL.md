@@ -9,8 +9,8 @@ description: Use when the user asks to release Gormes, bump the operator-facing 
 
 Use this skill only for the public release lane: version prep, commit-all
 development cleanup, local and remote validation, development-to-main PR merge,
-annotated tag creation, GitHub release artifact verification, and post-release
-development sync.
+post-merge CI/CD validation on `main`, annotated tag creation, GitHub release
+artifact verification, and post-release development sync.
 
 If the user asks to improve `gormes-release` itself, treat that as skill
 maintenance first: use `gormes-skill-manager` plus system `skill-creator`, edit
@@ -44,7 +44,7 @@ request before changing files:
 |---|---|
 | Improve `gormes-release` or another skill | Skill-maintenance lane; validate docs only; no release actions. |
 | Prepare release only | Version/changelog/docs prep may happen; no PR merge, tag, or publish unless later requested. |
-| Release/publish Gormes | Run the full lane: include all safe dirty work, make `development` green, commit, push, open/update the `development` -> `main` PR, wait for green PR CI, merge that PR, tag the resulting `origin/main` commit, publish, and sync `development`. |
+| Release/publish Gormes | Run the full lane: include all safe dirty work, make `development` green, commit, push, open/update the `development` -> `main` PR, wait for green PR CI, merge that PR, wait for all post-merge `main` CI/CD workflows to finish green, tag the resulting `origin/main` commit, publish, then sync and validate `development`. |
 | Recover failed release | First classify failure point: before tag, tag workflow before GitHub release, GitHub release exists, or artifact verification failed. |
 
 Stop and report instead of continuing when:
@@ -57,6 +57,9 @@ Stop and report instead of continuing when:
   after the safety scan;
 - `go test ./...`, `go run ./cmd/progress validate`, `git diff --check`, or
   required remote checks fail;
+- any post-merge `main` workflow for the release merge commit fails or remains
+  inconclusive after bounded polling, including `CI`, `OCI Image`,
+  `www mirror sync check`, `Deploy gormes.ai`, or `Deploy docs.gormes.ai`;
 - tag `v<version>` or GitHub release `v<version>` already exists;
 - the operator asks to bypass the `development` -> `main` PR path, tag from
   `development`, push directly to `main`, or merge without green PR checks;
@@ -212,16 +215,34 @@ timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
     ```
 
 9. After merge, fetch `origin/main`, confirm `cmd/gormes/version.go` on main
-   matches the release version, confirm the merge came from the
-   `development` -> `main` PR, then create and push the annotated tag from the
-   merged `origin/main` commit only:
+   matches the release version, and confirm the merge came from the
+   `development` -> `main` PR. Then wait for every workflow triggered by that
+   exact `origin/main` commit to complete. This is the CI/CD release gate, not
+   just PR CI. At minimum inspect all runs for the merge SHA, including:
+   `CI`, `OCI Image`, `www mirror sync check`, `Deploy gormes.ai`, and
+   `Deploy docs.gormes.ai` when they are triggered.
+
+   ```sh
+   main_sha=$(git rev-parse origin/main)
+   gh run list --branch main --limit 20 --json workflowName,headSha,status,conclusion,url
+   gh run view <failed-run-id> --log
+   ```
+
+   Do not tag while any post-merge `main` workflow is failing, in progress, or
+   missing from the expected surface for changed files. If any main CI/CD run
+   fails, fix through a new `development` -> `main` PR, wait for that PR and
+   post-merge main workflows to pass, then tag only the corrected `origin/main`
+   commit.
+
+10. After the post-merge `main` CI/CD gate is green, create and push the
+    annotated tag from the merged `origin/main` commit only:
 
 ```sh
 git tag -a "v<version>" "origin/main" -m "Release <version>"
 git push origin "v<version>"
 ```
 
-10. Watch the tag-triggered `Release Binaries` workflow with bounded polling.
+11. Watch the tag-triggered `Release Binaries` workflow with bounded polling.
    Confirm the GitHub release exists and contains archives plus checksums.
    If the tag workflow fails before a GitHub release is created, fix through
    the `development` PR path. Delete a failed local/remote tag only when all
@@ -229,8 +250,9 @@ git push origin "v<version>"
    the user has authorized tag recovery, and the fixed `main` commit is green.
    If a GitHub release already exists, stop and report the recovery options
    instead of mutating public artifacts.
-11. Sync `development` with `origin/main`, push `development`, and leave the
-   local checkout on `development`.
+12. Sync `development` with `origin/main`, push `development`, and wait for the
+   resulting `development` branch workflows to finish green. Leave the local
+   checkout on `development`.
 
 ## Recovery Classification
 
@@ -240,13 +262,14 @@ When recovering a release, first identify the failure point:
 |---|---|
 | Before version commit | Fix on `development`, rerun local gates, then continue. |
 | After version commit but before PR merge | Fix on `development`, rerun `gormes-git` gates, update PR. |
-| After merge but before tag push | Fix through a new `development` PR; tag only the corrected `origin/main`. |
+| After merge but before tag push | Wait for post-merge `main` CI/CD. If any main workflow fails, fix through a new `development` PR; tag only the corrected `origin/main` after all main CI/CD is green. |
 | Tag pushed, workflow failed, no GitHub release exists | With explicit recovery authorization, delete the just-created tag, fix through PR, recreate same tag on corrected `main`. |
 | GitHub release exists but artifacts/checksums are wrong | Do not delete or overwrite public assets automatically; report exact missing/bad artifacts and ask for recovery direction. |
 
 ## Final Evidence
 
 Report the release version, development commit hashes, PR URL, main merge
-commit, tag, release URL, local and remote gates, artifact/checksum list,
-post-release `development` sync state, and any dirty files left out of the
-release.
+commit, tag, release URL, local gates, PR checks, post-merge `main` CI/CD
+workflow results, tag-triggered release workflow result, artifact/checksum
+list, post-release `development` sync workflow results, and any dirty files
+left out of the release.
