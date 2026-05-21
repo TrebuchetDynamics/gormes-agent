@@ -5274,9 +5274,9 @@
     "item": {
       "name": "Gateway delivery evidence in operator run report",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Join gateway/cron delivery results into OperatorRunReport artifacts so unattended jobs record target platform, chat/thread identity, delivery path, delivered boolean, fallback path, and stable failure evidence for live adapter, standalone sender, and fallback sink paths. The slice must reuse existing cron delivery planning/outcome evidence and never require a live Telegram/Discord/Slack bot in tests.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
       "module": "gateway",
@@ -5308,7 +5308,7 @@
         "Gateway status recommended command appears when delivery fails or runtime status is missing.",
         "Existing cron delivery plan tests still pass."
       ],
-      "note": "Gormes-owned works-first local-ownership reliability layer; no Hermes upstream analog.",
+      "note": "Complete 2026-05-21: TDD added OperatorRunReport.DeliveryResults as a per-target operator read model over existing cron delivery plan/outcome evidence. Report artifacts now record target, delivered boolean, delivery path (live_adapter, standalone_sender, local), fallback_path=fallback_sink when used, stable failure evidence, and gateway repair guidance for failed delivery without live channel credentials.",
       "write_scope": [
         "internal/cron/operator_run_report.go",
         "internal/cron/operator_delivery_report_test.go",
@@ -5328,7 +5328,18 @@
         "origin_type": "gormes",
         "owned_since": "2026-05-18T00:00:00Z",
         "note": "Gormes-owned operator reliability behavior; no Hermes upstream analog."
-      }
+      },
+      "implementation": [
+        "internal/cron/operator_run_report.go",
+        "internal/cron/operator_delivery_report_test.go"
+      ],
+      "validation": [
+        "go test ./internal/cron -run 'TestOperatorRunReportIncludesDeliveryEvidence|TestPlanCronDelivery|TestCronDelivery' -count=1",
+        "go test ./cmd/gormes -run 'TestGatewayStatus' -count=1",
+        "go test ./internal/cron -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ]
     }
   },
   {
