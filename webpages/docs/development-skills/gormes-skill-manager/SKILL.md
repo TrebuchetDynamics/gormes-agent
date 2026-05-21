@@ -48,8 +48,9 @@ Use this order when several skills could apply:
    `gormes-review-scorecard`, `gormes-dev-runtime`, or `gormes-install` before
    planning feature work.
 2. **Evidence-gathering intent** — "what is missing", "compare", "audit",
-   "map parity", "why does Hermes do X", "source refs", or external API docs.
-   Route to `gormes-hermes-parity`, `gormes-parity-auditor`,
+   "map parity", "why does Hermes do X", "source refs", external API docs,
+   or a freshly tagged external dependency/release. Route to
+   `gormes-hermes-parity`, `gormes-parity-auditor`,
    `gormes-openclaw-parity`, `gormes-context-sourcing`, or
    `gormes-architecture-zoomout` before builder work.
 3. **Backlog-shaping intent** — plan, split, rows, roadmap, progress,
@@ -86,6 +87,7 @@ Use this order when several skills could apply:
 | what is missing, compare Hermes/Honcho | parity discovery | `gormes-parity-auditor` or `gormes-hermes-parity` |
 | OpenClaw-only behavior | owned enhancement triage | `gormes-openclaw-parity` |
 | external API/library docs | source context | `gormes-context-sourcing` |
+| tagged external repo release, `go get`, GitHub release, use module from release | dependency integration evidence | `gormes-context-sourcing` then `gormes-tdd-slice` |
 | plan, roadmap, progress row | planner pass | `gormes-planner` |
 | split plan/PRD/review into rows | vertical slicing | `gormes-progress-slicer` |
 | implement row, build slice | builder pass | `gormes-builder` + `gormes-tdd-slice` |
@@ -160,6 +162,7 @@ Pick the primary intent:
   then `gormes-planner` or `gormes-tdd-slice` depending on whether the row is
   missing or builder-ready.
 - **External library/framework/upstream source context** before planning or implementation: use `gormes-context-sourcing`, then route to the smallest parity/planner/builder skill.
+- **Use a freshly tagged external Go module release** such as a sibling repo tag pushed to GitHub: use `gormes-context-sourcing` first to verify the module path, tag, release commit, public availability, and absence of local `replace` assumptions. Then use `gormes-tdd-slice` for a failing E2E/import test that proves Gormes consumes the released module, not a local checkout. If the integration changes public behavior or lacks a progress row, insert `gormes-progress-slicer`/`gormes-planner` before implementation.
 - **Architecture zoom-out or unfamiliar cross-package work**: use `gormes-architecture-zoomout` before implementation; route unclear package boundaries to `gormes-interface-designer`.
 - **Broad plan, PRD, parity gap, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces.
 - **Throwaway design, state-machine, protocol, or UI experiment**: use `gormes-prototype-spike`; route validated production work to `gormes-tdd-slice`.
@@ -202,6 +205,10 @@ Use these composition rules:
 
 - If the user asks to **do work now**, avoid a pure planner answer unless the
   row is missing or vague.
+- If the user says to **use a release/tag from another repo**, never rely on a
+  sibling checkout or local `replace` by default. Verify the upstream module tag
+  first, then write an E2E/TDD proof that imports or exercises the released
+  artifact.
 - If the user gives **a concrete failure artifact**, reproduce or inspect that
   artifact before broad parity audits.
 - If the user asks to **make it better** without an artifact, use the ladder:

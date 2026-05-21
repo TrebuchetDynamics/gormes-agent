@@ -22,6 +22,7 @@ Use this table with `docs/development-skills/gormes-skill-manager/SKILL.md` when
 | Find Go implementation donor shapes | `gormes-references` | `gormes-tdd-slice` |
 | Throwaway design/state/UI experiment before production work | `gormes-prototype-spike` | `gormes-tdd-slice` after decision |
 | Source-backed external library/framework/upstream context | `gormes-context-sourcing` | parity/planner/builder skill selected from evidence |
+| Use a tagged external Go module release in Gormes | `gormes-context-sourcing` | `gormes-tdd-slice` for E2E import/behavior proof |
 | Repeated runtime mechanics or service-layer cleanup | `gormes-service-layer-refactor` | `gormes-interface-designer` when boundary is unclear |
 | PR readiness audit before review/merge | `gormes-pr-check` | `gormes-review-loop` or `gormes-greptile-loop` |
 | Greptile sub-5/5 review loop | `gormes-greptile-loop` | `gormes-tdd-slice`, then `gormes-git` when committing |
