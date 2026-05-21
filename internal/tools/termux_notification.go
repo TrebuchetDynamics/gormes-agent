@@ -133,15 +133,7 @@ func (s TermuxNotificationSender) commandPath() (string, error) {
 }
 
 func (s TermuxNotificationSender) termux() bool {
-	if strings.TrimSpace(s.env("TERMUX_VERSION")) != "" {
-		return true
-	}
-	for _, key := range []string{"PREFIX", "HOME"} {
-		if strings.Contains(s.env(key), "com.termux/files") {
-			return true
-		}
-	}
-	return false
+	return isTermuxToolEnv(s.env)
 }
 
 func (s TermuxNotificationSender) env(key string) string {

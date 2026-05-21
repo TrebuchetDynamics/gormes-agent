@@ -166,12 +166,7 @@ func (d VoiceModeEnvironmentDetector) container() bool {
 }
 
 func (d VoiceModeEnvironmentDetector) termux() bool {
-	if d.IsTermux {
-		return true
-	}
-	prefix := d.env("PREFIX")
-	home := d.env("HOME")
-	return strings.Contains(prefix, "com.termux") || strings.Contains(home, "com.termux")
+	return d.IsTermux || isTermuxToolEnv(d.env)
 }
 
 func (d VoiceModeEnvironmentDetector) termuxMicrophoneCommand() string {

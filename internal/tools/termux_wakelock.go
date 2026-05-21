@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 const termuxWakeLockCommand = "termux-wake-lock"
@@ -67,15 +66,7 @@ func (m TermuxWakeLockManager) run(ctx context.Context, command string, args ...
 }
 
 func (m TermuxWakeLockManager) termux() bool {
-	if strings.TrimSpace(m.env("TERMUX_VERSION")) != "" {
-		return true
-	}
-	for _, key := range []string{"PREFIX", "HOME"} {
-		if strings.Contains(m.env(key), "com.termux/files") {
-			return true
-		}
-	}
-	return false
+	return isTermuxToolEnv(m.env)
 }
 
 func (m TermuxWakeLockManager) env(key string) string {
