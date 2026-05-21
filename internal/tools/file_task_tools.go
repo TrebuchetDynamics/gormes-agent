@@ -18,6 +18,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/lsp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
@@ -49,6 +50,7 @@ type FileTaskToolConfig struct {
 	TaskID         string
 	CWDResolver    func() string
 	MaxReadChars   int
+	LSPDiagnostics lsp.PostEditService
 }
 
 type structuredLintResult struct {
@@ -561,7 +563,6 @@ func (*WriteFileTool) Schema() json.RawMessage {
 func (*WriteFileTool) Timeout() time.Duration { return 5 * time.Second }
 
 func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
-	_ = ctx
 	var in struct {
 		Path    string `json:"path"`
 		Content string `json:"content"`
@@ -602,6 +603,9 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if lint, ok := postEditLintDelta(resolved, rel, in.Content, preContent); ok {
 		payload["lint"] = lint
 	}
+	if lspResult, ok := postEditLSPDiagnostics(ctx, t.cfg.LSPDiagnostics, resolved, rel, in.Content, preContent); ok {
+		payload["lsp"] = lspResult
+	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
 		payload["file_state"] = statePayload
 	}
@@ -630,7 +634,6 @@ func (*PatchTool) Schema() json.RawMessage {
 func (*PatchTool) Timeout() time.Duration { return 5 * time.Second }
 
 func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
-	_ = ctx
 	var in struct {
 		Mode       string `json:"mode"`
 		Path       string `json:"path"`
@@ -709,6 +712,9 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	}
 	if lint, ok := postEditLintDelta(resolved, rel, updated, &content); ok {
 		payload["lint"] = lint
+	}
+	if lspResult, ok := postEditLSPDiagnostics(ctx, t.cfg.LSPDiagnostics, resolved, rel, updated, &content); ok {
+		payload["lsp"] = lspResult
 	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
 		payload["file_state"] = statePayload
@@ -1695,6 +1701,18 @@ func supportsPostEditLint(path string) bool {
 	}
 	_, ok := shellLintSpecForPath(path)
 	return ok
+}
+
+func postEditLSPDiagnostics(ctx context.Context, service lsp.PostEditService, path, relPath, postContent string, preContent *string) (lsp.PostEditResult, bool) {
+	if service == nil {
+		return lsp.PostEditResult{}, false
+	}
+	return service.PostEditDiagnostics(ctx, lsp.PostEditRequest{
+		Path:         path,
+		RelativePath: relPath,
+		PreContent:   preContent,
+		PostContent:  postContent,
+	}), true
 }
 
 func postEditLintDelta(absPath, relPath, postContent string, preContent *string) (structuredLintResult, bool) {
