@@ -8,6 +8,28 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.18] - 2026-05-20
+
+Date alias: `v2026.5.20`.
+
+> **Public Goncho/Goscrapling integration, TUI hardening, and release-path cleanup.**
+
+### Added
+- Public Goncho module integration with Gormes tool registration and a module-graph guard that rejects local `replace` dependencies.
+- Public Goscrapling release guard coverage proving Gormes consumes the tagged GitHub module rather than a sibling checkout.
+- Hard E2E and TUI regression coverage for complex chat/setup flows, cramped terminal rendering, setup profiles, admin health/fix screens, and full `Model.View()` wrapping.
+- Repo-local workflow, review-gate, architecture-review, refactor, and Navivox Telegram UI skills for safer bounded delivery.
+
+### Changed
+- Navivox gateway and protocol work now focus on the Go gateway/runtime path; the tracked Flutter prototype was removed from the release branch.
+- Release and git skills now document the mandatory `development` -> PR -> `main` -> tag path and stronger dirty-work/CI safety rules.
+- Module release guard tests now share a reusable `internal/testutil/modassert` helper.
+
+### Fixed
+- Bubble Tea setup/admin/profile/chat views now preserve prompts, selected rows, help text, status lines, and resize guidance in cramped terminals.
+- CI no longer runs obsolete Navivox Flutter steps after the prototype removal.
+- Architecture-review guidance now requires evidence quality, score calibration, stop gates, and validation-matrix proof before refactor implementation.
+
 ## [0.2.17] - 2026-05-18
 
 Date alias: `v2026.5.18`.
