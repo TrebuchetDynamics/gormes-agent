@@ -339,6 +339,48 @@ func TestNavivoxWebSocketStartTurnStreamsGatewayResponses(t *testing.T) {
 	}
 }
 
+func TestNavivoxVoiceMarkedStreamTurnEnqueuesTranscriptOnlyGatewayEvent(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{
+		Type:      "start_turn",
+		RequestID: "req-voice",
+		SessionID: "s-voice",
+		Text:      "transcribed voice command",
+		Metadata: map[string]any{
+			"input_kind":   "voice",
+			"stt_evidence": "device_transcribed",
+			"audio_path":   "/home/xel/private/raw-audio.wav",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var started ServerEvent
+	if err := conn.ReadJSON(&started); err != nil {
+		t.Fatal(err)
+	}
+	if started.Type != "session_started" || started.RequestID != "req-voice" || started.SessionID != "s-voice" {
+		t.Fatalf("session_started = %+v", started)
+	}
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventSubmit || ev.ChatID != "s-voice" || ev.Text != "transcribed voice command" {
+			t.Fatalf("gateway event = %+v, want transcript-only submit for s-voice", ev)
+		}
+		if len(ev.Attachments) != 0 {
+			t.Fatalf("gateway attachments = %+v, want no raw audio attached by Navivox channel", ev.Attachments)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for voice-marked gateway event")
+	}
+}
+
 func TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)

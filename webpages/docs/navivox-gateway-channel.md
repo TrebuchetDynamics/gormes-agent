@@ -128,6 +128,19 @@ Every client request must include `request_id`. Runtime actions use
 `profile_id`; local-only metadata such as pins, aliases, command word,
 calibration, and trusted-server state stays in the app.
 
+## Voice, STT, and TTS Boundary
+
+The current gateway channel accepts text turns. Voice input from the Flutter app
+is device-transcribed before submission and travels as a normal `start_turn`
+with optional voice metadata; the channel does not accept raw microphone audio
+or own an audio retention policy.
+
+Server-side STT/TTS belongs behind future voice-run and per-profile voice
+profile seams that reuse the existing Gormes STT/TTS provider matrices. Those
+slices should add typed stream events for transcript evidence, synthesis
+metadata, and unavailable-provider degradation instead of embedding provider
+selection in the HTTP/WebSocket transport.
+
 Tool events are structured Navivox events, not assistant text. They include
 `tool_call_id`, `tool_name`, `status`, and a bounded `message` summary. The
 gateway deliberately avoids serializing raw tool arguments, stdout, secrets, or
