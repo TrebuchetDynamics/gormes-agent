@@ -18,12 +18,13 @@ Linux, macOS, WSL2, and Termux:
 
 ```bash
 curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+gormes version
 gormes doctor --offline
 gormes setup
 gormes chat
 ```
 
-Prefer inspect-first? Use [Install](../install/) to download and review `install.sh` or `install.ps1` before running it.
+Prefer inspect-first? Use [Install](../install/) to download and review `install.sh` or `install.ps1` before running it. In every path, `gormes doctor --offline` is the local proof before credentials.
 
 Native Windows uses PowerShell:
 
@@ -31,6 +32,7 @@ Native Windows uses PowerShell:
 irm https://gormes.ai/install.ps1 -OutFile install.ps1
 Get-Content .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
+gormes version
 gormes doctor --offline
 gormes setup
 gormes chat
@@ -47,11 +49,12 @@ CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes
 ./bin/gormes doctor --offline
 ```
 
-Verify the installer-published binary is on `PATH`:
+Verify the installer-published binary is on `PATH` before entering credentials:
 
 ```bash
 gormes version
 gormes doctor --offline
+gormes setup
 ```
 
 For source builds, keep using `./bin/gormes` from the checkout, or add `export PATH="$PWD/bin:$PATH"` temporarily while testing that build.
@@ -65,7 +68,7 @@ gormes setup
 gormes chat
 ```
 
-During setup, choose your provider. For API-key providers, paste the key when prompted. For OAuth providers, follow the browser flow.
+During setup, choose your provider. For API-key providers, paste the key when prompted. For OAuth providers, follow the browser flow. The first-run proof stays local and no-stack: no pip, no venv, no Docker daemon, and no provider credentials until after `gormes doctor --offline` passes.
 
 If you already know the provider credential, you can add it directly:
 

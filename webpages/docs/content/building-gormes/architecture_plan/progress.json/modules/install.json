@@ -1602,7 +1602,7 @@
     "item": {
       "name": "No-stack first-run proof path from install to offline doctor",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Harden the public first-run proof around the strongest Gormes wedge: install or source-build the single binary, verify `gormes version`, run `gormes doctor --offline`, open the offline TUI, then add provider credentials only after local readiness passes. README, docs, and landing copy must keep the distinction between local no-stack software and hosted zero-infrastructure SaaS.",
       "contract_status": "validated",
       "slice_size": "small",
@@ -1613,7 +1613,7 @@
         "system"
       ],
       "degraded_mode": "Without a crisp first-run proof, hosted competitors can define the self-hosting debate as Docker/VPS/weekend maintenance even when Gormes does not require Python, venvs, Docker, or a remote server for local use.",
-      "fixture": "webpages/docs/content/start-here/_index.md::first-run proof",
+      "fixture": "webpages/docs/docs_test.go::TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials; webpages/landing/tests/home.spec.mjs::homepage sells the short buyer-focused landing",
       "source_refs": [
         "docs/content/building-gormes/strategy/market-positioning.md",
         "README.md",
@@ -1663,6 +1663,21 @@
       "provenance": {
         "origin_type": "gormes",
         "note": "Gormes-owned public proof row; not an installer runtime behavior change."
+      },
+      "completed_at": "2026-05-21T00:00:00Z",
+      "evidence": {
+        "implementation": [
+          "README, start-here, install, doctor-offline, and landing copy now present first-run order as version -> doctor --offline -> setup/chat, with credentials only after local readiness.",
+          "Docs and landing tests guard the sequence and no-provider-before-offline-doctor copy without changing installer runtime behavior."
+        ],
+        "tests": [
+          "go test ./webpages/docs -run 'Test.*(StartHere|Install|DoctorOffline|FirstRun)' -count=1",
+          "(cd webpages/landing && npm run test:e2e)",
+          "go test ./... -count=1",
+          "go run ./cmd/progress validate",
+          "git diff --check"
+        ],
+        "note": "Completed 2026-05-21 in delivery-loop iteration 4/10; preserves inspect-first installer links and local no-stack/no hosted-SaaS positioning."
       }
     }
   },

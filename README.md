@@ -56,20 +56,22 @@ irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/script
 After installation:
 
 ```bash
+gormes version
 gormes doctor --offline
 gormes setup
 gormes chat
 ```
 
-That is the shortest path: prove the runtime locally, configure provider/model, then open a provider-backed terminal chat.
+That is the shortest path: verify the installed binary, prove the runtime locally before credentials, configure provider/model, then open a provider-backed terminal chat. The proof path is no-stack local ownership: no pip, no venv, no Docker daemon.
 
 ## First Setup
 
 ```bash
+gormes version               # confirm the binary on PATH
+gormes doctor --offline      # local runtime, TUI, gateway, memory — no credentials needed
 gormes setup                 # guided setup for provider, model, terminal, gateway, tools
 gormes setup provider        # direct provider setup shortcut
 gormes chat                  # provider-backed terminal chat
-gormes doctor --offline      # local runtime, TUI, gateway, memory — no credentials needed
 gormes --offline             # native TUI, no network
 ```
 

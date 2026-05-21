@@ -76,9 +76,9 @@ export const page = {
   ],
   installHeadline: 'Install Gormes',
   installIntro:
-    'Use the release installer, prove the machine offline, then add provider credentials and start chat.',
+    'Use the release installer, verify the binary, prove the machine offline before credentials, then add a provider and start chat. No pip, no venv, no Docker daemon.',
   installCommand:
-    'curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh\ngormes doctor --offline\ngormes setup\ngormes chat',
+    'curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat',
   installFootnote:
     'Windows, source builds, and advanced installer flags are covered in the install docs.',
   installFootnoteLink: {

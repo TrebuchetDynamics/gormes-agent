@@ -10,6 +10,18 @@ difficulty: "S"
 >
 > **Prerequisites:** `gormes` installed on `$PATH`.
 
+## First-run proof order
+
+Use this sequence before credentials / before entering provider credentials:
+
+```bash
+gormes version
+gormes doctor --offline
+gormes setup
+```
+
+`gormes doctor --offline` is the canonical local proof step. It needs no pip, no venv, no Docker daemon, no network submit, and no provider credentials before the check passes.
+
 ## Steps
 
 1. **Run doctor in offline mode**
