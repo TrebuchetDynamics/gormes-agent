@@ -45,6 +45,16 @@ const FULL_CI_GATE = [
   "go run ./cmd/progress validate",
   "git diff --check",
 ];
+const STATUS_TOPIC_MAX = 72;
+
+type LoopUiContext = {
+  hasUI?: boolean;
+  ui?: {
+    notify(message: string, level?: string): void;
+    setStatus(key: string, value: string | undefined): void;
+    setWidget?: (key: string, value: string[] | undefined, options?: { placement?: "aboveEditor" | "belowEditor" }) => void;
+  };
+};
 
 let state: LoopState = inactiveState();
 let sendingFollowUp = false;
@@ -53,12 +63,10 @@ let pendingSelfImproveReason: string | undefined;
 export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     state = restoreState(ctx.sessionManager.getEntries()) ?? inactiveState();
-    if (ctx.hasUI) {
-      ctx.ui.setStatus("gormes-loop", statusLine(state));
-    }
+    refreshLoopUi(ctx);
   });
 
-  pi.on("message_end", async (event, _ctx) => {
+  pi.on("message_end", async (event, ctx) => {
     if (!state.active || event.message?.role !== "assistant") return;
     const text = messageText(event.message);
     const decision = parseDecision(text);
@@ -68,6 +76,7 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
       appendLoopLog("ci_gate_missing", { decision, reason: "missing_CI_GREEN_yes", ciGreen: false });
       pendingSelfImproveReason = "ci_gate_missing";
       pi.appendEntry(CUSTOM_STATE_TYPE, state);
+      refreshLoopUi(ctx);
       return;
     }
     if (decision) {
@@ -81,6 +90,7 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
       }
       pi.appendEntry(CUSTOM_STATE_TYPE, state);
     }
+    if (decision) refreshLoopUi(ctx);
   });
 
   pi.on("agent_end", async (_event, ctx) => {
@@ -97,7 +107,7 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
       pi.appendEntry(CUSTOM_STATE_TYPE, state);
       if (ctx.hasUI) {
         ctx.ui.notify(`Gormes loop stopped after ${state.iteration}/${state.maxIterations} iteration(s).`, "info");
-        ctx.ui.setStatus("gormes-loop", statusLine(state));
+        refreshLoopUi(ctx);
       }
       queueSelfImprovement(pi, ctx, "max_iterations_reached");
       return;
@@ -106,7 +116,10 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
     state = { ...state, iteration: state.iteration + 1 };
     appendLoopLog("iteration_queued");
     pi.appendEntry(CUSTOM_STATE_TYPE, state);
-    if (ctx.hasUI) ctx.ui.setStatus("gormes-loop", statusLine(state));
+    if (ctx.hasUI) {
+      refreshLoopUi(ctx);
+      ctx.ui.notify(`Queued Gormes delivery loop iteration ${state.iteration}/${state.maxIterations}.`, "info");
+    }
 
     sendingFollowUp = true;
     try {
@@ -130,7 +143,7 @@ export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
           appendLoopLog("loop_stopped", { reason: "stopped_by_user" });
           pi.appendEntry(CUSTOM_STATE_TYPE, state);
           ctx.ui.notify("Gormes delivery loop stopped.", "info");
-          ctx.ui.setStatus("gormes-loop", statusLine(state));
+          refreshLoopUi(ctx);
           return;
         case "status":
           publishStatus(pi, ctx);
@@ -158,7 +171,15 @@ function publishStatus(pi: ExtensionAPI, ctx: { ui?: { notify(message: string, l
 }
 
 function statusReport(s: LoopState): string {
-  return `${statusLine(s)}\nlog: ${s.logPath ?? DEFAULT_LOG_PATH}`;
+  const logPath = s.logPath ?? DEFAULT_LOG_PATH;
+  const lastRecord = readLastLoopRecord(logPath);
+  return [
+    statusLine(s),
+    `State: ${stateExplanation(s, lastRecord)}`,
+    summarizeLastLoopRecord(lastRecord),
+    `log: ${logPath}`,
+    "Commands: /gormes-loop status | /gormes-loop stop | /gormes-loop restart --iterations=N <topic>",
+  ].join("\n");
 }
 
 async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: string, requestedIterations: number, replaceActive: boolean) {
@@ -189,7 +210,7 @@ async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: 
   };
   appendLoopLog("loop_started");
   pi.appendEntry(CUSTOM_STATE_TYPE, state);
-  ctx.ui.setStatus("gormes-loop", statusLine(state));
+  refreshLoopUi(ctx);
   ctx.ui.notify(`Starting Gormes delivery loop: 1/${maxIterations}; log: ${state.logPath}`, "info");
   pi.sendUserMessage(buildIterationPrompt(state));
 }
@@ -278,7 +299,7 @@ function queueSelfImprovement(pi: ExtensionAPI, ctx: { hasUI?: boolean; ui?: { n
   pi.appendEntry(CUSTOM_STATE_TYPE, state);
   if (ctx.hasUI && ctx.ui) {
     ctx.ui.notify(`Gormes loop ended (${reason}); queued extension self-improvement.`, "info");
-    ctx.ui.setStatus("gormes-loop", statusLine(state));
+    refreshLoopUi(ctx);
   }
   sendingFollowUp = true;
   try {
@@ -368,7 +389,8 @@ function recordMatchesCurrentIteration(record: Record<string, unknown>, currentI
   return Number.isFinite(iteration) && iteration === currentIteration;
 }
 
-function recordEvent(record: Record<string, unknown>): string | undefined {
+function recordEvent(record?: Record<string, unknown>): string | undefined {
+  if (!record) return undefined;
   const value = record.event ?? record.type;
   return typeof value === "string" ? value : undefined;
 }
@@ -409,7 +431,81 @@ function errorMessage(error: unknown): string {
 
 function statusLine(s: LoopState): string {
   if (!s.active) return `Gormes loop: idle${s.lastDecision ? ` (${s.lastDecision})` : ""}`;
-  return `Gormes loop: active ${s.iteration}/${s.maxIterations} ${s.topic}`;
+  return `Gormes loop: ${statusPhase(s)} ${s.iteration}/${s.maxIterations} ${compactTopic(s.topic)}`;
+}
+
+function refreshLoopUi(ctx: LoopUiContext) {
+  if (!ctx.hasUI || !ctx.ui) return;
+  ctx.ui.setStatus("gormes-loop", statusLine(state));
+  ctx.ui.setWidget?.("gormes-loop", statusWidgetLines(state), { placement: "belowEditor" });
+}
+
+function statusWidgetLines(s: LoopState): string[] | undefined {
+  if (!s.active && !s.lastDecision) return undefined;
+  const logPath = s.logPath ?? DEFAULT_LOG_PATH;
+  const lastRecord = readLastLoopRecord(logPath);
+  return [
+    statusLine(s),
+    `State: ${stateExplanation(s, lastRecord)}`,
+    summarizeLastLoopRecord(lastRecord),
+    `Log: ${logPath}`,
+  ];
+}
+
+function statusPhase(s: LoopState): string {
+  const event = recordEvent(readLastLoopRecord(s.logPath ?? DEFAULT_LOG_PATH));
+  if (event === "iteration_queued") return "queued";
+  if (event === "loop_started") return "started";
+  if (event === "assistant_decision") return "deciding";
+  if (event === "iteration_result") return "reported";
+  if (event === "ci_gate_missing") return "blocked";
+  return "active";
+}
+
+function stateExplanation(s: LoopState, lastRecord?: Record<string, unknown>): string {
+  if (!s.active) return s.lastDecision ? `Idle after ${s.lastDecision}.` : "Idle.";
+  const event = recordEvent(lastRecord);
+  if (event === "iteration_queued") return "Queued follow-up; waiting for Pi to deliver the next iteration prompt.";
+  if (event === "loop_started") return "Started; initial iteration prompt was sent.";
+  if (event === "assistant_decision") return "Assistant decision recorded; preparing the next loop action.";
+  if (event === "iteration_result") return "Iteration result recorded; waiting for the final loop decision hook.";
+  if (event === "ci_gate_missing") return "Blocked because CI_GREEN evidence was missing for a continue/done decision.";
+  return "Active; waiting for the current iteration result.";
+}
+
+function summarizeLastLoopRecord(record?: Record<string, unknown>): string {
+  if (!record) return "Last event: none recorded yet";
+  const parts = [`Last event: ${recordEvent(record) ?? "unknown"}`];
+  const at = record.at ?? record.timestamp;
+  if (typeof at === "string") parts.push(`at ${at}`);
+  if (record.iteration !== undefined) parts.push(`iteration ${String(record.iteration)}`);
+  if (typeof record.row === "string") parts.push(`row ${record.row}`);
+  if (typeof record.commit === "string") parts.push(`commit ${record.commit}`);
+  if (typeof record.decision === "string") parts.push(`decision ${record.decision}`);
+  if (typeof record.reason === "string") parts.push(`reason ${record.reason}`);
+  if (record.ci_green !== undefined) parts.push(`ci_green ${String(record.ci_green)}`);
+  if (record.ciGreen !== undefined) parts.push(`ciGreen ${String(record.ciGreen)}`);
+  return parts.join("; ");
+}
+
+function readLastLoopRecord(logPath: string): Record<string, unknown> | undefined {
+  try {
+    const content = fs.readFileSync(logPath, "utf8").trim();
+    if (!content) return undefined;
+    const lines = content.split(/\r?\n/).filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const parsed = parseLogRecord(lines[i]);
+      if (parsed) return parsed;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+function compactTopic(topic: string): string {
+  if (topic.length <= STATUS_TOPIC_MAX) return topic;
+  return `${topic.slice(0, STATUS_TOPIC_MAX - 1)}…`;
 }
 
 function inactiveState(): LoopState {

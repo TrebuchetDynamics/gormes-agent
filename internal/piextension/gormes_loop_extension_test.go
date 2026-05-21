@@ -95,6 +95,32 @@ func TestGormesLoopExtensionAcceptsCompletedPreviousIterationLogSchema(t *testin
 	runNodeScript(t, script)
 }
 
+func TestGormesLoopStatusReportExplainsQueuedFollowUpState(t *testing.T) {
+	repoRoot := repoRootFromTest(t)
+	jitiEntry := piJitiEntry(t)
+
+	script := filepath.Join(t.TempDir(), "smoke-status-queued-state.mjs")
+	mustWriteFile(t, script, strings.Join([]string{
+		`import fs from "node:fs";`,
+		`import path from "node:path";`,
+		`import { createRequire } from "node:module";`,
+		`const require = createRequire(import.meta.url);`,
+		`const { createJiti } = require("` + jitiEntry + `");`,
+		`const jiti = createJiti(import.meta.url, { interopDefault: true });`,
+		`const mod = await jiti.import("` + filepath.ToSlash(filepath.Join(repoRoot, ".pi", "extensions", "gormes-delivery-loop.ts")) + `");`,
+		`const logDir = path.join(process.cwd(), ".pi", "gormes-loop");`,
+		`fs.mkdirSync(logDir, { recursive: true });`,
+		`const logPath = path.join(logDir, "logs.jsonl");`,
+		`fs.writeFileSync(logPath, JSON.stringify({ at: "2026-05-21T17:47:09.382Z", event: "iteration_queued", topic: "providers", iteration: 5, maxIterations: 10, logPath }) + "\n");`,
+		`const report = mod.__test__.statusReport({ active: true, topic: "providers", iteration: 5, maxIterations: 10, startedAt: "2026-05-21T16:14:35.645Z", logPath, selfImproveQueued: false });`,
+		`if (!report.includes("Queued follow-up")) throw new Error("status report does not explain queued state: " + report);`,
+		`if (!report.includes("Last event: iteration_queued")) throw new Error("status report omits last event: " + report);`,
+		`if (!report.includes("/gormes-loop status")) throw new Error("status report omits operator commands: " + report);`,
+	}, "\n"))
+
+	runNodeScript(t, script)
+}
+
 func TestGormesLoopStatusCommandSendsDisplayedMessage(t *testing.T) {
 	repoRoot := repoRootFromTest(t)
 	jitiEntry := piJitiEntry(t)
