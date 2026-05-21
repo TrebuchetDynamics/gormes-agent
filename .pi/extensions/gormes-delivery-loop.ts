@@ -300,7 +300,7 @@ function parseDecision(text: string): LoopState["lastDecision"] | undefined {
 
 function parseCIGate(text: string, s: LoopState): { green: boolean; source: string } {
   if (/CI_GREEN:\s*yes/i.test(text)) return { green: true, source: "assistant_text" };
-  if (iterationHasRecentFullCIGateEvidence(s.logPath ?? DEFAULT_LOG_PATH, s.startedAt)) {
+  if (iterationHasRecentFullCIGateEvidence(s.logPath ?? DEFAULT_LOG_PATH, s.startedAt, s.iteration)) {
     return { green: true, source: "loop_log_full_gate" };
   }
   return { green: false, source: "missing" };
@@ -320,7 +320,7 @@ function recentLoopLogSnippet(logPath: string): string {
   }
 }
 
-function iterationHasRecentFullCIGateEvidence(logPath: string, startedAt: string): boolean {
+function iterationHasRecentFullCIGateEvidence(logPath: string, startedAt: string, currentIteration: number): boolean {
   try {
     const content = fs.readFileSync(logPath, "utf8").trim();
     if (!content) return false;
@@ -331,6 +331,7 @@ function iterationHasRecentFullCIGateEvidence(logPath: string, startedAt: string
       if (record.event === "ci_gate_missing") return false;
       if (Number.isFinite(started) && typeof record.at === "string" && Date.parse(record.at) < started) continue;
       if (record.event !== "iteration_result") continue;
+      if (!recordMatchesCurrentIteration(record, currentIteration)) continue;
       if (record.ci_green === "yes" || record.ciGreen === true) return true;
       if (hasFullCIGateValidation(record.validation)) return true;
     }
@@ -338,6 +339,11 @@ function iterationHasRecentFullCIGateEvidence(logPath: string, startedAt: string
     return false;
   }
   return false;
+}
+
+function recordMatchesCurrentIteration(record: Record<string, unknown>, currentIteration: number): boolean {
+  const iteration = typeof record.iteration === "number" ? record.iteration : Number(record.iteration);
+  return Number.isFinite(iteration) && iteration === currentIteration;
 }
 
 function hasFullCIGateValidation(validation: unknown): boolean {
