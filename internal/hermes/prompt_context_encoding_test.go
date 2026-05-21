@@ -24,6 +24,21 @@ func TestEncodePromptContext_OptionalTOONFormat(t *testing.T) {
 	}
 }
 
+func TestEncodePromptContext_DefaultFormatIsTOON(t *testing.T) {
+	raw := json.RawMessage(`{"rows":[{"id":1,"name":"Ada"},{"id":2,"name":"Bob"}],"source":"fixture"}`)
+
+	encoded, report, err := EncodePromptContext(raw, "")
+	if err != nil {
+		t.Fatalf("EncodePromptContext default: %v", err)
+	}
+	if report.Format != string(PromptContextFormatTOON) {
+		t.Fatalf("report.Format = %q, want toon", report.Format)
+	}
+	if !strings.Contains(string(encoded), "rows[2]{id,name}:") {
+		t.Fatalf("default output should be TOON tabular context:\n%s", encoded)
+	}
+}
+
 func TestEncodePromptContext_JSONRemainsDefaultAPIShape(t *testing.T) {
 	raw := json.RawMessage(`{
 		"rows": [

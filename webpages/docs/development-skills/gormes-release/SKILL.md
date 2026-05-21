@@ -1,6 +1,6 @@
 ---
 name: gormes-release
-description: Prepare, commit all intended changes, push development, make CI green, PR-merge to main, tag, and publish a Gormes release. Use when the user asks to release Gormes, bump the operator-facing version, create a GitHub release tag, or run the full development-to-main release lane.
+description: Use when the user asks to release Gormes, bump the operator-facing version, create a GitHub release tag, publish artifacts, recover a release, or run the full development-to-main release lane.
 ---
 
 # Gormes Release
@@ -21,8 +21,13 @@ for that release operation.
 ## Branch Rule
 
 Work only on the existing `development` branch. Do not create feature branches,
-release branches, or worktrees. Never edit `main` directly. All source changes
-reach `main` through a PR from `development`.
+release branches, or worktrees. Never edit `main` directly.
+
+The intended release path is always `development` -> GitHub PR -> `main` ->
+tag. This is not an optional strategy or a fallback: every release, including a
+"small" or "already green" release, must flow through a PR from `development`
+to `main`. Do not fast-forward, cherry-pick, push directly to `main`, tag from
+`development`, or tag before the PR has merged.
 
 `gormes-release` calls `gormes-git` as the subroutine for dirty-worktree
 safety scanning, generated-surface reconciliation, coherent split commits,
@@ -39,7 +44,7 @@ request before changing files:
 |---|---|
 | Improve `gormes-release` or another skill | Skill-maintenance lane; validate docs only; no release actions. |
 | Prepare release only | Version/changelog/docs prep may happen; no PR merge, tag, or publish unless later requested. |
-| Release/publish Gormes | Run the full lane: include all safe dirty work, make `development` green, commit, push, open/update PR to `main`, wait for green CI, merge, tag, publish, and sync `development`. |
+| Release/publish Gormes | Run the full lane: include all safe dirty work, make `development` green, commit, push, open/update the `development` -> `main` PR, wait for green PR CI, merge that PR, tag the resulting `origin/main` commit, publish, and sync `development`. |
 | Recover failed release | First classify failure point: before tag, tag workflow before GitHub release, GitHub release exists, or artifact verification failed. |
 
 Stop and report instead of continuing when:
@@ -53,6 +58,8 @@ Stop and report instead of continuing when:
 - `go test ./...`, `go run ./cmd/progress validate`, `git diff --check`, or
   required remote checks fail;
 - tag `v<version>` or GitHub release `v<version>` already exists;
+- the operator asks to bypass the `development` -> `main` PR path, tag from
+  `development`, push directly to `main`, or merge without green PR checks;
 - `origin/main` is red or the development-to-main PR is not mergeable;
 - artifact publication created a GitHub release, but checksums or archives are
   missing. Do not delete public release assets without explicit recovery
@@ -153,7 +160,9 @@ timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
    out-of-scope dirty files unstaged.
 
 7. Open or update the `development` to `main` PR, then wait only with bounded
-   polling. Do not tag before this PR is merged.
+   polling. This PR is the intended always-path for release integration. Do not
+   tag before this PR is merged, even if `development` is already green and
+   even if the release diff is version-only.
 
    ```sh
    gh pr list --head development --base main --state open --json number,url,title
@@ -162,8 +171,10 @@ timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
    gh pr view <number> --json state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup
    ```
 
-   If checks fail or the PR is not mergeable, fix through `development`, rerun
-   local gates, push `development`, and wait for CI again.
+   If an open `development` -> `main` PR already exists, update/reuse it rather
+   than creating another branch or PR. If checks fail or the PR is not
+   mergeable, fix through `development`, rerun local gates, push `development`,
+   and wait for CI again.
 
 8. Merge the PR only after required remote
     checks pass and the PR is mergeable.
@@ -201,7 +212,9 @@ timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
     ```
 
 9. After merge, fetch `origin/main`, confirm `cmd/gormes/version.go` on main
-   matches the release version, then create and push the annotated tag:
+   matches the release version, confirm the merge came from the
+   `development` -> `main` PR, then create and push the annotated tag from the
+   merged `origin/main` commit only:
 
 ```sh
 git tag -a "v<version>" "origin/main" -m "Release <version>"

@@ -44,7 +44,7 @@ const toolExecutionCancelledContent = `{"error":"tool execution cancelled"}`
 // tests call this wrapper directly; runTurn uses executeToolCallsInterruptible
 // so a PlatformEventCancel can stop the active tool batch.
 func (k *Kernel) executeToolCalls(runCtx context.Context, calls []hermes.ToolCall) []toolResult {
-	return k.executeToolCallsInterruptible(runCtx, calls).Results
+	return k.executeToolCallsInterruptible(runCtx, calls, "").Results
 }
 
 // executeToolCallsInterruptible fans a tool-call batch out to worker goroutines
@@ -52,7 +52,7 @@ func (k *Kernel) executeToolCalls(runCtx context.Context, calls []hermes.ToolCal
 // function while workers run, so it can keep servicing k.events and propagate a
 // single interrupt to every in-flight worker before returning one coherent
 // cancellation envelope per call.
-func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []hermes.ToolCall) toolBatchOutcome {
+func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []hermes.ToolCall, turnKey string) toolBatchOutcome {
 	results := make([]toolResult, len(calls))
 	auditRecords := make([]*audit.Record, len(calls))
 	if len(calls) == 0 {
@@ -67,7 +67,7 @@ func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []h
 		k.addSoul(toolCallSoulText(call))
 		k.emitFrame("executing tool: " + call.Name)
 		go func(index int, toolCall hermes.ToolCall, sessionID string) {
-			resultCh <- k.executeOneToolCall(execCtx, index, toolCall, sessionID)
+			resultCh <- k.executeOneToolCall(execCtx, index, toolCall, sessionID, turnKey)
 		}(i, call, k.sessionID)
 	}
 
@@ -266,7 +266,7 @@ func truncatePreviewToken(s string, n int) string {
 	return string(runes[:n])
 }
 
-func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.ToolCall, sessionID string) indexedToolResult {
+func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.ToolCall, sessionID, turnKey string) indexedToolResult {
 	start := time.Now()
 	buildAudit := func(status string, result json.RawMessage, err error) *audit.Record {
 		if k.cfg.ToolAudit == nil {
@@ -287,15 +287,20 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 		}
 		return &rec
 	}
+	k.observeGonchoToolCall(ctx, call, sessionID, turnKey)
+	finish := func(res indexedToolResult) indexedToolResult {
+		k.observeGonchoToolOutcome(ctx, call, sessionID, turnKey, res)
+		return res
+	}
 
 	cancelled := func() indexedToolResult {
-		return indexedToolResult{
+		return finish(indexedToolResult{
 			Index:  index,
 			Result: cancelledToolResult(call),
 			Status: "cancelled",
 			Err:    errToolExecutionCancelled,
 			Audit:  buildAudit("cancelled", nil, errToolExecutionCancelled),
-		}
+		})
 	}
 
 	select {
@@ -320,13 +325,13 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 				err = errors.New(status)
 			}
 			result := newToolResult(call, payload)
-			return indexedToolResult{
+			return finish(indexedToolResult{
 				Index:  index,
 				Result: result,
 				Status: status,
 				Err:    err,
 				Audit:  buildAudit(status, payload, err),
-			}
+			})
 		}
 	}
 
@@ -340,13 +345,13 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 			status = "failed"
 		}
 		result := newToolResult(call, payload)
-		return indexedToolResult{
+		return finish(indexedToolResult{
 			Index:  index,
 			Result: result,
 			Status: status,
 			Err:    err,
 			Audit:  buildAudit(status, payload, err),
-		}
+		})
 	}
 
 	var tool tools.Tool
@@ -362,13 +367,13 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 				ID: call.ID, Name: call.Name,
 				Content: fmt.Sprintf(`{"error":"unknown tool: %q"}`, call.Name),
 			}
-			return indexedToolResult{
+			return finish(indexedToolResult{
 				Index:  index,
 				Result: result,
 				Status: "failed",
 				Err:    err,
 				Audit:  buildAudit("failed", nil, err),
-			}
+			})
 		}
 	} else {
 		if k.cfg.ContextEngine != nil {
@@ -379,13 +384,13 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 			ID: call.ID, Name: call.Name,
 			Content: `{"error":"no tool registry configured"}`,
 		}
-		return indexedToolResult{
+		return finish(indexedToolResult{
 			Index:  index,
 			Result: result,
 			Status: "failed",
 			Err:    err,
 			Audit:  buildAudit("failed", nil, err),
-		}
+		})
 	}
 
 	timeout := tool.Timeout()
@@ -414,22 +419,83 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 			ID: call.ID, Name: call.Name,
 			Content: fmt.Sprintf(`{"error":%q}`, err.Error()),
 		}
-		return indexedToolResult{
+		return finish(indexedToolResult{
 			Index:  index,
 			Result: result,
 			Status: "failed",
 			Err:    err,
 			Audit:  buildAudit("failed", nil, err),
-		}
+		})
 	}
 
 	result := newToolResult(call, payload)
-	return indexedToolResult{
+	return finish(indexedToolResult{
 		Index:  index,
 		Result: result,
 		Status: "completed",
 		Audit:  buildAudit("completed", payload, nil),
+	})
+}
+
+func (k *Kernel) observeGonchoToolCall(ctx context.Context, call hermes.ToolCall, sessionID, turnKey string) {
+	k.observeGoncho(ctx, GonchoObservation{
+		Kind:       GonchoObservationToolCall,
+		PeerID:     "gormes",
+		SessionKey: sessionID,
+		ContextID:  gonchoToolContextID(turnKey, call.ID),
+		Input:      string(call.Arguments),
+		Metadata:   gonchoToolMetadata(call, turnKey, ""),
+		Reason:     "gormes tool call capture",
+	})
+}
+
+func (k *Kernel) observeGonchoToolOutcome(ctx context.Context, call hermes.ToolCall, sessionID, turnKey string, res indexedToolResult) {
+	success := res.Status == "completed"
+	kind := GonchoObservationToolResult
+	if !success {
+		kind = GonchoObservationToolError
 	}
+	output := res.Result.Content
+	if output == "" && res.Err != nil {
+		output = res.Err.Error()
+	}
+	k.observeGoncho(ctx, GonchoObservation{
+		Kind:       kind,
+		PeerID:     "gormes",
+		SessionKey: sessionID,
+		ContextID:  gonchoToolContextID(turnKey, call.ID),
+		Input:      string(call.Arguments),
+		Output:     output,
+		Success:    &success,
+		Metadata:   gonchoToolMetadata(call, turnKey, res.Status),
+		Reason:     "gormes tool result capture",
+	})
+}
+
+func gonchoToolContextID(turnKey, callID string) string {
+	switch {
+	case turnKey != "" && callID != "":
+		return turnKey + ":" + callID
+	case callID != "":
+		return callID
+	default:
+		return turnKey
+	}
+}
+
+func gonchoToolMetadata(call hermes.ToolCall, turnKey, status string) map[string]string {
+	metadata := map[string]string{
+		"source":       "kernel",
+		"tool_name":    call.Name,
+		"tool_call_id": call.ID,
+	}
+	if turnKey != "" {
+		metadata["turn_key"] = turnKey
+	}
+	if status != "" {
+		metadata["status"] = status
+	}
+	return metadata
 }
 
 func cancelledToolResult(call hermes.ToolCall) toolResult {

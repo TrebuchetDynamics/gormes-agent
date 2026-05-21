@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Install"
-  short_description: "Validate real Gormes install paths."
-  default_prompt: "Use $gormes-install to exercise release install and setup paths in an isolated sandbox, capturing PATH, shell, setup, and gateway restart regressions without touching production state."
+  short_description: "Validate or perform Gormes installs."
+  default_prompt: "Use $gormes-install to either validate release install/setup paths in an isolated sandbox or, when explicitly requested, build and install the current development checkout on this PC with binary and gateway freshness checks."

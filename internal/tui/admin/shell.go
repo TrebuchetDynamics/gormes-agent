@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
 )
 
@@ -79,7 +80,7 @@ func (s *Shell) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.mu.Lock()
 		s.width, s.height = msg.Width, msg.Height
 		s.mu.Unlock()
-		return s, nil
+		return s.forwardToActive(tea.WindowSizeMsg{Width: msg.Width, Height: adminShellBodyHeight(msg.Height)})
 	case tea.KeyMsg:
 		if s.activeScreenCapturesKey(msg) {
 			return s.forwardToActive(msg)
@@ -208,7 +209,13 @@ func (s *Shell) setActiveLocked(idx int) tea.Cmd {
 	}
 	s.previous = s.active
 	s.active = idx
-	return s.screens[s.active].Init()
+	cmds := []tea.Cmd{s.screens[s.active].Init()}
+	if s.width > 0 || s.height > 0 {
+		next, resizeCmd := s.screens[s.active].Update(tea.WindowSizeMsg{Width: s.width, Height: adminShellBodyHeight(s.height)})
+		s.screens[s.active] = next
+		cmds = append(cmds, resizeCmd)
+	}
+	return tea.Batch(cmds...)
 }
 
 func (s *Shell) forwardToActive(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -267,7 +274,7 @@ func (s *Shell) renderHelpOverlayLocked() string {
 			fmt.Fprintf(&b, "    %s  %s\n", strings.Join(e.Keys, "/"), e.Description)
 		}
 	}
-	return b.String()
+	return clampAdminShellBlock(b.String(), s.width, adminShellBodyHeight(s.height))
 }
 
 func (s *Shell) renderTabBarLocked() string {
@@ -281,11 +288,75 @@ func (s *Shell) renderTabBarLocked() string {
 		}
 		parts = append(parts, label)
 	}
-	return strings.Join(parts, " ")
+	return trimAdminShellLine(strings.Join(parts, " "), s.width)
 }
 
 func (s *Shell) renderStatusBarLocked() string {
-	return "tab/shift+tab cycle  q quit  ? help"
+	return trimAdminShellLine("tab/shift+tab cycle  q quit  ? help", s.width)
+}
+
+func adminShellBodyHeight(total int) int {
+	if total <= 0 {
+		return 0
+	}
+	// Shell View adds one tab-bar line and one status-bar line around the active
+	// screen body. Give screens the remaining row budget so real terminal output
+	// stays within the operator's current height.
+	return max(1, total-2)
+}
+
+func clampAdminShellBlock(text string, width, height int) string {
+	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	trimmed := false
+	for i, line := range lines {
+		if width > 0 && lipgloss.Width(line) > width {
+			trimmed = true
+		}
+		lines[i] = trimAdminShellLine(line, width)
+	}
+	if height <= 0 {
+		return strings.Join(lines, "\n")
+	}
+	if trimmed && len(lines) >= height && height > 2 {
+		lines[height-1] = trimAdminShellLine("… omitted; resize for full help", width)
+		lines = lines[:height]
+	}
+	if len(lines) <= height {
+		return strings.Join(lines, "\n")
+	}
+	if height <= 2 {
+		return trimAdminShellLine("terminal too small; resize", width)
+	}
+	marker := trimAdminShellLine("… omitted; resize for full help", width)
+	tailCount := 1
+	headCount := height - tailCount - 1
+	if headCount < 1 {
+		headCount = 1
+	}
+	out := append([]string(nil), lines[:headCount]...)
+	out = append(out, marker)
+	out = append(out, lines[len(lines)-tailCount:]...)
+	return strings.Join(out, "\n")
+}
+
+func trimAdminShellLine(text string, width int) string {
+	if width <= 0 || lipgloss.Width(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+	ellipsis := "…"
+	limit := width - lipgloss.Width(ellipsis)
+	used := 0
+	for i, r := range text {
+		rw := lipgloss.Width(string(r))
+		if used+rw > limit {
+			return strings.TrimRight(text[:i], " \t") + ellipsis
+		}
+		used += rw
+	}
+	return text
 }
 
 // Run is the production-facing entry. It refuses to start when in is not

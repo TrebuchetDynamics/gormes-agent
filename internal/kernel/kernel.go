@@ -486,8 +486,8 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 		return
 	}
 
-	// Persist user message to Goncho for cross-session memory.
-	k.writeGonchoUserTurn(ctx, text)
+	// Persist user message to Goncho for cross-session memory and evidence.
+	k.writeGonchoUserTurn(ctx, text, turnKey)
 
 	// 3. Update state for the new turn. These mutations are safe because we
 	// are on the Run goroutine.
@@ -767,7 +767,7 @@ toolLoop:
 		}
 
 		runCtx, cancelRun := context.WithCancel(ctx)
-		toolOutcome := k.executeToolCallsInterruptible(runCtx, finalDelta.ToolCalls)
+		toolOutcome := k.executeToolCallsInterruptible(runCtx, finalDelta.ToolCalls, turnKey)
 		cancelRun()
 		if toolOutcome.Cancelled {
 			cancelled = true
@@ -889,11 +889,8 @@ toolLoop:
 			k.log.Warn("kernel: store exec FinalizeAssistantTurn failed", "err", err)
 		}
 		finalCancel()
-	}
-
-	// Persist assistant response to Goncho for cross-session memory.
-	if k.draft != "" {
-		k.writeGonchoAssistantTurn(ctx, k.draft)
+		// Persist assistant response to Goncho for cross-session memory and evidence.
+		k.writeGonchoAssistantTurn(ctx, finalContent, turnKey)
 	}
 
 	prov.LogDone(k.log)

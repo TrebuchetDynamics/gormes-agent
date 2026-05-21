@@ -272,11 +272,12 @@ func TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete(t *testi
 		sent := ch.sentSnapshot()
 		return len(sent) >= 2 &&
 			strings.Contains(sent[0].Text, "browser") &&
-			strings.Contains(sent[0].Text, "terminal") &&
+			strings.Contains(sent[0].Text, "ACTION [network] Fetching remote content") &&
 			sent[len(sent)-1].Text == "Inspection complete."
 	})
 	sent := ch.sentSnapshot()
-	if strings.Contains(sent[len(sent)-1].Text, "browser_navigate") || strings.Contains(sent[len(sent)-1].Text, "terminal") {
+	if strings.Contains(sent[len(sent)-1].Text, "browser_navigate") || strings.Contains(sent[len(sent)-1].Text, "terminal") ||
+		strings.Contains(sent[len(sent)-1].Text, "Fetching remote content") {
 		t.Fatalf("final answer included notification-center tool evidence; sent=%#v", sent)
 	}
 }

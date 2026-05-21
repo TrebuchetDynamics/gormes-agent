@@ -14,7 +14,9 @@ The Unix and Windows installers are release-first: they fetch the latest signed 
 
 - [Linux and macOS](./linux-macos/) — `install.sh` one-liner, inspect-first variant, customization flags, and `gormes doctor --offline` verification.
 - [Windows native](./windows/) — `install.ps1` one-liner, inspect-first variant, PowerShell parameters, and verification.
+- [Termux](./termux/) — no-root Android arm64/aarch64 install, foreground gateway operation, and remote-executor boundaries.
 - [From source](./from-source/) — `git clone` plus `CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes`, and when to prefer source over the installer (advanced, air-gapped, custom build flags).
+- [Update and uninstall](./update-uninstall/) — update, verify, dry-run removal, and local state cleanup.
 
 ## Platform support
 

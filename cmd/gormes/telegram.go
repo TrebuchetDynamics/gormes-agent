@@ -18,7 +18,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gonchotools"
+	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -114,8 +114,9 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 
 	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	gonchoCfg := cfg.Goncho.RuntimeConfig()
-	gonchoCfg.SessionDirectory = smap
-	gonchotools.RegisterHonchoTools(reg, newGonchoRuntimeService(mstore.DB(), gonchoCfg, slog.Default(), hc, cfg.Hermes.Model))
+	gonchoCfg.SessionDirectory = &internalgoncho.SessionDirectoryAdapter{Map: smap}
+	svc := newChannelGonchoService(mstore.DB(), gonchoCfg, slog.Default(), hc, cfg.Hermes.Model)
+	registerChannelGonchoTools(reg, svc)
 
 	tm := telemetry.New()
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())

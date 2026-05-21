@@ -1068,7 +1068,7 @@
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
       ],
-      "no_test_required": "Documentation/research/planning row — automated tests not applicable",
+      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable",
       "done_signal": [
         "The pure-core tool tranche is represented by concrete child rows and this umbrella is not selected for implementation."
       ],
@@ -2263,7 +2263,7 @@
         "TestVideoAnalyze_LocalPathSanitization proves directory-traversal and absolute-path inputs are bounded by the workspace root and rejected with workspace_root_violation evidence.",
         "TestVideoAnalyze_URLSchemeAllowlist proves only http/https URL schemes pass to a fake fetcher; file/ftp/data are rejected."
       ],
-      "note": "Complete: video_analyze tool registered via NewVideoAnalyzeTool/VideoAnalyzeConfig. Fixture-proven against fakeVideoAnalyzeProvider with vision routing, unsupported provider rejection, workspace path sanitization, and URL scheme allowlist. No real Gemini transport — provider seam ready for downstream adapter rows.",
+      "note": "Complete: video_analyze tool registered via NewVideoAnalyzeTool/VideoAnalyzeConfig. Fixture-proven against fakeVideoAnalyzeProvider with vision routing, unsupported provider rejection, workspace path sanitization, and URL scheme allowlist. No real Gemini transport \u2014 provider seam ready for downstream adapter rows.",
       "write_scope": [
         "internal/tools/video_analyze.go",
         "internal/tools/video_analyze_test.go",
@@ -2315,7 +2315,7 @@
     "item": {
       "name": "MCP stdio transport + tool/list discovery",
       "status": "complete",
-      "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests — deterministic over an in-process fake server with no real subprocess",
+      "contract": "internal/tools/mcp_stdio.go exposes a stdio MCP client (NewStdioClient(def MCPServerDefinition, opts StdioClientOpts) (*StdioClient, error); (*StdioClient).Initialize(ctx) error; (*StdioClient).ListTools(ctx) ([]MCPRawTool, error); (*StdioClient).Close() error) that speaks JSON-RPC over a stdio.ReadWriteCloser injected from tests \u2014 deterministic over an in-process fake server with no real subprocess",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2389,7 +2389,7 @@
     "item": {
       "name": "MCP HTTP transport + tool/list discovery",
       "status": "complete",
-      "contract": "internal/tools/mcp_http.go exposes an HTTP MCP client (NewHTTPClient(def MCPServerDefinition, opts HTTPClientOpts) (*HTTPClient, error); (*HTTPClient).Initialize(ctx) error; (*HTTPClient).ListTools(ctx) ([]MCPRawTool, error); (*HTTPClient).Close() error) that speaks JSON-RPC over an injectable http.RoundTripper — deterministic over httptest.Server in unit tests with no real network egress",
+      "contract": "internal/tools/mcp_http.go exposes an HTTP MCP client (NewHTTPClient(def MCPServerDefinition, opts HTTPClientOpts) (*HTTPClient, error); (*HTTPClient).Initialize(ctx) error; (*HTTPClient).ListTools(ctx) ([]MCPRawTool, error); (*HTTPClient).Close() error) that speaks JSON-RPC over an injectable http.RoundTripper \u2014 deterministic over httptest.Server in unit tests with no real network egress",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2458,7 +2458,7 @@
     "item": {
       "name": "MCP schema normalization + structured-content adapter",
       "status": "complete",
-      "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings — sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
+      "contract": "internal/tools/mcp_normalize.go converts MCPRawTool slices and tools/call results into native tool descriptors and model-facing strings \u2014 sanitizes tool names, validates InputSchema is a JSON-Schema object, flattens structured content vs text content into a single string, isolates server stderr to a per-server log path, and emits a `tools/list_changed`-style refresh hook so dynamic discovery updates replace stale descriptors deterministically",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
@@ -2848,7 +2848,7 @@
         "docs/content/building-gormes/openclaw-platform-parity-audit.md"
       ],
       "ready_when": [
-        "ACP server side (5.H) is validated — server manifest, auth, session, tools, permissions, events.",
+        "ACP server side (5.H) is validated \u2014 server manifest, auth, session, tools, permissions, events.",
         "Gateway session store supports key/label resolution."
       ],
       "not_ready_when": [
@@ -4301,7 +4301,7 @@
         "TestRedactionDefaultOn_NewConfigEnablesRedaction proves a fresh Gormes config has redaction enabled by default.",
         "TestRedactionDefaultOn_ExplicitOptOutHonored proves `redaction.enabled: false` in config disables redaction and is logged as an explicit operator choice."
       ],
-      "note": "Complete 2026-05-07T19:23:35Z: writeCredentialPoolAuthStore now uses tools.AtomicReplace (tempfile → fsync → rename) instead of raw os.WriteFile, closing the auth.json TOCTOU window. New internal/redaction package provides RedactionConfig with default-on contract and explicit operator opt-out via Enabled=false. Tests prove no-torn-write, mode preservation, tempfile cleanup, and default-on/opt-out redaction behavior.",
+      "note": "Complete 2026-05-07T19:23:35Z: writeCredentialPoolAuthStore now uses tools.AtomicReplace (tempfile \u2192 fsync \u2192 rename) instead of raw os.WriteFile, closing the auth.json TOCTOU window. New internal/redaction package provides RedactionConfig with default-on contract and explicit operator opt-out via Enabled=false. Tests prove no-torn-write, mode preservation, tempfile cleanup, and default-on/opt-out redaction behavior.",
       "write_scope": [
         "internal/auth/atomic_write.go",
         "internal/auth/atomic_write_test.go",
@@ -4399,7 +4399,8 @@
       ],
       "blocked_by": [],
       "not_ready_when": [],
-      "unblocks": []
+      "unblocks": [],
+      "note": "Complete 2026-05-19: AtomicWrite + AtomicReplace already implemented in internal/tools/atomic_replace.go with 4 passing tests (nominal, perms, partial cleanup, non-existent dir)."
     }
   },
   {
@@ -4457,7 +4458,7 @@
       "name": "Checkpoints CLI (status/list/prune/clear/clear-legacy)",
       "priority": "P2",
       "status": "complete",
-      "contract": "Gormes exposes a `gormes checkpoints` CLI commandtree mirroring Hermes' `hermes_cli/checkpoints.py` (faa13e49f): bare `gormes checkpoints` → status, `gormes checkpoints status [--limit N]` → total size + project count + per-project breakdown with workdir/commits/last-touch/state, `gormes checkpoints list [--limit N]` → alias for status, `gormes checkpoints prune [--retention-days N] [--max-size-mb N] [--keep-orphans]` → delete orphan/stale checkpoints and GC the store with a confirmation prompt, `gormes checkpoints clear [-f|--force]` → delete the entire checkpoint base (asks confirmation unless -f), `gormes checkpoints clear-legacy [-f|--force]` → delete only legacy archive directories. All commands consume the existing internal/tools.CheckpointManager read model (store_status, prune, clear, clear_legacy) and require no live agent, provider, network, or gateway. Output formatting mirrors Hermes: bytes in human-readable units (B/KB/MB/GB/TB), timestamps in relative age (Xs/m/h/d ago), orphan/live state flags, and per-project columnar layout.",
+      "contract": "Gormes exposes a `gormes checkpoints` CLI commandtree mirroring Hermes' `hermes_cli/checkpoints.py` (faa13e49f): bare `gormes checkpoints` \u2192 status, `gormes checkpoints status [--limit N]` \u2192 total size + project count + per-project breakdown with workdir/commits/last-touch/state, `gormes checkpoints list [--limit N]` \u2192 alias for status, `gormes checkpoints prune [--retention-days N] [--max-size-mb N] [--keep-orphans]` \u2192 delete orphan/stale checkpoints and GC the store with a confirmation prompt, `gormes checkpoints clear [-f|--force]` \u2192 delete the entire checkpoint base (asks confirmation unless -f), `gormes checkpoints clear-legacy [-f|--force]` \u2192 delete only legacy archive directories. All commands consume the existing internal/tools.CheckpointManager read model (store_status, prune, clear, clear_legacy) and require no live agent, provider, network, or gateway. Output formatting mirrors Hermes: bytes in human-readable units (B/KB/MB/GB/TB), timestamps in relative age (Xs/m/h/d ago), orphan/live state flags, and per-project columnar layout.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -4476,8 +4477,8 @@
         "cmd/gormes/checkpoints.go"
       ],
       "ready_when": [
-        "Checkpoint shadow-repo GC policy is complete (verified — internal/tools/checkpoint_manager.go exists with NewCheckpointManager, Status, store_status semantics).",
-        "File read dedup cache invalidation and wrapper guard is complete (verified — this is the read-contract guard).",
+        "Checkpoint shadow-repo GC policy is complete (verified \u2014 internal/tools/checkpoint_manager.go exists with NewCheckpointManager, Status, store_status semantics).",
+        "File read dedup cache invalidation and wrapper guard is complete (verified \u2014 this is the read-contract guard).",
         "The slice can test with t.TempDir checkpoint roots and synthetic shadow repos only; no live git, provider, network, gateway, or write-capable file tools are needed.",
         "internal/tools/checkpoint_manager.go exposes or can be extended to expose store_status, prune, clear_all, and clear_legacy as exported functions the CLI can call."
       ],
@@ -7159,7 +7160,7 @@
       "write_scope": [
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
-      "no_test_required": "Documentation/research/planning row — automated tests not applicable",
+      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable",
       "done_signal": [
         "Parent row remains non-selectable and source-backed while the dependency-ordered child rows provide the runnable implementation and tests."
       ]
@@ -7806,7 +7807,7 @@
         "The row is assigned directly instead of the smaller `Cron prompt/script safety + pre-run script contract` helper row above."
       ],
       "note": "Deprecated umbrella retained for roadmap continuity; the executable safety helper is the earlier row with the same title and full contract metadata. Do not assign this duplicate note-only row.",
-      "no_test_required": "Documentation/research/planning row — automated tests not applicable"
+      "no_test_required": "Documentation/research/planning row \u2014 automated tests not applicable"
     }
   },
   {
@@ -9131,9 +9132,9 @@
     "item": {
       "name": "Hermes x_search tool and auth surface",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Expose Hermes' first-class `x_search` tool in Gormes with a descriptor, OAuth/API-key auth status, query/result envelope, rate-limit/degraded errors, and registry/toolset visibility without requiring live X credentials in tests.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
       "module": "tools",
@@ -9170,7 +9171,20 @@
       ],
       "done_signal": [
         "x_search descriptor, auth status, fake-result normalization, and degraded errors are proven without live X credentials."
-      ]
+      ],
+      "note": "Complete 2026-05-19: TDD shipped internal/tools/x_search.go with XSearchTool implementing Name/Description/Schema/Execute, XSearchConfig with AuthMode/APIKey/OAuthToken/OAuthExpiry/Fake/RateLimit, AuthStatus() returning redacted key or expired diagnostics, fake result normalization with bounded XSearchResponse/XSearchResult/XSearchMetrics envelopes, and rate-limit/auth-failure degradation. Registered in cmd/gormes/registry.go via RegisterXSearchTools with Fake mode. 10 tests cover auth status (missing/API-key/OAuth/expired), execution (missing-auth/fake-results/rate-limit), registry integration, and schema query field.",
+      "evidence": {
+        "completed_at": "2026-05-19T00:00:00Z",
+        "implementation": [
+          "internal/tools/x_search.go: XSearchTool, XSearchConfig, XSearchAuthStatus, XSearchResponse, XSearchResult, XSearchMetrics, NewXSearchTools(), RegisterXSearchTools()",
+          "cmd/gormes/registry.go: RegisterXSearchTools call with Fake mode"
+        ],
+        "tests": [
+          "RED: go test ./internal/tools -run TestXSearch -count=1 failed before implementation",
+          "GREEN: go test ./internal/tools -run 'TestXSearch|TestToolRegistry' -count=1 -> ok (10 tests)",
+          "go run ./cmd/progress validate -> validated 9 phases"
+        ]
+      }
     }
   },
   {
@@ -9924,7 +9938,7 @@
         "summarize_memories(filter) compresses related entries",
         "forget_memory(id) removes from active index (soft delete)",
         "All operations are tool-descriptor compatible (MCP-style schema)",
-        "Agent can chain operations (retrieve → summarize → store)",
+        "Agent can chain operations (retrieve \u2192 summarize \u2192 store)",
         "Agent memory is isolated by agent/workspace/peer in shared local stores"
       ],
       "note": "Complete: store_memory now persists metadata into Goncho provenance; retrieve/update/summarize/forget are proven through tool calls; summarize_memories returns deterministic chainable summary text; all five tools expose MCP-compatible descriptors plus tools.OperationSpec memory audit metadata; local stores scope active retrieval and mutation by agent/workspace/peer so multi-agent memory remains independent.",

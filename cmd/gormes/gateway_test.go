@@ -19,6 +19,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 type fakeShutdownManager struct {
@@ -392,7 +393,7 @@ func TestGatewaySignalLoopDrainsBeforeCancel(t *testing.T) {
 		defer close(done)
 		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, slog.Default(), func(code int) {
 			forceExit <- code
-		})
+		}, tools.TermuxWakeLockManager{})
 	}()
 
 	sigCh <- syscall.SIGTERM
@@ -449,7 +450,7 @@ func TestGatewaySignalLoopReloadsOnSIGHUPWithoutCancel(t *testing.T) {
 		defer close(done)
 		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, slog.Default(), func(code int) {
 			forceExit <- code
-		})
+		}, tools.TermuxWakeLockManager{})
 	}()
 
 	sigCh <- syscall.SIGHUP
@@ -516,7 +517,7 @@ func TestGatewaySignalLoopDoesNotLogReloadFailureSecrets(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, log, func(int) {})
+		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, log, func(int) {}, tools.TermuxWakeLockManager{})
 	}()
 
 	sigCh <- syscall.SIGHUP

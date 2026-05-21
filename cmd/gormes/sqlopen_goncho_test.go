@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -50,6 +50,26 @@ func TestSqlOpenGoncho_SetsBusyTimeout(t *testing.T) {
 	}
 	if mode != "wal" {
 		t.Errorf("journal_mode = %q, want wal", mode)
+	}
+}
+
+func TestSqlOpenGoncho_AppliesObservationMigrations(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "memory.db")
+	db, err := sqlOpenGoncho(tmp)
+	if err != nil {
+		t.Fatalf("sqlOpenGoncho: %v", err)
+	}
+	defer db.Close()
+
+	for _, table := range []string{"goncho_observations", "goncho_audit_events"} {
+		var name string
+		if err := db.QueryRowContext(context.Background(), `
+			SELECT name
+			FROM sqlite_master
+			WHERE type = 'table' AND name = ?
+		`, table).Scan(&name); err != nil {
+			t.Fatalf("missing %s table after sqlOpenGoncho: %v", table, err)
+		}
 	}
 }
 

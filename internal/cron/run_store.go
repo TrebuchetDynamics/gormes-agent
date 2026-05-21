@@ -37,7 +37,15 @@ func NewRunStore(db *sql.DB) *RunStore {
 // status / suppression_reason values, so the caller gets an error
 // rather than garbage in the audit log.
 func (s *RunStore) RecordRun(ctx context.Context, r Run) error {
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.RecordRunWithID(ctx, r)
+	return err
+}
+
+// RecordRunWithID persists one run and returns the SQLite row id assigned to
+// it. Callers that need a durable artifact path can use the id without adding a
+// second query or weakening the existing cron_runs audit contract.
+func (s *RunStore) RecordRunWithID(ctx context.Context, r Run) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO cron_runs
 		  (job_id, started_at, finished_at, prompt_hash, status,
 		   delivered, suppression_reason, output_preview, error_msg)
@@ -53,9 +61,13 @@ func (s *RunStore) RecordRun(ctx context.Context, r Run) error {
 		runNullIfEmpty(r.ErrorMsg),
 	)
 	if err != nil {
-		return fmt.Errorf("cron: record run: %w", err)
+		return 0, fmt.Errorf("cron: record run: %w", err)
 	}
-	return nil
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("cron: record run id: %w", err)
+	}
+	return id, nil
 }
 
 // LatestRuns returns up to `limit` most-recent runs for the given

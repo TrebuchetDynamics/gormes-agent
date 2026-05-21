@@ -15,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
@@ -53,6 +54,8 @@ type SetupHealthScreen struct {
 	message  string
 	err      error
 	fix      *providerFixState
+	width    int
+	height   int
 }
 
 // HealthOption configures a SetupHealthScreen.
@@ -69,7 +72,7 @@ func WithHealthSource(source HealthSource) HealthOption {
 
 // NewSetupHealthScreen returns the Setup tab used by `gormes admin`.
 func NewSetupHealthScreen(opts ...HealthOption) *SetupHealthScreen {
-	s := &SetupHealthScreen{source: defaultHealthSource{}}
+	s := &SetupHealthScreen{source: defaultHealthSource{}, width: 80, height: 24}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -127,6 +130,8 @@ func (s *SetupHealthScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		return s.updateFix(msg)
 	}
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		s.width, s.height = msg.Width, msg.Height
 	case healthCheckedMsg:
 		s.applyHealth(msg.items, msg.err)
 	case tea.KeyMsg:
@@ -145,6 +150,7 @@ func (s *SetupHealthScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			if item, ok := s.selectedItem(); ok && item.Fixable {
 				cfg, _ := config.Load(nil)
 				s.fix = newProviderFixState(cfg)
+				s.fix.resize(s.viewWidth(), s.viewHeight())
 				s.message = ""
 			}
 		}
@@ -167,7 +173,7 @@ func (s *SetupHealthScreen) View() string {
 	b.WriteString("\n")
 	if len(s.items) == 0 {
 		b.WriteString("no health checks available\n")
-		return b.String()
+		return clampSetupHealthView(b.String(), s.viewWidth(), s.viewHeight())
 	}
 	for i, item := range s.items {
 		cursor := " "
@@ -180,7 +186,126 @@ func (s *SetupHealthScreen) View() string {
 		}
 		b.WriteByte('\n')
 	}
-	return b.String()
+	return clampSetupHealthView(b.String(), s.viewWidth(), s.viewHeight())
+}
+
+func (s *SetupHealthScreen) viewWidth() int {
+	if s.width <= 0 {
+		return 80
+	}
+	return max(1, s.width)
+}
+
+func (s *SetupHealthScreen) viewHeight() int {
+	if s.height <= 0 {
+		return 24
+	}
+	return max(1, s.height)
+}
+
+func clampSetupHealthView(view string, width, height int) string {
+	if width <= 0 {
+		width = 80
+	}
+	var wrapped []string
+	for _, line := range strings.Split(view, "\n") {
+		wrapped = append(wrapped, wrapSetupHealthLine(strings.TrimRight(line, " \t"), width)...)
+	}
+	if height > 0 && len(wrapped) > height {
+		wrapped = clampSetupHealthLines(wrapped, width, height)
+	}
+	return strings.TrimRight(strings.Join(wrapped, "\n"), "\n")
+}
+
+func wrapSetupHealthLine(line string, width int) []string {
+	original := line
+	if line == "" {
+		return []string{""}
+	}
+	var lines []string
+	for lipgloss.Width(line) > width {
+		cut := setupHealthWrapCut(line, width)
+		lines = append(lines, strings.TrimRight(line[:cut], " \t"))
+		line = strings.TrimLeft(line[cut:], " \t")
+		if line == "" {
+			break
+		}
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	if len(lines) <= 3 {
+		return lines
+	}
+	marker := "… value omitted; resize"
+	if strings.Contains(original, "[Fix]") {
+		marker = "[Fix] … value omitted; resize"
+	}
+	return append(lines[:2], setupHealthTrimToWidth(marker, width))
+}
+
+func clampSetupHealthLines(lines []string, width, height int) []string {
+	if height <= 0 || len(lines) <= height {
+		return lines
+	}
+	if height <= 2 {
+		return []string{setupHealthTrimToWidth("terminal too small; resize", width)}
+	}
+	marker := setupHealthTrimToWidth("… omitted; resize", width)
+	tailCount := 1
+	if height >= 6 {
+		tailCount = 2
+	}
+	headCount := height - tailCount - 1
+	if headCount < 1 {
+		headCount = 1
+	}
+	out := append([]string(nil), lines[:headCount]...)
+	out = append(out, marker)
+	out = append(out, lines[len(lines)-tailCount:]...)
+	return out
+}
+
+func setupHealthWrapCut(line string, width int) int {
+	lastSpace := -1
+	used := 0
+	for i, r := range line {
+		if r == ' ' || r == '\t' {
+			lastSpace = i
+		}
+		rw := lipgloss.Width(string(r))
+		if used+rw > width {
+			if lastSpace > 0 {
+				return lastSpace
+			}
+			if i > 0 {
+				return i
+			}
+			return i + len(string(r))
+		}
+		used += rw
+	}
+	return len(line)
+}
+
+func setupHealthTrimToWidth(text string, width int) string {
+	if width <= 0 || lipgloss.Width(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+	ellipsis := "…"
+	limit := width - lipgloss.Width(ellipsis)
+	used := 0
+	for i, r := range text {
+		rw := lipgloss.Width(string(r))
+		if used+rw > limit {
+			return strings.TrimRight(text[:i], " \t") + ellipsis
+		}
+		used += rw
+	}
+	return text
 }
 
 func (s *SetupHealthScreen) ShortHelp() []KeyHelp {
@@ -205,6 +330,11 @@ func (s *SetupHealthScreen) selectedItem() (HealthItem, bool) {
 }
 
 func (s *SetupHealthScreen) updateFix(msg tea.Msg) (Screen, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		s.width, s.height = size.Width, size.Height
+		s.fix.resize(s.viewWidth(), s.viewHeight())
+		return s, nil
+	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return s, nil
@@ -280,6 +410,8 @@ type providerFixState struct {
 	index      int
 	input      textinput.Model
 	pickCursor int
+	width      int
+	height     int
 }
 
 var adminProviderEndpoints = map[string]string{
@@ -323,6 +455,8 @@ func newProviderFixState(cfg config.Config) *providerFixState {
 		answers:    map[string]wizard.Answer{},
 		defaults:   defaults,
 		pickCursor: providerChoiceIndex(defaults.Provider),
+		width:      80,
+		height:     24,
 	}
 	f.prepareInput()
 	return f
@@ -370,24 +504,107 @@ func (f *providerFixState) View() string {
 	if !ok {
 		return ""
 	}
+	if f.viewHeight() <= 6 {
+		return f.compactView(step)
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Provider setup %d/%d\n\n", f.index+1, len(f.steps))
 	fmt.Fprintf(&b, "%s\n\n", step.Prompt)
 	switch step.Kind {
 	case wizard.KindPick:
-		for i, choice := range step.Choices {
-			cursor := " "
-			if i == f.pickCursor {
-				cursor = ">"
-			}
-			fmt.Fprintf(&b, "%s %s\n", cursor, choice.Label)
+		f.writePickView(&b, step)
+	case wizard.KindText, wizard.KindPassword:
+		b.WriteString(f.input.View())
+		b.WriteByte('\n')
+		if lipgloss.Width(f.input.Value()) > setupHealthInputWidth(f.viewWidth()) {
+			b.WriteString(setupHealthTrimToWidth("… value omitted; resize", f.viewWidth()))
+			b.WriteByte('\n')
+		}
+	}
+	b.WriteString("\nEnter submit  Esc cancel")
+	return clampSetupHealthView(b.String(), f.viewWidth(), f.viewHeight())
+}
+
+func (f *providerFixState) compactView(step wizard.Step) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Provider setup %d/%d\n", f.index+1, len(f.steps))
+	fmt.Fprintf(&b, "%s\n", step.Prompt)
+	switch step.Kind {
+	case wizard.KindPick:
+		if f.pickCursor >= 0 && f.pickCursor < len(step.Choices) {
+			fmt.Fprintf(&b, "> %s\n", step.Choices[f.pickCursor].Label)
 		}
 	case wizard.KindText, wizard.KindPassword:
 		b.WriteString(f.input.View())
 		b.WriteByte('\n')
+		if lipgloss.Width(f.input.Value()) > setupHealthInputWidth(f.viewWidth()) {
+			b.WriteString(setupHealthTrimToWidth("… value omitted; resize", f.viewWidth()))
+			b.WriteByte('\n')
+		}
 	}
-	b.WriteString("\nEnter submit  Esc cancel")
-	return b.String()
+	b.WriteString("Enter submit  Esc cancel")
+	return clampSetupHealthView(b.String(), f.viewWidth(), f.viewHeight())
+}
+
+func (f *providerFixState) writePickView(b *strings.Builder, step wizard.Step) {
+	if f.viewHeight() <= 8 && f.pickCursor >= 0 && f.pickCursor < len(step.Choices) {
+		fmt.Fprintf(b, "> %s\n", step.Choices[f.pickCursor].Label)
+		return
+	}
+	start, end := 0, len(step.Choices)
+	if f.viewHeight() <= 10 && len(step.Choices) > 3 {
+		start = f.pickCursor - 1
+		if start < 0 {
+			start = 0
+		}
+		end = start + 3
+		if end > len(step.Choices) {
+			end = len(step.Choices)
+			start = max(0, end-3)
+		}
+		if start > 0 {
+			fmt.Fprintln(b, "… earlier providers omitted; resize")
+		}
+	}
+	for i := start; i < end; i++ {
+		choice := step.Choices[i]
+		cursor := " "
+		if i == f.pickCursor {
+			cursor = ">"
+		}
+		fmt.Fprintf(b, "%s %s\n", cursor, choice.Label)
+	}
+	if end < len(step.Choices) {
+		fmt.Fprintln(b, "… more providers omitted; resize")
+	}
+}
+
+func (f *providerFixState) resize(width, height int) {
+	if width > 0 {
+		f.width = width
+	}
+	if height > 0 {
+		f.height = height
+	}
+	f.input.Width = setupHealthInputWidth(f.viewWidth())
+}
+
+func (f *providerFixState) viewWidth() int {
+	if f.width <= 0 {
+		return 80
+	}
+	return max(1, f.width)
+}
+
+func (f *providerFixState) viewHeight() int {
+	if f.height <= 0 {
+		return 24
+	}
+	return max(1, f.height)
+}
+
+func setupHealthInputWidth(terminalWidth int) int {
+	return max(1, terminalWidth-4)
 }
 
 func (f *providerFixState) Result() (providerSetupResult, error) {
@@ -447,6 +664,7 @@ func (f *providerFixState) prepareInput() {
 	input := textinput.New()
 	input.Focus()
 	input.Prompt = "> "
+	input.Width = setupHealthInputWidth(f.viewWidth())
 	switch step.Kind {
 	case wizard.KindPassword:
 		input.EchoMode = textinput.EchoPassword

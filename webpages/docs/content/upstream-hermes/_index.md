@@ -1,10 +1,16 @@
 ---
 weight: 0
-title: "Hermes Agent Documentation"
-description: "The self-improving AI agent built by Nous Research. A built-in learning loop that creates skills from experience, improves them during use, and remembers across sessions."
+title: "Upstream Hermes Archive"
+description: "Mirrored upstream Hermes documentation used for Gormes compatibility research. Not Gormes setup instructions."
 hide_table_of_contents: true
 ---
 
+
+# Upstream Hermes Archive
+
+These are mirrored upstream Hermes docs used for compatibility research. They
+are not Gormes setup instructions. To run Gormes, start with
+[Quickstart](../start-here/).
 
 # Hermes Agent
 

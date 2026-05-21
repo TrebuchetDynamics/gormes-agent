@@ -182,6 +182,46 @@ witness.
   publication as a regular non-`$HOME` file and covers the unchanged
   non-Termux symlink path.
 
+### [termux-exec-args-injection] Termux `termux-exec` injects binary path into `os.Args`, breaking Cobra parsing
+
+- **First seen**: 2026-05-18 against operator transcript on Termux/Android
+  16 (Samsung SM-S, API 36). Witness: after install rollback, running
+  `gormes --version` produced
+  `Error: unknown command "/data/data/com.termux/files/usr/bin/gormes" for "gormes"`.
+- **Surface touched**: `cmd/gormes/main.go` argument parsing — every
+  invocation on affected Termux builds is broken because the first
+  positional argument is the binary's absolute path.
+- **Environment**: Termux on Android 10+ with `termux-exec` active
+  (`LD_PRELOAD` intercepts `exec()` and delegates through
+  `/system/bin/linker64`). `termux-app` issue #4630 documents that
+  compiled Go programs receive their own full path as `os.Args[1]`.
+- **Root cause**: `termux-exec` inserts the absolute path to the
+  executable as an extra argument in `argv`. When the operator runs
+  `gormes --version`, the Go runtime sees
+  `os.Args = ["gormes", "/data/data/com.termux/files/usr/bin/gormes", "--version"]`
+  (or similar, depending on invocation path). `main.go` passes
+  `os.Args[1:]` to Cobra, so Cobra receives
+  `["/data/data/com.termux/files/usr/bin/gormes", "--version"]` and
+  treats the absolute path as an unknown subcommand name, failing before
+  it ever processes `--version`.
+- **Not a build defect**: the android-arm64 binary is correct; this is a
+  Termux runtime `exec()` family wrapper behavior that affects Go programs
+  specifically.
+- **Reproduction**: Build or install `gormes` on a Termux device where
+  `termux-exec` is loaded, then run any command such as
+  `gormes --version`, `gormes version`, or `gormes doctor --offline`.
+- **Status**: `fixed-in-development` for the next release.
+  `cmd/gormes/main.go:sanitizeTermuxExecArgs` detects the injected path
+  by comparing `os.Args[1]` (and `os.Args[2]` in the less-common shift
+  case) against `os.Executable()`. When they match on `GOOS=android`,
+  the duplicate is stripped before the args reach Cobra. This makes
+  `gormes --version`, `gormes version`, and all subcommands work
+  correctly under Termux without affecting Linux, macOS, or Windows.
+- **Regression fence**:
+  `cmd/gormes/termux_exec_args_test.go` covers both injection positions
+  (args[0] and args[1]), normal args passthrough, and the empty-exe
+  no-op path.
+
 ---
 
 ## Mitigated Issues

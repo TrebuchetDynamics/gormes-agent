@@ -15,9 +15,10 @@ import (
 	"github.com/spf13/cobra"
 	bolt "go.etcd.io/bbolt"
 
+	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gonchotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
@@ -37,6 +38,8 @@ func newGonchoCommand() *cobra.Command {
 	cmd.AddCommand(newGonchoDoctorCommand())
 	cmd.AddCommand(newGonchoRecallDiagnosticsCommand())
 	cmd.AddCommand(newGonchoRecallReplayCommand())
+	cmd.AddCommand(newGonchoMemoryCommand())
+	cmd.AddCommand(newGonchoContinueCommand())
 	return cmd
 }
 
@@ -109,7 +112,7 @@ type contextDryRunStatus struct {
 	Peer           string                              `json:"peer"`
 	SessionKey     string                              `json:"session_key"`
 	Representation string                              `json:"representation"`
-	ScopeEvidence  *memory.CrossChatRecallEvidence     `json:"scope_evidence,omitempty"`
+	ScopeEvidence  *goncho.CrossChatRecallEvidence     `json:"scope_evidence,omitempty"`
 	SearchResults  []goncho.SearchHit                  `json:"search_results,omitempty"`
 	Unavailable    []goncho.ContextUnavailableEvidence `json:"unavailable"`
 }
@@ -371,7 +374,7 @@ func openSessionDirectoryForGonchoDoctor(scope string) (goncho.SessionDirectory,
 	if err != nil {
 		return nil, func() {}, fmt.Errorf("session catalog: open %s: %w", path, err)
 	}
-	return smap, func() { _ = smap.Close() }, nil
+	return &internalgoncho.SessionDirectoryAdapter{Map: smap}, func() { _ = smap.Close() }, nil
 }
 
 func currentGonchoDoctorConfig(cfg config.Config) gonchoDoctorConfig {
@@ -757,7 +760,7 @@ func formatGonchoDoctorReport(report gonchoDoctorReport) string {
 	return b.String()
 }
 
-func formatCrossChatScopeEvidence(evidence *memory.CrossChatRecallEvidence) string {
+func formatCrossChatScopeEvidence(evidence *goncho.CrossChatRecallEvidence) string {
 	if evidence == nil {
 		return "scope_evidence: none\n"
 	}

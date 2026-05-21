@@ -108,7 +108,7 @@ func RenderHermesChrome(in HermesChromeInput) string {
 		parts = append(parts, in.Completions)
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+	return trimTrailingLineWhitespace(lipgloss.JoinVertical(lipgloss.Left, parts...))
 }
 
 // HermesChromeUseAltScreen reports whether the bottom-pinned Hermes chrome
@@ -116,6 +116,17 @@ func RenderHermesChrome(in HermesChromeInput) string {
 // TUI uses an alternate screen by default and only skips it for explicit inline
 // mode. Gormes' Bubble Tea surface is likewise a full-screen renderer; normal
 // scrollback leaves stale frame fragments visible after render ticks.
+func trimTrailingLineWhitespace(s string) string {
+	if s == "" {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " \t")
+	}
+	return strings.Join(lines, "\n")
+}
+
 func HermesChromeUseAltScreen() bool {
 	return true
 }

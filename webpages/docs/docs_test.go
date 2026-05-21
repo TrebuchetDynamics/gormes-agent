@@ -709,11 +709,12 @@ func TestAstroBuildProducesRenderedContent(t *testing.T) {
 	// content/upstream-hermes/user-guide/cli.md -> /upstream-hermes/user-guide/cli/.
 	checks := map[string][]string{
 		"index.html": {
-			"Getting Started",
+			"Quickstart",
 			"Operate",
 			"Reference",
-			"Architecture",
-			"Building Gormes",
+			"Concepts",
+			"Build Gormes",
+			"Archive &amp; Research",
 		},
 		filepath.Join("why-gormes", "index.html"): {
 			"Operational Moat",

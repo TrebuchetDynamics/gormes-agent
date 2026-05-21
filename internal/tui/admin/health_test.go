@@ -15,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestAdminHealth_RendersMissingProviderAndAuthCallouts(t *testing.T) {
@@ -52,6 +53,155 @@ func TestAdminHealth_RendersHealthyChecksWithoutFix(t *testing.T) {
 		}
 		if item.Fixable {
 			t.Fatalf("health item %q is fixable in healthy state\n%s", item.ID, got)
+		}
+	}
+}
+
+func TestAdminHealth_SetupScreenBoundsCrampedLongRows(t *testing.T) {
+	long := strings.Repeat("x", 220)
+	screen := NewSetupHealthScreen(WithHealthSource(healthSourceFunc(func(context.Context) ([]HealthItem, error) {
+		return []HealthItem{
+			{ID: "provider", Status: doctor.StatusFail, Title: "provider configuration " + long, Detail: "endpoint missing " + long, Fixable: true},
+			{ID: "auth", Status: doctor.StatusFail, Title: "auth credentials " + long, Detail: "credential pool missing " + long, Fixable: true},
+		}, nil
+	})))
+	updated, _ := screen.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	screen = updated.(*SetupHealthScreen)
+
+	view := screen.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("setup health view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("setup health line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Setup health", "provider", "[Fix]", "omitted", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup health view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestAdminHealth_ShellForwardsResizeToSetupScreen(t *testing.T) {
+	long := strings.Repeat("x", 220)
+	screen := NewSetupHealthScreen(WithHealthSource(healthSourceFunc(func(context.Context) ([]HealthItem, error) {
+		return []HealthItem{{ID: "provider", Status: doctor.StatusFail, Title: "provider configuration " + long, Detail: "endpoint missing " + long, Fixable: true}}, nil
+	})))
+	shell := New(screen)
+	updated, _ := shell.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	shell = updated.(*Shell)
+
+	view := shell.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("shell setup view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("shell setup line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Setup health", "[Fix]", "omitted", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("shell setup view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestAdminHealth_ShellAppliesExistingSizeWhenSwitchingToSetup(t *testing.T) {
+	long := strings.Repeat("x", 220)
+	setup := NewSetupHealthScreen(WithHealthSource(healthSourceFunc(func(context.Context) ([]HealthItem, error) {
+		return []HealthItem{{ID: "provider", Status: doctor.StatusFail, Title: "provider configuration " + long, Detail: "endpoint missing " + long, Fixable: true}}, nil
+	})))
+	shell := New(&stubScreen{name: "Other"}, setup)
+	updated, _ := shell.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	shell = updated.(*Shell)
+	updated, _ = shell.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}})
+	shell = updated.(*Shell)
+
+	view := shell.View()
+	for _, line := range strings.Split(view, "\n") {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("switched setup line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Setup health", "[Fix]", "omitted", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("switched setup view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestAdminHealth_ShellProviderFixWizardFitsTerminalHeight(t *testing.T) {
+	isolateHealthHome(t)
+	screen := NewSetupHealthScreen(WithHealthSource(healthSourceFunc(func(context.Context) ([]HealthItem, error) {
+		return []HealthItem{{ID: healthItemProvider, Status: doctor.StatusFail, Title: "no provider", Detail: "hermes.endpoint is not configured", Fixable: true}}, nil
+	})))
+	shell := New(screen)
+	updated, _ := shell.Update(tea.WindowSizeMsg{Width: 32, Height: 8})
+	shell = updated.(*Shell)
+	updated, _ = shell.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	shell = updated.(*Shell)
+
+	view := shell.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("setup fix shell view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 32 {
+			t.Fatalf("setup fix shell line width %d exceeds 32:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Provider setup", "OpenAI", "Enter submit"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup fix shell view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestAdminHealth_ProviderFixWizardBoundsCrampedLongDefaults(t *testing.T) {
+	long := strings.Repeat("x", 220)
+	cfg := config.Config{}
+	cfg.Hermes.Provider = "openai-codex"
+	cfg.Hermes.Endpoint = "https://chatgpt.com/backend-api/codex/" + long
+	cfg.Hermes.Model = "gpt-5.2-codex-" + long
+	fix := newProviderFixState(cfg)
+	fix.resize(28, 8)
+
+	view := fix.View()
+	assertCrampedSetupView(t, view, 28, 8, []string{"Provider setup", "OpenAI Codex", "Enter submit"})
+
+	done, err := fix.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if err != nil || done {
+		t.Fatalf("provider select done=%v err=%v", done, err)
+	}
+	view = fix.View()
+	assertCrampedSetupView(t, view, 28, 8, []string{"Provider setup", "Endpoint URL", "omitted", "resize", "Enter submit"})
+}
+
+func assertCrampedSetupView(t *testing.T, view string, width, height int, wants []string) {
+	t.Helper()
+	lines := strings.Split(view, "\n")
+	if len(lines) > height {
+		t.Fatalf("view height = %d, want <= %d:\n%s", len(lines), height, view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > width {
+			t.Fatalf("line width %d exceeds %d:\n%q\n\nfull output:\n%s", got, width, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range wants {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("view missing %q:\n%s", want, view)
 		}
 	}
 }

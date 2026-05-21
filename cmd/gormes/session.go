@@ -33,6 +33,7 @@ func newSessionCommand() *cobra.Command {
 		RunDelete: runSessionDeleteCommand,
 		RunPrune:  runSessionPruneCommand,
 		RunBrowse: runSessionBrowseCommand,
+		RunRecap:  runSessionRecapCommand,
 		UnavailableCommand: func(spec sessionsmodule.UnavailableCommandSpec) *cobra.Command {
 			return newHermesUnavailableCommand(hermesUnavailableCommandSpec{
 				Use:   spec.Use,
@@ -608,4 +609,86 @@ func tuiSaveExportStem(sessionID string) string {
 		return "session"
 	}
 	return stem
+}
+
+func runSessionRecapCommand(cmd *cobra.Command, args []string) error {
+	limit, _ := cmd.Flags().GetInt("limit")
+	asJSON, _ := cmd.Flags().GetBool("json")
+
+	smap, err := sessionpkg.OpenBolt(config.SessionDBPath())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			if asJSON {
+				return emitSessionListJSON(cmd, nil)
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
+			return nil
+		}
+		return err
+	}
+	defer smap.Close()
+
+	ctx := context.Background()
+
+	if len(args) > 0 {
+		sessionID := strings.TrimSpace(args[0])
+		result, err := sessionpkg.GenerateSessionRecap(ctx, smap, sessionID, sessionpkg.RecapConfig{MaxEntries: limit})
+		if err != nil {
+			return err
+		}
+		if asJSON {
+			body, err := json.MarshalIndent(map[string]any{
+				"build":      newBuildProvenance(),
+				"session_id": result.SessionID,
+				"title":      result.Title,
+				"source":     result.Source,
+				"user_id":    result.UserID,
+				"created_at": result.CreatedAt,
+				"updated_at": result.UpdatedAt,
+				"tokens_in":  result.TokensIn,
+				"tokens_out": result.TokensOut,
+				"not_found":  result.NotFound,
+			}, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), string(body))
+			return nil
+		}
+		fmt.Fprint(cmd.OutOrStdout(), result.HumanOutput())
+		return nil
+	}
+
+	envelope, err := sessionpkg.GenerateRecap(ctx, smap, sessionpkg.RecapConfig{MaxEntries: limit})
+	if err != nil {
+		return err
+	}
+	if asJSON {
+		entries := make([]map[string]any, len(envelope.Entries))
+		for i, e := range envelope.Entries {
+			entries[i] = map[string]any{
+				"session_id": e.SessionID,
+				"title":      e.Title,
+				"source":     e.Source,
+				"user_id":    e.UserID,
+				"created_at": e.CreatedAt,
+				"updated_at": e.UpdatedAt,
+				"tokens_in":  e.TokensIn,
+				"tokens_out": e.TokensOut,
+			}
+		}
+		body, err := json.MarshalIndent(map[string]any{
+			"build":          newBuildProvenance(),
+			"total_sessions": envelope.TotalSessions,
+			"entries":        entries,
+			"truncated":      envelope.Truncated,
+		}, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
+	fmt.Fprint(cmd.OutOrStdout(), envelope.HumanOutput())
+	return nil
 }

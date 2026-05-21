@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 )
 
 func TestGonchoRecallReplayCommandTextShowsTimeline(t *testing.T) {
-	tracePath := filepath.Join("..", "..", "internal", "goncho", "testdata", "recall_trace", "stable_trace.golden.json")
+	tracePath := writeStableGonchoRecallTraceFixture(t)
 
 	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}),
 		"goncho", "recall-replay", "--trace", tracePath,

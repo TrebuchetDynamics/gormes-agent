@@ -1,6 +1,6 @@
 ---
 name: gormes-references
-description: When stuck implementing a Go feature for Gormes, jump to the right donor file under references/go-agent-os/ before re-deriving from scratch. Hermes Python defines the parity contract; Go donors (goclaw, nanobot, plandex, engram, trpc-agent-go, adk-go, axe) supply working Go shapes. Goclaw code is permitted in Gormes with provenance; other donors stay patterns-only unless individually authorized.
+description: Use when stuck implementing a Go feature for Gormes, looking for donor files under references/go-agent-os, shaping Hermes parity in idiomatic Go, checking GoClaw provenance, or comparing Go donors such as goclaw, nanobot, plandex, engram, trpc-agent-go, adk-go, or axe.
 ---
 
 # Gormes References

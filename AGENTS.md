@@ -56,6 +56,9 @@ Use these skills as the default routing surface:
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
 | Stuck on a Go implementation shape; want a donor file from `references/go-agent-os/` before writing code | `gormes-references` |
+| External library/framework/upstream source context before planning or implementation | `gormes-context-sourcing` |
+| Repeated runtime mechanics or service-layer cleanup after a feature works | `gormes-service-layer-refactor` |
+| PR feedback, CI failures, or bounded review-to-green iteration | `gormes-review-loop` |
 | Auditing or periodically refreshing README/public repository messaging | `gormes-readme` |
 | Improving `www.gormes.ai` landing page content or UI | `gormes-landing-web` |
 | Committing all dirty work, making `development` green, and pushing it | `gormes-git` |
@@ -142,6 +145,9 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `docs/development-skills/gormes-browser-harness/SKILL.md` |
 | Local run/install/runtime work, binary refresh, gateway ownership, or session DB locks | `docs/development-skills/gormes-dev-runtime/SKILL.md` |
 | Stuck on a Go implementation shape and want a donor file before writing code | `docs/development-skills/gormes-references/SKILL.md` |
+| External library/framework/upstream source context before planning or implementation | `docs/development-skills/gormes-context-sourcing/SKILL.md` |
+| Repeated runtime mechanics or service-layer cleanup after a feature works | `docs/development-skills/gormes-service-layer-refactor/SKILL.md` |
+| PR feedback, CI failures, or bounded review-to-green iteration | `docs/development-skills/gormes-review-loop/SKILL.md` |
 | Refreshing README.md or public repository claims from current evidence | `docs/development-skills/gormes-readme/SKILL.md` |
 | Improving the public landing page content or UI | `docs/development-skills/gormes-landing-web/SKILL.md` |
 | Committing all dirty work, making `development` green, and pushing it | `docs/development-skills/gormes-git/SKILL.md` |

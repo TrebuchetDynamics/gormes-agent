@@ -2,6 +2,7 @@ package doctor
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -98,6 +99,22 @@ func CheckTermuxRuntime(opts TermuxRuntimeOptions) CheckResult {
 		})
 	}
 
+	storageIssues := termuxStoragePathIssues(env)
+	if len(storageIssues) > 0 {
+		status = StatusWarn
+		items = append(items, ItemInfo{
+			Name:   "storage_paths",
+			Status: StatusWarn,
+			Note:   "paths may be on external storage with Android restrictions: " + strings.Join(storageIssues, "; ") + "; use internal Termux paths under $HOME or $PREFIX",
+		})
+	} else {
+		items = append(items, ItemInfo{
+			Name:   "storage_paths",
+			Status: StatusPass,
+			Note:   "runtime paths use internal Termux storage",
+		})
+	}
+
 	status = StatusWarn
 	items = append(items,
 		ItemInfo{
@@ -185,4 +202,19 @@ func missingTermuxAPICommands(lookPath func(string) (string, error)) []string {
 		}
 	}
 	return missing
+}
+
+func termuxStoragePathIssues(env map[string]string) []string {
+	var issues []string
+	check := func(label, path string) {
+		lower := strings.ToLower(path)
+		if lower == "/sdcard" || strings.HasPrefix(lower, "/sdcard/") ||
+			lower == "/storage" || strings.HasPrefix(lower, "/storage/") {
+			issues = append(issues, fmt.Sprintf("%s=%q", label, path))
+		}
+	}
+	check("GORMES_HOME", env["GORMES_HOME"])
+	check("HOME", env["HOME"])
+	check("TMPDIR", env["TMPDIR"])
+	return issues
 }

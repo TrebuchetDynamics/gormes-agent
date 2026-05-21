@@ -1,0 +1,44 @@
+# Gormes
+
+Gormes is a Go-native AI agent runtime for running local and server-side AI
+agents from one static Go binary, with Hermes-style skills and no Python,
+Docker, virtualenv drift, or separate runtime sidecar.
+
+## Core Positioning
+
+- Go-native AI agent runtime
+- Go AI agent runtime
+- Hermes agent alternative
+- Single binary AI agent
+- Offline AI agent runtime
+- AI agent gateway for Telegram, Discord, and Slack
+- Termux AI agent runtime
+
+## Current Capabilities
+
+- CLI and offline TUI
+- `gormes doctor --offline` before credentials or provider token spend
+- Provider-backed chat
+- Local SQLite memory and sessions
+- Dashboard
+- Skills and tools in the Go runtime
+- Telegram, Discord, and Slack gateways
+
+## Install
+
+```bash
+curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+gormes doctor --offline
+gormes setup
+gormes chat
+```
+
+## Canonical Links
+
+- Homepage: https://gormes.ai/
+- Docs: https://docs.gormes.ai/
+- GitHub: https://github.com/TrebuchetDynamics/gormes-agent
+- Roadmap: https://docs.gormes.ai/building-gormes/architecture_plan/
+- Install shortlink: https://gormes.ai/install
+- Docs shortlink: https://gormes.ai/docs
+- Roadmap shortlink: https://gormes.ai/roadmap

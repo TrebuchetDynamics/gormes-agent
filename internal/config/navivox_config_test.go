@@ -55,6 +55,29 @@ auth_mode = "pairing_token"
 	}
 }
 
+func TestLoadNavivoxTokenAndTailscaleIdentityRequiresToken(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	clearNavivoxEnv(t)
+	writeNavivoxConfig(t, home, `
+[navivox]
+enabled = true
+bind_host = "100.64.1.2"
+port = 8765
+exposure_mode = "tailscale"
+auth_mode = "token_and_tailscale_identity"
+allowed_tailnet_identities = ["juan@example.com"]
+`)
+
+	_, err := Load(nil)
+	if err == nil {
+		t.Fatal("Load() error = nil, want missing token error")
+	}
+	if !strings.Contains(err.Error(), "navivox.token is required") {
+		t.Fatalf("error = %q, want navivox.token required", err)
+	}
+}
+
 func TestLoadNavivoxEnvTokenEnablesParseableLocalConfig(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

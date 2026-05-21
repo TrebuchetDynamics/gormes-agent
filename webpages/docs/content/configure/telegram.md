@@ -1,19 +1,24 @@
 ---
-title: "Telegram"
-description: "Configure Gormes as a Telegram bot: minimal setup, allow-lists, guest mode, notifications."
+title: "Channel credentials"
+description: "Configure messaging channel credentials, starting with the Telegram bot-token path."
 weight: 34
 aliases:
   - /using-gormes/telegram-adapter/
   - /guides/telegram-bot/
 ---
 
-# Telegram
+# Channel credentials
+
+This page owns channel credential setup. Gateway operation and routing live in
+[Operate](../../operate/).
+
+## Telegram
 
 The Telegram adapter runs Gormes against a Telegram bot using long-poll
 ingress (no webhook server needed). The same kernel, tools, and session
 machinery the TUI uses run behind every Telegram message.
 
-## Minimal setup
+## Minimal Telegram setup
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) and copy the
    token it gives you.
@@ -117,3 +122,10 @@ gormes gateway status      # while a gateway is running
 Telegram-specific UX bugs (wrong markdown, duplicated tool progress, missing
 mentions) are product bugs — capture the exact input and the visible channel
 output when reporting them.
+
+## Discord and Slack
+
+Discord and Slack gateways use the same runtime boundary. Use
+`gormes gateway status` to verify configured channels and see
+[Operate](../../operate/) for multi-channel workflows. Keep channel tokens in
+`.env` or configured secret storage, not in copied documentation or chat logs.

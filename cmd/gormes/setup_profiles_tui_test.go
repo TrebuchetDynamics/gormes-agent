@@ -5,12 +5,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 )
 
@@ -44,6 +46,150 @@ func TestSetupProfilesTUIRendersManagerSurface(t *testing.T) {
 	} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("profile TUI view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestSetupProfilesTUIHardeningBoundsLongOperatorContent(t *testing.T) {
+	long := strings.Repeat("x", 180)
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default-" + long,
+		Profiles: []setupProfileView{
+			{
+				Name:       "default-" + long,
+				Root:       "/home/operator/.gormes/profiles/default-" + long,
+				Active:     true,
+				Workspaces: []string{"/srv/alpha-" + long, "/srv/beta-" + long},
+				Channels:   []string{"telegram", "discord"},
+			},
+		},
+	})
+
+	for _, size := range []struct{ width, height int }{{20, 10}, {40, 12}, {80, 24}} {
+		t.Run(strings.Join([]string{strconv.Itoa(size.width), strconv.Itoa(size.height)}, "x"), func(t *testing.T) {
+			updated, _ := m.Update(tea.WindowSizeMsg{Width: size.width, Height: size.height})
+			m := updated.(setupProfilesModel)
+			m.mode = setupProfilesModeWorkspaces
+			m.input = "/tmp/new-workspace-" + long
+
+			view := m.View()
+			if strings.TrimSpace(view) == "" {
+				t.Fatal("setup profiles view is blank")
+			}
+			for _, line := range strings.Split(view, "\n") {
+				if got := lipgloss.Width(line); got > size.width {
+					t.Fatalf("setup profiles line width %d exceeds terminal width %d:\n%q\n\nfull output:\n%s", got, size.width, line, view)
+				}
+			}
+			collapsed := strings.Join(strings.Fields(view), " ")
+			for _, want := range []string{"Gormes profile setup", "omitted", "resize", "Workspace directories"} {
+				if !strings.Contains(collapsed, want) {
+					t.Fatalf("setup profiles view missing %q:\n%s", want, view)
+				}
+			}
+		})
+	}
+}
+
+func TestSetupProfilesTUIHardeningBoundsShortTerminalHeight(t *testing.T) {
+	long := strings.Repeat("x", 240)
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{
+			{Name: "default", Root: "/home/operator/.gormes", Active: true, Workspaces: []string{"/srv/" + long}},
+			{Name: "very-long-profile-" + long, Root: "/tmp/" + long},
+		},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 24, Height: 8})
+	m = updated.(setupProfilesModel)
+	m.mode = setupProfilesModeWorkspaces
+	m.input = "/tmp/new-workspace-" + long
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 8 {
+		t.Fatalf("setup profiles view height = %d, want <= 8:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 24 {
+			t.Fatalf("setup profiles line width %d exceeds 24:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Gormes profile setup", "omitted", "resize", "Workspace directories"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup profiles short view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestSetupProfilesTUIHardeningBoundsShortChannelPicker(t *testing.T) {
+	long := strings.Repeat("x", 180)
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{{
+			Name:       "default",
+			Root:       "/home/operator/.gormes/profiles/default-" + long,
+			Active:     true,
+			Workspaces: []string{"/srv/" + long},
+			Channels:   []string{"telegram"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 28, Height: 6})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m = updated.(setupProfilesModel)
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 6 {
+		t.Fatalf("setup profiles channel view height = %d, want <= 6:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 28 {
+			t.Fatalf("setup profiles channel line width %d exceeds 28:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Gormes profile setup", "Channels", "telegram", "Space toggle", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup profiles channel view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestSetupProfilesTUIHardeningBoundsShortAddProfile(t *testing.T) {
+	long := strings.Repeat("x", 180)
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{{
+			Name:       "default",
+			Root:       "/home/operator/.gormes/profiles/default-" + long,
+			Active:     true,
+			Workspaces: []string{"/srv/" + long},
+			Channels:   []string{"telegram"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 28, Height: 6})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m = updated.(setupProfilesModel)
+	m.input = "new-profile-" + long
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) > 6 {
+		t.Fatalf("setup profiles add view height = %d, want <= 6:\n%s", len(lines), view)
+	}
+	for _, line := range lines {
+		if got := lipgloss.Width(line); got > 28 {
+			t.Fatalf("setup profiles add line width %d exceeds 28:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+	collapsed := strings.Join(strings.Fields(view), " ")
+	for _, want := range []string{"Gormes profile setup", "New profile", "new-profile", "resize"} {
+		if !strings.Contains(collapsed, want) {
+			t.Fatalf("setup profiles add view missing %q:\n%s", want, view)
 		}
 	}
 }

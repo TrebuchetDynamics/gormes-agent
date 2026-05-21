@@ -11,7 +11,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 

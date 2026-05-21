@@ -102,6 +102,9 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 		reg.MustRegister(tool)
 	}
 	tools.RegisterHomeAssistantTools(reg, tools.HomeAssistantConfig{})
+	tools.RegisterXSearchTools(reg, tools.XSearchConfig{
+		Fake: true,
+	})
 	registerAudioTools(reg, cfg)
 	registerImageGenerationTool(reg, cfg)
 	registerVideoAnalyzeTool(reg, cfg)

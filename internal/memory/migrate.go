@@ -74,6 +74,21 @@ func migrate(db *sql.DB) error {
 		}
 		return migrate(db)
 	case "3j":
+		if err := runMigrationTx(db, migration3jTo3k); err != nil {
+			return fmt.Errorf("memory: migrate 3j->3k: %w", err)
+		}
+		return migrate(db)
+	case "3k":
+		if err := runMigrationTx(db, migration3kTo3l); err != nil {
+			return fmt.Errorf("memory: migrate 3k->3l: %w", err)
+		}
+		return migrate(db)
+	case "3l":
+		if err := runMigrationTx(db, migration3lTo3m); err != nil {
+			return fmt.Errorf("memory: migrate 3l->3m: %w", err)
+		}
+		return migrate(db)
+	case "3m":
 		return nil
 	default:
 		return fmt.Errorf("%w: got %q, want %q", ErrSchemaUnknown, v, schemaVersion)

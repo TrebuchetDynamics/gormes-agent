@@ -73,31 +73,5 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.9'
-          channel: stable
-          cache: true
-
       - name: Test Navivox Go gateway
         run: go test ./internal/channels/navivox -count=1
-
-      - name: Install Navivox Flutter dependencies
-        working-directory: flutter-navivox/app
-        run: flutter pub get
-
-      - name: Analyze Navivox Flutter app
-        working-directory: flutter-navivox/app
-        run: flutter analyze
-
-      - name: Test Navivox Flutter app
-        working-directory: flutter-navivox/app
-        run: flutter test
-
-      - name: Test Navivox Chrome e2e
-        working-directory: flutter-navivox/app
-        run: flutter test --platform chrome test/e2e
-
-      - name: Build Navivox web
-        working-directory: flutter-navivox/app
-        run: flutter build web --no-web-resources-cdn

@@ -3,7 +3,7 @@ package memory
 // schemaVersion is the canonical target version for this binary. OpenSqlite
 // migrates any earlier supported version up to this value, and refuses to
 // open DBs with an unknown version (future schemas).
-const schemaVersion = "3j"
+const schemaVersion = "3m"
 
 // schemaV3a is the baseline schema installed on a fresh DB. It matches
 // exactly what Phase 3.A shipped — any change to this string is a schema
@@ -240,7 +240,7 @@ const migration3gTo3h = `
 CREATE TABLE IF NOT EXISTS goncho_session_summaries (
 	workspace_id TEXT    NOT NULL,
 	session_key  TEXT    NOT NULL,
-	summary_type TEXT    NOT NULL CHECK(summary_type IN ('short','long')),
+	summary_type TEXT    NOT NULL CHECK(summary_type IN ('short','long','structured')),
 	content      TEXT    NOT NULL,
 	message_id   INTEGER NOT NULL,
 	created_at   INTEGER NOT NULL,
@@ -425,4 +425,103 @@ FROM goncho_conclusions
 WHERE status != 'dead_letter';
 
 UPDATE schema_meta SET v = '3j' WHERE k = 'version' AND v = '3i';
+`
+
+// migration3jTo3k adds memory tier classification, access control, context
+// capsules, and a child-subagent proposal pipeline on top of the V1
+// goncho_memory_items table:
+//   - tier column (global|project|task|workspace|decision) defaults to
+//     'global' for existing rows
+//   - memory_acl enables agent-scoped read/propose/write grants
+//   - context_capsules lets a parent assemble scoped memory packets for
+//     child sub-agents
+//   - memory_proposals gives child agents a tentative-write-then-parent-
+//     review workflow
+const migration3jTo3k = `
+ALTER TABLE goncho_memory_items ADD COLUMN tier TEXT NOT NULL DEFAULT 'global'
+	CHECK(tier IN ('global','project','task','workspace','decision'));
+
+CREATE INDEX IF NOT EXISTS idx_goncho_memory_tier_active
+	ON goncho_memory_items(workspace_id, agent_id, tier, active, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS memory_acl (
+	id          INTEGER PRIMARY KEY AUTOINCREMENT,
+	memory_id   TEXT    NOT NULL REFERENCES goncho_memory_items(memory_id) ON DELETE CASCADE,
+	agent_id    TEXT    NOT NULL,
+	permission  TEXT    NOT NULL CHECK(permission IN ('read','propose','write')),
+	granted_by  TEXT    NOT NULL,
+	granted_at  INTEGER NOT NULL,
+	UNIQUE(memory_id, agent_id, permission)
+);
+CREATE INDEX IF NOT EXISTS idx_memory_acl_agent
+	ON memory_acl(agent_id, permission);
+
+CREATE TABLE IF NOT EXISTS context_capsules (
+	id                TEXT PRIMARY KEY,
+	subtask_id        TEXT    NOT NULL,
+	parent_agent_id   TEXT    NOT NULL,
+	child_agent_id    TEXT    NOT NULL,
+	capsule_json      TEXT    NOT NULL,
+	token_budget      INTEGER NOT NULL DEFAULT 4096,
+	created_at        INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_context_capsules_child
+	ON context_capsules(child_agent_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS memory_proposals (
+	id               INTEGER PRIMARY KEY AUTOINCREMENT,
+	proposal_id      TEXT    NOT NULL UNIQUE,
+	subtask_id       TEXT    NOT NULL,
+	child_agent_id   TEXT    NOT NULL,
+	parent_agent_id  TEXT    NOT NULL,
+	proposed_tier    TEXT    NOT NULL CHECK(proposed_tier IN ('global','project','task','workspace','decision')),
+	kind             TEXT    NOT NULL CHECK(kind IN ('fact','preference','decision','observation','report','artifact')),
+	content          TEXT    NOT NULL,
+	evidence_json    TEXT    NOT NULL DEFAULT '{}',
+	status           TEXT    NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','rejected')),
+	reviewed_by      TEXT,
+	reviewed_at      INTEGER,
+	committed_memory_id TEXT,
+	created_at       INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_memory_proposals_parent_status
+	ON memory_proposals(parent_agent_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_memory_proposals_child
+	ON memory_proposals(child_agent_id, created_at DESC);
+
+UPDATE schema_meta SET v = '3k' WHERE k = 'version' AND v = '3j';
+`
+
+// migration3kTo3l adds 'structured' as a valid summary_type for session-end
+// structured summary capture (Phase 3.H).
+const migration3kTo3l = `
+ALTER TABLE goncho_session_summaries RENAME TO goncho_session_summaries_old;
+CREATE TABLE goncho_session_summaries (
+	workspace_id TEXT    NOT NULL,
+	session_key  TEXT    NOT NULL,
+	summary_type TEXT    NOT NULL CHECK(summary_type IN ('short','long','structured')),
+	content      TEXT    NOT NULL,
+	message_id   INTEGER NOT NULL,
+	created_at   INTEGER NOT NULL,
+	token_count  INTEGER NOT NULL CHECK(token_count >= 0),
+	PRIMARY KEY(workspace_id, session_key, summary_type)
+);
+CREATE INDEX IF NOT EXISTS idx_goncho_session_summaries_session
+	ON goncho_session_summaries(workspace_id, session_key);
+INSERT INTO goncho_session_summaries SELECT * FROM goncho_session_summaries_old;
+DROP TABLE goncho_session_summaries_old;
+
+UPDATE schema_meta SET v = '3l' WHERE k = 'version' AND v = '3k';
+`
+
+// migration3lTo3m adds scope classification to Goncho conclusions for
+// workspace isolation with explicit global-scope cross-boundary sharing
+// (Phase 3.H).
+const migration3lTo3m = `
+ALTER TABLE goncho_conclusions ADD COLUMN scope TEXT NOT NULL DEFAULT 'workspace'
+	CHECK(scope IN ('workspace', 'global'));
+CREATE INDEX IF NOT EXISTS idx_goncho_conclusions_scope
+	ON goncho_conclusions(workspace_id, scope, peer_id, updated_at DESC);
+
+UPDATE schema_meta SET v = '3m' WHERE k = 'version' AND v = '3l';
 `

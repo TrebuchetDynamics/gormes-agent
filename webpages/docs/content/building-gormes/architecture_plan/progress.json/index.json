@@ -66,7 +66,7 @@
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Skill-driven planning/building is Gormes-owned control-plane architecture. It replaces the deleted loop binaries while preserving progress.json as the only backlog."
           },
-          "item_count": 4
+          "item_count": 5
         },
         {
           "id": "1.E",
@@ -353,6 +353,17 @@
             "status": "porting",
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Goncho core rows cover many Honcho-compatible pieces, but drop-in confidence now needs an explicit SDK-style harness and a normal-agent-turn integration row before Phase 3 memory can be called complete."
+          },
+          "item_count": 6
+        },
+        {
+          "id": "3.H",
+          "name": "Goncho Memory Quality & UX Improvements",
+          "priority": "P0",
+          "drift_state": {
+            "status": "owned",
+            "last_upstream_check": "2026-05-18T00:00:00Z",
+            "origin_decision": "Gormes-owned memory quality improvements inspired by Shokunin session-end summaries, hybrid retrieval patterns, and memory transparency UX. Not direct Honcho parity — Gormes-original enhancements to Goncho's write quality, retrieval effectiveness, and user control."
           },
           "item_count": 6
         }

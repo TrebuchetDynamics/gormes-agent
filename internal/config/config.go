@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
@@ -297,9 +297,10 @@ const (
 	NavivoxExposureVPN       = "vpn"
 	NavivoxExposurePublic    = "public"
 
-	NavivoxAuthPairingToken      = "pairing_token"
-	NavivoxAuthStaticToken       = "static_token"
-	NavivoxAuthTailscaleIdentity = "tailscale_identity"
+	NavivoxAuthPairingToken              = "pairing_token"
+	NavivoxAuthStaticToken               = "static_token"
+	NavivoxAuthTailscaleIdentity         = "tailscale_identity"
+	NavivoxAuthTokenAndTailscaleIdentity = "token_and_tailscale_identity"
 )
 
 // NavivoxCfg configures the native gateway-owned HTTP/WebSocket channel used
@@ -1761,13 +1762,13 @@ func normalizeNavivoxConfig(cfg *NavivoxCfg) error {
 		return fmt.Errorf("config: navivox.exposure_mode %q is invalid; want local, tailscale, wireguard, vpn, or public", cfg.ExposureMode)
 	}
 	switch cfg.AuthMode {
-	case NavivoxAuthPairingToken, NavivoxAuthStaticToken:
+	case NavivoxAuthPairingToken, NavivoxAuthStaticToken, NavivoxAuthTokenAndTailscaleIdentity:
 		if cfg.Enabled && cfg.Token == "" {
 			return fmt.Errorf("config: navivox.token is required when navivox.enabled=true and auth_mode=%s", cfg.AuthMode)
 		}
 	case NavivoxAuthTailscaleIdentity:
 	default:
-		return fmt.Errorf("config: navivox.auth_mode %q is invalid; want pairing_token, static_token, or tailscale_identity", cfg.AuthMode)
+		return fmt.Errorf("config: navivox.auth_mode %q is invalid; want pairing_token, static_token, tailscale_identity, or token_and_tailscale_identity", cfg.AuthMode)
 	}
 	if !cfg.Enabled {
 		return nil

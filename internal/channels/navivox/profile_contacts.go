@@ -365,7 +365,10 @@ func mergeProfileContact(base, overlay ProfileContact) ProfileContact {
 	base.LatestPreviewKind = overlay.LatestPreviewKind
 	base.LatestPreviewAt = overlay.LatestPreviewAt
 	base.ActiveTurnState = overlay.ActiveTurnState
-	if overlay.Health != "" {
+	if overlay.Health != "" && overlay.Health != ProfileContactHealthOnline {
+		// Only apply overlay health when it signals something meaningful.
+		// Runtime updates default to "online" and should not overwrite
+		// loader-computed health (warning/offline/needs_auth).
 		base.Health = overlay.Health
 	}
 	if len(overlay.AttentionBadges) > 0 {

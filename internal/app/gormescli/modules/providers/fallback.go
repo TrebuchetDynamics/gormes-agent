@@ -146,7 +146,7 @@ func runFallbackAdd(cmd *cobra.Command, seams ModelCommandSeams) error {
 		ChooseModel:    chooseModel,
 		PersistSelection: func(picked cli.Selection) error {
 			selection = picked
-			wrote, err := appendFallbackSelection(config.ConfigPath(), picked)
+			wrote, err := AppendFallbackSelection(config.ConfigPath(), picked)
 			added = wrote
 			return err
 		},
@@ -219,7 +219,7 @@ func runFallbackRemove(cmd *cobra.Command) error {
 	}
 	removed := cfg.Chain[idx-1]
 	cfg.Chain = append(cfg.Chain[:idx-1], cfg.Chain[idx:]...)
-	if err := writeFallbackChain(config.ConfigPath(), cfg.Chain); err != nil {
+	if err := WriteFallbackChain(config.ConfigPath(), cfg.Chain); err != nil {
 		return err
 	}
 	fmt.Fprintln(out)
@@ -264,7 +264,7 @@ func runFallbackClear(cmd *cobra.Command) error {
 		fmt.Fprintln(out, "  Cancelled — no change.")
 		return nil
 	}
-	if err := writeFallbackChain(config.ConfigPath(), nil); err != nil {
+	if err := WriteFallbackChain(config.ConfigPath(), nil); err != nil {
 		return err
 	}
 	fmt.Fprintln(out)
@@ -303,7 +303,7 @@ func readFallbackTOML(path string) (map[string]any, error) {
 	return doc, nil
 }
 
-func appendFallbackSelection(path string, selection cli.Selection) (bool, error) {
+func AppendFallbackSelection(path string, selection cli.Selection) (bool, error) {
 	entry := FallbackEntry{
 		Provider: strings.TrimSpace(selection.Provider),
 		Model:    strings.TrimSpace(selection.Model),
@@ -329,7 +329,7 @@ func sameFallbackEntry(a, b FallbackEntry) bool {
 	return a.Provider == b.Provider && a.Model == b.Model
 }
 
-func writeFallbackChain(path string, chain []FallbackEntry) error {
+func WriteFallbackChain(path string, chain []FallbackEntry) error {
 	doc, err := readFallbackTOML(path)
 	if err != nil {
 		return err

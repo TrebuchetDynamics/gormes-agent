@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strings"
@@ -44,9 +45,36 @@ func main() {
 	}()
 
 	root := newRootCommand()
-	if err := executeRootCommand(root, os.Args[1:]...); err != nil {
+	args := sanitizeTermuxExecArgs(os.Args[1:])
+	if err := executeRootCommand(root, args...); err != nil {
 		os.Exit(exitCodeFromError(err))
 	}
+}
+
+// sanitizeTermuxExecArgs removes the duplicate executable path that
+// termux-exec injects into os.Args on Android (termux-app#4630).
+func sanitizeTermuxExecArgs(args []string) []string {
+	if runtime.GOOS != "android" || len(args) < 1 {
+		return args
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return args
+	}
+	return sanitizeTermuxExecArgsWithExe(args, exe)
+}
+
+func sanitizeTermuxExecArgsWithExe(args []string, exe string) []string {
+	if len(args) < 1 || exe == "" {
+		return args
+	}
+	if args[0] == exe {
+		return args[1:]
+	}
+	if len(args) > 1 && args[1] == exe {
+		return append([]string{args[0]}, args[2:]...)
+	}
+	return args
 }
 
 func executeRootCommand(root *cobra.Command, args ...string) error {
@@ -298,6 +326,8 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 		"tools":       newToolsCommand,
 		"insights":    newInsightsCommand,
 		"admin":       newAdminCommand,
+		"bridge":      newBridgeCommand,
+		"bootstrap":   newBootstrapCommand,
 	}
 }
 

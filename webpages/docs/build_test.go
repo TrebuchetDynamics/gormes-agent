@@ -38,10 +38,23 @@ func TestAstroBuild(t *testing.T) {
 		"install/index.html",
 		"install/linux-macos/index.html",
 		"install/windows/index.html",
+		"install/termux/index.html",
 		"install/from-source/index.html",
+		"install/update-uninstall/index.html",
 		"start-here/index.html",
+		"operate/index.html",
+		"operate/first-chat/index.html",
+		"operate/local-ollama/index.html",
+		"operate/profiles-client-work/index.html",
+		"operate/memory-sessions/index.html",
+		"operate/telegram-bot/index.html",
+		"operate/multi-channel-gateway/index.html",
+		"operate/channel-bindings/index.html",
+		"operate/fallback-providers/index.html",
+		"operate/dashboard-status-logs/index.html",
 		"troubleshooting/index.html",
 		"troubleshooting/doctor/index.html",
+		"troubleshooting/diagnose/index.html",
 		"troubleshooting/common-errors/index.html",
 		"troubleshooting/logs/index.html",
 		"guides/telegram-bot/index.html",
@@ -62,6 +75,16 @@ func TestAstroBuild(t *testing.T) {
 		"reference/providers/index.html",
 		"reference/web-backends/index.html",
 		"reference/paths-and-logs/index.html",
+		"reference/index.html",
+		"reference/status-readiness/index.html",
+		"roadmap/index.html",
+		"reference/glossary/index.html",
+		"concepts/index.html",
+		"archive/index.html",
+		"configure/setup-wizard/index.html",
+		"configure/models-routing/index.html",
+		"configure/profiles-workspaces/index.html",
+		"configure/secrets-local-state/index.html",
 		"cli/index.html",
 		"cli/acp/index.html",
 		"cli/agent/index.html",
@@ -198,15 +221,19 @@ func TestAstroBuild_IndexHasSidebarSections(t *testing.T) {
 	}
 	text := string(body)
 	for _, want := range []string{
-		"Start here",
+		"Quickstart",
 		"Install",
 		"Configure",
-		"CLI reference",
-		"Recipes",
-		"Troubleshooting",
-		"Why Gormes",
+		"Operate",
+		"Troubleshoot",
+		"Reference",
+		"Concepts",
+		"Build Gormes",
+		"Archive &amp; Research",
 		`href="/start-here/"`,
 		`href="/install/"`,
+		`href="/operate/"`,
+		`href="/reference/"`,
 		`href="/troubleshooting/"`,
 	} {
 		if !strings.Contains(text, want) {
@@ -225,23 +252,23 @@ func TestAstroBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	}
 	text := string(body)
 
-	if !strings.Contains(text, "git clone https://github.com/TrebuchetDynamics/gormes-agent.git") {
-		t.Fatalf("built index.html missing current install command")
-	}
-	if !strings.Contains(text, "CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes") {
-		t.Fatalf("built index.html missing current source build command")
-	}
-	if !strings.Contains(text, "curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh") {
+	if !strings.Contains(text, "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh") {
 		t.Fatalf("built index.html missing canonical install.sh command")
 	}
-	if !strings.Contains(text, "irm https://gormes.ai/install.ps1 -OutFile install.ps1") {
-		t.Fatalf("built index.html missing canonical install.ps1 command")
+	for _, want := range []string{
+		"gormes doctor --offline",
+		"gormes setup",
+		"gormes chat",
+		"Install on Windows",
+		"Install on Termux",
+		"Build from source",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("built index.html missing quickstart token %q", want)
+		}
 	}
 	if strings.Contains(text, "make build") {
 		t.Fatalf("built index.html still contains stale make build command")
-	}
-	if strings.Contains(text, "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh") {
-		t.Fatalf("built index.html still contains curl-pipe install command")
 	}
 	if strings.Contains(text, "https://gormes.ai/"+"install.sh") {
 		t.Fatalf("built index.html still contains gormes.ai install.sh URL")
@@ -309,29 +336,25 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	}
 	text := string(body)
 	for _, want := range []string{
-		"Gormes runs AI agents from one Go-native runtime.",
-		"Choose source build,",
-		"install.sh",
-		"install.ps1",
-		"What is Gormes?",
-		"Go-native runtime",
-		"Offline proof path",
-		"Three install paths",
-		"What you can do today",
-		"Support labels",
+		"Install, configure, and operate Gormes from one Go-native runtime.",
+		"Fast path",
+		"Choose your path",
+		"Windows PowerShell",
+		"Termux on Android",
+		"Available now",
+		"Expanding next",
+		"Status &amp; Roadmap",
 		"Runtime-ready",
-		"Trust posture",
-		"Source build and release-first",
-		"Progress data is generated from the canonical",
-		"Users and operators",
-		"Browse sessions, config, skills, logs, and audits",
-		"What lives here?",
-		"Start here",
+		"How these docs are organized",
+		"Quickstart",
 		"Install",
 		"Configure",
-		"CLI reference",
-		"Recipes",
-		"Troubleshooting",
+		"Operate",
+		"Troubleshoot",
+		"Reference",
+		"Concepts",
+		"Build Gormes",
+		"Archive &amp; Research",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("built index.html missing operator-first docs token %q", want)
@@ -350,7 +373,7 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	}
 }
 
-func TestAstroBuild_IndexShowsBlueGormesAgentLogo(t *testing.T) {
+func TestAstroBuild_IndexDoesNotUseGiantLogoButShipsLogoAsset(t *testing.T) {
 	tmp := t.TempDir()
 	runDocsAstroBuild(t, tmp)
 
@@ -359,12 +382,12 @@ func TestAstroBuild_IndexShowsBlueGormesAgentLogo(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(body)
-	for _, want := range []string{
+	for _, reject := range []string{
 		`src="/gormes-agent-logo-blue.svg"`,
 		`alt="GORMES-AGENT"`,
 	} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("built index.html missing blue GORMES-AGENT logo token %q", want)
+		if strings.Contains(text, reject) {
+			t.Fatalf("built index.html should not use giant centered logo token %q", reject)
 		}
 	}
 

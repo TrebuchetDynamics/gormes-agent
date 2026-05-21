@@ -136,6 +136,19 @@ func TestViewRendersAssistantContent(t *testing.T) {
 
 // TestResizeDoesNotPanic: send a sequence of WindowSizeMsgs including
 // absurdly small ones; View must return a banner string, never panic.
+func TestCrampedTerminalViewGivesActionableResizeGuidance(t *testing.T) {
+	m := NewModel(make(chan kernel.RenderFrame), func(string) {}, func() {})
+	m.width = 12
+	m.height = 6
+
+	got := m.View()
+	for _, want := range []string{"terminal too small", "12×6", "20×10", "resize"} {
+		if !bytes.Contains([]byte(got), []byte(want)) {
+			t.Fatalf("cramped view missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestResizeDoesNotPanic(t *testing.T) {
 	frames := make(chan kernel.RenderFrame, 4)
 	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}

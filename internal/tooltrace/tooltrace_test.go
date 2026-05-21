@@ -20,7 +20,7 @@ func TestFormatBlock_HermesTranscriptShapeAndDedup(t *testing.T) {
 		`📚 skill_view: "plan"`,
 		`📋 todo: "planning 5 task(s)"`,
 		`🔎 search_files: "chrono|cron"`,
-		`💻 terminal: "git status --short" (×2)`,
+		`ACTION [repo] Inspecting repository status (×2)`,
 		`📖 read_file: "/tmp/example.go"`,
 	} {
 		if !strings.Contains(got, want) {
@@ -48,6 +48,44 @@ func TestFormatBlockModeNewSuppressesConsecutiveSameTool(t *testing.T) {
 	for _, want := range []string{"a.go", "search_files", "c.go"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("new mode missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestFormatBlock_OperatorSemanticProgressHidesShellMechanics(t *testing.T) {
+	got := FormatBlock([]string{
+		`tool: memory`,
+		`tool: memory`,
+		`tool: terminal: printf '%s\n' '--- ~/.gormes profile state ---'`,
+		`tool: terminal: printf '%s\n' '--- oversized skill events ---'`,
+		`tool: terminal: printf '%s\n' 'active_profile:'; sed -n '1p' ~/.gormes/active_profile`,
+		`tool: terminal: printf '%s\n' 'profile config candidates'; find ~/.gormes -name config.toml`,
+		`tool: terminal: wc -c /home/xel/.gormes/profiles/miner/state.json`,
+		`tool: terminal: python3 - <<'PY'
+from pathlib import Path
+print(Path('state.json').stat().st_size)
+PY`,
+	})
+
+	for _, want := range []string{
+		`INFO   [memory] Loading session memory (×2)`,
+		`ACTION [profile] Inspecting Gormes profile state`,
+		`ACTION [skills] Checking oversized skill events`,
+		`ACTION [profile] Inspecting active Gormes profile`,
+		`ACTION [config] Verifying profile config candidates`,
+		`ACTION [profile] Measuring profile state size`,
+		`ACTION [profile] Parsing profile state`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatBlock missing semantic progress %q in:\n%s", want, got)
+		}
+	}
+	for _, forbidden := range []string{
+		"printf", "sed -n", "python3", "wc -c", "💻 terminal", "🧠 memory", "tool_progress",
+		"/home/xel/.gormes/profiles/miner/state.json",
+	} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatBlock leaked low-level detail %q in:\n%s", forbidden, got)
 		}
 	}
 }

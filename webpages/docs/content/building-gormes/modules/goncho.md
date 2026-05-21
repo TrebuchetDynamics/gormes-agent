@@ -7,9 +7,9 @@ title: "Goncho Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `goncho`
-**Rows:** 39
-**Status counts:** `complete`: 39 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 6 · `P1`: 10 · `P2`: 8 · `P3`: 12 · `P4`: 2 · `unset`: 1
+**Rows:** 45
+**Status counts:** `complete`: 45 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1
 
 ## Phase 2 — The Gateway
 
@@ -68,6 +68,17 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `goncho` | Goncho CLI command-tree parity |
 | `complete` | `P1` | `goncho` | Goncho Honcho SDK compatibility e2e harness |
 | `complete` | `P0` | `goncho` | Goncho memory integration into normal agent turn |
+
+### 3.H — Goncho Memory Quality & UX Improvements
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `complete` | `P0` | `goncho` | Goncho session-end structured summary capture |
+| `complete` | `P1` | `goncho` | Goncho BM25 + RRF parallel retrieval fusion |
+| `complete` | `P1` | `goncho` | Goncho /memory and /continue CLI commands |
+| `complete` | `P2` | `goncho` | Goncho dream fact extraction and memory compression |
+| `complete` | `P2` | `goncho` | Goncho skill-outcome tracking as conclusions |
+| `complete` | `P2` | `goncho` | Goncho workspace isolation with explicit global scope |
 
 ## Phase 4 — The Brain Transplant
 

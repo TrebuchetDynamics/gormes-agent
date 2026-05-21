@@ -299,6 +299,13 @@ display_path() {
   fi
 }
 
+status_line() {
+  local level=$1
+  local subsystem=$2
+  local message=$3
+  printf '%-6s [%s] %s\n' "$level" "$subsystem" "$message"
+}
+
 is_sensitive_path() {
   case "$1" in
     *auth.json|*.env|*.pem|*.key|*credentials*|*secret*|*password*|*token*)
@@ -444,6 +451,9 @@ collect_runtime_surface() {
     else
       printf '(clean)\n'
     fi
+    printf '\nConfigured audit homes:\n'
+    printf 'gormes_home=%s\n' "$gormes_home"
+    printf 'hermes_home=%s\n' "$hermes_home"
     printf '\nEnvironment homes:\n'
     printf 'GORMES_HOME=%s\n' "${GORMES_HOME:-}"
     printf 'HERMES_HOME=%s\n' "${HERMES_HOME:-}"
@@ -470,9 +480,9 @@ collect_runtime_surface() {
     else
       printf 'codexu not found on PATH: %s\n' "$codexu_bin"
     fi
-    printf '\nGateway status from discovered gormes command:\n'
+    printf '\nGateway status from discovered gormes command using configured gormes_home:\n'
     if command -v gormes >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
-      timeout 5s gormes gateway status --json 2>/dev/null || printf 'gateway status unavailable or timed out\n'
+      GORMES_HOME="$gormes_home" timeout 5s gormes gateway status --json 2>/dev/null || printf 'gateway status unavailable or timed out\n'
     elif command -v gormes >/dev/null 2>&1; then
       printf 'skipped; timeout command unavailable\n'
     else
@@ -581,8 +591,17 @@ collect_memory_provenance() {
     provenance_dir_record "legacy_hermes_memories_dir" "$root/memories"
     provenance_file_record "legacy_hermes_user" "$root/memories/USER.md"
     provenance_file_record "legacy_hermes_memory" "$root/memories/MEMORY.md"
+    provenance_file_record "profile_config_toml" "$root/config.toml"
     provenance_file_record "profile_config" "$root/config.json"
+    provenance_file_record "profile_env" "$root/.env"
+    provenance_file_record "profile_auth_json" "$root/auth.json"
     provenance_file_record "profile_state" "$root/state.json"
+    provenance_file_record "profile_gateway_state" "$root/gateway_state.json"
+    provenance_file_record "profile_gateway_pid" "$root/gateway.pid"
+    provenance_file_record "profile_channel_directory" "$root/channel_directory.json"
+    provenance_file_record "profile_channel_directory_sources" "$root/channel_directory_sources.json"
+    provenance_file_record "session_store" "$root/sessions.db"
+    provenance_file_record "session_index" "$root/sessions/index.yaml"
     provenance_dir_record "session_transcripts" "$root/sessions"
     provenance_dir_record "tool_audits" "$root/tools"
     printf '```\n'
@@ -739,7 +758,7 @@ collect_session_files() {
           jsonl_events "$file" "$max_session_lines"
           ;;
         *)
-          sed -n '1,220p' "$file"
+          limit_lines "$max_session_lines" < "$file"
           ;;
       esac
       printf '\n```\n'
@@ -1030,10 +1049,10 @@ Constraints:
 PROMPT
 
 if [ "$dry_run" -eq 1 ]; then
-  printf 'dry-run: wrote bundle: %s\n' "$bundle"
-  printf 'dry-run: wrote prompt: %s\n' "$prompt"
+  status_line "RESULT" "audit" "Bundle: $(display_path "$bundle")"
+  status_line "RESULT" "audit" "Planner prompt: $(display_path "$prompt")"
   if [ "$execute" -eq 1 ]; then
-    printf 'dry-run: wrote executor prompt: %s\n' "$executor_prompt"
+    status_line "RESULT" "audit" "Executor prompt: $(display_path "$executor_prompt")"
   fi
   exit 0
 fi
@@ -1049,12 +1068,14 @@ run_codexu_stage() {
   local stage_sandbox=$4
   local pre_tracked_status post_tracked_status
 
+  status_line "ACTION" "audit" "Running $stage stage"
   pre_tracked_status=$(git -C "$repo_root" status --porcelain=v1 -uno)
   "$codexu_bin" exec --ephemeral --sandbox "$stage_sandbox" -C "$repo_root" -o "$stage_report" - < "$stage_prompt"
   post_tracked_status=$(git -C "$repo_root" status --porcelain=v1 -uno)
   if [ "$pre_tracked_status" != "$post_tracked_status" ]; then
-    printf 'warning: tracked git status changed during %s stage; inspect git diff before continuing.\n' "$stage" >&2
+    status_line "WARN" "git" "Tracked git status changed during $stage stage; inspect git diff" >&2
   fi
+  status_line "OK" "audit" "$stage report written: $(display_path "$stage_report")"
 }
 
 run_codexu_stage "planner" "$prompt" "$report" "read-only"
@@ -1062,16 +1083,16 @@ run_codexu_stage "planner" "$prompt" "$report" "read-only"
 if [ "$execute" -eq 1 ]; then
   run_codexu_stage "executor" "$executor_prompt" "$executor_report" "$executor_sandbox"
   if git -C "$repo_root" diff --check > "$out_dir/git-diff-check.txt" 2>&1; then
-    printf 'executor verification: git diff --check passed\n'
+    status_line "OK" "verify" "git diff --check passed"
   else
-    printf 'warning: executor verification failed; see %s\n' "$out_dir/git-diff-check.txt" >&2
+    status_line "WARN" "verify" "git diff --check failed: $(display_path "$out_dir/git-diff-check.txt")" >&2
   fi
 fi
 
-printf 'wrote bundle: %s\n' "$bundle"
-printf 'wrote prompt: %s\n' "$prompt"
-printf 'wrote codexu audit: %s\n' "$report"
+status_line "RESULT" "audit" "Bundle: $(display_path "$bundle")"
+status_line "RESULT" "audit" "Planner prompt: $(display_path "$prompt")"
+status_line "RESULT" "audit" "Planner report: $(display_path "$report")"
 if [ "$execute" -eq 1 ]; then
-  printf 'wrote executor prompt: %s\n' "$executor_prompt"
-  printf 'wrote codexu execution report: %s\n' "$executor_report"
+  status_line "RESULT" "audit" "Executor prompt: $(display_path "$executor_prompt")"
+  status_line "RESULT" "audit" "Executor report: $(display_path "$executor_report")"
 fi

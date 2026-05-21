@@ -1,6 +1,6 @@
 ---
 name: gormes-readme
-description: Improve README.md from current Gormes repository evidence with accurate usage, install, status, positioning, and 100/100 repository-quality updates. Use when the user asks to audit, score, refresh, fact-check, or periodically improve the Gormes README or public repository messaging.
+description: Use when the user asks to audit, score, refresh, fact-check, or periodically improve the Gormes README, public repository messaging, usage docs, install docs, status claims, positioning, or repository-quality evidence.
 ---
 
 # Gormes README

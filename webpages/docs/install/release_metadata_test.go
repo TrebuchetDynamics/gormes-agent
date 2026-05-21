@@ -42,7 +42,7 @@ func TestLandingReleaseMetadataCarriesDateAlias(t *testing.T) {
 	}
 
 	landingData := readRepoFileRelease(t, "webpages/landing/src/data/landing.js")
-	for _, want := range []string{"release?.date_alias", "releaseDateAlias", "Current scout release:"} {
+	for _, want := range []string{"release?.date_alias", "releaseDateAlias", "Current release:"} {
 		if !strings.Contains(landingData, want) {
 			t.Fatalf("landing.js missing %q; release label must be derived from release.json date_alias", want)
 		}

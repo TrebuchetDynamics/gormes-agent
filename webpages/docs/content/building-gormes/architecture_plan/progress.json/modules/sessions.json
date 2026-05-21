@@ -1349,9 +1349,9 @@
     "item": {
       "name": "Hermes session recap command surface",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Port Hermes' session recap command as a Gormes-native read-only session summarizer over local session/transcript storage, preserving output modes, missing-session diagnostics, and provider-free degraded behavior.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "orchestrator",
       "module": "sessions",
@@ -1386,7 +1386,23 @@
       ],
       "done_signal": [
         "Session recap fixtures prove read-only transcript loading, bounded output, missing-session diagnostics, and no live provider dependency."
-      ]
+      ],
+      "note": "Complete 2026-05-19: TDD shipped internal/session/recap.go with RecapConfig, RecapEntry, RecapEnvelope (HumanOutput), SessionRecapResult (HumanOutput), GenerateRecap (list all sessions with truncation), and GenerateSessionRecap (single session with not_found diagnostics). 10 tests cover empty store, single session, missing session, known session, truncation evidence, human output (empty/non-empty), single session human output, not-found human output, and sorted-by-updated-at ordering. CLI wired as `gormes session recap [session-id]` with --limit and --json flags in cmd/gormes/session.go and internal/app/gormescli/modules/sessions/session.go. No live provider or model calls required.",
+      "evidence": {
+        "completed_at": "2026-05-19T00:00:00Z",
+        "implementation": [
+          "internal/session/recap.go: RecapConfig, RecapEntry, RecapEnvelope, SessionRecapResult, GenerateRecap, GenerateSessionRecap",
+          "internal/session/recap_test.go: 10 TDD tests",
+          "internal/app/gormescli/modules/sessions/session.go: RunRecap seam, newSessionRecapCommand",
+          "cmd/gormes/session.go: runSessionRecapCommand with --limit and --json flags"
+        ],
+        "tests": [
+          "RED: go test ./internal/session -run TestRecap -count=1 failed before implementation",
+          "GREEN: go test ./internal/session -run TestRecap -count=1 -> ok (10 tests)",
+          "GREEN: go test ./cmd/gormes -run TestSession -count=1 -> ok",
+          "go run ./cmd/progress validate -> validated 9 phases"
+        ]
+      }
     }
   },
   {

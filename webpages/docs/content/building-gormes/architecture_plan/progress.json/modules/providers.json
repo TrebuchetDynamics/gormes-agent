@@ -6543,9 +6543,9 @@
     "item": {
       "name": "Provider/auth readiness preflight for unattended jobs",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add a pure provider/auth readiness preflight for unattended cron/fleet jobs that resolves provider, model, endpoint, credential-pool availability, and native-runtime binding before execution. It returns redacted readiness evidence for OperatorRunReport writers and blocks the run early with recommended setup/auth commands when provider credentials or endpoints are missing.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "provider",
       "module": "providers",
@@ -6595,6 +6595,18 @@
       "done_signal": [
         "Builder reports pure provider/auth readiness fixtures feeding OperatorRunReport degraded reasons, recommended setup/auth commands, and redaction evidence with no live network/provider calls."
       ],
+      "evidence": {
+        "completed_at": "2026-05-19T00:00:00Z",
+        "implementation": [
+          "internal/runtime/operator_preflight.go: OperatorPreflightInput, OperatorPreflightResult, RunOperatorPreflight, Evidence(), redactAPIKey, redactEndpoint, stable reason codes (provider_missing, model_missing, credential_missing)",
+          "internal/runtime/operator_preflight_test.go: 10 TDD tests (ready, missing provider/model/credential/endpoint, native unavailable, redaction, evidence secrets, all degraded reasons have commands, no network calls)"
+        ],
+        "tests": [
+          "RED: go test ./internal/runtime -run TestOperatorPreflight -count=1 failed before implementation",
+          "GREEN: go test ./internal/runtime -run TestOperatorPreflight -count=1 -> ok (10 tests)",
+          "go run ./cmd/progress validate -> validated 9 phases"
+        ]
+      },
       "provenance": {
         "origin_type": "gormes",
         "owned_since": "2026-05-18T00:00:00Z",

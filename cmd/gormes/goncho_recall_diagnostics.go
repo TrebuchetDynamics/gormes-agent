@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 )
 
 func newGonchoRecallDiagnosticsCommand() *cobra.Command {

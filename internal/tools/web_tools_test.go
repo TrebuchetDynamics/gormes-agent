@@ -16,7 +16,12 @@ import (
 
 	"github.com/TrebuchetDynamics/goscrapling"
 	goscraplingbrowser "github.com/TrebuchetDynamics/goscrapling/engines/browser"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/testutil/modassert"
 )
+
+func TestGoscraplingDependencyUsesPublicV010Release(t *testing.T) {
+	modassert.RequirePublicModuleVersion(t, "github.com/TrebuchetDynamics/goscrapling", "v0.1.0")
+}
 
 func TestWebToolsExposeHermesNamesAndSchemas(t *testing.T) {
 	webTools := NewWebTools(WebToolsConfig{

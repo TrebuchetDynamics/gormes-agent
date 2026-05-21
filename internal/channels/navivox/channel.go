@@ -26,8 +26,12 @@ import (
 const PlatformName = "navivox"
 
 const (
-	navivoxWebSocketProtocol            = "gormes.navivox.v1"
+	navivoxWebSocketProtocol            = "navivox.v1"
+	navivoxLegacyWebSocketProtocol      = "gormes.navivox.v1"
 	navivoxWebSocketTokenProtocolPrefix = "gormes.navivox.token."
+	navivoxEventBufferCap               = 256
+	navivoxSessionMaxAge                = 24 * time.Hour
+	navivoxSessionSweepInterval         = 5 * time.Minute
 )
 
 // vpnHostLister is the seam tests override to inject deterministic VPN
@@ -60,6 +64,7 @@ type sessionState struct {
 
 	lastMessageID string
 	lastText      string
+	seq           int
 }
 
 type client struct {
@@ -69,6 +74,8 @@ type client struct {
 	sessions map[string]struct{}
 	requests map[string]string
 	identity string
+	events   chan ServerEvent
+	done     chan struct{}
 }
 
 type ClientMessage struct {
@@ -89,8 +96,29 @@ type ServerEvent struct {
 	ToolName   string          `json:"tool_name,omitempty"`
 	ToolCallID string          `json:"tool_call_id,omitempty"`
 	Status     string          `json:"status,omitempty"`
+	SafetyID   string          `json:"safety_id,omitempty"`
+	ApprovalID string          `json:"approval_id,omitempty"`
+	Severity   string          `json:"severity,omitempty"`
+	Risk       string          `json:"risk,omitempty"`
+	Seq        int             `json:"seq,omitempty"`
 	Metadata   map[string]any  `json:"metadata,omitempty"`
 	Contact    *ProfileContact `json:"contact,omitempty"`
+}
+
+type SafetyEvent struct {
+	ID       string
+	Severity string
+	Message  string
+	Risk     string
+	Metadata map[string]any
+}
+
+type ApprovalEvent struct {
+	ID         string
+	ToolCallID string
+	Prompt     string
+	Risk       string
+	Metadata   map[string]any
 }
 
 type turnRequest struct {
@@ -224,6 +252,44 @@ func (c *Channel) SendToolProgress(ctx context.Context, chatID string, progress 
 	return toolCallID, ctx.Err()
 }
 
+func (c *Channel) SendSafetyWarning(ctx context.Context, chatID string, warning SafetyEvent) (string, error) {
+	id := strings.TrimSpace(warning.ID)
+	if id == "" {
+		id = c.newID()
+	}
+	severity := strings.TrimSpace(warning.Severity)
+	if severity == "" {
+		severity = "warning"
+	}
+	c.broadcast(chatID, ServerEvent{
+		Type:      "safety_warning",
+		SessionID: chatID,
+		SafetyID:  id,
+		Severity:  severity,
+		Message:   safeNavivoxToolSummary(warning.Message),
+		Risk:      safeNavivoxToolSummary(warning.Risk),
+		Metadata:  safeNavivoxToolMetadata(warning.Metadata),
+	})
+	return id, ctx.Err()
+}
+
+func (c *Channel) SendApprovalRequired(ctx context.Context, chatID string, approval ApprovalEvent) (string, error) {
+	id := strings.TrimSpace(approval.ID)
+	if id == "" {
+		id = c.newID()
+	}
+	c.broadcast(chatID, ServerEvent{
+		Type:       "approval_required",
+		SessionID:  chatID,
+		ApprovalID: id,
+		ToolCallID: strings.TrimSpace(approval.ToolCallID),
+		Message:    safeNavivoxToolSummary(approval.Prompt),
+		Risk:       safeNavivoxToolSummary(approval.Risk),
+		Metadata:   safeNavivoxToolMetadata(approval.Metadata),
+	})
+	return id, ctx.Err()
+}
+
 func (c *Channel) EditMessage(ctx context.Context, chatID, msgID, text string) error {
 	return c.edit(chatID, msgID, text, false)
 }
@@ -233,11 +299,22 @@ func (c *Channel) EditMessageFinal(ctx context.Context, chatID, msgID, text stri
 }
 
 func (c *Channel) edit(chatID, msgID, text string, finalize bool) error {
-	delta := text
 	c.mu.Lock()
 	session := c.ensureSessionLocked(chatID, "")
-	if session.lastMessageID == msgID && strings.HasPrefix(text, session.lastText) {
+	isPrefix := session.lastMessageID == msgID && strings.HasPrefix(text, session.lastText)
+	delta := text
+	seq := 0
+	reset := false
+	if isPrefix {
 		delta = strings.TrimPrefix(text, session.lastText)
+		seq = session.seq
+		session.seq++
+	} else {
+		// Prefix match failed (LLM rewrote mid-stream). Send full text with reset flag.
+		seq = session.seq
+		session.seq++
+		reset = true
+		delta = text
 	}
 	session.lastMessageID = msgID
 	session.lastText = text
@@ -246,7 +323,11 @@ func (c *Channel) edit(chatID, msgID, text string, finalize bool) error {
 
 	if !finalize {
 		if delta != "" {
-			c.broadcast(chatID, ServerEvent{Type: "assistant_delta", SessionID: chatID, Text: delta})
+			ev := ServerEvent{Type: "assistant_delta", SessionID: chatID, Text: delta, Seq: seq}
+			if reset {
+				ev.Metadata = map[string]any{"reset": true}
+			}
+			c.broadcast(chatID, ev)
 		}
 		return nil
 	}
@@ -277,11 +358,21 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 	clientCount := len(c.clients)
 	c.mu.Unlock()
 	writeNavivoxJSON(w, http.StatusOK, map[string]any{
-		"enabled":        c.cfg.Enabled,
-		"bind_host":      c.cfg.BindHost,
-		"port":           c.cfg.Port,
-		"exposure_mode":  c.cfg.ExposureMode,
-		"auth_mode":      c.cfg.AuthMode,
+		"enabled":             c.cfg.Enabled,
+		"bind_host":           c.cfg.BindHost,
+		"port":                c.cfg.Port,
+		"exposure_mode":       c.cfg.ExposureMode,
+		"auth_mode":           c.cfg.AuthMode,
+		"protocol_version":    navivoxWebSocketProtocol,
+		"websocket_protocols": []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol},
+		"capabilities": []string{
+			"profile_contacts",
+			"stream_turns",
+			"tool_progress",
+			"safety_warnings",
+			"approval_required",
+			"turn_control",
+		},
 		"sessions":       sessionCount,
 		"ws_connections": clientCount,
 	})
@@ -380,7 +471,7 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			return
 		}
 		upgrader := websocket.Upgrader{
-			Subprotocols: []string{navivoxWebSocketProtocol},
+			Subprotocols: []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol},
 			CheckOrigin: func(req *http.Request) bool {
 				return c.originAllowed(req.Header.Get("Origin"))
 			},
@@ -395,7 +486,10 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			sessions: map[string]struct{}{},
 			requests: map[string]string{},
 			identity: identity,
+			events:   make(chan ServerEvent, navivoxEventBufferCap),
+			done:     make(chan struct{}, 1),
 		}
+		go cl.eventPump()
 		c.addClient(cl)
 		defer c.removeClient(cl)
 		defer conn.Close()
@@ -535,6 +629,17 @@ func enqueue(ctx context.Context, inbox chan<- gateway.InboundEvent, ev gateway.
 	}
 }
 
+func (c *Channel) sweepSessions() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := c.now()
+	for id, state := range c.sessions {
+		if now.Sub(state.UpdatedAt) > navivoxSessionMaxAge {
+			delete(c.sessions, id)
+		}
+	}
+}
+
 func (c *Channel) ensureSessionLocked(id, requestID string) *sessionState {
 	state, ok := c.sessions[id]
 	now := c.now()
@@ -571,37 +676,45 @@ func (c *Channel) addClient(cl *client) {
 
 func (c *Channel) removeClient(cl *client) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	delete(c.clients, cl)
 	for sessionID := range cl.sessions {
 		if state := c.sessions[sessionID]; state != nil && state.Subscribers > 0 {
 			state.Subscribers--
 		}
 	}
+	c.mu.Unlock()
+	close(cl.events)
+	<-cl.done
 }
 
 func (c *Channel) broadcast(sessionID string, ev ServerEvent) {
-	type clientEvent struct {
-		client *client
-		event  ServerEvent
-	}
 	c.mu.Lock()
-	clientEvents := make([]clientEvent, 0, len(c.clients))
 	for cl := range c.clients {
-		if _, ok := cl.sessions[sessionID]; ok {
-			next := ev
-			if next.RequestID == "" {
-				next.RequestID = cl.requests[sessionID]
-			}
-			clientEvents = append(clientEvents, clientEvent{client: cl, event: next})
+		if _, ok := cl.sessions[sessionID]; !ok {
+			continue
+		}
+		next := ev
+		if next.RequestID == "" {
+			next.RequestID = cl.requests[sessionID]
+		}
+		select {
+		case cl.events <- next:
+		default:
+			// Buffer full — drop event rather than block all clients.
 		}
 	}
 	if state := c.sessions[sessionID]; state != nil {
 		state.UpdatedAt = c.now()
 	}
 	c.mu.Unlock()
-	for _, item := range clientEvents {
-		_ = item.client.write(item.event)
+}
+
+func (cl *client) eventPump() {
+	defer close(cl.done)
+	for ev := range cl.events {
+		if err := cl.write(ev); err != nil {
+			return
+		}
 	}
 }
 
@@ -628,37 +741,51 @@ func (c *Channel) authenticate(r *http.Request) (string, bool) {
 	mode := strings.ToLower(strings.TrimSpace(c.cfg.AuthMode))
 	switch mode {
 	case config.NavivoxAuthTailscaleIdentity:
-		identity := firstHeader(r, "Tailscale-User-Login", "X-Tailscale-User-Login", "Tailscale-Device-Name", "X-Tailscale-Device-Name")
-		if identity == "" {
-			return "", false
-		}
-		if len(c.cfg.AllowedTailnetIdentities) == 0 {
-			return identity, true
-		}
-		for _, allowed := range c.cfg.AllowedTailnetIdentities {
-			if strings.EqualFold(identity, allowed) {
-				return identity, true
-			}
-		}
-		return "", false
+		return c.authenticateTailscaleIdentity(r)
 	case config.NavivoxAuthPairingToken, config.NavivoxAuthStaticToken:
-		token := bearerToken(r)
-		if token == "" {
-			token = strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token"))
-		}
-		if token == "" {
-			token = webSocketProtocolToken(r)
-		}
-		if token == "" || c.cfg.Token == "" {
-			return "", false
-		}
-		if hmac.Equal([]byte(token), []byte(c.cfg.Token)) {
+		if c.authenticateToken(r) {
 			return "token", true
 		}
 		return "", false
+	case config.NavivoxAuthTokenAndTailscaleIdentity:
+		identity, ok := c.authenticateTailscaleIdentity(r)
+		if !ok || !c.authenticateToken(r) {
+			return "", false
+		}
+		return identity, true
 	default:
 		return "", false
 	}
+}
+
+func (c *Channel) authenticateTailscaleIdentity(r *http.Request) (string, bool) {
+	identity := firstHeader(r, "Tailscale-User-Login", "X-Tailscale-User-Login", "Tailscale-Device-Name", "X-Tailscale-Device-Name")
+	if identity == "" {
+		return "", false
+	}
+	if len(c.cfg.AllowedTailnetIdentities) == 0 {
+		return identity, true
+	}
+	for _, allowed := range c.cfg.AllowedTailnetIdentities {
+		if strings.EqualFold(identity, allowed) {
+			return identity, true
+		}
+	}
+	return "", false
+}
+
+func (c *Channel) authenticateToken(r *http.Request) bool {
+	token := bearerToken(r)
+	if token == "" {
+		token = strings.TrimSpace(r.Header.Get("X-Gormes-Navivox-Token"))
+	}
+	if token == "" {
+		token = webSocketProtocolToken(r)
+	}
+	if token == "" || c.cfg.Token == "" {
+		return false
+	}
+	return hmac.Equal([]byte(token), []byte(c.cfg.Token))
 }
 
 func bearerToken(r *http.Request) string {

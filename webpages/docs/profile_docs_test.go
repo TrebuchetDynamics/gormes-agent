@@ -26,8 +26,8 @@ func TestProfileDocsDisambiguateGormesRuntimeAndUpstreamHermes(t *testing.T) {
 		"`status: \"row_backed\"`",
 	})
 
-	recipe := readDoc(t, "content/recipes/profiles.md")
-	assertContainsAll(t, "content/recipes/profiles.md", recipe, []string{
+	recipe := readDoc(t, "content/operate/profiles-client-work.md")
+	assertContainsAll(t, "content/operate/profiles-client-work.md", recipe, []string{
 		"separate Gormes profile homes",
 		"Creating a profile does not make it active.",
 		"A non-empty workspace list is enforced as the\n   model-facing project allow-list.",

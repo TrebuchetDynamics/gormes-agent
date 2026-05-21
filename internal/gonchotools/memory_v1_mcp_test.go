@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 )
 
 func TestMemoryV1MCPTranscriptUsesOnlyContractedTools(t *testing.T) {

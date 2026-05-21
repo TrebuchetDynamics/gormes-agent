@@ -36,7 +36,11 @@ var (
 // View never panics on any non-negative (width, height) input.
 func (m Model) View() string {
 	if m.width < 20 || m.height < 10 {
-		return "terminal too narrow — resize to at least 20×10"
+		return fmt.Sprintf(
+			"terminal too small: %d×%d — resize to at least 20×10 for the Bubble Tea chat UI",
+			m.width,
+			m.height,
+		)
 	}
 
 	editor := m.editor
@@ -68,7 +72,7 @@ func (m Model) View() string {
 
 	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
 
-	hint := renderHermesHint(m.frame, m.statusMessage)
+	hint := renderHermesHint(m.frame, m.statusMessage, m.width)
 	completions := renderSlashCompletionMenu(editor.Value(), m.width)
 
 	// Render the active modal panel if one is present.
@@ -95,7 +99,7 @@ func (m Model) View() string {
 	})
 }
 
-func renderHermesHint(f kernel.RenderFrame, statusMessage string) string {
+func renderHermesHint(f kernel.RenderFrame, statusMessage string, width int) string {
 	var parts []string
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
 		parts = append(parts, strings.ToLower(f.Phase.String()))
@@ -109,7 +113,11 @@ func renderHermesHint(f kernel.RenderFrame, statusMessage string) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	return muted.Render(strings.Join(parts, " · "))
+	text := strings.Join(parts, " · ")
+	if width > 0 {
+		text = RenderMarkdownSoftWrapTrim(text, width)
+	}
+	return muted.Render(text)
 }
 
 func promptHeightForValue(value string) int {
@@ -202,7 +210,7 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 		omitted := i
 		candidate := append([]string{block}, visible...)
 		if omitted > 0 {
-			candidate = append([]string{omittedHistorySentinel(omitted)}, candidate...)
+			candidate = append([]string{omittedHistorySentinel(omitted, width)}, candidate...)
 		}
 		candidate = append(candidate, forced...)
 		if renderedLineCount(strings.Join(candidate, "\n\n")) > maxLines && len(visible) > 0 {
@@ -214,7 +222,7 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 	omitted := len(f.History) - len(visible)
 	lines := make([]string, 0, len(visible)+1)
 	if omitted > 0 {
-		lines = append(lines, omittedHistorySentinel(omitted))
+		lines = append(lines, omittedHistorySentinel(omitted, width))
 	}
 	lines = append(lines, visible...)
 	lines = append(lines, forced...)
@@ -228,7 +236,7 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool)
 	var blocks []string
 	hasFinal := frameHasFinalAssistant(f)
 	if !hasFinal {
-		if progress := conversationToolProgressBlock(f, compact); progress != "" {
+		if progress := conversationToolProgressBlock(f, wrapWidth, compact); progress != "" {
 			blocks = append(blocks, progress)
 		}
 	}
@@ -296,7 +304,7 @@ func lastAssistantContent(history []hermes.Message) string {
 	return ""
 }
 
-func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {
+func conversationToolProgressBlock(f kernel.RenderFrame, wrapWidth int, compact bool) string {
 	texts := make([]string, 0, len(f.SoulEvents))
 	for _, event := range f.SoulEvents {
 		texts = append(texts, event.Text)
@@ -307,6 +315,9 @@ func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {
 	}
 	if compact {
 		return compactViewportText(progress)
+	}
+	if wrapWidth > 0 {
+		progress = RenderMarkdownSoftWrapTrim(progress, wrapWidth)
 	}
 	return toolOutStyle.Render(progress)
 }
@@ -365,6 +376,20 @@ func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool
 		kept = append(kept, fmt.Sprintf("[+%d more lines]", hidden))
 		lines = kept
 	}
+	if wrapWidth < 24 {
+		out := []string{"⚡ " + name}
+		bodyWidth := wrapWidth - 2
+		if bodyWidth < 8 {
+			bodyWidth = 8
+		}
+		for _, line := range lines {
+			wrapped := RenderMarkdownSoftWrapTrim(line, bodyWidth)
+			for _, part := range strings.Split(wrapped, "\n") {
+				out = append(out, "│ "+part)
+			}
+		}
+		return toolOutStyle.Render(strings.Join(out, "\n"))
+	}
 	out := []string{"   ╭─ ⚡ " + name}
 	for i, line := range lines {
 		lines[i] = "   │ " + line
@@ -414,8 +439,12 @@ func compactViewportText(s string) string {
 	return truncateEllipsis(strings.Join(strings.Fields(s), " "), 48)
 }
 
-func omittedHistorySentinel(count int) string {
-	return muted.Render(fmt.Sprintf("... %d earlier history messages omitted ...", count))
+func omittedHistorySentinel(count, width int) string {
+	text := fmt.Sprintf("... %d earlier history messages omitted ...", count)
+	if width >= 20 {
+		text = RenderMarkdownSoftWrapTrim(text, width)
+	}
+	return muted.Render(text)
 }
 
 func renderedLineCount(s string) int {

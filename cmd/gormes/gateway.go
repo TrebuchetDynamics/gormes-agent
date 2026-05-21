@@ -19,6 +19,8 @@ import (
 	"github.com/spf13/cobra"
 	"go.etcd.io/bbolt"
 
+	"github.com/TrebuchetDynamics/goncho"
+	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
@@ -27,7 +29,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -36,10 +37,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/slack"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func newGatewayCommand() *cobra.Command {
-	return gatewaymodule.NewGatewayCommandWithSeams(gatewayCommandSeams(), gatewayCommandOptions())
+	cmd := gatewaymodule.NewGatewayCommandWithSeams(gatewayCommandSeams(), gatewayCommandOptions())
+	cmd.Flags().Bool("no-wakelock", false, "skip automatic termux-wake-lock acquisition on Termux (gateway foreground mode only)")
+	return cmd
 }
 
 func gatewayCommandSeams() gatewaymodule.GatewayCommandSeams {
@@ -53,6 +57,8 @@ func gatewayCommandSeams() gatewaymodule.GatewayCommandSeams {
 		ProbeCommand:               newGatewayProbeCommand,
 		UsageCostCommand:           newGatewayUsageCostCommand,
 		MutatingUnavailableCommand: newGatewayMutatingUnavailableCommand,
+		BootInstallCommand:         newGatewayBootInstallCommand,
+		BootUninstallCommand:       newGatewayBootUninstallCommand,
 	}
 }
 
@@ -292,21 +298,33 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model, withSessionSearch(mstore.DB(), smap))
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
-	// Initialize Goncho for cross-session memory persistence.
-	// When available, every user + assistant turn is persisted and recent
-	// context is injected into the system prompt on each turn.
+	// Initialize Goncho for cross-session memory persistence through the public
+	// github.com/TrebuchetDynamics/goncho/integration/gormes adapter. When
+	// available, every user + assistant turn is persisted, recent context is
+	// injected into the system prompt, and public goncho_* tools are registered.
 	var gonchoStore kernel.GonchoStore
+	var gonchoRuntime *gormesgoncho.Runtime
 	if cfg.Goncho.Enabled {
-		gonchoDB, err := sqlOpenGoncho(config.MemoryDBPath())
+		gonchoRuntime, err = gormesgoncho.Open(rootCtx, gormesgoncho.Config{
+			DatabasePath:   config.MemoryDBPath(),
+			WorkspaceID:    cfg.Goncho.Workspace,
+			ObserverID:     cfg.Goncho.ObserverPeer,
+			RecentMessages: cfg.Goncho.RecentMessages,
+			Logger:         slog.Default(),
+		})
 		if err != nil {
-			slog.Warn("goncho db open failed; memory disabled", "err", err)
+			slog.Warn("goncho runtime open failed; memory disabled", "err", err)
 		} else {
-			gc := goncho.NewService(gonchoDB, goncho.Config{
-				PeerCardEnabled: cfg.Goncho.PeerCardEnabled,
-				DreamEnabled:    cfg.Goncho.DreamEnabled,
-			}, slog.Default())
-			gonchoStore = newGonchoAdapter(gc)
-			slog.Info("goncho initialized", "db", config.MemoryDBPath())
+			gonchoStore = newGonchoAdapter(gonchoRuntime.Service)
+			registerGormesGonchoTools(reg, gonchoRuntime)
+			slog.Info(formatGormesGonchoStatus(gonchoRuntime.Status()))
+			defer func() {
+				shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+				defer cancelShutdown()
+				if err := gonchoRuntime.Close(shutdownCtx); err != nil {
+					slog.Warn("goncho runtime close", "err", err)
+				}
+			}()
 		}
 	}
 
@@ -368,7 +386,11 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := gatewayPolicyMaps(next)
 		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
 		nextCfg.DynamicAgentRegistry = dynamicAgentRegistry
-		nextCfg.ToolRegistry = buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
+		nextReg := buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
+		if gonchoRuntime != nil {
+			registerGormesGonchoTools(nextReg, gonchoRuntime)
+		}
+		nextCfg.ToolRegistry = nextReg
 		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
 		if nextCfg.AgentRouting.Enabled {
 			nextCfg.AgentRuntimeFactory = newGatewayAgentRuntimeFactory(rootCtx, next, mstore, gonchoStore)
@@ -417,7 +439,18 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		Tools:  reg,
 		Log:    slog.Default(),
 	})
-	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
+
+	noWakeLock, _ := cmd.Flags().GetBool("no-wakelock")
+	wakeLockMgr := tools.TermuxWakeLockManager{}
+	if !noWakeLock {
+		if err := wakeLockMgr.Acquire(cmd.Context()); err != nil {
+			slog.Warn("termux-wake-lock acquire failed; continuing without wake lock", "err", err)
+		} else {
+			slog.Info("termux-wake-lock acquired")
+		}
+	}
+
+	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit, wakeLockMgr)
 
 	// Phase 2.D — cron scheduler + executor + mirror (opt-in via cfg.Cron.Enabled).
 	// Initialized after channel registration so delivery adapters are available.
@@ -425,7 +458,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		initGatewayCron(cfg, smap.DB(), mstore.DB(), k, rootCtx)
 	}
 
-	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "secret_refs", len(secretSnapshot.Entries))
+	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "secret_refs", len(secretSnapshot.Entries), "wakelock", !noWakeLock)
 	return mgr.Run(rootCtx)
 }
 
@@ -1196,7 +1229,7 @@ func logGatewayStartupSecurityEvidence(evidence []gateway.AdmissionEvidence, log
 	}
 }
 
-func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gracefulShutdownManager, cancel context.CancelFunc, log *slog.Logger, forceExit func(int)) {
+func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gracefulShutdownManager, cancel context.CancelFunc, log *slog.Logger, forceExit func(int), wakeLockMgr tools.TermuxWakeLockManager) {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -1235,6 +1268,11 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 		})
 		defer timer.Stop()
 
+		if err := wakeLockMgr.Release(context.Background()); err != nil {
+			log.Warn("termux-wake-lock release failed", "err", err)
+		} else {
+			log.Info("termux-wake-lock released")
+		}
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), budget)
 		err := mgr.Shutdown(shutdownCtx)
 		shutdownCancel()
@@ -1304,6 +1342,10 @@ func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := goncho.RunMigrations(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	for _, stmt := range []string{
 		"PRAGMA journal_mode = WAL",
 		"PRAGMA busy_timeout = 5000",
@@ -1357,4 +1399,15 @@ func (a *gonchoAdapter) GetContext(ctx context.Context, sessionKey string, maxTo
 		b.WriteByte('\n')
 	}
 	return b.String(), nil
+}
+
+func (a *gonchoAdapter) OnSessionEnd(ctx context.Context, sessionKey string, messages []hermes.Message) error {
+	if a.svc == nil || sessionKey == "" {
+		return nil
+	}
+	gonchoMsgs := make([]goncho.Message, len(messages))
+	for i, m := range messages {
+		gonchoMsgs[i] = goncho.Message{Role: m.Role, Content: m.Content}
+	}
+	return a.svc.OnSessionEnd(ctx, sessionKey, gonchoMsgs)
 }

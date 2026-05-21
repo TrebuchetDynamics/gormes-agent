@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
@@ -21,6 +22,12 @@ type RecallConfig struct {
 	SemanticTopK          int           // default 3 when <= 0 and SemanticModel != ""
 	SemanticMinSimilarity float64       // default 0.35 when <= 0 and SemanticModel != ""
 	QueryEmbedTimeout     time.Duration // default 60ms when <= 0 and SemanticModel != ""
+
+	// Phase 3.H RRF parallel retrieval fusion.
+	RRFEnabled   bool    // when true, run FTS5 + semantic in parallel and fuse
+	RRFKFactor   float64 // RRF k parameter (default 60)
+	RRFFTSWeight float64 // weight for FTS5 results (default 1.0)
+	RRFSemWeight float64 // weight for semantic results (default 1.0)
 
 	// DecayHorizonDays — Phase 3.E.6. An edge's effective weight
 	// decays linearly from 1.0×raw at age=0 to 0.0 at
@@ -64,6 +71,17 @@ func (c *RecallConfig) withDefaults() {
 	// values are preserved as the "decay disabled" sentinel.
 	if c.DecayHorizonDays == 0 {
 		c.DecayHorizonDays = 180
+	}
+	if c.RRFEnabled {
+		if c.RRFKFactor <= 0 {
+			c.RRFKFactor = 60
+		}
+		if c.RRFFTSWeight <= 0 {
+			c.RRFFTSWeight = 1.0
+		}
+		if c.RRFSemWeight <= 0 {
+			c.RRFSemWeight = 1.0
+		}
 	}
 }
 
@@ -142,8 +160,55 @@ func (p *Provider) GetContext(ctx context.Context, in RecallInput) string {
 		return ""
 	}
 
-	// 2. Layer-2 fallback if Layer-1 didn't get enough.
-	if len(seeds) < 2 {
+	// 2. Layer-2 fallback: RRF parallel or waterfall.
+	if p.cfg.RRFEnabled && p.ec != nil && p.cfg.SemanticModel != "" {
+		// Parallel FTS5 + semantic, then RRF fusion.
+		var ftsIDs []int64
+		var semIDs []int64
+		var ftsErr, semErr error
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+			ftsIDs, ftsErr = seedsFTS5Scoped(ctx, p.store.db, in.UserMessage, allowedChats, p.cfg.MaxSeeds)
+		}()
+
+		go func() {
+			defer wg.Done()
+			semCtx, semCancel := context.WithTimeout(ctx, p.cfg.QueryEmbedTimeout)
+			qvec, err := p.ec.Embed(semCtx, p.cfg.SemanticModel, in.UserMessage)
+			semCancel()
+			if err != nil {
+				semErr = err
+				return
+			}
+			l2Normalize(qvec)
+			semIDs, semErr = semanticSeeds(ctx, p.store.db, p.cache,
+				p.cfg.SemanticModel, qvec, p.cfg.SemanticTopK, p.cfg.SemanticMinSimilarity)
+			if semErr != nil {
+				return
+			}
+			semIDs, semErr = filterEntityIDsByChatScope(ctx, p.store.db, semIDs, allowedChats)
+		}()
+
+		wg.Wait()
+
+		if ftsErr != nil {
+			p.log.Warn("recall: RRF FTS5 parallel query failed", "err", ftsErr)
+			ftsIDs = nil
+		}
+		if semErr != nil {
+			p.log.Warn("recall: RRF semantic parallel query failed", "err", semErr)
+			semIDs = nil
+		}
+
+		fused := RRFFuseIDs(ftsIDs, semIDs, p.cfg.RRFKFactor, p.cfg.RRFFTSWeight, p.cfg.RRFSemWeight)
+		if len(fused) > 0 {
+			seeds = fused
+		}
+	} else if len(seeds) < 2 {
 		fts, err := seedsFTS5Scoped(ctx, p.store.db, in.UserMessage, allowedChats, p.cfg.MaxSeeds)
 		if err != nil {
 			p.log.Warn("recall: Layer-2 FTS5 query failed", "err", err)

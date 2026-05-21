@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"path/filepath"
 	"slices"
 	"testing"
 )
@@ -52,7 +51,7 @@ func TestGonchoProofMatrix_CommandSurfacesDoctorDiagnosticsAndReplay(t *testing.
 		t.Fatal("doctor degraded modes empty; zero-state Goncho must expose operator-visible degraded evidence")
 	}
 
-	tracePath := filepath.Join("..", "..", "internal", "goncho", "testdata", "recall_trace", "stable_trace.golden.json")
+	tracePath := writeStableGonchoRecallTraceFixture(t)
 	diagnosticsOut, diagnosticsErrOut, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}),
 		"goncho", "recall-diagnostics", "--trace", tracePath, "--json",
 	)

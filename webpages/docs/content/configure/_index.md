@@ -1,6 +1,6 @@
 ---
 title: "Configure"
-description: "Where Gormes reads its configuration and how to change it safely."
+description: "Guided Gormes setup for providers, models, profiles, channels, secrets, and local state."
 weight: 30
 aliases:
   - /getting-started/configuration/
@@ -12,23 +12,26 @@ aliases:
 Gormes resolves settings in a fixed precedence chain: CLI flags win, then
 environment variables, then values in `config.toml`, then built-in defaults.
 Secrets are routed to a separate dotenv file so `config.toml` stays safe to
-share. Use the pages below to find the exact knob you need.
+share. Use this section for guided setup. Exact lookup pages for `config.toml`,
+environment variables, and paths live under [Reference](../reference/).
 
 Configuration is canonical at `$GORMES_HOME/config.toml` (default
 `~/.gormes/config.toml`). Secrets live in `$GORMES_HOME/.env`. There is no
 project-local override and no XDG path.
 
-- [Config file](./config-file/) — every `[section]` and field that
-  `config.toml` accepts, with verified defaults from the binary.
-- [Environment](./environment/) — every `GORMES_*` and legacy
-  `HERMES_*`/`TELEGRAM_*` variable Gormes reads, grouped by family.
+- [Setup wizard](./setup-wizard/) — `gormes setup`, focused setup sections,
+  verification, and command reference links.
 - [Providers](./providers/) — the inference providers Gormes ships
   with, the env vars they need, and how the `--provider`/`--model` flags
   resolve.
-- [Telegram](./telegram/) — the minimal bot-token + allow-list path
-  and the advanced channel/guest-mode/notification options.
-- [Paths & logs](./paths/) — the exact files Gormes reads and writes
-  under `$GORMES_HOME`, and how each is resolved.
+- [Models and routing](./models-routing/) — active provider/model selection,
+  invocation overrides, and fallback pointers.
+- [Profiles and workspaces](./profiles-workspaces/) — profile state boundaries
+  and workspace allow-list semantics.
+- [Channel credentials](./telegram/) — Telegram token setup plus gateway
+  credential pointers.
+- [Secrets and local state](./secrets-local-state/) — `config.toml` vs `.env`,
+  `$GORMES_HOME`, and what not to share.
 
 ## Quick orientation
 
@@ -56,3 +59,9 @@ For provider credentials, use the credential pool so OAuth refresh works:
 gormes auth add anthropic --type oauth
 gormes auth add openai --api-key sk-...
 ```
+
+For exact lookup, use:
+
+- [Config file](./config-file/)
+- [Environment variables](./environment/)
+- [Paths and logs](./paths/)

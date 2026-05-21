@@ -386,7 +386,7 @@
     "item": {
       "name": "Remove SSH Navivox stdio path",
       "status": "complete",
-      "contract": "Delete the SSH stdio Navivox transport — `gormes navivox serve|pair|setup-host` CLI surface, the wire-protocol Go package (codec/frames/server/status), the Flutter dartssh2 transport and ssh_navivox_channel client, and the `dartssh2` dependency. Preserve the HTTP/WS path (`internal/channels/navivox/channel.go` and `flutter-navivox/app/lib/core/gateway/*`). Move `PlatformName = \"navivox\"` from `protocol.go` into the surviving channel package so deleting protocol.go does not break the gateway import.",
+      "contract": "Delete the SSH stdio Navivox transport \u2014 `gormes navivox serve|pair|setup-host` CLI surface, the wire-protocol Go package (codec/frames/server/status), the Flutter dartssh2 transport and ssh_navivox_channel client, and the `dartssh2` dependency. Preserve the HTTP/WS path (`internal/channels/navivox/channel.go` and `flutter-navivox/app/lib/core/gateway/*`). Move `PlatformName = \"navivox\"` from `protocol.go` into the surviving channel package so deleting protocol.go does not break the gateway import.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
@@ -416,7 +416,7 @@
         "Both `go test ./... -count=1` and `flutter test` are green.",
         "`PlatformName` constant survives the deletion and is reachable from `cmd/gormes/gateway.go` via `internal/channels/navivox.PlatformName`."
       ],
-      "note": "Shipped 2026-05-14. Deleted Go: cmd/gormes/{navivox.go,navivox_test.go,navivox_host_setup_test.go} and internal/channels/navivox/{protocol.go,protocol_test.go,server.go,server_test.go,status.go}. Deleted Flutter: lib/core/channel/ssh_navivox_channel.dart, lib/core/transport/dartssh2_byte_transport.dart, and the 5 ssh_navivox_channel_* + 1 dartssh2_byte_transport_test test files. Moved PlatformName const into internal/channels/navivox/channel.go. Patched cmd/gormes/setup_navivox.go to stop calling the deleted resolveNavivoxPairHost (auto-detect deferred to the vpnhost row). Removed `newNavivoxCommand()` from main.go cobra registration. dartssh2 dropped from pubspec.yaml (along with transitive deps asn1lib/pinenacl/pointycastle). Validation: `go test ./... -count=1` all packages OK; `flutter test` 83/83 passed (down from 113 — 30 tests deleted with the SSH transport).",
+      "note": "Shipped 2026-05-14. Deleted Go: cmd/gormes/{navivox.go,navivox_test.go,navivox_host_setup_test.go} and internal/channels/navivox/{protocol.go,protocol_test.go,server.go,server_test.go,status.go}. Deleted Flutter: lib/core/channel/ssh_navivox_channel.dart, lib/core/transport/dartssh2_byte_transport.dart, and the 5 ssh_navivox_channel_* + 1 dartssh2_byte_transport_test test files. Moved PlatformName const into internal/channels/navivox/channel.go. Patched cmd/gormes/setup_navivox.go to stop calling the deleted resolveNavivoxPairHost (auto-detect deferred to the vpnhost row). Removed `newNavivoxCommand()` from main.go cobra registration. dartssh2 dropped from pubspec.yaml (along with transitive deps asn1lib/pinenacl/pointycastle). Validation: `go test ./... -count=1` all packages OK; `flutter test` 83/83 passed (down from 113 \u2014 30 tests deleted with the SSH transport).",
       "write_scope": [
         "internal/channels/navivox/protocol.go",
         "internal/channels/navivox/protocol_test.go",
@@ -474,7 +474,7 @@
       ],
       "ready_when": [
         "`Remove SSH Navivox stdio path` shipped.",
-        "Test inventory shows the only callers of `enterFakeServerMode` are the router and a couple of widget tests — easy to migrate to a real GatewayNavivoxChannel against a fixture server.",
+        "Test inventory shows the only callers of `enterFakeServerMode` are the router and a couple of widget tests \u2014 easy to migrate to a real GatewayNavivoxChannel against a fixture server.",
         "`flutter test` is green on development."
       ],
       "not_ready_when": [
@@ -493,7 +493,7 @@
         "Router test suite still covers the no-server-configured starting state and a successful chat path against a fixture HTTP gateway (or marks the chat path as a deferred integration test if no fixture server is feasible).",
         "`flutter test` is green."
       ],
-      "note": "Shipped 2026-05-14. Deleted: lib/core/channel/fake_navivox_channel.dart, lib/core/protocol/{navivox_frame,frame_reader}.dart, lib/core/transport/{byte_transport,in_memory_transport}.dart, plus 5 dead-code tests (test/core/protocol/{frame_codec,frame_reader}_test.dart, test/features/voice/voice_capture_test.dart, test/features/chat/{chat_send_message,chat_screen_voice_wiring}_test.dart). Renamed activeNavivoxChannelProvider → navivoxChannelProvider (now a Provider<NavivoxChannel> that returns the gateway channel directly; gatewayNavivoxChannelProvider remains as a typed handle for the setup flow .connect call). Dropped enterFakeServerMode from NavivoxChannel interface and GatewayNavivoxChannel; removed the in-product \"Use fake local server\" button + .useGateway() call from setup_screen.dart. Created test/support/test_navivox_channel.dart with seedAgents/seedServers/emitConfigSchema/emitConfigValues/emitApprovalRequest helpers; migrated 5 widget tests (agents, chat_active_agent, approval_banner x2, config_screen) to it. Router test suite kept the no-server starting state; the chat-mode integration test was marked deferred (needs a fixture HTTP gateway). 65/65 flutter tests passing.",
+      "note": "Shipped 2026-05-14. Deleted: lib/core/channel/fake_navivox_channel.dart, lib/core/protocol/{navivox_frame,frame_reader}.dart, lib/core/transport/{byte_transport,in_memory_transport}.dart, plus 5 dead-code tests (test/core/protocol/{frame_codec,frame_reader}_test.dart, test/features/voice/voice_capture_test.dart, test/features/chat/{chat_send_message,chat_screen_voice_wiring}_test.dart). Renamed activeNavivoxChannelProvider \u2192 navivoxChannelProvider (now a Provider<NavivoxChannel> that returns the gateway channel directly; gatewayNavivoxChannelProvider remains as a typed handle for the setup flow .connect call). Dropped enterFakeServerMode from NavivoxChannel interface and GatewayNavivoxChannel; removed the in-product \"Use fake local server\" button + .useGateway() call from setup_screen.dart. Created test/support/test_navivox_channel.dart with seedAgents/seedServers/emitConfigSchema/emitConfigValues/emitApprovalRequest helpers; migrated 5 widget tests (agents, chat_active_agent, approval_banner x2, config_screen) to it. Router test suite kept the no-server starting state; the chat-mode integration test was marked deferred (needs a fixture HTTP gateway). 65/65 flutter tests passing.",
       "write_scope": [
         "flutter-navivox/app/lib/core/channel/navivox_channel_provider.dart",
         "flutter-navivox/app/lib/core/channel/fake_navivox_channel.dart",
@@ -552,7 +552,7 @@
         "`flutter build web --release` succeeds (no native-FFI blocker remains).",
         "`flutter test` is green."
       ],
-      "note": "Shipped 2026-05-14. Deleted entire lib/features/keys/ tree (data, services, screens, providers, generated key_database.g.dart) and test/features/keys/ (7 tests), plus test/features/servers/setup_screen_imports_test.dart. Removed keys/keyImport/keyGenerate route constants, the Keys GoRoute, and the Keys destination from app_shell. setup_screen.dart no longer imports key_store/serverStoreProvider and the \"Recently imported\" servers section is gone. Dropped drift, drift_dev, and sqlite3 from pubspec.yaml. Flutter `flutter pub get` removed 20+ transitive deps; `flutter test` 33/33 passing. Added Flutter web platform scaffold via `flutter create --platforms=web .` and confirmed `flutter build web --release` builds successfully (build/web/index.html present) — the dart:io / FFI blocker the operator flagged at the start of 2026-05-14 is cleared.",
+      "note": "Shipped 2026-05-14. Deleted entire lib/features/keys/ tree (data, services, screens, providers, generated key_database.g.dart) and test/features/keys/ (7 tests), plus test/features/servers/setup_screen_imports_test.dart. Removed keys/keyImport/keyGenerate route constants, the Keys GoRoute, and the Keys destination from app_shell. setup_screen.dart no longer imports key_store/serverStoreProvider and the \"Recently imported\" servers section is gone. Dropped drift, drift_dev, and sqlite3 from pubspec.yaml. Flutter `flutter pub get` removed 20+ transitive deps; `flutter test` 33/33 passing. Added Flutter web platform scaffold via `flutter create --platforms=web .` and confirmed `flutter build web --release` builds successfully (build/web/index.html present) \u2014 the dart:io / FFI blocker the operator flagged at the start of 2026-05-14 is cleared.",
       "write_scope": [
         "flutter-navivox/app/lib/features/keys/",
         "flutter-navivox/app/lib/router/",
@@ -584,7 +584,7 @@
     "item": {
       "name": "Navivox VPN host enumeration helper",
       "status": "complete",
-      "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. The navivox HTTP gateway channel (mandatory-VPN bind, connect-info command) consumes it. The package is built fresh — no SSH-pair code remains by this point.",
+      "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces \u2014 Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices \u2014 returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale \u2192 WireGuard \u2192 other VPN. The navivox HTTP gateway channel (mandatory-VPN bind, connect-info command) consumes it. The package is built fresh \u2014 no SSH-pair code remains by this point.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -610,12 +610,12 @@
         "Navivox HTTP gateway connect-info command"
       ],
       "acceptance": [
-        "internal/network/vpnhost.List(ctx) returns at least one entry on a host with Tailscale or WireGuard up, with kind ∈ {tailscale, wireguard, tun-other}.",
+        "internal/network/vpnhost.List(ctx) returns at least one entry on a host with Tailscale or WireGuard up, with kind \u2208 {tailscale, wireguard, tun-other}.",
         "internal/network/vpnhost has zero imports from internal/channels or cmd/ so both can import it.",
         "`cmd/gormes/setup_navivox.go:navivoxSetupBindDefault` consumes vpnhost.List for exposure_mode=tailscale instead of returning the loopback default.",
-        "Tests use seamed fakes for `tailscale` CLI and `ip` CLI — no live commands at test time."
+        "Tests use seamed fakes for `tailscale` CLI and `ip` CLI \u2014 no live commands at test time."
       ],
-      "note": "Shipped 2026-05-14. New package internal/network/vpnhost with Lister struct exposing LookPath/RunTailscale/RunIP seams; package-level vpnhost.List(ctx) for production. Detects tailscale via `tailscale ip -4/-6`, wireguard via `ip -j -d link show type wireguard` + `ip -j addr show dev <iface>`, tun-other via `ip -j link show type tun` excluding already-detected interfaces. Tests (6) use seamed fakes — no live CLI calls. cmd/gormes/setup_navivox.go now consumes vpnhostList (a test-overridable var) so navivoxSetupBindDefault picks the first detected tailscale IPv4 for exposure_mode=tailscale, falling back to config.NavivoxDefaultBindHost. Four new setup_navivox_test.go cases cover the picks/fallback paths.",
+      "note": "Shipped 2026-05-14. New package internal/network/vpnhost with Lister struct exposing LookPath/RunTailscale/RunIP seams; package-level vpnhost.List(ctx) for production. Detects tailscale via `tailscale ip -4/-6`, wireguard via `ip -j -d link show type wireguard` + `ip -j addr show dev <iface>`, tun-other via `ip -j link show type tun` excluding already-detected interfaces. Tests (6) use seamed fakes \u2014 no live CLI calls. cmd/gormes/setup_navivox.go now consumes vpnhostList (a test-overridable var) so navivoxSetupBindDefault picks the first detected tailscale IPv4 for exposure_mode=tailscale, falling back to config.NavivoxDefaultBindHost. Four new setup_navivox_test.go cases cover the picks/fallback paths.",
       "write_scope": [
         "internal/network/vpnhost/",
         "cmd/gormes/setup_navivox.go",
@@ -669,13 +669,13 @@
         "Navivox HTTP gateway connect-info command"
       ],
       "acceptance": [
-        "Config validation fails closed with a typed error when exposure_mode ∈ {tailscale,wireguard,vpn} and bind_host does not match any IP returned by vpnhost.List.",
+        "Config validation fails closed with a typed error when exposure_mode \u2208 {tailscale,wireguard,vpn} and bind_host does not match any IP returned by vpnhost.List.",
         "Config validation passes when bind_host matches a tailscale or wireguard IP from vpnhost.List.",
         "Channel constructor surfaces the validation error verbatim instead of partially initializing.",
         "exposure_mode=local with loopback bind still accepted unchanged.",
         "New exposure_mode values `wireguard` and `vpn` are accepted by validation alongside `tailscale`."
       ],
-      "note": "Shipped 2026-05-14. Added NavivoxExposureWireGuard and NavivoxExposureVPN constants; extended normalizeNavivoxConfig allowlist; added NavivoxExposureRequiresVPN(mode) helper and ValidateNavivoxBindAgainstVPN(cfg, vpnIPs) — pure structural validator that accepts IPs as []string so internal/config has no dependency on internal/network/vpnhost. internal/channels/navivox/channel.go now calls vpnHostLister (test-overridable var, defaults to vpnhost.List) in NewChannel after structural validation and runs the bind check; loopback bind for exposure_mode=local stays untouched. Tests: 6 new internal/config cases (mode allowlist + helper truth table + nil/disabled + local-or-public no-op + match + no-VPN failure + mismatch listing). 3 new internal/channels/navivox cases (loopback rejected, matching VPN accepted, local unaffected).",
+      "note": "Shipped 2026-05-14. Added NavivoxExposureWireGuard and NavivoxExposureVPN constants; extended normalizeNavivoxConfig allowlist; added NavivoxExposureRequiresVPN(mode) helper and ValidateNavivoxBindAgainstVPN(cfg, vpnIPs) \u2014 pure structural validator that accepts IPs as []string so internal/config has no dependency on internal/network/vpnhost. internal/channels/navivox/channel.go now calls vpnHostLister (test-overridable var, defaults to vpnhost.List) in NewChannel after structural validation and runs the bind check; loopback bind for exposure_mode=local stays untouched. Tests: 6 new internal/config cases (mode allowlist + helper truth table + nil/disabled + local-or-public no-op + match + no-VPN failure + mismatch listing). 3 new internal/channels/navivox cases (loopback rejected, matching VPN accepted, local unaffected).",
       "write_scope": [
         "internal/config/config.go",
         "internal/config/navivox_config_test.go",
@@ -703,7 +703,7 @@
     "item": {
       "name": "Navivox HTTP gateway connect-info command",
       "status": "complete",
-      "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
+      "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel \u2014 one per active VPN interface returned by internal/network/vpnhost \u2014 with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -727,7 +727,7 @@
         "Navivox HTTP gateway mandatory-VPN bind"
       ],
       "acceptance": [
-        "`gormes navivox connect-info --json` returns one entry per VPN interface with `base_url=http://<vpn-ip>:<port>`, `host_source` ∈ {tailscale,wireguard,tun-other}, `healthz_url=base_url+/healthz`, `token_required=true` when auth_mode ∈ {static_token, pairing_token}.",
+        "`gormes navivox connect-info --json` returns one entry per VPN interface with `base_url=http://<vpn-ip>:<port>`, `host_source` \u2208 {tailscale,wireguard,tun-other}, `healthz_url=base_url+/healthz`, `token_required=true` when auth_mode \u2208 {static_token, pairing_token}.",
         "Without --json, a human-readable list is printed (one URL per line) with the VPN kind shown next to each.",
         "When exposure_mode=local, only `http://127.0.0.1:<port>` is printed.",
         "When the channel is disabled, the command exits non-zero with a typed error pointing at `[navivox] enabled`.",
@@ -1582,6 +1582,70 @@
       "provenance": {
         "origin_type": "gormes",
         "owned_since": "2026-05-16"
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 104,
+    "item": {
+      "name": "Navivox bridge HTTP control plane + Termux auto-provisioning",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Localhost HTTP bridge (127.0.0.1:8765) that proxies to Gormes gateway (127.0.0.1:8766) and provides Termux auto-provisioning bootstrap endpoint for Navivox Flutter app. SSE streaming for live bootstrap progress. Idempotent detection via gateway port probe.",
+      "contract_status": "implemented",
+      "slice_size": "tracer-bullet",
+      "execution_owner": "builder",
+      "module": "navivox",
+      "trust_class": [
+        "gateway",
+        "operator"
+      ],
+      "degraded_mode": "Bridge returns 502 JSON when gateway is unreachable; bootstrap returns structured error steps when Termux is not detected.",
+      "fixture": "internal/bridge/bridge_test.go (30 tests)",
+      "source_refs": [
+        "internal/channels/navivox/channel.go",
+        "cmd/gormes/gateway.go",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox HTTP/WS channel"
+      ],
+      "ready_when": [
+        "internal/bridge package exists with Server, Config, reverse proxy, CORS, panic recovery",
+        "POST /bootstrap/termux endpoint with 8-step pipeline and SSE streaming"
+      ],
+      "not_ready_when": [
+        "Bridge attempts to replace gateway functionality",
+        "Bridge exposes arbitrary shell execution API",
+        "Bridge binds to non-localhost addresses"
+      ],
+      "acceptance": [
+        "30 TDD tests pass covering health, status, proxy, CORS, panic recovery, bootstrap, SSE",
+        "gormes bridge starts and proxies to gateway",
+        "gormes bootstrap termux --dry-run returns structured JSON",
+        "POST /bootstrap/termux returns per-step status with SSE streaming support"
+      ],
+      "write_scope": [
+        "internal/bridge/bridge.go",
+        "internal/bridge/bootstrap.go",
+        "internal/bridge/bridge_test.go",
+        "cmd/gormes/bridge.go",
+        "cmd/gormes/bootstrap.go",
+        "cmd/gormes/main.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/bridge/... -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "go test ./internal/bridge/... passes",
+        "gormes bridge --help shows subcommand",
+        "progress.json row marked complete"
+      ],
+      "note": "Complete 2026-05-19: Bridge recreated after git reset. 30 TDD tests pass. Covers localhost HTTP proxy, CORS, panic recovery, 8-step Termux bootstrap with SSE streaming, idempotent gateway detection.",
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-19"
       }
     }
   }

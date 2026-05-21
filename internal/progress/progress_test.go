@@ -71,10 +71,12 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["2"].DerivedStatus(); got == StatusPlanned {
 		t.Errorf("Phase 2 = %q, want at least in_progress (gateway/channel work has landed)", got)
 	}
-	// Phase 3 is complete once the local-first markdown MCP memory requirement
-	// joins the existing durable-memory parity rows as validated.
-	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
-		t.Errorf("Phase 3 = %q, want complete", got)
+	// Phase 3 was complete after the local-first markdown MCP memory requirement
+	// joined the existing durable-memory parity rows as validated. It reopens to
+	// in_progress when Gormes-owned memory quality improvements (3.H: session-end
+	// summaries, BM25+RRF retrieval, /memory CLI, dream consolidation) are added.
+	if got := p.Phases["3"].DerivedStatus(); got == StatusPlanned {
+		t.Errorf("Phase 3 = %q, want at least in_progress (memory quality work has started)", got)
 	}
 	// Phase 4 reopens to in_progress whenever a planned provider-parity
 	// row (Nous OAuth device-code/refresh/mint port, Anthropic OAuth
@@ -237,8 +239,8 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		t.Fatalf("Phase 2.D operator run report readiness = size %q unblocks %v, want small slice unblocking scheduled briefing", report.SliceSize, report.Unblocks)
 	}
 	briefing := cronItemDetails["Scheduled briefing job emits operator run report"]
-	if briefing.Status != StatusPlanned || containsString(briefing.BlockedBy, "Durable operator run report for unattended jobs") {
-		t.Fatalf("Phase 2.D scheduled briefing metadata = status %q blocked_by %v, want planned and unblocked by durable report", briefing.Status, briefing.BlockedBy)
+	if briefing.Status != StatusComplete || briefing.ContractStatus != ContractStatusValidated || containsString(briefing.BlockedBy, "Durable operator run report for unattended jobs") {
+		t.Fatalf("Phase 2.D scheduled briefing metadata = status %q contract_status %q blocked_by %v, want complete validated and unblocked by durable report", briefing.Status, briefing.ContractStatus, briefing.BlockedBy)
 	}
 
 	runtimeCore := p.Phases["2"].Subphases["2.E.0"]

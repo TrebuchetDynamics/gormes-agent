@@ -3,6 +3,7 @@ package navivox
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,6 +39,35 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	defer statusResp.Body.Close()
 	if statusResp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("unauthorized status = %d, want 401", statusResp.StatusCode)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	authStatus, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authStatus.Body.Close()
+	if authStatus.StatusCode != http.StatusOK {
+		t.Fatalf("authorized status = %d, want 200", authStatus.StatusCode)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(authStatus.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["protocol_version"] != "navivox.v1" {
+		t.Fatalf("protocol_version = %v, want navivox.v1", payload["protocol_version"])
+	}
+	protocols, ok := payload["websocket_protocols"].([]any)
+	if !ok || len(protocols) < 2 || protocols[0] != "navivox.v1" || protocols[1] != "gormes.navivox.v1" {
+		t.Fatalf("websocket_protocols = %#v, want neutral protocol plus legacy gormes fallback", payload["websocket_protocols"])
+	}
+	capabilities, ok := payload["capabilities"].([]any)
+	if !ok || !containsAny(capabilities, "profile_contacts") || !containsAny(capabilities, "turn_control") {
+		t.Fatalf("capabilities = %#v, want profile_contacts and turn_control", payload["capabilities"])
 	}
 }
 
@@ -118,6 +148,77 @@ func TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken(t *testing.T) {
 	}
 	if pong.Type != "pong" || pong.RequestID != "req-browser" {
 		t.Fatalf("pong = %+v, want browser-authenticated pong", pong)
+	}
+}
+
+func TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity(t *testing.T) {
+	prev := vpnHostLister
+	t.Cleanup(func() { vpnHostLister = prev })
+	vpnHostLister = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"}}, nil
+	}
+
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:                  true,
+		BindHost:                 "100.64.1.2",
+		Port:                     config.NavivoxDefaultPort,
+		ExposureMode:             config.NavivoxExposureTailscale,
+		AuthMode:                 config.NavivoxAuthTokenAndTailscaleIdentity,
+		Token:                    "nvbx_test_token",
+		AllowedTailnetIdentities: []string{"juan@example.com"},
+		AllowOrigins:             []string{"*"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	for name, headers := range map[string]map[string]string{
+		"token-only": {
+			"Authorization": "Bearer nvbx_test_token",
+		},
+		"identity-only": {
+			"Tailscale-User-Login": "juan@example.com",
+		},
+		"wrong-identity": {
+			"Authorization":        "Bearer nvbx_test_token",
+			"Tailscale-User-Login": "intruder@example.com",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for key, value := range headers {
+				req.Header.Set(key, value)
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want 401", resp.StatusCode)
+			}
+		})
+	}
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Tailscale-User-Login", "juan@example.com")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
 }
 
@@ -336,6 +437,69 @@ func TestNavivoxWebSocketStopTurnEnqueuesCancel(t *testing.T) {
 	}
 }
 
+func TestNavivoxSafetyEventsStreamAsTypedEvents(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-safe", SessionID: "s-safe"}); err != nil {
+		t.Fatal(err)
+	}
+	var subscribed ServerEvent
+	if err := conn.ReadJSON(&subscribed); err != nil {
+		t.Fatal(err)
+	}
+	if subscribed.Type != "session_started" || subscribed.SessionID != "s-safe" {
+		t.Fatalf("session_started = %+v", subscribed)
+	}
+
+	warningID, err := ch.SendSafetyWarning(context.Background(), "s-safe", SafetyEvent{
+		ID:       "safe-1",
+		Severity: "high",
+		Message:  "Shell command wants to modify files",
+		Risk:     "Writes may change the workspace",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if warningID != "safe-1" {
+		t.Fatalf("warning id = %q, want safe-1", warningID)
+	}
+	var warning ServerEvent
+	if err := conn.ReadJSON(&warning); err != nil {
+		t.Fatal(err)
+	}
+	if warning.Type != "safety_warning" || warning.RequestID != "req-safe" || warning.SessionID != "s-safe" {
+		t.Fatalf("warning envelope = %+v", warning)
+	}
+	if warning.SafetyID != "safe-1" || warning.Severity != "high" || warning.Message != "Shell command wants to modify files" || warning.Risk != "Writes may change the workspace" {
+		t.Fatalf("warning fields = %+v", warning)
+	}
+
+	approvalID, err := ch.SendApprovalRequired(context.Background(), "s-safe", ApprovalEvent{
+		ID:         "approval-1",
+		ToolCallID: "call-shell",
+		Prompt:     "Approve shell.run?",
+		Risk:       "Command can edit files",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if approvalID != "approval-1" {
+		t.Fatalf("approval id = %q, want approval-1", approvalID)
+	}
+	var approval ServerEvent
+	if err := conn.ReadJSON(&approval); err != nil {
+		t.Fatal(err)
+	}
+	if approval.Type != "approval_required" || approval.ApprovalID != "approval-1" || approval.ToolCallID != "call-shell" || approval.Message != "Approve shell.run?" || approval.Risk != "Command can edit files" {
+		t.Fatalf("approval event = %+v", approval)
+	}
+}
+
 func TestNavivoxSendToolProgressStreamsStructuredToolEvent(t *testing.T) {
 	ch := newTestChannel(t)
 	inbox := make(chan gateway.InboundEvent, 1)
@@ -383,6 +547,15 @@ func TestNavivoxSendToolProgressStreamsStructuredToolEvent(t *testing.T) {
 	}
 }
 
+func containsAny(values []any, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func newTestChannel(t *testing.T) *Channel {
 	t.Helper()
 	ch, err := NewChannel(config.NavivoxCfg{
@@ -392,6 +565,7 @@ func newTestChannel(t *testing.T) *Channel {
 		ExposureMode: config.NavivoxExposureLocal,
 		AuthMode:     config.NavivoxAuthPairingToken,
 		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -502,5 +676,194 @@ func TestNewChannel_LocalExposureUnaffectedByVPNCheck(t *testing.T) {
 	}
 	if ch == nil {
 		t.Fatal("NewChannel returned nil channel")
+	}
+}
+
+func TestMergeProfileContact_PreservesLoaderHealth(t *testing.T) {
+	base := ProfileContact{
+		ServerID:         "navivox-gateway",
+		ProfileID:        "default",
+		DisplayName:      "Default profile",
+		Health:           ProfileContactHealthWarning,
+		AttentionBadges:  []string{"config", "workspace"},
+		WorkspaceRootsOK: false,
+	}
+	overlay := ProfileContact{
+		ServerID:        "navivox-gateway",
+		ProfileID:       "default",
+		LatestPreview:   "active turn",
+		ActiveTurnState: ProfileContactTurnActive,
+		Health:          ProfileContactHealthOnline,
+		MicAvailable:    true,
+	}
+	merged := mergeProfileContact(base, overlay)
+	if merged.Health != ProfileContactHealthWarning {
+		t.Fatalf("merged health = %q, want %q (loader health preserved)", merged.Health, ProfileContactHealthWarning)
+	}
+	if merged.LatestPreview != "active turn" {
+		t.Fatalf("merged preview = %q, want active turn", merged.LatestPreview)
+	}
+	if merged.ActiveTurnState != ProfileContactTurnActive {
+		t.Fatalf("merged turn state = %q, want active", merged.ActiveTurnState)
+	}
+}
+
+func TestNavivoxCORSPreflightAndActualRequest(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	origin := "http://localhost:3000"
+	preflight, err := http.NewRequest(http.MethodOptions, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preflight.Header.Set("Origin", origin)
+	preflightResp, err := http.DefaultClient.Do(preflight)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer preflightResp.Body.Close()
+	if preflightResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("CORS preflight status = %d, want 204", preflightResp.StatusCode)
+	}
+	if got := preflightResp.Header.Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("CORS Allow-Origin = %q, want %q", got, origin)
+	}
+
+	actual, err := http.NewRequest(http.MethodGet, server.URL+"/healthz", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual.Header.Set("Origin", origin)
+	actualResp, err := http.DefaultClient.Do(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer actualResp.Body.Close()
+	if got := actualResp.Header.Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("CORS Allow-Origin on actual request = %q, want %q", got, origin)
+	}
+	if got := actualResp.Header.Get("Vary"); got != "Origin" {
+		t.Fatalf("CORS Vary = %q, want Origin", got)
+	}
+}
+
+func TestNavivoxWebSocketCancelTurnEnqueuesCancel(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+	conn := dialTestWebSocket(t, server.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(ClientMessage{Type: "cancel_turn", RequestID: "req-cancel", SessionID: "s-cancel"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var done ServerEvent
+	if err := conn.ReadJSON(&done); err != nil {
+		t.Fatal(err)
+	}
+	if done.Type != "done" || done.RequestID != "req-cancel" || done.SessionID != "s-cancel" || done.Status != "cancelled" {
+		t.Fatalf("cancel response = %+v", done)
+	}
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventCancel || ev.ChatID != "s-cancel" {
+			t.Fatalf("gateway event = %+v, want cancel for s-cancel", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for cancel gateway event")
+	}
+}
+
+func TestNavivoxSubscriberLifecycleAndBroadcast(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	conn1 := dialTestWebSocket(t, server.URL)
+	defer conn1.Close()
+
+	if err := conn1.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-sub", SessionID: "s-sub"}); err != nil {
+		t.Fatal(err)
+	}
+	var subscribed ServerEvent
+	if err := conn1.ReadJSON(&subscribed); err != nil {
+		t.Fatal(err)
+	}
+	if subscribed.Type != "session_started" || subscribed.SessionID != "s-sub" {
+		t.Fatalf("subscribe response = %+v", subscribed)
+	}
+
+	ch.mu.Lock()
+	state := ch.sessions["s-sub"]
+	if state == nil {
+		t.Fatal("session not created after subscribe")
+	}
+	if state.Subscribers != 1 {
+		t.Fatalf("subscribers = %d, want 1 after first subscribe", state.Subscribers)
+	}
+	ch.mu.Unlock()
+
+	if err := conn1.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-sub2", SessionID: "s-sub"}); err != nil {
+		t.Fatal(err)
+	}
+	var subscribed2 ServerEvent
+	if err := conn1.ReadJSON(&subscribed2); err != nil {
+		t.Fatal(err)
+	}
+	if subscribed2.Type != "session_started" {
+		t.Fatalf("second subscribe response = %+v", subscribed2)
+	}
+
+	ch.mu.Lock()
+	state = ch.sessions["s-sub"]
+	if state.Subscribers != 1 {
+		t.Fatalf("subscribers = %d, want 1 (deduplicated re-subscribe)", state.Subscribers)
+	}
+	ch.mu.Unlock()
+
+	conn1.Close()
+	time.Sleep(100 * time.Millisecond)
+
+	ch.mu.Lock()
+	state = ch.sessions["s-sub"]
+	if state.Subscribers != 0 {
+		t.Fatalf("subscribers after disconnect = %d, want 0", state.Subscribers)
+	}
+	ch.mu.Unlock()
+}
+
+func TestNavivoxSessionSweepEvictsOldSessions(t *testing.T) {
+	ch := newTestChannel(t)
+	ch.now = func() time.Time { return time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC) }
+
+	ch.mu.Lock()
+	ch.sessions["old-session"] = &sessionState{
+		ID:        "old-session",
+		CreatedAt: time.Date(2024, 12, 30, 12, 0, 0, 0, time.UTC),
+		UpdatedAt: time.Date(2024, 12, 30, 12, 0, 0, 0, time.UTC),
+	}
+	ch.sessions["fresh-session"] = &sessionState{
+		ID:        "fresh-session",
+		CreatedAt: time.Date(2025, 1, 1, 11, 0, 0, 0, time.UTC),
+		UpdatedAt: time.Date(2025, 1, 1, 11, 0, 0, 0, time.UTC),
+	}
+	ch.mu.Unlock()
+
+	ch.sweepSessions()
+
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	if _, ok := ch.sessions["old-session"]; ok {
+		t.Fatal("old-session should have been swept")
+	}
+	if _, ok := ch.sessions["fresh-session"]; !ok {
+		t.Fatal("fresh-session should not have been swept")
 	}
 }

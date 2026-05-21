@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/goncho"
 )
 
 func TestSlashSpawn_ParseNameAndPersona(t *testing.T) {

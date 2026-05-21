@@ -11,6 +11,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 )
@@ -53,6 +54,8 @@ type setupProfilesModel struct {
 	selected     int
 	mode         setupProfilesMode
 	input        string
+	width        int
+	height       int
 	channelDraft map[string]bool
 	channelIndex int
 	result       setupProfilesTUIResult
@@ -243,6 +246,8 @@ func newSetupProfilesModel(state setupProfilesTUIState) setupProfilesModel {
 		state:        state,
 		selected:     selected,
 		mode:         setupProfilesModeBrowse,
+		width:        80,
+		height:       24,
 		channelDraft: make(map[string]bool),
 	}
 }
@@ -252,6 +257,11 @@ func (m setupProfilesModel) Init() tea.Cmd {
 }
 
 func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = size.Width
+		m.height = size.Height
+		return m, nil
+	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
@@ -442,7 +452,7 @@ func (m setupProfilesModel) View() string {
 		}
 		fmt.Fprintln(&b, "Space toggle  Up/Down move  Enter done")
 	}
-	return b.String()
+	return setupProfilesWrapView(b.String(), m.viewWidth(), m.viewHeight())
 }
 
 func (m setupProfilesModel) currentProfile() setupProfileView {
@@ -453,6 +463,174 @@ func (m setupProfilesModel) currentProfile() setupProfileView {
 		return m.state.Profiles[0]
 	}
 	return m.state.Profiles[m.selected]
+}
+
+func (m setupProfilesModel) viewWidth() int {
+	if m.width <= 0 {
+		return 80
+	}
+	return max(1, m.width)
+}
+
+func (m setupProfilesModel) viewHeight() int {
+	if m.height <= 0 {
+		return 24
+	}
+	return max(1, m.height)
+}
+
+func setupProfilesWrapView(view string, width, height int) string {
+	if width <= 0 {
+		width = 80
+	}
+	var out []string
+	for _, line := range strings.Split(view, "\n") {
+		out = append(out, setupProfilesWrapLine(strings.TrimRight(line, " \t"), width)...)
+	}
+	out = setupProfilesClampHeight(out, width, height)
+	return strings.TrimRight(strings.Join(out, "\n"), "\n")
+}
+
+func setupProfilesWrapLine(line string, width int) []string {
+	if line == "" {
+		return []string{""}
+	}
+	var lines []string
+	for lipgloss.Width(line) > width {
+		cut := setupProfilesWrapCut(line, width)
+		lines = append(lines, strings.TrimRight(line[:cut], " \t"))
+		line = strings.TrimLeft(line[cut:], " \t")
+		if line == "" {
+			break
+		}
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	if len(lines) <= 3 {
+		return lines
+	}
+	return append(lines[:2], setupProfilesTrimToWidth("… value truncated; resize for full setup text", width))
+}
+
+func setupProfilesWrapCut(line string, width int) int {
+	lastSpace := -1
+	used := 0
+	for i, r := range line {
+		if r == ' ' || r == '\t' {
+			lastSpace = i
+		}
+		rw := lipgloss.Width(string(r))
+		if used+rw > width {
+			if lastSpace > 0 {
+				return lastSpace
+			}
+			if i > 0 {
+				return i
+			}
+			return i + len(string(r))
+		}
+		used += rw
+	}
+	return len(line)
+}
+
+func setupProfilesClampHeight(lines []string, width, height int) []string {
+	if height <= 0 || len(lines) <= height {
+		return lines
+	}
+	if height <= 2 {
+		return []string{setupProfilesTrimToWidth("terminal too small; resize", width)}
+	}
+	omitted := len(lines) - height + 1
+	marker := setupProfilesTrimToWidth(fmt.Sprintf("… %d omitted; resize", omitted), width)
+	tailCount := 2
+	if height < 6 {
+		tailCount = 1
+	}
+	headCount := height - tailCount - 1
+	if headCount < 1 {
+		headCount = 1
+	}
+	tailStart := len(lines) - tailCount
+	var explicitTail []string
+	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.TrimSpace(lines[i]) == "Channels" {
+			if height <= 6 {
+				explicitTail = setupProfilesCompactChannelTail(lines[i:], width)
+			} else {
+				tailStart = i
+				tailCount = min(6, len(lines)-tailStart)
+			}
+			break
+		}
+		if strings.Contains(lines[i], "directories:") && i > 0 {
+			tailStart = i - 1
+			break
+		}
+		if strings.Contains(lines[i], "Workspace") || strings.Contains(lines[i], "New profile:") {
+			tailStart = i
+			break
+		}
+	}
+	if len(explicitTail) > 0 {
+		headCount = height - len(explicitTail) - 1
+		if headCount < 1 {
+			headCount = 1
+		}
+		out := append([]string(nil), lines[:headCount]...)
+		out = append(out, marker)
+		out = append(out, explicitTail...)
+		return out
+	}
+	headCount = height - tailCount - 1
+	if headCount < 1 {
+		headCount = 1
+	}
+	if tailStart+tailCount > len(lines) {
+		tailStart = max(0, len(lines)-tailCount)
+	}
+	out := append([]string(nil), lines[:headCount]...)
+	out = append(out, marker)
+	out = append(out, lines[tailStart:tailStart+tailCount]...)
+	return out
+}
+
+func setupProfilesCompactChannelTail(lines []string, width int) []string {
+	out := []string{"Channels"}
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), ">") {
+			out = append(out, line)
+			break
+		}
+	}
+	for _, line := range lines {
+		if strings.Contains(line, "Space toggle") {
+			out = append(out, setupProfilesTrimToWidth(line, width))
+			break
+		}
+	}
+	return out
+}
+
+func setupProfilesTrimToWidth(text string, width int) string {
+	if width <= 0 || lipgloss.Width(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+	ellipsis := "…"
+	limit := width - lipgloss.Width(ellipsis)
+	used := 0
+	for i, r := range text {
+		rw := lipgloss.Width(string(r))
+		if used+rw > limit {
+			return strings.TrimRight(text[:i], " \t") + ellipsis
+		}
+		used += rw
+	}
+	return text
 }
 
 func setupProfilesListOrEmpty(values []string) string {

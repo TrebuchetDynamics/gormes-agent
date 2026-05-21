@@ -150,6 +150,7 @@ const (
 	setupActionQuick           setupAction = "quick"
 	setupActionFull            setupAction = "full"
 	setupActionModelProvider   setupAction = "model_provider"
+	setupActionFallback        setupAction = "fallback"
 	setupActionTerminal        setupAction = "terminal"
 	setupActionGateway         setupAction = "gateway"
 	setupActionTools           setupAction = "tools"
@@ -469,6 +470,8 @@ func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bo
 		return seams.RunFullWizard(cmd, nonInteractive)
 	case setupActionModelProvider:
 		return runSetupModelSection(cmd, seams, nonInteractive)
+	case setupActionFallback:
+		return runSetupFallbackSection(cmd, seams, nonInteractive)
 	case setupActionTerminal:
 		return runSetupTerminalSection(cmd, nonInteractive)
 	case setupActionGateway:
@@ -617,6 +620,8 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 		return runSetupProviderSection(cmd, seams, nonInteractive)
 	case "model":
 		return runSetupModelSection(cmd, seams, nonInteractive)
+	case "fallback":
+		return runSetupFallbackSection(cmd, seams, nonInteractive)
 	case "agent":
 		if !nonInteractive && !seams.IsTTY() {
 			return errSetupRequiresTTY
@@ -646,6 +651,7 @@ func setupTopLevelOptions() []setupMenuOption {
 		{Action: setupActionQuick, Label: "Quick Setup - configure missing items only"},
 		{Action: setupActionFull, Label: "Full Setup - reconfigure everything"},
 		{Action: setupActionModelProvider, Label: "Model & Provider"},
+		{Action: setupActionFallback, Label: "Fallback Providers"},
 		{Action: setupActionTerminal, Label: "Terminal Backend"},
 		{Action: setupActionGateway, Label: "Messaging Platforms (Gateway)"},
 		{Action: setupActionTools, Label: "Tools"},
@@ -904,8 +910,8 @@ func printSetupReconfigureBlock(cmd *cobra.Command) {
 	fmt.Fprintln(out, "  Running the full wizard - each prompt shows your current value.")
 	fmt.Fprintln(out, "  Press Enter to keep it, or type a new value to change it.")
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "  Tip: jump straight to a section with 'gormes setup model|terminal|")
-	fmt.Fprintln(out, "       gateway|tools|agent', or fill only missing items with --quick.")
+	fmt.Fprintln(out, "  Tip: jump straight to a section with 'gormes setup model|fallback|")
+	fmt.Fprintln(out, "       terminal|gateway|tools|agent', or fill only missing items with --quick.")
 	fmt.Fprintln(out)
 }
 
@@ -1247,6 +1253,7 @@ func printSetupSummary(cmd *cobra.Command) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "   gormes setup          Re-run the full wizard")
 	fmt.Fprintln(out, "   gormes setup model    Change model/provider")
+	fmt.Fprintln(out, "   gormes setup fallback Add fallback providers")
 	fmt.Fprintln(out, "   gormes setup terminal Change terminal backend")
 	fmt.Fprintln(out, "   gormes setup gateway  Configure messaging")
 	fmt.Fprintln(out, "   gormes setup tools    Configure tool providers")
@@ -1834,6 +1841,118 @@ func runSetupModelSection(cmd *cobra.Command, seams setupCommandSeams, nonIntera
 		}
 		return err
 	}
+	return nil
+}
+
+func runSetupFallbackSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
+	out := cmd.OutOrStdout()
+	cfg, err := providermodule.LoadFallbackConfig(config.ConfigPath())
+	if err != nil {
+		return fmt.Errorf("setup fallback: load config: %w", err)
+	}
+
+	fmt.Fprintln(out, "Fallback Providers")
+	fmt.Fprintln(out, "Fallback providers are tried in order when the primary provider fails.")
+	fmt.Fprintln(out)
+
+	if len(cfg.Chain) == 0 {
+		fmt.Fprintln(out, "No fallback providers configured.")
+	} else {
+		fmt.Fprintf(out, "Current fallback chain (%d entries):\n", len(cfg.Chain))
+		for i, entry := range cfg.Chain {
+			fmt.Fprintf(out, "  %d. %s (via %s)\n", i+1, entry.Model, entry.Provider)
+		}
+	}
+	fmt.Fprintln(out)
+
+	if nonInteractive {
+		fmt.Fprintln(out, "Skipped (use `gormes fallback add` to configure)")
+		return nil
+	}
+	if !seams.IsTTY() {
+		fmt.Fprintln(cmd.ErrOrStderr(), "setup_requires_tty: run `gormes setup fallback --non-interactive` to skip")
+		return errSetupRequiresTTY
+	}
+
+	fmt.Fprintln(out, "Actions:")
+	fmt.Fprintln(out, "  1. Add a fallback provider")
+	fmt.Fprintln(out, "  2. Keep current configuration")
+	fmt.Fprintln(out, "  3. Clear fallback chain")
+	fmt.Fprintln(out)
+
+	choice, err := promptString(cmd, "Select action [2]: ", "2")
+	if err != nil {
+		return err
+	}
+	choice = strings.TrimSpace(strings.ToLower(choice))
+
+	switch choice {
+	case "", "2", "keep":
+		fmt.Fprintln(out, "Keeping current fallback configuration.")
+		return nil
+	case "3", "clear":
+		if err := providermodule.WriteFallbackChain(config.ConfigPath(), nil); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "Fallback chain cleared.")
+		return nil
+	case "1", "add":
+		return runSetupFallbackAdd(cmd, seams)
+	default:
+		fmt.Fprintf(out, "Unknown action: %s — keeping current configuration.\n", choice)
+		return nil
+	}
+}
+
+func runSetupFallbackAdd(cmd *cobra.Command, seams setupCommandSeams) error {
+	out := cmd.OutOrStdout()
+	entries, defaultIndex := cli.HermesProviderCatalogMenu("")
+	idx, err := seams.ChooseSetupProvider(cmd, entries, defaultIndex)
+	if err != nil {
+		if errors.Is(err, cli.ErrModelPickerCancelled) {
+			fmt.Fprintln(out, "No change.")
+			return nil
+		}
+		return err
+	}
+	if idx < 0 || idx >= len(entries) || entries[idx].ID == cli.ProviderCatalogLeaveUnchanged {
+		fmt.Fprintln(out, "No change.")
+		return nil
+	}
+
+	provider := entries[idx].ID
+	if provider == cli.ProviderCatalogAuxConfig {
+		fmt.Fprintln(out, "Auxiliary model setup is not available for fallback providers.")
+		return nil
+	}
+	provider = setupCanonicalProviderID(provider)
+
+	suggestions := defaultModelPickerSuggestionSet(provider)
+	model, err := promptModelChoiceWithOptions(cmd.InOrStdin(), out, provider, "", suggestions.Models, modelChoicePromptOptions{
+		Context:         cmd.Context(),
+		SuggestionLimit: modelChoiceSuggestionLimitUnlimited,
+	})
+	if err != nil {
+		if errors.Is(err, cli.ErrModelPickerCancelled) {
+			fmt.Fprintln(out, "No change.")
+			return nil
+		}
+		return err
+	}
+	model = hermes.NormalizeProviderModelID(provider, model)
+
+	wrote, err := providermodule.AppendFallbackSelection(config.ConfigPath(), cli.Selection{
+		Provider: provider,
+		Model:    model,
+	})
+	if err != nil {
+		return err
+	}
+	if !wrote {
+		fmt.Fprintf(out, "  %s (%s) is already in the fallback chain — skipped.\n", model, provider)
+		return nil
+	}
+	fmt.Fprintf(out, "  Added fallback: %s (via %s)\n", model, provider)
 	return nil
 }
 

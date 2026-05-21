@@ -5,9 +5,9 @@ import (
 	"strings"
 )
 
-// FormatPlain renders one kernel soul tool-start entry as Hermes-style
-// operator progress. Non-start completion/status events intentionally return
-// empty output because Hermes gateway progress is keyed off tool.started.
+// FormatPlain renders one kernel soul tool-start entry as operator progress.
+// Non-start completion/status events intentionally return empty output because
+// gateway progress is keyed off tool.started.
 func FormatPlain(text string) string {
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -27,10 +27,10 @@ func FormatPlain(text string) string {
 			name = strings.TrimSpace(name)
 			arg = strings.TrimSpace(arg)
 			if !isKnownToolTraceName(name) {
-				if arg == "" {
-					return "🔧 tool_progress..."
-				}
-				return "🔧 tool_progress: " + quoteAndTruncate(name, arg, 40)
+				return progressLine("ACTION", "tool", "Running tool task")
+			}
+			if line, ok := semanticProgressLine(name, arg); ok {
+				return line
 			}
 			if suppressToolTraceArgs(name) {
 				return toolTraceIcon(name) + " " + name + "..."
@@ -42,9 +42,12 @@ func FormatPlain(text string) string {
 		}
 		name = strings.TrimSpace(payload)
 		if isKnownToolTraceName(name) {
+			if line, ok := semanticProgressLine(name, ""); ok {
+				return line
+			}
 			return toolTraceIcon(name) + " " + name + "..."
 		}
-		return "🔧 tool_progress..."
+		return progressLine("ACTION", "tool", "Running tool task")
 	}
 	return "🔧 " + text
 }
@@ -184,6 +187,75 @@ func suppressToolTraceArgs(name string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func semanticProgressLine(name, arg string) (string, bool) {
+	switch strings.TrimSpace(name) {
+	case "memory":
+		return semanticMemoryProgress(arg), true
+	case "honcho_context", "honcho_search":
+		return progressLine("INFO", "memory", "Searching local memory"), true
+	case "honcho_profile":
+		return progressLine("INFO", "memory", "Loading memory profile"), true
+	case "honcho_conclude":
+		return progressLine("ACTION", "memory", "Updating local memory index"), true
+	case "session_search":
+		return progressLine("INFO", "memory", "Searching session history"), true
+	case "terminal", "process":
+		return semanticTerminalProgress(arg), true
+	case "execute_code":
+		return progressLine("ACTION", "runtime", "Running code block"), true
+	case "transcribe_audio":
+		return progressLine("ACTION", "audio", "Transcribing voice input"), true
+	case "text_to_speech":
+		return progressLine("ACTION", "audio", "Generating voice reply"), true
+	default:
+		return "", false
+	}
+}
+
+func progressLine(level, subsystem, message string) string {
+	return fmt.Sprintf("%-6s [%s] %s", level, subsystem, message)
+}
+
+func semanticMemoryProgress(arg string) string {
+	lower := strings.ToLower(arg)
+	switch {
+	case strings.Contains(lower, "add"), strings.Contains(lower, "update"), strings.Contains(lower, "write"):
+		return progressLine("ACTION", "memory", "Updating local memory index")
+	case strings.Contains(lower, "summar"):
+		return progressLine("ACTION", "memory", "Summarizing prior context")
+	default:
+		return progressLine("INFO", "memory", "Loading session memory")
+	}
+}
+
+func semanticTerminalProgress(arg string) string {
+	lower := strings.ToLower(arg)
+	switch {
+	case strings.Contains(lower, "oversized skill"):
+		return progressLine("ACTION", "skills", "Checking oversized skill events")
+	case strings.Contains(lower, "active_profile"):
+		return progressLine("ACTION", "profile", "Inspecting active Gormes profile")
+	case strings.Contains(lower, "profile config candida"):
+		return progressLine("ACTION", "config", "Verifying profile config candidates")
+	case strings.Contains(lower, "wc -c") && strings.Contains(lower, ".gormes/profiles"):
+		return progressLine("ACTION", "profile", "Measuring profile state size")
+	case strings.Contains(lower, "python3") && (strings.Contains(lower, "profile") || strings.Contains(lower, "state") || strings.Contains(lower, "payload")):
+		return progressLine("ACTION", "profile", "Parsing profile state")
+	case strings.Contains(lower, ".gormes profile"):
+		return progressLine("ACTION", "profile", "Inspecting Gormes profile state")
+	case strings.Contains(lower, "git status"):
+		return progressLine("ACTION", "repo", "Inspecting repository status")
+	case strings.Contains(lower, "go test"):
+		return progressLine("ACTION", "runtime", "Running test suite")
+	case strings.Contains(lower, "ffmpeg") || strings.Contains(lower, "wav"):
+		return progressLine("ACTION", "audio", "Processing audio")
+	case strings.Contains(lower, "curl ") || strings.Contains(lower, "http://") || strings.Contains(lower, "https://"):
+		return progressLine("ACTION", "network", "Fetching remote content")
+	default:
+		return progressLine("ACTION", "runtime", "Running system check")
 	}
 }
 

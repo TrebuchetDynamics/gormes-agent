@@ -442,6 +442,71 @@ func TestMigrate_3dTo3e_SuppressionReasonCheckConstraint(t *testing.T) {
 	}
 }
 
+func TestMigrate_3jTo3k_AddsMemoryTiersAndACL(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "memory.db")
+	s, err := OpenSqlite(path, 0, nil)
+	if err != nil {
+		t.Fatalf("OpenSqlite: %v", err)
+	}
+	defer s.Close(context.Background())
+
+	// Verify new tables exist
+	for _, table := range []string{"memory_acl", "context_capsules", "memory_proposals"} {
+		var n int
+		if err := s.db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&n); err != nil {
+			t.Errorf("table %q missing: %v", table, err)
+		}
+	}
+
+	// Verify tier column on goncho_memory_items with CHECK constraint
+	var tierName string
+	err = s.db.QueryRow(
+		`SELECT name FROM pragma_table_info('goncho_memory_items') WHERE name = 'tier'`,
+	).Scan(&tierName)
+	if err != nil {
+		t.Fatal("goncho_memory_items.tier column missing")
+	}
+	// Verify default tier is 'global' for new rows and CHECK rejects invalid values
+	now := int64(100)
+	s.db.Exec(`INSERT INTO goncho_memory_items(
+		memory_id, contract_version, agent_id, workspace_id, observer_peer_id,
+		peer_id, session_key, source_kind, content, revision, active, scope,
+		provenance_json, tags_json, importance, created_at, updated_at
+	) VALUES('test_tier_default', '1', 'a1', 'ws1', 'obs', 'peer', '',
+		'manual', 'test', 1, 1, 'private', '{}', '[]', 0.5, ?, ?)`, now, now)
+	var tier string
+	s.db.QueryRow(`SELECT tier FROM goncho_memory_items WHERE memory_id='test_tier_default'`).Scan(&tier)
+	if tier != "global" {
+		t.Errorf("default tier = %q, want 'global'", tier)
+	}
+	_, err = s.db.Exec(`UPDATE goncho_memory_items SET tier = 'invalid' WHERE memory_id = 'test_tier_default'`)
+	if err == nil {
+		t.Error("tier='invalid' should trip CHECK constraint")
+	}
+	s.db.Exec(`DELETE FROM goncho_memory_items WHERE memory_id='test_tier_default'`)
+
+	// Verify memory_acl columns
+	for _, col := range []string{"memory_id", "agent_id", "permission", "granted_by", "granted_at"} {
+		var name string
+		row := s.db.QueryRow(
+			`SELECT name FROM pragma_table_info('memory_acl') WHERE name = ?`, col)
+		if err := row.Scan(&name); err != nil {
+			t.Errorf("memory_acl.%s missing: %v", col, err)
+		}
+	}
+
+	// Verify memory_proposals columns
+	for _, col := range []string{"proposal_id", "subtask_id", "child_agent_id", "parent_agent_id",
+		"proposed_tier", "kind", "content", "evidence_json", "status"} {
+		var name string
+		row := s.db.QueryRow(
+			`SELECT name FROM pragma_table_info('memory_proposals') WHERE name = ?`, col)
+		if err := row.Scan(&name); err != nil {
+			t.Errorf("memory_proposals.%s missing: %v", col, err)
+		}
+	}
+}
+
 func TestMigrate_3dTo3e_DeliveredCheckConstraint(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "memory.db")
 	s, _ := OpenSqlite(path, 0, nil)

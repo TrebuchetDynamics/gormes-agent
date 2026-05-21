@@ -477,9 +477,9 @@
     "item": {
       "name": "Scheduled briefing job emits operator run report",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Wire scheduled briefing cron/fleet jobs so every unattended run writes an OperatorRunReport after completion. The slice should cover local delivery, suppressed/no-agent/script-only jobs, provider-backed runs, timeout/error paths, and repeat/terminal completion evidence while preserving existing cron_runs and CRON.md mirror behavior.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "orchestrator",
       "module": "fleet",

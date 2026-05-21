@@ -45,9 +45,9 @@ If every non-`[SKIP]` line reads `[PASS]`, the local runtime is healthy.
 
 - **`command not found`** → The binary is not on `$PATH`. Re-run the installer or follow [install from source](../../install/from-source/).
 - **`[WARN] build identity: dirty build`** → You are running a locally built binary with uncommitted source. Safe to ignore for smoke tests.
-- **`[FAIL]` on any local subsystem** → Run [diagnose a broken install](../diagnose/).
+- **`[FAIL]` on any local subsystem** → Run [diagnose a broken install](../../troubleshooting/diagnose/).
 
 ## See also
 
-- [Connect a provider and open chat](../first-turn/)
-- [Diagnose a broken install](../diagnose/)
+- [Connect a provider and open chat](../../operate/first-chat/)
+- [Diagnose a broken install](../../troubleshooting/diagnose/)
