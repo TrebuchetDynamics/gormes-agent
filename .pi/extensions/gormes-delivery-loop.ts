@@ -1,0 +1,206 @@
+import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+
+type LoopState = {
+  active: boolean;
+  topic: string;
+  iteration: number;
+  maxIterations: number;
+  startedAt: string;
+  lastDecision?: string;
+};
+
+const CUSTOM_STATE_TYPE = "gormes-delivery-loop-state";
+const DEFAULT_TOPIC = "finish all builder-ready progress.json rows toward full Hermes-in-Go parity";
+const DEFAULT_ITERATIONS = 1;
+const HARD_MAX_ITERATIONS = 50;
+
+let state: LoopState = inactiveState();
+let sendingFollowUp = false;
+
+export default function gormesDeliveryLoopExtension(pi: ExtensionAPI) {
+  pi.on("session_start", async (_event, ctx) => {
+    state = restoreState(ctx.sessionManager.getEntries()) ?? inactiveState();
+    if (ctx.hasUI) {
+      ctx.ui.setStatus("gormes-loop", statusLine(state));
+    }
+  });
+
+  pi.on("message_end", async (event, _ctx) => {
+    if (!state.active || event.message?.role !== "assistant") return;
+    const text = messageText(event.message);
+    const decision = parseDecision(text);
+    if (decision) state.lastDecision = decision;
+    if (decision === "stop" || decision === "blocked" || decision === "done") {
+      state = { ...state, active: false };
+      pi.appendEntry(CUSTOM_STATE_TYPE, state);
+    }
+  });
+
+  pi.on("agent_end", async (_event, ctx) => {
+    if (!state.active || sendingFollowUp) return;
+    if (state.iteration >= state.maxIterations) {
+      state = { ...state, active: false, lastDecision: "max_iterations_reached" };
+      pi.appendEntry(CUSTOM_STATE_TYPE, state);
+      if (ctx.hasUI) {
+        ctx.ui.notify(`Gormes loop stopped after ${state.iteration}/${state.maxIterations} iteration(s).`, "info");
+        ctx.ui.setStatus("gormes-loop", statusLine(state));
+      }
+      return;
+    }
+
+    state = { ...state, iteration: state.iteration + 1 };
+    pi.appendEntry(CUSTOM_STATE_TYPE, state);
+    if (ctx.hasUI) ctx.ui.setStatus("gormes-loop", statusLine(state));
+
+    sendingFollowUp = true;
+    try {
+      pi.sendUserMessage(buildIterationPrompt(state), { deliverAs: "followUp" });
+    } finally {
+      sendingFollowUp = false;
+    }
+  });
+
+  pi.registerCommand("gormes-loop", {
+    description: "Run a bounded Gormes architecture→planner→parity→builder TDD delivery loop",
+    getArgumentCompletions: (prefix) => {
+      const values = ["start", "stop", "status"];
+      return values.filter((v) => v.startsWith(prefix)).map((value) => ({ value, label: value }));
+    },
+    handler: async (args, ctx) => {
+      const parsed = parseArgs(args);
+      switch (parsed.command) {
+        case "stop":
+          state = { ...state, active: false, lastDecision: "stopped_by_user" };
+          pi.appendEntry(CUSTOM_STATE_TYPE, state);
+          ctx.ui.notify("Gormes delivery loop stopped.", "info");
+          ctx.ui.setStatus("gormes-loop", statusLine(state));
+          return;
+        case "status":
+          ctx.ui.notify(statusLine(state), "info");
+          return;
+        case "start":
+        default:
+          await startLoop(pi, ctx, parsed.topic, parsed.iterations);
+          return;
+      }
+    },
+  });
+}
+
+async function startLoop(pi: ExtensionAPI, ctx: ExtensionCommandContext, topic: string, requestedIterations: number) {
+  const maxIterations = Math.max(1, Math.min(requestedIterations, HARD_MAX_ITERATIONS));
+  if (requestedIterations > HARD_MAX_ITERATIONS) {
+    ctx.ui.notify(`Capped Gormes loop at ${HARD_MAX_ITERATIONS} iterations.`, "warning");
+  }
+
+  if (state.active) {
+    const ok = await ctx.ui.confirm("Gormes loop already active", "Replace the current delivery loop state?");
+    if (!ok) return;
+  }
+
+  state = {
+    active: true,
+    topic: topic || DEFAULT_TOPIC,
+    iteration: 1,
+    maxIterations,
+    startedAt: new Date().toISOString(),
+  };
+  pi.appendEntry(CUSTOM_STATE_TYPE, state);
+  ctx.ui.setStatus("gormes-loop", statusLine(state));
+  ctx.ui.notify(`Starting Gormes delivery loop: 1/${maxIterations}`, "info");
+  await ctx.sendUserMessage(buildIterationPrompt(state));
+}
+
+function parseArgs(raw: string): { command: "start" | "stop" | "status"; topic: string; iterations: number } {
+  const tokens = raw.trim().split(/\s+/).filter(Boolean);
+  const command = tokens[0] === "stop" || tokens[0] === "status" || tokens[0] === "start" ? tokens.shift()! : "start";
+  let iterations = DEFAULT_ITERATIONS;
+  const topicParts: string[] = [];
+
+  for (const token of tokens) {
+    const match = token.match(/^--iterations=(\d+)$/) ?? token.match(/^-n=(\d+)$/);
+    if (match) {
+      iterations = Number(match[1]);
+      continue;
+    }
+    topicParts.push(token);
+  }
+
+  return {
+    command: command as "start" | "stop" | "status",
+    topic: topicParts.join(" ").trim() || DEFAULT_TOPIC,
+    iterations: Number.isFinite(iterations) && iterations > 0 ? Math.floor(iterations) : DEFAULT_ITERATIONS,
+  };
+}
+
+function buildIterationPrompt(s: LoopState): string {
+  return `Use the gormes-delivery-loop skill now. Delivery loop iteration ${s.iteration}/${s.maxIterations}.
+
+Topic/objective: ${s.topic}.
+
+Run one complete vertical Gormes delivery iteration:
+1. Start with scope lock and preflight for /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent on development.
+2. Preserve unrelated dirty work; stage only this iteration's explicit files.
+3. Use gormes-architecture-zoomout to find one A/B-evidence architecture candidate for the topic.
+4. Use gormes-planner if progress.json or feature-map row shaping is required; progress.json is the only backlog.
+5. Use gormes-hermes-parity to confirm the active Hermes/Honcho contract and source refs.
+6. Use gormes-builder plus TDD: add or identify a failing characterization test first, implement the smallest builder-ready slice, include E2E/focused coverage where appropriate.
+7. Validate with row tests, focused package tests, go run ./cmd/progress validate, git diff --check, and full go test ./... -count=1 when the slice touches shared runtime behavior.
+8. Commit and push the validated slice to origin/development with a coherent commit.
+9. End with exactly one line: LOOP_DECISION: continue, LOOP_DECISION: stop, LOOP_DECISION: blocked, or LOOP_DECISION: done.
+
+Stop instead of coding if the next row is not builder-ready, upstream evidence is missing, validation fails twice with the same blocker, or the slice would touch unrelated dirty Navivox work.`;
+}
+
+function parseDecision(text: string): LoopState["lastDecision"] | undefined {
+  const match = text.match(/LOOP_DECISION:\s*(continue|stop|blocked|done)/i);
+  return match?.[1]?.toLowerCase() as LoopState["lastDecision"] | undefined;
+}
+
+function statusLine(s: LoopState): string {
+  if (!s.active) return `Gormes loop: idle${s.lastDecision ? ` (${s.lastDecision})` : ""}`;
+  return `Gormes loop: active ${s.iteration}/${s.maxIterations} ${s.topic}`;
+}
+
+function inactiveState(): LoopState {
+  return {
+    active: false,
+    topic: DEFAULT_TOPIC,
+    iteration: 0,
+    maxIterations: DEFAULT_ITERATIONS,
+    startedAt: new Date(0).toISOString(),
+  };
+}
+
+function restoreState(entries: Array<{ type?: string; customType?: string; data?: unknown }>): LoopState | undefined {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (entry.type === "custom" && entry.customType === CUSTOM_STATE_TYPE && isLoopState(entry.data)) {
+      return entry.data;
+    }
+  }
+  return undefined;
+}
+
+function isLoopState(value: unknown): value is LoopState {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<LoopState>;
+  return typeof candidate.active === "boolean" &&
+    typeof candidate.topic === "string" &&
+    typeof candidate.iteration === "number" &&
+    typeof candidate.maxIterations === "number" &&
+    typeof candidate.startedAt === "string";
+}
+
+function messageText(message: { content?: unknown }): string {
+  const content = message.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content.map((part) => {
+      if (typeof part === "string") return part;
+      if (part && typeof part === "object" && "text" in part) return String((part as { text?: unknown }).text ?? "");
+      return "";
+    }).join("\n");
+  }
+  return "";
+}
