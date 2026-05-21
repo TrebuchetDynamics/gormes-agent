@@ -2,12 +2,12 @@
 
 - Hermes SHA: `43e566f77eaf01293086eb7cb99a21e240d60634`
 - Current checkout SHA: `43e566f77eaf01293086eb7cb99a21e240d60634`
-- Source pairs: `13`
+- Source pairs: `20`
 
 ## Status Counts
 
-- `covered`: 1
-- `partial`: 12
+- `covered`: 4
+- `partial`: 16
 
 ## Source Pair Table
 
@@ -23,6 +23,13 @@
 | `hermes_cli/main.py` | `partial` | `cmd/gormes/main.go`<br>`cmd/gormes/hermes_cli_parity.go` | `go test ./cmd/gormes -run 'TestRootCommand\|TestHermesCLIParity\|TestCommandAlias' -count=1` | `Hermes CLI command-tree parity manifest` | Hermes CLI root parser, top-level command registration, help-visible command tree, and global flag compatibility. |
 | `hermes_cli/profiles.py` | `partial` | `cmd/gormes/profile.go`<br>`internal/config/agents.go` | `go test ./cmd/gormes -run 'TestProfile' -count=1`<br>`go test ./internal/config -run 'TestAgent' -count=1` | `Gormes profile command binding`<br>`CLI active-profile store`<br>`CLI profile root resolver` | Profile creation/list/use behavior, profile root resolution, default SOUL seeding for profiles, and profile export/import-visible files. |
 | `run_agent.py` | `partial` | `internal/kernel/kernel.go`<br>`internal/hermes/prompt_assembly.go`<br>`internal/subagent` | `go test ./internal/kernel -count=1`<br>`go test ./internal/hermes -count=1`<br>`go test ./internal/subagent -count=1` | `Kernel tool loop`<br>`Background review fork` | Main Hermes agent turn loop, tool execution budget, background review hooks, subagent behavior, provider turn assembly, and session reset boundaries. |
+| `tools/image_generation_tool.py` | `partial` | `internal/tools/image_generation.go`<br>`internal/tools/image_generation_provider.go`<br>`internal/tools/image_generation_result.go` | `go test ./internal/tools -run ImageGen -count=1` | `Hermes tool tail strict-fidelity source-pair expansion` | Hermes image generation tool descriptor, provider routing, plugin dispatch, model/aspect-ratio normalization, artifact envelope, and redacted error behavior. |
 | `tools/skill_manager_tool.py` | `partial` | `internal/tools/skill_manager.go`<br>`internal/skills` | `go test ./internal/tools -run TestSkillManager -count=1`<br>`go test ./internal/skills -count=1` | `Hermes skill_manage support-file and curator intent actions`<br>`Native skills list/view tool surface` | Hermes skill_manage support-file and curator intent actions, mutation safety, and user-visible skill-management results. |
 | `tools/skills_sync.py` | `partial` | `internal/skills/profile_sync.go`<br>`cmd/gormes/skills.go` | `go test ./internal/skills -run 'Test.*Sync\|TestProfile' -count=1`<br>`go test ./cmd/gormes -run 'TestSkills' -count=1` | `Native skills list/view tool surface`<br>`Portable SKILL.md format` | Hermes bundled/user skill sync semantics, profile skill distribution, and update/sync user-visible behavior. |
 | `tools/skills_tool.py` | `partial` | `internal/tools/skills_tools.go`<br>`internal/skills` | `go test ./internal/tools -run 'TestSkills' -count=1`<br>`go test ./internal/skills -count=1` | `Native skills list/view tool surface`<br>`Deterministic selection + prompt block` | Hermes skills list/view tool surface, skill metadata rendering, and prompt-visible skill lookup behavior. |
+| `tools/transcription_tools.py` | `covered` | `internal/tools/transcription_tool.go`<br>`internal/tools/transcription_providers.go`<br>`internal/tools/transcription_providers_local.go` | `go test ./internal/tools -run 'TestTranscription' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion` | Hermes transcription tool descriptor, provider selection, model normalization, dotenv fallback, local-provider evidence, result envelope, and validation behavior. |
+| `tools/tts_tool.py` | `partial` | `internal/tools/tts_tool.go`<br>`internal/tools/tts_providers.go`<br>`internal/tools/tts_command_provider.go` | `go test ./internal/tools -run 'TestTTS\|TestMiniMax' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion` | Hermes text-to-speech tool descriptor, provider matrix, dotenv fallback, speed/max-length validation, local command-provider evidence, and degraded output handling. |
+| `tools/url_safety.py` | `covered` | `internal/tools/url_safety.go`<br>`internal/tools/safety` | `go test ./internal/tools ./internal/tools/safety -run 'URLSafety\|SSRF\|PrivateURL' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion` | Hermes URL safety classification, SSRF/private-host blocking, static checks, allow/block policy helpers, and web-search URL guard behavior. |
+| `tools/web_tools.py` | `partial` | `internal/tools/web_tools.go`<br>`internal/tools/web_content_chunked.go`<br>`internal/tools/url_safety.go` | `go test ./internal/tools -run 'TestWebSearchTool\|TestWebExtractTool\|TestWebCrawlTool\|TestResolveWebBackend' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion`<br>`Goscrapling local crawler adapter gate for web_crawl` | Hermes web_search, web_extract, and web_crawl provider routing, Tavily/Firecrawl/Brave/SearXNG/DDG/Perplexity adapters, URL and website policy enforcement, result budgeting, and degraded evidence. |
+| `tools/website_policy.py` | `covered` | `internal/tools/url_safety.go`<br>`internal/tools/safety` | `go test ./internal/tools ./internal/tools/safety -run 'WebsitePolicy\|WebExtractToolAppliesWebsitePolicy\|WebCrawlToolAppliesWebsitePolicy' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion` | Hermes website policy file loading, domain blocking, shared policy files, cache invalidation, and pre-fetch policy errors for web tools. |
+| `tools/x_search_tool.py` | `partial` | `internal/tools/x_search.go`<br>`internal/tools/x_search_test.go` | `go test ./internal/tools -run 'TestXSearch' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion` | Hermes X search auth modes, OAuth expiry/rate-limit degraded evidence, tool schema, bounded fake-mode fixtures, and redacted credential behavior. |

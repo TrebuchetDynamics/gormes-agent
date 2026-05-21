@@ -224,6 +224,29 @@
       "notes": "The Python runtime loop is a manual Go-native rewrite; this pair tracks behavior contracts rather than file-level implementation."
     },
     {
+      "hermes_file": "tools/image_generation_tool.py",
+      "gormes_targets": [
+        "internal/tools/image_generation.go",
+        "internal/tools/image_generation_provider.go",
+        "internal/tools/image_generation_result.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes image generation tool descriptor, provider routing, plugin dispatch, model/aspect-ratio normalization, artifact envelope, and redacted error behavior.",
+      "tests": [
+        "go test ./internal/tools -run ImageGen -count=1"
+      ],
+      "progress_rows": [
+        "Hermes tool tail strict-fidelity source-pair expansion"
+      ],
+      "upstream_tests": [
+        "tests/tools/test_image_generation.py",
+        "tests/tools/test_image_generation_env.py",
+        "tests/tools/test_image_generation_plugin_dispatch.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Gormes has Go-native provider dispatch and artifact envelopes; remaining upstream provider-specific behavior stays partial until strict-fidelity tails are closed."
+    },
+    {
       "hermes_file": "tools/skill_manager_tool.py",
       "gormes_targets": [
         "internal/tools/skill_manager.go",
@@ -279,6 +302,141 @@
       ],
       "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
       "notes": "The tool implementation is split between tool wrappers and skill store/rendering helpers."
+    },
+    {
+      "hermes_file": "tools/transcription_tools.py",
+      "gormes_targets": [
+        "internal/tools/transcription_tool.go",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go"
+      ],
+      "status": "covered",
+      "contract": "Hermes transcription tool descriptor, provider selection, model normalization, dotenv fallback, local-provider evidence, result envelope, and validation behavior.",
+      "tests": [
+        "go test ./internal/tools -run 'TestTranscription' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes tool tail strict-fidelity source-pair expansion"
+      ],
+      "upstream_tests": [
+        "tests/tools/test_transcription.py",
+        "tests/tools/test_transcription_tools.py",
+        "tests/tools/test_transcription_dotenv_fallback.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Covered as a Go-native tool/provider matrix with hermetic provider tests; live provider credentials are not required for parity proof."
+    },
+    {
+      "hermes_file": "tools/tts_tool.py",
+      "gormes_targets": [
+        "internal/tools/tts_tool.go",
+        "internal/tools/tts_providers.go",
+        "internal/tools/tts_command_provider.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes text-to-speech tool descriptor, provider matrix, dotenv fallback, speed/max-length validation, local command-provider evidence, and degraded output handling.",
+      "tests": [
+        "go test ./internal/tools -run 'TestTTS|TestMiniMax' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes tool tail strict-fidelity source-pair expansion"
+      ],
+      "upstream_tests": [
+        "tests/tools/test_tts_command_providers.py",
+        "tests/tools/test_tts_dotenv_fallback.py",
+        "tests/tools/test_tts_max_text_length.py",
+        "tests/tools/test_tts_speed.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Gormes covers the provider matrix and command-provider seams; partial remains for provider-specific voice synthesis variants not yet classified as covered/excluded."
+    },
+    {
+      "hermes_file": "tools/url_safety.py",
+      "gormes_targets": [
+        "internal/tools/url_safety.go",
+        "internal/tools/safety"
+      ],
+      "status": "covered",
+      "contract": "Hermes URL safety classification, SSRF/private-host blocking, static checks, allow/block policy helpers, and web-search URL guard behavior.",
+      "tests": [
+        "go test ./internal/tools ./internal/tools/safety -run 'URLSafety|SSRF|PrivateURL' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes tool tail strict-fidelity source-pair expansion"
+      ],
+      "upstream_tests": [
+        "tests/tools/test_url_safety.py",
+        "tests/tools/test_browser_ssrf_local.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Safety policy lives under internal/tools/safety with a facade in internal/tools/url_safety.go."
+    },
+    {
+      "hermes_file": "tools/web_tools.py",
+      "gormes_targets": [
+        "internal/tools/web_tools.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/url_safety.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes web_search, web_extract, and web_crawl provider routing, Tavily/Firecrawl/Brave/SearXNG/DDG/Perplexity adapters, URL and website policy enforcement, result budgeting, and degraded evidence.",
+      "tests": [
+        "go test ./internal/tools -run 'TestWebSearchTool|TestWebExtractTool|TestWebCrawlTool|TestResolveWebBackend' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes tool tail strict-fidelity source-pair expansion",
+        "Goscrapling local crawler adapter gate for web_crawl"
+      ],
+      "upstream_tests": [
+        "tests/tools/test_web_tools_config.py",
+        "tests/tools/test_web_tools_tavily.py",
+        "tests/tools/test_web_providers.py",
+        "tests/tools/test_web_providers_brave_free.py",
+        "tests/tools/test_web_providers_ddgs.py",
+        "tests/tools/test_web_providers_searxng.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Gormes has broad Go-native provider and policy coverage; local goscrapling web_crawl remains a planned backend gate, so this pair is partial."
+    },
+    {
+      "hermes_file": "tools/website_policy.py",
+      "gormes_targets": [
+        "internal/tools/url_safety.go",
+        "internal/tools/safety"
+      ],
+      "status": "covered",
+      "contract": "Hermes website policy file loading, domain blocking, shared policy files, cache invalidation, and pre-fetch policy errors for web tools.",
+      "tests": [
+        "go test ./internal/tools ./internal/tools/safety -run 'WebsitePolicy|WebExtractToolAppliesWebsitePolicy|WebCrawlToolAppliesWebsitePolicy' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes tool tail strict-fidelity source-pair expansion"
+      ],
+      "upstream_tests": [
+        "tests/tools/test_website_policy.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Website policy is implemented in the shared safety package and exercised through direct policy and web-tool fixtures."
+    },
+    {
+      "hermes_file": "tools/x_search_tool.py",
+      "gormes_targets": [
+        "internal/tools/x_search.go",
+        "internal/tools/x_search_test.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes X search auth modes, OAuth expiry/rate-limit degraded evidence, tool schema, bounded fake-mode fixtures, and redacted credential behavior.",
+      "tests": [
+        "go test ./internal/tools -run 'TestXSearch' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes tool tail strict-fidelity source-pair expansion"
+      ],
+      "upstream_tests": [
+        "tests/tools/test_x_search_tool.py"
+      ],
+      "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
+      "notes": "Gormes has auth/status/schema and fake-mode fixtures; live X search execution remains partial until provider integration is explicitly validated or excluded."
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": "hermes-fidelity/v1",
-  "generated_at": "2026-05-21T15:00:13Z",
+  "generated_at": "2026-05-21T15:11:39Z",
   "hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634",
   "hermes_path": "hermes-agent",
   "progress_path": "webpages/docs/content/building-gormes/architecture_plan/progress.json",
@@ -2041,7 +2041,6 @@
       "tools/file_state.py",
       "tools/fuzzy_match.py",
       "tools/homeassistant_tool.py",
-      "tools/image_generation_tool.py",
       "tools/interrupt.py",
       "tools/kanban_tools.py",
       "tools/lazy_deps.py",
@@ -2067,10 +2066,8 @@
       "tools/tool_backend_helpers.py",
       "tools/tool_output_limits.py",
       "tools/tool_result_storage.py",
-      "tools/url_safety.py",
       "tools/vision_tools.py",
       "tools/voice_mode.py",
-      "tools/website_policy.py",
       "tools/xai_http.py",
       "tools/yuanbao_tools.py",
       "toolset_distributions.py",
@@ -4311,7 +4308,6 @@
       "tests/tools/test_browser_lightpanda.py",
       "tests/tools/test_browser_orphan_reaper.py",
       "tests/tools/test_browser_secret_exfil.py",
-      "tests/tools/test_browser_ssrf_local.py",
       "tests/tools/test_browser_supervisor.py",
       "tests/tools/test_browser_supervisor_healthcheck.py",
       "tests/tools/test_budget_config.py",
@@ -4362,9 +4358,6 @@
       "tests/tools/test_heartbeat_stale_thresholds.py",
       "tests/tools/test_hidden_dir_filter.py",
       "tests/tools/test_homeassistant_tool.py",
-      "tests/tools/test_image_generation.py",
-      "tests/tools/test_image_generation_env.py",
-      "tests/tools/test_image_generation_plugin_dispatch.py",
       "tests/tools/test_init_session_cwd_respect.py",
       "tests/tools/test_interrupt.py",
       "tests/tools/test_kanban_tools.py",
@@ -4465,18 +4458,10 @@
       "tests/tools/test_tool_backend_helpers.py",
       "tests/tools/test_tool_output_limits.py",
       "tests/tools/test_tool_result_storage.py",
-      "tests/tools/test_transcription.py",
-      "tests/tools/test_transcription_dotenv_fallback.py",
-      "tests/tools/test_transcription_tools.py",
-      "tests/tools/test_tts_command_providers.py",
-      "tests/tools/test_tts_dotenv_fallback.py",
       "tests/tools/test_tts_gemini.py",
       "tests/tools/test_tts_kittentts.py",
-      "tests/tools/test_tts_max_text_length.py",
       "tests/tools/test_tts_mistral.py",
       "tests/tools/test_tts_piper.py",
-      "tests/tools/test_tts_speed.py",
-      "tests/tools/test_url_safety.py",
       "tests/tools/test_vercel_sandbox_environment.py",
       "tests/tools/test_video_analyze.py",
       "tests/tools/test_video_generation_dispatch.py",
@@ -4487,13 +4472,6 @@
       "tests/tools/test_voice_cli_integration.py",
       "tests/tools/test_voice_mode.py",
       "tests/tools/test_watch_patterns.py",
-      "tests/tools/test_web_providers.py",
-      "tests/tools/test_web_providers_brave_free.py",
-      "tests/tools/test_web_providers_ddgs.py",
-      "tests/tools/test_web_providers_searxng.py",
-      "tests/tools/test_web_tools_config.py",
-      "tests/tools/test_web_tools_tavily.py",
-      "tests/tools/test_website_policy.py",
       "tests/tools/test_windows_compat.py",
       "tests/tools/test_windows_native_support.py",
       "tests/tools/test_write_deny.py",
@@ -6061,7 +6039,7 @@
       },
       {
         "suite": "tools",
-        "count": 213,
+        "count": 194,
         "source_prefix": "tools",
         "examples": [
           "tests/tools/__init__.py",
@@ -6223,8 +6201,8 @@
       "surface_ids": [
         "sessions"
       ],
-      "status": "partial",
-      "gap_severity": "warning",
+      "status": "covered",
+      "gap_severity": "none",
       "evidence_refs": [
         "../hermes-agent/agent/context_compressor.py@5401a008",
         "../hermes-agent/agent/context_compressor.py@94346523:_find_tail_cut_by_tokens",
@@ -6333,6 +6311,10 @@
         "internal/session/directory.go",
         "internal/store",
         "internal/subagent",
+        "internal/tools",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
         "internal/transcript/",
         "internal/transcript/markdown.go",
         "internal/transcript/refs.go",
@@ -6340,9 +6322,13 @@
         "run_agent.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
-        "tools/session_search_tool.py"
+        "tests/tools/test_transcription.py",
+        "tests/tools/test_transcription_dotenv_fallback.py",
+        "tests/tools/test_transcription_tools.py",
+        "tools/session_search_tool.py",
+        "tools/transcription_tools.py"
       ],
-      "reason": "Mapped through surfaces: sessions; worst status is sessions=partial."
+      "reason": "Mapped surfaces are strictly covered: sessions."
     },
     {
       "id": "memory_goncho_honcho_compatibility",
@@ -6945,6 +6931,10 @@
         "docs/content/papers/agentic-os-design.md",
         "docs/content/upstream-hermes/developer-guide/context-compression-and-caching.md",
         "gateway/session.py",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "hermes_cli/session_recap.py",
         "https://github.com/sipeed/picoclaw/issues/2702",
         "https://github.com/sipeed/picoclaw/issues/2785",
@@ -7045,11 +7035,18 @@
         "internal/skills/usage.go",
         "internal/store",
         "internal/subagent",
+        "internal/tools",
         "internal/tools/",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
+        "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "internal/transcript/",
         "internal/transcript/markdown.go",
         "internal/transcript/refs.go",
@@ -7058,8 +7055,19 @@
         "space-agent/src/skills/schema.js",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
+        "tests/tools/test_transcription.py",
+        "tests/tools/test_transcription_dotenv_fallback.py",
+        "tests/tools/test_transcription_tools.py",
+        "tests/tools/test_web_providers.py",
+        "tests/tools/test_web_providers_brave_free.py",
+        "tests/tools/test_web_providers_ddgs.py",
+        "tests/tools/test_web_providers_searxng.py",
+        "tests/tools/test_web_tools_config.py",
+        "tests/tools/test_web_tools_tavily.py",
         "tools/session_search_tool.py",
         "tools/skills_tool.py",
+        "tools/transcription_tools.py",
+        "tools/web_tools.py",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes",
@@ -7068,9 +7076,10 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md"
       ],
-      "reason": "Mapped through surfaces: sessions, prompt_assembly; worst status is sessions=partial."
+      "reason": "Mapped through surfaces: sessions, prompt_assembly; worst status is prompt_assembly=partial."
     },
     {
       "id": "summaries_conclusions_search",
@@ -7078,8 +7087,8 @@
       "surface_ids": [
         "sessions"
       ],
-      "status": "partial",
-      "gap_severity": "warning",
+      "status": "covered",
+      "gap_severity": "none",
       "evidence_refs": [
         "../hermes-agent/agent/context_compressor.py@5401a008",
         "../hermes-agent/agent/context_compressor.py@94346523:_find_tail_cut_by_tokens",
@@ -7188,6 +7197,10 @@
         "internal/session/directory.go",
         "internal/store",
         "internal/subagent",
+        "internal/tools",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
         "internal/transcript/",
         "internal/transcript/markdown.go",
         "internal/transcript/refs.go",
@@ -7195,9 +7208,13 @@
         "run_agent.py",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
-        "tools/session_search_tool.py"
+        "tests/tools/test_transcription.py",
+        "tests/tools/test_transcription_dotenv_fallback.py",
+        "tests/tools/test_transcription_tools.py",
+        "tools/session_search_tool.py",
+        "tools/transcription_tools.py"
       ],
-      "reason": "Mapped through surfaces: sessions; worst status is sessions=partial."
+      "reason": "Mapped surfaces are strictly covered: sessions."
     },
     {
       "id": "skill_templates_and_skills_ux",
@@ -7301,6 +7318,10 @@
         "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Memory plugin: Hindsight",
         "docs/content/papers/agent-memory-systems.md",
         "docs/content/upstream-hermes/developer-guide/context-compression-and-caching.md",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "hermes_cli/curator.py",
         "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/engine/engine.go",
         "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/session/spaces.go",
@@ -7418,12 +7439,16 @@
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
         "internal/subagent",
+        "internal/tools",
         "internal/tools/",
         "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
+        "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "internal/transcript/",
         "internal/transcript/refs.go",
         "internal/tui/auto_title.go",
@@ -7435,9 +7460,16 @@
         "space-agent/src/skills/schema.js",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
+        "tests/tools/test_web_providers.py",
+        "tests/tools/test_web_providers_brave_free.py",
+        "tests/tools/test_web_providers_ddgs.py",
+        "tests/tools/test_web_providers_searxng.py",
+        "tests/tools/test_web_tools_config.py",
+        "tests/tools/test_web_tools_tavily.py",
         "tools/skill_manager_tool.py",
         "tools/skill_usage.py",
         "tools/skills_tool.py",
+        "tools/web_tools.py",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes",
@@ -7446,6 +7478,7 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md"
       ],
       "reason": "Mapped through surfaces: learning_loop, prompt_assembly; worst status is learning_loop=partial."
@@ -7552,6 +7585,10 @@
         "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Memory plugin: Hindsight",
         "docs/content/papers/agent-memory-systems.md",
         "docs/content/upstream-hermes/developer-guide/context-compression-and-caching.md",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "hermes_cli/curator.py",
         "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/engine/engine.go",
         "https://github.com/Protocol-Lattice/go-agent/blob/6aa6e253c98afb343502e35c537d37ba4d9d17ec/src/memory/session/spaces.go",
@@ -7669,12 +7706,16 @@
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
         "internal/subagent",
+        "internal/tools",
         "internal/tools/",
         "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
+        "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "internal/transcript/",
         "internal/transcript/refs.go",
         "internal/tui/auto_title.go",
@@ -7686,9 +7727,16 @@
         "space-agent/src/skills/schema.js",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
+        "tests/tools/test_web_providers.py",
+        "tests/tools/test_web_providers_brave_free.py",
+        "tests/tools/test_web_providers_ddgs.py",
+        "tests/tools/test_web_providers_searxng.py",
+        "tests/tools/test_web_tools_config.py",
+        "tests/tools/test_web_tools_tavily.py",
         "tools/skill_manager_tool.py",
         "tools/skill_usage.py",
         "tools/skills_tool.py",
+        "tools/web_tools.py",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes",
@@ -7697,6 +7745,7 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md"
       ],
       "reason": "Mapped through surfaces: learning_loop, prompt_assembly; worst status is learning_loop=partial."
@@ -8632,6 +8681,10 @@
         "docs/content/upstream-hermes/source-study.md",
         "gateway/run.py",
         "gateway/session.py",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "hermes-agent:tools/approval.py",
         "hermes-agent:tools/path_security.py",
         "hermes-agent:tools/terminal_tool.py (dangerous command guards)",
@@ -8868,7 +8921,10 @@
         "internal/tools/file_task_tools.go:executeV4APatch",
         "internal/tools/file_task_tools.go:fuzzyPatchReplace",
         "internal/tools/file_tools.go",
+        "internal/tools/image_generation.go",
         "internal/tools/image_generation.go:FALGenImageProvider.Generate",
+        "internal/tools/image_generation_provider.go",
+        "internal/tools/image_generation_result.go",
         "internal/tools/managed_tool_gateway.go",
         "internal/tools/mcp_client.go",
         "internal/tools/mcp_config.go:MCPServerDefinition,MCPTransportHTTP,Headers",
@@ -8884,6 +8940,7 @@
         "internal/tools/permissions.go",
         "internal/tools/registry.go",
         "internal/tools/result_budget.go",
+        "internal/tools/safety",
         "internal/tools/sandbox.go",
         "internal/tools/security_audit.go",
         "internal/tools/skill_manager.go",
@@ -8902,8 +8959,18 @@
         "internal/tools/tool.go",
         "internal/tools/tool_events.go",
         "internal/tools/transactional_executor.go",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
+        "internal/tools/tts_command_provider.go",
+        "internal/tools/tts_providers.go",
+        "internal/tools/tts_tool.go",
         "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "internal/tools/website_policy.go",
+        "internal/tools/x_search.go",
+        "internal/tools/x_search_test.go",
         "internal/transcript/",
         "internal/transcript/markdown.go",
         "internal/transcript/refs.go",
@@ -8940,14 +9007,41 @@
         "space-agent:server/api/AGENTS.md (path normalization, batch preflight)",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
+        "tests/tools/test_browser_ssrf_local.py",
+        "tests/tools/test_image_generation.py",
+        "tests/tools/test_image_generation_env.py",
+        "tests/tools/test_image_generation_plugin_dispatch.py",
+        "tests/tools/test_transcription.py",
+        "tests/tools/test_transcription_dotenv_fallback.py",
+        "tests/tools/test_transcription_tools.py",
+        "tests/tools/test_tts_command_providers.py",
+        "tests/tools/test_tts_dotenv_fallback.py",
+        "tests/tools/test_tts_max_text_length.py",
+        "tests/tools/test_tts_speed.py",
+        "tests/tools/test_url_safety.py",
+        "tests/tools/test_web_providers.py",
+        "tests/tools/test_web_providers_brave_free.py",
+        "tests/tools/test_web_providers_ddgs.py",
+        "tests/tools/test_web_providers_searxng.py",
+        "tests/tools/test_web_tools_config.py",
+        "tests/tools/test_web_tools_tavily.py",
+        "tests/tools/test_website_policy.py",
+        "tests/tools/test_x_search_tool.py",
         "tools/code_execution_tool.py",
         "tools/file_tools.py",
+        "tools/image_generation_tool.py",
         "tools/registry.py",
         "tools/session_search_tool.py",
         "tools/skill_manager_tool.py",
         "tools/skill_usage.py",
         "tools/skills_sync.py",
         "tools/skills_tool.py",
+        "tools/transcription_tools.py",
+        "tools/tts_tool.py",
+        "tools/url_safety.py",
+        "tools/web_tools.py",
+        "tools/website_policy.py",
+        "tools/x_search_tool.py",
         "web/src/pages/CronPage.tsx",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho",
@@ -8957,6 +9051,7 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/content/upstream-hermes/reference/toolsets-reference.md",
         "webpages/docs/content/upstream-hermes/user-guide/messaging/homeassistant.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md",
@@ -8969,7 +9064,7 @@
         "workspace-mineru/skills/qmd/SKILL.md",
         "workspace-riju/skills/fecim-physics-validation/SKILL.md"
       ],
-      "reason": "Mapped through surfaces: sessions, tool_runtime, learning_loop; worst status is sessions=partial."
+      "reason": "Mapped through surfaces: sessions, tool_runtime, learning_loop; worst status is learning_loop=partial."
     },
     {
       "id": "mutation_safety",
@@ -9482,6 +9577,10 @@
         "docs/upstream_coverage_test.go",
         "engram/internal/store/store.go",
         "gateway/run.py",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "hermes-agent:tools/approval.py",
         "hermes-agent:tools/path_security.py",
         "hermes-agent:tools/terminal_tool.py (dangerous command guards)",
@@ -9733,7 +9832,10 @@
         "internal/tools/file_task_tools.go:executeV4APatch",
         "internal/tools/file_task_tools.go:fuzzyPatchReplace",
         "internal/tools/file_tools.go",
+        "internal/tools/image_generation.go",
         "internal/tools/image_generation.go:FALGenImageProvider.Generate",
+        "internal/tools/image_generation_provider.go",
+        "internal/tools/image_generation_result.go",
         "internal/tools/managed_tool_gateway.go",
         "internal/tools/mcp_client.go",
         "internal/tools/mcp_config.go:MCPServerDefinition,MCPTransportHTTP,Headers",
@@ -9749,6 +9851,7 @@
         "internal/tools/permissions.go",
         "internal/tools/registry.go",
         "internal/tools/result_budget.go",
+        "internal/tools/safety",
         "internal/tools/sandbox.go",
         "internal/tools/security_audit.go",
         "internal/tools/skill_manager.go",
@@ -9767,8 +9870,18 @@
         "internal/tools/tool.go",
         "internal/tools/tool_events.go",
         "internal/tools/transactional_executor.go",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
+        "internal/tools/tts_command_provider.go",
+        "internal/tools/tts_providers.go",
+        "internal/tools/tts_tool.go",
         "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "internal/tools/website_policy.go",
+        "internal/tools/x_search.go",
+        "internal/tools/x_search_test.go",
         "internal/transcript/markdown.go",
         "internal/tui/hermes_panels.go",
         "internal/tui/mouse_tracking_test.go",
@@ -9804,14 +9917,41 @@
         "space-agent:server/api/AGENTS.md (path normalization, batch preflight)",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
+        "tests/tools/test_browser_ssrf_local.py",
+        "tests/tools/test_image_generation.py",
+        "tests/tools/test_image_generation_env.py",
+        "tests/tools/test_image_generation_plugin_dispatch.py",
+        "tests/tools/test_transcription.py",
+        "tests/tools/test_transcription_dotenv_fallback.py",
+        "tests/tools/test_transcription_tools.py",
+        "tests/tools/test_tts_command_providers.py",
+        "tests/tools/test_tts_dotenv_fallback.py",
+        "tests/tools/test_tts_max_text_length.py",
+        "tests/tools/test_tts_speed.py",
+        "tests/tools/test_url_safety.py",
+        "tests/tools/test_web_providers.py",
+        "tests/tools/test_web_providers_brave_free.py",
+        "tests/tools/test_web_providers_ddgs.py",
+        "tests/tools/test_web_providers_searxng.py",
+        "tests/tools/test_web_tools_config.py",
+        "tests/tools/test_web_tools_tavily.py",
+        "tests/tools/test_website_policy.py",
+        "tests/tools/test_x_search_tool.py",
         "tools/code_execution_tool.py",
         "tools/file_tools.py",
+        "tools/image_generation_tool.py",
         "tools/memory_tool.py",
         "tools/registry.py",
         "tools/skill_manager_tool.py",
         "tools/skill_usage.py",
         "tools/skills_sync.py",
         "tools/skills_tool.py",
+        "tools/transcription_tools.py",
+        "tools/tts_tool.py",
+        "tools/url_safety.py",
+        "tools/web_tools.py",
+        "tools/website_policy.py",
+        "tools/x_search_tool.py",
         "web/src/pages/CronPage.tsx",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho",
@@ -9821,6 +9961,7 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/content/upstream-hermes/reference/toolsets-reference.md",
         "webpages/docs/content/upstream-hermes/user-guide/messaging/homeassistant.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md",
@@ -9833,7 +9974,7 @@
         "workspace-mineru/skills/qmd/SKILL.md",
         "workspace-riju/skills/fecim-physics-validation/SKILL.md"
       ],
-      "reason": "Mapped through surfaces: tool_runtime, learning_loop, goncho_memory; worst status is tool_runtime=partial."
+      "reason": "Mapped through surfaces: tool_runtime, learning_loop, goncho_memory; worst status is learning_loop=partial."
     },
     {
       "id": "prompt_context_memory_skill_insertion_ordering",
@@ -10126,6 +10267,10 @@
         "docs/upstream_coverage_test.go",
         "engram/internal/store/store.go",
         "gateway/session.py",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "hermes_cli/curator.py",
         "hermes_cli/session_recap.py",
         "honcho/src/models.py",
@@ -10298,12 +10443,19 @@
         "internal/skills/usage.go",
         "internal/store",
         "internal/subagent",
+        "internal/tools",
         "internal/tools/",
         "internal/tools/ (tool execution surface)",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
+        "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "internal/transcript/",
         "internal/transcript/markdown.go",
         "internal/transcript/refs.go",
@@ -10318,11 +10470,22 @@
         "space-agent/src/skills/schema.js",
         "tests/cron/test_cron_workdir.py",
         "tests/hermes_cli/test_ignore_user_config_flags.py",
+        "tests/tools/test_transcription.py",
+        "tests/tools/test_transcription_dotenv_fallback.py",
+        "tests/tools/test_transcription_tools.py",
+        "tests/tools/test_web_providers.py",
+        "tests/tools/test_web_providers_brave_free.py",
+        "tests/tools/test_web_providers_ddgs.py",
+        "tests/tools/test_web_providers_searxng.py",
+        "tests/tools/test_web_tools_config.py",
+        "tests/tools/test_web_tools_tavily.py",
         "tools/memory_tool.py",
         "tools/session_search_tool.py",
         "tools/skill_manager_tool.py",
         "tools/skill_usage.py",
         "tools/skills_tool.py",
+        "tools/transcription_tools.py",
+        "tools/web_tools.py",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Honcho Feature Map For Goncho",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Plugins, Skills, Learning, And Specialized Modes",
@@ -10331,6 +10494,7 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md"
       ],
       "reason": "Mapped through surfaces: prompt_assembly, goncho_memory, sessions, learning_loop; worst status is prompt_assembly=partial."
@@ -11424,6 +11588,7 @@
         "internal/store/store.go",
         "internal/subagent",
         "internal/subagent/runlog.go",
+        "internal/tools",
         "internal/tools/",
         "internal/tools/cronjob_tool.go",
         "internal/tools/cronjob_tool.go:Tool",
@@ -11445,6 +11610,9 @@
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
         "internal/tools/tool_events.go",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
         "internal/transcript/",
         "internal/transcript/markdown.go",
         "internal/transcript/refs.go",
@@ -11483,8 +11651,12 @@
         "tests/hermes_cli/test_profile_distribution.py",
         "tests/hermes_cli/test_profile_export_credentials.py",
         "tests/hermes_cli/test_profiles.py",
+        "tests/tools/test_transcription.py",
+        "tests/tools/test_transcription_dotenv_fallback.py",
+        "tests/tools/test_transcription_tools.py",
         "tools/session_search_tool.py",
         "tools/skills_sync.py",
+        "tools/transcription_tools.py",
         "upstream Hermes 19a3e2ce",
         "user transcript: Hermes `hermes whatsapp` prints mode/enabled/allowlist status, bridge dependency readiness, QR scan instructions, code-515 reconnect logs, paired success, and gateway next steps",
         "user transcript: Hermes profile has `terminal.cwd: \".\"`; `hermes config set terminal.cwd /absolute/path/to/project`; gateway restart after config change",
@@ -11504,28 +11676,25 @@
         "webpages/docs/install/termux_guide_test.go",
         "webpages/landing/src/data/progress.json + webpages/landing/legacy/go-renderer/internal/site/data/progress.json (generated release/site data mirrors)"
       ],
-      "reason": "Mapped through surfaces: profiles, sessions, gateway_channels; worst status is sessions=partial."
+      "reason": "Mapped through surfaces: profiles, sessions, gateway_channels; worst status is gateway_channels=partial."
     }
   ],
   "summary": {
     "total": 10,
     "critical": 10,
-    "surface_strict_failures": 8,
-    "unmapped_upstream_files": 3017,
-    "strict_failures": 3025,
+    "surface_strict_failures": 5,
+    "unmapped_upstream_files": 2995,
+    "strict_failures": 3000,
     "by_status": {
-      "covered": 2,
-      "partial": 8
+      "covered": 5,
+      "partial": 5
     }
   },
   "unmapped_surfaces": [
-    "sessions",
     "goncho_memory",
     "learning_loop",
     "prompt_assembly",
-    "provider_auth_setup",
     "gateway_channels",
-    "tool_runtime",
     "mcp_acp"
   ],
   "surfaces": [
@@ -12762,10 +12931,10 @@
       "category": "continuity",
       "priority": "P0",
       "critical": true,
-      "status": "partial",
-      "reason": "Some source-pair or complete-row evidence exists, but the surface is not strictly covered.",
-      "confidence": "medium",
-      "gap_severity": "warning",
+      "status": "covered",
+      "reason": "Covered source-pair evidence joins to a validated complete progress row with test evidence.",
+      "confidence": "high",
+      "gap_severity": "none",
       "upstream_refs": [
         "run_agent.py",
         "gateway/session.py",
@@ -12877,6 +13046,10 @@
         "internal/session/directory.go",
         "internal/store",
         "internal/subagent",
+        "internal/tools",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
         "internal/transcript/",
         "internal/transcript/markdown.go",
         "internal/transcript/refs.go",
@@ -12924,6 +13097,28 @@
           "progress_rows": [
             "Background review fork",
             "Kernel tool loop"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/transcription_tools.py",
+          "status": "covered",
+          "contract": "Hermes transcription tool descriptor, provider selection, model normalization, dotenv fallback, local-provider evidence, result envelope, and validation behavior.",
+          "gormes_targets": [
+            "internal/tools/transcription_providers.go",
+            "internal/tools/transcription_providers_local.go",
+            "internal/tools/transcription_tool.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestTranscription' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_transcription.py",
+            "tests/tools/test_transcription_dotenv_fallback.py",
+            "tests/tools/test_transcription_tools.py"
           ],
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         }
@@ -13346,6 +13541,34 @@
           ],
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.A",
+          "name": "Hermes tool tail strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "tools",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/tests/tools/test_x_search_tool.py",
+            "hermes-agent/tools/environments/vercel_sandbox.py",
+            "hermes-agent/tools/transcription_tools.py",
+            "hermes-agent/tools/tts_tool.py",
+            "hermes-agent/tools/video_generation_tool.py",
+            "hermes-agent/tools/web_tools.py",
+            "hermes-agent/tools/x_search_tool.py",
+            "internal/tools"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -16493,6 +16716,10 @@
         "docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/architecture_plan/subsystem-inventory.md:Memory plugin: Hindsight",
         "docs/content/upstream-hermes/developer-guide/context-compression-and-caching.md",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "https://github.com/sipeed/picoclaw/issues/2702",
         "https://github.com/sipeed/picoclaw/issues/2785",
         "https://github.com/sipeed/picoclaw/issues/2798",
@@ -16579,11 +16806,15 @@
         "internal/skills/url_candidate.go",
         "internal/skills/usage.go",
         "internal/subagent",
+        "internal/tools",
         "internal/tools/",
         "internal/tools/skill_manager.go",
         "internal/tools/skills_tools.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skill_view",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:skills_list",
+        "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "internal/transcript/",
         "internal/transcript/refs.go",
         "internal/tui/auto_title.go",
@@ -16596,6 +16827,7 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Hermes Source Coverage",
         "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md:Honcho Source Coverage",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/development-skills/gormes-planner/references/progress-row-contract.md"
       ],
       "source_pairs": [
@@ -16658,6 +16890,32 @@
           "progress_rows": [
             "Deterministic selection + prompt block",
             "Native skills list/view tool surface"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/web_tools.py",
+          "status": "partial",
+          "contract": "Hermes web_search, web_extract, and web_crawl provider routing, Tavily/Firecrawl/Brave/SearXNG/DDG/Perplexity adapters, URL and website policy enforcement, result budgeting, and degraded evidence.",
+          "gormes_targets": [
+            "internal/tools/url_safety.go",
+            "internal/tools/web_content_chunked.go",
+            "internal/tools/web_tools.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestWebSearchTool|TestWebExtractTool|TestWebCrawlTool|TestResolveWebBackend' -count=1"
+          ],
+          "progress_rows": [
+            "Goscrapling local crawler adapter gate for web_crawl",
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_web_providers.py",
+            "tests/tools/test_web_providers_brave_free.py",
+            "tests/tools/test_web_providers_ddgs.py",
+            "tests/tools/test_web_providers_searxng.py",
+            "tests/tools/test_web_tools_config.py",
+            "tests/tools/test_web_tools_tavily.py"
           ],
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         }
@@ -17021,6 +17279,34 @@
           ]
         },
         {
+          "phase_id": "5",
+          "subphase_id": "5.C",
+          "name": "Goscrapling local crawler adapter gate for web_crawl",
+          "priority": "P2",
+          "status": "planned",
+          "contract_status": "draft",
+          "module": "browser",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+            "goscrapling/spiders/crawler.go",
+            "goscrapling/spiders/scheduler.go",
+            "goscrapling/spiders/session.go",
+            "internal/tools/web_tools.go",
+            "webpages/docs/content/building-gormes/cross-project-feature-map.md"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+            "go test ./internal/tools -run 'TestWebCrawlTool|TestWebExtractToolUsesGoscrapling' -count=1",
+            "go test ./internal/tools -run TestWebCrawlToolUsesGoscraplingLocalCrawler -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
           "phase_id": "4",
           "subphase_id": "4.I",
           "name": "Hermes agent runtime strict-fidelity source-pair expansion",
@@ -17257,6 +17543,34 @@
           ],
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.A",
+          "name": "Hermes tool tail strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "tools",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/tests/tools/test_x_search_tool.py",
+            "hermes-agent/tools/environments/vercel_sandbox.py",
+            "hermes-agent/tools/transcription_tools.py",
+            "hermes-agent/tools/tts_tool.py",
+            "hermes-agent/tools/video_generation_tool.py",
+            "hermes-agent/tools/web_tools.py",
+            "hermes-agent/tools/x_search_tool.py",
+            "internal/tools"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -17695,10 +18009,10 @@
       "category": "operator",
       "priority": "P0",
       "critical": true,
-      "status": "partial",
-      "reason": "Some source-pair or complete-row evidence exists, but the surface is not strictly covered.",
-      "confidence": "medium",
-      "gap_severity": "warning",
+      "status": "covered",
+      "reason": "Covered source-pair evidence joins to a validated complete progress row with test evidence.",
+      "confidence": "high",
+      "gap_severity": "none",
       "upstream_refs": [
         "hermes_cli/auth_commands.py",
         "hermes_cli/providers.py",
@@ -18165,6 +18479,10 @@
         "docs/content/papers/safety-and-deployment.md",
         "docs/content/upstream-hermes/source-study.md",
         "docs/content/upstream-hermes/user-guide/features/provider-routing.md",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "https://github.com/sipeed/picoclaw/issues/2404",
         "https://github.com/sipeed/picoclaw/issues/2674",
         "https://github.com/sipeed/picoclaw/issues/2745",
@@ -18362,12 +18680,26 @@
         "internal/skills/types.go",
         "internal/store/recording.go",
         "internal/subagent",
+        "internal/tools",
         "internal/tools/cronjob_tool.go",
         "internal/tools/environment_contract.go",
+        "internal/tools/image_generation.go",
+        "internal/tools/image_generation_provider.go",
         "internal/tools/image_generation_result.go",
         "internal/tools/mcp_config.go",
         "internal/tools/registry.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
+        "internal/tools/tts_command_provider.go",
+        "internal/tools/tts_providers.go",
+        "internal/tools/tts_tool.go",
+        "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
+        "internal/tools/x_search.go",
+        "internal/tools/x_search_test.go",
         "internal/transcript/",
         "internal/transcript/markdown.go",
         "internal/transcript/trajectory_compressor.go",
@@ -18391,6 +18723,7 @@
         "references/go-agent-os/plandex/app/server/model/plan/tell_stream_error.go",
         "upstream Hermes 05d8f110",
         "upstream Hermes d58b305a",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/content/getting-started/_index.md",
         "webpages/docs/content/getting-started/configuration.md",
         "webpages/docs/content/getting-started/first-run.md",
@@ -18509,6 +18842,118 @@
           "progress_rows": [
             "Background review fork",
             "Kernel tool loop"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/image_generation_tool.py",
+          "status": "partial",
+          "contract": "Hermes image generation tool descriptor, provider routing, plugin dispatch, model/aspect-ratio normalization, artifact envelope, and redacted error behavior.",
+          "gormes_targets": [
+            "internal/tools/image_generation.go",
+            "internal/tools/image_generation_provider.go",
+            "internal/tools/image_generation_result.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run ImageGen -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_image_generation.py",
+            "tests/tools/test_image_generation_env.py",
+            "tests/tools/test_image_generation_plugin_dispatch.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/transcription_tools.py",
+          "status": "covered",
+          "contract": "Hermes transcription tool descriptor, provider selection, model normalization, dotenv fallback, local-provider evidence, result envelope, and validation behavior.",
+          "gormes_targets": [
+            "internal/tools/transcription_providers.go",
+            "internal/tools/transcription_providers_local.go",
+            "internal/tools/transcription_tool.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestTranscription' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_transcription.py",
+            "tests/tools/test_transcription_dotenv_fallback.py",
+            "tests/tools/test_transcription_tools.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/tts_tool.py",
+          "status": "partial",
+          "contract": "Hermes text-to-speech tool descriptor, provider matrix, dotenv fallback, speed/max-length validation, local command-provider evidence, and degraded output handling.",
+          "gormes_targets": [
+            "internal/tools/tts_command_provider.go",
+            "internal/tools/tts_providers.go",
+            "internal/tools/tts_tool.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestTTS|TestMiniMax' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_tts_command_providers.py",
+            "tests/tools/test_tts_dotenv_fallback.py",
+            "tests/tools/test_tts_max_text_length.py",
+            "tests/tools/test_tts_speed.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/web_tools.py",
+          "status": "partial",
+          "contract": "Hermes web_search, web_extract, and web_crawl provider routing, Tavily/Firecrawl/Brave/SearXNG/DDG/Perplexity adapters, URL and website policy enforcement, result budgeting, and degraded evidence.",
+          "gormes_targets": [
+            "internal/tools/url_safety.go",
+            "internal/tools/web_content_chunked.go",
+            "internal/tools/web_tools.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestWebSearchTool|TestWebExtractTool|TestWebCrawlTool|TestResolveWebBackend' -count=1"
+          ],
+          "progress_rows": [
+            "Goscrapling local crawler adapter gate for web_crawl",
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_web_providers.py",
+            "tests/tools/test_web_providers_brave_free.py",
+            "tests/tools/test_web_providers_ddgs.py",
+            "tests/tools/test_web_providers_searxng.py",
+            "tests/tools/test_web_tools_config.py",
+            "tests/tools/test_web_tools_tavily.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/x_search_tool.py",
+          "status": "partial",
+          "contract": "Hermes X search auth modes, OAuth expiry/rate-limit degraded evidence, tool schema, bounded fake-mode fixtures, and redacted credential behavior.",
+          "gormes_targets": [
+            "internal/tools/x_search.go",
+            "internal/tools/x_search_test.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestXSearch' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_x_search_tool.py"
           ],
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         }
@@ -20043,6 +20488,34 @@
         },
         {
           "phase_id": "5",
+          "subphase_id": "5.C",
+          "name": "Goscrapling local crawler adapter gate for web_crawl",
+          "priority": "P2",
+          "status": "planned",
+          "contract_status": "draft",
+          "module": "browser",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+            "goscrapling/spiders/crawler.go",
+            "goscrapling/spiders/scheduler.go",
+            "goscrapling/spiders/session.go",
+            "internal/tools/web_tools.go",
+            "webpages/docs/content/building-gormes/cross-project-feature-map.md"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+            "go test ./internal/tools -run 'TestWebCrawlTool|TestWebExtractToolUsesGoscrapling' -count=1",
+            "go test ./internal/tools -run TestWebCrawlToolUsesGoscraplingLocalCrawler -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
+          "phase_id": "5",
           "subphase_id": "5.O",
           "name": "Hermes CLI command-tree parity manifest",
           "status": "complete",
@@ -20482,6 +20955,34 @@
           ],
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.A",
+          "name": "Hermes tool tail strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "tools",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/tests/tools/test_x_search_tool.py",
+            "hermes-agent/tools/environments/vercel_sandbox.py",
+            "hermes-agent/tools/transcription_tools.py",
+            "hermes-agent/tools/tts_tool.py",
+            "hermes-agent/tools/video_generation_tool.py",
+            "hermes-agent/tools/web_tools.py",
+            "hermes-agent/tools/x_search_tool.py",
+            "internal/tools"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -30293,10 +30794,10 @@
       "category": "runtime",
       "priority": "P0",
       "critical": true,
-      "status": "partial",
-      "reason": "Some source-pair or complete-row evidence exists, but the surface is not strictly covered.",
-      "confidence": "medium",
-      "gap_severity": "warning",
+      "status": "covered",
+      "reason": "Covered source-pair evidence joins to a validated complete progress row with test evidence.",
+      "confidence": "high",
+      "gap_severity": "none",
       "upstream_refs": [
         "tools/registry.py",
         "tools/file_tools.py",
@@ -30608,6 +31109,10 @@
         "docs/content/papers/safety-and-deployment.md",
         "docs/content/upstream-hermes/reference/tools-reference.md",
         "docs/content/upstream-hermes/source-study.md",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "hermes-agent:tools/approval.py",
         "hermes-agent:tools/path_security.py",
         "hermes-agent:tools/terminal_tool.py (dangerous command guards)",
@@ -30765,7 +31270,10 @@
         "internal/tools/file_task_tools.go:executeV4APatch",
         "internal/tools/file_task_tools.go:fuzzyPatchReplace",
         "internal/tools/file_tools.go",
+        "internal/tools/image_generation.go",
         "internal/tools/image_generation.go:FALGenImageProvider.Generate",
+        "internal/tools/image_generation_provider.go",
+        "internal/tools/image_generation_result.go",
         "internal/tools/managed_tool_gateway.go",
         "internal/tools/mcp_client.go",
         "internal/tools/mcp_config.go:MCPServerDefinition,MCPTransportHTTP,Headers",
@@ -30781,6 +31289,7 @@
         "internal/tools/permissions.go",
         "internal/tools/registry.go",
         "internal/tools/result_budget.go",
+        "internal/tools/safety",
         "internal/tools/sandbox.go",
         "internal/tools/security_audit.go",
         "internal/tools/skill_manager.go",
@@ -30799,8 +31308,18 @@
         "internal/tools/tool.go",
         "internal/tools/tool_events.go",
         "internal/tools/transactional_executor.go",
+        "internal/tools/transcription_providers.go",
+        "internal/tools/transcription_providers_local.go",
+        "internal/tools/transcription_tool.go",
+        "internal/tools/tts_command_provider.go",
+        "internal/tools/tts_providers.go",
+        "internal/tools/tts_tool.go",
         "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "internal/tools/website_policy.go",
+        "internal/tools/x_search.go",
+        "internal/tools/x_search_test.go",
         "internal/transcript/markdown.go",
         "internal/tui/hermes_panels.go",
         "internal/tui/mouse_tracking_test.go",
@@ -30829,6 +31348,7 @@
         "references/go-agent-os/trpc-agent-go/tool/tool.go",
         "space-agent:server/api/AGENTS.md (path normalization, batch preflight)",
         "web/src/pages/CronPage.tsx",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "webpages/docs/content/upstream-hermes/reference/toolsets-reference.md",
         "webpages/docs/content/upstream-hermes/user-guide/messaging/homeassistant.md",
         "workspace-link/AGENTS.md",
@@ -30884,6 +31404,28 @@
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         },
         {
+          "hermes_file": "tools/image_generation_tool.py",
+          "status": "partial",
+          "contract": "Hermes image generation tool descriptor, provider routing, plugin dispatch, model/aspect-ratio normalization, artifact envelope, and redacted error behavior.",
+          "gormes_targets": [
+            "internal/tools/image_generation.go",
+            "internal/tools/image_generation_provider.go",
+            "internal/tools/image_generation_result.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run ImageGen -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_image_generation.py",
+            "tests/tools/test_image_generation_env.py",
+            "tests/tools/test_image_generation_plugin_dispatch.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
           "hermes_file": "tools/skill_manager_tool.py",
           "status": "partial",
           "contract": "Hermes skill_manage support-file and curator intent actions, mutation safety, and user-visible skill-management results.",
@@ -30934,6 +31476,135 @@
           "progress_rows": [
             "Deterministic selection + prompt block",
             "Native skills list/view tool surface"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/transcription_tools.py",
+          "status": "covered",
+          "contract": "Hermes transcription tool descriptor, provider selection, model normalization, dotenv fallback, local-provider evidence, result envelope, and validation behavior.",
+          "gormes_targets": [
+            "internal/tools/transcription_providers.go",
+            "internal/tools/transcription_providers_local.go",
+            "internal/tools/transcription_tool.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestTranscription' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_transcription.py",
+            "tests/tools/test_transcription_dotenv_fallback.py",
+            "tests/tools/test_transcription_tools.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/tts_tool.py",
+          "status": "partial",
+          "contract": "Hermes text-to-speech tool descriptor, provider matrix, dotenv fallback, speed/max-length validation, local command-provider evidence, and degraded output handling.",
+          "gormes_targets": [
+            "internal/tools/tts_command_provider.go",
+            "internal/tools/tts_providers.go",
+            "internal/tools/tts_tool.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestTTS|TestMiniMax' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_tts_command_providers.py",
+            "tests/tools/test_tts_dotenv_fallback.py",
+            "tests/tools/test_tts_max_text_length.py",
+            "tests/tools/test_tts_speed.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/url_safety.py",
+          "status": "covered",
+          "contract": "Hermes URL safety classification, SSRF/private-host blocking, static checks, allow/block policy helpers, and web-search URL guard behavior.",
+          "gormes_targets": [
+            "internal/tools/safety",
+            "internal/tools/url_safety.go"
+          ],
+          "tests": [
+            "go test ./internal/tools ./internal/tools/safety -run 'URLSafety|SSRF|PrivateURL' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_browser_ssrf_local.py",
+            "tests/tools/test_url_safety.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/web_tools.py",
+          "status": "partial",
+          "contract": "Hermes web_search, web_extract, and web_crawl provider routing, Tavily/Firecrawl/Brave/SearXNG/DDG/Perplexity adapters, URL and website policy enforcement, result budgeting, and degraded evidence.",
+          "gormes_targets": [
+            "internal/tools/url_safety.go",
+            "internal/tools/web_content_chunked.go",
+            "internal/tools/web_tools.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestWebSearchTool|TestWebExtractTool|TestWebCrawlTool|TestResolveWebBackend' -count=1"
+          ],
+          "progress_rows": [
+            "Goscrapling local crawler adapter gate for web_crawl",
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_web_providers.py",
+            "tests/tools/test_web_providers_brave_free.py",
+            "tests/tools/test_web_providers_ddgs.py",
+            "tests/tools/test_web_providers_searxng.py",
+            "tests/tools/test_web_tools_config.py",
+            "tests/tools/test_web_tools_tavily.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/website_policy.py",
+          "status": "covered",
+          "contract": "Hermes website policy file loading, domain blocking, shared policy files, cache invalidation, and pre-fetch policy errors for web tools.",
+          "gormes_targets": [
+            "internal/tools/safety",
+            "internal/tools/url_safety.go"
+          ],
+          "tests": [
+            "go test ./internal/tools ./internal/tools/safety -run 'WebsitePolicy|WebExtractToolAppliesWebsitePolicy|WebCrawlToolAppliesWebsitePolicy' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_website_policy.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/x_search_tool.py",
+          "status": "partial",
+          "contract": "Hermes X search auth modes, OAuth expiry/rate-limit degraded evidence, tool schema, bounded fake-mode fixtures, and redacted credential behavior.",
+          "gormes_targets": [
+            "internal/tools/x_search.go",
+            "internal/tools/x_search_test.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestXSearch' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_x_search_tool.py"
           ],
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         }
@@ -32383,6 +33054,34 @@
         },
         {
           "phase_id": "5",
+          "subphase_id": "5.C",
+          "name": "Goscrapling local crawler adapter gate for web_crawl",
+          "priority": "P2",
+          "status": "planned",
+          "contract_status": "draft",
+          "module": "browser",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+            "goscrapling/spiders/crawler.go",
+            "goscrapling/spiders/scheduler.go",
+            "goscrapling/spiders/session.go",
+            "internal/tools/web_tools.go",
+            "webpages/docs/content/building-gormes/cross-project-feature-map.md"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+            "go test ./internal/tools -run 'TestWebCrawlTool|TestWebExtractToolUsesGoscrapling' -count=1",
+            "go test ./internal/tools -run TestWebCrawlToolUsesGoscraplingLocalCrawler -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
+          "phase_id": "5",
           "subphase_id": "5.J",
           "name": "Hardline command pattern table + DetectHardline function",
           "status": "complete",
@@ -32471,8 +33170,8 @@
           "subphase_id": "5.A",
           "name": "Hermes tool tail strict-fidelity source-pair expansion",
           "priority": "P1",
-          "status": "planned",
-          "contract_status": "fixture_ready",
+          "status": "complete",
+          "contract_status": "validated",
           "module": "tools",
           "provenance_origin_type": "hybrid",
           "source_refs": [
@@ -32491,6 +33190,7 @@
             "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1"
           ],
           "match_reasons": [
+            "source_pair_progress_row",
             "taxonomy_keyword"
           ]
         },
@@ -34700,6 +35400,10 @@
         "docs/content/building-gormes/must-have-features.md",
         "docs/content/building-gormes/openclaw-platform-parity-audit.md",
         "docs/content/papers/agent-memory-systems.md",
+        "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+        "goscrapling/spiders/crawler.go",
+        "goscrapling/spiders/scheduler.go",
+        "goscrapling/spiders/session.go",
         "hermes-agent:tools/path_security.py",
         "https://github.com/sipeed/picoclaw/issues/2546",
         "https://github.com/sipeed/picoclaw/issues/2782",
@@ -34735,6 +35439,7 @@
         "internal/plugins/",
         "internal/plugins/mcp_oauth_state.go",
         "internal/redaction/",
+        "internal/tools",
         "internal/tools/",
         "internal/tools/file_task_tools.go",
         "internal/tools/managed_tool_gateway.go",
@@ -34751,6 +35456,9 @@
         "internal/tools/terminal_tool.go",
         "internal/tools/testdata/upstream_tool_parity_manifest.json:vision_analyze",
         "internal/tools/tool.go",
+        "internal/tools/url_safety.go",
+        "internal/tools/web_content_chunked.go",
+        "internal/tools/web_tools.go",
         "mercury-agent:src/tools/filesystemScope.ts (folder-level restrictions)",
         "openclaw acp client CLI surface",
         "references/go-agent-os/GORMES-REUSE-AUDIT.md#3-runtime-service-wiring-via-explicit-optionsmergecomplete",
@@ -34764,8 +35472,37 @@
         "references/go-agent-os/trpc-agent-go/tool/tool.go",
         "space-agent:server/api/AGENTS.md (path normalization, batch preflight)",
         "web/src/pages/CronPage.tsx",
+        "webpages/docs/content/building-gormes/cross-project-feature-map.md",
         "workspace-link/AGENTS.md",
         "workspace-mineru/AGENTS.md"
+      ],
+      "source_pairs": [
+        {
+          "hermes_file": "tools/web_tools.py",
+          "status": "partial",
+          "contract": "Hermes web_search, web_extract, and web_crawl provider routing, Tavily/Firecrawl/Brave/SearXNG/DDG/Perplexity adapters, URL and website policy enforcement, result budgeting, and degraded evidence.",
+          "gormes_targets": [
+            "internal/tools/url_safety.go",
+            "internal/tools/web_content_chunked.go",
+            "internal/tools/web_tools.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestWebSearchTool|TestWebExtractTool|TestWebCrawlTool|TestResolveWebBackend' -count=1"
+          ],
+          "progress_rows": [
+            "Goscrapling local crawler adapter gate for web_crawl",
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_web_providers.py",
+            "tests/tools/test_web_providers_brave_free.py",
+            "tests/tools/test_web_providers_ddgs.py",
+            "tests/tools/test_web_providers_searxng.py",
+            "tests/tools/test_web_tools_config.py",
+            "tests/tools/test_web_tools_tavily.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        }
       ],
       "progress_rows": [
         {
@@ -35221,6 +35958,34 @@
         },
         {
           "phase_id": "5",
+          "subphase_id": "5.C",
+          "name": "Goscrapling local crawler adapter gate for web_crawl",
+          "priority": "P2",
+          "status": "planned",
+          "contract_status": "draft",
+          "module": "browser",
+          "provenance_origin_type": "gormes",
+          "source_refs": [
+            "goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json",
+            "goscrapling/spiders/crawler.go",
+            "goscrapling/spiders/scheduler.go",
+            "goscrapling/spiders/session.go",
+            "internal/tools/web_tools.go",
+            "webpages/docs/content/building-gormes/cross-project-feature-map.md"
+          ],
+          "test_commands": [
+            "git diff --check",
+            "go run ./cmd/progress validate",
+            "go test ./cmd/gormes -run '^TestBuildDefaultRegistry' -count=1",
+            "go test ./internal/tools -run 'TestWebCrawlTool|TestWebExtractToolUsesGoscrapling' -count=1",
+            "go test ./internal/tools -run TestWebCrawlToolUsesGoscraplingLocalCrawler -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
+          "phase_id": "5",
           "subphase_id": "5.L",
           "name": "Hermes LSP write-time semantic diagnostics",
           "priority": "P1",
@@ -35241,6 +36006,34 @@
           ],
           "match_reasons": [
             "taxonomy_keyword"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.A",
+          "name": "Hermes tool tail strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "tools",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/tests/tools/test_x_search_tool.py",
+            "hermes-agent/tools/environments/vercel_sandbox.py",
+            "hermes-agent/tools/transcription_tools.py",
+            "hermes-agent/tools/tts_tool.py",
+            "hermes-agent/tools/video_generation_tool.py",
+            "hermes-agent/tools/web_tools.py",
+            "hermes-agent/tools/x_search_tool.py",
+            "internal/tools"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
           ]
         },
         {
@@ -35770,7 +36563,11 @@
         "internal/migrate/hermes/writer.go",
         "internal/provider/ (one-shot provider call path the chat send wires through)",
         "internal/session/lineage.go:LineageKindFork,ResolveLineageTip",
+        "internal/tools",
         "internal/tools/dangerous_command_test.go",
+        "internal/tools/tts_command_provider.go",
+        "internal/tools/tts_providers.go",
+        "internal/tools/tts_tool.go",
         "internal/transcript/markdown.go:ExportMarkdown",
         "internal/transcript/markdown.go:ExportMarkdown,ErrSessionNotFound",
         "internal/tui",
@@ -36012,6 +36809,29 @@
             "tests/hermes_cli/test_profile_distribution.py",
             "tests/hermes_cli/test_profile_export_credentials.py",
             "tests/hermes_cli/test_profiles.py"
+          ],
+          "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
+        },
+        {
+          "hermes_file": "tools/tts_tool.py",
+          "status": "partial",
+          "contract": "Hermes text-to-speech tool descriptor, provider matrix, dotenv fallback, speed/max-length validation, local command-provider evidence, and degraded output handling.",
+          "gormes_targets": [
+            "internal/tools/tts_command_provider.go",
+            "internal/tools/tts_providers.go",
+            "internal/tools/tts_tool.go"
+          ],
+          "tests": [
+            "go test ./internal/tools -run 'TestTTS|TestMiniMax' -count=1"
+          ],
+          "progress_rows": [
+            "Hermes tool tail strict-fidelity source-pair expansion"
+          ],
+          "upstream_tests": [
+            "tests/tools/test_tts_command_providers.py",
+            "tests/tools/test_tts_dotenv_fallback.py",
+            "tests/tools/test_tts_max_text_length.py",
+            "tests/tools/test_tts_speed.py"
           ],
           "last_checked_hermes_sha": "43e566f77eaf01293086eb7cb99a21e240d60634"
         }
@@ -36642,6 +37462,34 @@
             "go run ./cmd/progress validate",
             "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(ProviderAuthCommandsMatchHermes|FallbackCommandsMatchHermes|NoUnknowns)' -count=1",
             "go test ./cmd/gormes -run TestHermesCLIParityManifest -count=1"
+          ],
+          "match_reasons": [
+            "source_pair_progress_row"
+          ]
+        },
+        {
+          "phase_id": "5",
+          "subphase_id": "5.A",
+          "name": "Hermes tool tail strict-fidelity source-pair expansion",
+          "priority": "P1",
+          "status": "complete",
+          "contract_status": "validated",
+          "module": "tools",
+          "provenance_origin_type": "hybrid",
+          "source_refs": [
+            "hermes-agent/tests/tools/test_x_search_tool.py",
+            "hermes-agent/tools/environments/vercel_sandbox.py",
+            "hermes-agent/tools/transcription_tools.py",
+            "hermes-agent/tools/tts_tool.py",
+            "hermes-agent/tools/video_generation_tool.py",
+            "hermes-agent/tools/web_tools.py",
+            "hermes-agent/tools/x_search_tool.py",
+            "internal/tools"
+          ],
+          "test_commands": [
+            "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+            "go run ./cmd/repoctl hermes-source-pairs validate",
+            "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1"
           ],
           "match_reasons": [
             "source_pair_progress_row"

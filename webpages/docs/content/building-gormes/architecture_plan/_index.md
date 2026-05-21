@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 93/111 subphases shipped · 18 in progress · 0 planned
+**Overall:** 94/111 subphases shipped · 17 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
@@ -739,7 +739,7 @@ classification and row-backed implementation queue.
 
 *Python tool scripts ported to Go or WASM*
 
-### 5.A — Tool Surface Port 🔨
+### 5.A — Tool Surface Port ✅
 
 - [x] `tools` 61-tool registry port
 - [x] `tools` Tool registry inventory + schema parity harness
@@ -757,7 +757,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Terminal process watch notification throttle contract
 - [x] `tools` Tool output budget persisted artifact pointer
 - [x] `tools` Tool descriptor layer (OperationSpec)
-- [ ] `tools` Hermes tool tail strict-fidelity source-pair expansion
+- [x] `tools` Hermes tool tail strict-fidelity source-pair expansion
 
 ### 5.B — Sandboxing Backends ✅
 

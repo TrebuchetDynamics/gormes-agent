@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `tools`
 **Rows:** 143
-**Status counts:** `complete`: 142 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 143 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 23 · `P1`: 49 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
@@ -68,7 +68,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | Terminal process watch notification throttle contract |
 | `complete` | `P1` | `tools` | Tool output budget persisted artifact pointer |
 | `complete` | `P0` | `tools` | Tool descriptor layer (OperationSpec) |
-| `planned` | `P1` | `tools` | Hermes tool tail strict-fidelity source-pair expansion |
+| `complete` | `P1` | `tools` | Hermes tool tail strict-fidelity source-pair expansion |
 
 ### 5.B — Sandboxing Backends
 

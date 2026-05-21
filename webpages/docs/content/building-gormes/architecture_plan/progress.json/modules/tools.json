@@ -1284,9 +1284,9 @@
     "item": {
       "name": "Hermes tool tail strict-fidelity source-pair expansion",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Classify remaining unmapped Hermes tools into covered Gormes tool rows, focused builder rows, or explicit exclusions. The pass must cover web/search providers, voice/TTS/STT tools, video/image tools, environment backends, tool result storage, process/zombie guards, URL and website policy helpers, and x_search auth behavior without hiding them behind the existing broad 61-tool row.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "tools",
@@ -1322,7 +1322,7 @@
         "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
-      "note": "strict_fidelity_origin: 2026-05-18 report shows 79 unmapped `tools` source files plus many one-file `tests/tools` blockers.",
+      "note": "Complete 2026-05-21: hermes-source-pairs now classifies the named tool-tail refs for web_tools, x_search, TTS, transcription, image generation, URL safety, and website policy. Contract inventory strict failures dropped from 3025 to 3000 by linking these files/tests to source-pair evidence and progress rows without changing runtime tool schemas or claiming unsupported full parity.",
       "write_scope": [
         "internal/tools",
         "internal/tools/safety",
@@ -1342,7 +1342,25 @@
         "origin_type": "hybrid",
         "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
         "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
-      }
+      },
+      "implementation": [
+        "internal/repoctl/source_pairs_repository_test.go",
+        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md"
+      ],
+      "validation": [
+        "go test ./internal/repoctl -run TestRepositorySourcePairsClassifyHermesToolTail -count=1",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/repoctl hermes-source-pairs report",
+        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
+        "go test ./internal/tools ./internal/tools/safety ./internal/tools/budget -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ]
     }
   },
   {
