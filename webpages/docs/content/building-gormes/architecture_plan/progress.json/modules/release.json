@@ -822,18 +822,28 @@
         "webpages/docs/docs_test.go:TestTroubleshootingIndexSurfacesTermuxV020InstallerIssue",
         "webpages/docs/docs_test.go:TestCommonErrorsDocumentsTermuxV020UnknownCommand",
         "webpages/docs/install/termux_guide_test.go:TestInstallDocsWarnTermuxV020LatestReleaseCaveat",
-        "webpages/landing/tests/home.spec.mjs:homepage sells the short buyer-focused landing"
+        "webpages/landing/tests/home.spec.mjs:homepage sells the short buyer-focused landing",
+        ".github/workflows/release.yml:Release Binaries workflow",
+        "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowContract",
+        "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowSmokeChecksBinaryVersionMetadata",
+        "cmd/gormes/version.go:Version/VersionDateAlias",
+        "webpages/landing/src/data/release.json:tag",
+        "README.md:Termux/Android caveat",
+        "webpages/docs/content/install/_index.md:Termux/Android caveat",
+        "webpages/docs/content/troubleshooting/common-errors.md:Termux v0.2.20 unknown command"
       ],
       "ready_when": [
         "Operator explicitly approves a release-lane action for the Termux installer recovery.",
         "origin/development contains fix commit 72b4ee248475 or a superseding Termux installer recovery commit.",
-        "The development branch is clean enough for the release skill to include or split all intended dirty work safely."
+        "The development branch is clean enough for the release skill to include or split all intended dirty work safely.",
+        "A concrete follow-up tag name is selected (default v0.2.21 unless superseded) and remote tag/release checks confirm it is available for creation or recovery."
       ],
       "not_ready_when": [
         "No explicit release approval has been given for PR merge, tag, or public artifact publication.",
         "The development -> main PR is absent, red, unmergeable, or has not completed required checks.",
         "Any step would tag from development, push directly to main, bypass PR checks, or publish artifacts before main is green.",
-        "A v0.2.21 tag or chosen superseding tag already exists and the operator has not requested recovery."
+        "A v0.2.21 tag or chosen superseding tag already exists and the operator has not requested recovery.",
+        "Version, README, landing release metadata, or caveats would be advanced to a follow-up tag before gh release evidence confirms the public tag and artifacts."
       ],
       "blocked_by": [
         "explicit release-lane approval for Termux installer follow-up"
@@ -847,9 +857,10 @@
         "The follow-up tag/release is created from origin/main, not development, and the chosen tag is not the already-affected v0.2.20 release.",
         "gh release view for the follow-up tag reports a non-draft, non-prerelease public release with install.sh and platform artifacts attached.",
         "Release notes, README, landing metadata, and install/troubleshooting caveats stop describing v0.2.20 as the latest repaired Termux path until the follow-up release evidence exists.",
-        "Public caveat cleanup is covered by updated docs and landing tests so post-release README, install docs, troubleshooting docs, and the landing page no longer assert v0.2.20 is the latest affected Termux artifact."
+        "Public caveat cleanup is covered by updated docs and landing tests so post-release README, install docs, troubleshooting docs, and the landing page no longer assert v0.2.20 is the latest affected Termux artifact.",
+        "Version metadata surfaces (`cmd/gormes/version.go`, README latest release text, and `webpages/landing/src/data/release.json`) name the follow-up tag only after the GitHub release exists and artifacts are attached."
       ],
-      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish. Planner 2026-05-21 iteration 3: added explicit unblocks so the release lane knows this P0 row gates both the broad release-pipeline parent and removal of public v0.2.20 Termux caveats; also normalized the progress write_scope to the split backlog path. Planner 2026-05-21 iteration 6: added public docs and landing test refs, scopes, and validation commands so the follow-up release row also carries the post-release caveat-cleanup proof path.",
+      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish. Planner 2026-05-21 iteration 3: added explicit unblocks so the release lane knows this P0 row gates both the broad release-pipeline parent and removal of public v0.2.20 Termux caveats; also normalized the progress write_scope to the split backlog path. Planner 2026-05-21 iteration 6: added public docs and landing test refs, scopes, and validation commands so the follow-up release row also carries the post-release caveat-cleanup proof path. Planner 2026-05-21 iteration 7: added exact release workflow, version metadata, README, landing release data, and public caveat source refs plus a focused workflow/docs validation command so the blocked row has a complete post-release evidence path.",
       "blocker": {
         "title": "Publish follow-up release for Termux latest installer",
         "type": "decision",
@@ -886,11 +897,13 @@
         "gh release view v0.2.21 --json tagName,url,isDraft,isPrerelease,targetCommitish",
         "go test ./webpages/docs ./webpages/docs/install -count=1",
         "(cd webpages/landing && npm run build)",
-        "(cd webpages/landing && npm run test:e2e)"
+        "(cd webpages/landing && npm run test:e2e)",
+        "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|SmokeChecksBinaryVersionMetadata)|TestInstallDocsWarnTermuxV020LatestReleaseCaveat' -count=1"
       ],
       "done_signal": [
         "Report the merged main commit, follow-up tag, public GitHub release URL, artifact verification, and a latest-release Termux installer transcript that no longer reproduces the v0.2.20 unknown-command failure.",
-        "The `Single-binary cross-platform release pipeline` parent no longer lists this row as its active blocker, or a superseding release-pipeline row cites the follow-up release evidence."
+        "The `Single-binary cross-platform release pipeline` parent no longer lists this row as its active blocker, or a superseding release-pipeline row cites the follow-up release evidence.",
+        "Report the exact version/public-surface updates: `cmd/gormes/version.go`, README latest-release text, `webpages/landing/src/data/release.json`, and the docs/landing caveat removals or replacements."
       ],
       "provenance": {
         "origin_type": "gormes"
