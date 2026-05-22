@@ -314,6 +314,9 @@ func parseListItem(lines []parsedLine, index, depth int) (Value, int, error) {
 		return Value{}, index, fmt.Errorf("toon: expected list item on line %d", line.number)
 	}
 	body := strings.TrimSpace(strings.TrimPrefix(line.text, "- "))
+	if body == "[]" {
+		return Value{Kind: KindArray}, index + 1, nil
+	}
 	if h, ok, err := parseHeader(body); err != nil {
 		return Value{}, index, err
 	} else if ok {

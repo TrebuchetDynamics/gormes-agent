@@ -50,6 +50,11 @@ func TestEncodeJSON_GoldenFixtures(t *testing.T) {
 			json: `[]`,
 			want: "[]",
 		},
+		{
+			name: "nested empty array list item shorthand",
+			json: `{"matrix":[[],["a","b"]]}`,
+			want: "matrix[2]:\n  - []\n  - [2]: a,b",
+		},
 	}
 
 	for _, tt := range tests {
@@ -102,6 +107,11 @@ func TestDecodeJSON_GoldenFixtures(t *testing.T) {
 backspace: "a\bb"
 formfeed: "a\fb"`,
 			want: `{"path":"https://example.com/a","backspace":"a\bb","formfeed":"a\fb"}`,
+		},
+		{
+			name: "nested empty array list item shorthand",
+			toon: "matrix[2]:\n  - []\n  - [2]: a,b",
+			want: `{"matrix":[[],["a","b"]]}`,
 		},
 	}
 

@@ -195,7 +195,7 @@ func (e *encoder) writeListItem(buf *bytes.Buffer, value Value, depth int) error
 		e.writeIndent(buf, depth)
 		buf.WriteString("- ")
 		if len(value.Array) == 0 {
-			buf.WriteString("[0]:")
+			buf.WriteString("[]")
 			return nil
 		}
 		return e.writeArray(buf, "", value.Array, depth, "- ", false)
