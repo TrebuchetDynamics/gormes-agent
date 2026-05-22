@@ -39,6 +39,18 @@ Use the current Gormes/Android path today:
 - F-Droid packaging sets a public expectation that the app build is auditable
   and reproducible.
 
+## Channel strategy
+
+| Channel | Role | Use when |
+|---|---|---|
+| F-Droid | Primary trust channel | Launching to open-source Android, Termux, self-hosting, privacy, and developer-tool users who already expect auditable builds. |
+| Google Play | Later reach channel | Expanding beyond the OSS Android audience after the app has release evidence, policy fit, and a support model. |
+| Direct APK or GitHub release | Test and fallback channel | Capturing early smoke evidence, hashes, and operator testing before a store listing is ready. |
+
+Do not treat Google Play as the first proof that Navivox belongs on Android.
+F-Droid is the audience-fit proof: open-source Android users can inspect, build,
+and install it without a Google account.
+
 ## Release gate before claiming F-Droid availability
 
 Do not say "install from F-Droid" until all of these are evidenced in the repo
