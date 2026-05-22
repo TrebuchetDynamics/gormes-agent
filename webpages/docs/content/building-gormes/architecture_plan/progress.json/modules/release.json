@@ -964,7 +964,10 @@
         "webpages/docs/content/install/termux.md:Termux/Android caveat",
         "webpages/docs/content/troubleshooting/_index.md:Known live release issue",
         "webpages/docs/content/troubleshooting/diagnose.md:Termux latest-release v0.2.20",
-        "webpages/docs/content/troubleshooting/common-errors.md:Termux v0.2.20 answer template"
+        "webpages/docs/content/troubleshooting/common-errors.md:Termux v0.2.20 answer template",
+        ".github/workflows/release.yml:Build static binary archive",
+        ".github/workflows/release.yml:Stage install scripts as release assets",
+        ".github/workflows/release.yml:softprops/action-gh-release@v3 files"
       ],
       "ready_when": [
         "The `Termux latest-installer follow-up release publication` row is complete or a superseding release row records the public tag, release URL, artifact, and latest-install evidence.",
@@ -988,9 +991,10 @@
         "README latest-release text and Termux/Android guidance name the follow-up release evidence instead of describing v0.2.20 as the current latest affected release.",
         "Install and troubleshooting docs remove or replace latest-v0.2.20 warnings after follow-up release evidence exists while preserving historical changelog/TODO context.",
         "Landing release.json and landing copy point at the follow-up public tag and no longer render `Termux/Android caveat: latest public v0.2.20 install is affected`.",
-        "Docs and landing tests are updated from caveat-presence assertions to post-release assertions that prevent stale latest-v0.2.20 affected copy from returning."
+        "Docs and landing tests are updated from caveat-presence assertions to post-release assertions that prevent stale latest-v0.2.20 affected copy from returning.",
+        "The release-evidence command checks the follow-up release is public and carries `install.sh`, `gormes-<version>-android-arm64.tar.gz`, and its `.sha256` before stale v0.2.20 caveats are removed."
       ],
-      "note": "Planner 2026-05-21 iteration 10: materialized the public-surface cleanup row that the Termux follow-up release row already named in `unblocks`, separating release publication evidence from the post-release README/docs/landing copy update and preventing the release parent from becoming unblocked while stale v0.2.20 latest-install caveats remain public.",
+      "note": "Planner 2026-05-21 iteration 10: materialized the public-surface cleanup row that the Termux follow-up release row already named in `unblocks`, separating release publication evidence from the post-release README/docs/landing copy update and preventing the release parent from becoming unblocked while stale v0.2.20 latest-install caveats remain public. Planner 2026-05-21 iteration 11: strengthened the cleanup row's release proof from metadata-only `gh release view` to an assets-aware command that requires `install.sh`, the android-arm64 archive, and its checksum before current public v0.2.20 Termux caveats can be removed.",
       "write_scope": [
         "README.md",
         "cmd/gormes/version.go",
@@ -1008,7 +1012,7 @@
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "gh release view v0.2.21 --json tagName,url,isDraft,isPrerelease,targetCommitish",
+        "tag=v0.2.21 version=0.2.21; gh release view \"$tag\" --json tagName,url,isDraft,isPrerelease,targetCommitish,assets | jq -e --arg tag \"$tag\" --arg archive \"gormes-$version-android-arm64.tar.gz\" '.tagName == $tag and .isDraft == false and .isPrerelease == false and ([.assets[].name] | index(\"install.sh\") and index($archive) and index($archive + \".sha256\"))'",
         "go test ./webpages/docs ./webpages/docs/install -count=1",
         "(cd webpages/landing && npm run build)",
         "(cd webpages/landing && npm run test:e2e)",
@@ -1017,7 +1021,8 @@
       ],
       "done_signal": [
         "Report the follow-up release URL/tag, updated README/version/release.json values, and the docs/landing tests that prove current public surfaces no longer call v0.2.20 the latest affected Termux install.",
-        "The `Single-binary cross-platform release pipeline` parent no longer lists this cleanup row as an active blocker, or a superseding row cites the same public cleanup evidence."
+        "The `Single-binary cross-platform release pipeline` parent no longer lists this cleanup row as an active blocker, or a superseding row cites the same public cleanup evidence.",
+        "Report the exact `gh release view ... --json assets | jq -e ...` command output that proved `install.sh` plus the android-arm64 archive and checksum were attached before public caveats were removed."
       ],
       "provenance": {
         "origin_type": "gormes",
