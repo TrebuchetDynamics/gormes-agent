@@ -230,6 +230,26 @@ func RenderHermesContractInventoryMarkdown(report fidelity.Report) string {
 		b.WriteString("\n")
 	}
 
+	b.WriteString("## Plugin Catalog Classification\n\n")
+	if len(report.PluginCatalog) == 0 {
+		b.WriteString("No Hermes plugin catalog families were detected.\n\n")
+	} else {
+		b.WriteString("| Family | Status | Count | Progress rows | Source pairs | Examples | Reason |\n")
+		b.WriteString("|---|---|---:|---|---|---|---|\n")
+		for _, family := range report.PluginCatalog {
+			fmt.Fprintf(&b, "| `%s` | `%s` | `%d` | %s | %s | %s | %s |\n",
+				escapeMarkdownCell(family.ID),
+				family.Status,
+				family.Count,
+				markdownCodeList(progressRowNames(family.ProgressRows)),
+				markdownCodeList(sourcePairFiles(family.SourcePairs)),
+				markdownCodeList(limitStrings(family.Examples, 5)),
+				escapeMarkdownCell(family.Reason),
+			)
+		}
+		b.WriteString("\n")
+	}
+
 	b.WriteString("## Candidate Inventory\n\n")
 	b.WriteString("| Candidate family | Count | Examples |\n")
 	b.WriteString("|---|---:|---|\n")

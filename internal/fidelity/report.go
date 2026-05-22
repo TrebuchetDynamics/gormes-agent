@@ -56,6 +56,7 @@ type Report struct {
 	OK                   bool                      `json:"ok"`
 	Inventory            InventoryCounts           `json:"inventory"`
 	Candidates           CandidateInventory        `json:"candidates"`
+	PluginCatalog        []CatalogFamilyReport     `json:"plugin_catalog,omitempty"`
 	UnmappedUpstream     UpstreamUnmappedInventory `json:"unmapped_upstream"`
 	ReleaseCheckpoints   []ReleaseCheckpoint       `json:"release_checkpoints,omitempty"`
 	ContinuityCategories []ContinuityCategory      `json:"continuity_categories,omitempty"`
@@ -86,6 +87,20 @@ type UpstreamUnmappedInventory struct {
 	DocsFiles   []string                    `json:"docs_files,omitempty"`
 	TestFiles   []string                    `json:"test_files,omitempty"`
 	TestSuites  []UpstreamUnmappedTestSuite `json:"test_suites,omitempty"`
+}
+
+type CatalogFamilyReport struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Count       int      `json:"count"`
+	Examples    []string `json:"examples,omitempty"`
+	Status      Status   `json:"status"`
+	Reason      string   `json:"reason"`
+	Confidence  string   `json:"confidence"`
+	GapSeverity string   `json:"gap_severity"`
+
+	SourcePairs  []SourcePairEvidence  `json:"source_pairs,omitempty"`
+	ProgressRows []ProgressRowEvidence `json:"progress_rows,omitempty"`
 }
 
 type UpstreamUnmappedTestSuite struct {
@@ -265,6 +280,7 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 		},
 	}
 	rows := flattenProgress(prog)
+	report.PluginCatalog = buildPluginCatalogClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
 	definitions := defaultSurfaces()
 	mappedUpstream := mappedUpstreamRefs(definitions, sourcePairs.Pairs, rows)
 	report.UnmappedUpstream = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream, rows)
@@ -1216,6 +1232,265 @@ func buildCandidateInventory(root string) CandidateInventory {
 	candidates.Skills = uniqueSorted(candidates.Skills)
 	candidates.LearningLoop = uniqueSorted(candidates.LearningLoop)
 	return candidates
+}
+
+type catalogFamilyDefinition struct {
+	ID       string
+	Title    string
+	Prefixes []string
+	Contains []string
+	Keywords []string
+}
+
+func defaultPluginCatalogFamilies() []catalogFamilyDefinition {
+	return []catalogFamilyDefinition{
+		{
+			ID:       "browser_web_search",
+			Title:    "Browser And Web Search Plugins",
+			Prefixes: []string{"plugins/browser/", "plugins/web/"},
+			Keywords: []string{"browser", "web", "firecrawl", "browser use", "web search"},
+		},
+		{
+			ID:       "dashboard_observability",
+			Title:    "Dashboard And Observability Plugins",
+			Prefixes: []string{"plugins/hermes-achievements/", "plugins/kanban/"},
+			Contains: []string{"/dashboard/", "/docs/assets/"},
+			Keywords: []string{"dashboard", "observability", "achievement", "kanban", "plugin slots"},
+		},
+		{
+			ID:       "google_meet",
+			Title:    "Google Meet Plugin",
+			Prefixes: []string{"plugins/google_meet/"},
+			Keywords: []string{"google meet", "meet", "realtime", "audio bridge"},
+		},
+		{
+			ID:       "image_video_generation",
+			Title:    "Image And Video Generation Plugins",
+			Prefixes: []string{"plugins/image_gen/", "plugins/video_gen/"},
+			Keywords: []string{"image", "video", "generation", "media", "fal"},
+		},
+		{
+			ID:       "memory_providers",
+			Title:    "Memory Provider Plugins",
+			Prefixes: []string{"plugins/memory/"},
+			Keywords: []string{"memory", "honcho", "hindsight", "provider"},
+		},
+		{
+			ID:       "model_providers",
+			Title:    "Model Provider Plugins",
+			Prefixes: []string{"plugins/model-providers/"},
+			Keywords: []string{"model", "provider", "openrouter", "openai-codex", "auth"},
+		},
+		{
+			ID:       "platform_adapters",
+			Title:    "Platform Adapter Plugins",
+			Prefixes: []string{"plugins/platforms/"},
+			Keywords: []string{"platform", "adapter", "simplex", "teams", "channel"},
+		},
+		{
+			ID:       "spotify",
+			Title:    "Spotify Plugin",
+			Prefixes: []string{"plugins/spotify/"},
+			Keywords: []string{"spotify", "music"},
+		},
+		{
+			ID:       "teams_pipeline",
+			Title:    "Teams Pipeline Plugin",
+			Prefixes: []string{"plugins/teams_pipeline/"},
+			Keywords: []string{"teams pipeline", "pipeline", "teams"},
+		},
+	}
+}
+
+func buildPluginCatalogClassification(root, hermesSHA, sourcePairsState string, pairs []sourcePair, rows []progressRow) []CatalogFamilyReport {
+	if root == "" {
+		return nil
+	}
+	definitions := defaultPluginCatalogFamilies()
+	byID := map[string]*CatalogFamilyReport{}
+	byDef := map[string]catalogFamilyDefinition{}
+	for _, def := range definitions {
+		byDef[def.ID] = def
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredInventoryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		slash := filepath.ToSlash(rel)
+		if !pluginCatalogEvidenceFile(slash) {
+			return nil
+		}
+		for _, def := range definitions {
+			if !pluginFamilyMatchesPath(def, slash) {
+				continue
+			}
+			family := byID[def.ID]
+			if family == nil {
+				family = &CatalogFamilyReport{ID: def.ID, Title: def.Title}
+				byID[def.ID] = family
+			}
+			family.Count++
+			family.Examples = append(family.Examples, slash)
+			break
+		}
+		return nil
+	})
+
+	for id, family := range byID {
+		def := byDef[id]
+		matchedNames := map[string]bool{}
+		for _, pair := range pairs {
+			if !pluginFamilyMatchesSourcePair(def, pair) {
+				continue
+			}
+			ev := SourcePairEvidence{
+				HermesFile:           cleanHermesRel(pair.HermesFile),
+				Status:               pair.Status,
+				Contract:             pair.Contract,
+				GormesTargets:        cleanStrings(pair.GormesTargets),
+				Tests:                cleanStrings(pair.Tests),
+				ProgressRows:         cleanStrings(pair.ProgressRows),
+				UpstreamTests:        cleanStrings(pair.UpstreamTests),
+				LastCheckedHermesSHA: pair.LastCheckedHermesSHA,
+				Stale:                pairStale(hermesSHA, pair.LastCheckedHermesSHA) || sourcePairsState == "stale",
+			}
+			family.SourcePairs = append(family.SourcePairs, ev)
+			for _, name := range pair.ProgressRows {
+				matchedNames[strings.ToLower(strings.TrimSpace(name))] = true
+			}
+		}
+
+		for _, row := range rows {
+			reasons := pluginFamilyRowMatchReasons(def, row, matchedNames)
+			if len(reasons) == 0 {
+				continue
+			}
+			family.ProgressRows = append(family.ProgressRows, progressRowEvidence(row, reasons))
+		}
+		family.Examples = uniqueSorted(family.Examples)
+		family.SourcePairs = sortSourcePairEvidence(family.SourcePairs)
+		family.ProgressRows = sortProgressRowEvidence(family.ProgressRows)
+		family.Status, family.Reason, family.Confidence = deriveCatalogFamilyStatus(*family)
+		family.GapSeverity = gapSeverity(family.Status, true)
+	}
+
+	out := make([]CatalogFamilyReport, 0, len(byID))
+	for _, family := range byID {
+		out = append(out, *family)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func pluginCatalogEvidenceFile(path string) bool {
+	path = filepath.ToSlash(path)
+	if !strings.HasPrefix(path, "plugins/") {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".py", ".ts", ".tsx", ".js", ".jsx", ".md", ".yaml", ".yml", ".json", ".css":
+		return true
+	default:
+		return false
+	}
+}
+
+func pluginFamilyMatchesPath(def catalogFamilyDefinition, path string) bool {
+	path = cleanHermesRel(path)
+	for _, prefix := range def.Prefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	for _, fragment := range def.Contains {
+		if strings.Contains(path, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
+func pluginFamilyMatchesSourcePair(def catalogFamilyDefinition, pair sourcePair) bool {
+	if pluginFamilyMatchesPath(def, pair.HermesFile) {
+		return true
+	}
+	text := strings.ToLower(cleanHermesRel(pair.HermesFile) + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
+	return containsKeyword(text, def.Keywords)
+}
+
+func pluginFamilyRowMatchReasons(def catalogFamilyDefinition, row progressRow, matchedNames map[string]bool) []string {
+	var reasons []string
+	name := strings.ToLower(strings.TrimSpace(row.Item.Name))
+	if matchedNames[name] {
+		reasons = append(reasons, "source_pair_progress_row")
+	}
+	for _, source := range row.Item.SourceRefs {
+		normalized := cleanHermesRel(source)
+		if normalized != "" && pluginFamilyMatchesPath(def, normalized) {
+			reasons = append(reasons, "source_ref:"+normalized)
+		}
+	}
+	if containsKeyword(row.Text, def.Keywords) {
+		reasons = append(reasons, "taxonomy_keyword")
+	}
+	return uniqueSorted(reasons)
+}
+
+func deriveCatalogFamilyStatus(family CatalogFamilyReport) (Status, string, string) {
+	for _, pair := range family.SourcePairs {
+		if pair.Stale {
+			return StatusStaleUpstream, "Source-pair evidence is stale for the selected Hermes SHA.", "high"
+		}
+	}
+	if hasPairStatus(family.SourcePairs, "excluded") {
+		return StatusExcluded, "Source-pair manifest explicitly excludes this plugin family.", "high"
+	}
+	if hasPairStatus(family.SourcePairs, "owned") && hasValidatedProgress(family.ProgressRows) {
+		return StatusOwnedDivergence, "Validated Gormes-owned divergence is explicitly recorded for this plugin family.", "high"
+	}
+	if hasPairStatus(family.SourcePairs, "covered") && hasValidatedProgress(family.ProgressRows) {
+		return StatusCovered, "Covered source-pair evidence joins to a validated complete progress row with test evidence.", "high"
+	}
+	if hasPairStatus(family.SourcePairs, "partial") || hasCompleteProgress(family.ProgressRows) {
+		return StatusPartial, "Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered.", "medium"
+	}
+	if hasPairStatus(family.SourcePairs, "planned") || hasPlannedProgress(family.ProgressRows) {
+		return StatusPlanned, "A planned progress row or source-pair entry exists for this plugin family.", "medium"
+	}
+	if hasVagueProgress(family.ProgressRows) {
+		return StatusVague, "Only vague progress evidence matched this plugin family.", "low"
+	}
+	return StatusMissing, "Upstream plugin files are present without source-pair, progress-row, exclusion, or owned-divergence evidence.", "low"
+}
+
+func sortSourcePairEvidence(values []SourcePairEvidence) []SourcePairEvidence {
+	sort.Slice(values, func(i, j int) bool { return values[i].HermesFile < values[j].HermesFile })
+	return values
+}
+
+func sortProgressRowEvidence(values []ProgressRowEvidence) []ProgressRowEvidence {
+	sort.Slice(values, func(i, j int) bool { return values[i].Name < values[j].Name })
+	return values
+}
+
+func cleanHermesRel(ref string) string {
+	ref = filepath.ToSlash(strings.TrimSpace(ref))
+	ref = strings.TrimPrefix(ref, "./")
+	for _, prefix := range []string{"hermes-agent/", "references/hermes-agent/"} {
+		ref = strings.TrimPrefix(ref, prefix)
+	}
+	return ref
 }
 
 func candidateSourceFile(path string) bool {
