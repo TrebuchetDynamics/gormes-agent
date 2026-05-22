@@ -47,6 +47,7 @@ Expected: a `{build, failed, checks: [...]}` JSON document. Every check has a `n
 
 ## Troubleshooting
 
+- **Termux latest-release `v0.2.20` reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`** → This is the known live release caveat: the fix is already committed on `development`, but it is not in the public latest release. Do not report Termux latest install as repaired until a follow-up release exists.
 - **`Auth: missing`** → Run `gormes auth add <provider>` (see [first chat](../../operate/first-chat/)).
 - **`provider health: [FAIL]`** → Wrong endpoint, wrong model id, or expired credentials. Try [provider setup](../../configure/providers/).
 - **Gateway `lifecycle=failed`** → The channel adapter failed to start. The `error` field in `gateway status` names the cause (token conflict, missing allowlist, etc.).

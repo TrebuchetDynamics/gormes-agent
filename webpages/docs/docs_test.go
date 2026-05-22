@@ -429,6 +429,20 @@ func TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials(t *testing.T) 
 	}
 }
 
+func TestDiagnoseBrokenInstallSurfacesTermuxV020Issue(t *testing.T) {
+	diagnose := readDoc(t, "content/troubleshooting/diagnose.md")
+	for _, want := range []string{
+		"Termux latest-release `v0.2.20` reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
+		"fix is already committed on `development`",
+		"not in the public latest release",
+		"Do not report Termux latest install as repaired until a follow-up release exists",
+	} {
+		if !strings.Contains(diagnose, want) {
+			t.Fatalf("diagnose broken install docs missing Termux v0.2.20 issue text %q", want)
+		}
+	}
+}
+
 func TestTroubleshootingIndexSurfacesTermuxV020InstallerIssue(t *testing.T) {
 	troubleshooting := readDoc(t, "content/troubleshooting/_index.md")
 	for _, want := range []string{
