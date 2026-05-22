@@ -493,6 +493,9 @@ func unquoteTOONString(token string) (string, error) {
 		if r == utf8.RuneError && size == 1 {
 			return "", fmt.Errorf("invalid UTF-8")
 		}
+		if r < 0x20 {
+			return "", fmt.Errorf("unescaped control character")
+		}
 		b.WriteRune(r)
 		i += size
 	}
