@@ -6095,18 +6095,69 @@
       "name": "TUI + Telegram browsing",
       "priority": "P2",
       "status": "planned",
-      "slice_size": "umbrella",
-      "execution_owner": "docs",
+      "contract": "Complete the remaining Hermes-compatible skills.manage browsing path for native TUI and Telegram operators: keep the existing /skills list and inspect behavior, add source-backed browse/search/read-only management routing through the gateway command surface, render bounded channel-safe skill summaries, and return explicit row-backed unavailable evidence for mutating actions such as install, edit, disable, or review.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
       "module": "channels",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Without this slice, installed skill list/inspect works locally but Hermes-style browse/search from TUI or Telegram remains partial and operators may fall back to ad-hoc prompts or raw CLI access.",
+      "fixture": "internal/gateway/skills_command_test.go; internal/channels/telegram/bot_test.go; internal/tui/slash_dispatch_behavior_test.go",
+      "source_refs": [
+        "hermes-agent/tui_gateway/server.py:skills.manage list/search/browse/inspect actions",
+        "hermes-agent/tui_gateway/server.py:_LONG_HANDLERS includes skills.manage",
+        "internal/gateway/skills_command.go:HandleSkillsCommand list/inspect baseline",
+        "internal/skills/list_test.go:ListInstalledSkills status/source filters",
+        "internal/skills/hub_search_test.go:HubSearch read-model behavior",
+        "internal/channels/telegram/bot_test.go:Telegram dynamic command registration"
+      ],
+      "ready_when": [
+        "The completed installed-skill list/inspect surface in internal/gateway/skills_command.go is preserved as the baseline.",
+        "The completed skills hub search read-model row provides fakeable search results without live registry/network calls.",
+        "The completed skill preprocessing + dynamic slash commands row keeps disabled/incompatible skills out of prompt injection while still reporting status.",
+        "The builder can exercise TUI/gateway/Telegram behavior with fake skill roots, fake hub providers, and mock Telegram clients; no live bot token is required."
+      ],
       "not_ready_when": [
-        "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+        "The slice mutates installed skills, writes candidate/review records, or enables install/edit/disable/review actions instead of returning explicit unavailable evidence.",
+        "The tests require live Telegram credentials, live GitHub/Hub network access, a running gateway process, or a real TUI terminal.",
+        "Browse/search output injects full skill bodies into normal model prompts or leaks raw filesystem paths/secrets into Telegram replies.",
+        "The /skills command behaves differently between TUI and Telegram without a shared command/parser contract."
       ],
-      "note": "TDD: expose browse/edit/disable/review flows through TUI and gateway commands after the store and feedback records are stable, with permission and active-turn behavior pinned by tests.",
+      "acceptance": [
+        "/skills list and /skills inspect keep their current installed-skill behavior and tests while the new browse/search path uses the hub read model with deterministic fake providers.",
+        "Gateway command tests prove /skills browse and /skills search render bounded rows with name, source, status/trust, short description, page/count evidence, and no full skill body unless inspect is explicitly requested.",
+        "Telegram tests prove the rendered browse/search replies are MarkdownV2-safe or plain-text safe, respect Telegram command/menu limits, and do not require a live bot token.",
+        "TUI slash-dispatch tests prove /skills remains an immediate local command and is not submitted to the model as a normal prompt while another turn is active.",
+        "Mutating Hermes skills.manage actions (install, edit, disable, review) return typed row-backed unavailable evidence without changing the skill store or candidate review state."
+      ],
+      "note": "TDD: expose browse/edit/disable/review flows through TUI and gateway commands after the store and feedback records are stable, with permission and active-turn behavior pinned by tests. Planner 2026-05-21 new-loop iteration 2: replaced the inventory-only placeholder with a fixture-ready gateway/channels contract focused on the missing read-only skills.manage browse/search path; installed list/inspect already exists and mutating skills actions stay row-backed unavailable.",
+      "write_scope": [
+        "internal/gateway/skills_command.go",
+        "internal/gateway/skills_command_test.go",
+        "internal/channels/telegram/bot.go",
+        "internal/channels/telegram/bot_test.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/skills/hub_search.go",
+        "internal/skills/hub_search_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestHandleSkillsCommand|TestSkillsManage|TestGatewaySkills' -count=1",
+        "go test ./internal/channels/telegram -run 'TestBot_RunRegistersDynamicSkillTelegramCommands|TestTelegramSkills' -count=1",
+        "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior.*Skills|Test.*Skills.*Slash' -count=1",
+        "go test ./internal/skills -run 'TestHubSearch|TestListInstalledSkills' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
       "done_signal": [
-        "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+        "Report the exact /skills browse/search command forms, fixture names, unavailable-evidence strings for mutating actions, and the gateway/Telegram/TUI test commands that passed without live credentials."
       ],
-      "no_test_required": "",
-      "test_commands": []
+      "no_test_required": ""
     }
   },
   {
