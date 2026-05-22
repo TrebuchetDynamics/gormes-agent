@@ -103,6 +103,14 @@ Use this message shape for F-Droid-facing copy before the listing is real:
 - Mark direct APK or GitHub artifacts as test/fallback evidence until F-Droid metadata and source-build review are complete.
 - Keep debug, unsigned, locally patched, or secret-bearing APKs out of the F-Droid handoff.
 
+## Screenshot review checklist
+
+- Show the expected path: Gormes running in Termux, Navivox pairing, then a local gateway conversation.
+- Use placeholder gateway URLs, fake pairing tokens, demo profile names, and sample chat payloads only.
+- Add captions or alt text that explain the app pairs to a user-owned Gormes runtime.
+- Avoid Google Play badges, hosted-account claims, cloud-assistant screenshots, and generic chatbot positioning.
+- Keep every screenshot reproducible from public fixtures or redacted demo profiles before submission.
+
 ## Release gate before claiming F-Droid availability
 
 Do not say "install from F-Droid" until all of these are evidenced in the repo

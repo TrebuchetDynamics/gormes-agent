@@ -105,3 +105,16 @@ func TestNavivoxFDroidDocsCarryBuildAndArtifactEvidence(t *testing.T) {
 		"Keep debug, unsigned, locally patched, or secret-bearing APKs out of the F-Droid handoff.",
 	})
 }
+
+func TestNavivoxFDroidDocsCarryScreenshotReviewChecklist(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## Screenshot review checklist",
+		"Show the expected path: Gormes running in Termux, Navivox pairing, then a local gateway conversation.",
+		"Use placeholder gateway URLs, fake pairing tokens, demo profile names, and sample chat payloads only.",
+		"Add captions or alt text that explain the app pairs to a user-owned Gormes runtime.",
+		"Avoid Google Play badges, hosted-account claims, cloud-assistant screenshots, and generic chatbot positioning.",
+		"Keep every screenshot reproducible from public fixtures or redacted demo profiles before submission.",
+	})
+}
