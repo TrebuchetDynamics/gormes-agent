@@ -130,7 +130,7 @@ func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingSt
 		}
 		state := PairingPlatformState(strings.ToLower(strings.TrimSpace(string(platform.State))))
 		if state == "" {
-			return
+			break
 		}
 		entry.CurrentValues = append(entry.CurrentValues,
 			"whatsapp.pairing="+string(state),
@@ -147,7 +147,47 @@ func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingSt
 			entry.Warnings = append(entry.Warnings, "WhatsApp pairing is not complete; run gormes whatsapp to link a device.")
 			entry.PlannedWrites = append(entry.PlannedWrites, "WhatsApp pairing session -> gormes whatsapp")
 		}
-		return
+		break
+	}
+	applyWhatsAppPairingDegradedSetupStatus(entry, pairing.Degraded)
+}
+
+func applyWhatsAppPairingDegradedSetupStatus(entry *ChannelSetupEntry, degraded []PairingDegradedEvidence) {
+	seen := map[string]struct{}{}
+	for _, evidence := range degraded {
+		if !isWhatsAppPairingDegradedEvidence(evidence) {
+			continue
+		}
+		reason := PairingDegradedReason(strings.ToLower(strings.TrimSpace(string(evidence.Reason))))
+		if reason == "" {
+			continue
+		}
+		reasonText := string(reason)
+		if _, ok := seen[reasonText]; ok {
+			continue
+		}
+		seen[reasonText] = struct{}{}
+		entry.CurrentValues = append(entry.CurrentValues, "whatsapp.pairing_degraded="+reasonText)
+		entry.Warnings = append(entry.Warnings, "WhatsApp pairing status is degraded: "+reasonText)
+		if whatsappPairingDegradationBlocksSetup(reason) && (entry.Status == ChannelSetupStatusConfigured || entry.Status == ChannelSetupStatusPaired) {
+			entry.Status = ChannelSetupStatusPartial
+			entry.NextCommand = "gormes whatsapp"
+			entry.PlannedWrites = append(entry.PlannedWrites, "WhatsApp pairing readout repair -> gormes whatsapp")
+		}
+	}
+}
+
+func isWhatsAppPairingDegradedEvidence(evidence PairingDegradedEvidence) bool {
+	platform := strings.ToLower(strings.TrimSpace(evidence.Platform))
+	return platform == "" || platform == "whatsapp"
+}
+
+func whatsappPairingDegradationBlocksSetup(reason PairingDegradedReason) bool {
+	switch reason {
+	case PairingDegradedMissing, PairingDegradedCorrupt, PairingDegradedPermissionDenied, PairingDegradedReadFailed:
+		return true
+	default:
+		return false
 	}
 }
 

@@ -290,6 +290,61 @@ func TestProfileChannelSetupPlanWhatsAppReportsUnpairedLoginStatus(t *testing.T)
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppReportsPairingDegradedStatus(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net"},
+						AllowedUsers: []string{"6586915095"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	plan := BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{
+		Pairing: PairingStatus{
+			Degraded: []PairingDegradedEvidence{{
+				Platform: "whatsapp",
+				Reason:   PairingDegradedPermissionDenied,
+				Path:     "/home/xel/.gormes/pairing.json",
+				UserID:   "6586915095",
+				Code:     "PAIR1234",
+				Message:  "read /home/xel/.gormes/pairing.json: permission denied",
+			}},
+		},
+	})
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	if whatsapp.Status != ChannelSetupStatusPartial {
+		t.Fatalf("whatsapp status = %q, want partial when pairing readout is degraded: %+v", whatsapp.Status, whatsapp)
+	}
+	if whatsapp.NextCommand != "gormes whatsapp" {
+		t.Fatalf("whatsapp next command = %q, want live pairing wizard for degraded pairing readout", whatsapp.NextCommand)
+	}
+	rendered := strings.Join(append(append(append([]string{}, whatsapp.CurrentValues...), whatsapp.Warnings...), whatsapp.PlannedWrites...), "\n")
+	for _, want := range []string{
+		"whatsapp.pairing_degraded=permission_denied",
+		"WhatsApp pairing status is degraded: permission_denied",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup degraded guidance missing %q:\n%s", want, rendered)
+		}
+	}
+	for _, forbidden := range []string{"/home/xel/.gormes/pairing.json", "PAIR1234", "6586915095", "GORMES_MAIN_WHATSAPP_TOKEN"} {
+		if strings.Contains(rendered, forbidden) {
+			t.Fatalf("whatsapp setup degraded guidance leaked sensitive value %q:\n%s", forbidden, rendered)
+		}
+	}
+}
+
 func TestProfileChannelSetupPlanWhatsAppSeparatesGroupAndDirectAllowedChats(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
