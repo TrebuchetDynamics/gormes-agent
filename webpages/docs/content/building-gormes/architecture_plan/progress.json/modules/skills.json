@@ -2627,18 +2627,70 @@
       "name": "Skill effectiveness scoring",
       "priority": "P3",
       "status": "planned",
-      "slice_size": "umbrella",
-      "execution_owner": "docs",
+      "contract": "Add the first deterministic skill-effectiveness layer on top of existing usage counters: persist append-only skill selection/outcome records, accept explicit operator feedback as auditable evidence, and expose a pure aggregate scorer that can explain positive, neutral, stale, and negative skill signals without automatically promoting, demoting, editing, or archiving skills.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "skills",
       "module": "skills",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Without this slice, Gormes can count skill use/view/patch activity and run curator lifecycle transitions, but it cannot connect selected skills to turn outcomes or operator feedback before future promotion/demotion logic.",
+      "fixture": "internal/skills/effectiveness_test.go with fake clock, temp skill root, deterministic outcome records, and no model/provider calls",
+      "source_refs": [
+        "hermes-agent/tools/skill_usage.py:.usage.json sidecar, latest_activity_at, activity_count",
+        "hermes-agent/agent/curator.py:CURATOR_REVIEW_PROMPT requires content judgment instead of raw counters",
+        "internal/skills/usage.go:SkillUsageRecord, BumpUse, BumpView, BumpPatch, ListAgentCreatedSkillUsage",
+        "internal/skills/store.go:Runtime.BuildSkillBlockWithOptions and RecordSkillUsage selected-skill seam",
+        "internal/skills/selector.go:scoreSkill deterministic lexical baseline",
+        "internal/skills/hybrid_selector.go:ScoredSkill lexical/semantic/total score shape",
+        "cmd/gormes/curator.go:curator status usage rows and JSON output",
+        "webpages/docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md:6.E feedback records before automatic promotion/demotion"
+      ],
+      "ready_when": [
+        "Existing skill usage/provenance counters in internal/skills/usage.go remain intact and continue to back curator status.",
+        "Existing lexical and hybrid selection code provides deterministic selected-skill names/scores for fixture inputs.",
+        "The builder can use temp directories, fake clocks, and in-memory records; no live model, hub, Telegram, or network dependency is needed.",
+        "The first implementation is an auditable evidence layer only; future automatic promotion/demotion stays out of scope until records and aggregate scores are tested."
+      ],
       "not_ready_when": [
-        "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+        "The slice changes SKILL.md contents, archives skills, rewrites curator state, or auto-promotes/demotes selection behavior based on the new score.",
+        "The slice requires live LLM scoring, live operator credentials, a real gateway turn, or external registry/network access.",
+        "Outcome records are stored only in mutable counters without an append-only audit trail or stable JSON shape.",
+        "Aggregate scores cannot explain which selected-skill outcomes, feedback events, or decay inputs produced the final signal."
       ],
-      "note": "TDD: persist skill-use outcomes, explicit operator feedback, and decay/weight adjustments as auditable records before any automatic promotion or demotion behavior.",
+      "acceptance": [
+        "A new internal/skills fixture records selected skill names with session/turn IDs, prompt hash or redacted prompt evidence, selection score metadata when available, outcome code, timestamp, and optional operator feedback/reason without storing raw secrets.",
+        "Append-only ledger tests prove multiple records survive reload, invalid/corrupt lines are reported as evidence instead of panicking, and writes are atomic enough for single-process skill runtime use.",
+        "Pure aggregate-score tests prove positive feedback increases a skill signal, negative feedback decreases it, stale records decay deterministically with a fake clock, and ties sort stably by skill name.",
+        "Curator/status-facing tests prove existing use/view/patch counters still render unchanged unless an explicit effectiveness report command or helper is invoked.",
+        "No production path automatically edits, archives, promotes, or suppresses a skill based solely on the new effectiveness score."
+      ],
+      "note": "TDD: persist skill-use outcomes, explicit operator feedback, and decay/weight adjustments as auditable records before any automatic promotion or demotion behavior. Planner 2026-05-21 development-loop iteration 3: narrowed the Phase 6.E inventory placeholder into a fixture-ready skills-package outcome ledger and deterministic aggregate scorer; automatic promotion/demotion remains explicitly out of scope.",
+      "write_scope": [
+        "internal/skills/effectiveness.go",
+        "internal/skills/effectiveness_test.go",
+        "internal/skills/usage.go",
+        "internal/skills/usage_test.go",
+        "internal/skills/store.go",
+        "internal/skills/store_test.go",
+        "cmd/gormes/curator.go",
+        "cmd/gormes/curator_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/skills -run 'TestSkillEffectiveness|TestUsage|TestSelect|TestHybridSelector' -count=1",
+        "go test ./cmd/gormes -run 'TestCuratorCommand_Status|TestCuratorCommand_Effectiveness' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
       "done_signal": [
-        "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+        "Report the ledger path/schema, aggregate scoring formula, redaction boundary, fixture names, unchanged curator status proof, and exact tests that passed."
       ],
-      "no_test_required": "",
-      "test_commands": []
+      "no_test_required": ""
     }
   },
   {
