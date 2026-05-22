@@ -217,6 +217,44 @@ func TestLoad_RealFile_GoscraplingCrawlerGate(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_NativeTUISlashHandlerCoverage(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	items := itemsByName(p.Phases["5"].Subphases["5.Q"].Items)
+	coverage := items["Native TUI slash handler-port coverage"]
+	if coverage.Status != StatusPlanned || coverage.ContractStatus != ContractStatusFixtureReady || coverage.SliceSize != SliceSizeUmbrella || coverage.ExecutionOwner != ExecutionOwnerTui || coverage.Module != ModuleTUI {
+		t.Fatalf("Native TUI slash coverage metadata = status %q contract_status %q size %q owner %q module %q, want planned/fixture_ready/umbrella/tui/tui", coverage.Status, coverage.ContractStatus, coverage.SliceSize, coverage.ExecutionOwner, coverage.Module)
+	}
+	for _, want := range []string{
+		"hermes-agent/ui-tui/src/app/createSlashHandler.ts:createSlashHandler",
+		"hermes-agent/ui-tui/src/app/slash/registry.ts:SLASH_COMMANDS",
+		"hermes-agent/ui-tui/src/__tests__/slashParity.test.ts:MUTATING_COMMANDS",
+		"internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+		"internal/tui/slash_dispatch_behavior_test.go:TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit",
+		"internal/cli/command_registry.go:CommandRegistry",
+	} {
+		if !containsString(coverage.SourceRefs, want) {
+			t.Fatalf("Native TUI slash coverage source_refs = %v, want %q", coverage.SourceRefs, want)
+		}
+	}
+	if !containsString(coverage.TestCommands, "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback)|TestHermesSlashCompletion_UnavailableCommandsStillComplete' -count=1") {
+		t.Fatalf("Native TUI slash coverage test_commands = %v, want focused slash inventory guard", coverage.TestCommands)
+	}
+	for _, want := range []string{
+		"Native TUI /skin slash command binding",
+		"Native TUI /voice slash command binding",
+		"Native TUI /config slash command binding",
+		"Native TUI /tools slash command binding",
+	} {
+		if !containsString(coverage.Unblocks, want) {
+			t.Fatalf("Native TUI slash coverage unblocks = %v, want %q", coverage.Unblocks, want)
+		}
+	}
+}
+
 func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
