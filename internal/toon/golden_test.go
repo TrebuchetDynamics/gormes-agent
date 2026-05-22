@@ -45,6 +45,11 @@ func TestEncodeJSON_GoldenFixtures(t *testing.T) {
 			json: `{"items":[],"meta":{}}`,
 			want: "items: []\nmeta:",
 		},
+		{
+			name: "root empty array",
+			json: `[]`,
+			want: "[]",
+		},
 	}
 
 	for _, tt := range tests {

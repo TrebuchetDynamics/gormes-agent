@@ -60,6 +60,10 @@ func (e *encoder) writeRoot(buf *bytes.Buffer, value Value) error {
 	case KindObject:
 		return e.writeObjectFields(buf, value.Object, 0)
 	case KindArray:
+		if len(value.Array) == 0 {
+			buf.WriteString("[]")
+			return nil
+		}
 		return e.writeArray(buf, "", value.Array, 0, "", false)
 	default:
 		buf.WriteString(e.primitive(value, ','))
