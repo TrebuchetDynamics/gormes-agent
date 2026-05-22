@@ -107,6 +107,7 @@ func TestUninstallCommand_DryRunRoutesThroughCobraWriters(t *testing.T) {
 // permission errors on every file would see "uninstall complete" and
 // assume success — a real footgun for cleanup workflows.
 func TestUninstallExecute_ReportsRemovedAndFailedCounts(t *testing.T) {
+	forcePermanentUninstallForTest(t)
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 
@@ -315,6 +316,7 @@ func TestUninstallCommand_DryRunJSONEmitsStructuredPreview(t *testing.T) {
 // so fleet automation can confirm cleanup completed across machines.
 // Apply mode reports actual removed/failed counts; dry_run is false.
 func TestUninstallCommand_ExecuteJSONEmitsStructuredOutcome(t *testing.T) {
+	forcePermanentUninstallForTest(t)
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	for _, name := range []string{"config.toml", "auth.json"} {
@@ -377,6 +379,7 @@ func TestUninstallCommand_ExecuteJSONEmitsStructuredOutcome(t *testing.T) {
 // or shadowing on PATH). The "is it a symlink whose target is inside
 // the gormes home" predicate keeps the cleanup surgical.
 func TestUninstall_RemovesPublishedBinarySymlink(t *testing.T) {
+	forcePermanentUninstallForTest(t)
 	home := t.TempDir()
 	binDir := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -493,6 +496,7 @@ func TestUninstall_HomeDirWildcardIsNotMisclassifiedAsLogs(t *testing.T) {
 // shadowing on PATH) MUST NOT be touched. The published-binary group
 // only enumerates entries we know we put there.
 func TestUninstall_LeavesUnrelatedGormesBinaryAlone(t *testing.T) {
+	forcePermanentUninstallForTest(t)
 	home := t.TempDir()
 	binDir := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -517,4 +521,9 @@ func TestUninstall_LeavesUnrelatedGormesBinaryAlone(t *testing.T) {
 	if _, err := os.Stat(unrelated); err != nil {
 		t.Fatalf("uninstall must not remove a non-symlink binary at %s; got err=%v", unrelated, err)
 	}
+}
+
+func forcePermanentUninstallForTest(t *testing.T) {
+	t.Helper()
+	t.Setenv("GORMES_UNINSTALL_FORCE_PURGE", "1")
 }
