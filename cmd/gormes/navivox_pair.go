@@ -1,17 +1,24 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
+	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
 type navivoxPairOptions struct {
@@ -98,6 +105,11 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 		return err
 	}
 
+	bridgeStop, bridgeDone, err := startNavivoxPairBridge(cmd.Context(), runtimeCfg)
+	if err != nil {
+		return err
+	}
+
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "Navivox pairing ready.")
 	fmt.Fprintf(out, "Local bridge URL: %s\n", baseURL)
@@ -109,14 +121,69 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	}
 	fmt.Fprintf(out, "Pairing QR image: %s\n", qrPath)
 	fmt.Fprintln(out, "Open Navivox on Android and scan the QR.")
-	fmt.Fprintln(out, "Start local bridge: gormes gateway")
+	fmt.Fprintf(out, "Local bridge listening: %s\n", baseURL)
 	if opts.noWait {
+		if err := stopNavivoxPairBridge(bridgeStop, bridgeDone); err != nil {
+			return err
+		}
 		fmt.Fprintln(out, "Waiting for Navivox connection skipped (--no-wait).")
 		return nil
 	}
 	fmt.Fprintln(out, "Waiting for Navivox connection... Press Ctrl-C to stop.")
-	<-cmd.Context().Done()
-	return nil
+	select {
+	case <-cmd.Context().Done():
+		if err := stopNavivoxPairBridge(bridgeStop, bridgeDone); err != nil {
+			return err
+		}
+		return nil
+	case err := <-bridgeDone:
+		if err == nil || errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return fmt.Errorf("navivox pair: local bridge stopped: %w", err)
+	}
+}
+
+func startNavivoxPairBridge(ctx context.Context, cfg config.NavivoxCfg) (context.CancelFunc, <-chan error, error) {
+	ch, err := navivoxchannel.NewChannel(cfg, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("navivox pair: create local bridge: %w", err)
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort(strings.Trim(cfg.BindHost, "[]"), strconv.Itoa(cfg.Port)))
+	if err != nil {
+		return nil, nil, fmt.Errorf("navivox pair: start local bridge: %w", err)
+	}
+	bridgeCtx, stop := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	inbox := make(chan gateway.InboundEvent, 16)
+	server := &http.Server{Handler: ch.Handler(inbox)}
+	go func() {
+		<-bridgeCtx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
+	}()
+	go func() {
+		err := server.Serve(ln)
+		if errors.Is(err, http.ErrServerClosed) {
+			err = bridgeCtx.Err()
+		}
+		done <- err
+	}()
+	return stop, done, nil
+}
+
+func stopNavivoxPairBridge(stop context.CancelFunc, done <-chan error) error {
+	stop()
+	select {
+	case err := <-done:
+		if err == nil || errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return fmt.Errorf("navivox pair: stop local bridge: %w", err)
+	case <-time.After(2 * time.Second):
+		return fmt.Errorf("navivox pair: local bridge shutdown timed out")
+	}
 }
 
 func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string {
