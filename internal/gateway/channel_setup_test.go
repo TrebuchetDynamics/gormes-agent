@@ -130,6 +130,46 @@ func TestProfileChannelSetupPlanWhatsAppUsesReadinessAndRedactsScopes(t *testing
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppSeparatesGroupAndDirectAllowedChats(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net", "12025550999-123@g.us"},
+						AllowedUsers: []string{"6586915095"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	plan := BuildChannelSetupPlan(cfg)
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	rendered := strings.Join(whatsapp.CurrentValues, "\n")
+	for _, want := range []string{
+		"profiles.main.channels.whatsapp.allowed_chats=2",
+		"profiles.main.channels.whatsapp.allowed_direct_chats=1",
+		"profiles.main.channels.whatsapp.allowed_group_chats=1",
+		"profiles.main.channels.whatsapp.allowed_users=1",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup values missing %q:\n%s", want, rendered)
+		}
+	}
+	for _, leaked := range []string{"12025550123", "12025550999", "6586915095"} {
+		if strings.Contains(rendered, leaked) {
+			t.Fatalf("whatsapp setup plan leaked sensitive value %q:\n%s", leaked, rendered)
+		}
+	}
+}
+
 func TestChannelSetupPlanListsMessagingPlatforms(t *testing.T) {
 	plan := BuildChannelSetupPlan(config.Config{})
 	for _, want := range []string{"telegram", "discord", "slack", "whatsapp", "navivox"} {

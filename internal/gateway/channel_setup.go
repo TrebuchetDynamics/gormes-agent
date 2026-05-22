@@ -83,6 +83,8 @@ func buildWhatsAppSetupEntry(cfg config.Config) ChannelSetupEntry {
 		}
 		entry.CurrentValues = append(entry.CurrentValues,
 			profilePrefix+".allowed_chats="+strconv.Itoa(binding.AllowedChatCount),
+			profilePrefix+".allowed_direct_chats="+strconv.Itoa(binding.AllowedDirectChatCount),
+			profilePrefix+".allowed_group_chats="+strconv.Itoa(binding.AllowedGroupChatCount),
 			profilePrefix+".allowed_users="+strconv.Itoa(binding.AllowedUserCount),
 		)
 		for _, evidence := range binding.Evidence {

@@ -38,6 +38,8 @@ type ProfileChannelBindingReadiness struct {
 	SecretRefSource        string                            `json:"secret_ref_source,omitempty"`
 	AllowedChatCount       int                               `json:"allowed_chat_count"`
 	AllowedChatScopeHash   string                            `json:"allowed_chat_scope_hash,omitempty"`
+	AllowedDirectChatCount int                               `json:"allowed_direct_chat_count"`
+	AllowedGroupChatCount  int                               `json:"allowed_group_chat_count"`
 	AllowedUserCount       int                               `json:"allowed_user_count"`
 	AllowedUserScopeHash   string                            `json:"allowed_user_scope_hash,omitempty"`
 	RequireMention         bool                              `json:"require_mention"`
@@ -85,21 +87,25 @@ func BuildProfileChannelReadinessWithOptions(cfg config.Config, opts ProfileChan
 }
 
 func buildProfileChannelBindingReadiness(cfg config.Config, profileID, channel string, channelCfg config.ProfileChannelCfg) ProfileChannelBindingReadiness {
+	channel = strings.ToLower(strings.TrimSpace(channel))
 	allowedChats := normalizedProfileChannelList(channelCfg.AllowedChats)
 	allowedUsers := normalizedProfileChannelList(channelCfg.AllowedUsers)
+	allowedDirectChatCount, allowedGroupChatCount := profileChannelAllowedChatShapeCounts(channel, allowedChats)
 	credentialID := strings.TrimSpace(channelCfg.Credential)
 	binding := ProfileChannelBindingReadiness{
-		ProfileID:            strings.TrimSpace(profileID),
-		Channel:              strings.ToLower(strings.TrimSpace(channel)),
-		CredentialID:         credentialID,
-		AllowedChatCount:     len(allowedChats),
-		AllowedChatScopeHash: profileChannelScopeHash("allowed_chats", allowedChats),
-		AllowedUserCount:     len(allowedUsers),
-		AllowedUserScopeHash: profileChannelScopeHash("allowed_users", allowedUsers),
-		RequireMention:       channelCfg.RequireMention,
-		ToolProgress:         strings.ToLower(strings.TrimSpace(channelCfg.ToolProgress)),
-		ServerCount:          len(normalizedProfileChannelList(channelCfg.Servers)),
-		VoiceProfileSet:      strings.TrimSpace(channelCfg.VoiceProfile) != "",
+		ProfileID:              strings.TrimSpace(profileID),
+		Channel:                channel,
+		CredentialID:           credentialID,
+		AllowedChatCount:       len(allowedChats),
+		AllowedChatScopeHash:   profileChannelScopeHash("allowed_chats", allowedChats),
+		AllowedDirectChatCount: allowedDirectChatCount,
+		AllowedGroupChatCount:  allowedGroupChatCount,
+		AllowedUserCount:       len(allowedUsers),
+		AllowedUserScopeHash:   profileChannelScopeHash("allowed_users", allowedUsers),
+		RequireMention:         channelCfg.RequireMention,
+		ToolProgress:           strings.ToLower(strings.TrimSpace(channelCfg.ToolProgress)),
+		ServerCount:            len(normalizedProfileChannelList(channelCfg.Servers)),
+		VoiceProfileSet:        strings.TrimSpace(channelCfg.VoiceProfile) != "",
 	}
 	binding.Evidence = validateProfileChannelCredential(cfg, binding.ProfileID, binding.Channel, credentialID)
 	if credentialID != "" {
@@ -253,6 +259,24 @@ func profileChannelScopeHash(kind string, values []string) string {
 	}
 	sum := sha256.Sum256([]byte(kind + "\x00" + strings.Join(values, "\x00")))
 	return hex.EncodeToString(sum[:])
+}
+
+func profileChannelAllowedChatShapeCounts(channel string, allowedChats []string) (direct int, group int) {
+	if strings.ToLower(strings.TrimSpace(channel)) != "whatsapp" {
+		return 0, 0
+	}
+	for _, chat := range allowedChats {
+		chat = strings.ToLower(strings.TrimSpace(chat))
+		if chat == "" {
+			continue
+		}
+		if strings.HasSuffix(chat, "@g.us") {
+			group++
+			continue
+		}
+		direct++
+	}
+	return direct, group
 }
 
 func newProfileChannelEvidence(code, profileID, channel, credentialID, field, message string) ProfileChannelReadinessEvidence {
