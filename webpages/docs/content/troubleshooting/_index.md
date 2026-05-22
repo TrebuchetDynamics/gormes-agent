@@ -10,6 +10,8 @@ aliases:
 
 When something is wrong, start with concrete evidence — the running binary, its config, and its log. Three pages cover the common paths.
 
+Known live release issue: affected Termux users on the live `v0.2.20` latest-release installer can still see `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`. The fix is committed on `development` but unreleased; see [Common errors](./common-errors/) before retrying the latest installer.
+
 | | |
 |---|---|
 | **[Doctor](./doctor/)** | What `gormes doctor` checks, online vs. offline runs, how to read the output |

@@ -429,6 +429,21 @@ func TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials(t *testing.T) 
 	}
 }
 
+func TestTroubleshootingIndexSurfacesTermuxV020InstallerIssue(t *testing.T) {
+	troubleshooting := readDoc(t, "content/troubleshooting/_index.md")
+	for _, want := range []string{
+		"Known live release issue",
+		"live `v0.2.20` latest-release installer",
+		"unknown command /data/data/com.termux/files/usr/bin/gormes for gormes",
+		"fix is committed on `development` but unreleased",
+		"[Common errors](./common-errors/)",
+	} {
+		if !strings.Contains(troubleshooting, want) {
+			t.Fatalf("troubleshooting index missing Termux v0.2.20 release issue text %q", want)
+		}
+	}
+}
+
 func TestCommonErrorsDocumentsTermuxV020UnknownCommand(t *testing.T) {
 	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
 	for _, want := range []string{
