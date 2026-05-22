@@ -458,6 +458,21 @@ func TestTroubleshootingIndexSurfacesTermuxV020InstallerIssue(t *testing.T) {
 	}
 }
 
+func TestCommonErrorsIncludesTermuxIssueAnswerTemplate(t *testing.T) {
+	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
+	for _, want := range []string{
+		"## Termux v0.2.20 answer template",
+		"Public latest: `v0.2.20` remains affected for this Termux installer path.",
+		"Fix status: commit `72b4ee248475` is on `origin/development`, but not in the public latest release.",
+		"Required next step: publish a follow-up release through `development -> main -> tag` before calling Termux latest install repaired.",
+		"Do not describe the fix as only local or uncommitted.",
+	} {
+		if !strings.Contains(commonErrors, want) {
+			t.Fatalf("common errors docs missing Termux answer template text %q", want)
+		}
+	}
+}
+
 func TestCommonErrorsDocumentsTermuxV020UnknownCommand(t *testing.T) {
 	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
 	for _, want := range []string{

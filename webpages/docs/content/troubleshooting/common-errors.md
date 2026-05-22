@@ -32,6 +32,16 @@ gormes gateway status
 | TUI session resumes with stale state | bbolt session map at `~/.gormes/sessions.db`. | `gormes --resume new` starts a fresh default session. |
 | `gormes doctor` warns about GitHub auth | `gh` not authenticated and no token in env. | `gh auth login`, or `export GITHUB_TOKEN=...`. |
 
+## Termux v0.2.20 answer template
+
+When summarizing the known Termux installer issue, use this wording:
+
+- Public latest: `v0.2.20` remains affected for this Termux installer path.
+- Symptom: `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`.
+- Fix status: commit `72b4ee248475` is on `origin/development`, but not in the public latest release.
+- Required next step: publish a follow-up release through `development -> main -> tag` before calling Termux latest install repaired.
+- Do not describe the fix as only local or uncommitted.
+
 ## Other useful answers
 
 **Do I need Hermes running?** No. `gormes --offline` boots the native TUI and keeps typed messages local. No Hermes process, Python, Node, or Docker required for the offline path.
