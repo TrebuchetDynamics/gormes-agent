@@ -59,6 +59,18 @@ type ProfileService struct {
 	Profile ProfileCfg
 }
 
+type NavivoxProfileRoutingReport struct {
+	Profiles []NavivoxProfileRoute `json:"profiles"`
+}
+
+type NavivoxProfileRoute struct {
+	ProfileID   string   `json:"profile_id"`
+	DisplayName string   `json:"display_name,omitempty"`
+	Workspaces  []string `json:"workspaces,omitempty"`
+	Providers   []string `json:"providers,omitempty"`
+	Channels    []string `json:"channels,omitempty"`
+}
+
 func (c Config) ProfileConfigV2Available() bool {
 	return len(c.Profiles) > 0
 }
@@ -76,6 +88,57 @@ func (c Config) EnabledProfileServices() []ProfileService {
 		out = append(out, ProfileService{ID: id, Profile: c.Profiles[id]})
 	}
 	return out
+}
+
+func (c Config) NavivoxProfileRouting() NavivoxProfileRoutingReport {
+	services := c.EnabledProfileServices()
+	routes := make([]NavivoxProfileRoute, 0, len(services))
+	for _, service := range services {
+		displayName := strings.TrimSpace(service.Profile.Name)
+		if displayName == "" {
+			displayName = service.ID
+		}
+		routes = append(routes, NavivoxProfileRoute{
+			ProfileID:   service.ID,
+			DisplayName: displayName,
+			Workspaces:  navivoxRoutingStrings(service.Profile.Workspaces),
+			Providers:   navivoxRoutingProviderIDs(service.Profile.Providers),
+			Channels:    navivoxRoutingChannelIDs(service.Profile.Channels),
+		})
+	}
+	return NavivoxProfileRoutingReport{Profiles: routes}
+}
+
+func navivoxRoutingProviderIDs(providers map[string]ProfileProviderCfg) []string {
+	ids := make([]string, 0, len(providers))
+	for id, provider := range providers {
+		id = strings.ToLower(strings.TrimSpace(id))
+		if id != "" && provider.Enabled {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return navivoxRoutingStrings(ids)
+}
+
+func navivoxRoutingChannelIDs(channels map[string]ProfileChannelCfg) []string {
+	ids := make([]string, 0, len(channels))
+	for id, channel := range channels {
+		id = strings.ToLower(strings.TrimSpace(id))
+		if id != "" && channel.Enabled {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return navivoxRoutingStrings(ids)
+}
+
+func navivoxRoutingStrings(values []string) []string {
+	values = cleanStringSlice(values)
+	if len(values) == 0 {
+		return nil
+	}
+	return values
 }
 
 func DefaultConfigDocumentV2() map[string]any {
