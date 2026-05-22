@@ -69,13 +69,12 @@ func BuildProfileChannelReadinessWithOptions(cfg config.Config, opts ProfileChan
 	credentialHashes := normalizedProfileChannelCredentialHashes(opts.CredentialHashes)
 	var report ProfileChannelReadinessReport
 	for _, service := range cfg.EnabledProfileServices() {
-		channelNames := sortedProfileChannelNames(service.Profile.Channels)
-		for _, channel := range channelNames {
-			channelCfg := service.Profile.Channels[channel]
-			if !channelCfg.Enabled {
+		channelConfigs := sortedProfileChannelConfigBindings(service.Profile.Channels)
+		for _, channelConfig := range channelConfigs {
+			if !channelConfig.Config.Enabled {
 				continue
 			}
-			binding := buildProfileChannelBindingReadiness(cfg, service.ID, channel, channelCfg)
+			binding := buildProfileChannelBindingReadiness(cfg, service.ID, channelConfig.Channel, channelConfig.Config)
 			if hash := credentialHashes[binding.CredentialID]; hash != "" {
 				binding.CredentialHash = hash
 			}
@@ -226,19 +225,50 @@ func normalizeProfileChannelCredentialHash(hash string) string {
 	return strings.ToLower(strings.TrimSpace(hash))
 }
 
-func sortedProfileChannelNames(channels map[string]config.ProfileChannelCfg) []string {
+type profileChannelConfigBinding struct {
+	Channel string
+	Config  config.ProfileChannelCfg
+}
+
+func sortedProfileChannelConfigBindings(channels map[string]config.ProfileChannelCfg) []profileChannelConfigBinding {
 	if len(channels) == 0 {
 		return nil
 	}
-	names := make([]string, 0, len(channels))
-	for channel := range channels {
-		channel = strings.ToLower(strings.TrimSpace(channel))
-		if channel != "" {
-			names = append(names, channel)
-		}
+	type candidate struct {
+		channel string
+		rawKey  string
+		config  config.ProfileChannelCfg
 	}
-	sort.Strings(names)
-	return names
+	candidates := make([]candidate, 0, len(channels))
+	for rawKey, channelConfig := range channels {
+		channel := strings.ToLower(strings.TrimSpace(rawKey))
+		if channel == "" {
+			continue
+		}
+		candidates = append(candidates, candidate{channel: channel, rawKey: rawKey, config: channelConfig})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].channel != candidates[j].channel {
+			return candidates[i].channel < candidates[j].channel
+		}
+		iExact := candidates[i].rawKey == candidates[i].channel
+		jExact := candidates[j].rawKey == candidates[j].channel
+		if iExact != jExact {
+			return iExact
+		}
+		return candidates[i].rawKey < candidates[j].rawKey
+	})
+
+	out := make([]profileChannelConfigBinding, 0, len(candidates))
+	seen := map[string]struct{}{}
+	for _, candidate := range candidates {
+		if _, ok := seen[candidate.channel]; ok {
+			continue
+		}
+		seen[candidate.channel] = struct{}{}
+		out = append(out, profileChannelConfigBinding{Channel: candidate.channel, Config: candidate.config})
+	}
+	return out
 }
 
 func normalizedProfileChannelAllowList(channel string, values []string) []string {

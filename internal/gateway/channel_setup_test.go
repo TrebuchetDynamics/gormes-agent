@@ -130,6 +130,57 @@ func TestProfileChannelSetupPlanWhatsAppUsesReadinessAndRedactsScopes(t *testing
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppNormalizesProfileChannelKey(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"WhatsApp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net"},
+						AllowedUsers: []string{"6586915095"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": {
+				Kind:         "channel",
+				Channel:      "WhatsApp",
+				OwnerProfile: "main",
+				SecretRef: &config.SecretRef{
+					Source: config.SecretRefSourceEnv,
+					ID:     "GORMES_MAIN_WHATSAPP_TOKEN",
+				},
+			},
+		},
+	}
+
+	plan := BuildChannelSetupPlan(cfg)
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	if whatsapp.Status != ChannelSetupStatusConfigured {
+		t.Fatalf("whatsapp status = %q, want configured for mixed-case profile channel key: %+v", whatsapp.Status, whatsapp)
+	}
+	rendered := strings.Join(append(append([]string{}, whatsapp.CurrentValues...), whatsapp.Warnings...), "\n")
+	for _, want := range []string{
+		"profiles.main.channels.whatsapp.credential=main-whatsapp",
+		"profiles.main.channels.whatsapp.allowed_chats=1",
+		"profiles.main.channels.whatsapp.allowed_users=1",
+		"credentials.main-whatsapp.secret_ref=[REDACTED:env]",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup values missing %q:\n%s", want, rendered)
+		}
+	}
+	for _, forbidden := range []string{"channel_credential_missing", "GORMES_MAIN_WHATSAPP_TOKEN", "12025550123", "6586915095"} {
+		if strings.Contains(rendered, forbidden) {
+			t.Fatalf("whatsapp setup values contain forbidden %q:\n%s", forbidden, rendered)
+		}
+	}
+}
+
 func TestProfileChannelSetupPlanWhatsAppSeparatesGroupAndDirectAllowedChats(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
