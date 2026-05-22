@@ -4362,8 +4362,8 @@
       "name": "Hermes gateway platform strict-fidelity source-pair expansion",
       "priority": "P1",
       "status": "planned",
-      "contract": "Expand strict-fidelity mappings for Hermes gateway platform implementations and TUI gateway bridge files. The pass must classify platform adapters, platform helper modules, API-server platform surface, TUI gateway websocket/render/protocol bridge, and platform docs into completed channel rows, planned adapter rows, or explicit exclusions.",
-      "contract_status": "draft",
+      "contract": "Build a report-only strict-fidelity classifier for Hermes gateway platform evidence: scan the current `hermes-agent/gateway/config.py:Platform` enum, `gateway/platforms` connector/helper/docs files, bundled `plugins/platforms/*` platform plugins, and `tui_gateway` bridge files, then group them into deterministic platform-source families tied to the completed Gormes platform manifest, existing source-pair rows, planned adapter rows, explicit exclusions, or owned-divergence notes. The classifier must expand `cmd/repoctl hermes-contract-inventory` and source-pair evidence only; it must not import or execute Hermes Python, start live SDKs/webhooks/sockets, mutate channel runtime behavior, or claim strict channel/TUI parity without exact row/source-pair/test proof.",
+      "contract_status": "fixture_ready",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "channels",
@@ -4371,54 +4371,95 @@
         "operator",
         "system"
       ],
-      "degraded_mode": "Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.",
-      "fixture": "internal/channels strict-fidelity gateway platform mapping fixtures",
+      "degraded_mode": "Until this classifier lands, strict-fidelity reports can still show Hermes gateway platform and tui_gateway files as broad unmapped buckets, so Gormes must avoid claiming complete channel platform, platform-plugin, API-server, or TUI-gateway parity from the existing manifest alone.",
+      "fixture": "internal/repoctl/hermes_contract_inventory_gateway_platforms_test.go",
       "source_refs": [
-        "hermes-agent/gateway/platforms/base.py",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Channels",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md:LINE and SimpleX platform plugins",
+        "internal/fidelity/report.go:mappedUpstreamRefs",
+        "internal/fidelity/report.go:buildUnmappedUpstreamInventory",
+        "internal/repoctl/hermes_contract_inventory.go:RenderHermesContractInventoryMarkdown",
+        "internal/repoctl/hermes_contract_inventory_test.go:TestWriteHermesContractInventoryWritesJSONAndMarkdown",
+        "internal/gateway/platform_manifest.go:HermesGatewayPlatformManifest",
+        "internal/gateway/platform_manifest_test.go:TestHermesGatewayPlatformManifestCoversUpstream",
+        "internal/gateway/platform_manifest_test.go:TestHermesGatewayPlatformManifestCoversBundledPluginPlatforms",
+        "internal/gateway/platform_connected_checkers_test.go:TestPlatformConnectedCheckersCoverManifest",
+        "internal/tuigateway/gateway_mux_test.go:TestGatewayMuxWebSocket_SessionSubmitAndFrameEvent",
+        "internal/tuigateway/media_personality_event_test.go:TestValidatePlatformEventKind",
+        "hermes-agent/gateway/config.py:Platform",
+        "hermes-agent/gateway/config.py:Platform._missing_",
+        "hermes-agent/gateway/run.py:start_gateway",
+        "hermes-agent/gateway/platforms/ADDING_A_PLATFORM.md",
+        "hermes-agent/gateway/platforms/base.py:BasePlatformAdapter",
+        "hermes-agent/gateway/platforms/helpers.py",
+        "hermes-agent/gateway/platforms/_http_client_limits.py",
         "hermes-agent/gateway/platforms/api_server.py",
         "hermes-agent/gateway/platforms/telegram.py",
+        "hermes-agent/gateway/platforms/discord.py",
+        "hermes-agent/gateway/platforms/slack.py",
+        "hermes-agent/gateway/platforms/whatsapp.py",
+        "hermes-agent/gateway/platforms/msgraph_webhook.py",
+        "hermes-agent/gateway/platforms/qqbot/adapter.py",
         "hermes-agent/gateway/platforms/yuanbao.py",
+        "hermes-agent/gateway/platforms/yuanbao_media.py",
+        "hermes-agent/plugins/platforms/google_chat/plugin.yaml",
+        "hermes-agent/plugins/platforms/google_chat/adapter.py",
+        "hermes-agent/plugins/platforms/irc/plugin.yaml",
+        "hermes-agent/plugins/platforms/line/adapter.py",
+        "hermes-agent/plugins/platforms/simplex/adapter.py",
+        "hermes-agent/plugins/platforms/teams/adapter.py",
         "hermes-agent/tui_gateway/server.py",
         "hermes-agent/tui_gateway/render.py",
-        "internal/channels",
-        "internal/gateway"
+        "hermes-agent/tui_gateway/ws.py"
       ],
       "ready_when": [
-        "`webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA.",
-        "The row uses exact Hermes files/tests as evidence, not only broad directory globs.",
-        "The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests."
+        "The builder works in report/fidelity code with synthetic Hermes platform-tree fixtures; no live channel tokens, SDK clients, webhooks, sockets, QR pairing, Python imports, or TUI server processes are required.",
+        "The completed `Hermes gateway platform registry manifest` and bundled-platform manifest tests remain the runtime/source-backed baseline; this row only classifies remaining strict-fidelity report evidence by platform-source family.",
+        "Each platform family can be attached to an exact source-pair row, completed manifest evidence, planned adapter row, exclusion, or owned-divergence note; broad `gateway/platforms/**` and `tui_gateway/**` globs are not accepted as coverage proof."
       ],
       "not_ready_when": [
-        "The implementation treats low-confidence taxonomy matches as proof of coverage.",
-        "The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping.",
-        "The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first."
+        "The implementation imports or executes Hermes Python modules, starts any live gateway platform, reads real environment credentials, opens a network listener, or mutates channel runtime behavior instead of classifying static evidence.",
+        "The classifier marks a platform connector, helper, plugin, API-server file, or TUI-gateway bridge covered without a validated row, covered source-pair entry, explicit exclusion, or exact Go fixture proving the equivalent Gormes contract.",
+        "The change edits generated docs, channel adapters, setup flow, gateway lifecycle, source-pair policy, or progress index files outside the row's report/source-pair scope without separate validation and staging rationale."
+      ],
+      "unblocks": [
+        "Per-profile channel credential readiness and allow-lists",
+        "SimpleX Chat platform plugin parity",
+        "Hermes ui-tui strict-fidelity action matrix",
+        "Native skills list/view tool surface"
       ],
       "acceptance": [
-        "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
-        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
-        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
-        "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
+        "TestHermesContractInventoryClassifiesGatewayPlatformSurface builds a fixture Hermes tree with `gateway/config.py:Platform`, representative `gateway/platforms` built-ins/helpers/docs, nested `gateway/platforms/qqbot` and Yuanbao helper files, bundled `plugins/platforms/*/plugin.yaml` plus adapter files, and `tui_gateway` server/render/ws files; the generated report emits deterministic platform-source families with sorted exact examples.",
+        "The JSON/Markdown contract inventory distinguishes enum/connector platforms, helper modules, platform docs, bundled platform plugins, API-server runtime surface, TUI-gateway bridge files, generated/pycache exclusions, and unsupported/row-backed platform examples instead of leaving them as anonymous unmapped upstream files.",
+        "Families with existing Gormes evidence point to exact manifest and TUI tests (`TestHermesGatewayPlatformManifestCoversUpstream`, `TestHermesGatewayPlatformManifestCoversBundledPluginPlatforms`, `TestPlatformConnectedCheckersCoverManifest`, `TestGatewayMuxWebSocket_SessionSubmitAndFrameEvent`, `TestValidatePlatformEventKind`); remaining platform-specific behavior stays planned, excluded, or owned-divergence rather than covered.",
+        "The implementation preserves strict-mode semantics: covered requires row/source-pair/test proof, report-only classification never starts platforms or imports Hermes Python, and source-pair validation remains the gate after any manifest edits."
       ],
-      "note": "draft_until: classifier pass narrows this strict-fidelity bucket into exact child rows, source-pair mappings, or exclusions; strict_fidelity_origin: 2026-05-18 report shows 59 unmapped `gateway` source files and 8 unmapped `tui_gateway` source files.",
+      "note": "Planner 2026-05-21 development-loop iteration 8: narrowed the Hermes gateway platform strict-fidelity bucket into a fixture-ready report/source-pair classifier. The completed platform manifest remains the runtime inventory; this row only teaches strict-fidelity reports how to classify gateway platform, platform-plugin, API-server, helper, docs, generated, and tui_gateway evidence before implementation rows are selected.",
       "write_scope": [
-        "internal/channels",
-        "internal/gateway",
-        "internal/tuigateway",
+        "internal/fidelity/report.go",
+        "internal/fidelity/report_test.go",
+        "internal/repoctl/hermes_contract_inventory.go",
+        "internal/repoctl/hermes_contract_inventory_test.go",
+        "internal/repoctl/hermes_contract_inventory_gateway_platforms_test.go",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/channels ./internal/gateway ./internal/tuigateway -count=1",
+        "go test ./internal/repoctl -run TestHermesContractInventoryClassifiesGatewayPlatformSurface -count=1",
+        "go test ./internal/repoctl ./internal/fidelity -count=1",
+        "go test ./internal/gateway -run 'TestHermesGatewayPlatformManifest|TestPlatformConnectedCheckers' -count=1",
+        "go test ./internal/tuigateway -run 'TestGatewayMux|TestPlatformEvent' -count=1",
         "go run ./cmd/repoctl hermes-source-pairs validate",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root ."
+        "go run ./cmd/progress validate",
+        "git diff --check"
       ],
       "done_signal": [
-        "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
+        "Strict-fidelity output groups Hermes gateway platform, plugin-platform, API-server, helper/docs, and tui_gateway files into deterministic evidence families with exact row/source-pair/exclusion state, while channel runtime behavior remains unchanged and no unsupported full channel/TUI parity claim is made."
       ],
       "provenance": {
         "origin_type": "hybrid",
-        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
-        "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
+        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634 plus current hermes-agent gateway/platforms, plugins/platforms, and tui_gateway surfaces",
+        "note": "Hermes owns the gateway platform and TUI gateway contract; Gormes owns a report-only classifier that maps platform evidence to manifest rows, source-pair rows, planned adapters, exclusions, or owned-divergence before runtime ports are selected."
       }
     }
   },
