@@ -109,8 +109,9 @@ func DefaultContracts() []ModuleContract {
 			Commands: commands("memory"),
 		},
 		{
-			Module:   progress.ModuleNavivox,
-			Commands: commands("navivox"),
+			Module:        progress.ModuleNavivox,
+			Commands:      commands("navivox"),
+			SetupSections: setupSections("navivox"),
 		},
 		{
 			Module: progress.ModuleProfiles,

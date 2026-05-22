@@ -59,6 +59,7 @@ func defaultSetupSections() []gormescli.SetupSection {
 		gormescli.SetupSection{Name: "tts", Label: "Text-to-Speech", Module: progress.ModuleTTS},
 		gormescli.SetupSection{Name: "terminal", Label: "Terminal Backend", Module: progress.ModuleTUI},
 		gormescli.SetupSection{Name: "gateway", Label: "Messaging Gateway", Module: progress.ModuleGateway},
+		gormescli.SetupSection{Name: "navivox", Label: "Navivox", Module: progress.ModuleNavivox},
 		gormescli.SetupSection{Name: "tools", Label: "Tools", Module: progress.ModuleTools},
 	)
 	return sections
@@ -650,6 +651,15 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 		return runSetupTerminalSection(cmd, nonInteractive)
 	case "gateway":
 		return seams.RunSetupGateway(cmd, nonInteractive || !seams.IsTTY())
+	case "navivox":
+		if nonInteractive || !seams.IsTTY() {
+			return errSetupRequiresTTY
+		}
+		cfg, err := config.Load(nil)
+		if err != nil {
+			return err
+		}
+		return runSetupNavivoxGateway(cmd, cfg)
 	case "tools":
 		return seams.RunSetupTools(cmd, nonInteractive || !seams.IsTTY())
 	default:
@@ -3207,7 +3217,7 @@ func firstNonEmptySetup(values ...string) string {
 
 func setupSectionUnsupported(cmd *cobra.Command, section string) error {
 	fmt.Fprintf(cmd.ErrOrStderr(), "setup_section_unsupported: section=%s available=%s\n", section, setupSectionList())
-	fmt.Fprintln(cmd.ErrOrStderr(), "Implemented sections: provider, model, agent, workspace, bindings, tts, terminal, gateway, and tools.")
+	fmt.Fprintln(cmd.ErrOrStderr(), "Implemented sections: provider, model, agent, workspace, bindings, tts, terminal, gateway, navivox, and tools.")
 	fmt.Fprintln(cmd.ErrOrStderr(), "setup_section_row_backed: recommended_command=\"gormes setup\"")
 	return newExitCodeError(2, fmt.Errorf("setup_section_unsupported: %s", section))
 }
@@ -3220,7 +3230,7 @@ func setupSectionOwnership(section string) string {
 	switch normalizeSetupChoice(section) {
 	case "model", "tts", "terminal", "gateway", "tools", "agent":
 		return "hermes_owned"
-	case "provider", "workspace", "bindings":
+	case "provider", "workspace", "bindings", "navivox":
 		return "gormes_owned_extension"
 	default:
 		return "unknown"
