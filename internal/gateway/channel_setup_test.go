@@ -52,6 +52,84 @@ func TestChannelSetupTelegramStatusAndRedaction(t *testing.T) {
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppUsesReadinessAndRedactsScopes(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net"},
+						AllowedUsers: []string{"6586915095"},
+					},
+				},
+			},
+			"sales": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "sales-whatsapp",
+						AllowedChats: []string{"12025550999-123@g.us"},
+						AllowedUsers: []string{"7770001111"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": {
+				Kind:         "channel",
+				Channel:      "whatsapp",
+				OwnerProfile: "main",
+				SecretRef: &config.SecretRef{
+					Source: config.SecretRefSourceEnv,
+					ID:     "GORMES_MAIN_WHATSAPP_TOKEN",
+				},
+			},
+			"sales-whatsapp": {
+				Kind:         "channel",
+				Channel:      "whatsapp",
+				OwnerProfile: "sales",
+				SecretRef: &config.SecretRef{
+					Source: config.SecretRefSourceEnv,
+					ID:     "GORMES_SALES_WHATSAPP_TOKEN",
+				},
+			},
+		},
+	}
+
+	plan := BuildChannelSetupPlan(cfg)
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	if whatsapp.Status != ChannelSetupStatusConfigured {
+		t.Fatalf("whatsapp status = %q, want configured for ready profile bindings: %+v", whatsapp.Status, whatsapp)
+	}
+	rendered := strings.Join(append(append([]string{}, whatsapp.CurrentValues...), whatsapp.Warnings...), "\n")
+	for _, want := range []string{
+		"profiles.main.channels.whatsapp.credential=main-whatsapp",
+		"profiles.main.channels.whatsapp.allowed_chats=1",
+		"profiles.main.channels.whatsapp.allowed_users=1",
+		"profiles.sales.channels.whatsapp.credential=sales-whatsapp",
+		"profiles.sales.channels.whatsapp.allowed_chats=1",
+		"profiles.sales.channels.whatsapp.allowed_users=1",
+		"credentials.main-whatsapp.secret_ref=[REDACTED:env]",
+		"credentials.sales-whatsapp.secret_ref=[REDACTED:env]",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup values missing %q:\n%s", want, rendered)
+		}
+	}
+	for _, leaked := range []string{
+		"12025550123", "12025550999", "6586915095", "7770001111",
+		"GORMES_MAIN_WHATSAPP_TOKEN", "GORMES_SALES_WHATSAPP_TOKEN",
+	} {
+		if strings.Contains(rendered, leaked) {
+			t.Fatalf("whatsapp setup plan leaked sensitive value %q:\n%s", leaked, rendered)
+		}
+	}
+}
+
 func TestChannelSetupPlanListsMessagingPlatforms(t *testing.T) {
 	plan := BuildChannelSetupPlan(config.Config{})
 	for _, want := range []string{"telegram", "discord", "slack", "whatsapp", "navivox"} {

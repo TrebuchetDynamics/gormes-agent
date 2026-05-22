@@ -40,11 +40,66 @@ func BuildChannelSetupPlan(cfg config.Config) ChannelSetupPlan {
 			buildTelegramSetupEntry(cfg.Telegram),
 			buildDiscordSetupEntry(cfg.Discord),
 			buildSlackSetupEntry(cfg.Slack),
-			buildStaticSetupEntry("whatsapp", "WhatsApp", []string{"WHATSAPP_ENABLED", "WhatsApp session credentials"}, "gormes whatsapp --plan"),
+			buildWhatsAppSetupEntry(cfg),
 			buildNavivoxSetupEntry(cfg.Navivox),
 		},
 		GatewayAction: "Start or restart messaging with: gormes gateway",
 	}
+}
+
+func buildWhatsAppSetupEntry(cfg config.Config) ChannelSetupEntry {
+	entry := ChannelSetupEntry{
+		ID:          "whatsapp",
+		DisplayName: "WhatsApp",
+		RequiredFields: []string{
+			"profiles.<id>.channels.whatsapp.credential",
+			"profiles.<id>.channels.whatsapp.allowed_chats or explicit open access",
+			"credentials.<id>.secret_ref",
+		},
+		NextCommand: "gormes whatsapp --plan",
+	}
+
+	bindings := BuildProfileChannelReadiness(cfg).Bindings
+	readyCount := 0
+	whatsAppCount := 0
+	for _, binding := range bindings {
+		if binding.Channel != "whatsapp" {
+			continue
+		}
+		whatsAppCount++
+		if binding.Ready {
+			readyCount++
+		}
+		profilePrefix := "profiles." + binding.ProfileID + ".channels.whatsapp"
+		if binding.CredentialID != "" {
+			entry.CurrentValues = append(entry.CurrentValues, profilePrefix+".credential="+binding.CredentialID)
+		} else {
+			entry.PlannedWrites = append(entry.PlannedWrites, profilePrefix+".credential -> config.toml")
+		}
+		if binding.SecretRefConfigured {
+			entry.CurrentValues = append(entry.CurrentValues, "credentials."+binding.CredentialID+".secret_ref=[REDACTED:"+binding.SecretRefSource+"]")
+		} else if binding.CredentialID != "" {
+			entry.PlannedWrites = append(entry.PlannedWrites, "credentials."+binding.CredentialID+".secret_ref -> secret store")
+		}
+		entry.CurrentValues = append(entry.CurrentValues,
+			profilePrefix+".allowed_chats="+strconv.Itoa(binding.AllowedChatCount),
+			profilePrefix+".allowed_users="+strconv.Itoa(binding.AllowedUserCount),
+		)
+		for _, evidence := range binding.Evidence {
+			entry.Warnings = append(entry.Warnings, profilePrefix+": "+evidence.Code+" ("+evidence.Field+")")
+		}
+	}
+
+	switch {
+	case whatsAppCount == 0:
+		entry.Status = ChannelSetupStatusUnconfigured
+		entry.PlannedWrites = []string{"profiles.<id>.channels.whatsapp -> config.toml", "WhatsApp session credentials -> gormes whatsapp --plan"}
+	case readyCount == whatsAppCount:
+		entry.Status = ChannelSetupStatusConfigured
+	default:
+		entry.Status = ChannelSetupStatusPartial
+	}
+	return entry
 }
 
 func buildTelegramSetupEntry(cfg config.TelegramCfg) ChannelSetupEntry {
