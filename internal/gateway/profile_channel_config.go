@@ -89,8 +89,8 @@ func BuildProfileChannelReadinessWithOptions(cfg config.Config, opts ProfileChan
 
 func buildProfileChannelBindingReadiness(cfg config.Config, profileID, channel string, channelCfg config.ProfileChannelCfg) ProfileChannelBindingReadiness {
 	channel = strings.ToLower(strings.TrimSpace(channel))
-	allowedChats := normalizedProfileChannelList(channelCfg.AllowedChats)
-	allowedUsers := normalizedProfileChannelList(channelCfg.AllowedUsers)
+	allowedChats := normalizedProfileChannelAllowList(channel, channelCfg.AllowedChats)
+	allowedUsers := normalizedProfileChannelAllowList(channel, channelCfg.AllowedUsers)
 	allowedDirectChatCount, allowedGroupChatCount := profileChannelAllowedChatShapeCounts(channel, allowedChats)
 	credentialID := strings.TrimSpace(channelCfg.Credential)
 	binding := ProfileChannelBindingReadiness{
@@ -241,7 +241,18 @@ func sortedProfileChannelNames(channels map[string]config.ProfileChannelCfg) []s
 	return names
 }
 
+func normalizedProfileChannelAllowList(channel string, values []string) []string {
+	if strings.ToLower(strings.TrimSpace(channel)) != "whatsapp" {
+		return normalizedProfileChannelList(values)
+	}
+	return normalizedProfileChannelListWithCanonicalizer(values, strings.ToLower)
+}
+
 func normalizedProfileChannelList(values []string) []string {
+	return normalizedProfileChannelListWithCanonicalizer(values, func(value string) string { return value })
+}
+
+func normalizedProfileChannelListWithCanonicalizer(values []string, canonicalize func(string) string) []string {
 	if len(values) == 0 {
 		return nil
 	}
@@ -249,6 +260,9 @@ func normalizedProfileChannelList(values []string) []string {
 	seen := map[string]struct{}{}
 	for _, value := range values {
 		value = strings.TrimSpace(value)
+		if canonicalize != nil {
+			value = canonicalize(value)
+		}
 		if value == "" {
 			continue
 		}

@@ -94,6 +94,54 @@ func TestProfileChannelReadinessAllowsSameChannelDifferentProfileCredentialsAndA
 	}
 }
 
+func TestProfileChannelReadinessWhatsAppAllowListsCanonicalizeJIDCase(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:    true,
+						Credential: "main-whatsapp",
+						AllowedChats: []string{
+							"12025550123@S.WHATSAPP.NET",
+							"12025550123@s.whatsapp.net",
+							"12025550999-123@G.US",
+							"12025550999-123@g.us",
+						},
+						AllowedUsers: []string{"6586915095", " 6586915095 "},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	report := BuildProfileChannelReadiness(cfg)
+	binding := findProfileChannelBinding(t, report, "main", "whatsapp")
+	if !binding.Ready {
+		t.Fatalf("binding Ready = false, want ready after canonicalizing duplicated WhatsApp JID case: %+v", binding)
+	}
+	if binding.AllowedChatCount != 2 || binding.AllowedDirectChatCount != 1 || binding.AllowedGroupChatCount != 1 {
+		t.Fatalf("chat counts = total:%d direct:%d group:%d, want 2/1/1 after case canonicalization", binding.AllowedChatCount, binding.AllowedDirectChatCount, binding.AllowedGroupChatCount)
+	}
+	if binding.AllowedUserCount != 1 {
+		t.Fatalf("AllowedUserCount = %d, want duplicate trimmed user collapsed", binding.AllowedUserCount)
+	}
+
+	body, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("marshal readiness report: %v", err)
+	}
+	for _, leaked := range []string{"12025550123", "12025550999", "6586915095", "GORMES_MAIN_WHATSAPP_TOKEN"} {
+		if strings.Contains(string(body), leaked) {
+			t.Fatalf("readiness report leaked sensitive value %q:\n%s", leaked, body)
+		}
+	}
+}
+
 func TestProfileChannelReadinessMissingCredentialSkipsOnlyThatBinding(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
