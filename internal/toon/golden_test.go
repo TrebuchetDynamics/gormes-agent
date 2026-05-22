@@ -86,6 +86,11 @@ func TestDecodeJSON_GoldenFixtures(t *testing.T) {
 			toon: "status: \"true\"\ncount: \"42\"\nlead: \"05\"\nempty: \"\"",
 			want: `{"status":"true","count":"42","lead":"05","empty":""}`,
 		},
+		{
+			name: "quoted unicode surrogate pair escapes",
+			toon: `emoji: "faces \ud83d\ude00"`,
+			want: `{"emoji":"faces 😀"}`,
+		},
 	}
 
 	for _, tt := range tests {

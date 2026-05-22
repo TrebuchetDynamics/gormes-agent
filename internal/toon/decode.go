@@ -446,7 +446,20 @@ func unquoteTOONString(token string) (string, error) {
 				}
 				r := rune(code)
 				if utf16.IsSurrogate(r) {
-					return "", fmt.Errorf("surrogate unicode escape rejected")
+					if !isHighSurrogate(r) || i+12 > len(token) || token[i+6] != '\\' || token[i+7] != 'u' {
+						return "", fmt.Errorf("invalid unicode surrogate pair")
+					}
+					lowCode, err := strconv.ParseUint(token[i+8:i+12], 16, 16)
+					if err != nil {
+						return "", fmt.Errorf("invalid unicode escape")
+					}
+					low := rune(lowCode)
+					if !isLowSurrogate(low) {
+						return "", fmt.Errorf("invalid unicode surrogate pair")
+					}
+					b.WriteRune(utf16.DecodeRune(r, low))
+					i += 12
+					continue
 				}
 				b.WriteRune(r)
 				i += 6
@@ -463,6 +476,14 @@ func unquoteTOONString(token string) (string, error) {
 		i += size
 	}
 	return "", fmt.Errorf("unterminated string")
+}
+
+func isHighSurrogate(r rune) bool {
+	return r >= 0xD800 && r <= 0xDBFF
+}
+
+func isLowSurrogate(r rune) bool {
+	return r >= 0xDC00 && r <= 0xDFFF
 }
 
 func firstUnquotedColon(s string) int {
