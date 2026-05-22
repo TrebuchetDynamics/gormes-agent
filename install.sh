@@ -58,6 +58,9 @@ PREVIOUS_PROFILE_GATEWAY_UNITS=""
 PROFILE_GATEWAY_RESTARTS_JSON=""
 TMP_DIRS=""
 TMP_DIR_COUNT=0
+PUBLISH_VERIFY_FAILURE=0
+PUBLISH_VERIFY_TARGET=""
+PUBLISH_VERIFY_OUTPUT=""
 OS=""
 DISTRO=""
 
@@ -1498,7 +1501,7 @@ publish_command() {
   log_info "Setting up gormes command"
   verbose "publish source: ${build_bin}"
   verbose "publish target: ${published_bin}"
-  publish_built_binary "$build_bin" "$published_bin"
+  publish_built_binary "$build_bin" "$published_bin" || return 1
   update_active_command "$build_bin" "$published_bin"
   ensure_path_in_shell_config "$bin_dir"
   log_success "gormes command ready"
@@ -1542,15 +1545,52 @@ publish_built_binary() {
     chmod +x "$tmp"
   fi
   mv -f "$tmp" "$published_bin" || fail "could not publish ${published_bin}"
-  if ! "$published_bin" version >/dev/null 2>&1; then
+  PUBLISH_VERIFY_FAILURE=0
+  PUBLISH_VERIFY_TARGET=""
+  PUBLISH_VERIFY_OUTPUT=""
+  if ! PUBLISH_VERIFY_OUTPUT=$("$published_bin" version 2>&1); then
     if [ "$existed" -eq 1 ]; then
       mv -f "$backup" "$published_bin" || true
     else
       rm -f "$published_bin"
     fi
-    fail "published command verification failed for ${published_bin}; rolled back"
+    PUBLISH_VERIFY_FAILURE=1
+    PUBLISH_VERIFY_TARGET="$published_bin"
+    verbose "$PUBLISH_VERIFY_OUTPUT"
+    return 1
   fi
   rm -f "$backup"
+}
+
+publish_command_with_recovery() {
+  PUBLISH_VERIFY_FAILURE=0
+  PUBLISH_VERIFY_TARGET=""
+  PUBLISH_VERIFY_OUTPUT=""
+  if publish_command; then
+    return 0
+  fi
+  pcwr_status=$?
+  if [ "${PUBLISH_VERIFY_FAILURE:-0}" = "1" ] && [ "$INSTALL_METHOD" = "binary-fetch" ] && is_termux; then
+    log_warn "binary-fetch published command verification failed on Termux; falling back to source build"
+    INSTALL_METHOD="source-build"
+    INSTALL_METHOD_DETAIL="binary-fetch command verification failed on Termux; fallback to source build"
+    ensure_source_prerequisites
+    ensure_checkout
+    build_gormes
+    if publish_command; then
+      return 0
+    else
+      pcwr_status=$?
+      if [ "${PUBLISH_VERIFY_FAILURE:-0}" = "1" ]; then
+        fail "published command verification failed for ${PUBLISH_VERIFY_TARGET}; rolled back"
+      fi
+      return "$pcwr_status"
+    fi
+  fi
+  if [ "${PUBLISH_VERIFY_FAILURE:-0}" = "1" ]; then
+    fail "published command verification failed for ${PUBLISH_VERIFY_TARGET}; rolled back"
+  fi
+  return "$pcwr_status"
 }
 
 # sandbox_bin_dir_set returns true (exit 0) when the operator explicitly set
@@ -2371,7 +2411,7 @@ main() {
   PREVIOUS_PROFILE_GATEWAY_UNITS=$(running_profile_gateway_units 2>/dev/null || true)
   ensure_base_prerequisites
   prepare_gormes_binary
-  publish_command
+  publish_command_with_recovery
   bootstrap_config
   verify_install
   run_setup_wizard

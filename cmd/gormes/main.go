@@ -68,13 +68,33 @@ func sanitizeTermuxExecArgsWithExe(args []string, exe string) []string {
 	if len(args) < 1 || exe == "" {
 		return args
 	}
-	if args[0] == exe {
+	if termuxExecArgMatchesExecutable(args[0], exe) {
 		return args[1:]
 	}
-	if len(args) > 1 && args[1] == exe {
+	if len(args) > 1 && termuxExecArgMatchesExecutable(args[1], exe) {
 		return append([]string{args[0]}, args[2:]...)
 	}
 	return args
+}
+
+func termuxExecArgMatchesExecutable(arg string, exe string) bool {
+	if arg == "" || exe == "" {
+		return false
+	}
+	arg = filepath.Clean(arg)
+	exe = filepath.Clean(exe)
+	if arg == exe {
+		return true
+	}
+	return normalizeTermuxDataAlias(arg) == normalizeTermuxDataAlias(exe)
+}
+
+func normalizeTermuxDataAlias(path string) string {
+	const dataDataPrefix = "/data/data/com.termux/"
+	if strings.HasPrefix(path, dataDataPrefix) {
+		return "/data/user/0/com.termux/" + strings.TrimPrefix(path, dataDataPrefix)
+	}
+	return path
 }
 
 func executeRootCommand(root *cobra.Command, args ...string) error {

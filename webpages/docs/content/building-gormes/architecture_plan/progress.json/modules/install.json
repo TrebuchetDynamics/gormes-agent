@@ -1596,6 +1596,131 @@
     }
   },
   {
+    "phase": "5",
+    "subphase": "5.P",
+    "pos": 12,
+    "item": {
+      "name": "Termux exec argv path-alias sanitizer",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "On Termux/Android, Gormes strips the executable path that termux-exec injects into argv even when the injected argument is reported through `/data/data/com.termux/...` and `os.Executable()` reports the same binary through Android's `/data/user/0/com.termux/...` alias. `gormes version`, `gormes --version`, and installer publish verification must not route the injected path as an unknown Cobra subcommand.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "install",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without the alias match, affected Termux devices can still receive `unknown command \"/data/data/com.termux/files/usr/bin/gormes\" for \"gormes\"` during `gormes version` or post-publish verification even when the android-arm64 binary and `$PREFIX/bin` copy are otherwise valid.",
+      "fixture": "cmd/gormes/termux_exec_args_test.go::TestSanitizeTermuxExecArgsWithExe",
+      "source_refs": [
+        "GitHub latest release v0.2.20 install.sh asset: publish_built_binary copies on Termux and verifies `\"$published_bin\" version` after publication.",
+        "termux/termux-app#4630: compiled Go programs receive their own full path as an extra argv element under termux-exec.",
+        "Operator latest-release transcript: publish verification failed for `$PREFIX/bin/gormes`, rolled back, then `gormes` reported `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`.",
+        "cmd/gormes/main.go:sanitizeTermuxExecArgs and termuxExecArgMatchesExecutable.",
+        "webpages/docs/development-skills/gormes-install/references/known-issues.md:[termux-exec-args-injection]."
+      ],
+      "ready_when": [
+        "The repository stays on the existing development branch and no live Termux device is required for the unit-level argv sanitizer fixture.",
+        "The fix is limited to Android/Termux argv normalization before Cobra parsing."
+      ],
+      "not_ready_when": [
+        "The slice changes installer publication policy, release asset selection, or non-Termux CLI argument parsing.",
+        "The fix drops arbitrary `/data/data/...` arguments outside the Termux executable alias positions."
+      ],
+      "acceptance": [
+        "When `os.Executable()` is `/data/user/0/com.termux/files/usr/bin/gormes`, an injected `/data/data/com.termux/files/usr/bin/gormes` at argv position 0 is removed before Cobra sees args.",
+        "The same `/data/data` alias injected after a real command such as `version` is removed while preserving the command.",
+        "Existing exact-path injection and normal non-injected args still behave as before."
+      ],
+      "note": "Complete 2026-05-21: hardened the v0.2.20 Termux termux-exec argv sanitizer against Android `/data/data` versus `/data/user/0` path aliases, preserving exact-path injection handling and normal args.",
+      "write_scope": [
+        "cmd/gormes/main.go",
+        "cmd/gormes/termux_exec_args_test.go",
+        "webpages/docs/development-skills/gormes-install/references/known-issues.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run TestSanitizeTermuxExecArgsWithExe -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Focused sanitizer test proves the `/data/data` injected path is stripped when the executable is reported through `/data/user/0`, and full repository gates pass."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-21T00:00:00Z",
+        "note": "Gormes-owned Termux runtime hardening driven by latest-release operator transcript and termux-app#4630 evidence; no Hermes upstream equivalent."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.P",
+    "pos": 13,
+    "item": {
+      "name": "Termux binary-fetch publish verification source fallback",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "When the release-binary path succeeds through download, checksum, extract, and copy publication but the published command fails `gormes version` on Termux, install.sh treats that as a binary-fetch runtime failure and falls back to source-build once. This recovers the latest-release transcript where the v0.2.20 android-arm64 binary was copied into `$PREFIX/bin/gormes` but failed verification under termux-exec argv injection, leaving a rolled-back command.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "install",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the source-build fallback cannot run because git, Go, or network access is unavailable, the installer exits with the existing source-prerequisite failure instead of silently accepting a non-runnable Termux release binary. Non-Termux publish verification behavior stays fail-fast.",
+      "fixture": "internal/installtest/termux_publish_recovery_test.go::TestTermuxBinaryFetchPublishVerificationFallsBackToSourceBuild",
+      "source_refs": [
+        "Latest-release v0.2.20 install transcript: binary-fetch installed android-arm64, copied to `/data/data/com.termux/files/usr/bin/gormes`, then publish verification failed and rolled back.",
+        "GitHub latest release install.sh asset: publish_built_binary verifies `\"$published_bin\" version` after copy publication.",
+        "termux/termux-app#4630: Go binaries can receive their own executable path as an injected argv entry under termux-exec.",
+        "install.sh:prepare_gormes_binary already falls back from binary-fetch download/checksum/extract failures to source-build; this slice extends the same recovery to Termux publish-verification failures."
+      ],
+      "ready_when": [
+        "The fallback is limited to INSTALL_METHOD=binary-fetch, is_termux=true, and publish_built_binary returning a command-verification failure.",
+        "A hermetic installtest shell harness can stub the source-build functions and fake the failing release binary without live GitHub, Go toolchain download, or real Termux."
+      ],
+      "not_ready_when": [
+        "The change retries source-build for permission errors, missing bin dirs, checksum failures after prepare_gormes_binary already handled them, or non-Termux publish failures.",
+        "The fallback hides source-build prerequisite failures or reports a successful install without a runnable published command.",
+        "The fix removes rollback protection for the failed published command before retrying."
+      ],
+      "acceptance": [
+        "A forced-Termux harness with a binary-fetch fixture whose `version` exits 1 rolls back that copy, logs a source-build fallback, invokes the source-build path, and republishes a runnable command.",
+        "Existing Termux real-file publication and non-Termux symlink publication fixtures remain green.",
+        "The final published command is verified after fallback; setup/bootstrap does not proceed with the failed release binary.",
+        "If the source-build retry also publishes a command that fails `version`, the installer reports the final `published command verification failed ... rolled back` error and leaves no broken command behind."
+      ],
+      "note": "Complete 2026-05-21: publish_built_binary now returns a verification failure signal instead of unconditionally exiting, publish_command propagates it, main uses publish_command_with_recovery to source-build and republish once for Termux binary-fetch verification failures, and a follow-up guard reports the final rolled-back verification error if the source-build retry also cannot run.",
+      "write_scope": [
+        "install.sh",
+        "internal/installtest/termux_publish_recovery_test.go",
+        "webpages/docs/development-skills/gormes-install/references/known-issues.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/installtest -run 'TestTermux(BinaryFetchPublishVerificationFallsBackToSourceBuild|BinaryFetchPublishRecoveryReportsSourceBuildVerificationFailure|PublishesRealBinaryNotHomeSymlink)|TestNonTermuxPublishKeepsSymlink' -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "The Termux publish-recovery harness proves a failed release-binary `version` verification is rolled back, source-build is invoked, the republished command runs `version`, and a bad source-build retry reports the final rolled-back verification failure; full repository gates pass."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-21T00:00:00Z",
+        "note": "Gormes-owned installer recovery for latest-release Termux transcript; no Hermes upstream equivalent."
+      }
+    }
+  },
+  {
     "phase": "8",
     "subphase": "8.B",
     "pos": 7,
