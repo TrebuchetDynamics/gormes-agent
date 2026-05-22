@@ -294,6 +294,7 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 			"description":      "Pair your Android app and continue setup there.",
 			"steps":            []string{"Choose provider", "Choose model", "Confirm workspace", "Enable channels"},
 			"mutation_policy":  "read_only_handoff",
+			"entry_screen":     "setup.provider",
 			"sections": []map[string]string{
 				{"id": "provider", "title": "Choose provider", "navivox_screen": "setup.provider", "fallback_cli_command": "gormes setup provider"},
 				{"id": "model", "title": "Choose model", "navivox_screen": "setup.model", "fallback_cli_command": "gormes setup model"},

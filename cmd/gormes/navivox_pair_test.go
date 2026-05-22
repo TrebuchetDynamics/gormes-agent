@@ -65,6 +65,7 @@ func TestNavivoxPairDescriptorIncludesSetupContinuationHints(t *testing.T) {
 		"setup_handoff":         "true",
 		"setup_mutation_policy": "read_only_handoff",
 		"setup_sections":        "provider,model,workspace,channels",
+		"setup_entry_screen":    "setup.provider",
 		"recommended_path":      "navivox",
 	} {
 		if got := values.Get(key); got != want {

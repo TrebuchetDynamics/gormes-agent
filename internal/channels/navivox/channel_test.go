@@ -116,6 +116,9 @@ func TestNavivoxStatusIncludesSetupHandoffForAppContinuation(t *testing.T) {
 	if handoff["mutation_policy"] != "read_only_handoff" {
 		t.Fatalf("mutation_policy = %#v, want read_only_handoff", handoff["mutation_policy"])
 	}
+	if handoff["entry_screen"] != "setup.provider" {
+		t.Fatalf("entry_screen = %#v, want setup.provider", handoff["entry_screen"])
+	}
 	sections, ok := handoff["sections"].([]any)
 	if !ok || len(sections) != 4 {
 		t.Fatalf("sections = %#v, want four structured setup sections", handoff["sections"])
