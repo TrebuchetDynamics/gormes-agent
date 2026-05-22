@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -421,6 +422,36 @@ func TestSetupGatewaySlackPartialTokensDoNotEnableOrReportConfigured(t *testing.
 	}
 }
 
+func TestSetupGatewayBubbleTeaNavivoxSelectionRunsNativeSetup(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	seams := fake.seams()
+	seams.RunGatewaySetupWizard = func(*cobra.Command, config.Config) (setupGatewayWizardResult, error) {
+		return setupGatewayWizardResult{SelectedPlatforms: []string{"navivox"}, BubbleTea: true}, nil
+	}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, seams, "y\n\n\n\n\n\n", "gateway")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{"Navivox Gateway Channel", "Navivox gateway channel configured.", "Pairing QR image:"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout+stderr, "Navivox Bubble Tea setup is not shipped") {
+		t.Fatalf("Navivox Bubble Tea selection fell through to row-backed fallback:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Navivox.Enabled || cfg.Navivox.Token == "" {
+		t.Fatalf("Navivox config = %+v, want enabled with generated token", cfg.Navivox)
+	}
+}
+
 func TestSetupGatewayNavivoxCanRemainDisabled(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -462,6 +493,9 @@ func TestSetupGatewayNavivoxLocalModeWritesSafeConfig(t *testing.T) {
 		"HTTP base URL: http://127.0.0.1:8765",
 		"WebSocket URL: ws://127.0.0.1:8765/v1/navivox/stream",
 		"Pairing token: generated and stored",
+		"Pairing QR image: ",
+		"REST/WebSocket auth rules:",
+		"Authorization: Bearer <Navivox token>",
 		"Firewall: no rules were changed.",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -483,6 +517,21 @@ func TestSetupGatewayNavivoxLocalModeWritesSafeConfig(t *testing.T) {
 	}
 	if strings.Contains(stdout, cfg.Navivox.Token) {
 		t.Fatal("setup output leaked generated Navivox token")
+	}
+	qrPath := filepath.Join(home, "navivox", "pairing.png")
+	info, err := os.Stat(qrPath)
+	if err != nil {
+		t.Fatalf("stat pairing QR image: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("pairing QR image mode = %v, want 0600 because it embeds the Navivox token", got)
+	}
+	body, err := os.ReadFile(qrPath)
+	if err != nil {
+		t.Fatalf("read pairing QR image: %v", err)
+	}
+	if !bytes.HasPrefix(body, []byte("\x89PNG\r\n\x1a\n")) {
+		t.Fatalf("pairing QR image is not a PNG; first bytes=% x", body[:min(len(body), 8)])
 	}
 }
 

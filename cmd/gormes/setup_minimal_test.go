@@ -607,6 +607,40 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 	}
 }
 
+func TestSetupProvidersAliasRunsProviderSection(t *testing.T) {
+	home := t.TempDir()
+	secret := "sk-provider-alias-secret-123"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_ENDPOINT", "https://provider-alias.example/v1")
+	t.Setenv("GORMES_API_KEY", secret)
+	t.Setenv("GORMES_MODEL", "provider-alias-model")
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "providers", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{"Gormes Setup — Provider", "Provider configured.", "https://provider-alias.example/v1", "provider-alias-model", "API key:  stored (redacted)"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, leaked := range []string{secret, "sk-p", "123"} {
+		if strings.Contains(stdout+stderr, leaked) {
+			t.Fatalf("setup providers output leaked API key material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
+		}
+	}
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	for _, want := range []string{`endpoint = 'https://provider-alias.example/v1'`, `model = 'provider-alias-model'`} {
+		if !strings.Contains(string(configBody), want) {
+			t.Fatalf("config missing %q:\n%s", want, string(configBody))
+		}
+	}
+}
+
 func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	home := t.TempDir()
 	secret := "sk-openrouter-secret-7890"
