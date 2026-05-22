@@ -92,3 +92,16 @@ func TestNavivoxFDroidDocsCarryMetadataReadinessChecklist(t *testing.T) {
 		"Keep Google Play language out of the F-Droid metadata except as a later reach channel in internal strategy notes.",
 	})
 }
+
+func TestNavivoxFDroidDocsCarryBuildAndArtifactEvidence(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## Build and artifact evidence",
+		"Build the candidate app from a clean public checkout at the same tag and commit named in the listing notes.",
+		"Record the Android or Flutter build command, SDK versions, dependency lockfiles, and any reproducibility caveats.",
+		"Publish the APK SHA-256 beside the release tag, commit, and install smoke result.",
+		"Mark direct APK or GitHub artifacts as test/fallback evidence until F-Droid metadata and source-build review are complete.",
+		"Keep debug, unsigned, locally patched, or secret-bearing APKs out of the F-Droid handoff.",
+	})
+}

@@ -95,6 +95,14 @@ Use this message shape for F-Droid-facing copy before the listing is real:
 - Name Termux, self-hosting, privacy, local AI, and OSS Android in the long description so the right users recognize themselves.
 - Keep Google Play language out of the F-Droid metadata except as a later reach channel in internal strategy notes.
 
+## Build and artifact evidence
+
+- Build the candidate app from a clean public checkout at the same tag and commit named in the listing notes.
+- Record the Android or Flutter build command, SDK versions, dependency lockfiles, and any reproducibility caveats.
+- Publish the APK SHA-256 beside the release tag, commit, and install smoke result.
+- Mark direct APK or GitHub artifacts as test/fallback evidence until F-Droid metadata and source-build review are complete.
+- Keep debug, unsigned, locally patched, or secret-bearing APKs out of the F-Droid handoff.
+
 ## Release gate before claiming F-Droid availability
 
 Do not say "install from F-Droid" until all of these are evidenced in the repo
