@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -68,6 +69,54 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	capabilities, ok := payload["capabilities"].([]any)
 	if !ok || !containsAny(capabilities, "profile_contacts") || !containsAny(capabilities, "turn_control") {
 		t.Fatalf("capabilities = %#v, want profile_contacts and turn_control", payload["capabilities"])
+	}
+}
+
+func TestNavivoxStatusIncludesSetupHandoffForAppContinuation(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	capabilities, ok := payload["capabilities"].([]any)
+	if !ok || !containsAny(capabilities, "setup_handoff") {
+		t.Fatalf("capabilities = %#v, want setup_handoff", payload["capabilities"])
+	}
+	handoff, ok := payload["setup_handoff"].(map[string]any)
+	if !ok {
+		t.Fatalf("setup_handoff = %#v, want object", payload["setup_handoff"])
+	}
+	if handoff["recommended_path"] != "navivox" {
+		t.Fatalf("recommended_path = %#v, want navivox", handoff["recommended_path"])
+	}
+	if handoff["title"] != "Continue setup in Navivox" {
+		t.Fatalf("title = %#v", handoff["title"])
+	}
+	steps, ok := handoff["steps"].([]any)
+	if !ok || len(steps) < 4 {
+		t.Fatalf("steps = %#v, want provider/model/workspace/channel setup steps", handoff["steps"])
+	}
+	for _, secretLike := range []string{"api_key", "token", "secret", "password"} {
+		if strings.Contains(strings.ToLower(fmt.Sprint(handoff)), secretLike) {
+			t.Fatalf("setup handoff must not expose secret fields: %#v", handoff)
+		}
 	}
 }
 
