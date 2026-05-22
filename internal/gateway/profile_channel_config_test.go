@@ -140,6 +140,75 @@ func TestProfileChannelReadinessMissingCredentialSkipsOnlyThatBinding(t *testing
 	}
 }
 
+func TestProfileChannelReadinessDuplicateTokenHashConflictsAcrossProfiles(t *testing.T) {
+	const rawSharedToken = "123456:shared-whatsapp-token-that-must-not-leak"
+	sharedHash := TokenCredentialHash(rawSharedToken)
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {Enabled: true, Credential: "main-whatsapp"},
+				},
+			},
+			"sales": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {Enabled: true, Credential: "sales-whatsapp"},
+				},
+			},
+			"ops": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"telegram": {Enabled: true, Credential: "ops-telegram"},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp":  channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"sales-whatsapp": channelCredential("whatsapp", "sales", "GORMES_SALES_WHATSAPP_TOKEN"),
+			"ops-telegram":   channelCredential("telegram", "ops", "GORMES_OPS_TELEGRAM_TOKEN"),
+		},
+	}
+
+	report := BuildProfileChannelReadinessWithOptions(cfg, ProfileChannelReadinessOptions{
+		CredentialHashes: map[string]string{
+			"main-whatsapp":  sharedHash,
+			"sales-whatsapp": sharedHash,
+			"ops-telegram":   TokenCredentialHash("other-token"),
+		},
+	})
+	mainBinding := findProfileChannelBinding(t, report, "main", "whatsapp")
+	salesBinding := findProfileChannelBinding(t, report, "sales", "whatsapp")
+	opsBinding := findProfileChannelBinding(t, report, "ops", "telegram")
+	for _, binding := range []ProfileChannelBindingReadiness{mainBinding, salesBinding} {
+		if binding.Ready {
+			t.Fatalf("%s binding Ready = true, want token ownership conflict evidence: %+v", binding.ProfileID, binding)
+		}
+		if binding.CredentialHash != sharedHash {
+			t.Fatalf("%s credential hash = %q, want shared hash %q", binding.ProfileID, binding.CredentialHash, sharedHash)
+		}
+		if !hasProfileChannelEvidence(binding.Evidence, "channel_token_hash_conflict") {
+			t.Fatalf("%s evidence = %+v, want channel_token_hash_conflict", binding.ProfileID, binding.Evidence)
+		}
+	}
+	if !opsBinding.Ready {
+		t.Fatalf("unrelated telegram binding Ready = false, want ready: %+v", opsBinding)
+	}
+
+	body, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("marshal readiness report: %v", err)
+	}
+	for _, leaked := range []string{
+		rawSharedToken, "shared-whatsapp-token", "GORMES_MAIN_WHATSAPP_TOKEN", "GORMES_SALES_WHATSAPP_TOKEN",
+	} {
+		if strings.Contains(string(body), leaked) {
+			t.Fatalf("readiness report leaked sensitive value %q:\n%s", leaked, body)
+		}
+	}
+}
+
 func findProfileChannelBinding(t *testing.T, report ProfileChannelReadinessReport, profileID, channel string) ProfileChannelBindingReadiness {
 	t.Helper()
 	for _, binding := range report.Bindings {
@@ -158,4 +227,16 @@ func hasProfileChannelEvidence(items []ProfileChannelReadinessEvidence, code str
 		}
 	}
 	return false
+}
+
+func channelCredential(channel, ownerProfile, envID string) config.CredentialCfg {
+	return config.CredentialCfg{
+		Kind:         "channel",
+		Channel:      channel,
+		OwnerProfile: ownerProfile,
+		SecretRef: &config.SecretRef{
+			Source: config.SecretRefSourceEnv,
+			ID:     envID,
+		},
+	}
 }

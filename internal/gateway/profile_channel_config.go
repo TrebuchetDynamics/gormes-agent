@@ -15,11 +15,16 @@ const (
 	ProfileChannelEvidenceCredentialChannelMismatch = "channel_credential_channel_mismatch"
 	ProfileChannelEvidenceCredentialOwnerMismatch   = "channel_credential_owner_mismatch"
 	ProfileChannelEvidenceCredentialSecretMissing   = "channel_credential_secret_missing"
+	ProfileChannelEvidenceTokenHashConflict         = "channel_token_hash_conflict"
 )
 
 type ProfileChannelReadinessReport struct {
 	Bindings []ProfileChannelBindingReadiness  `json:"bindings"`
 	Evidence []ProfileChannelReadinessEvidence `json:"evidence,omitempty"`
+}
+
+type ProfileChannelReadinessOptions struct {
+	CredentialHashes map[string]string
 }
 
 type ProfileChannelBindingReadiness struct {
@@ -28,6 +33,7 @@ type ProfileChannelBindingReadiness struct {
 	Ready                  bool                              `json:"ready"`
 	CredentialID           string                            `json:"credential_id,omitempty"`
 	CredentialOwnerProfile string                            `json:"credential_owner_profile,omitempty"`
+	CredentialHash         string                            `json:"credential_hash,omitempty"`
 	SecretRefConfigured    bool                              `json:"secret_ref_configured"`
 	SecretRefSource        string                            `json:"secret_ref_source,omitempty"`
 	AllowedChatCount       int                               `json:"allowed_chat_count"`
@@ -42,16 +48,22 @@ type ProfileChannelBindingReadiness struct {
 }
 
 type ProfileChannelReadinessEvidence struct {
-	Code         string `json:"code"`
-	ProfileID    string `json:"profile_id,omitempty"`
-	Channel      string `json:"channel,omitempty"`
-	CredentialID string `json:"credential_id,omitempty"`
-	Field        string `json:"field,omitempty"`
-	Message      string `json:"message,omitempty"`
-	Redacted     bool   `json:"redacted"`
+	Code           string `json:"code"`
+	ProfileID      string `json:"profile_id,omitempty"`
+	Channel        string `json:"channel,omitempty"`
+	CredentialID   string `json:"credential_id,omitempty"`
+	CredentialHash string `json:"credential_hash,omitempty"`
+	Field          string `json:"field,omitempty"`
+	Message        string `json:"message,omitempty"`
+	Redacted       bool   `json:"redacted"`
 }
 
 func BuildProfileChannelReadiness(cfg config.Config) ProfileChannelReadinessReport {
+	return BuildProfileChannelReadinessWithOptions(cfg, ProfileChannelReadinessOptions{})
+}
+
+func BuildProfileChannelReadinessWithOptions(cfg config.Config, opts ProfileChannelReadinessOptions) ProfileChannelReadinessReport {
+	credentialHashes := normalizedProfileChannelCredentialHashes(opts.CredentialHashes)
 	var report ProfileChannelReadinessReport
 	for _, service := range cfg.EnabledProfileServices() {
 		channelNames := sortedProfileChannelNames(service.Profile.Channels)
@@ -61,10 +73,14 @@ func BuildProfileChannelReadiness(cfg config.Config) ProfileChannelReadinessRepo
 				continue
 			}
 			binding := buildProfileChannelBindingReadiness(cfg, service.ID, channel, channelCfg)
+			if hash := credentialHashes[binding.CredentialID]; hash != "" {
+				binding.CredentialHash = hash
+			}
 			report.Bindings = append(report.Bindings, binding)
-			report.Evidence = append(report.Evidence, binding.Evidence...)
 		}
 	}
+	applyProfileChannelTokenHashConflicts(&report)
+	report.Evidence = collectProfileChannelReadinessEvidence(report.Bindings)
 	return report
 }
 
@@ -122,6 +138,77 @@ func validateProfileChannelCredential(cfg config.Config, profileID, channel, cre
 		evidence = append(evidence, newProfileChannelEvidence(ProfileChannelEvidenceCredentialSecretMissing, profileID, channel, credentialID, "secret_ref", "channel credential has no secret ref"))
 	}
 	return evidence
+}
+
+func applyProfileChannelTokenHashConflicts(report *ProfileChannelReadinessReport) {
+	if report == nil || len(report.Bindings) < 2 {
+		return
+	}
+	type conflictKey struct {
+		channel string
+		hash    string
+	}
+	buckets := map[conflictKey][]int{}
+	for i := range report.Bindings {
+		binding := &report.Bindings[i]
+		binding.CredentialHash = normalizeProfileChannelCredentialHash(binding.CredentialHash)
+		if binding.Channel == "" || binding.CredentialID == "" || binding.CredentialHash == "" {
+			continue
+		}
+		key := conflictKey{channel: binding.Channel, hash: binding.CredentialHash}
+		buckets[key] = append(buckets[key], i)
+	}
+
+	for _, indexes := range buckets {
+		if len(indexes) < 2 {
+			continue
+		}
+		credentialIDs := map[string]struct{}{}
+		profileIDs := map[string]struct{}{}
+		for _, index := range indexes {
+			binding := report.Bindings[index]
+			credentialIDs[binding.CredentialID] = struct{}{}
+			profileIDs[binding.ProfileID] = struct{}{}
+		}
+		if len(credentialIDs) < 2 || len(profileIDs) < 2 {
+			continue
+		}
+		for _, index := range indexes {
+			binding := &report.Bindings[index]
+			evidence := newProfileChannelEvidence(ProfileChannelEvidenceTokenHashConflict, binding.ProfileID, binding.Channel, binding.CredentialID, "credential_hash", "credential token hash is already assigned to another profile-channel binding")
+			evidence.CredentialHash = binding.CredentialHash
+			binding.Evidence = append(binding.Evidence, evidence)
+			binding.Ready = false
+		}
+	}
+}
+
+func collectProfileChannelReadinessEvidence(bindings []ProfileChannelBindingReadiness) []ProfileChannelReadinessEvidence {
+	var evidence []ProfileChannelReadinessEvidence
+	for _, binding := range bindings {
+		evidence = append(evidence, binding.Evidence...)
+	}
+	return evidence
+}
+
+func normalizedProfileChannelCredentialHashes(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for credentialID, hash := range in {
+		credentialID = strings.TrimSpace(credentialID)
+		hash = normalizeProfileChannelCredentialHash(hash)
+		if credentialID == "" || hash == "" {
+			continue
+		}
+		out[credentialID] = hash
+	}
+	return out
+}
+
+func normalizeProfileChannelCredentialHash(hash string) string {
+	return strings.ToLower(strings.TrimSpace(hash))
 }
 
 func sortedProfileChannelNames(channels map[string]config.ProfileChannelCfg) []string {
