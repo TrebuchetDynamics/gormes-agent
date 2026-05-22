@@ -840,7 +840,10 @@
         "docs/development-skills/gormes-release/SKILL.md:Branch Rule",
         "docs/development-skills/gormes-release/SKILL.md:Preflight Commands",
         "docs/development-skills/gormes-release/SKILL.md:Workflow steps 7-12",
-        ".github/workflows/ci.yml:CI workflow"
+        ".github/workflows/ci.yml:CI workflow",
+        ".github/workflows/release.yml:Stage install scripts as release assets",
+        ".github/workflows/release.yml:softprops/action-gh-release@v3 files",
+        "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowPublishesInstallScripts"
       ],
       "ready_when": [
         "Operator explicitly approves a release-lane action for the Termux installer recovery.",
@@ -871,9 +874,10 @@
         "Release notes, README, landing metadata, and install/troubleshooting caveats stop describing v0.2.20 as the latest repaired Termux path until the follow-up release evidence exists.",
         "Public caveat cleanup is row-backed by `Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs`; do not remove README, install-doc, troubleshooting, or landing v0.2.20 caveats until follow-up release evidence exists.",
         "Version metadata surfaces (`cmd/gormes/version.go`, README latest release text, and `webpages/landing/src/data/release.json`) name the follow-up tag only after the GitHub release exists and artifacts are attached.",
-        "Release evidence includes the development -> main PR URL, PR check rollup, merged origin/main SHA, post-merge main workflow conclusions, and tag-triggered Release Binaries run before public Termux latest install is called repaired."
+        "Release evidence includes the development -> main PR URL, PR check rollup, merged origin/main SHA, post-merge main workflow conclusions, and tag-triggered Release Binaries run before public Termux latest install is called repaired.",
+        "The release-evidence command checks the follow-up release is public and carries `install.sh`, `install.ps1`, `gormes-<version>-android-arm64.tar.gz`, and its `.sha256` before public Termux latest install is called repaired."
       ],
-      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish. Planner 2026-05-21 iteration 3: added explicit unblocks so the release lane knows this P0 row gates both the broad release-pipeline parent and removal of public v0.2.20 Termux caveats; also normalized the progress write_scope to the split backlog path. Planner 2026-05-21 iteration 6: added public docs and landing test refs, scopes, and validation commands so the follow-up release row also carries the post-release caveat-cleanup proof path. Planner 2026-05-21 iteration 7: added exact release workflow, version metadata, README, landing release data, and public caveat source refs plus a focused workflow/docs validation command so the blocked row has a complete post-release evidence path. Planner 2026-05-21 iteration 8: pinned the release-skill PR/CI gate into this blocked row so future release execution must carry development -> main PR, post-merge main workflow, and tag-triggered Release Binaries evidence before public Termux latest is called repaired. Planner 2026-05-21 iteration 10: the previously named public-caveat cleanup unblock now points at a real P0 docs row, keeping release publication separate from post-release public-surface cleanup.",
+      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish. Planner 2026-05-21 iteration 3: added explicit unblocks so the release lane knows this P0 row gates both the broad release-pipeline parent and removal of public v0.2.20 Termux caveats; also normalized the progress write_scope to the split backlog path. Planner 2026-05-21 iteration 6: added public docs and landing test refs, scopes, and validation commands so the follow-up release row also carries the post-release caveat-cleanup proof path. Planner 2026-05-21 iteration 7: added exact release workflow, version metadata, README, landing release data, and public caveat source refs plus a focused workflow/docs validation command so the blocked row has a complete post-release evidence path. Planner 2026-05-21 iteration 8: pinned the release-skill PR/CI gate into this blocked row so future release execution must carry development -> main PR, post-merge main workflow, and tag-triggered Release Binaries evidence before public Termux latest is called repaired. Planner 2026-05-21 iteration 10: the previously named public-caveat cleanup unblock now points at a real P0 docs row, keeping release publication separate from post-release public-surface cleanup. Planner 2026-05-21 iteration 12: strengthened this release-publication row's own `gh release view` command from metadata-only to an assets-aware proof requiring `install.sh`, `install.ps1`, the android-arm64 archive, and its checksum before live Termux latest install may be called fixed.",
       "blocker": {
         "title": "Publish follow-up release for Termux latest installer",
         "type": "decision",
@@ -907,7 +911,7 @@
         "go run ./cmd/progress validate",
         "git diff --check",
         "git ls-remote --tags origin refs/tags/v0.2.21",
-        "gh release view v0.2.21 --json tagName,url,isDraft,isPrerelease,targetCommitish",
+        "tag=v0.2.21 version=0.2.21; gh release view \"$tag\" --json tagName,url,isDraft,isPrerelease,targetCommitish,assets | jq -e --arg tag \"$tag\" --arg archive \"gormes-$version-android-arm64.tar.gz\" '.tagName == $tag and .isDraft == false and .isPrerelease == false and ([.assets[].name] | index(\"install.sh\") and index(\"install.ps1\") and index($archive) and index($archive + \".sha256\"))'",
         "go test ./webpages/docs ./webpages/docs/install -count=1",
         "(cd webpages/landing && npm run build)",
         "(cd webpages/landing && npm run test:e2e)",
@@ -921,7 +925,8 @@
         "Report the merged main commit, follow-up tag, public GitHub release URL, artifact verification, and a latest-release Termux installer transcript that no longer reproduces the v0.2.20 unknown-command failure.",
         "The `Single-binary cross-platform release pipeline` parent no longer lists this row as its active blocker, or a superseding release-pipeline row cites the follow-up release evidence.",
         "Report whether post-release public-surface cleanup was completed in the same release evidence package or handed to `Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs`, including the exact version/public-surface files still pending or updated.",
-        "Report the release PR URL/check rollup, origin/main merge SHA, post-merge main workflow run URLs, and tag-triggered Release Binaries run URL before declaring live Termux latest install fixed."
+        "Report the release PR URL/check rollup, origin/main merge SHA, post-merge main workflow run URLs, and tag-triggered Release Binaries run URL before declaring live Termux latest install fixed.",
+        "Report the exact asset-aware `gh release view ... --json assets | jq -e ...` command output that proved install scripts plus the android-arm64 archive and checksum were attached before declaring public Termux latest install fixed."
       ],
       "provenance": {
         "origin_type": "gormes"
