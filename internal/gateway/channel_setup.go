@@ -27,6 +27,10 @@ type ChannelSetupPlan struct {
 // enrich setup guidance without reading live state from disk.
 type ChannelSetupPlanOptions struct {
 	Pairing PairingStatus
+	// CredentialHashes carries caller-supplied redacted token hashes keyed by
+	// credential id. Setup planning uses them only for duplicate ownership
+	// evidence and never resolves live secret values.
+	CredentialHashes map[string]string
 }
 
 type ChannelSetupEntry struct {
@@ -52,14 +56,14 @@ func BuildChannelSetupPlanWithOptions(cfg config.Config, opts ChannelSetupPlanOp
 			buildTelegramSetupEntry(cfg.Telegram),
 			buildDiscordSetupEntry(cfg.Discord),
 			buildSlackSetupEntry(cfg.Slack),
-			buildWhatsAppSetupEntry(cfg, opts.Pairing),
+			buildWhatsAppSetupEntry(cfg, opts),
 			buildNavivoxSetupEntry(cfg.Navivox),
 		},
 		GatewayAction: "Start or restart messaging with: gormes gateway",
 	}
 }
 
-func buildWhatsAppSetupEntry(cfg config.Config, pairing PairingStatus) ChannelSetupEntry {
+func buildWhatsAppSetupEntry(cfg config.Config, opts ChannelSetupPlanOptions) ChannelSetupEntry {
 	entry := ChannelSetupEntry{
 		ID:          "whatsapp",
 		DisplayName: "WhatsApp",
@@ -71,7 +75,7 @@ func buildWhatsAppSetupEntry(cfg config.Config, pairing PairingStatus) ChannelSe
 		NextCommand: "gormes whatsapp --plan",
 	}
 
-	bindings := BuildProfileChannelReadiness(cfg).Bindings
+	bindings := BuildProfileChannelReadinessWithOptions(cfg, ProfileChannelReadinessOptions{CredentialHashes: opts.CredentialHashes}).Bindings
 	readyCount := 0
 	whatsAppCount := 0
 	for _, binding := range bindings {
@@ -116,7 +120,7 @@ func buildWhatsAppSetupEntry(cfg config.Config, pairing PairingStatus) ChannelSe
 	default:
 		entry.Status = ChannelSetupStatusPartial
 	}
-	applyWhatsAppPairingSetupStatus(&entry, pairing)
+	applyWhatsAppPairingSetupStatus(&entry, opts.Pairing)
 	return entry
 }
 

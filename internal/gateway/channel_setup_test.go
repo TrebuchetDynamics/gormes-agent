@@ -130,6 +130,66 @@ func TestProfileChannelSetupPlanWhatsAppUsesReadinessAndRedactsScopes(t *testing
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppReportsDuplicateTokenHashConflict(t *testing.T) {
+	const rawSharedToken = "123456:shared-whatsapp-token-that-must-not-leak"
+	sharedHash := TokenCredentialHash(rawSharedToken)
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net"},
+						AllowedUsers: []string{"6586915095"},
+					},
+				},
+			},
+			"sales": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "sales-whatsapp",
+						AllowedChats: []string{"12025550999-123@g.us"},
+						AllowedUsers: []string{"7770001111"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp":  channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+			"sales-whatsapp": channelCredential("whatsapp", "sales", "GORMES_SALES_WHATSAPP_TOKEN"),
+		},
+	}
+
+	plan := BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{
+		CredentialHashes: map[string]string{
+			"main-whatsapp":  sharedHash,
+			"sales-whatsapp": sharedHash,
+		},
+	})
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	if whatsapp.Status != ChannelSetupStatusPartial {
+		t.Fatalf("whatsapp status = %q, want partial when two profiles reuse one WhatsApp token hash: %+v", whatsapp.Status, whatsapp)
+	}
+	rendered := strings.Join(append(append([]string{}, whatsapp.CurrentValues...), whatsapp.Warnings...), "\n")
+	for _, want := range []string{
+		"profiles.main.channels.whatsapp: channel_token_hash_conflict (credential_hash)",
+		"profiles.sales.channels.whatsapp: channel_token_hash_conflict (credential_hash)",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup duplicate-token guidance missing %q:\n%s", want, rendered)
+		}
+	}
+	for _, forbidden := range []string{rawSharedToken, sharedHash, "12025550123", "12025550999", "6586915095", "7770001111", "GORMES_MAIN_WHATSAPP_TOKEN", "GORMES_SALES_WHATSAPP_TOKEN"} {
+		if strings.Contains(rendered, forbidden) {
+			t.Fatalf("whatsapp setup duplicate-token guidance leaked sensitive value %q:\n%s", forbidden, rendered)
+		}
+	}
+}
+
 func TestProfileChannelSetupPlanWhatsAppNormalizesProfileChannelKey(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
