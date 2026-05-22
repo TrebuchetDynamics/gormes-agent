@@ -791,5 +791,93 @@
         ]
       }
     }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.D",
+    "pos": 22,
+    "item": {
+      "name": "Termux latest-installer follow-up release publication",
+      "priority": "P0",
+      "status": "planned",
+      "contract": "Publish the follow-up public release that carries the already-committed Termux installer recovery fix. The release must follow the required development -> main PR -> tag lane, must not tag from development, and must prove the public latest installer is no longer the affected v0.2.20 artifact before docs or operators call Termux latest install repaired.",
+      "contract_status": "draft",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "release",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until this release is published, affected Termux users can still install the live v0.2.20 latest artifact and hit `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes` even though the fix exists on origin/development.",
+      "fixture": "internal/installtest/termux_publish_recovery_test.go",
+      "source_refs": [
+        "TODO.md:[BLOCKED] Publish follow-up release for Termux latest installer",
+        "CHANGELOG.md:Unreleased Termux latest-release installer recovery note",
+        "cmd/gormes/main.go:sanitizeTermuxExecArgs",
+        "internal/installtest/termux_publish_recovery_test.go:TestTermuxBinaryFetchPublishVerificationFallsBackToSourceBuild",
+        "internal/installtest/termux_publish_recovery_test.go:TestTermuxBinaryFetchPublishRecoveryReportsSourceBuildVerificationFailure",
+        "AGENTS.md:development -> PR -> main -> tag branch rule"
+      ],
+      "ready_when": [
+        "Operator explicitly approves a release-lane action for the Termux installer recovery.",
+        "origin/development contains fix commit 72b4ee248475 or a superseding Termux installer recovery commit.",
+        "The development branch is clean enough for the release skill to include or split all intended dirty work safely."
+      ],
+      "not_ready_when": [
+        "No explicit release approval has been given for PR merge, tag, or public artifact publication.",
+        "The development -> main PR is absent, red, unmergeable, or has not completed required checks.",
+        "Any step would tag from development, push directly to main, bypass PR checks, or publish artifacts before main is green.",
+        "A v0.2.21 tag or chosen superseding tag already exists and the operator has not requested recovery."
+      ],
+      "blocked_by": [
+        "explicit release-lane approval for Termux installer follow-up"
+      ],
+      "acceptance": [
+        "The development -> main PR containing the Termux installer fix merges only after required checks pass.",
+        "The follow-up tag/release is created from origin/main, not development, and the chosen tag is not the already-affected v0.2.20 release.",
+        "gh release view for the follow-up tag reports a non-draft, non-prerelease public release with install.sh and platform artifacts attached.",
+        "Release notes, README, landing metadata, and install/troubleshooting caveats stop describing v0.2.20 as the latest repaired Termux path until the follow-up release evidence exists."
+      ],
+      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish.",
+      "blocker": {
+        "title": "Publish follow-up release for Termux latest installer",
+        "type": "decision",
+        "status": "blocked",
+        "recorded_at": "2026-05-21T20:14:15-06:00",
+        "blocker": "Public v0.2.20 is still latest and affected Termux installs can report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`; publishing the fix requires explicit release-lane approval.",
+        "evidence": "gh release view v0.2.20 returned the published release on main; fix commit 72b4ee248475 is on origin/development; git ls-remote --tags origin refs/tags/v0.2.21 returned zero lines.",
+        "unblocks_when": "A development -> main PR is merged through required checks and a follow-up tag/release, expected v0.2.21 unless superseded, publishes fixed Termux installer artifacts.",
+        "owner": "Gormes release lane / operator with release approval",
+        "pivot": "Keep docs explicit that v0.2.20 Termux latest install is affected; use the committed development fix only for source/local validation until release is approved.",
+        "next_check": "Next release-lane iteration or explicit publish request",
+        "degraded": true
+      },
+      "write_scope": [
+        "cmd/gormes/version.go",
+        "CHANGELOG.md",
+        "README.md",
+        "webpages/landing/src/data/release.json",
+        "webpages/landing/src/data/landing.js",
+        "webpages/docs/content/install/",
+        "webpages/docs/content/troubleshooting/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run TestSanitizeTermuxExecArgsWithExe -count=1",
+        "go test ./internal/installtest -run 'TestTermux(BinaryFetchPublishVerificationFallsBackToSourceBuild|BinaryFetchPublishRecoveryReportsSourceBuildVerificationFailure|PublishesRealBinaryNotHomeSymlink)|TestNonTermuxPublishKeepsSymlink' -count=1",
+        "timeout 20m go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check",
+        "git ls-remote --tags origin refs/tags/v0.2.21",
+        "gh release view v0.2.21 --json tagName,url,isDraft,isPrerelease,targetCommitish"
+      ],
+      "done_signal": [
+        "Report the merged main commit, follow-up tag, public GitHub release URL, artifact verification, and a latest-release Termux installer transcript that no longer reproduces the v0.2.20 unknown-command failure."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
   }
 ]
