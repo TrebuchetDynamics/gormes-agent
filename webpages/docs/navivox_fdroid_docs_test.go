@@ -79,3 +79,16 @@ func TestNavivoxFDroidDocsCarryPermissionAndPrivacyGuardrails(t *testing.T) {
 		"Screenshots must not show real gateway URLs, pairing tokens, chat payloads, workspace paths, or provider names.",
 	})
 }
+
+func TestNavivoxFDroidDocsCarryMetadataReadinessChecklist(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## Metadata readiness checklist",
+		"Keep the listing title, summary, and description focused on a user-owned Gormes companion, not a generic chatbot.",
+		"Record the source repository, license, app ID, release tag, and build commit beside the listing copy.",
+		"Prepare icon, screenshots, feature graphic, and alt text that show setup with placeholder endpoints only.",
+		"Name Termux, self-hosting, privacy, local AI, and OSS Android in the long description so the right users recognize themselves.",
+		"Keep Google Play language out of the F-Droid metadata except as a later reach channel in internal strategy notes.",
+	})
+}

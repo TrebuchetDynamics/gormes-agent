@@ -87,6 +87,14 @@ Use this message shape for F-Droid-facing copy before the listing is real:
 - Document any broad-looking permission before release review so F-Droid users can audit the tradeoff.
 - Screenshots must not show real gateway URLs, pairing tokens, chat payloads, workspace paths, or provider names.
 
+## Metadata readiness checklist
+
+- Keep the listing title, summary, and description focused on a user-owned Gormes companion, not a generic chatbot.
+- Record the source repository, license, app ID, release tag, and build commit beside the listing copy.
+- Prepare icon, screenshots, feature graphic, and alt text that show setup with placeholder endpoints only.
+- Name Termux, self-hosting, privacy, local AI, and OSS Android in the long description so the right users recognize themselves.
+- Keep Google Play language out of the F-Droid metadata except as a later reach channel in internal strategy notes.
+
 ## Release gate before claiming F-Droid availability
 
 Do not say "install from F-Droid" until all of these are evidenced in the repo
