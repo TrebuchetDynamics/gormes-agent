@@ -113,6 +113,11 @@ formfeed: "a\fb"`,
 			toon: "matrix[2]:\n  - []\n  - [2]: a,b",
 			want: `{"matrix":[[],["a","b"]]}`,
 		},
+		{
+			name: "root empty array with trailing spaces",
+			toon: "[]   \n",
+			want: `[]`,
+		},
 	}
 
 	for _, tt := range tests {

@@ -20,7 +20,7 @@ func DecodeValue(raw []byte) (Value, error) {
 	if len(lines) == 0 {
 		return Value{Kind: KindObject}, nil
 	}
-	if len(lines) == 1 && lines[0].text == "[]" {
+	if len(lines) == 1 && strings.TrimSpace(lines[0].text) == "[]" {
 		return Value{Kind: KindArray}, nil
 	}
 	if header, ok, err := parseHeader(lines[0].text); err != nil {
