@@ -131,3 +131,16 @@ func TestNavivoxFDroidDocsCarrySubmissionHandoffChecklist(t *testing.T) {
 		"Track reviewer questions and follow-up fixes beside the handoff so availability claims wait for accepted metadata.",
 	})
 }
+
+func TestNavivoxFDroidDocsCarryFirstRunPairingChecklist(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## First-run pairing acceptance checklist",
+		"The first screen should say Navivox connects to a user-owned Gormes gateway, not a hosted account.",
+		"Show Termux as the recommended operator path and pair through `gormes setup gateway` or the generated QR/connect information.",
+		"Require users to confirm the gateway URL, profile name, and token source before the first conversation.",
+		"Keep setup failure copy actionable: start Gormes, check HTTP/WebSocket reachability, regenerate redacted pairing info, or retry on the same network/VPN.",
+		"Do not promise no setup, one-tap onboarding, Google-account sync, or cloud chatbot behavior in the listing or first-run flow.",
+	})
+}

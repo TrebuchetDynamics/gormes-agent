@@ -119,6 +119,14 @@ Use this message shape for F-Droid-facing copy before the listing is real:
 - Keep Google Play, direct APK, and GitHub release notes labeled as adjacent channels, not proof of F-Droid availability.
 - Track reviewer questions and follow-up fixes beside the handoff so availability claims wait for accepted metadata.
 
+## First-run pairing acceptance checklist
+
+- The first screen should say Navivox connects to a user-owned Gormes gateway, not a hosted account.
+- Show Termux as the recommended operator path and pair through `gormes setup gateway` or the generated QR/connect information.
+- Require users to confirm the gateway URL, profile name, and token source before the first conversation.
+- Keep setup failure copy actionable: start Gormes, check HTTP/WebSocket reachability, regenerate redacted pairing info, or retry on the same network/VPN.
+- Do not promise no setup, one-tap onboarding, Google-account sync, or cloud chatbot behavior in the listing or first-run flow.
+
 ## Release gate before claiming F-Droid availability
 
 Do not say "install from F-Droid" until all of these are evidenced in the repo
