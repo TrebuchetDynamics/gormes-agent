@@ -58,8 +58,16 @@ func (e *encoder) indent() int {
 func (e *encoder) writeRoot(buf *bytes.Buffer, value Value) error {
 	switch value.Kind {
 	case KindObject:
+		if len(value.Object) == 0 {
+			buf.WriteString("{}")
+			return nil
+		}
 		return e.writeObjectFields(buf, value.Object, 0)
 	case KindArray:
+		if len(value.Array) == 0 {
+			buf.WriteString("[]")
+			return nil
+		}
 		return e.writeArray(buf, "", value.Array, 0, "", false)
 	default:
 		buf.WriteString(e.primitive(value, ','))
@@ -88,6 +96,7 @@ func (e *encoder) writeField(buf *bytes.Buffer, key string, value Value, depth i
 		buf.WriteString(encodedKey)
 		buf.WriteByte(':')
 		if len(value.Object) == 0 {
+			buf.WriteString(" {}")
 			return nil
 		}
 		buf.WriteByte('\n')
@@ -174,7 +183,7 @@ func (e *encoder) writeListItem(buf *bytes.Buffer, value Value, depth int) error
 	case KindObject:
 		if len(value.Object) == 0 {
 			e.writeIndent(buf, depth)
-			buf.WriteByte('-')
+			buf.WriteString("- {}")
 			return nil
 		}
 		first := value.Object[0]
@@ -191,7 +200,7 @@ func (e *encoder) writeListItem(buf *bytes.Buffer, value Value, depth int) error
 		e.writeIndent(buf, depth)
 		buf.WriteString("- ")
 		if len(value.Array) == 0 {
-			buf.WriteString("[0]:")
+			buf.WriteString("[]")
 			return nil
 		}
 		return e.writeArray(buf, "", value.Array, depth, "- ", false)

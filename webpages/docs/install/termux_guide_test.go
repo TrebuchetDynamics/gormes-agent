@@ -46,6 +46,16 @@ func TestLinuxMacInstallGuideDocumentsTermuxReleaseFirstPath(t *testing.T) {
 	}
 }
 
+func TestInstallDocsWarnTermuxV020LatestReleaseCaveat(t *testing.T) {
+	for _, rel := range []string{
+		"webpages/docs/content/install/_index.md",
+		"webpages/docs/content/install/linux-macos.md",
+		"webpages/docs/content/install/termux.md",
+	} {
+		assertContainsTermuxV021Recovery(t, rel, readRepoFileTermuxGuide(t, rel))
+	}
+}
+
 func TestLinuxMacInstallGuideDocumentsTermuxRemoteExecutionBoundary(t *testing.T) {
 	guide := readRepoFileTermuxGuide(t, "webpages/docs/content/install/linux-macos.md")
 	readme := readRepoFileTermuxGuide(t, "README.md")
@@ -73,6 +83,21 @@ func TestLinuxMacInstallGuideDocumentsTermuxRemoteExecutionBoundary(t *testing.T
 	}
 	if !strings.Contains(readme, "Termux can be the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds") {
 		t.Fatalf("README missing Termux remote-execution positioning")
+	}
+}
+
+func assertContainsTermuxV021Recovery(t *testing.T, rel string, doc string) {
+	t.Helper()
+	for _, want := range []string{
+		"Termux/Android status",
+		"`v0.2.21` includes the installer recovery",
+		"unknown command /data/data/com.termux/files/usr/bin/gormes for gormes",
+		"reinstall from the latest release",
+		"gormes doctor --offline",
+	} {
+		if !strings.Contains(doc, want) {
+			t.Fatalf("%s missing Termux v0.2.21 recovery %q", rel, want)
+		}
 	}
 }
 

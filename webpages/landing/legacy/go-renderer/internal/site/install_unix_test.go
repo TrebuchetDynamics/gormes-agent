@@ -783,7 +783,12 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 		"→ Setting up gormes command",
 		"✓ gormes command ready",
 		"→ Setup wizard skipped (no terminal available).",
-		"Run 'gormes setup' after install.",
+		"Gormes installed successfully",
+		"Choose setup path:",
+		"1. Navivox (recommended)",
+		"Pair your Android app and continue setup there.",
+		"Recommended next step: gormes navivox pair",
+		"CLI setup command: gormes setup",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("install output missing %q\n%s", want, out)
@@ -804,7 +809,7 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 	}
 }
 
-func TestInstallSH_DefaultInstallRunsSetupWizardWhenTerminalAvailable(t *testing.T) {
+func TestInstallSH_DefaultInstallRecommendsNavivoxFirstSetupPath(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
@@ -820,15 +825,27 @@ func TestInstallSH_DefaultInstallRunsSetupWizardWhenTerminalAvailable(t *testing
 		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
 	}
 
-	if !strings.Contains(out, "→ Starting setup wizard") {
-		t.Fatalf("default install did not announce setup wizard:\n%s", out)
+	for _, want := range []string{
+		"Gormes installed successfully",
+		"Choose setup path:",
+		"1. Navivox (recommended)",
+		"Pair your Android app and continue setup there.",
+		"2. CLI setup",
+		"Continue fully in terminal.",
+		"Recommended next step: gormes navivox pair",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("install output missing %q:\n%s", want, out)
+		}
 	}
-	if strings.Contains(out, "Setup wizard skipped") {
-		t.Fatalf("interactive install skipped setup wizard:\n%s", out)
+	for _, reject := range []string{"→ Starting setup wizard", "Setup wizard skipped"} {
+		if strings.Contains(out, reject) {
+			t.Fatalf("default install should recommend setup paths instead of %q:\n%s", reject, out)
+		}
 	}
 	log := readTextFile(t, logPath)
-	if !strings.Contains(log, "built-gormes setup") {
-		t.Fatalf("default install did not invoke gormes setup:\n%s", log)
+	if strings.Contains(log, "built-gormes setup") {
+		t.Fatalf("default install invoked terminal setup instead of recommending navivox pair:\n%s", log)
 	}
 }
 

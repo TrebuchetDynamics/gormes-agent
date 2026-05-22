@@ -7,9 +7,9 @@ title: "Install Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `install`
-**Rows:** 28
-**Status counts:** `complete`: 28 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 2 · `P1`: 15 · `P2`: 4 · `P3`: 3 · `unset`: 4
+**Rows:** 30
+**Status counts:** `complete`: 30 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 2 · `P1`: 17 · `P2`: 4 · `P3`: 3 · `unset`: 4
 
 ## Phase 1 — The Dashboard
 
@@ -56,6 +56,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P0` | `install` | Install isolation: skip system service install when sandbox bin dir is set |
 | `complete` | `P1` | `install` | Install: prefer pre-built release binary over source build by default |
 | `complete` | `P1` | `install` | Install: Termux publishes a real $PREFIX/bin binary, not an $HOME-targeting symlink |
+| `complete` | `P1` | `install` | Termux exec argv path-alias sanitizer |
+| `complete` | `P1` | `install` | Termux binary-fetch publish verification source fallback |
 
 ## Phase 8 — Reputation & Publication
 

@@ -1194,6 +1194,7 @@ classification and row-backed implementation queue.
 - [ ] `profiles` Profile Control Center TUI shell and draft apply flow
 - [ ] `providers` Per-profile provider credential readiness
 - [ ] `channels` Per-profile channel credential readiness and allow-lists
+- [x] `providers` Gormes setup providers plural alias
 
 ### 5.P — Docker / Packaging ✅
 
@@ -1209,6 +1210,8 @@ classification and row-backed implementation queue.
 - [x] `install` Install isolation: skip system service install when sandbox bin dir is set
 - [x] `install` Install: prefer pre-built release binary over source build by default
 - [x] `install` Install: Termux publishes a real $PREFIX/bin binary, not an $HOME-targeting symlink
+- [x] `install` Termux exec argv path-alias sanitizer
+- [x] `install` Termux binary-fetch publish verification source fallback
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
@@ -1321,7 +1324,7 @@ classification and row-backed implementation queue.
 ### 6.A — Complexity Detector 🔨
 
 - [x] `learning-loop` Hermes background review fork lifecycle
-- [ ] `channels` Heuristic or LLM-scored signal
+- [ ] `learning-loop` Deterministic learning-loop trigger signals
 
 ### 6.B — Skill Extractor ✅
 
@@ -1499,6 +1502,8 @@ classification and row-backed implementation queue.
 - [x] `tui` Gormes-owned streaming feedback uplift
 - [x] `tui` Gormes streaming tool-trail status + spinner cadence wiring
 - [x] `tui` Gormes welcome panel version/tool-count wiring
+- [ ] `release` Termux latest-installer follow-up release publication
+- [ ] `release` Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs
 
 ### 8.E — Toolkit Extraction 🔨
 
@@ -1559,6 +1564,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox VPN host enumeration helper
 - [x] `navivox` Navivox HTTP gateway mandatory-VPN bind
 - [x] `navivox` Navivox HTTP gateway connect-info command
+- [x] `navivox` Navivox setup QR image pairing handoff
 
 ### 9.F — Navivox Operator Activation 🔨
 

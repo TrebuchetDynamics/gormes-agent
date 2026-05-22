@@ -5,7 +5,7 @@ import (
 )
 
 func TestSanitizeTermuxExecArgsWithExe(t *testing.T) {
-	exe := "/data/data/com.termux/files/usr/bin/gormes"
+	exe := "/data/user/0/com.termux/files/usr/bin/gormes"
 
 	cases := []struct {
 		name string
@@ -41,6 +41,21 @@ func TestSanitizeTermuxExecArgsWithExe(t *testing.T) {
 			name: "injected path with subcommand",
 			args: []string{exe, "version"},
 			want: []string{"version"},
+		},
+		{
+			name: "data-data injected path matches data-user executable alias",
+			args: []string{"/data/data/com.termux/files/usr/bin/gormes", "version"},
+			want: []string{"version"},
+		},
+		{
+			name: "data-data injected path after command matches data-user executable alias",
+			args: []string{"version", "/data/data/com.termux/files/usr/bin/gormes"},
+			want: []string{"version"},
+		},
+		{
+			name: "other app data-data path is not an executable alias",
+			args: []string{"/data/data/com.example/files/usr/bin/gormes", "version"},
+			want: []string{"/data/data/com.example/files/usr/bin/gormes", "version"},
 		},
 		{
 			name: "multiple flags after injection",

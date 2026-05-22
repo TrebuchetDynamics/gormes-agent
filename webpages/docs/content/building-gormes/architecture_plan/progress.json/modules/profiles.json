@@ -814,8 +814,8 @@
       "name": "Profile Control Center v2 umbrella — single root config and active services",
       "priority": "P1",
       "status": "planned",
-      "contract": "Inventory parent for the Gormes-owned v2 profile-control-center direction. Gormes moves profile setup away from per-profile canonical config files and global active/default profile semantics toward one root `$GORMES_HOME/config.toml` with `config_version = 2`, a stable `[profiles.<id>]` service map, a global credential registry referenced by profiles, and a screen-reader-first `gormes setup profiles` control center. All enabled profiles are active services; `profiles.<id>.name` is the mutable display name and may be blank for the seed `main` profile until setup/runtime asks the operator. This umbrella is not builder-selectable; child rows own schema, migration, read model, TUI, provider credentials, channel credentials, Navivox routing, and docs.",
-      "contract_status": "draft",
+      "contract": "Inventory-only, fixture-backed parent for the Gormes-owned Profile Control Center v2 direction. The target config surface is one root `$GORMES_HOME/config.toml` at `config_version = 2`, stable `[profiles.<id>]` service records, global `[credentials.<id>]` records referenced by profiles, no v2 `active_profile`/`default_profile` field, and screen-reader-first `gormes setup profiles` control-center flows. Runtime/profile data may still live under profile directories, but canonical v2 config is rooted once; implementation must happen only through child rows for schema, migration, read-model, TUI, provider/channel credentials, Navivox routing, docs, and fleet supervision.",
+      "contract_status": "fixture_ready",
       "slice_size": "umbrella",
       "execution_owner": "tools",
       "module": "profiles",
@@ -823,23 +823,39 @@
         "operator",
         "system"
       ],
-      "degraded_mode": "Until child rows ship, legacy `gormes profile` and `gormes setup profiles` behavior remains available but is explicitly a compatibility surface, not the target config architecture.",
-      "fixture": "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
+      "degraded_mode": "Until child rows ship, legacy profile/config paths remain compatibility inputs. This parent must not write runtime code, prompt for live credentials, select one global active/default profile, or treat per-profile config.toml files as the v2 canonical destination. Operators should see v2 as planned direction with child rows carrying executable behavior.",
+      "fixture": "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center + internal/config/profile_config_v2.go:DefaultConfigDocumentV2",
       "source_refs": [
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
-        "cmd/gormes/setup_profiles_tui.go",
-        "internal/app/gormescli/modules/profiles/setup.go",
-        "internal/config/config.go",
-        "internal/config/writer.go",
-        "webpages/docs/content/building-gormes/modules/profiles.md"
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#invariants",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#root-shape",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#migration-rules",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+        "internal/config/config.go:CurrentConfigVersion",
+        "internal/config/config.go:Config.Profiles",
+        "internal/config/profile_config_v2.go:DefaultProfileID",
+        "internal/config/profile_config_v2.go:ProfileCfg",
+        "internal/config/profile_config_v2.go:CredentialCfg",
+        "internal/config/profile_config_v2.go:DefaultConfigDocumentV2",
+        "internal/config/profile_config_v2.go:normalizeProfileConfigV2",
+        "internal/config/writer.go:allowedTOMLSections",
+        "cmd/gormes/setup_profiles_tui.go:setupProfilesTUIState",
+        "cmd/gormes/setup_profiles_tui.go:setupProfilesTUIResult",
+        "cmd/gormes/setup_profiles_tui.go:maybeRunSetupProfilesTUI",
+        "internal/app/gormescli/modules/profiles/setup.go:SetupSections",
+        "webpages/docs/content/building-gormes/modules/profiles.md:Profiles Module Roadmap"
       ],
       "ready_when": [
-        "Child rows remain present and ordered so builders can implement one narrow behavior at a time.",
-        "The accepted v2 invariants are documented: single root config.toml, stable profile ids, no global active/default profile field, per-profile credential references, and Navivox multi-profile routing."
+        "Inventory-only parent remains non-selectable while child rows carry implementation contracts and TDD fixtures.",
+        "The accepted v2 invariants are source-backed: single root config.toml, config_version 2, stable profile ids, no v2 active/default profile field, profile-referenced credentials, and Navivox multi-profile routing.",
+        "Existing v2 structs and docs provide fixtures for row planning: Config.Profiles/Credentials, ProfileCfg, CredentialCfg, DefaultConfigDocumentV2, and profile-config-v2.md.",
+        "Any implementation child row names one concrete behavior, exact write_scope, focused test commands, and whether it ports Hermes compatibility or a Gormes-owned divergence."
       ],
       "not_ready_when": [
         "This umbrella is assigned as one implementation slice.",
-        "A child row writes canonical config under `$GORMES_HOME/profiles/<id>/config.toml`, introduces `active_profile` or `default_profile` in config v2, or silently shares credentials across profiles."
+        "A child row writes canonical config under `$GORMES_HOME/profiles/<id>/config.toml`, adds a v2 active_profile/default_profile field, or silently shares credentials across profiles.",
+        "The work starts live providers, channel logins, Navivox servers, or profile fleet processes instead of shaping or executing a focused child row.",
+        "Source refs regress to broad directories (`internal/config/`, `cmd/gormes/`, or generated module pages) without exact symbols or anchors.",
+        "The row creates a side backlog outside progress.json for profile-control-center implementation order."
       ],
       "unblocks": [
         "Root config.toml v2 profile service schema",
@@ -849,32 +865,29 @@
         "Per-profile provider credential readiness",
         "Per-profile channel credential readiness and allow-lists",
         "Navivox multi-server profile routing config model",
-        "Canonical config.toml v2 profile schema docs"
+        "Canonical config.toml v2 profile schema docs",
+        "Long-term plan: profile fleet supervisor and single control-plane gateway"
       ],
       "acceptance": [
-        "The umbrella stays planned and non-selectable while every executable child row has concrete write scope, tests, and acceptance.",
-        "Generated module pages and roadmap surfaces show the v2 direction instead of the superseded navivox-default/default-profile framing.",
-        "Completed legacy rows remain historical evidence only; new setup writes only the v2 root config shape once the child rows ship."
+        "The parent stays planned, fixture_ready, umbrella-sized, and explicitly non-selectable; every executable behavior remains a child row.",
+        "Source refs point to exact v2 config docs, Gormes config structs, setup TUI seams, and profile module registration symbols instead of broad globs.",
+        "The row records degraded/compatibility behavior: legacy profile/config paths are inputs only, not the canonical v2 destination.",
+        "No separate TODO/private queue is introduced; child rows in progress.json remain the only implementation order."
       ],
-      "note": "Planner decision 2026-05-18 after operator grill: profiles are first-class services, all enabled profiles are active, the stable TOML key is the profile id, display name is `profiles.<id>.name`, new installs seed `[profiles.main] enabled=true name=\"\"`, and Navivox manages multiple profiles/servers instead of selecting one startup profile.",
+      "note": "Planner 2026-05-21 development-loop iteration 12: sharpened the Profile Control Center parent from draft architecture direction into a fixture-backed non-selectable row. This pins the v2 root-config/schema/control-center invariants to exact docs and Go symbols while keeping runtime implementation in child rows.",
       "write_scope": [
-        "internal/config/",
-        "internal/app/gormescli/modules/profiles/",
-        "cmd/gormes/setup_profiles_tui.go",
-        "cmd/gormes/setup_profiles_test.go",
-        "docs/content/building-gormes/architecture_plan/progress.json",
-        "docs/content/building-gormes/architecture_plan/profile-config-v2.md",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
-        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/profiles.json",
+        "docs/content/building-gormes/architecture_plan/profile-config-v2.md"
       ],
-      "no_test_required": "Inventory-only umbrella; executable child rows carry focused tests.",
+      "no_test_required": "Inventory-only umbrella; executable child rows carry focused tests, and this planner slice is guarded by internal/progress TestLoad_RealFile_ProfileControlCenterV2Umbrella plus go run ./cmd/progress validate.",
       "done_signal": [
-        "The umbrella remains planned/non-selectable and all v2 profile-control-center implementation intent lives in child rows."
+        "Profile Control Center v2 remains a fixture-backed, non-selectable umbrella with exact v2 config/control-center source refs, explicit degraded compatibility behavior, and all implementation intent delegated to child rows in progress.json."
       ],
       "provenance": {
         "origin_type": "gormes",
+        "upstream_ref": "Gormes-owned profile fleet/control-center architecture; Hermes profile homes remain compatibility evidence, not the v2 root TOML contract",
         "owned_since": "2026-05-18",
-        "note": "Gormes-owned profile fleet/control-center architecture; Hermes profile homes remain upstream evidence but do not dictate the v2 root TOML shape."
+        "note": "Operator decision: profiles are first-class services; all enabled profiles are active; stable TOML keys are profile ids; display names are mutable; v2 setup uses one root config plus credential references."
       }
     }
   },

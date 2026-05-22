@@ -2,11 +2,48 @@ package main
 
 import (
 	"context"
+	"net/url"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
 )
+
+func TestNavivoxSetupPairingURIIncludesRESTTokenAndURLs(t *testing.T) {
+	cfg := config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "127.0.0.1",
+		Port:         8765,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "setup-secret-token",
+	}
+
+	descriptor, err := navivoxSetupPairingURI(cfg)
+	if err != nil {
+		t.Fatalf("navivoxSetupPairingURI error = %v", err)
+	}
+	u, err := url.Parse(descriptor)
+	if err != nil {
+		t.Fatalf("descriptor is not a URI: %v", err)
+	}
+	if u.Scheme != "navivox" || u.Host != "connect" {
+		t.Fatalf("descriptor = %q, want navivox://connect URI", descriptor)
+	}
+	q := u.Query()
+	checks := map[string]string{
+		"base_url":      "http://127.0.0.1:8765",
+		"websocket_url": "ws://127.0.0.1:8765/v1/navivox/stream",
+		"auth_mode":     config.NavivoxAuthPairingToken,
+		"rest_token":    cfg.Token,
+		"token_required": "true",
+	}
+	for key, want := range checks {
+		if got := q.Get(key); got != want {
+			t.Fatalf("descriptor query %s = %q, want %q in %q", key, got, want, descriptor)
+		}
+	}
+}
 
 func TestNavivoxSetupBindDefault_TailscaleExposure_PicksDetectedVPNIPv4(t *testing.T) {
 	prev := vpnhostList

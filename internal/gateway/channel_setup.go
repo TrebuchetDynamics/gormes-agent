@@ -23,6 +23,16 @@ type ChannelSetupPlan struct {
 	GatewayAction string
 }
 
+// ChannelSetupPlanOptions carries optional read-only runtime evidence used to
+// enrich setup guidance without reading live state from disk.
+type ChannelSetupPlanOptions struct {
+	Pairing PairingStatus
+	// CredentialHashes carries caller-supplied redacted token hashes keyed by
+	// credential id. Setup planning uses them only for duplicate ownership
+	// evidence and never resolves live secret values.
+	CredentialHashes map[string]string
+}
+
 type ChannelSetupEntry struct {
 	ID             string
 	DisplayName    string
@@ -35,15 +45,153 @@ type ChannelSetupEntry struct {
 }
 
 func BuildChannelSetupPlan(cfg config.Config) ChannelSetupPlan {
+	return BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{})
+}
+
+// BuildChannelSetupPlanWithOptions builds setup guidance from config plus
+// caller-supplied read-model evidence such as gateway pairing status.
+func BuildChannelSetupPlanWithOptions(cfg config.Config, opts ChannelSetupPlanOptions) ChannelSetupPlan {
 	return ChannelSetupPlan{
 		Channels: []ChannelSetupEntry{
 			buildTelegramSetupEntry(cfg.Telegram),
 			buildDiscordSetupEntry(cfg.Discord),
 			buildSlackSetupEntry(cfg.Slack),
-			buildStaticSetupEntry("whatsapp", "WhatsApp", []string{"WHATSAPP_ENABLED", "WhatsApp session credentials"}, "gormes whatsapp --plan"),
+			buildWhatsAppSetupEntry(cfg, opts),
 			buildNavivoxSetupEntry(cfg.Navivox),
 		},
 		GatewayAction: "Start or restart messaging with: gormes gateway",
+	}
+}
+
+func buildWhatsAppSetupEntry(cfg config.Config, opts ChannelSetupPlanOptions) ChannelSetupEntry {
+	entry := ChannelSetupEntry{
+		ID:          "whatsapp",
+		DisplayName: "WhatsApp",
+		RequiredFields: []string{
+			"profiles.<id>.channels.whatsapp.credential",
+			"profiles.<id>.channels.whatsapp.allowed_chats or explicit open access",
+			"credentials.<id>.secret_ref",
+		},
+		NextCommand: "gormes whatsapp --plan",
+	}
+
+	bindings := BuildProfileChannelReadinessWithOptions(cfg, ProfileChannelReadinessOptions{CredentialHashes: opts.CredentialHashes}).Bindings
+	readyCount := 0
+	whatsAppCount := 0
+	for _, binding := range bindings {
+		if binding.Channel != "whatsapp" {
+			continue
+		}
+		whatsAppCount++
+		if binding.Ready {
+			readyCount++
+		}
+		profilePrefix := "profiles." + binding.ProfileID + ".channels.whatsapp"
+		if binding.CredentialID != "" {
+			entry.CurrentValues = append(entry.CurrentValues, profilePrefix+".credential="+binding.CredentialID)
+		} else {
+			entry.PlannedWrites = append(entry.PlannedWrites, profilePrefix+".credential -> config.toml")
+		}
+		if binding.SecretRefConfigured {
+			entry.CurrentValues = append(entry.CurrentValues, "credentials."+binding.CredentialID+".secret_ref=[REDACTED:"+binding.SecretRefSource+"]")
+		} else if binding.CredentialID != "" {
+			entry.PlannedWrites = append(entry.PlannedWrites, "credentials."+binding.CredentialID+".secret_ref -> secret store")
+		}
+		entry.CurrentValues = append(entry.CurrentValues,
+			profilePrefix+".allowed_chats="+strconv.Itoa(binding.AllowedChatCount),
+			profilePrefix+".allowed_direct_chats="+strconv.Itoa(binding.AllowedDirectChatCount),
+			profilePrefix+".allowed_group_chats="+strconv.Itoa(binding.AllowedGroupChatCount),
+			profilePrefix+".allowed_users="+strconv.Itoa(binding.AllowedUserCount),
+		)
+		for _, evidence := range binding.Evidence {
+			entry.Warnings = append(entry.Warnings, profilePrefix+": "+evidence.Code+" ("+evidence.Field+")")
+			if evidence.Code == ProfileChannelEvidenceAccessPolicyMissing {
+				entry.PlannedWrites = append(entry.PlannedWrites, profilePrefix+".allowed_chats or allowed_users -> config.toml")
+			}
+		}
+	}
+
+	switch {
+	case whatsAppCount == 0:
+		entry.Status = ChannelSetupStatusUnconfigured
+		entry.PlannedWrites = []string{"profiles.<id>.channels.whatsapp -> config.toml", "WhatsApp session credentials -> gormes whatsapp --plan"}
+	case readyCount == whatsAppCount:
+		entry.Status = ChannelSetupStatusConfigured
+	default:
+		entry.Status = ChannelSetupStatusPartial
+	}
+	applyWhatsAppPairingSetupStatus(&entry, opts.Pairing)
+	return entry
+}
+
+func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingStatus) {
+	if entry == nil {
+		return
+	}
+	for _, platform := range pairing.Platforms {
+		if !strings.EqualFold(strings.TrimSpace(platform.Platform), "whatsapp") {
+			continue
+		}
+		state := PairingPlatformState(strings.ToLower(strings.TrimSpace(string(platform.State))))
+		if state == "" {
+			break
+		}
+		entry.CurrentValues = append(entry.CurrentValues,
+			"whatsapp.pairing="+string(state),
+			"whatsapp.pairing_approved_users="+strconv.Itoa(platform.ApprovedCount),
+			"whatsapp.pairing_pending_codes="+strconv.Itoa(platform.PendingCount),
+		)
+		if state == PairingPlatformStatePaired && entry.Status == ChannelSetupStatusConfigured {
+			entry.Status = ChannelSetupStatusPaired
+			entry.NextCommand = "gormes gateway"
+		}
+		if state == PairingPlatformStateUnpaired && entry.Status == ChannelSetupStatusConfigured {
+			entry.Status = ChannelSetupStatusPartial
+			entry.NextCommand = "gormes whatsapp"
+			entry.Warnings = append(entry.Warnings, "WhatsApp pairing is not complete; run gormes whatsapp to link a device.")
+			entry.PlannedWrites = append(entry.PlannedWrites, "WhatsApp pairing session -> gormes whatsapp")
+		}
+		break
+	}
+	applyWhatsAppPairingDegradedSetupStatus(entry, pairing.Degraded)
+}
+
+func applyWhatsAppPairingDegradedSetupStatus(entry *ChannelSetupEntry, degraded []PairingDegradedEvidence) {
+	seen := map[string]struct{}{}
+	for _, evidence := range degraded {
+		if !isWhatsAppPairingDegradedEvidence(evidence) {
+			continue
+		}
+		reason := PairingDegradedReason(strings.ToLower(strings.TrimSpace(string(evidence.Reason))))
+		if reason == "" {
+			continue
+		}
+		reasonText := string(reason)
+		if _, ok := seen[reasonText]; ok {
+			continue
+		}
+		seen[reasonText] = struct{}{}
+		entry.CurrentValues = append(entry.CurrentValues, "whatsapp.pairing_degraded="+reasonText)
+		entry.Warnings = append(entry.Warnings, "WhatsApp pairing status is degraded: "+reasonText)
+		if whatsappPairingDegradationBlocksSetup(reason) && (entry.Status == ChannelSetupStatusConfigured || entry.Status == ChannelSetupStatusPaired) {
+			entry.Status = ChannelSetupStatusPartial
+			entry.NextCommand = "gormes whatsapp"
+			entry.PlannedWrites = append(entry.PlannedWrites, "WhatsApp pairing readout repair -> gormes whatsapp")
+		}
+	}
+}
+
+func isWhatsAppPairingDegradedEvidence(evidence PairingDegradedEvidence) bool {
+	platform := strings.ToLower(strings.TrimSpace(evidence.Platform))
+	return platform == "" || platform == "whatsapp"
+}
+
+func whatsappPairingDegradationBlocksSetup(reason PairingDegradedReason) bool {
+	switch reason {
+	case PairingDegradedMissing, PairingDegradedCorrupt, PairingDegradedPermissionDenied, PairingDegradedReadFailed:
+		return true
+	default:
+		return false
 	}
 }
 

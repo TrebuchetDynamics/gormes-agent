@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +70,166 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	capabilities, ok := payload["capabilities"].([]any)
 	if !ok || !containsAny(capabilities, "profile_contacts") || !containsAny(capabilities, "turn_control") {
 		t.Fatalf("capabilities = %#v, want profile_contacts and turn_control", payload["capabilities"])
+	}
+}
+
+func TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree(t *testing.T) {
+	routingSource := config.Config{Profiles: map[string]config.ProfileCfg{
+		"mineru": {
+			Enabled:    true,
+			Name:       "Mineru Ops",
+			Workspaces: []string{"/srv/gormes", "/srv/navivox"},
+			Providers: map[string]config.ProfileProviderCfg{
+				"openai-codex": {Enabled: true, Credential: "provider-secret-ref"},
+			},
+			Channels: map[string]config.ProfileChannelCfg{
+				"navivox":  {Enabled: true},
+				"telegram": {Enabled: true, Credential: "telegram-secret-ref"},
+			},
+		},
+	}}
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil, WithProfileRouting(routingSource.NavivoxProfileRouting()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	unauth, err := http.Get(server.URL + "/v1/navivox/profile-routing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unauth.Body.Close()
+	if unauth.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unauthorized profile-routing status = %d, want 401", unauth.StatusCode)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/profile-routing", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("profile-routing status = %d, want 200", resp.StatusCode)
+	}
+	var got config.NavivoxProfileRoutingReport
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	want := config.NavivoxProfileRoutingReport{Profiles: []config.NavivoxProfileRoute{{
+		ProfileID:   "mineru",
+		DisplayName: "Mineru Ops",
+		Workspaces:  []string{"/srv/gormes", "/srv/navivox"},
+		Providers:   []string{"openai-codex"},
+		Channels:    []string{"navivox", "telegram"},
+	}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("profile-routing payload = %#v, want %#v", got, want)
+	}
+	raw, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"provider-secret-ref", "telegram-secret-ref", "nvbx_test_token"} {
+		if strings.Contains(string(raw), forbidden) {
+			t.Fatalf("profile-routing leaked %q: %s", forbidden, raw)
+		}
+	}
+}
+
+func TestNavivoxStatusIncludesSetupHandoffForAppContinuation(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	capabilities, ok := payload["capabilities"].([]any)
+	if !ok || !containsAny(capabilities, "setup_handoff") {
+		t.Fatalf("capabilities = %#v, want setup_handoff", payload["capabilities"])
+	}
+	handoff, ok := payload["setup_handoff"].(map[string]any)
+	if !ok {
+		t.Fatalf("setup_handoff = %#v, want object", payload["setup_handoff"])
+	}
+	if handoff["recommended_path"] != "navivox" {
+		t.Fatalf("recommended_path = %#v, want navivox", handoff["recommended_path"])
+	}
+	if handoff["title"] != "Continue setup in Navivox" {
+		t.Fatalf("title = %#v", handoff["title"])
+	}
+	steps, ok := handoff["steps"].([]any)
+	if !ok || len(steps) < 4 {
+		t.Fatalf("steps = %#v, want provider/model/workspace/channel setup steps", handoff["steps"])
+	}
+	if handoff["mutation_policy"] != "read_only_handoff" {
+		t.Fatalf("mutation_policy = %#v, want read_only_handoff", handoff["mutation_policy"])
+	}
+	if handoff["entry_screen"] != "setup.provider" {
+		t.Fatalf("entry_screen = %#v, want setup.provider", handoff["entry_screen"])
+	}
+	if handoff["bridge_keepalive_required"] != true {
+		t.Fatalf("bridge_keepalive_required = %#v, want true", handoff["bridge_keepalive_required"])
+	}
+	if handoff["bridge_lifecycle"] != "termux_pair_command" {
+		t.Fatalf("bridge_lifecycle = %#v, want termux_pair_command", handoff["bridge_lifecycle"])
+	}
+	sections, ok := handoff["sections"].([]any)
+	if !ok || len(sections) != 4 {
+		t.Fatalf("sections = %#v, want four structured setup sections", handoff["sections"])
+	}
+	for i, want := range []struct {
+		id      string
+		title   string
+		screen  string
+		command string
+	}{
+		{"provider", "Choose provider", "setup.provider", "gormes setup provider"},
+		{"model", "Choose model", "setup.model", "gormes setup model"},
+		{"workspace", "Confirm workspace", "setup.workspace", "gormes setup workspace"},
+		{"channels", "Enable channels", "setup.channels", "gormes setup gateway"},
+	} {
+		section, ok := sections[i].(map[string]any)
+		if !ok {
+			t.Fatalf("section[%d] = %#v, want object", i, sections[i])
+		}
+		if section["id"] != want.id || section["title"] != want.title || section["navivox_screen"] != want.screen || section["fallback_cli_command"] != want.command {
+			t.Fatalf("section[%d] = %#v, want id=%s title=%q screen=%s fallback=%q", i, section, want.id, want.title, want.screen, want.command)
+		}
+	}
+	for _, secretLike := range []string{"api_key", "token", "secret", "password"} {
+		if strings.Contains(strings.ToLower(fmt.Sprint(handoff)), secretLike) {
+			t.Fatalf("setup handoff must not expose secret fields: %#v", handoff)
+		}
 	}
 }
 

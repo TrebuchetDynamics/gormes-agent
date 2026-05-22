@@ -6595,6 +6595,11 @@
       "done_signal": [
         "Builder reports pure provider/auth readiness fixtures feeding OperatorRunReport degraded reasons, recommended setup/auth commands, and redaction evidence with no live network/provider calls."
       ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned operator reliability behavior; no Hermes upstream analog."
+      },
       "evidence": {
         "completed_at": "2026-05-19T00:00:00Z",
         "implementation": [
@@ -6606,11 +6611,6 @@
           "GREEN: go test ./internal/runtime -run TestOperatorPreflight -count=1 -> ok (10 tests)",
           "go run ./cmd/progress validate -> validated 9 phases"
         ]
-      },
-      "provenance": {
-        "origin_type": "gormes",
-        "owned_since": "2026-05-18T00:00:00Z",
-        "note": "Gormes-owned operator reliability behavior; no Hermes upstream analog."
       }
     }
   },
@@ -8208,6 +8208,67 @@
         "origin_type": "gormes",
         "owned_since": "2026-05-18",
         "note": "Gormes v2 profile config owns provider credential scoping; upstream Hermes profiles provide isolation evidence but not this root TOML layout."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.O",
+    "pos": 139,
+    "item": {
+      "name": "Gormes setup providers plural alias",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "`gormes setup providers` is accepted as a plural operator alias for the existing `gormes setup provider` section. The alias must route through the same provider setup section, including the boxed setup header, non-interactive `GORMES_ENDPOINT`/`GORMES_API_KEY` flow, secret redaction, config writes, and existing unsupported-section behavior for genuinely unknown sections.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without the alias, operators who naturally type `gormes setup providers` get `setup_section_unsupported: providers` even though the provider setup flow exists and the help text repeatedly references provider configuration.",
+      "fixture": "cmd/gormes/setup_minimal_test.go::TestSetupProvidersAliasRunsProviderSection",
+      "source_refs": [
+        "User objective: `gormes setup providers`.",
+        "cmd/gormes/setup.go:runSetupSection dispatches setup sections before this alias.",
+        "cmd/gormes/setup_minimal_test.go:TestSetupProviderNonInteractiveWritesConfigAndDotenv proves the existing singular provider flow.",
+        "cmd/gormes/setup_minimal_test.go:TestSetupUnknownSectionReturnsUnsupported proves unknown sections remain unsupported."
+      ],
+      "ready_when": [
+        "The singular `provider` setup section already exists and is tested.",
+        "The alias is a CLI dispatch normalization only; no provider auth, model picker, or secret-storage semantics need to change."
+      ],
+      "not_ready_when": [
+        "The change adds a second provider setup implementation instead of reusing the existing section dispatch.",
+        "The alias weakens unsupported-section errors for unrelated misspellings or changes setup section listing output.",
+        "The alias prints or persists raw provider secrets differently than `gormes setup provider`."
+      ],
+      "acceptance": [
+        "`gormes setup providers --non-interactive` with synthetic `GORMES_ENDPOINT`, `GORMES_API_KEY`, and `GORMES_MODEL` writes the same config/dotenv outputs as `gormes setup provider --non-interactive` without leaking secrets.",
+        "The output header still identifies the Provider setup section and the existing provider completion text remains unchanged.",
+        "Unknown setup sections still return exit code 2 with the existing `setup_section_unsupported` guidance."
+      ],
+      "note": "Complete 2026-05-21: added `setupCanonicalSection` so `providers` routes to the existing `provider` setup section, with a non-interactive config/dotenv regression fixture and unsupported-section regression coverage unchanged.",
+      "write_scope": [
+        "cmd/gormes/setup.go",
+        "cmd/gormes/setup_minimal_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestSetupProvidersAliasRunsProviderSection|TestSetupProviderNonInteractiveWritesConfigAndDotenv|TestSetupProviderRequiresTTYWithoutNonInteractive|TestSetupUnknownSectionReturnsUnsupported' -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Focused setup tests prove the plural alias reaches the singular provider setup path, preserves redaction/config writes, and leaves unknown-section behavior intact; full repository gates pass."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-21T00:00:00Z",
+        "note": "Gormes-owned operator ergonomics for setup provider dispatch; no Hermes upstream requirement inferred."
       }
     }
   },

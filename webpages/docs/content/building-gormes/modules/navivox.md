@@ -7,9 +7,9 @@ title: "Navivox Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `navivox`
-**Rows:** 21
-**Status counts:** `complete`: 14 · `in_progress`: 0 · `planned`: 7
-**Priority counts:** `P0`: 2 · `P1`: 13 · `unset`: 6
+**Rows:** 22
+**Status counts:** `complete`: 15 · `in_progress`: 0 · `planned`: 7
+**Priority counts:** `P0`: 3 · `P1`: 13 · `unset`: 6
 
 ## Phase 2 — The Gateway
 
@@ -47,6 +47,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `navivox` | Navivox VPN host enumeration helper |
 | `complete` | `unset` | `navivox` | Navivox HTTP gateway mandatory-VPN bind |
 | `complete` | `unset` | `navivox` | Navivox HTTP gateway connect-info command |
+| `complete` | `P0` | `navivox` | Navivox setup QR image pairing handoff |
 
 ### 9.F — Navivox Operator Activation
 

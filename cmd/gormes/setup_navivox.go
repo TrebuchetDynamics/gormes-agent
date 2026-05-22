@@ -5,9 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -180,8 +184,15 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		}
 	}
 
-	baseURL := fmt.Sprintf("http://%s:%d", runtimeCfg.BindHost, runtimeCfg.Port)
-	wsURL := fmt.Sprintf("ws://%s:%d/v1/navivox/stream", runtimeCfg.BindHost, runtimeCfg.Port)
+	baseURL, wsURL := navivoxConnectInfoURLs(runtimeCfg.BindHost, runtimeCfg.Port)
+	pairingURI, err := navivoxSetupPairingURI(runtimeCfg)
+	if err != nil {
+		return err
+	}
+	qrPath := navivoxSetupPairingQRPath()
+	if err := writeNavivoxSetupPairingQR(qrPath, pairingURI); err != nil {
+		return err
+	}
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Navivox gateway channel configured.")
 	fmt.Fprintf(out, "HTTP base URL: %s\n", baseURL)
@@ -190,12 +201,65 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	if token != "" {
 		fmt.Fprintf(out, "Pairing token: generated and stored in %s as GORMES_NAVIVOX_TOKEN.\n", config.EnvPath())
 	}
+	fmt.Fprintf(out, "Pairing QR image: %s\n", qrPath)
+	fmt.Fprintln(out, "REST/WebSocket auth rules:")
+	if token != "" {
+		fmt.Fprintln(out, "  - REST: send Authorization: Bearer <Navivox token> on /v1/navivox/* requests.")
+		fmt.Fprintln(out, "  - WebSocket: use the Navivox token subprotocol, or an Authorization header when the client supports headers.")
+		fmt.Fprintln(out, "  - Treat the QR image as secret; it embeds the base URL and Navivox token.")
+	} else {
+		fmt.Fprintln(out, "  - Token auth is disabled for this mode; Tailscale identity headers authorize requests.")
+	}
 	fmt.Fprintln(out, "Firewall: no rules were changed.")
 	if firewallRequested {
 		fmt.Fprintf(out, "Firewall request recorded as operator intent only; open %s:%d manually and keep rollback documented.\n", runtimeCfg.BindHost, runtimeCfg.Port)
 	}
 	fmt.Fprintln(out, "Start gateway: gormes gateway")
 	return nil
+}
+
+func navivoxSetupPairingQRPath() string {
+	return filepath.Join(config.GormesHome(), "navivox", "pairing.png")
+}
+
+func writeNavivoxSetupPairingQR(path, descriptor string) error {
+	if strings.TrimSpace(descriptor) == "" {
+		return fmt.Errorf("setup navivox: pairing descriptor is empty")
+	}
+	pngBytes, err := qrcode.Encode(descriptor, qrcode.Medium, 512)
+	if err != nil {
+		return fmt.Errorf("setup navivox: encode pairing QR: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("setup navivox: create QR directory: %w", err)
+	}
+	if err := os.WriteFile(path, pngBytes, 0o600); err != nil {
+		return fmt.Errorf("setup navivox: write pairing QR: %w", err)
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return fmt.Errorf("setup navivox: secure pairing QR: %w", err)
+	}
+	return nil
+}
+
+func navivoxSetupPairingURI(cfg config.NavivoxCfg) (string, error) {
+	baseURL, webSocketURL := navivoxConnectInfoURLs(cfg.BindHost, cfg.Port)
+	values := url.Values{}
+	values.Set("base_url", baseURL)
+	values.Set("websocket_url", webSocketURL)
+	values.Set("auth_mode", strings.TrimSpace(cfg.AuthMode))
+	values.Set("exposure_mode", strings.TrimSpace(cfg.ExposureMode))
+	tokenRequired := cfg.AuthMode == config.NavivoxAuthPairingToken ||
+		cfg.AuthMode == config.NavivoxAuthStaticToken ||
+		cfg.AuthMode == config.NavivoxAuthTokenAndTailscaleIdentity
+	values.Set("token_required", strconv.FormatBool(tokenRequired))
+	if tokenRequired {
+		if strings.TrimSpace(cfg.Token) == "" {
+			return "", fmt.Errorf("setup navivox: token auth selected but token is empty")
+		}
+		values.Set("rest_token", cfg.Token)
+	}
+	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String(), nil
 }
 
 func navivoxSetupBindDefault(ctx context.Context, current, exposureMode string) string {

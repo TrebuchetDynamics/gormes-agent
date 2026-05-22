@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -140,6 +141,61 @@ secret_ref = { source = "env", id = "GORMES_MAIN_TELEGRAM_BOT_TOKEN" }
 	}
 	if strings.Contains(string(body), "sk-") || strings.Contains(string(body), "bot-token") {
 		t.Fatalf("fixture should model secret refs only, got raw secret-looking data:\n%s", body)
+	}
+}
+
+func TestNavivoxProfileRoutingListsEnabledProfileDefaultsSafely(t *testing.T) {
+	cfg := Config{Profiles: map[string]ProfileCfg{
+		"sleeping": {
+			Enabled: true,
+			Name:    "Sleeping",
+		},
+		"mineru": {
+			Enabled:    true,
+			Name:       "Mineru Ops",
+			Workspaces: []string{" /srv/gormes ", "", "/srv/navivox"},
+			Providers: map[string]ProfileProviderCfg{
+				"openai-codex": {Enabled: true, Credential: "provider-secret-ref"},
+				"disabled":     {Enabled: false},
+			},
+			Channels: map[string]ProfileChannelCfg{
+				"telegram": {Enabled: true, Credential: "telegram-token-ref"},
+				"navivox":  {Enabled: true},
+				"slack":    {Enabled: false},
+			},
+		},
+		"tulin": {
+			Enabled:    false,
+			Name:       "Tulin",
+			Workspaces: []string{"/srv/tulin"},
+		},
+	}}
+
+	routing := cfg.NavivoxProfileRouting()
+	want := NavivoxProfileRoutingReport{Profiles: []NavivoxProfileRoute{
+		{
+			ProfileID:   "mineru",
+			DisplayName: "Mineru Ops",
+			Workspaces:  []string{"/srv/gormes", "/srv/navivox"},
+			Providers:   []string{"openai-codex"},
+			Channels:    []string{"navivox", "telegram"},
+		},
+		{
+			ProfileID:   "sleeping",
+			DisplayName: "Sleeping",
+		},
+	}}
+	if !reflect.DeepEqual(routing, want) {
+		t.Fatalf("NavivoxProfileRouting() = %#v, want %#v", routing, want)
+	}
+	payload, err := json.Marshal(routing)
+	if err != nil {
+		t.Fatalf("Marshal routing: %v", err)
+	}
+	for _, banned := range []string{"provider-secret-ref", "telegram-token-ref"} {
+		if strings.Contains(string(payload), banned) {
+			t.Fatalf("routing payload leaked credential reference %q: %s", banned, payload)
+		}
 	}
 }
 

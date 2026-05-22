@@ -92,6 +92,7 @@ For scripts, `gormes chat -q "hello from Gormes"` sends one query and exits with
 | | |
 |---|---|
 | **[Install](../install/)** | Linux/macOS, Windows, and source-build details |
+| **[Why Gormes](../why-gormes/#public-comparison-matrix)** | Compare Gormes with Hermes, OpenClaw, and hosted agent services; Gormes is local software, not hosted zero-infrastructure SaaS |
 | **[Configure](../configure/)** | `config.toml`, environment variables, providers, Telegram, paths and logs |
 | **[Operate](../operate/)** | First chat, Telegram bot, profiles, fallback chains, local Ollama, memory and sessions |
 | **[Troubleshoot](../troubleshooting/)** | Doctor, common errors, log locations |

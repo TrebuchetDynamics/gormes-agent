@@ -2723,36 +2723,76 @@
       "name": "Native TUI slash handler-port coverage",
       "priority": "P2",
       "status": "planned",
-      "contract": "Inventory-only umbrella tracking the native Bubble Tea TUI slash commands that are recognized-but-unavailable. NewDefaultSlashRegistry (internal/tui/slash_dispatch.go) wires real handlers for the shipped local commands (help, clear, new, compact, mouse, scroll, save, branch, copy, browser, kanban, model/m, quit, exit); remaining recognized commands (/skills, /cost, /skin, /voice, /config, /tools, ...) fall through slashFallbackResult and reply 'recognized but unavailable in the native TUI' by design per the completed 2.F.1 'Gateway slash registry parity sweep (recognized-name expansion)'. Actual handler ports are tracked as individual small 5.Q rows mirroring the completed /save, /branch, /kanban, /model, /help, /clear/new, and /compact rows. This umbrella is the single source-backed backlog (no parallel queue); it is split into per-command rows when picked up, prioritising quick wins whose engine already exists (e.g., /skin over HermesSkin/BuiltinSkins, /voice over the voice record-key config) over commands needing real ports.",
-      "contract_status": "draft",
+      "contract": "Inventory-only, fixture-backed parent for native Bubble Tea TUI slash commands that Gormes recognizes but does not yet handle locally. `NewDefaultSlashRegistry` handles the shipped local commands (`/help`, `/clear`, `/new`, `/compact`, `/mouse`, `/scroll`, `/save`, `/branch`, `/copy`, `/browser`, `/kanban`, `/model`/`/m`, `/quit`/`/exit`). Remaining slash tokens route through `slashFallbackResult` to `cli.ResolveCommandAlias` and `CommandRegistry`, where recognized names are consumed with native-TUI or gateway unavailable evidence and unknown/ambiguous names are consumed with guidance so command text never reaches the model. Hermes ui-tui first tries local `SLASH_COMMANDS`, then gateway `slash.exec`/`command.dispatch`; Gormes keeps unported local handler ports as child rows instead of silently proxying every command through this umbrella.",
+      "contract_status": "fixture_ready",
       "slice_size": "umbrella",
       "execution_owner": "tui",
       "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Recognized but unported native-TUI commands render explicit `recognized but unavailable in the native TUI` or `requires gateway support in the native TUI` evidence; unknown and ambiguous slash tokens render guidance. The fallback must consume slash text rather than submit it as model prompt content, and every real local port must land as its own child row with focused fixtures.",
+      "fixture": "internal/tui/slash_dispatch_behavior_test.go::TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit + internal/tui/slash_completion_test.go::TestHermesSlashCompletion_UnavailableCommandsStillComplete",
       "source_refs": [
-        "internal/tui/slash_dispatch.go (NewDefaultSlashRegistry; slashFallbackResult/slashKnownUnhandledStatus — the recognized-but-unavailable pathway)",
-        "progress 2.F.1 'Gateway slash registry parity sweep (recognized-name expansion)' (complete — deliberately expanded recognized names)",
-        "progress 5.O '49-file CLI tree port' (complete umbrella — CLI handler ports)",
-        "./hermes-agent/ui-tui/src/app/slash/registry.ts (upstream slash registry parity reference)"
+        "hermes-agent/ui-tui/src/app/createSlashHandler.ts:createSlashHandler",
+        "hermes-agent/ui-tui/src/app/slash/registry.ts:SLASH_COMMANDS",
+        "hermes-agent/ui-tui/src/domain/slash.ts:parseSlashCommand",
+        "hermes-agent/ui-tui/src/__tests__/slashParity.test.ts:MUTATING_COMMANDS",
+        "hermes-agent/ui-tui/src/__tests__/slashParity.test.ts:classifyRoute",
+        "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+        "internal/tui/slash_dispatch.go:slashFallbackResult",
+        "internal/tui/slash_dispatch.go:slashKnownUnhandledStatus",
+        "internal/tui/slash_dispatch_behavior_test.go:TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit",
+        "internal/tui/slash_dispatch_behavior_test.go:TestHermesSlashDispatchBehavior_MutatingCommandsDoNotFallback",
+        "internal/tui/slash_completion_test.go:TestHermesSlashCompletion_UnavailableCommandsStillComplete",
+        "internal/cli/command_registry.go:CommandRegistry",
+        "internal/cli/command_alias.go:ResolveCommandAlias",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/channels.json:Gateway slash registry parity sweep (recognized-name expansion)"
       ],
       "ready_when": [
-        "Inventory-only: child per-command rows (the completed 'Native TUI /model slash command binding', 'Native TUI /help slash command binding', and 'Native TUI /clear and /new reset-session binding' rows, plus future /skills, /compact, /cost rows) carry the contracts and tests."
+        "Inventory-only: this parent remains non-selectable while per-command child rows carry implementation contracts and TDD fixtures.",
+        "Native-TUI fallback and completion fixtures prove recognized/unhandled commands are consumed with visible evidence and never submitted to the model.",
+        "A child row names one concrete command, exact Hermes/Gormes source refs, the local handler seam, a fakeable fixture, and focused tests before implementation starts.",
+        "Gateway-only commands remain classified as requiring gateway support unless a child row deliberately designs a native local port."
       ],
       "not_ready_when": [
         "The umbrella is assigned as one combined implementation slice.",
-        "Native-TUI slash handler-port work is tracked anywhere other than per-command progress.json rows under this umbrella."
+        "The slice tracks native-TUI slash handler ports outside progress.json or creates a side queue/list of unported commands.",
+        "The implementation silently proxies all slash commands through gateway `slash.exec`/`command.dispatch` without local native-TUI parity decisions.",
+        "The fallback lets recognized, ambiguous, or unknown slash text reach kernel.Submit/the model as ordinary prompt text.",
+        "A child row changes public slash routing, busy-time policy, gateway-vs-local classification, or visible unavailable text without a focused TUI test first."
+      ],
+      "unblocks": [
+        "Native TUI /skills slash command binding",
+        "Native TUI /skin slash command binding",
+        "Native TUI /voice slash command binding",
+        "Native TUI /config slash command binding",
+        "Native TUI /tools slash command binding",
+        "Hermes ui-tui strict-fidelity action matrix"
       ],
       "acceptance": [
-        "Remains non-selectable and source-backed; each native-TUI slash command binding is delivered as its own small 5.Q row mirroring the /save, /branch, /kanban, /model pattern.",
-        "No parallel backlog is created outside progress.json for native-TUI slash handler ports."
+        "The parent remains planned, fixture_ready, umbrella-sized, and explicitly non-selectable; actual ports are represented only by child rows.",
+        "Source refs use exact Hermes ui-tui and Gormes native-TUI files/symbols rather than broad `ui-tui/**`, `internal/tui`, or slash-registry globs.",
+        "Focused fixtures prove recognized unhandled slash commands, mutating commands, unknown commands, and ambiguous prefixes are consumed with visible evidence and never submitted as prompts.",
+        "The next local ports are named as child-row unblocks, not as an external TODO or private queue."
       ],
-      "note": "Filed planner-pass 2026-05-15/tui-slash-model after the root cause of '/m -> /model recognized but unavailable / many slash commands unrecognized' was established. Captures existing intended staging (2.F.1 shipped recognition; handler ports staged) as a single tracked backlog so the work does not fork from progress.json. Sequencing: P1 /model (complete, engine exists); /help completed 2026-05-21 as a native status-row inventory; /clear and /new completed 2026-05-21 as a kernel.ResetSession binding; /compact completed 2026-05-21 as a local transcript view toggle; next /skills, /cost, /skin, /voice, /config, /tools.",
+      "note": "Planner 2026-05-21 development-loop iteration 11: sharpened this parent from draft inventory into a fixture-backed non-selectable row. Evidence separates the shipped native registry from the fallback path and pins Hermes ui-tui local-command dispatch plus Gormes command-alias/registry behavior; the row must not be used to implement all slash handlers at once.",
       "write_scope": [
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
-      "no_test_required": "Inventory continuity row; the executable per-command child rows (e.g., the /model binding row) carry the focused TUI/cmd fixtures and tests.",
+      "test_commands": [
+        "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback)|TestHermesSlashCompletion_UnavailableCommandsStillComplete' -count=1",
+        "go run ./cmd/progress validate"
+      ],
       "done_signal": [
-        "Parent stays non-selectable and source-backed while child per-command rows provide runnable implementation and tests; closes only when no recognized native-TUI slash command remains unhandled without an intentional gateway-only/owned classification."
+        "Native-TUI slash-handler coverage remains a non-selectable fixture-backed parent; fallback/completion fixtures prove command text safety, and future handler ports are split into explicit child rows with no side backlog."
       ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui createSlashHandler/SLASH_COMMANDS local dispatch plus Gormes-owned native Bubble Tea slash registry/fallback staging",
+        "note": "Hermes defines the local-first slash dispatch and gateway fallback shape; Gormes owns which commands are native local ports versus visible unavailable/gateway-required evidence until child rows ship."
+      },
       "blocked_by": []
     }
   },

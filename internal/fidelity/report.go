@@ -44,24 +44,28 @@ type Options struct {
 }
 
 type Report struct {
-	SchemaVersion        string                    `json:"schema_version"`
-	GeneratedAt          string                    `json:"generated_at"`
-	HermesSHA            string                    `json:"hermes_sha,omitempty"`
-	HermesPath           string                    `json:"hermes_path,omitempty"`
-	ProgressPath         string                    `json:"progress_path,omitempty"`
-	SourcePairsPath      string                    `json:"source_pairs_path,omitempty"`
-	SourcePairsSHA       string                    `json:"source_pairs_sha,omitempty"`
-	SourcePairsState     string                    `json:"source_pairs_state,omitempty"`
-	Strict               bool                      `json:"strict"`
-	OK                   bool                      `json:"ok"`
-	Inventory            InventoryCounts           `json:"inventory"`
-	Candidates           CandidateInventory        `json:"candidates"`
-	UnmappedUpstream     UpstreamUnmappedInventory `json:"unmapped_upstream"`
-	ReleaseCheckpoints   []ReleaseCheckpoint       `json:"release_checkpoints,omitempty"`
-	ContinuityCategories []ContinuityCategory      `json:"continuity_categories,omitempty"`
-	Summary              Summary                   `json:"summary"`
-	UnmappedSurfaces     []string                  `json:"unmapped_surfaces,omitempty"`
-	Surfaces             []SurfaceReport           `json:"surfaces"`
+	SchemaVersion          string                    `json:"schema_version"`
+	GeneratedAt            string                    `json:"generated_at"`
+	HermesSHA              string                    `json:"hermes_sha,omitempty"`
+	HermesPath             string                    `json:"hermes_path,omitempty"`
+	ProgressPath           string                    `json:"progress_path,omitempty"`
+	SourcePairsPath        string                    `json:"source_pairs_path,omitempty"`
+	SourcePairsSHA         string                    `json:"source_pairs_sha,omitempty"`
+	SourcePairsState       string                    `json:"source_pairs_state,omitempty"`
+	Strict                 bool                      `json:"strict"`
+	OK                     bool                      `json:"ok"`
+	Inventory              InventoryCounts           `json:"inventory"`
+	Candidates             CandidateInventory        `json:"candidates"`
+	PluginCatalog          []CatalogFamilyReport     `json:"plugin_catalog,omitempty"`
+	SkillCatalog           []CatalogFamilyReport     `json:"skill_catalog,omitempty"`
+	GatewayPlatformCatalog []CatalogFamilyReport     `json:"gateway_platform_catalog,omitempty"`
+	WebDashboardCatalog    []CatalogFamilyReport     `json:"web_dashboard_catalog,omitempty"`
+	UnmappedUpstream       UpstreamUnmappedInventory `json:"unmapped_upstream"`
+	ReleaseCheckpoints     []ReleaseCheckpoint       `json:"release_checkpoints,omitempty"`
+	ContinuityCategories   []ContinuityCategory      `json:"continuity_categories,omitempty"`
+	Summary                Summary                   `json:"summary"`
+	UnmappedSurfaces       []string                  `json:"unmapped_surfaces,omitempty"`
+	Surfaces               []SurfaceReport           `json:"surfaces"`
 }
 
 type InventoryCounts struct {
@@ -86,6 +90,20 @@ type UpstreamUnmappedInventory struct {
 	DocsFiles   []string                    `json:"docs_files,omitempty"`
 	TestFiles   []string                    `json:"test_files,omitempty"`
 	TestSuites  []UpstreamUnmappedTestSuite `json:"test_suites,omitempty"`
+}
+
+type CatalogFamilyReport struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Count       int      `json:"count"`
+	Examples    []string `json:"examples,omitempty"`
+	Status      Status   `json:"status"`
+	Reason      string   `json:"reason"`
+	Confidence  string   `json:"confidence"`
+	GapSeverity string   `json:"gap_severity"`
+
+	SourcePairs  []SourcePairEvidence  `json:"source_pairs,omitempty"`
+	ProgressRows []ProgressRowEvidence `json:"progress_rows,omitempty"`
 }
 
 type UpstreamUnmappedTestSuite struct {
@@ -265,6 +283,10 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 		},
 	}
 	rows := flattenProgress(prog)
+	report.PluginCatalog = buildPluginCatalogClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
+	report.SkillCatalog = buildSkillCatalogClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
+	report.GatewayPlatformCatalog = buildGatewayPlatformClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
+	report.WebDashboardCatalog = buildWebDashboardClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
 	definitions := defaultSurfaces()
 	mappedUpstream := mappedUpstreamRefs(definitions, sourcePairs.Pairs, rows)
 	report.UnmappedUpstream = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream, rows)
@@ -1216,6 +1238,979 @@ func buildCandidateInventory(root string) CandidateInventory {
 	candidates.Skills = uniqueSorted(candidates.Skills)
 	candidates.LearningLoop = uniqueSorted(candidates.LearningLoop)
 	return candidates
+}
+
+type catalogFamilyDefinition struct {
+	ID       string
+	Title    string
+	Prefixes []string
+	Contains []string
+	Keywords []string
+}
+
+func defaultPluginCatalogFamilies() []catalogFamilyDefinition {
+	return []catalogFamilyDefinition{
+		{
+			ID:       "browser_web_search",
+			Title:    "Browser And Web Search Plugins",
+			Prefixes: []string{"plugins/browser/", "plugins/web/"},
+			Keywords: []string{"browser", "web", "firecrawl", "browser use", "web search"},
+		},
+		{
+			ID:       "dashboard_observability",
+			Title:    "Dashboard And Observability Plugins",
+			Prefixes: []string{"plugins/hermes-achievements/", "plugins/kanban/"},
+			Contains: []string{"/dashboard/", "/docs/assets/"},
+			Keywords: []string{"dashboard", "observability", "achievement", "kanban", "plugin slots"},
+		},
+		{
+			ID:       "google_meet",
+			Title:    "Google Meet Plugin",
+			Prefixes: []string{"plugins/google_meet/"},
+			Keywords: []string{"google meet", "meet", "realtime", "audio bridge"},
+		},
+		{
+			ID:       "image_video_generation",
+			Title:    "Image And Video Generation Plugins",
+			Prefixes: []string{"plugins/image_gen/", "plugins/video_gen/"},
+			Keywords: []string{"image", "video", "generation", "media", "fal"},
+		},
+		{
+			ID:       "memory_providers",
+			Title:    "Memory Provider Plugins",
+			Prefixes: []string{"plugins/memory/"},
+			Keywords: []string{"memory", "honcho", "hindsight", "provider"},
+		},
+		{
+			ID:       "model_providers",
+			Title:    "Model Provider Plugins",
+			Prefixes: []string{"plugins/model-providers/"},
+			Keywords: []string{"model", "provider", "openrouter", "openai-codex", "auth"},
+		},
+		{
+			ID:       "platform_adapters",
+			Title:    "Platform Adapter Plugins",
+			Prefixes: []string{"plugins/platforms/"},
+			Keywords: []string{"platform", "adapter", "simplex", "teams", "channel"},
+		},
+		{
+			ID:       "spotify",
+			Title:    "Spotify Plugin",
+			Prefixes: []string{"plugins/spotify/"},
+			Keywords: []string{"spotify", "music"},
+		},
+		{
+			ID:       "teams_pipeline",
+			Title:    "Teams Pipeline Plugin",
+			Prefixes: []string{"plugins/teams_pipeline/"},
+			Keywords: []string{"teams pipeline", "pipeline", "teams"},
+		},
+	}
+}
+
+func buildPluginCatalogClassification(root, hermesSHA, sourcePairsState string, pairs []sourcePair, rows []progressRow) []CatalogFamilyReport {
+	if root == "" {
+		return nil
+	}
+	definitions := defaultPluginCatalogFamilies()
+	byID := map[string]*CatalogFamilyReport{}
+	byDef := map[string]catalogFamilyDefinition{}
+	for _, def := range definitions {
+		byDef[def.ID] = def
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredInventoryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		slash := filepath.ToSlash(rel)
+		if !pluginCatalogEvidenceFile(slash) {
+			return nil
+		}
+		for _, def := range definitions {
+			if !pluginFamilyMatchesPath(def, slash) {
+				continue
+			}
+			family := byID[def.ID]
+			if family == nil {
+				family = &CatalogFamilyReport{ID: def.ID, Title: def.Title}
+				byID[def.ID] = family
+			}
+			family.Count++
+			family.Examples = append(family.Examples, slash)
+			break
+		}
+		return nil
+	})
+
+	for id, family := range byID {
+		def := byDef[id]
+		matchedNames := map[string]bool{}
+		for _, pair := range pairs {
+			if !pluginFamilyMatchesSourcePair(def, pair) {
+				continue
+			}
+			ev := SourcePairEvidence{
+				HermesFile:           cleanHermesRel(pair.HermesFile),
+				Status:               pair.Status,
+				Contract:             pair.Contract,
+				GormesTargets:        cleanStrings(pair.GormesTargets),
+				Tests:                cleanStrings(pair.Tests),
+				ProgressRows:         cleanStrings(pair.ProgressRows),
+				UpstreamTests:        cleanStrings(pair.UpstreamTests),
+				LastCheckedHermesSHA: pair.LastCheckedHermesSHA,
+				Stale:                pairStale(hermesSHA, pair.LastCheckedHermesSHA) || sourcePairsState == "stale",
+			}
+			family.SourcePairs = append(family.SourcePairs, ev)
+			for _, name := range pair.ProgressRows {
+				matchedNames[strings.ToLower(strings.TrimSpace(name))] = true
+			}
+		}
+
+		for _, row := range rows {
+			reasons := pluginFamilyRowMatchReasons(def, row, matchedNames)
+			if len(reasons) == 0 {
+				continue
+			}
+			family.ProgressRows = append(family.ProgressRows, progressRowEvidence(row, reasons))
+		}
+		family.Examples = uniqueSorted(family.Examples)
+		family.SourcePairs = sortSourcePairEvidence(family.SourcePairs)
+		family.ProgressRows = sortProgressRowEvidence(family.ProgressRows)
+		family.Status, family.Reason, family.Confidence = deriveCatalogFamilyStatus(*family)
+		family.GapSeverity = gapSeverity(family.Status, true)
+	}
+
+	out := make([]CatalogFamilyReport, 0, len(byID))
+	for _, family := range byID {
+		out = append(out, *family)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func pluginCatalogEvidenceFile(path string) bool {
+	path = filepath.ToSlash(path)
+	if !strings.HasPrefix(path, "plugins/") {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".py", ".ts", ".tsx", ".js", ".jsx", ".md", ".yaml", ".yml", ".json", ".css":
+		return true
+	default:
+		return false
+	}
+}
+
+func pluginFamilyMatchesPath(def catalogFamilyDefinition, path string) bool {
+	path = cleanHermesRel(path)
+	for _, prefix := range def.Prefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	for _, fragment := range def.Contains {
+		if strings.Contains(path, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
+func pluginFamilyMatchesSourcePair(def catalogFamilyDefinition, pair sourcePair) bool {
+	if pluginFamilyMatchesPath(def, pair.HermesFile) {
+		return true
+	}
+	text := strings.ToLower(cleanHermesRel(pair.HermesFile) + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
+	return containsKeyword(text, def.Keywords)
+}
+
+func pluginFamilyRowMatchReasons(def catalogFamilyDefinition, row progressRow, matchedNames map[string]bool) []string {
+	var reasons []string
+	name := strings.ToLower(strings.TrimSpace(row.Item.Name))
+	if matchedNames[name] {
+		reasons = append(reasons, "source_pair_progress_row")
+	}
+	for _, source := range row.Item.SourceRefs {
+		normalized := cleanHermesRel(source)
+		if normalized != "" && pluginFamilyMatchesPath(def, normalized) {
+			reasons = append(reasons, "source_ref:"+normalized)
+		}
+	}
+	if containsKeyword(row.Text, def.Keywords) {
+		reasons = append(reasons, "taxonomy_keyword")
+	}
+	return uniqueSorted(reasons)
+}
+
+func deriveCatalogFamilyStatus(family CatalogFamilyReport) (Status, string, string) {
+	for _, pair := range family.SourcePairs {
+		if pair.Stale {
+			return StatusStaleUpstream, "Source-pair evidence is stale for the selected Hermes SHA.", "high"
+		}
+	}
+	if hasPairStatus(family.SourcePairs, "excluded") {
+		return StatusExcluded, "Source-pair manifest explicitly excludes this plugin family.", "high"
+	}
+	if hasPairStatus(family.SourcePairs, "owned") && hasValidatedProgress(family.ProgressRows) {
+		return StatusOwnedDivergence, "Validated Gormes-owned divergence is explicitly recorded for this plugin family.", "high"
+	}
+	if hasPairStatus(family.SourcePairs, "covered") && hasValidatedProgress(family.ProgressRows) {
+		return StatusCovered, "Covered source-pair evidence joins to a validated complete progress row with test evidence.", "high"
+	}
+	if hasPairStatus(family.SourcePairs, "partial") || hasCompleteProgress(family.ProgressRows) {
+		return StatusPartial, "Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered.", "medium"
+	}
+	if hasPairStatus(family.SourcePairs, "planned") || hasPlannedProgress(family.ProgressRows) {
+		return StatusPlanned, "A planned progress row or source-pair entry exists for this plugin family.", "medium"
+	}
+	if hasVagueProgress(family.ProgressRows) {
+		return StatusVague, "Only vague progress evidence matched this plugin family.", "low"
+	}
+	return StatusMissing, "Upstream plugin files are present without source-pair, progress-row, exclusion, or owned-divergence evidence.", "low"
+}
+
+type gatewayPlatformFamilyDefinition struct {
+	ID       string
+	Title    string
+	Keywords []string
+}
+
+func defaultGatewayPlatformFamilies() []gatewayPlatformFamilyDefinition {
+	return []gatewayPlatformFamilyDefinition{
+		{
+			ID:       "platform_enum_config",
+			Title:    "Gateway Platform Enum And Config Surface",
+			Keywords: []string{"platform enum", "platform registry", "gateway config", "configured platform"},
+		},
+		{
+			ID:       "gateway_runtime_lifecycle",
+			Title:    "Gateway Runtime Lifecycle",
+			Keywords: []string{"gateway runtime", "start_gateway", "lifecycle", "restart", "status"},
+		},
+		{
+			ID:       "builtin_platform_connectors",
+			Title:    "Built-In Gateway Platform Connectors",
+			Keywords: []string{"builtin", "connector", "adapter", "telegram", "discord", "slack", "whatsapp", "msgraph", "qqbot", "yuanbao"},
+		},
+		{
+			ID:       "platform_helpers",
+			Title:    "Gateway Platform Helper Modules",
+			Keywords: []string{"helper", "base adapter", "http client", "connected checker", "platform helper"},
+		},
+		{
+			ID:       "platform_docs",
+			Title:    "Gateway Platform Documentation",
+			Keywords: []string{"adding a platform", "platform docs", "documentation"},
+		},
+		{
+			ID:       "bundled_platform_plugins",
+			Title:    "Bundled Platform Plugins",
+			Keywords: []string{"bundled platform", "platform plugin", "google chat", "simplex", "line", "teams", "irc"},
+		},
+		{
+			ID:       "api_server_surface",
+			Title:    "Gateway API Server Surface",
+			Keywords: []string{"api server", "dashboard", "openai-compatible", "http"},
+		},
+		{
+			ID:       "tui_gateway_bridge",
+			Title:    "TUI Gateway Bridge",
+			Keywords: []string{"tui gateway", "websocket", "render", "bridge", "tuigateway"},
+		},
+		{
+			ID:       "generated_artifacts",
+			Title:    "Generated Or Cache Artifacts",
+			Keywords: []string{"generated", "pycache", "bytecode", "artifact", "cache"},
+		},
+	}
+}
+
+func buildGatewayPlatformClassification(root, hermesSHA, sourcePairsState string, pairs []sourcePair, rows []progressRow) []CatalogFamilyReport {
+	if root == "" {
+		return nil
+	}
+	definitions := defaultGatewayPlatformFamilies()
+	byID := map[string]*CatalogFamilyReport{}
+	byDef := map[string]gatewayPlatformFamilyDefinition{}
+	for _, def := range definitions {
+		byDef[def.ID] = def
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredInventoryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		slash := filepath.ToSlash(rel)
+		if !gatewayPlatformEvidencePath(slash) {
+			return nil
+		}
+		for _, id := range gatewayPlatformFamilyIDsForEvidence(slash) {
+			def := byDef[id]
+			if def.ID == "" {
+				continue
+			}
+			family := byID[id]
+			if family == nil {
+				family = &CatalogFamilyReport{ID: def.ID, Title: def.Title}
+				byID[id] = family
+			}
+			family.Count++
+			family.Examples = append(family.Examples, slash)
+		}
+		return nil
+	})
+
+	for id, family := range byID {
+		def := byDef[id]
+		matchedNames := map[string]bool{}
+		for _, pair := range pairs {
+			if !gatewayPlatformFamilyMatchesSourcePair(def, pair) {
+				continue
+			}
+			ev := SourcePairEvidence{
+				HermesFile:           cleanHermesRel(pair.HermesFile),
+				Status:               pair.Status,
+				Contract:             pair.Contract,
+				GormesTargets:        cleanStrings(pair.GormesTargets),
+				Tests:                cleanStrings(pair.Tests),
+				ProgressRows:         cleanStrings(pair.ProgressRows),
+				UpstreamTests:        cleanStrings(pair.UpstreamTests),
+				LastCheckedHermesSHA: pair.LastCheckedHermesSHA,
+				Stale:                pairStale(hermesSHA, pair.LastCheckedHermesSHA) || sourcePairsState == "stale",
+			}
+			family.SourcePairs = append(family.SourcePairs, ev)
+			for _, name := range pair.ProgressRows {
+				matchedNames[strings.ToLower(strings.TrimSpace(name))] = true
+			}
+		}
+
+		for _, row := range rows {
+			reasons := gatewayPlatformFamilyRowMatchReasons(def, row, matchedNames)
+			if len(reasons) == 0 {
+				continue
+			}
+			family.ProgressRows = append(family.ProgressRows, progressRowEvidence(row, reasons))
+		}
+		family.Examples = uniqueSorted(family.Examples)
+		family.SourcePairs = sortSourcePairEvidence(family.SourcePairs)
+		family.ProgressRows = sortProgressRowEvidence(family.ProgressRows)
+		family.Status, family.Reason, family.Confidence = deriveCatalogFamilyStatus(*family)
+		family.GapSeverity = gapSeverity(family.Status, true)
+	}
+
+	out := make([]CatalogFamilyReport, 0, len(byID))
+	for _, family := range byID {
+		out = append(out, *family)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func gatewayPlatformEvidencePath(path string) bool {
+	path = cleanHermesRel(path)
+	if path == "gateway/config.py" || path == "gateway/run.py" {
+		return true
+	}
+	if strings.HasPrefix(path, "gateway/platforms/") || strings.HasPrefix(path, "plugins/platforms/") || strings.HasPrefix(path, "tui_gateway/") {
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".py", ".pyc", ".md", ".yaml", ".yml", ".json", ".ts", ".tsx", ".js", ".jsx":
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+func gatewayPlatformFamilyIDsForEvidence(path string) []string {
+	path = cleanHermesRel(path)
+	lower := strings.ToLower(path)
+	base := filepath.Base(lower)
+	if strings.Contains(lower, "__pycache__") || strings.Contains(lower, "generated") || strings.HasSuffix(lower, ".pyc") {
+		return []string{"generated_artifacts"}
+	}
+	var ids []string
+	switch {
+	case lower == "gateway/config.py":
+		ids = append(ids, "platform_enum_config")
+	case lower == "gateway/run.py":
+		ids = append(ids, "gateway_runtime_lifecycle")
+	case lower == "gateway/platforms/api_server.py":
+		ids = append(ids, "api_server_surface")
+	case lower == "gateway/platforms/adding_a_platform.md":
+		ids = append(ids, "platform_docs")
+	case lower == "gateway/platforms/base.py" || lower == "gateway/platforms/helpers.py" || lower == "gateway/platforms/_http_client_limits.py":
+		ids = append(ids, "platform_helpers")
+	case strings.HasPrefix(lower, "plugins/platforms/"):
+		ids = append(ids, "bundled_platform_plugins")
+	case strings.HasPrefix(lower, "tui_gateway/"):
+		ids = append(ids, "tui_gateway_bridge")
+	case strings.HasPrefix(lower, "gateway/platforms/") && base != "":
+		ids = append(ids, "builtin_platform_connectors")
+	}
+	return uniqueSorted(ids)
+}
+
+func gatewayPlatformFamilyMatchesPath(def gatewayPlatformFamilyDefinition, path string) bool {
+	for _, id := range gatewayPlatformFamilyIDsForEvidence(path) {
+		if id == def.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func gatewayPlatformFamilyMatchesSourcePair(def gatewayPlatformFamilyDefinition, pair sourcePair) bool {
+	if gatewayPlatformFamilyMatchesPath(def, pair.HermesFile) {
+		return true
+	}
+	text := strings.ToLower(cleanHermesRel(pair.HermesFile) + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
+	return containsKeyword(text, def.Keywords)
+}
+
+func gatewayPlatformFamilyRowMatchReasons(def gatewayPlatformFamilyDefinition, row progressRow, matchedNames map[string]bool) []string {
+	var reasons []string
+	name := strings.ToLower(strings.TrimSpace(row.Item.Name))
+	if matchedNames[name] {
+		reasons = append(reasons, "source_pair_progress_row")
+	}
+	for _, source := range row.Item.SourceRefs {
+		normalized := cleanHermesRel(source)
+		if normalized != "" && gatewayPlatformFamilyMatchesPath(def, normalized) {
+			reasons = append(reasons, "source_ref:"+normalized)
+		}
+	}
+	if containsKeyword(row.Text, def.Keywords) {
+		reasons = append(reasons, "taxonomy_keyword")
+	}
+	return uniqueSorted(reasons)
+}
+
+type webDashboardFamilyDefinition struct {
+	ID       string
+	Title    string
+	Keywords []string
+}
+
+func defaultWebDashboardFamilies() []webDashboardFamilyDefinition {
+	return []webDashboardFamilyDefinition{
+		{
+			ID:       "gateway_client_events",
+			Title:    "Dashboard Gateway Client Event Shapes",
+			Keywords: []string{"gateway client", "websocket", "event shape", "session submit", "sse"},
+		},
+		{
+			ID:       "terminal_chat_pty",
+			Title:    "Terminal Chat And PTY Dashboard Surface",
+			Keywords: []string{"terminal chat", "pty", "chat page", "tool call", "slash popover"},
+		},
+		{
+			ID:       "sessions_page",
+			Title:    "Dashboard Sessions Page",
+			Keywords: []string{"sessions page", "session endpoint", "conversation history", "dashboard sessions"},
+		},
+		{
+			ID:       "profiles_config",
+			Title:    "Dashboard Profiles And Config Pages",
+			Keywords: []string{"profiles", "profile config", "config page", "workspace profile"},
+		},
+		{
+			ID:       "plugin_pages_slots",
+			Title:    "Dashboard Plugin Pages And Page-Scoped Slots",
+			Keywords: []string{"plugin slot", "plugins page", "page-scoped", "plugin registry", "plugin sdk"},
+		},
+		{
+			ID:       "oauth_provider_panels",
+			Title:    "Dashboard OAuth And Provider Panels",
+			Keywords: []string{"oauth", "provider panel", "login modal", "provider card", "capabilities"},
+		},
+		{
+			ID:       "model_picker",
+			Title:    "Dashboard Model Picker",
+			Keywords: []string{"model picker", "model dialog", "model info", "provider model"},
+		},
+		{
+			ID:       "cron_admin_jobs",
+			Title:    "Dashboard Cron Admin And Jobs",
+			Keywords: []string{"cron", "admin jobs", "scheduled jobs", "cron admin"},
+		},
+		{
+			ID:       "i18n_catalog",
+			Title:    "Dashboard I18n Catalog",
+			Keywords: []string{"i18n", "locale", "language switcher", "translation"},
+		},
+		{
+			ID:       "theme_system",
+			Title:    "Dashboard Theme System",
+			Keywords: []string{"theme", "theme provider", "theme switcher", "preset"},
+		},
+	}
+}
+
+func buildWebDashboardClassification(root, hermesSHA, sourcePairsState string, pairs []sourcePair, rows []progressRow) []CatalogFamilyReport {
+	if root == "" {
+		return nil
+	}
+	definitions := defaultWebDashboardFamilies()
+	byID := map[string]*CatalogFamilyReport{}
+	byDef := map[string]webDashboardFamilyDefinition{}
+	for _, def := range definitions {
+		byDef[def.ID] = def
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredInventoryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		slash := filepath.ToSlash(rel)
+		if !webDashboardEvidencePath(slash) {
+			return nil
+		}
+		for _, id := range webDashboardFamilyIDsForEvidence(slash) {
+			def := byDef[id]
+			if def.ID == "" {
+				continue
+			}
+			family := byID[id]
+			if family == nil {
+				family = &CatalogFamilyReport{ID: def.ID, Title: def.Title}
+				byID[id] = family
+			}
+			family.Count++
+			family.Examples = append(family.Examples, slash)
+		}
+		return nil
+	})
+
+	for id, family := range byID {
+		def := byDef[id]
+		matchedNames := map[string]bool{}
+		for _, pair := range pairs {
+			if !webDashboardFamilyMatchesSourcePair(def, pair) {
+				continue
+			}
+			ev := SourcePairEvidence{
+				HermesFile:           cleanHermesRel(pair.HermesFile),
+				Status:               pair.Status,
+				Contract:             pair.Contract,
+				GormesTargets:        cleanStrings(pair.GormesTargets),
+				Tests:                cleanStrings(pair.Tests),
+				ProgressRows:         cleanStrings(pair.ProgressRows),
+				UpstreamTests:        cleanStrings(pair.UpstreamTests),
+				LastCheckedHermesSHA: pair.LastCheckedHermesSHA,
+				Stale:                pairStale(hermesSHA, pair.LastCheckedHermesSHA) || sourcePairsState == "stale",
+			}
+			family.SourcePairs = append(family.SourcePairs, ev)
+			for _, name := range pair.ProgressRows {
+				matchedNames[strings.ToLower(strings.TrimSpace(name))] = true
+			}
+		}
+
+		for _, row := range rows {
+			reasons := webDashboardFamilyRowMatchReasons(def, row, matchedNames)
+			if len(reasons) == 0 {
+				continue
+			}
+			family.ProgressRows = append(family.ProgressRows, progressRowEvidence(row, reasons))
+		}
+		family.Examples = uniqueSorted(family.Examples)
+		family.SourcePairs = sortSourcePairEvidence(family.SourcePairs)
+		family.ProgressRows = sortProgressRowEvidence(family.ProgressRows)
+		family.Status, family.Reason, family.Confidence = deriveCatalogFamilyStatus(*family)
+		family.GapSeverity = gapSeverity(family.Status, true)
+	}
+
+	out := make([]CatalogFamilyReport, 0, len(byID))
+	for _, family := range byID {
+		out = append(out, *family)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func webDashboardEvidencePath(path string) bool {
+	path = cleanHermesRel(path)
+	if !strings.HasPrefix(path, "web/src/") {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".ts", ".tsx", ".js", ".jsx", ".css":
+		return len(webDashboardFamilyIDsForEvidence(path)) > 0
+	default:
+		return false
+	}
+}
+
+func webDashboardFamilyIDsForEvidence(path string) []string {
+	path = cleanHermesRel(path)
+	lower := strings.ToLower(path)
+	base := strings.TrimSuffix(filepath.Base(lower), filepath.Ext(lower))
+	var ids []string
+	switch {
+	case lower == "web/src/lib/gatewayclient.ts" || lower == "web/src/lib/api.ts" || lower == "web/src/lib/slashexec.ts":
+		ids = append(ids, "gateway_client_events")
+	case lower == "web/src/pages/chatpage.tsx" || lower == "web/src/components/chatsidebar.tsx" || lower == "web/src/components/toolcall.tsx" || lower == "web/src/components/slashpopover.tsx" || lower == "web/src/components/markdown.tsx":
+		ids = append(ids, "terminal_chat_pty")
+	case lower == "web/src/pages/sessionspage.tsx":
+		ids = append(ids, "sessions_page")
+	case lower == "web/src/pages/profilespage.tsx" || lower == "web/src/pages/configpage.tsx" || lower == "web/src/components/platformscard.tsx":
+		ids = append(ids, "profiles_config")
+	case lower == "web/src/pages/pluginspage.tsx" || strings.HasPrefix(lower, "web/src/plugins/"):
+		ids = append(ids, "plugin_pages_slots")
+	case lower == "web/src/components/oauthproviderscard.tsx" || lower == "web/src/components/oauthloginmodal.tsx":
+		ids = append(ids, "oauth_provider_panels")
+	case lower == "web/src/components/modelpickerdialog.tsx" || lower == "web/src/components/modelinfocard.tsx" || lower == "web/src/pages/modelspage.tsx":
+		ids = append(ids, "model_picker")
+	case lower == "web/src/pages/cronpage.tsx":
+		ids = append(ids, "cron_admin_jobs")
+	case strings.HasPrefix(lower, "web/src/i18n/") || base == "languageswitcher":
+		ids = append(ids, "i18n_catalog")
+	case strings.HasPrefix(lower, "web/src/themes/") || base == "themeswitcher":
+		ids = append(ids, "theme_system")
+	}
+	return uniqueSorted(ids)
+}
+
+func webDashboardFamilyMatchesPath(def webDashboardFamilyDefinition, path string) bool {
+	for _, id := range webDashboardFamilyIDsForEvidence(path) {
+		if id == def.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func webDashboardFamilyMatchesSourcePair(def webDashboardFamilyDefinition, pair sourcePair) bool {
+	if webDashboardFamilyMatchesPath(def, pair.HermesFile) {
+		return true
+	}
+	text := strings.ToLower(cleanHermesRel(pair.HermesFile) + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
+	return containsKeyword(text, def.Keywords)
+}
+
+func webDashboardFamilyRowMatchReasons(def webDashboardFamilyDefinition, row progressRow, matchedNames map[string]bool) []string {
+	var reasons []string
+	name := strings.ToLower(strings.TrimSpace(row.Item.Name))
+	if matchedNames[name] {
+		reasons = append(reasons, "source_pair_progress_row")
+	}
+	for _, source := range row.Item.SourceRefs {
+		normalized := cleanHermesRel(source)
+		if normalized != "" && webDashboardFamilyMatchesPath(def, normalized) {
+			reasons = append(reasons, "source_ref:"+normalized)
+		}
+	}
+	if containsKeyword(row.Text, def.Keywords) {
+		reasons = append(reasons, "taxonomy_keyword")
+	}
+	return uniqueSorted(reasons)
+}
+
+type skillCatalogFamilyDefinition struct {
+	ID       string
+	Title    string
+	Keywords []string
+}
+
+func defaultSkillCatalogFamilies() []skillCatalogFamilyDefinition {
+	return []skillCatalogFamilyDefinition{
+		{
+			ID:       "bundled_catalog_metadata",
+			Title:    "Bundled Skill Catalog Metadata",
+			Keywords: []string{"bundled", "portable skill", "skill.md format", "skill metadata", "prompt exposure", "slash-command"},
+		},
+		{
+			ID:       "optional_catalog_metadata",
+			Title:    "Optional Skill Catalog Metadata",
+			Keywords: []string{"optional", "optional skill", "catalog metadata", "metadata.hermes category"},
+		},
+		{
+			ID:       "category_descriptions",
+			Title:    "Skill Category Descriptions",
+			Keywords: []string{"description", "category", "category description"},
+		},
+		{
+			ID:       "prerequisites_readiness_metadata",
+			Title:    "Prerequisites And Readiness Metadata",
+			Keywords: []string{"prerequisite", "readiness", "env", "credential", "guard", "condition", "review state"},
+		},
+		{
+			ID:       "triggers_tags_related_skills",
+			Title:    "Triggers, Tags, And Related Skills",
+			Keywords: []string{"trigger", "tag", "related", "related skill", "metadata.hermes tags"},
+		},
+		{
+			ID:       "support_assets",
+			Title:    "Skill Support Assets",
+			Keywords: []string{"support", "asset", "reference", "template", "preprocess"},
+		},
+		{
+			ID:       "sync_reset_boundaries",
+			Title:    "Skill Sync And Reset Boundaries",
+			Keywords: []string{"sync", "reset", "lockfile", "source lock", "index-cache", "manifest", "profile copy"},
+		},
+		{
+			ID:       "python_script_examples",
+			Title:    "Python And Script-Only Skill Examples",
+			Keywords: []string{"python", "script", "script-only", "helper script"},
+		},
+	}
+}
+
+func buildSkillCatalogClassification(root, hermesSHA, sourcePairsState string, pairs []sourcePair, rows []progressRow) []CatalogFamilyReport {
+	if root == "" {
+		return nil
+	}
+	definitions := defaultSkillCatalogFamilies()
+	byID := map[string]*CatalogFamilyReport{}
+	byDef := map[string]skillCatalogFamilyDefinition{}
+	for _, def := range definitions {
+		byDef[def.ID] = def
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredInventoryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		slash := filepath.ToSlash(rel)
+		if !skillCatalogEvidencePath(slash) {
+			return nil
+		}
+		body := ""
+		if raw, readErr := os.ReadFile(path); readErr == nil {
+			body = string(raw)
+		}
+		for _, id := range skillCatalogFamilyIDsForEvidence(slash, body) {
+			def := byDef[id]
+			if def.ID == "" {
+				continue
+			}
+			family := byID[id]
+			if family == nil {
+				family = &CatalogFamilyReport{ID: def.ID, Title: def.Title}
+				byID[id] = family
+			}
+			family.Count++
+			family.Examples = append(family.Examples, slash)
+		}
+		return nil
+	})
+
+	for id, family := range byID {
+		def := byDef[id]
+		matchedNames := map[string]bool{}
+		for _, pair := range pairs {
+			if !skillCatalogFamilyMatchesSourcePair(def, pair) {
+				continue
+			}
+			ev := SourcePairEvidence{
+				HermesFile:           cleanHermesRel(pair.HermesFile),
+				Status:               pair.Status,
+				Contract:             pair.Contract,
+				GormesTargets:        cleanStrings(pair.GormesTargets),
+				Tests:                cleanStrings(pair.Tests),
+				ProgressRows:         cleanStrings(pair.ProgressRows),
+				UpstreamTests:        cleanStrings(pair.UpstreamTests),
+				LastCheckedHermesSHA: pair.LastCheckedHermesSHA,
+				Stale:                pairStale(hermesSHA, pair.LastCheckedHermesSHA) || sourcePairsState == "stale",
+			}
+			family.SourcePairs = append(family.SourcePairs, ev)
+			for _, name := range pair.ProgressRows {
+				matchedNames[strings.ToLower(strings.TrimSpace(name))] = true
+			}
+		}
+
+		for _, row := range rows {
+			reasons := skillCatalogFamilyRowMatchReasons(def, row, matchedNames)
+			if len(reasons) == 0 {
+				continue
+			}
+			family.ProgressRows = append(family.ProgressRows, progressRowEvidence(row, reasons))
+		}
+		family.Examples = uniqueSorted(family.Examples)
+		family.SourcePairs = sortSourcePairEvidence(family.SourcePairs)
+		family.ProgressRows = sortProgressRowEvidence(family.ProgressRows)
+		family.Status, family.Reason, family.Confidence = deriveCatalogFamilyStatus(*family)
+		family.GapSeverity = gapSeverity(family.Status, true)
+	}
+
+	out := make([]CatalogFamilyReport, 0, len(byID))
+	for _, family := range byID {
+		out = append(out, *family)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func skillCatalogEvidencePath(path string) bool {
+	path = cleanHermesRel(path)
+	if !strings.HasPrefix(path, "skills/") && !strings.HasPrefix(path, "optional-skills/") {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".md", ".yaml", ".yml", ".json", ".html", ".css", ".js", ".ts", ".py", ".sh", ".txt", ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp":
+		return true
+	default:
+		return filepath.Base(path) == "requirements.txt"
+	}
+}
+
+func skillCatalogFamilyIDsForEvidence(path, body string) []string {
+	path = cleanHermesRel(path)
+	if !skillCatalogEvidencePath(path) {
+		return nil
+	}
+	lowerPath := strings.ToLower(path)
+	base := filepath.Base(lowerPath)
+	lowerBody := strings.ToLower(body)
+	var ids []string
+
+	if base == "skill.md" {
+		if strings.HasPrefix(lowerPath, "optional-skills/") {
+			ids = append(ids, "optional_catalog_metadata")
+		} else {
+			ids = append(ids, "bundled_catalog_metadata")
+		}
+		if containsAny(lowerBody, []string{"prerequisites:", "required_environment_variables", "required_environment_variable_groups", "credential_groups", "conditions:", "review_state:"}) {
+			ids = append(ids, "prerequisites_readiness_metadata")
+		}
+		if containsAny(lowerBody, []string{"triggers:", "tags:", "related_skills:", "metadata:", "hermes:"}) {
+			ids = append(ids, "triggers_tags_related_skills")
+		}
+	}
+	if base == "description.md" {
+		ids = append(ids, "category_descriptions")
+	}
+	if strings.Contains(lowerPath, "/index-cache/") || containsAny(lowerPath, []string{"skill-lock", "source-lock", "manifest", "sync", "reset"}) {
+		ids = append(ids, "sync_reset_boundaries")
+	}
+	if strings.Contains(lowerPath, "/scripts/") || strings.HasSuffix(lowerPath, ".py") || strings.HasSuffix(lowerPath, ".sh") {
+		ids = append(ids, "python_script_examples")
+	}
+	if skillCatalogSupportAssetPath(lowerPath) {
+		ids = append(ids, "support_assets")
+	}
+	return uniqueSorted(ids)
+}
+
+func skillCatalogSupportAssetPath(path string) bool {
+	base := filepath.Base(path)
+	if base == "skill.md" || base == "description.md" || strings.Contains(path, "/index-cache/") || strings.Contains(path, "/scripts/") {
+		return false
+	}
+	if strings.Contains(path, "/references/") || strings.Contains(path, "/templates/") || strings.Contains(path, "/assets/") {
+		return true
+	}
+	switch base {
+	case "readme.md", "examples.md", "port_notes.md", "troubleshooting.md", "attribution.md", "requirements.txt":
+		return true
+	default:
+		return false
+	}
+}
+
+func skillCatalogFamilyMatchesPath(def skillCatalogFamilyDefinition, path string) bool {
+	for _, id := range skillCatalogFamilyIDsForEvidence(path, "") {
+		if id == def.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func skillCatalogFamilyMatchesSourcePair(def skillCatalogFamilyDefinition, pair sourcePair) bool {
+	if skillCatalogFamilyMatchesPath(def, pair.HermesFile) {
+		return true
+	}
+	text := strings.ToLower(cleanHermesRel(pair.HermesFile) + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
+	return containsKeyword(text, def.Keywords)
+}
+
+func skillCatalogFamilyRowMatchReasons(def skillCatalogFamilyDefinition, row progressRow, matchedNames map[string]bool) []string {
+	var reasons []string
+	name := strings.ToLower(strings.TrimSpace(row.Item.Name))
+	if matchedNames[name] {
+		reasons = append(reasons, "source_pair_progress_row")
+	}
+	for _, source := range row.Item.SourceRefs {
+		normalized := cleanHermesRel(source)
+		if normalized != "" && skillCatalogFamilyMatchesPath(def, normalized) {
+			reasons = append(reasons, "source_ref:"+normalized)
+		}
+	}
+	if containsKeyword(row.Text, def.Keywords) {
+		reasons = append(reasons, "taxonomy_keyword")
+	}
+	return uniqueSorted(reasons)
+}
+
+func containsAny(text string, fragments []string) bool {
+	for _, fragment := range fragments {
+		if fragment != "" && strings.Contains(text, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
+func sortSourcePairEvidence(values []SourcePairEvidence) []SourcePairEvidence {
+	sort.Slice(values, func(i, j int) bool { return values[i].HermesFile < values[j].HermesFile })
+	return values
+}
+
+func sortProgressRowEvidence(values []ProgressRowEvidence) []ProgressRowEvidence {
+	sort.Slice(values, func(i, j int) bool { return values[i].Name < values[j].Name })
+	return values
+}
+
+func cleanHermesRel(ref string) string {
+	ref = filepath.ToSlash(strings.TrimSpace(ref))
+	ref = strings.TrimPrefix(ref, "./")
+	for _, prefix := range []string{"hermes-agent/", "references/hermes-agent/"} {
+		ref = strings.TrimPrefix(ref, prefix)
+	}
+	return ref
 }
 
 func candidateSourceFile(path string) bool {

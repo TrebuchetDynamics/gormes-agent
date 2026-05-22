@@ -52,7 +52,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(page.locator('.proof-item-pop').getByText('Static Go binary', { exact: true })).toBeVisible();
   await expect(page.locator('.proof-item-pop').getByText('No venv drift', { exact: true })).toBeVisible();
   await expect(page.locator('.proof-item').getByText('Offline doctor', { exact: true })).toBeVisible();
-  await expect(page.locator('.proof-item').getByText('Termux-ready', { exact: true })).toBeVisible();
+  await expect(page.locator('.proof-item').getByText('Termux fix pending release', { exact: true })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Python agents break for boring reasons.' })).toBeVisible();
   await expect(page.getByText('Venvs drift, installs fail, streams drop, tools miswire, and servers rot.')).toBeVisible();
@@ -61,6 +61,9 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Local SQLite memory' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'One gateway process' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Static Go binary' })).toBeVisible();
+  await expect(page.getByText('local software, not hosted zero-infrastructure SaaS')).toBeVisible();
+  const comparisonLink = page.getByRole('link', { name: 'Compare Gormes with Hermes, OpenClaw, and hosted services' });
+  await expect(comparisonLink).toHaveAttribute('href', 'https://docs.gormes.ai/why-gormes/#public-comparison-matrix');
 
   await expect(page.getByRole('heading', { name: 'What works today' })).toBeVisible();
   await expect(page.locator('.works-card')).toHaveCount(5);
@@ -79,6 +82,8 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(installCommand).toContainText('gormes chat');
   await expect(installCommand).not.toContainText('raw.githubusercontent.com');
   await expect(page.locator('button.copy-btn')).toHaveCount(1);
+  await expect(page.getByText('Termux/Android status: v0.2.21 carries the installer recovery')).toBeVisible();
+  await expect(page.getByText('v0.2.20 executable-argument bug')).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Evidence, not a sidecar stack' })).toBeVisible();
   await expect(page.locator('.proof-card')).toHaveCount(4);

@@ -72,7 +72,7 @@
       "name": "TD social presence connected to blog feed",
       "priority": "P3",
       "status": "planned",
-      "contract": "A TrebuchetDynamics-named account on at least one public social platform (Twitter/X or Bluesky) exists, follows the engineering blog feed, and has an automation that announces new posts within 1 hour of publication. The platform choice is owner's call; the row is done when a new blog post produces a public social post automatically.",
+      "contract": "After the TrebuchetDynamics engineering blog feed is live and the operator selects a social account, provide a reproducible feed-to-social automation with a dry-run preview, idempotency guard, and documented publish method so blog posts can be announced without click-only console configuration.",
       "contract_status": "draft",
       "slice_size": "small",
       "execution_owner": "docs",
@@ -81,33 +81,46 @@
         "operator"
       ],
       "degraded_mode": "Without distribution, even good writeups die without an audience; this row creates the minimum viable distribution channel.",
-      "fixture": "scripts/feed-to-social.sh (or chosen automation)",
+      "fixture": "scripts/blog-feed-social/publish.mjs --dry-run with a repo-local or freshly built feed fixture",
       "source_refs": [
-        "docs/content/building-gormes/strategy/success-plan.md"
+        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md:Q1 publication stack",
+        "webpages/blog/src/pages/rss.xml.ts",
+        "webpages/blog/package.json:test/build scripts"
       ],
       "ready_when": [
-        "TD blog (8.A row 1) is live and emitting a feed.",
-        "Operator has chosen a social platform and created the account."
+        "TD blog (8.A row 1) is live and emitting a stable feed.",
+        "Operator has chosen a social platform, created the account, and provided the minimum non-secret account URL/handle for docs.",
+        "Automation can be developed against a local feed fixture or dry-run mode before any social credentials are configured."
       ],
       "not_ready_when": [
         "Posts are announced manually each time.",
-        "Automation depends on a paid-per-post service when free options exist."
-      ],
-      "blocked_by": [
-        "TD engineering blog scaffolded and live"
+        "Automation depends on a paid-per-post service when free options exist.",
+        "The implementation requires storing raw social tokens in the repository or progress backlog.",
+        "The builder cannot run a dry-run preview without publishing to the live social account."
       ],
       "acceptance": [
-        "A test post on the blog produces a corresponding public social post within 1 hour.",
-        "The automation is reproducible (scripted, not click-configured)."
+        "A dry-run against a repo-local or freshly built blog feed emits the exact social post text, canonical blog URL, and idempotency key without network publication.",
+        "With operator-provided credentials outside the repository, a test post on the blog produces one corresponding public social post within 1 hour.",
+        "The automation is reproducible from a script and documented inputs, not click-configured in a provider console.",
+        "success-plan.md records the social account URL, automation method, and secret-handling boundary without storing tokens."
       ],
-      "note": "Source: success-plan.md Q1 publication-stack milestone.",
+      "note": "Source: success-plan.md Q1 publication-stack milestone. Planner 2026-05-21 new-loop iteration 1: converted this publication-stack row from a no-test planning placeholder into a docs-owned automation contract with dry-run proof, idempotency, scoped write paths, and a secret-handling boundary; live posting remains gated on the operator-selected social account.",
       "write_scope": [
-        "scripts/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "scripts/blog-feed-social/",
+        "webpages/blog/",
+        "docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/strategy/success-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
-      "no_test_required": "Documentation/research/planning row — automated tests not applicable",
+      "test_commands": [
+        "(cd webpages/blog && npm run test)",
+        "node scripts/blog-feed-social/publish.mjs --dry-run --feed webpages/blog/dist/feed.xml --out /tmp/gormes-social-post.json",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
       "done_signal": [
-        "Social account URL + automation method recorded in success-plan.md."
+        "Report the social account URL, dry-run transcript path/output, public test-post URL if credentials were available, and the exact command used to run the feed-to-social automation."
       ],
       "provenance": {
         "origin_type": "gormes"

@@ -25,6 +25,8 @@ On Termux, `install.sh` detects `TERMUX_VERSION` or the standard Termux
 `$PREFIX` path and publishes the command to `$PREFIX/bin/gormes`. The release
 asset is `android-arm64`, not `linux-arm64`.
 
+> **Termux/Android status:** `v0.2.21` includes the installer recovery for the `v0.2.20` executable-argument issue. If you saw `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`, reinstall from the latest release, then verify with `gormes version` and `gormes doctor --offline`.
+
 Only source fallback or contributor builds need the build toolchain:
 
 ```bash

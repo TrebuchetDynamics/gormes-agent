@@ -43,7 +43,27 @@ func TestEncodeJSON_GoldenFixtures(t *testing.T) {
 		{
 			name: "empty arrays and objects",
 			json: `{"items":[],"meta":{}}`,
-			want: "items: []\nmeta:",
+			want: "items: []\nmeta: {}",
+		},
+		{
+			name: "root empty array",
+			json: `[]`,
+			want: "[]",
+		},
+		{
+			name: "root empty object",
+			json: `{}`,
+			want: "{}",
+		},
+		{
+			name: "nested empty array list item shorthand",
+			json: `{"matrix":[[],["a","b"]]}`,
+			want: "matrix[2]:\n  - []\n  - [2]: a,b",
+		},
+		{
+			name: "nested empty object list item shorthand",
+			json: `{"items":[{}, {"name":"Ada"}]}`,
+			want: "items[2]:\n  - {}\n  - name: Ada",
 		},
 	}
 
@@ -86,6 +106,38 @@ func TestDecodeJSON_GoldenFixtures(t *testing.T) {
 			toon: "status: \"true\"\ncount: \"42\"\nlead: \"05\"\nempty: \"\"",
 			want: `{"status":"true","count":"42","lead":"05","empty":""}`,
 		},
+		{
+			name: "quoted unicode surrogate pair escapes",
+			toon: `emoji: "faces \ud83d\ude00"`,
+			want: `{"emoji":"faces 😀"}`,
+		},
+		{
+			name: "quoted JSON-compatible escapes",
+			toon: `path: "https:\/\/example.com\/a"
+backspace: "a\bb"
+formfeed: "a\fb"`,
+			want: `{"path":"https://example.com/a","backspace":"a\bb","formfeed":"a\fb"}`,
+		},
+		{
+			name: "nested empty array list item shorthand",
+			toon: "matrix[2]:\n  - []\n  - [2]: a,b",
+			want: `{"matrix":[[],["a","b"]]}`,
+		},
+		{
+			name: "root empty array with trailing spaces",
+			toon: "[]   \n",
+			want: `[]`,
+		},
+		{
+			name: "root empty object shorthand with trailing spaces",
+			toon: "{}   \n",
+			want: `{}`,
+		},
+		{
+			name: "nested empty object shorthand",
+			toon: "meta: {}\nitems[2]:\n  - {}\n  - name: Ada",
+			want: `{"meta":{},"items":[{},{"name":"Ada"}]}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -124,6 +176,47 @@ func TestDecodeJSON_StrictTabularCount(t *testing.T) {
 	_, err := DecodeJSON([]byte("items[2]{id,name}:\n  1,Ada"))
 	if err == nil {
 		t.Fatal("DecodeJSON succeeded; want strict row-count error")
+	}
+}
+
+func TestDecodeJSON_RejectsEmptyPrimitiveTokens(t *testing.T) {
+	tests := []struct {
+		name string
+		toon string
+	}{
+		{name: "inline trailing delimiter", toon: "items[2]: a,"},
+		{name: "inline leading delimiter", toon: "items[2]: ,a"},
+		{name: "tabular missing cell", toon: "items[1]{id,name}:\n  1,"},
+		{name: "list missing body", toon: "items[1]:\n  - "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := DecodeJSON([]byte(tt.toon))
+			if err == nil {
+				t.Fatalf("DecodeJSON(%q) succeeded; want empty primitive token error", tt.toon)
+			}
+		})
+	}
+}
+
+func TestDecodeJSON_RejectsUnescapedQuotedControlCharacters(t *testing.T) {
+	tests := []struct {
+		name string
+		toon string
+	}{
+		{name: "field value literal tab", toon: "name: \"Ada\tLovelace\""},
+		{name: "quoted key literal tab", toon: "\"bad\tkey\": 1"},
+		{name: "tabular cell literal tab", toon: "items[1]{name}:\n  \"Ada\tLovelace\""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := DecodeJSON([]byte(tt.toon))
+			if err == nil {
+				t.Fatalf("DecodeJSON(%q) succeeded; want unescaped control character error", tt.toon)
+			}
+		})
 	}
 }
 

@@ -36,7 +36,7 @@ export const page = {
     { label: 'Static Go binary', kind: 'pop' },
     { label: 'No venv drift', kind: 'pop' },
     { label: 'Offline doctor' },
-    { label: 'Termux-ready' },
+    { label: 'Termux fix pending release' },
   ],
   whyLabel: 'WHY GORMES',
   whyPainHeadline: 'Python agents break for boring reasons.',
@@ -63,6 +63,12 @@ export const page = {
       title: 'Static Go binary',
       body: 'Install or copy one binary across Linux, macOS, Windows, Termux, and locked-down servers.',
     },
+    {
+      title: 'Comparison matrix',
+      body: 'Gormes is local software, not hosted zero-infrastructure SaaS; compare it with Hermes, OpenClaw, and hosted services on the operator axes buyers use.',
+      linkLabel: 'Compare Gormes with Hermes, OpenClaw, and hosted services',
+      href: 'https://docs.gormes.ai/why-gormes/#public-comparison-matrix',
+    },
   ],
   worksHeadline: 'What works today',
   worksIntro:
@@ -80,7 +86,7 @@ export const page = {
   installCommand:
     'curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat',
   installFootnote:
-    'Windows, source builds, and advanced installer flags are covered in the install docs.',
+    'Termux/Android status: v0.2.21 carries the installer recovery for the v0.2.20 executable-argument bug; Windows, source builds, and advanced installer flags are covered in the install docs.',
   installFootnoteLink: {
     label: 'Read install docs',
     href: '/install',

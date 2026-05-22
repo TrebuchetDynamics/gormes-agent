@@ -15,8 +15,7 @@ func (e *Encoder) EncodeJSON(raw []byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = e.w.Write(out)
-	return err
+	return writeAll(e.w, out)
 }
 
 func (e *Encoder) EncodeValue(value Value) error {
@@ -24,8 +23,18 @@ func (e *Encoder) EncodeValue(value Value) error {
 	if err != nil {
 		return err
 	}
-	_, err = e.w.Write(out)
-	return err
+	return writeAll(e.w, out)
+}
+
+func writeAll(w io.Writer, out []byte) error {
+	n, err := w.Write(out)
+	if err != nil {
+		return err
+	}
+	if n != len(out) {
+		return io.ErrShortWrite
+	}
+	return nil
 }
 
 func EncodeJSONTo(w io.Writer, raw []byte) error {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-18",
+    "last_updated": "2026-05-21",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -627,7 +627,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. The second 2026-05-05 sweep also found missing sessions CLI ergonomics: MRU continue by last_active, prefix-safe delete/prune confirmation, browse fallback, and multi-word session argument coalescing. Keep update and sessions as dedicated CLI slices instead of mixing them into broad diagnostics/status inventory."
           },
-          "item_count": 139,
+          "item_count": 140,
           "extra": {
             "rows": [
               {
@@ -689,7 +689,7 @@
         {
           "id": "5.P",
           "name": "Docker / Packaging",
-          "item_count": 12
+          "item_count": 14
         },
         {
           "id": "5.Q",
@@ -905,7 +905,7 @@
         {
           "id": "8.D",
           "name": "Sharp v1.0",
-          "item_count": 22
+          "item_count": 24
         },
         {
           "id": "8.E",
@@ -952,7 +952,7 @@
         {
           "id": "9.E",
           "name": "Navivox HTTP-only Hardening",
-          "item_count": 6
+          "item_count": 7
         },
         {
           "id": "9.F",

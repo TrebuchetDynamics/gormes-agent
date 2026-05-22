@@ -38,9 +38,18 @@ type Channel struct {
 
 	profileContacts map[string]ProfileContact
 	loadContacts    func(context.Context) ([]ProfileContact, error)
+	profileRouting  config.NavivoxProfileRoutingReport
 }
 
-func NewChannel(cfg config.NavivoxCfg, log *slog.Logger) (*Channel, error) {
+type ChannelOption func(*Channel)
+
+func WithProfileRouting(report config.NavivoxProfileRoutingReport) ChannelOption {
+	return func(c *Channel) {
+		c.profileRouting = report
+	}
+}
+
+func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) (*Channel, error) {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -62,7 +71,7 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger) (*Channel, error) {
 			return nil, err
 		}
 	}
-	return &Channel{
+	ch := &Channel{
 		cfg:             cfg,
 		log:             log,
 		now:             func() time.Time { return time.Now().UTC() },
@@ -70,7 +79,13 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger) (*Channel, error) {
 		sessions:        map[string]*sessionState{},
 		clients:         map[*client]struct{}{},
 		profileContacts: map[string]ProfileContact{},
-	}, nil
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(ch)
+		}
+	}
+	return ch, nil
 }
 
 func (c *Channel) Name() string { return PlatformName }
@@ -111,6 +126,7 @@ func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 	mux.HandleFunc("/healthz", c.handleHealthz)
 	mux.HandleFunc("/v1/navivox/status", c.withAuth(c.handleStatus))
 	mux.HandleFunc("/v1/navivox/profile-contacts", c.withAuth(c.handleProfileContacts))
+	mux.HandleFunc("/v1/navivox/profile-routing", c.withAuth(c.handleProfileRouting))
 	mux.HandleFunc("/v1/navivox/memory/overview", c.withAuth(c.handleMemoryOverview))
 	mux.HandleFunc("/v1/navivox/sessions", c.withAuth(c.handleSessions))
 	mux.HandleFunc("/v1/navivox/sessions/", c.withAuth(c.handleSessionByID))
@@ -280,12 +296,31 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 		"websocket_protocols": []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol},
 		"capabilities": []string{
 			"profile_contacts",
+			"profile_routing",
 			"memory_overview",
 			"stream_turns",
 			"tool_progress",
 			"safety_warnings",
 			"approval_required",
 			"turn_control",
+			"setup_handoff",
+		},
+		"setup_handoff": map[string]any{
+			"recommended_path":          "navivox",
+			"title":                     "Continue setup in Navivox",
+			"description":               "Pair your Android app and continue setup there.",
+			"steps":                     []string{"Choose provider", "Choose model", "Confirm workspace", "Enable channels"},
+			"mutation_policy":           "read_only_handoff",
+			"entry_screen":              "setup.provider",
+			"bridge_keepalive_required": true,
+			"bridge_lifecycle":          "termux_pair_command",
+			"sections": []map[string]string{
+				{"id": "provider", "title": "Choose provider", "navivox_screen": "setup.provider", "fallback_cli_command": "gormes setup provider"},
+				{"id": "model", "title": "Choose model", "navivox_screen": "setup.model", "fallback_cli_command": "gormes setup model"},
+				{"id": "workspace", "title": "Confirm workspace", "navivox_screen": "setup.workspace", "fallback_cli_command": "gormes setup workspace"},
+				{"id": "channels", "title": "Enable channels", "navivox_screen": "setup.channels", "fallback_cli_command": "gormes setup gateway"},
+			},
+			"cli_setup_command": "gormes setup",
 		},
 		"sessions":       sessionCount,
 		"ws_connections": clientCount,
@@ -303,6 +338,14 @@ func (c *Channel) handleProfileContacts(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	writeNavivoxJSON(w, http.StatusOK, profileContactSnapshot{Contacts: contacts})
+}
+
+func (c *Channel) handleProfileRouting(w http.ResponseWriter, r *http.Request, _ string) {
+	if r.Method != http.MethodGet {
+		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+		return
+	}
+	writeNavivoxJSON(w, http.StatusOK, c.profileRouting)
 }
 
 func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request, _ string) {

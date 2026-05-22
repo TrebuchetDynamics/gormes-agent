@@ -20,8 +20,11 @@ func DecodeValue(raw []byte) (Value, error) {
 	if len(lines) == 0 {
 		return Value{Kind: KindObject}, nil
 	}
-	if len(lines) == 1 && lines[0].text == "[]" {
+	if len(lines) == 1 && strings.TrimSpace(lines[0].text) == "[]" {
 		return Value{Kind: KindArray}, nil
+	}
+	if len(lines) == 1 && strings.TrimSpace(lines[0].text) == "{}" {
+		return Value{Kind: KindObject}, nil
 	}
 	if header, ok, err := parseHeader(lines[0].text); err != nil {
 		return Value{}, err
@@ -147,6 +150,9 @@ func parseField(lines []parsedLine, index, depth int) (Member, int, error) {
 	}
 	if rawValue == "[]" {
 		return Member{Key: key, Value: Value{Kind: KindArray}}, index + 1, nil
+	}
+	if rawValue == "{}" {
+		return Member{Key: key, Value: Value{Kind: KindObject}}, index + 1, nil
 	}
 	value, err := parsePrimitive(rawValue)
 	if err != nil {
@@ -314,6 +320,12 @@ func parseListItem(lines []parsedLine, index, depth int) (Value, int, error) {
 		return Value{}, index, fmt.Errorf("toon: expected list item on line %d", line.number)
 	}
 	body := strings.TrimSpace(strings.TrimPrefix(line.text, "- "))
+	if body == "[]" {
+		return Value{Kind: KindArray}, index + 1, nil
+	}
+	if body == "{}" {
+		return Value{Kind: KindObject}, index + 1, nil
+	}
 	if h, ok, err := parseHeader(body); err != nil {
 		return Value{}, index, err
 	} else if ok {
@@ -367,6 +379,9 @@ func parseListItem(lines []parsedLine, index, depth int) (Value, int, error) {
 
 func parsePrimitive(token string) (Value, error) {
 	token = strings.TrimSpace(token)
+	if token == "" {
+		return Value{}, fmt.Errorf("empty primitive token")
+	}
 	if strings.HasPrefix(token, `"`) {
 		s, err := unquoteTOONString(token)
 		if err != nil {
@@ -424,8 +439,14 @@ func unquoteTOONString(token string) (string, error) {
 				return "", fmt.Errorf("unterminated escape")
 			}
 			switch token[i+1] {
-			case '\\', '"':
+			case '\\', '"', '/':
 				b.WriteByte(token[i+1])
+				i += 2
+			case 'b':
+				b.WriteByte('\b')
+				i += 2
+			case 'f':
+				b.WriteByte('\f')
 				i += 2
 			case 'n':
 				b.WriteByte('\n')
@@ -446,7 +467,20 @@ func unquoteTOONString(token string) (string, error) {
 				}
 				r := rune(code)
 				if utf16.IsSurrogate(r) {
-					return "", fmt.Errorf("surrogate unicode escape rejected")
+					if !isHighSurrogate(r) || i+12 > len(token) || token[i+6] != '\\' || token[i+7] != 'u' {
+						return "", fmt.Errorf("invalid unicode surrogate pair")
+					}
+					lowCode, err := strconv.ParseUint(token[i+8:i+12], 16, 16)
+					if err != nil {
+						return "", fmt.Errorf("invalid unicode escape")
+					}
+					low := rune(lowCode)
+					if !isLowSurrogate(low) {
+						return "", fmt.Errorf("invalid unicode surrogate pair")
+					}
+					b.WriteRune(utf16.DecodeRune(r, low))
+					i += 12
+					continue
 				}
 				b.WriteRune(r)
 				i += 6
@@ -459,10 +493,21 @@ func unquoteTOONString(token string) (string, error) {
 		if r == utf8.RuneError && size == 1 {
 			return "", fmt.Errorf("invalid UTF-8")
 		}
+		if r < 0x20 {
+			return "", fmt.Errorf("unescaped control character")
+		}
 		b.WriteRune(r)
 		i += size
 	}
 	return "", fmt.Errorf("unterminated string")
+}
+
+func isHighSurrogate(r rune) bool {
+	return r >= 0xD800 && r <= 0xDBFF
+}
+
+func isLowSurrogate(r rune) bool {
+	return r >= 0xDC00 && r <= 0xDFFF
 }
 
 func firstUnquotedColon(s string) int {

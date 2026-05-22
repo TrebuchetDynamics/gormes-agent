@@ -210,17 +210,33 @@ witness.
 - **Reproduction**: Build or install `gormes` on a Termux device where
   `termux-exec` is loaded, then run any command such as
   `gormes --version`, `gormes version`, or `gormes doctor --offline`.
-- **Status**: `fixed-in-development` for the next release.
+- **Status**: `fixed-in-development` for the next release; not fixed in
+  public latest `v0.2.20`. Evidence on 2026-05-21: `v0.2.20` points at
+  tag commit `c27835f25d32`, the Termux recovery fix commit is
+  `72b4ee248475` and is on `origin/development`, and no `v0.2.21` tag
+  exists yet. Operators should treat the latest public Termux installer
+  as affected until a follow-up release is published.
   `cmd/gormes/main.go:sanitizeTermuxExecArgs` detects the injected path
   by comparing `os.Args[1]` (and `os.Args[2]` in the less-common shift
   case) against `os.Executable()`. When they match on `GOOS=android`,
-  the duplicate is stripped before the args reach Cobra. This makes
-  `gormes --version`, `gormes version`, and all subcommands work
-  correctly under Termux without affecting Linux, macOS, or Windows.
+  the duplicate is stripped before the args reach Cobra. A 2026-05-21
+  latest-release transcript showed v0.2.20 still failed when Android
+  reported the executable through `/data/user/0/com.termux/...` while
+  `termux-exec` injected the equivalent `/data/data/com.termux/...` path.
+  Development now normalizes that Termux package-path alias before
+  comparing, so `gormes --version`, `gormes version`, installer
+  publish-verification, and all subcommands work correctly under Termux
+  without affecting Linux, macOS, or Windows. The installer also treats a
+  Termux binary-fetch publish-verification failure as a recoverable release
+  binary runtime failure: it rolls back the bad copy, falls back to
+  source-build once, and republishes a verified command.
 - **Regression fence**:
   `cmd/gormes/termux_exec_args_test.go` covers both injection positions
-  (args[0] and args[1]), normal args passthrough, and the empty-exe
-  no-op path.
+  (args[0] and args[1]), `/data/data` versus `/data/user/0` Termux path
+  aliases, normal args passthrough, and the empty-exe no-op path.
+  `internal/installtest/termux_publish_recovery_test.go` covers the
+  binary-fetch publish-verification fallback to source-build and the final
+  rolled-back error when the source-build retry also cannot run `version`.
 
 ---
 

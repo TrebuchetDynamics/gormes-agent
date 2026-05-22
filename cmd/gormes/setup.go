@@ -64,6 +64,16 @@ func defaultSetupSections() []gormescli.SetupSection {
 	return sections
 }
 
+func setupCanonicalSection(section string) string {
+	section = strings.ToLower(strings.TrimSpace(section))
+	switch section {
+	case "providers":
+		return "provider"
+	default:
+		return section
+	}
+}
+
 func setupSectionLabel(section string) string {
 	if label, ok := setupSectionLabels[section]; ok {
 		return label
@@ -574,6 +584,7 @@ func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInt
 // only on success. An unknown section keeps the existing unsupported
 // behavior with no box. Section prompts/logic are unchanged.
 func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string, nonInteractive bool) error {
+	section = setupCanonicalSection(section)
 	if _, known := setupSectionLabels[section]; !known {
 		return setupSectionUnsupported(cmd, section)
 	}
@@ -1324,8 +1335,9 @@ func setupProviderNonInteractive(cmd *cobra.Command) error {
 	if endpoint == "" || apiKey == "" {
 		return fmt.Errorf("setup provider --non-interactive: GORMES_ENDPOINT and GORMES_API_KEY must be set")
 	}
-	model := strings.TrimSpace(os.Getenv("GORMES_MODEL"))
-	return writeProviderConfig(cmd, "", endpoint, apiKey, model)
+	provider := strings.TrimSpace(os.Getenv("GORMES_INFERENCE_PROVIDER"))
+	model := firstNonEmptySetup(os.Getenv("GORMES_MODEL"), os.Getenv("GORMES_INFERENCE_MODEL"))
+	return writeProviderConfig(cmd, provider, endpoint, apiKey, model)
 }
 
 func setupProviderInteractive(cmd *cobra.Command, seams setupCommandSeams) error {
@@ -2084,14 +2096,14 @@ func runSetupGatewaySection(cmd *cobra.Command, seams setupCommandSeams, nonInte
 			}
 			continue
 		}
-		if result.BubbleTea && platform != "whatsapp" {
-			fmt.Fprintf(out, "%s Bubble Tea setup is not shipped in this slice; use `gormes setup gateway --plan` and `gormes config edit` for now.\n", setupGatewayPlatformFallbackLabel(platform))
-			continue
-		}
 		if platform == "navivox" {
 			if err := runSetupNavivoxGateway(cmd, cfg); err != nil {
 				return err
 			}
+			continue
+		}
+		if result.BubbleTea && platform != "whatsapp" {
+			fmt.Fprintf(out, "%s Bubble Tea setup is not shipped in this slice; use `gormes setup gateway --plan` and `gormes config edit` for now.\n", setupGatewayPlatformFallbackLabel(platform))
 			continue
 		}
 		if err := seams.RunGatewayPlatform(cmd, platform); err != nil {

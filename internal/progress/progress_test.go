@@ -187,6 +187,112 @@ func containsString(values []string, want string) bool {
 	return false
 }
 
+func TestLoad_RealFile_GoscraplingCrawlerGate(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	items := itemsByName(p.Phases["5"].Subphases["5.C"].Items)
+	crawler := items["Goscrapling local crawler adapter gate for web_crawl"]
+	if crawler.Status != StatusPlanned || crawler.ContractStatus != ContractStatusDraft || crawler.Module != ModuleBrowser {
+		t.Fatalf("Goscrapling crawler gate metadata = status %q contract_status %q module %q, want planned/draft/browser", crawler.Status, crawler.ContractStatus, crawler.Module)
+	}
+	for _, want := range []string{
+		"go.mod::github.com/TrebuchetDynamics/goscrapling v0.1.0",
+		"github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/crawler.go:Crawler.Run",
+		"github.com/TrebuchetDynamics/goscrapling@v0.1.0/docs/content/building-goscrapling/builder-loop/blocked-slices.md:Robots.txt manager and delay directives",
+		"hermes-agent/tools/web_tools.py:web_crawl_tool",
+		"internal/tools/web_tools.go:executeCrawl",
+	} {
+		if !containsString(crawler.SourceRefs, want) {
+			t.Fatalf("Goscrapling crawler gate source_refs = %v, want %q", crawler.SourceRefs, want)
+		}
+	}
+	if !containsString(crawler.BlockedBy, "Goscrapling v0.1.x robots/cache/checkpoint release gate") {
+		t.Fatalf("Goscrapling crawler gate blocked_by = %v, want goscrapling release gate", crawler.BlockedBy)
+	}
+	if !containsString(crawler.TestCommands, "go test github.com/TrebuchetDynamics/goscrapling/spiders -run 'TestSpider$|TestSpiderAllowedDomains|TestSpiderEngineConcurrency' -count=1") {
+		t.Fatalf("Goscrapling crawler gate test_commands = %v, want external spider proof", crawler.TestCommands)
+	}
+}
+
+func TestLoad_RealFile_NativeTUISlashHandlerCoverage(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	items := itemsByName(p.Phases["5"].Subphases["5.Q"].Items)
+	coverage := items["Native TUI slash handler-port coverage"]
+	if coverage.Status != StatusPlanned || coverage.ContractStatus != ContractStatusFixtureReady || coverage.SliceSize != SliceSizeUmbrella || coverage.ExecutionOwner != ExecutionOwnerTui || coverage.Module != ModuleTUI {
+		t.Fatalf("Native TUI slash coverage metadata = status %q contract_status %q size %q owner %q module %q, want planned/fixture_ready/umbrella/tui/tui", coverage.Status, coverage.ContractStatus, coverage.SliceSize, coverage.ExecutionOwner, coverage.Module)
+	}
+	for _, want := range []string{
+		"hermes-agent/ui-tui/src/app/createSlashHandler.ts:createSlashHandler",
+		"hermes-agent/ui-tui/src/app/slash/registry.ts:SLASH_COMMANDS",
+		"hermes-agent/ui-tui/src/__tests__/slashParity.test.ts:MUTATING_COMMANDS",
+		"internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+		"internal/tui/slash_dispatch_behavior_test.go:TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit",
+		"internal/cli/command_registry.go:CommandRegistry",
+	} {
+		if !containsString(coverage.SourceRefs, want) {
+			t.Fatalf("Native TUI slash coverage source_refs = %v, want %q", coverage.SourceRefs, want)
+		}
+	}
+	if !containsString(coverage.TestCommands, "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback)|TestHermesSlashCompletion_UnavailableCommandsStillComplete' -count=1") {
+		t.Fatalf("Native TUI slash coverage test_commands = %v, want focused slash inventory guard", coverage.TestCommands)
+	}
+	for _, want := range []string{
+		"Native TUI /skin slash command binding",
+		"Native TUI /voice slash command binding",
+		"Native TUI /config slash command binding",
+		"Native TUI /tools slash command binding",
+	} {
+		if !containsString(coverage.Unblocks, want) {
+			t.Fatalf("Native TUI slash coverage unblocks = %v, want %q", coverage.Unblocks, want)
+		}
+	}
+}
+
+func TestLoad_RealFile_ProfileControlCenterV2Umbrella(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	items := itemsByName(p.Phases["5"].Subphases["5.O"].Items)
+	umbrella := items["Profile Control Center v2 umbrella — single root config and active services"]
+	if umbrella.Status != StatusPlanned || umbrella.ContractStatus != ContractStatusFixtureReady || umbrella.SliceSize != SliceSizeUmbrella || umbrella.ExecutionOwner != ExecutionOwnerTools || umbrella.Module != ModuleProfiles {
+		t.Fatalf("Profile Control Center umbrella metadata = status %q contract_status %q size %q owner %q module %q, want planned/fixture_ready/umbrella/tools/profiles", umbrella.Status, umbrella.ContractStatus, umbrella.SliceSize, umbrella.ExecutionOwner, umbrella.Module)
+	}
+	for _, want := range []string{
+		"docs/content/building-gormes/architecture_plan/profile-config-v2.md#invariants",
+		"docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+		"internal/config/profile_config_v2.go:ProfileCfg",
+		"internal/config/profile_config_v2.go:DefaultConfigDocumentV2",
+		"cmd/gormes/setup_profiles_tui.go:setupProfilesTUIState",
+		"internal/app/gormescli/modules/profiles/setup.go:SetupSections",
+	} {
+		if !containsString(umbrella.SourceRefs, want) {
+			t.Fatalf("Profile Control Center umbrella source_refs = %v, want %q", umbrella.SourceRefs, want)
+		}
+	}
+	if !strings.Contains(umbrella.NoTestRequiredReason, "Inventory-only umbrella") {
+		t.Fatalf("Profile Control Center umbrella no_test_required = %q, want inventory-only reason", umbrella.NoTestRequiredReason)
+	}
+	for _, want := range []string{
+		"Root config.toml v2 profile service schema",
+		"Profile Control Center read model",
+		"Profile Control Center TUI shell and draft apply flow",
+		"Canonical config.toml v2 profile schema docs",
+	} {
+		if !containsString(umbrella.Unblocks, want) {
+			t.Fatalf("Profile Control Center umbrella unblocks = %v, want %q", umbrella.Unblocks, want)
+		}
+	}
+}
+
 func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
@@ -729,8 +835,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if simpleX.Status != StatusPlanned {
 		t.Fatalf("Phase 7.E SimpleX status = %q, want planned", simpleX.Status)
 	}
-	if simpleX.ContractStatus != ContractStatusDraft || simpleX.Module != ModuleChannels {
-		t.Fatalf("Phase 7.E SimpleX metadata = contract_status %q module %q, want draft channels", simpleX.ContractStatus, simpleX.Module)
+	if simpleX.ContractStatus != ContractStatusFixtureReady || simpleX.Module != ModuleChannels {
+		t.Fatalf("Phase 7.E SimpleX metadata = contract_status %q module %q, want fixture_ready channels", simpleX.ContractStatus, simpleX.Module)
+	}
+	if simpleX.Fixture != "internal/channels/simplex/simplex_test.go" || !containsString(simpleX.SourceRefs, "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter._handle_new_chat_item") {
+		t.Fatalf("Phase 7.E SimpleX evidence = fixture %q refs %v, want fake-WebSocket fixture and upstream handler ref", simpleX.Fixture, simpleX.SourceRefs)
 	}
 	blueBubblesHA := longTailItems["BlueBubbles + HomeAssistant adapters"]
 	if blueBubblesHA.Status != StatusComplete {

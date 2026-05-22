@@ -429,6 +429,65 @@ func TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials(t *testing.T) 
 	}
 }
 
+func TestDiagnoseBrokenInstallSurfacesTermuxV021Recovery(t *testing.T) {
+	diagnose := readDoc(t, "content/troubleshooting/diagnose.md")
+	for _, want := range []string{
+		"Older Termux `v0.2.20` installs report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
+		"Install `v0.2.21` or newer",
+		"gormes doctor --offline",
+		"stale binary on PATH",
+	} {
+		if !strings.Contains(diagnose, want) {
+			t.Fatalf("diagnose broken install docs missing Termux v0.2.21 recovery text %q", want)
+		}
+	}
+}
+
+func TestTroubleshootingIndexSurfacesTermuxV021Recovery(t *testing.T) {
+	troubleshooting := readDoc(t, "content/troubleshooting/_index.md")
+	for _, want := range []string{
+		"Termux recovery note",
+		"`v0.2.21` carries the installer fix",
+		"unknown command /data/data/com.termux/files/usr/bin/gormes for gormes",
+		"older Termux install is still on PATH",
+		"[Common errors](./common-errors/)",
+	} {
+		if !strings.Contains(troubleshooting, want) {
+			t.Fatalf("troubleshooting index missing Termux v0.2.21 recovery text %q", want)
+		}
+	}
+}
+
+func TestCommonErrorsIncludesTermuxRecoveryAnswerTemplate(t *testing.T) {
+	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
+	for _, want := range []string{
+		"## Termux v0.2.21 recovery answer template",
+		"Public latest: `v0.2.21` carries the Termux executable-argument recovery.",
+		"Historical symptom: `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes` on affected `v0.2.20` installs.",
+		"Operator action: reinstall from the latest release",
+		"stale `v0.2.20` binary earlier on PATH",
+	} {
+		if !strings.Contains(commonErrors, want) {
+			t.Fatalf("common errors docs missing Termux recovery template text %q", want)
+		}
+	}
+}
+
+func TestCommonErrorsDocumentsTermuxV021Recovery(t *testing.T) {
+	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
+	for _, want := range []string{
+		"Termux install reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
+		"older `v0.2.20` Termux binary",
+		"Install `v0.2.21` or newer",
+		"which -a gormes",
+		"gormes doctor --offline",
+	} {
+		if !strings.Contains(commonErrors, want) {
+			t.Fatalf("common errors docs missing Termux v0.2.21 recovery text %q", want)
+		}
+	}
+}
+
 func TestChannelCapabilityMatrixDocs(t *testing.T) {
 	channels := readDoc(t, "content/cli/channels.md")
 	for _, want := range []string{
@@ -461,6 +520,54 @@ func TestChannelCapabilityMatrixDocs(t *testing.T) {
 	for _, want := range []string{"Runtime-ready", "Fixture-backed", "Planned"} {
 		if !strings.Contains(recipe, want) {
 			t.Fatalf("multi-channel recipe missing readiness label %q", want)
+		}
+	}
+}
+
+func TestWhyGormesComparisonMatrixDocumentsSafeTradeoffs(t *testing.T) {
+	whyGormes := readDoc(t, "content/why-gormes.md")
+	matrix := snippetAfter(t, "why-gormes", whyGormes, "## Public Comparison Matrix")
+
+	for _, want := range []string{
+		"| Axis | Gormes | Hermes | OpenClaw | Hosted agent services |",
+		"Operational stack",
+		"Channels/integrations",
+		"Learning loop",
+		"Ownership/control",
+		"Security/trust posture",
+		"First-run proof",
+		"local software",
+		"not hosted zero-infrastructure SaaS",
+		"no pip, no venv, no Docker daemon",
+		"`gormes doctor --offline`",
+	} {
+		if !strings.Contains(matrix, want) {
+			t.Fatalf("why-gormes comparison matrix missing %q", want)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"770+",
+		"star count",
+		"token ranking",
+		"CVE count",
+		"release count",
+		"no-terminal",
+		"drop-in replacement for every OpenClaw integration",
+	} {
+		if strings.Contains(matrix, forbidden) {
+			t.Fatalf("why-gormes comparison matrix contains unverified or overbroad claim %q", forbidden)
+		}
+	}
+
+	quickstart := readDoc(t, "content/start-here/_index.md")
+	for _, want := range []string{
+		"[Why Gormes](../why-gormes/#public-comparison-matrix)",
+		"Compare Gormes with Hermes, OpenClaw, and hosted agent services",
+		"local software, not hosted zero-infrastructure SaaS",
+	} {
+		if !strings.Contains(quickstart, want) {
+			t.Fatalf("quickstart docs missing comparison matrix link text %q", want)
 		}
 	}
 }
