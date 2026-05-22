@@ -75,6 +75,46 @@ func TestNavivoxConnectInfo_LocalMode_PrintsLoopbackOnly_JSON(t *testing.T) {
 	}
 }
 
+func TestNavivoxConnectInfo_TextOutputIncludesTerminalQRAndKeepsTokenOpaque(t *testing.T) {
+	prev := vpnhostList
+	t.Cleanup(func() { vpnhostList = prev })
+	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{
+			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+		}, nil
+	}
+
+	const sensitiveToken = "super-secret-token-9871"
+	cmd, buf := newConnectInfoTestCommand(t)
+	cfg := config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "100.64.1.2",
+		Port:         8765,
+		ExposureMode: config.NavivoxExposureTailscale,
+		AuthMode:     config.NavivoxAuthStaticToken,
+		Token:        sensitiveToken,
+	}
+	if err := runNavivoxConnectInfo(cmd, cfg, false); err != nil {
+		t.Fatal(err)
+	}
+	s := buf.String()
+	for _, want := range []string{
+		"Scan this QR from Navivox:",
+		"QR payload includes the token when required; the raw token is not printed.",
+		"navivox://connect descriptor",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("text output missing %q\noutput: %s", want, s)
+		}
+	}
+	if !strings.ContainsAny(s, "█▀▄") {
+		t.Fatalf("text output missing terminal QR block characters\noutput: %s", s)
+	}
+	if strings.Contains(s, sensitiveToken) || strings.Contains(s, "rest_token=") {
+		t.Fatalf("text output leaks raw token material\noutput: %s", s)
+	}
+}
+
 func TestNavivoxConnectInfo_NeverLeaksTokenValue(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })

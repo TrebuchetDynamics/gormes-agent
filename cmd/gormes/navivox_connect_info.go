@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
+	"strconv"
 	"strings"
 
+	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -70,7 +73,7 @@ func runNavivoxConnectInfo(cmd *cobra.Command, cfg config.NavivoxCfg, jsonOut bo
 	if jsonOut {
 		return writeNavivoxConnectInfoJSON(out, entries)
 	}
-	return writeNavivoxConnectInfoText(out, entries)
+	return writeNavivoxConnectInfoText(out, cfg, entries)
 }
 
 func buildNavivoxConnectInfoEntries(cmd *cobra.Command, cfg config.NavivoxCfg) []navivoxConnectInfoEntry {
@@ -129,7 +132,7 @@ func writeNavivoxConnectInfoJSON(out io.Writer, entries []navivoxConnectInfoEntr
 	return enc.Encode(navivoxConnectInfoReport{Entries: entries})
 }
 
-func writeNavivoxConnectInfoText(out io.Writer, entries []navivoxConnectInfoEntry) error {
+func writeNavivoxConnectInfoText(out io.Writer, cfg config.NavivoxCfg, entries []navivoxConnectInfoEntry) error {
 	if len(entries) == 0 {
 		fmt.Fprintln(out, "No reachable Navivox interfaces detected. If exposure_mode requires VPN, ensure Tailscale or WireGuard is up.")
 		return nil
@@ -143,6 +146,45 @@ func writeNavivoxConnectInfoText(out io.Writer, entries []navivoxConnectInfoEntr
 		fmt.Fprintf(out, "  - %s  (%s)%s\n", e.BaseURL, e.HostSource, tokenNote)
 		fmt.Fprintf(out, "    healthz: %s\n", e.HealthzURL)
 		fmt.Fprintf(out, "    websocket: %s\n", e.WebSocketURL)
+		qr, err := navivoxConnectInfoTerminalQR(cfg, e)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "    Scan this QR from Navivox:")
+		for _, line := range strings.Split(strings.TrimRight(qr, "\n"), "\n") {
+			fmt.Fprintf(out, "    %s\n", line)
+		}
+		fmt.Fprintln(out, "    navivox://connect descriptor is encoded in the QR.")
+		fmt.Fprintln(out, "    QR payload includes the token when required; the raw token is not printed.")
 	}
 	return nil
+}
+
+func navivoxConnectInfoTerminalQR(cfg config.NavivoxCfg, entry navivoxConnectInfoEntry) (string, error) {
+	descriptor, err := navivoxConnectInfoDescriptor(cfg, entry)
+	if err != nil {
+		return "", err
+	}
+	qr, err := qrcode.New(descriptor, qrcode.Medium)
+	if err != nil {
+		return "", fmt.Errorf("navivox connect-info: encode terminal QR: %w", err)
+	}
+	return qr.ToSmallString(false), nil
+}
+
+func navivoxConnectInfoDescriptor(cfg config.NavivoxCfg, entry navivoxConnectInfoEntry) (string, error) {
+	values := url.Values{}
+	values.Set("base_url", entry.BaseURL)
+	values.Set("websocket_url", entry.WebSocketURL)
+	values.Set("auth_mode", strings.TrimSpace(cfg.AuthMode))
+	values.Set("exposure_mode", strings.TrimSpace(cfg.ExposureMode))
+	values.Set("token_required", strconv.FormatBool(entry.TokenRequired))
+	if entry.TokenRequired {
+		token := strings.TrimSpace(cfg.Token)
+		if token == "" {
+			return "", fmt.Errorf("navivox connect-info: token auth selected but token is empty")
+		}
+		values.Set("rest_token", token)
+	}
+	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String(), nil
 }
