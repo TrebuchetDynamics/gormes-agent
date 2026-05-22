@@ -29,6 +29,12 @@ provider fallback, and runtime inspection.
 | [Fallback provider chain](fallback-providers/) | Keep runtime turns resilient when a provider fails. |
 | [Dashboard, status, and logs](dashboard-status-logs/) | Inspect the runtime while it is running. |
 
+## Android companion workflow
+
+| Task | Use it for |
+|---|---|
+| [Navivox and F-Droid](navivox-fdroid/) | Understand why F-Droid is the natural Android distribution target for Navivox and what evidence is required before claiming availability. |
+
 ## Related setup
 
 - [Configure providers](../configure/providers/) before provider-backed chat.
