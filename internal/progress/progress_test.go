@@ -187,6 +187,36 @@ func containsString(values []string, want string) bool {
 	return false
 }
 
+func TestLoad_RealFile_GoscraplingCrawlerGate(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	items := itemsByName(p.Phases["5"].Subphases["5.C"].Items)
+	crawler := items["Goscrapling local crawler adapter gate for web_crawl"]
+	if crawler.Status != StatusPlanned || crawler.ContractStatus != ContractStatusDraft || crawler.Module != ModuleBrowser {
+		t.Fatalf("Goscrapling crawler gate metadata = status %q contract_status %q module %q, want planned/draft/browser", crawler.Status, crawler.ContractStatus, crawler.Module)
+	}
+	for _, want := range []string{
+		"go.mod::github.com/TrebuchetDynamics/goscrapling v0.1.0",
+		"github.com/TrebuchetDynamics/goscrapling@v0.1.0/spiders/crawler.go:Crawler.Run",
+		"github.com/TrebuchetDynamics/goscrapling@v0.1.0/docs/content/building-goscrapling/builder-loop/blocked-slices.md:Robots.txt manager and delay directives",
+		"hermes-agent/tools/web_tools.py:web_crawl_tool",
+		"internal/tools/web_tools.go:executeCrawl",
+	} {
+		if !containsString(crawler.SourceRefs, want) {
+			t.Fatalf("Goscrapling crawler gate source_refs = %v, want %q", crawler.SourceRefs, want)
+		}
+	}
+	if !containsString(crawler.BlockedBy, "Goscrapling v0.1.x robots/cache/checkpoint release gate") {
+		t.Fatalf("Goscrapling crawler gate blocked_by = %v, want goscrapling release gate", crawler.BlockedBy)
+	}
+	if !containsString(crawler.TestCommands, "go test github.com/TrebuchetDynamics/goscrapling/spiders -run 'TestSpider$|TestSpiderAllowedDomains|TestSpiderEngineConcurrency' -count=1") {
+		t.Fatalf("Goscrapling crawler gate test_commands = %v, want external spider proof", crawler.TestCommands)
+	}
+}
+
 func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
