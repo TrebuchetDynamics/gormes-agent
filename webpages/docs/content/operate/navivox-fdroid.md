@@ -51,6 +51,15 @@ Do not treat Google Play as the first proof that Navivox belongs on Android.
 F-Droid is the audience-fit proof: open-source Android users can inspect, build,
 and install it without a Google account.
 
+## Listing copy guardrails
+
+Use this message shape for F-Droid-facing copy before the listing is real:
+
+- Short summary: Navivox is an open-source Android companion for a user-owned Gormes runtime.
+- Audience: Termux users, self-hosters, AI tinkerers, privacy-first users, and OSS Android users.
+- Promise: pair the app to your own Gormes gateway over HTTP/WebSocket; do not imply a hosted SaaS assistant.
+- Avoid saying: one-tap install, no setup required, hosted cloud assistant, or available on F-Droid.
+
 ## Release gate before claiming F-Droid availability
 
 Do not say "install from F-Droid" until all of these are evidenced in the repo
