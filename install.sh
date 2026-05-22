@@ -18,7 +18,7 @@
 #   GORMES_RESTART_GATEWAY restart policy for default gateway and active
 #                         profile gateway services: auto, always, never
 #                         (default: auto)
-#   GORMES_SKIP_SETUP     set to 1/true/yes/on to skip the setup wizard
+#   GORMES_SKIP_SETUP     set to 1/true/yes/on to skip the setup recommendation
 #   GORMES_GO_SHA256      optional expected SHA-256 for managed Go download
 #   GORMES_INSTALL_VERBOSE set to 1/true/yes/on for verbose installer diagnostics
 #
@@ -38,6 +38,7 @@ BRANCH="${GORMES_BRANCH:-main}"
 GO_VERSION="${GORMES_GO_VERSION:-1.26.0}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
 RUN_SETUP=true
+SETUP_COMPLETED=false
 SKIP_BROWSER=false
 VERBOSE="${GORMES_INSTALL_VERBOSE:-0}"
 DRY_RUN=0
@@ -163,7 +164,7 @@ Options:
                  installer checkout
   --dry-run      Print the resolved plan without cloning, building, publishing,
                  or restarting the gateway
-  --skip-setup   Skip the post-install setup wizard
+  --skip-setup   Skip the post-install setup recommendation
   --skip-browser Skip browser setup. Accepted for Hermes compatibility; Gormes
                  has no Playwright/Chromium install step.
   -v, --verbose  Print resolved paths, platform details, and step diagnostics
@@ -1701,6 +1702,18 @@ setup_tty_available() {
   (: < /dev/tty) >/dev/null 2>&1
 }
 
+print_setup_path_recommendation() {
+  log ""
+  log "Gormes installed successfully"
+  log "Choose setup path:"
+  log "  1. Navivox (recommended)"
+  log "     Pair your Android app and continue setup there."
+  log "  2. CLI setup"
+  log "     Continue fully in terminal."
+  log "Recommended next step: gormes navivox pair"
+  log "CLI setup command: gormes setup"
+}
+
 run_setup_wizard() {
   if [ "$RUN_SETUP" = "false" ]; then
     log_info "Skipping setup wizard (--skip-setup)"
@@ -1709,21 +1722,11 @@ run_setup_wizard() {
 
   if ! setup_tty_available; then
     log_info "Setup wizard skipped (no terminal available)."
-    log "Run 'gormes setup' after install."
+    print_setup_path_recommendation
     return 0
   fi
 
-  published_bin="$(pick_bin_dir)/gormes"
-  [ -x "$published_bin" ] || fail "setup wizard could not find installed gormes command: ${published_bin}"
-
-  log ""
-  log_info "Starting setup wizard"
-  log ""
-  if [ "${GORMES_INSTALL_TEST_HAS_TTY:-}" = "1" ]; then
-    "$published_bin" setup || fail "setup wizard failed"
-    return 0
-  fi
-  "$published_bin" setup < /dev/tty || fail "setup wizard failed"
+  print_setup_path_recommendation
 }
 
 json_escape() {
@@ -2151,15 +2154,15 @@ WantedBy=default.target
 SYSTEMDUNIT
 
   systemctl --user daemon-reload
-  # Skip auto-enable when the wizard was skipped: enabling a unit that
-  # requires [hermes].endpoint without configuring it first would crash-loop
-  # the gateway on next login. Operators who actually want auto-start can
-  # run `systemctl --user enable --now gormes-gateway` once setup completes.
-  if [ "$RUN_SETUP" = "false" ]; then
+  # Skip auto-enable until setup completes: enabling a unit that requires a
+  # configured provider/channel without setup would crash-loop the gateway on
+  # next login. Operators who actually want auto-start can run
+  # `systemctl --user enable --now gormes-gateway` once setup completes.
+  if [ "$RUN_SETUP" = "false" ] || [ "$SETUP_COMPLETED" != "true" ]; then
     log ""
-    log "systemd user service file installed (NOT auto-enabled under --skip-setup):"
+    log "systemd user service file installed (NOT auto-enabled until setup completes):"
     log "  ${service_file}"
-    log "After configuring [hermes].endpoint, enable with:"
+    log "After configuring Gormes, enable with:"
     log "  systemctl --user enable --now gormes-gateway"
     log "Then check:"
     log "  systemctl --user status gormes-gateway"
@@ -2216,6 +2219,15 @@ install_launchd_service() {
 </plist>
 PLISTUNIT
 
+  if [ "$RUN_SETUP" = "false" ] || [ "$SETUP_COMPLETED" != "true" ]; then
+    log ""
+    log "launchd service file installed (NOT loaded until setup completes):"
+    log "  ${plist_file}"
+    log "After configuring Gormes, load with:"
+    log "  launchctl bootstrap gui/$(id -u) ${plist_file}"
+    return 0
+  fi
+
   launchctl bootstrap "gui/$(id -u)" "$plist_file" 2>/dev/null || \
     launchctl load "$plist_file" 2>/dev/null || true
 
@@ -2255,17 +2267,17 @@ print_install_plan_body() {
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
     log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    if [ "$RUN_SETUP" = "false" ]; then
-      log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled under --skip-setup — run \`systemctl --user enable --now gormes-gateway\` after configuring [hermes].endpoint)"
-    else
-      log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
-    fi
+    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled until setup completes — run \`systemctl --user enable --now gormes-gateway\` after configuring Gormes)"
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   if ! sandbox_bin_dir_set && ! is_termux; then
     log "  profile_gateways: active gormes-gateway-*.service units follow restart_gateway policy"
   fi
-  log "  setup_wizard: ${RUN_SETUP}"
+  if [ "$RUN_SETUP" = "false" ]; then
+    log "  setup_wizard: skipped"
+  else
+    log "  setup_wizard: navivox-recommended"
+  fi
 }
 
 print_dry_run() {
@@ -2330,17 +2342,17 @@ print_verbose_plan() {
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
     log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    if [ "$RUN_SETUP" = "false" ]; then
-      log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled under --skip-setup — run \`systemctl --user enable --now gormes-gateway\` after configuring [hermes].endpoint)"
-    else
-      log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
-    fi
+    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled until setup completes — run \`systemctl --user enable --now gormes-gateway\` after configuring Gormes)"
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   if ! sandbox_bin_dir_set && ! is_termux; then
     log "  profile_gateways: active gormes-gateway-*.service units follow restart_gateway policy"
   fi
-  log "  setup_wizard: ${RUN_SETUP}"
+  if [ "$RUN_SETUP" = "false" ]; then
+    log "  setup_wizard: skipped"
+  else
+    log "  setup_wizard: navivox-recommended"
+  fi
 }
 
 acquire_install_lock() {

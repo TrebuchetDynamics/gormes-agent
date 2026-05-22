@@ -31,7 +31,12 @@ By default the installer:
 - publishes `gormes` to `$HOME/.local/bin/gormes` for non-root installs, or `/usr/local/bin/gormes` for root installs on Linux;
 - keeps managed state under `$HOME/.gormes`, including a managed source checkout at `$HOME/.gormes/gormes-agent` when a source build is used;
 - records install events to `$HOME/.gormes/install.log.jsonl`;
-- runs the post-install setup wizard when stdin is a terminal.
+- prints a Navivox-first setup menu instead of forcing terminal setup.
+
+The default post-install path is:
+
+1. `gormes navivox pair` — recommended. Pair the Android app and continue setup there.
+2. `gormes setup` — continue fully in the terminal.
 
 ## Termux on Android
 
@@ -132,7 +137,7 @@ The script attached to the latest GitHub Release is the canonical public install
 | `--build` (alias `--from-source`) | Build from source instead of fetching the release binary. Slower; needed for unsupported platforms or non-main branches. Equivalent env var: `GORMES_INSTALL_FROM_SOURCE=1`. |
 | `--local` | Build from the current working directory's checkout. Use when developing against a local clone. |
 | `--dry-run` | Print the resolved install plan (method, source, install home, published binary path) and exit without changing the machine. |
-| `--skip-setup` | Skip the post-install setup wizard. Equivalent env var: `GORMES_SKIP_SETUP=1`. |
+| `--skip-setup` | Skip the post-install setup recommendation. Equivalent env var: `GORMES_SKIP_SETUP=1`. |
 | `--uninstall [args]` | Delegate to `gormes uninstall` to remove Gormes. Flags after `--uninstall` pass through, for example `install.sh --uninstall --dry-run`. |
 | `--branch NAME` | Target a non-default branch. Triggers a source build because release binaries are only published from `main`. |
 | `--home DIR` | Override the managed install home (default: `$HOME/.gormes`). |
@@ -146,7 +151,7 @@ Equivalent install variants:
 # Preview the plan, do not write anything to disk
 sh install.sh --dry-run
 
-# Skip the post-install setup wizard
+# Skip the post-install setup recommendation
 sh install.sh --skip-setup
 
 # Force a source build even if a release binary is available
@@ -176,4 +181,4 @@ gormes doctor --offline
 
 If `gormes` is not found after install, open a new shell so the updated PATH is picked up, or add the installer's published bin directory to PATH manually (default: `$HOME/.local/bin`).
 
-To configure providers and channel credentials, run `gormes setup` once the offline doctor passes.
+Recommended setup path after install is `gormes navivox pair` so the Android app can continue configuration. To configure providers and channel credentials entirely in the terminal, run `gormes setup` once the offline doctor passes.
