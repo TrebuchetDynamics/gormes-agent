@@ -170,6 +170,43 @@ func TestProfileChannelSetupPlanWhatsAppSeparatesGroupAndDirectAllowedChats(t *t
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppRequiresAccessPolicy(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:    true,
+						Credential: "main-whatsapp",
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	plan := BuildChannelSetupPlan(cfg)
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	if whatsapp.Status != ChannelSetupStatusPartial {
+		t.Fatalf("whatsapp status = %q, want partial when credential lacks chat/user access policy: %+v", whatsapp.Status, whatsapp)
+	}
+	rendered := strings.Join(append(append([]string{}, whatsapp.Warnings...), whatsapp.PlannedWrites...), "\n")
+	for _, want := range []string{
+		"profiles.main.channels.whatsapp: channel_access_policy_missing (allowed_chats)",
+		"profiles.main.channels.whatsapp.allowed_chats or allowed_users -> config.toml",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup guidance missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, "GORMES_MAIN_WHATSAPP_TOKEN") {
+		t.Fatalf("whatsapp setup guidance leaked secret ref id:\n%s", rendered)
+	}
+}
+
 func TestChannelSetupPlanListsMessagingPlatforms(t *testing.T) {
 	plan := BuildChannelSetupPlan(config.Config{})
 	for _, want := range []string{"telegram", "discord", "slack", "whatsapp", "navivox"} {

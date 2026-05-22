@@ -89,6 +89,9 @@ func buildWhatsAppSetupEntry(cfg config.Config) ChannelSetupEntry {
 		)
 		for _, evidence := range binding.Evidence {
 			entry.Warnings = append(entry.Warnings, profilePrefix+": "+evidence.Code+" ("+evidence.Field+")")
+			if evidence.Code == ProfileChannelEvidenceAccessPolicyMissing {
+				entry.PlannedWrites = append(entry.PlannedWrites, profilePrefix+".allowed_chats or allowed_users -> config.toml")
+			}
 		}
 	}
 

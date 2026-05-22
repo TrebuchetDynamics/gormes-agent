@@ -15,6 +15,7 @@ const (
 	ProfileChannelEvidenceCredentialChannelMismatch = "channel_credential_channel_mismatch"
 	ProfileChannelEvidenceCredentialOwnerMismatch   = "channel_credential_owner_mismatch"
 	ProfileChannelEvidenceCredentialSecretMissing   = "channel_credential_secret_missing"
+	ProfileChannelEvidenceAccessPolicyMissing       = "channel_access_policy_missing"
 	ProfileChannelEvidenceTokenHashConflict         = "channel_token_hash_conflict"
 )
 
@@ -108,6 +109,7 @@ func buildProfileChannelBindingReadiness(cfg config.Config, profileID, channel s
 		VoiceProfileSet:        strings.TrimSpace(channelCfg.VoiceProfile) != "",
 	}
 	binding.Evidence = validateProfileChannelCredential(cfg, binding.ProfileID, binding.Channel, credentialID)
+	binding.Evidence = append(binding.Evidence, validateProfileChannelAccessPolicy(binding.ProfileID, binding.Channel, credentialID, allowedChats, allowedUsers)...)
 	if credentialID != "" {
 		if credential, ok := cfg.Credentials[credentialID]; ok {
 			binding.CredentialOwnerProfile = strings.TrimSpace(credential.OwnerProfile)
@@ -144,6 +146,13 @@ func validateProfileChannelCredential(cfg config.Config, profileID, channel, cre
 		evidence = append(evidence, newProfileChannelEvidence(ProfileChannelEvidenceCredentialSecretMissing, profileID, channel, credentialID, "secret_ref", "channel credential has no secret ref"))
 	}
 	return evidence
+}
+
+func validateProfileChannelAccessPolicy(profileID, channel, credentialID string, allowedChats, allowedUsers []string) []ProfileChannelReadinessEvidence {
+	if credentialID == "" || channel != "whatsapp" || len(allowedChats) > 0 || len(allowedUsers) > 0 {
+		return nil
+	}
+	return []ProfileChannelReadinessEvidence{newProfileChannelEvidence(ProfileChannelEvidenceAccessPolicyMissing, profileID, channel, credentialID, "allowed_chats", "profile channel has no WhatsApp chat or user allow-list")}
 }
 
 func applyProfileChannelTokenHashConflicts(report *ProfileChannelReadinessReport) {
