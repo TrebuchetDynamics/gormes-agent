@@ -524,6 +524,43 @@ func TestChannelCapabilityMatrixDocs(t *testing.T) {
 	}
 }
 
+func TestWhyGormesComparisonMatrixDocumentsSafeTradeoffs(t *testing.T) {
+	whyGormes := readDoc(t, "content/why-gormes.md")
+	matrix := snippetAfter(t, "why-gormes", whyGormes, "## Public Comparison Matrix")
+
+	for _, want := range []string{
+		"| Axis | Gormes | Hermes | OpenClaw | Hosted agent services |",
+		"Operational stack",
+		"Channels/integrations",
+		"Learning loop",
+		"Ownership/control",
+		"Security/trust posture",
+		"First-run proof",
+		"local software",
+		"not hosted zero-infrastructure SaaS",
+		"no pip, no venv, no Docker daemon",
+		"`gormes doctor --offline`",
+	} {
+		if !strings.Contains(matrix, want) {
+			t.Fatalf("why-gormes comparison matrix missing %q", want)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"770+",
+		"star count",
+		"token ranking",
+		"CVE count",
+		"release count",
+		"no-terminal",
+		"drop-in replacement for every OpenClaw integration",
+	} {
+		if strings.Contains(matrix, forbidden) {
+			t.Fatalf("why-gormes comparison matrix contains unverified or overbroad claim %q", forbidden)
+		}
+	}
+}
+
 func TestLearningLoopOperatorProofDocs(t *testing.T) {
 	learningLoop := readDoc(t, "content/building-gormes/core-systems/learning-loop.md")
 	for _, want := range []string{

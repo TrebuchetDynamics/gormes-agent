@@ -32,6 +32,19 @@ for the deterministic operator surface.
 
 Gormes ships as one focused `gormes` binary. The terminal TUI and the platform adapters (Telegram, Discord, Slack) are subcommands of that single binary (`gormes`, `gormes telegram`, `gormes gateway`), not separate artifacts that drag in unrelated dependency graphs at runtime. This is a surgical-strike architecture: clear ownership, one binary to copy and audit, cleaner crash boundaries, and less hidden weight.
 
+## Public Comparison Matrix
+
+Gormes is local software, not hosted zero-infrastructure SaaS. The practical choice is not "which agent is universally better"; it is which operating model matches the machine, team, and control boundary you need.
+
+| Axis | Gormes | Hermes | OpenClaw | Hosted agent services |
+|---|---|---|---|---|
+| Operational stack | One Go binary: no pip, no venv, no Docker daemon on the local runtime path. | Python-first runtime with the original Hermes behavior surface. | Fleet and gateway control plane with broader operations scope. | Remote service hides most runtime wiring, but moves control to the provider. |
+| Channels/integrations | Stable Telegram, Discord, and Slack now; broader adapters stay row-backed until proven. | Defines the upstream agent UX and skill behavior Gormes ports. | Strong channel/fleet orchestration story where OpenClaw owns the control plane. | Usually exposes managed connectors, with limits set by the hosted platform. |
+| Learning loop | Local skills, memory, curator state, and task evidence stay inspectable. | Upstream source for the Hermes-compatible learning-loop contract. | Useful operational memory and gateway evidence across the fleet. | Learning and retention behavior depends on the vendor's product surface. |
+| Ownership/control | Operator owns config, secrets, profiles, sessions, and SQLite state under `~/.gormes`. | Operator owns a Python environment and Hermes state. | Operator owns the fleet runtime and gateway configuration. | Vendor owns the runtime; operators configure access and policy. |
+| Security/trust posture | Local doctor checks, redacted config output, checksums, SBOMs, and roadmap labels are the trust evidence. | Trust comes from upstream code, environment hygiene, and operator review. | Trust comes from local gateway/process visibility and fleet docs. | Trust depends on hosted security posture, tenancy, and export controls. |
+| First-run proof | `gormes doctor --offline` proves local readiness before credentials or token spend. | Requires a working Python/runtime setup before parity behavior is available. | Proves fleet/gateway health through OpenClaw status commands. | Often starts quickly, but the proof happens inside the hosted service boundary. |
+
 ## Further Reading
 
 - [Quick Start on GitHub](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md)
