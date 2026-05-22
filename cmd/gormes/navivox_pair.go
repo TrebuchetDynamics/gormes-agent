@@ -254,6 +254,9 @@ func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string 
 	values := url.Values{}
 	values.Set("base_url", baseURL)
 	values.Set("websocket_url", wsURL)
+	values.Set("status_url", strings.TrimRight(baseURL, "/")+"/v1/navivox/status")
+	values.Set("setup_handoff", "true")
+	values.Set("recommended_path", "navivox")
 	values.Set("auth_mode", cfg.AuthMode)
 	values.Set("exposure_mode", cfg.ExposureMode)
 	values.Set("token_required", "true")

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -40,6 +41,33 @@ func TestNavivoxPairHelpExplainsOneTerminalFlow(t *testing.T) {
 	}
 	if strings.Contains(stdout+stderr, "Hermes") {
 		t.Fatalf("navivox pair help should not mention Hermes:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
+func TestNavivoxPairDescriptorIncludesSetupContinuationHints(t *testing.T) {
+	descriptor := navivoxPairDescriptor(config.NavivoxCfg{
+		AuthMode:     config.NavivoxAuthPairingToken,
+		ExposureMode: config.NavivoxExposureLocal,
+		Token:        "nvbx_test_token",
+	}, "http://127.0.0.1:8765", "ws://127.0.0.1:8765/v1/navivox/stream")
+	parsed, err := url.Parse(descriptor)
+	if err != nil {
+		t.Fatalf("parse descriptor: %v", err)
+	}
+	if parsed.Scheme != "navivox" || parsed.Host != "connect" {
+		t.Fatalf("descriptor target = %s://%s, want navivox://connect", parsed.Scheme, parsed.Host)
+	}
+	values := parsed.Query()
+	for key, want := range map[string]string{
+		"base_url":         "http://127.0.0.1:8765",
+		"websocket_url":    "ws://127.0.0.1:8765/v1/navivox/stream",
+		"status_url":       "http://127.0.0.1:8765/v1/navivox/status",
+		"setup_handoff":    "true",
+		"recommended_path": "navivox",
+	} {
+		if got := values.Get(key); got != want {
+			t.Fatalf("descriptor %s = %q, want %q in %s", key, got, want, descriptor)
+		}
 	}
 }
 
