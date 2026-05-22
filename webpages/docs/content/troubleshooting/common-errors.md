@@ -20,6 +20,7 @@ gormes gateway status
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `gormes` not found after `install.sh` | The current shell has not picked up the installer's published bin directory. Non-root Unix installs use `$HOME/.local/bin` by default. | Open a new shell, or add `export PATH="$HOME/.local/bin:$PATH"` to your shell rc. |
+| Termux install reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes` | The live `v0.2.20` latest-release installer can still hit the Termux executable-argument bug on affected devices. The fix is committed on `development`, but it is not released until a follow-up release is published. | Use source/local validation only if you intentionally build from `development`; otherwise wait for the follow-up release. Run `gormes version` after the follow-up release to confirm the installed binary. |
 | Command behavior looks stale or matches an older release | Multiple `gormes` binaries on `PATH`. | `which -a gormes` and run the intended path directly, or remove the older copy. |
 | `gormes chat -q "..."` fails with "provider auth missing" | No API key for the configured provider. | `gormes auth add <provider> --api-key ...` or run `gormes setup provider`. |
 | `gormes doctor` reports provider not reachable | Endpoint, network, or credential mismatch. | `gormes config show` and verify `[hermes].endpoint`, then re-run `gormes doctor`. |

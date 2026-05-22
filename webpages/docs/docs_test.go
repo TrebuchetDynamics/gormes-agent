@@ -429,6 +429,21 @@ func TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials(t *testing.T) 
 	}
 }
 
+func TestCommonErrorsDocumentsTermuxV020UnknownCommand(t *testing.T) {
+	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
+	for _, want := range []string{
+		"Termux install reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
+		"live `v0.2.20` latest-release installer",
+		"fix is committed on `development`",
+		"not released until a follow-up release is published",
+		"Run `gormes version` after the follow-up release",
+	} {
+		if !strings.Contains(commonErrors, want) {
+			t.Fatalf("common errors docs missing Termux v0.2.20 troubleshooting text %q", want)
+		}
+	}
+}
+
 func TestChannelCapabilityMatrixDocs(t *testing.T) {
 	channels := readDoc(t, "content/cli/channels.md")
 	for _, want := range []string{
