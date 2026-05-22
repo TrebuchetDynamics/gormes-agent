@@ -183,7 +183,7 @@ func (e *encoder) writeListItem(buf *bytes.Buffer, value Value, depth int) error
 	case KindObject:
 		if len(value.Object) == 0 {
 			e.writeIndent(buf, depth)
-			buf.WriteByte('-')
+			buf.WriteString("- {}")
 			return nil
 		}
 		first := value.Object[0]

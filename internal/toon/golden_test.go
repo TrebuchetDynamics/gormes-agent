@@ -60,6 +60,11 @@ func TestEncodeJSON_GoldenFixtures(t *testing.T) {
 			json: `{"matrix":[[],["a","b"]]}`,
 			want: "matrix[2]:\n  - []\n  - [2]: a,b",
 		},
+		{
+			name: "nested empty object list item shorthand",
+			json: `{"items":[{}, {"name":"Ada"}]}`,
+			want: "items[2]:\n  - {}\n  - name: Ada",
+		},
 	}
 
 	for _, tt := range tests {
