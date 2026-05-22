@@ -89,7 +89,7 @@ func BuildProfileChannelReadinessWithOptions(cfg config.Config, opts ProfileChan
 func buildProfileChannelBindingReadiness(cfg config.Config, profileID, channel string, channelCfg config.ProfileChannelCfg) ProfileChannelBindingReadiness {
 	channel = strings.ToLower(strings.TrimSpace(channel))
 	allowedChats := normalizedProfileChannelAllowList(channel, channelCfg.AllowedChats)
-	allowedUsers := normalizedProfileChannelAllowList(channel, channelCfg.AllowedUsers)
+	allowedUsers := normalizedProfileChannelAllowedUsers(channel, channelCfg.AllowedUsers)
 	allowedDirectChatCount, allowedGroupChatCount := profileChannelAllowedChatShapeCounts(channel, allowedChats)
 	credentialID := strings.TrimSpace(channelCfg.Credential)
 	binding := ProfileChannelBindingReadiness{
@@ -276,6 +276,24 @@ func normalizedProfileChannelAllowList(channel string, values []string) []string
 		return normalizedProfileChannelList(values)
 	}
 	return normalizedProfileChannelListWithCanonicalizer(values, strings.ToLower)
+}
+
+func normalizedProfileChannelAllowedUsers(channel string, values []string) []string {
+	if strings.ToLower(strings.TrimSpace(channel)) != "whatsapp" {
+		return normalizedProfileChannelList(values)
+	}
+	return normalizedProfileChannelListWithCanonicalizer(values, canonicalProfileChannelWhatsAppUserID)
+}
+
+func canonicalProfileChannelWhatsAppUserID(value string) string {
+	value = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(value)), "+")
+	if before, _, ok := strings.Cut(value, "@"); ok {
+		value = before
+	}
+	if before, _, ok := strings.Cut(value, ":"); ok {
+		value = before
+	}
+	return strings.TrimSpace(value)
 }
 
 func normalizedProfileChannelList(values []string) []string {

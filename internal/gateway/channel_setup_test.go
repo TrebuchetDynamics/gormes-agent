@@ -445,6 +445,42 @@ func TestProfileChannelSetupPlanWhatsAppSeparatesGroupAndDirectAllowedChats(t *t
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppCanonicalizesAllowedUserJIDForms(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net"},
+						AllowedUsers: []string{" +6586915095 ", "6586915095@s.whatsapp.net", "6586915095:47@s.whatsapp.net"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	plan := BuildChannelSetupPlan(cfg)
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	if whatsapp.Status != ChannelSetupStatusConfigured {
+		t.Fatalf("whatsapp status = %q, want configured after canonicalizing WhatsApp user ids: %+v", whatsapp.Status, whatsapp)
+	}
+	rendered := strings.Join(append(append([]string{}, whatsapp.CurrentValues...), whatsapp.Warnings...), "\n")
+	if !strings.Contains(rendered, "profiles.main.channels.whatsapp.allowed_users=1") {
+		t.Fatalf("whatsapp setup allowed user count missing canonicalized value:\n%s", rendered)
+	}
+	for _, forbidden := range []string{"+6586915095", "6586915095@s.whatsapp.net", "6586915095:47@s.whatsapp.net", "GORMES_MAIN_WHATSAPP_TOKEN"} {
+		if strings.Contains(rendered, forbidden) {
+			t.Fatalf("whatsapp setup allowed-user guidance leaked sensitive value %q:\n%s", forbidden, rendered)
+		}
+	}
+}
+
 func TestProfileChannelSetupPlanWhatsAppRequiresAccessPolicy(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
