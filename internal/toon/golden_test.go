@@ -51,6 +51,11 @@ func TestEncodeJSON_GoldenFixtures(t *testing.T) {
 			want: "[]",
 		},
 		{
+			name: "root empty object",
+			json: `{}`,
+			want: "{}",
+		},
+		{
 			name: "nested empty array list item shorthand",
 			json: `{"matrix":[[],["a","b"]]}`,
 			want: "matrix[2]:\n  - []\n  - [2]: a,b",

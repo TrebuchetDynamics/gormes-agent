@@ -58,6 +58,10 @@ func (e *encoder) indent() int {
 func (e *encoder) writeRoot(buf *bytes.Buffer, value Value) error {
 	switch value.Kind {
 	case KindObject:
+		if len(value.Object) == 0 {
+			buf.WriteString("{}")
+			return nil
+		}
 		return e.writeObjectFields(buf, value.Object, 0)
 	case KindArray:
 		if len(value.Array) == 0 {
