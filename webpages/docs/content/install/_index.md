@@ -10,6 +10,8 @@ Gormes ships as a single static Go binary. The Linux release build measures ~40 
 
 The Unix and Windows installers are release-first: they fetch the latest signed release archive for the host platform, then fall back to a managed source build only when a release asset is unavailable, when verification fails, when you ask for it, or when the target branch is not `main`.
 
+> **Termux/Android caveat:** The live `v0.2.20` latest-release installer can still fail publish verification on affected Termux devices, then report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`. The fix is committed on `development`, but Termux latest install should not be called repaired until a follow-up release is published.
+
 ## Pick your path
 
 - [Linux and macOS](./linux-macos/) — `install.sh` one-liner, inspect-first variant, customization flags, and `gormes doctor --offline` verification.
