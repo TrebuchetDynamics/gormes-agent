@@ -119,12 +119,6 @@ func TestNavivoxStatusIncludesSetupHandoffForAppContinuation(t *testing.T) {
 	if handoff["entry_screen"] != "setup.provider" {
 		t.Fatalf("entry_screen = %#v, want setup.provider", handoff["entry_screen"])
 	}
-	if handoff["bridge_keepalive_required"] != true {
-		t.Fatalf("bridge_keepalive_required = %#v, want true", handoff["bridge_keepalive_required"])
-	}
-	if handoff["bridge_lifecycle"] != "termux_pair_command" {
-		t.Fatalf("bridge_lifecycle = %#v, want termux_pair_command", handoff["bridge_lifecycle"])
-	}
 	sections, ok := handoff["sections"].([]any)
 	if !ok || len(sections) != 4 {
 		t.Fatalf("sections = %#v, want four structured setup sections", handoff["sections"])

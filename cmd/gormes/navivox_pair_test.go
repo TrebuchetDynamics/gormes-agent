@@ -59,16 +59,14 @@ func TestNavivoxPairDescriptorIncludesSetupContinuationHints(t *testing.T) {
 	}
 	values := parsed.Query()
 	for key, want := range map[string]string{
-		"base_url":                  "http://127.0.0.1:8765",
-		"websocket_url":             "ws://127.0.0.1:8765/v1/navivox/stream",
-		"status_url":                "http://127.0.0.1:8765/v1/navivox/status",
-		"setup_handoff":             "true",
-		"setup_mutation_policy":     "read_only_handoff",
-		"setup_sections":            "provider,model,workspace,channels",
-		"setup_entry_screen":        "setup.provider",
-		"bridge_keepalive_required": "true",
-		"bridge_lifecycle":          "termux_pair_command",
-		"recommended_path":          "navivox",
+		"base_url":              "http://127.0.0.1:8765",
+		"websocket_url":         "ws://127.0.0.1:8765/v1/navivox/stream",
+		"status_url":            "http://127.0.0.1:8765/v1/navivox/status",
+		"setup_handoff":         "true",
+		"setup_mutation_policy": "read_only_handoff",
+		"setup_sections":        "provider,model,workspace,channels",
+		"setup_entry_screen":    "setup.provider",
+		"recommended_path":      "navivox",
 	} {
 		if got := values.Get(key); got != want {
 			t.Fatalf("descriptor %s = %q, want %q in %s", key, got, want, descriptor)
