@@ -8,6 +8,9 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+### Fixed
+- Termux latest-release installer recovery is fixed on `development` but not yet released: affected live `v0.2.20` installs can still fail publish verification after copying the android-arm64 binary, then report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`. The unreleased fix normalizes Termux `/data/data` versus `/data/user/0` executable-path aliases before Cobra parsing and falls back from Termux binary-fetch publish verification failures to one source-build retry.
+
 ## [0.2.20] - 2026-05-21
 
 Date alias: `v2026.5.21`.
