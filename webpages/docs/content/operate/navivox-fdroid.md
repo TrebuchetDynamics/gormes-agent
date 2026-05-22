@@ -51,6 +51,15 @@ Do not treat Google Play as the first proof that Navivox belongs on Android.
 F-Droid is the audience-fit proof: open-source Android users can inspect, build,
 and install it without a Google account.
 
+## Why not start with Google Play
+
+Google Play is useful for reach later, but it is a poor first proof point for Navivox.
+
+- Store policy review can mistake self-hosted gateway setup for an unfinished app.
+- Privacy-first users may distrust a Google-account-only install path.
+- Commercial-store screenshots and copy reward broad consumer positioning, not developer-tool clarity.
+- F-Droid lets the first audience validate source, builds, permissions, and gateway pairing before a mass-market listing.
+
 ## Listing copy guardrails
 
 Use this message shape for F-Droid-facing copy before the listing is real:

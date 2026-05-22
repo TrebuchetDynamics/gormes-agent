@@ -39,3 +39,16 @@ func TestNavivoxFDroidDocsCarryListingCopyGuardrails(t *testing.T) {
 		"Avoid saying: one-tap install, no setup required, hosted cloud assistant, or available on F-Droid.",
 	})
 }
+
+func TestNavivoxFDroidDocsExplainWhyGooglePlayIsNotFirstProof(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## Why not start with Google Play",
+		"Google Play is useful for reach later, but it is a poor first proof point for Navivox.",
+		"Store policy review can mistake self-hosted gateway setup for an unfinished app.",
+		"Privacy-first users may distrust a Google-account-only install path.",
+		"Commercial-store screenshots and copy reward broad consumer positioning, not developer-tool clarity.",
+		"F-Droid lets the first audience validate source, builds, permissions, and gateway pairing before a mass-market listing.",
+	})
+}
