@@ -66,3 +66,16 @@ func TestNavivoxFDroidDocsNameAudienceFitMatrix(t *testing.T) {
 		"| OSS Android users | Discover tools through source-available, reproducible, community-reviewed channels. |",
 	})
 }
+
+func TestNavivoxFDroidDocsCarryPermissionAndPrivacyGuardrails(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## Permission and privacy guardrails",
+		"Ask for only the permissions the pairing flow needs.",
+		"Explain network access as communication with a local or user-configured Gormes gateway.",
+		"Do not bundle analytics SDKs, proprietary crash reporters, ad networks, or account trackers.",
+		"Document any broad-looking permission before release review so F-Droid users can audit the tradeoff.",
+		"Screenshots must not show real gateway URLs, pairing tokens, chat payloads, workspace paths, or provider names.",
+	})
+}

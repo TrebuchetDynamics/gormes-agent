@@ -79,6 +79,14 @@ Use this message shape for F-Droid-facing copy before the listing is real:
 - Promise: pair the app to your own Gormes gateway over HTTP/WebSocket; do not imply a hosted SaaS assistant.
 - Avoid saying: one-tap install, no setup required, hosted cloud assistant, or available on F-Droid.
 
+## Permission and privacy guardrails
+
+- Ask for only the permissions the pairing flow needs.
+- Explain network access as communication with a local or user-configured Gormes gateway.
+- Do not bundle analytics SDKs, proprietary crash reporters, ad networks, or account trackers.
+- Document any broad-looking permission before release review so F-Droid users can audit the tradeoff.
+- Screenshots must not show real gateway URLs, pairing tokens, chat payloads, workspace paths, or provider names.
+
 ## Release gate before claiming F-Droid availability
 
 Do not say "install from F-Droid" until all of these are evidenced in the repo
