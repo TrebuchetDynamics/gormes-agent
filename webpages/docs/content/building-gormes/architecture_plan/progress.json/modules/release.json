@@ -830,20 +830,26 @@
         "webpages/landing/src/data/release.json:tag",
         "README.md:Termux/Android caveat",
         "webpages/docs/content/install/_index.md:Termux/Android caveat",
-        "webpages/docs/content/troubleshooting/common-errors.md:Termux v0.2.20 unknown command"
+        "webpages/docs/content/troubleshooting/common-errors.md:Termux v0.2.20 unknown command",
+        "docs/development-skills/gormes-release/SKILL.md:Branch Rule",
+        "docs/development-skills/gormes-release/SKILL.md:Preflight Commands",
+        "docs/development-skills/gormes-release/SKILL.md:Workflow steps 7-12",
+        ".github/workflows/ci.yml:CI workflow"
       ],
       "ready_when": [
         "Operator explicitly approves a release-lane action for the Termux installer recovery.",
         "origin/development contains fix commit 72b4ee248475 or a superseding Termux installer recovery commit.",
         "The development branch is clean enough for the release skill to include or split all intended dirty work safely.",
-        "A concrete follow-up tag name is selected (default v0.2.21 unless superseded) and remote tag/release checks confirm it is available for creation or recovery."
+        "A concrete follow-up tag name is selected (default v0.2.21 unless superseded) and remote tag/release checks confirm it is available for creation or recovery.",
+        "The gormes-release preflight can fetch origin main/development/tags and verify gh authentication before opening or updating the development -> main release PR."
       ],
       "not_ready_when": [
         "No explicit release approval has been given for PR merge, tag, or public artifact publication.",
         "The development -> main PR is absent, red, unmergeable, or has not completed required checks.",
         "Any step would tag from development, push directly to main, bypass PR checks, or publish artifacts before main is green.",
         "A v0.2.21 tag or chosen superseding tag already exists and the operator has not requested recovery.",
-        "Version, README, landing release metadata, or caveats would be advanced to a follow-up tag before gh release evidence confirms the public tag and artifacts."
+        "Version, README, landing release metadata, or caveats would be advanced to a follow-up tag before gh release evidence confirms the public tag and artifacts.",
+        "GitHub authentication, origin fetches, development -> main PR checks, post-merge main workflow evidence, or tag-triggered Release Binaries evidence is missing, failing, or inconclusive."
       ],
       "blocked_by": [
         "explicit release-lane approval for Termux installer follow-up"
@@ -858,9 +864,10 @@
         "gh release view for the follow-up tag reports a non-draft, non-prerelease public release with install.sh and platform artifacts attached.",
         "Release notes, README, landing metadata, and install/troubleshooting caveats stop describing v0.2.20 as the latest repaired Termux path until the follow-up release evidence exists.",
         "Public caveat cleanup is covered by updated docs and landing tests so post-release README, install docs, troubleshooting docs, and the landing page no longer assert v0.2.20 is the latest affected Termux artifact.",
-        "Version metadata surfaces (`cmd/gormes/version.go`, README latest release text, and `webpages/landing/src/data/release.json`) name the follow-up tag only after the GitHub release exists and artifacts are attached."
+        "Version metadata surfaces (`cmd/gormes/version.go`, README latest release text, and `webpages/landing/src/data/release.json`) name the follow-up tag only after the GitHub release exists and artifacts are attached.",
+        "Release evidence includes the development -> main PR URL, PR check rollup, merged origin/main SHA, post-merge main workflow conclusions, and tag-triggered Release Binaries run before public Termux latest install is called repaired."
       ],
-      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish. Planner 2026-05-21 iteration 3: added explicit unblocks so the release lane knows this P0 row gates both the broad release-pipeline parent and removal of public v0.2.20 Termux caveats; also normalized the progress write_scope to the split backlog path. Planner 2026-05-21 iteration 6: added public docs and landing test refs, scopes, and validation commands so the follow-up release row also carries the post-release caveat-cleanup proof path. Planner 2026-05-21 iteration 7: added exact release workflow, version metadata, README, landing release data, and public caveat source refs plus a focused workflow/docs validation command so the blocked row has a complete post-release evidence path.",
+      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish. Planner 2026-05-21 iteration 3: added explicit unblocks so the release lane knows this P0 row gates both the broad release-pipeline parent and removal of public v0.2.20 Termux caveats; also normalized the progress write_scope to the split backlog path. Planner 2026-05-21 iteration 6: added public docs and landing test refs, scopes, and validation commands so the follow-up release row also carries the post-release caveat-cleanup proof path. Planner 2026-05-21 iteration 7: added exact release workflow, version metadata, README, landing release data, and public caveat source refs plus a focused workflow/docs validation command so the blocked row has a complete post-release evidence path. Planner 2026-05-21 iteration 8: pinned the release-skill PR/CI gate into this blocked row so future release execution must carry development -> main PR, post-merge main workflow, and tag-triggered Release Binaries evidence before public Termux latest is called repaired.",
       "blocker": {
         "title": "Publish follow-up release for Termux latest installer",
         "type": "decision",
@@ -898,12 +905,17 @@
         "go test ./webpages/docs ./webpages/docs/install -count=1",
         "(cd webpages/landing && npm run build)",
         "(cd webpages/landing && npm run test:e2e)",
-        "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|SmokeChecksBinaryVersionMetadata)|TestInstallDocsWarnTermuxV020LatestReleaseCaveat' -count=1"
+        "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|SmokeChecksBinaryVersionMetadata)|TestInstallDocsWarnTermuxV020LatestReleaseCaveat' -count=1",
+        "git fetch origin main development --tags",
+        "gh auth status",
+        "gh pr list --head development --base main --state open --json number,url,title",
+        "gh run list --branch main --limit 20 --json workflowName,headSha,status,conclusion,url"
       ],
       "done_signal": [
         "Report the merged main commit, follow-up tag, public GitHub release URL, artifact verification, and a latest-release Termux installer transcript that no longer reproduces the v0.2.20 unknown-command failure.",
         "The `Single-binary cross-platform release pipeline` parent no longer lists this row as its active blocker, or a superseding release-pipeline row cites the follow-up release evidence.",
-        "Report the exact version/public-surface updates: `cmd/gormes/version.go`, README latest-release text, `webpages/landing/src/data/release.json`, and the docs/landing caveat removals or replacements."
+        "Report the exact version/public-surface updates: `cmd/gormes/version.go`, README latest-release text, `webpages/landing/src/data/release.json`, and the docs/landing caveat removals or replacements.",
+        "Report the release PR URL/check rollup, origin/main merge SHA, post-merge main workflow run URLs, and tag-triggered Release Binaries run URL before declaring live Termux latest install fixed."
       ],
       "provenance": {
         "origin_type": "gormes"
