@@ -330,6 +330,14 @@ func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	switch runes[0] {
+	case 'j':
+		if m.selected < len(m.state.Profiles)-1 {
+			m.selected++
+		}
+	case 'k':
+		if m.selected > 0 {
+			m.selected--
+		}
 	case 'n':
 		m.mode = setupProfilesModeAddProfile
 		m.input = ""
@@ -366,6 +374,11 @@ func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 func (m setupProfilesModel) handleEnter() (tea.Model, tea.Cmd) {
 	value := strings.TrimSpace(m.input)
 	switch m.mode {
+	case setupProfilesModeBrowse:
+		if m.result.Selected == "" {
+			m.result.Selected = m.currentProfile().Name
+		}
+		return m, tea.Quit
 	case setupProfilesModeAddProfile:
 		if value != "" {
 			view := setupProfileView{Name: value, Root: value}
@@ -426,11 +439,13 @@ func (m setupProfilesModel) View() string {
 	fmt.Fprintln(&b, "  set active updates the sticky active_profile marker")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Commands")
+	fmt.Fprintln(&b, "j/k or Up/Down move profile")
 	fmt.Fprintln(&b, "n add profile")
 	fmt.Fprintln(&b, "w edit workspaces")
 	fmt.Fprintln(&b, "c edit channels")
 	fmt.Fprintln(&b, "a set active")
 	fmt.Fprintln(&b, "s save")
+	fmt.Fprintln(&b, "Enter save selected profile")
 	fmt.Fprintln(&b, "q cancel")
 	switch m.mode {
 	case setupProfilesModeAddProfile:
@@ -450,7 +465,7 @@ func (m setupProfilesModel) View() string {
 			}
 			fmt.Fprintf(&b, "%s %s %s\n", cursor, marker, channel)
 		}
-		fmt.Fprintln(&b, "Space toggle  Up/Down move  Enter done")
+		fmt.Fprintln(&b, "Space toggle  j/k or Up/Down move  Enter done  q back")
 	}
 	return setupProfilesWrapView(b.String(), m.viewWidth(), m.viewHeight())
 }
@@ -488,7 +503,14 @@ func setupProfilesWrapView(view string, width, height int) string {
 		out = append(out, setupProfilesWrapLine(strings.TrimRight(line, " \t"), width)...)
 	}
 	out = setupProfilesClampHeight(out, width, height)
-	return strings.TrimRight(strings.Join(out, "\n"), "\n")
+	for i, line := range out {
+		line = setupProfilesTrimToWidth(line, width)
+		if pad := width - lipgloss.Width(line); pad > 0 {
+			line += strings.Repeat(" ", pad)
+		}
+		out[i] = line
+	}
+	return strings.Join(out, "\n")
 }
 
 func setupProfilesWrapLine(line string, width int) []string {
@@ -570,6 +592,11 @@ func setupProfilesClampHeight(lines []string, width, height int) []string {
 		}
 		if strings.Contains(lines[i], "Workspace") || strings.Contains(lines[i], "New profile:") {
 			tailStart = i
+			break
+		}
+		if strings.TrimSpace(lines[i]) == "Commands" {
+			tailStart = i
+			tailCount = min(9, len(lines)-tailStart)
 			break
 		}
 	}
