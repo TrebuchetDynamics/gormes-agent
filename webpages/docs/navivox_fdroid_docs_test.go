@@ -118,3 +118,16 @@ func TestNavivoxFDroidDocsCarryScreenshotReviewChecklist(t *testing.T) {
 		"Keep every screenshot reproducible from public fixtures or redacted demo profiles before submission.",
 	})
 }
+
+func TestNavivoxFDroidDocsCarrySubmissionHandoffChecklist(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## F-Droid submission handoff checklist",
+		"Link the source repository, license, release tag, build commit, APK SHA-256, and clean install smoke result in one handoff note.",
+		"Include F-Droid metadata status, screenshots, permission rationale, and first-run pairing copy for reviewer context.",
+		"Name any reproducibility caveat or non-free dependency risk before opening the submission request.",
+		"Keep Google Play, direct APK, and GitHub release notes labeled as adjacent channels, not proof of F-Droid availability.",
+		"Track reviewer questions and follow-up fixes beside the handoff so availability claims wait for accepted metadata.",
+	})
+}

@@ -111,6 +111,14 @@ Use this message shape for F-Droid-facing copy before the listing is real:
 - Avoid Google Play badges, hosted-account claims, cloud-assistant screenshots, and generic chatbot positioning.
 - Keep every screenshot reproducible from public fixtures or redacted demo profiles before submission.
 
+## F-Droid submission handoff checklist
+
+- Link the source repository, license, release tag, build commit, APK SHA-256, and clean install smoke result in one handoff note.
+- Include F-Droid metadata status, screenshots, permission rationale, and first-run pairing copy for reviewer context.
+- Name any reproducibility caveat or non-free dependency risk before opening the submission request.
+- Keep Google Play, direct APK, and GitHub release notes labeled as adjacent channels, not proof of F-Droid availability.
+- Track reviewer questions and follow-up fixes beside the handoff so availability claims wait for accepted metadata.
+
 ## Release gate before claiming F-Droid availability
 
 Do not say "install from F-Droid" until all of these are evidenced in the repo
