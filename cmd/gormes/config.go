@@ -89,6 +89,23 @@ type configMigrateReportJSON struct {
 	Wrote       bool                `json:"wrote"`
 }
 
+type configProfileMigrateReportJSON struct {
+	Build            buildProvenanceJSON `json:"build"`
+	Mode             string              `json:"mode"`
+	Path             string              `json:"path"`
+	DryRun           bool                `json:"dry_run"`
+	NoOp             bool                `json:"no_op"`
+	Wrote            bool                `json:"wrote"`
+	BackupPath       string              `json:"backup_path,omitempty"`
+	Profiles         []string            `json:"profiles"`
+	Credentials      []string            `json:"credentials"`
+	SecretEnvTargets []string            `json:"secret_env_targets"`
+	ManualActions    []string            `json:"manual_actions"`
+	Conflicts        []string            `json:"conflicts"`
+	FallbackReads    []string            `json:"fallback_reads"`
+	Preview          []string            `json:"preview"`
+}
+
 // editorRunner abstracts the two operations `gormes config edit` performs
 // against the host: locating an editor binary on PATH and spawning it
 // against the resolved config path. Production wiring uses os/exec; tests
@@ -580,6 +597,9 @@ func newConfigCheckCommand() *cobra.Command {
 }
 
 func newConfigMigrateCommand() *cobra.Command {
+	var asJSON bool
+	var profilesV2 bool
+	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "migrate",
 		Short: "Apply native Gormes config.toml schema/default migrations",
@@ -589,15 +609,24 @@ This command updates only the native Gormes config schema (TOML config_version
 and any default fill-ins). It is a no-op when the file is already at the
 current version. Atomic writes guarantee the file is never left half-written.
 
+Use --profiles-v2 to convert legacy Gormes root/per-profile config state into
+the single-root profile config v2 shape. Use --dry-run with --profiles-v2 to
+preview the redacted profile migration without writing.
+
 Importing upstream Hermes or OpenClaw state is a separate concern; use
 ` + "`gormes migrate hermes`" + ` or ` + "`gormes migrate openclaw`" + ` for those cross-product paths.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if dryRun && !profilesV2 {
+				return errors.New("gormes config migrate: --dry-run requires --profiles-v2")
+			}
+			if profilesV2 {
+				return runConfigProfilesV2Migration(cmd, dryRun, asJSON)
+			}
 			result, err := config.MigrateConfigFile(config.ConfigPath())
 			out := cmd.OutOrStdout()
 			if err != nil {
 				return err
 			}
-			asJSON, _ := cmd.Flags().GetBool("json")
 			if asJSON {
 				body, marshalErr := json.MarshalIndent(configMigrateReportJSON{
 					Build:       newBuildProvenance(),
@@ -622,6 +651,130 @@ Importing upstream Hermes or OpenClaw state is a separate concern; use
 			return nil
 		},
 	}
-	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, path, from_version, to_version, no_op, wrote}`")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, path, from_version, to_version, no_op, wrote}` or a profile-v2 migration summary with --profiles-v2")
+	cmd.Flags().BoolVar(&profilesV2, "profiles-v2", false, "migrate legacy Gormes root/per-profile config state into single-root profile config v2")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "preview the --profiles-v2 migration without writing config.toml or creating a backup")
 	return cmd
+}
+
+func runConfigProfilesV2Migration(cmd *cobra.Command, dryRun, asJSON bool) error {
+	out := cmd.OutOrStdout()
+	if dryRun {
+		plan, err := config.PlanProfileConfigV2Migration(config.ProfileMigrationV2Options{})
+		if err != nil {
+			return err
+		}
+		if asJSON {
+			return writeConfigProfileMigrateJSON(out, plan, "", dryRun, false)
+		}
+		writeConfigProfileMigrateText(out, plan, "", dryRun, false)
+		return nil
+	}
+	result, err := config.ApplyProfileConfigV2Migration(config.ProfileMigrationV2Options{})
+	if err != nil {
+		return err
+	}
+	if asJSON {
+		return writeConfigProfileMigrateJSON(out, result.Plan, result.BackupPath, dryRun, result.Wrote)
+	}
+	writeConfigProfileMigrateText(out, result.Plan, result.BackupPath, dryRun, result.Wrote)
+	return nil
+}
+
+func writeConfigProfileMigrateJSON(out io.Writer, plan config.ProfileMigrationV2Plan, backupPath string, dryRun, wrote bool) error {
+	body, err := json.MarshalIndent(configProfileMigrateReportJSON{
+		Build:            newBuildProvenance(),
+		Mode:             "profile_v2",
+		Path:             plan.ConfigPath,
+		DryRun:           dryRun,
+		NoOp:             plan.NoOp,
+		Wrote:            wrote,
+		BackupPath:       backupPath,
+		Profiles:         configProfileMigrationProfileIDs(plan.ProfileAdditions),
+		Credentials:      configProfileMigrationCredentialIDs(plan.CredentialAdditions),
+		SecretEnvTargets: configProfileMigrationSecretTargets(plan.SecretMovements),
+		ManualActions:    configProfileMigrationManualActionCodes(plan.ManualActions),
+		Conflicts:        configProfileMigrationConflictIDs(plan.Conflicts),
+		FallbackReads:    configProfileMigrationFallbackReadCodes(plan.FallbackReads),
+		Preview:          append([]string(nil), plan.PreviewLines...),
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(out, string(body))
+	return err
+}
+
+func writeConfigProfileMigrateText(out io.Writer, plan config.ProfileMigrationV2Plan, backupPath string, dryRun, wrote bool) {
+	if plan.NoOp {
+		fmt.Fprintf(out, "no-op: %s already has profile config v2\n", plan.ConfigPath)
+		return
+	}
+	if dryRun {
+		fmt.Fprintf(out, "profile v2 migration preview for %s\n", plan.ConfigPath)
+	} else {
+		fmt.Fprintf(out, "migrated profile config v2 for %s (wrote=%t", plan.ConfigPath, wrote)
+		if backupPath != "" {
+			fmt.Fprintf(out, ", backup=%s", backupPath)
+		}
+		fmt.Fprintln(out, ")")
+	}
+	for _, line := range plan.PreviewLines {
+		fmt.Fprintf(out, "  %s\n", line)
+	}
+	for _, target := range configProfileMigrationSecretTargets(plan.SecretMovements) {
+		fmt.Fprintf(out, "  move secret to %s (redacted)\n", target)
+	}
+}
+
+func configProfileMigrationProfileIDs(profiles []config.ProfileMigrationV2ProfileAddition) []string {
+	ids := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		ids = append(ids, profile.ID)
+	}
+	return ids
+}
+
+func configProfileMigrationCredentialIDs(credentials []config.ProfileMigrationV2CredentialAddition) []string {
+	ids := make([]string, 0, len(credentials))
+	for _, credential := range credentials {
+		ids = append(ids, credential.ID)
+	}
+	return ids
+}
+
+func configProfileMigrationSecretTargets(moves []config.ProfileMigrationV2SecretMovement) []string {
+	ids := make([]string, 0, len(moves))
+	for _, move := range moves {
+		ids = append(ids, move.TargetEnv)
+	}
+	return ids
+}
+
+func configProfileMigrationManualActionCodes(actions []config.ProfileMigrationV2ManualAction) []string {
+	codes := make([]string, 0, len(actions))
+	for _, action := range actions {
+		codes = append(codes, action.Code)
+	}
+	return codes
+}
+
+func configProfileMigrationConflictIDs(conflicts []config.ProfileMigrationV2Conflict) []string {
+	ids := make([]string, 0, len(conflicts))
+	for _, conflict := range conflicts {
+		ids = append(ids, conflict.Kind+":"+conflict.ID)
+	}
+	return ids
+}
+
+func configProfileMigrationFallbackReadCodes(reads []config.ProfileMigrationV2FallbackRead) []string {
+	codes := make([]string, 0, len(reads))
+	seen := map[string]bool{}
+	for _, read := range reads {
+		if !seen[read.Code] {
+			codes = append(codes, read.Code)
+			seen[read.Code] = true
+		}
+	}
+	return codes
 }
