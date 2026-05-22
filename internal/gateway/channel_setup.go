@@ -23,6 +23,12 @@ type ChannelSetupPlan struct {
 	GatewayAction string
 }
 
+// ChannelSetupPlanOptions carries optional read-only runtime evidence used to
+// enrich setup guidance without reading live state from disk.
+type ChannelSetupPlanOptions struct {
+	Pairing PairingStatus
+}
+
 type ChannelSetupEntry struct {
 	ID             string
 	DisplayName    string
@@ -35,19 +41,25 @@ type ChannelSetupEntry struct {
 }
 
 func BuildChannelSetupPlan(cfg config.Config) ChannelSetupPlan {
+	return BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{})
+}
+
+// BuildChannelSetupPlanWithOptions builds setup guidance from config plus
+// caller-supplied read-model evidence such as gateway pairing status.
+func BuildChannelSetupPlanWithOptions(cfg config.Config, opts ChannelSetupPlanOptions) ChannelSetupPlan {
 	return ChannelSetupPlan{
 		Channels: []ChannelSetupEntry{
 			buildTelegramSetupEntry(cfg.Telegram),
 			buildDiscordSetupEntry(cfg.Discord),
 			buildSlackSetupEntry(cfg.Slack),
-			buildWhatsAppSetupEntry(cfg),
+			buildWhatsAppSetupEntry(cfg, opts.Pairing),
 			buildNavivoxSetupEntry(cfg.Navivox),
 		},
 		GatewayAction: "Start or restart messaging with: gormes gateway",
 	}
 }
 
-func buildWhatsAppSetupEntry(cfg config.Config) ChannelSetupEntry {
+func buildWhatsAppSetupEntry(cfg config.Config, pairing PairingStatus) ChannelSetupEntry {
 	entry := ChannelSetupEntry{
 		ID:          "whatsapp",
 		DisplayName: "WhatsApp",
@@ -104,7 +116,37 @@ func buildWhatsAppSetupEntry(cfg config.Config) ChannelSetupEntry {
 	default:
 		entry.Status = ChannelSetupStatusPartial
 	}
+	applyWhatsAppPairingSetupStatus(&entry, pairing)
 	return entry
+}
+
+func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingStatus) {
+	if entry == nil {
+		return
+	}
+	for _, platform := range pairing.Platforms {
+		if !strings.EqualFold(strings.TrimSpace(platform.Platform), "whatsapp") {
+			continue
+		}
+		state := PairingPlatformState(strings.ToLower(strings.TrimSpace(string(platform.State))))
+		if state == "" {
+			return
+		}
+		entry.CurrentValues = append(entry.CurrentValues,
+			"whatsapp.pairing="+string(state),
+			"whatsapp.pairing_approved_users="+strconv.Itoa(platform.ApprovedCount),
+			"whatsapp.pairing_pending_codes="+strconv.Itoa(platform.PendingCount),
+		)
+		if state == PairingPlatformStatePaired && entry.Status == ChannelSetupStatusConfigured {
+			entry.Status = ChannelSetupStatusPaired
+			entry.NextCommand = "gormes gateway"
+		}
+		if state == PairingPlatformStateUnpaired && entry.Status == ChannelSetupStatusConfigured {
+			entry.Warnings = append(entry.Warnings, "WhatsApp pairing is not complete; run gormes whatsapp to link a device.")
+			entry.PlannedWrites = append(entry.PlannedWrites, "WhatsApp pairing session -> gormes whatsapp")
+		}
+		return
+	}
 }
 
 func buildTelegramSetupEntry(cfg config.TelegramCfg) ChannelSetupEntry {
