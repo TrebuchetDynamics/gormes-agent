@@ -424,8 +424,14 @@ func unquoteTOONString(token string) (string, error) {
 				return "", fmt.Errorf("unterminated escape")
 			}
 			switch token[i+1] {
-			case '\\', '"':
+			case '\\', '"', '/':
 				b.WriteByte(token[i+1])
+				i += 2
+			case 'b':
+				b.WriteByte('\b')
+				i += 2
+			case 'f':
+				b.WriteByte('\f')
 				i += 2
 			case 'n':
 				b.WriteByte('\n')

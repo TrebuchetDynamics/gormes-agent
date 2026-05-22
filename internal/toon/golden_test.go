@@ -91,6 +91,13 @@ func TestDecodeJSON_GoldenFixtures(t *testing.T) {
 			toon: `emoji: "faces \ud83d\ude00"`,
 			want: `{"emoji":"faces 😀"}`,
 		},
+		{
+			name: "quoted JSON-compatible escapes",
+			toon: `path: "https:\/\/example.com\/a"
+backspace: "a\bb"
+formfeed: "a\fb"`,
+			want: `{"path":"https://example.com/a","backspace":"a\bb","formfeed":"a\fb"}`,
+		},
 	}
 
 	for _, tt := range tests {
