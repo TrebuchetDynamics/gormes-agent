@@ -255,6 +255,44 @@ func TestLoad_RealFile_NativeTUISlashHandlerCoverage(t *testing.T) {
 	}
 }
 
+func TestLoad_RealFile_ProfileControlCenterV2Umbrella(t *testing.T) {
+	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	items := itemsByName(p.Phases["5"].Subphases["5.O"].Items)
+	umbrella := items["Profile Control Center v2 umbrella — single root config and active services"]
+	if umbrella.Status != StatusPlanned || umbrella.ContractStatus != ContractStatusFixtureReady || umbrella.SliceSize != SliceSizeUmbrella || umbrella.ExecutionOwner != ExecutionOwnerTools || umbrella.Module != ModuleProfiles {
+		t.Fatalf("Profile Control Center umbrella metadata = status %q contract_status %q size %q owner %q module %q, want planned/fixture_ready/umbrella/tools/profiles", umbrella.Status, umbrella.ContractStatus, umbrella.SliceSize, umbrella.ExecutionOwner, umbrella.Module)
+	}
+	for _, want := range []string{
+		"docs/content/building-gormes/architecture_plan/profile-config-v2.md#invariants",
+		"docs/content/building-gormes/architecture_plan/profile-config-v2.md#profile-control-center",
+		"internal/config/profile_config_v2.go:ProfileCfg",
+		"internal/config/profile_config_v2.go:DefaultConfigDocumentV2",
+		"cmd/gormes/setup_profiles_tui.go:setupProfilesTUIState",
+		"internal/app/gormescli/modules/profiles/setup.go:SetupSections",
+	} {
+		if !containsString(umbrella.SourceRefs, want) {
+			t.Fatalf("Profile Control Center umbrella source_refs = %v, want %q", umbrella.SourceRefs, want)
+		}
+	}
+	if !strings.Contains(umbrella.NoTestRequiredReason, "Inventory-only umbrella") {
+		t.Fatalf("Profile Control Center umbrella no_test_required = %q, want inventory-only reason", umbrella.NoTestRequiredReason)
+	}
+	for _, want := range []string{
+		"Root config.toml v2 profile service schema",
+		"Profile Control Center read model",
+		"Profile Control Center TUI shell and draft apply flow",
+		"Canonical config.toml v2 profile schema docs",
+	} {
+		if !containsString(umbrella.Unblocks, want) {
+			t.Fatalf("Profile Control Center umbrella unblocks = %v, want %q", umbrella.Unblocks, want)
+		}
+	}
+}
+
 func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
 	p, err := Load("../../docs/content/building-gormes/architecture_plan/progress.json")
 	if err != nil {
