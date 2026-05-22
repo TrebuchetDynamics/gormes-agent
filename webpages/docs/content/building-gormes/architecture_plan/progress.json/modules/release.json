@@ -821,7 +821,8 @@
         "cmd/gormes/main.go:sanitizeTermuxExecArgs",
         "internal/installtest/termux_publish_recovery_test.go:TestTermuxBinaryFetchPublishVerificationFallsBackToSourceBuild",
         "internal/installtest/termux_publish_recovery_test.go:TestTermuxBinaryFetchPublishRecoveryReportsSourceBuildVerificationFailure",
-        "AGENTS.md:development -> PR -> main -> tag branch rule"
+        "AGENTS.md:development -> PR -> main -> tag branch rule",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/release.json:Single-binary cross-platform release pipeline"
       ],
       "ready_when": [
         "Operator explicitly approves a release-lane action for the Termux installer recovery.",
@@ -837,13 +838,17 @@
       "blocked_by": [
         "explicit release-lane approval for Termux installer follow-up"
       ],
+      "unblocks": [
+        "Single-binary cross-platform release pipeline",
+        "Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs"
+      ],
       "acceptance": [
         "The development -> main PR containing the Termux installer fix merges only after required checks pass.",
         "The follow-up tag/release is created from origin/main, not development, and the chosen tag is not the already-affected v0.2.20 release.",
         "gh release view for the follow-up tag reports a non-draft, non-prerelease public release with install.sh and platform artifacts attached.",
         "Release notes, README, landing metadata, and install/troubleshooting caveats stop describing v0.2.20 as the latest repaired Termux path until the follow-up release evidence exists."
       ],
-      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish.",
+      "note": "Planner 2026-05-21: moved the documented Termux latest-installer release blocker into the canonical progress backlog so release follow-up is not tracked only in TODO.md. This row is intentionally blocked until explicit release-lane approval; do not use it as permission to merge, tag, or publish. Planner 2026-05-21 iteration 3: added explicit unblocks so the release lane knows this P0 row gates both the broad release-pipeline parent and removal of public v0.2.20 Termux caveats; also normalized the progress write_scope to the split backlog path.",
       "blocker": {
         "title": "Publish follow-up release for Termux latest installer",
         "type": "decision",
@@ -865,7 +870,7 @@
         "webpages/landing/src/data/landing.js",
         "webpages/docs/content/install/",
         "webpages/docs/content/troubleshooting/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run TestSanitizeTermuxExecArgsWithExe -count=1",
@@ -877,7 +882,8 @@
         "gh release view v0.2.21 --json tagName,url,isDraft,isPrerelease,targetCommitish"
       ],
       "done_signal": [
-        "Report the merged main commit, follow-up tag, public GitHub release URL, artifact verification, and a latest-release Termux installer transcript that no longer reproduces the v0.2.20 unknown-command failure."
+        "Report the merged main commit, follow-up tag, public GitHub release URL, artifact verification, and a latest-release Termux installer transcript that no longer reproduces the v0.2.20 unknown-command failure.",
+        "The `Single-binary cross-platform release pipeline` parent no longer lists this row as its active blocker, or a superseding release-pipeline row cites the follow-up release evidence."
       ],
       "provenance": {
         "origin_type": "gormes"
