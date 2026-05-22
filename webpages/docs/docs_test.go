@@ -559,6 +559,17 @@ func TestWhyGormesComparisonMatrixDocumentsSafeTradeoffs(t *testing.T) {
 			t.Fatalf("why-gormes comparison matrix contains unverified or overbroad claim %q", forbidden)
 		}
 	}
+
+	quickstart := readDoc(t, "content/start-here/_index.md")
+	for _, want := range []string{
+		"[Why Gormes](../why-gormes/#public-comparison-matrix)",
+		"Compare Gormes with Hermes, OpenClaw, and hosted agent services",
+		"local software, not hosted zero-infrastructure SaaS",
+	} {
+		if !strings.Contains(quickstart, want) {
+			t.Fatalf("quickstart docs missing comparison matrix link text %q", want)
+		}
+	}
 }
 
 func TestLearningLoopOperatorProofDocs(t *testing.T) {

@@ -63,6 +63,12 @@ export const page = {
       title: 'Static Go binary',
       body: 'Install or copy one binary across Linux, macOS, Windows, Termux, and locked-down servers.',
     },
+    {
+      title: 'Comparison matrix',
+      body: 'Gormes is local software, not hosted zero-infrastructure SaaS; compare it with Hermes, OpenClaw, and hosted services on the operator axes buyers use.',
+      linkLabel: 'Compare Gormes with Hermes, OpenClaw, and hosted services',
+      href: 'https://docs.gormes.ai/why-gormes/#public-comparison-matrix',
+    },
   ],
   worksHeadline: 'What works today',
   worksIntro:
