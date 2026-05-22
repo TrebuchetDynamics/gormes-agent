@@ -2217,59 +2217,93 @@
       "name": "Hermes skill catalog strict-fidelity classifier",
       "priority": "P1",
       "status": "planned",
-      "contract": "Classify Hermes bundled and optional skill catalog files into Gormes skill-store rows, catalog-copy rows, unsupported-skill exclusions, or owned-divergence notes. The classifier must preserve SKILL.md metadata, support-file/reference layout, DESCRIPTION.md category docs, optional-skill install status, and docs-site generation boundaries without blindly copying Python-only examples into runtime packages.",
-      "contract_status": "draft",
-      "slice_size": "large",
+      "contract": "Build a report-only Hermes skill catalog strict-fidelity classifier for `cmd/repoctl hermes-contract-inventory`: scan the current `hermes-agent/skills` and `hermes-agent/optional-skills` trees, group exact `SKILL.md`, `DESCRIPTION.md`, and supporting-file examples into deterministic surface families (bundled catalog metadata, optional catalog metadata, category descriptions, prerequisites/readiness metadata, triggers/tags/related skills, support assets, sync/reset boundaries, and Python/script-only examples), and attach each family to an existing Gormes skill-store row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not copy bundled skill content into Gormes, execute support scripts, mutate `internal/skills` behavior, or claim strict skill-catalog parity without row/source-pair/test proof.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
       "execution_owner": "docs",
       "module": "skills",
       "trust_class": [
         "operator",
         "system"
       ],
-      "degraded_mode": "Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.",
-      "fixture": "internal/skills optional skill strict-fidelity catalog fixtures",
+      "degraded_mode": "Until this classifier lands, strict-fidelity reports can only show Hermes bundled/optional skill files as broad unmapped buckets, so Gormes must avoid claiming complete skill catalog, optional-skill, or support-file parity.",
+      "fixture": "internal/repoctl/hermes_contract_inventory_skills_test.go",
       "source_refs": [
-        "hermes-agent/skills/yuanbao/SKILL.md",
-        "hermes-agent/skills/creative/popular-web-designs/SKILL.md",
-        "hermes-agent/skills/productivity/notion/SKILL.md",
-        "hermes-agent/optional-skills/research/osint-investigation/SKILL.md",
-        "hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md",
-        "internal/skills"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Skill manager/hub/sync/guard",
+        "internal/fidelity/report.go:buildCandidateInventory",
+        "internal/repoctl/hermes_contract_inventory.go:RenderHermesContractInventoryMarkdown",
+        "internal/repoctl/hermes_contract_inventory_test.go:TestWriteHermesContractInventoryWritesJSONAndMarkdown",
+        "hermes-agent/agent/skill_commands.py:scan_skill_commands",
+        "hermes-agent/agent/skill_preprocessing.py:preprocess_skill_content",
+        "hermes-agent/agent/skill_utils.py:extract_skill_conditions",
+        "hermes-agent/tools/skills_tool.py:_find_all_skills",
+        "hermes-agent/tools/skill_manager_tool.py:_resolve_skill_target",
+        "hermes-agent/tools/skills_sync.py:sync_skills",
+        "hermes-agent/skills/yuanbao/SKILL.md:metadata.hermes.tags",
+        "hermes-agent/skills/creative/popular-web-designs/SKILL.md:triggers",
+        "hermes-agent/skills/productivity/notion/SKILL.md:prerequisites.env_vars",
+        "hermes-agent/skills/creative/DESCRIPTION.md",
+        "hermes-agent/optional-skills/DESCRIPTION.md",
+        "hermes-agent/optional-skills/research/osint-investigation/SKILL.md:metadata.hermes.category",
+        "hermes-agent/optional-skills/devops/pinggy-tunnel/SKILL.md:metadata.hermes.related_skills",
+        "hermes-agent/optional-skills/creative/concept-diagrams/references/dashboard-patterns.md",
+        "hermes-agent/optional-skills/creative/concept-diagrams/templates/template.html",
+        "internal/skills/parser.go:Parse",
+        "internal/skills/list.go:ListInstalledSkillsFromRoots",
+        "internal/skills/profile_sync.go:SyncBundledSkillsToProfiles",
+        "internal/skills/update_sync.go:SyncBundledSkillsFromManifest",
+        "internal/skills/preprocess.go:PreprocessSkillContent",
+        "internal/skills/parser_test.go:TestOptionalSkillCatalogHermesV014Metadata",
+        "internal/skills/list_test.go:TestListInstalledSkills_StatusColumnPopulated",
+        "internal/skills/update_sync_test.go:TestSyncBundledSkillsFromManifestUsesDigestThreeWayAndConflictCopies",
+        "internal/skills/profile_sync_test.go:TestBundledSkillProfileSyncWritesActiveAndNamedProfiles"
       ],
       "ready_when": [
-        "`webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA.",
-        "The row uses exact Hermes files/tests as evidence, not only broad directory globs.",
-        "The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests."
+        "The builder works in the report/fidelity layer and uses synthetic Hermes skill-tree fixtures; no live skill install, network registry, Python runtime, shell script execution, profile sync mutation, or docs-site generation is required.",
+        "The row maps skill catalog evidence to canonical progress/source-pair/exclusion outputs only; runtime parsing, list/view, sync, profile copy, curator, and skill_manage behavior stay in existing rows unless a family is explicitly split into a child row.",
+        "Existing `internal/skills` tests remain the runtime safety baseline; this row only teaches the strict-fidelity inventory how to classify upstream bundled and optional skill catalog files by surface family."
       ],
       "not_ready_when": [
-        "The implementation treats low-confidence taxonomy matches as proof of coverage.",
-        "The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping.",
-        "The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first."
+        "The implementation imports, executes, vendors, copies, or rewrites Hermes skill content or support scripts instead of reading paths, frontmatter, and report evidence.",
+        "The classifier marks a skill family covered without a validated complete row, covered source-pair, or exact Go test evidence for the equivalent Gormes behavior.",
+        "The change edits live `internal/skills` runtime behavior, bundled skill payloads, profile directories, public landing content, or creates TODO/issue side queues outside progress.json and hermes-source-pairs evidence."
+      ],
+      "unblocks": [
+        "Hermes skill_manage support-file and curator intent actions",
+        "Native skills list/view tool surface",
+        "Hermes ui-tui strict-fidelity action matrix"
       ],
       "acceptance": [
-        "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
-        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
-        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
-        "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
+        "TestHermesContractInventoryClassifiesSkillCatalogSurface builds a fixture Hermes `skills`/`optional-skills` tree containing bundled SKILL.md files, optional SKILL.md files, DESCRIPTION.md category docs, prerequisites metadata, triggers/tags/related-skills metadata, and references/templates/scripts/assets examples, then proves the generated report lists deterministic skill-catalog surface rows with exact examples and progress/source-pair/exclusion attachment state.",
+        "The Markdown/JSON report gains a skill catalog strict-fidelity classification section or candidate table rows whose family names and example paths are stable and sorted; anonymous `skills/**` or `optional-skills/**` examples are not the only evidence for this bucket.",
+        "Families with existing Gormes fixtures point at exact tests for parsing, metadata, installed list rows, profile sync, manifest sync, preprocessing, and skill prompt/slash-command exposure; missing or intentionally divergent Python/script-only examples remain planned, excluded, or owned-divergence instead of covered.",
+        "The report code never imports, executes, installs, or copies Hermes skill assets and preserves strict-mode semantics: covered requires validated row/source-pair evidence, while planned/excluded/owned-divergence remain explicit non-coverage classifications."
       ],
-      "note": "draft_until: classifier pass narrows this strict-fidelity bucket into exact child rows, source-pair mappings, or exclusions; strict_fidelity_origin: 2026-05-18 report shows 378 unmapped `skills` docs, 224 unmapped `optional-skills` docs, and 86 combined skill source files.",
+      "note": "Planner 2026-05-22 development-loop iteration 7: converted the Hermes skill catalog strict-fidelity bucket from a broad draft into a fixture-ready report-classifier slice. Runtime skill parsing, sync, profile copy, curator, and skill_manage ports remain separate rows; this slice only classifies upstream `skills` and `optional-skills` evidence for strict-fidelity reports.",
       "write_scope": [
-        "internal/skills",
+        "internal/fidelity/report.go",
+        "internal/fidelity/report_test.go",
+        "internal/repoctl/hermes_contract_inventory.go",
+        "internal/repoctl/hermes_contract_inventory_test.go",
+        "internal/repoctl/hermes_contract_inventory_skills_test.go",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/skills -count=1",
+        "go test ./internal/repoctl -run TestHermesContractInventoryClassifiesSkillCatalogSurface -count=1",
+        "go test ./internal/repoctl ./internal/fidelity -count=1",
+        "go test ./internal/skills -run 'TestParseSkill|TestOptionalSkillCatalogHermesV014Metadata|TestListInstalledSkills|TestSyncBundledSkills|TestPreprocessSkillContent|TestRuntimeBuildSkillBlock' -count=1",
         "go run ./cmd/repoctl hermes-source-pairs validate",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root ."
+        "go run ./cmd/progress validate",
+        "git diff --check"
       ],
       "done_signal": [
-        "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
+        "Hermes skill catalog strict-fidelity output groups bundled and optional skill files into deterministic surface families with exact row/source-pair/exclusion evidence, while runtime skill behavior remains unchanged and no unsupported full skill-catalog parity claim is made."
       ],
       "provenance": {
         "origin_type": "hybrid",
-        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
-        "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
+        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634 plus current hermes-agent/skills and hermes-agent/optional-skills catalog surface",
+        "note": "Hermes owns the bundled/optional skill catalog contract; Gormes owns the report-only classifier that maps skill catalog evidence to Go skill-store progress, source-pair, exclusion, or owned-divergence state before runtime ports are selected."
       }
     }
   },
