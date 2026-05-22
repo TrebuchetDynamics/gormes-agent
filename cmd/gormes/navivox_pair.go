@@ -34,8 +34,17 @@ func newNavivoxPairCommand() *cobra.Command {
 		port: config.NavivoxDefaultPort,
 	}
 	cmd := &cobra.Command{
-		Use:          "pair",
-		Short:        "Create a local Navivox pairing handoff",
+		Use:   "pair",
+		Short: "Create a local Navivox pairing handoff",
+		Long: `Start a local Navivox bridge, generate a pairing token, write a QR image,
+print the localhost URL, then wait for the Android app to connect.
+
+Use this after the installer recommends Navivox setup:
+
+Keep the Termux session open after Navivox connects; it owns the local bridge.`,
+		Example: `  gormes navivox pair
+  gormes navivox pair --port 8765
+  gormes navivox pair --no-wait`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runNavivoxPair(cmd, opts)

@@ -21,6 +21,28 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
+func TestNavivoxPairHelpExplainsOneTerminalFlow(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--help")
+	if err != nil {
+		t.Fatalf("navivox pair --help: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Start a local Navivox bridge, generate a pairing token, write a QR image,",
+		"print the localhost URL, then wait for the Android app to connect.",
+		"Use this after the installer recommends Navivox setup:",
+		"gormes navivox pair",
+		"Keep the Termux session open after Navivox connects; it owns the local bridge.",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("help output missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout+stderr, "Hermes") {
+		t.Fatalf("navivox pair help should not mention Hermes:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
 func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
