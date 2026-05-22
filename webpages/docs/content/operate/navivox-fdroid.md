@@ -87,6 +87,14 @@ Use this message shape for F-Droid-facing copy before the listing is real:
 - Document any broad-looking permission before release review so F-Droid users can audit the tradeoff.
 - Screenshots must not show real gateway URLs, pairing tokens, chat payloads, workspace paths, or provider names.
 
+## Privacy policy and data safety checklist
+
+- State that Navivox talks to a local or user-configured Gormes gateway over HTTP/WebSocket.
+- Explain that pairing tokens, gateway URLs, profile names, and chat payloads stay user-controlled and must not be uploaded to a hosted Navivox service.
+- List any on-device storage for gateway settings, profile metadata, cached messages, logs, or crash reports before submission.
+- Declare that the F-Droid build has no analytics SDKs, ad networks, proprietary trackers, or third-party account requirement.
+- If optional diagnostics ever exist, make them opt-in, redacted, and documented before store review.
+
 ## Metadata readiness checklist
 
 - Keep the listing title, summary, and description focused on a user-owned Gormes companion, not a generic chatbot.

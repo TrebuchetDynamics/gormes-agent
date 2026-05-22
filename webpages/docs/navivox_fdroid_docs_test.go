@@ -144,3 +144,16 @@ func TestNavivoxFDroidDocsCarryFirstRunPairingChecklist(t *testing.T) {
 		"Do not promise no setup, one-tap onboarding, Google-account sync, or cloud chatbot behavior in the listing or first-run flow.",
 	})
 }
+
+func TestNavivoxFDroidDocsCarryPrivacyPolicyDataSafetyChecklist(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## Privacy policy and data safety checklist",
+		"State that Navivox talks to a local or user-configured Gormes gateway over HTTP/WebSocket.",
+		"Explain that pairing tokens, gateway URLs, profile names, and chat payloads stay user-controlled and must not be uploaded to a hosted Navivox service.",
+		"List any on-device storage for gateway settings, profile metadata, cached messages, logs, or crash reports before submission.",
+		"Declare that the F-Droid build has no analytics SDKs, ad networks, proprietary trackers, or third-party account requirement.",
+		"If optional diagnostics ever exist, make them opt-in, redacted, and documented before store review.",
+	})
+}
