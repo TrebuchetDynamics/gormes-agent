@@ -57,6 +57,7 @@ type Report struct {
 	Inventory            InventoryCounts           `json:"inventory"`
 	Candidates           CandidateInventory        `json:"candidates"`
 	PluginCatalog        []CatalogFamilyReport     `json:"plugin_catalog,omitempty"`
+	SkillCatalog         []CatalogFamilyReport     `json:"skill_catalog,omitempty"`
 	UnmappedUpstream     UpstreamUnmappedInventory `json:"unmapped_upstream"`
 	ReleaseCheckpoints   []ReleaseCheckpoint       `json:"release_checkpoints,omitempty"`
 	ContinuityCategories []ContinuityCategory      `json:"continuity_categories,omitempty"`
@@ -281,6 +282,7 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 	}
 	rows := flattenProgress(prog)
 	report.PluginCatalog = buildPluginCatalogClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
+	report.SkillCatalog = buildSkillCatalogClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
 	definitions := defaultSurfaces()
 	mappedUpstream := mappedUpstreamRefs(definitions, sourcePairs.Pairs, rows)
 	report.UnmappedUpstream = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream, rows)
@@ -1472,6 +1474,263 @@ func deriveCatalogFamilyStatus(family CatalogFamilyReport) (Status, string, stri
 		return StatusVague, "Only vague progress evidence matched this plugin family.", "low"
 	}
 	return StatusMissing, "Upstream plugin files are present without source-pair, progress-row, exclusion, or owned-divergence evidence.", "low"
+}
+
+type skillCatalogFamilyDefinition struct {
+	ID       string
+	Title    string
+	Keywords []string
+}
+
+func defaultSkillCatalogFamilies() []skillCatalogFamilyDefinition {
+	return []skillCatalogFamilyDefinition{
+		{
+			ID:       "bundled_catalog_metadata",
+			Title:    "Bundled Skill Catalog Metadata",
+			Keywords: []string{"bundled", "portable skill", "skill.md format", "skill metadata", "prompt exposure", "slash-command"},
+		},
+		{
+			ID:       "optional_catalog_metadata",
+			Title:    "Optional Skill Catalog Metadata",
+			Keywords: []string{"optional", "optional skill", "catalog metadata", "metadata.hermes category"},
+		},
+		{
+			ID:       "category_descriptions",
+			Title:    "Skill Category Descriptions",
+			Keywords: []string{"description", "category", "category description"},
+		},
+		{
+			ID:       "prerequisites_readiness_metadata",
+			Title:    "Prerequisites And Readiness Metadata",
+			Keywords: []string{"prerequisite", "readiness", "env", "credential", "guard", "condition", "review state"},
+		},
+		{
+			ID:       "triggers_tags_related_skills",
+			Title:    "Triggers, Tags, And Related Skills",
+			Keywords: []string{"trigger", "tag", "related", "related skill", "metadata.hermes tags"},
+		},
+		{
+			ID:       "support_assets",
+			Title:    "Skill Support Assets",
+			Keywords: []string{"support", "asset", "reference", "template", "preprocess"},
+		},
+		{
+			ID:       "sync_reset_boundaries",
+			Title:    "Skill Sync And Reset Boundaries",
+			Keywords: []string{"sync", "reset", "lockfile", "source lock", "index-cache", "manifest", "profile copy"},
+		},
+		{
+			ID:       "python_script_examples",
+			Title:    "Python And Script-Only Skill Examples",
+			Keywords: []string{"python", "script", "script-only", "helper script"},
+		},
+	}
+}
+
+func buildSkillCatalogClassification(root, hermesSHA, sourcePairsState string, pairs []sourcePair, rows []progressRow) []CatalogFamilyReport {
+	if root == "" {
+		return nil
+	}
+	definitions := defaultSkillCatalogFamilies()
+	byID := map[string]*CatalogFamilyReport{}
+	byDef := map[string]skillCatalogFamilyDefinition{}
+	for _, def := range definitions {
+		byDef[def.ID] = def
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredInventoryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		slash := filepath.ToSlash(rel)
+		if !skillCatalogEvidencePath(slash) {
+			return nil
+		}
+		body := ""
+		if raw, readErr := os.ReadFile(path); readErr == nil {
+			body = string(raw)
+		}
+		for _, id := range skillCatalogFamilyIDsForEvidence(slash, body) {
+			def := byDef[id]
+			if def.ID == "" {
+				continue
+			}
+			family := byID[id]
+			if family == nil {
+				family = &CatalogFamilyReport{ID: def.ID, Title: def.Title}
+				byID[id] = family
+			}
+			family.Count++
+			family.Examples = append(family.Examples, slash)
+		}
+		return nil
+	})
+
+	for id, family := range byID {
+		def := byDef[id]
+		matchedNames := map[string]bool{}
+		for _, pair := range pairs {
+			if !skillCatalogFamilyMatchesSourcePair(def, pair) {
+				continue
+			}
+			ev := SourcePairEvidence{
+				HermesFile:           cleanHermesRel(pair.HermesFile),
+				Status:               pair.Status,
+				Contract:             pair.Contract,
+				GormesTargets:        cleanStrings(pair.GormesTargets),
+				Tests:                cleanStrings(pair.Tests),
+				ProgressRows:         cleanStrings(pair.ProgressRows),
+				UpstreamTests:        cleanStrings(pair.UpstreamTests),
+				LastCheckedHermesSHA: pair.LastCheckedHermesSHA,
+				Stale:                pairStale(hermesSHA, pair.LastCheckedHermesSHA) || sourcePairsState == "stale",
+			}
+			family.SourcePairs = append(family.SourcePairs, ev)
+			for _, name := range pair.ProgressRows {
+				matchedNames[strings.ToLower(strings.TrimSpace(name))] = true
+			}
+		}
+
+		for _, row := range rows {
+			reasons := skillCatalogFamilyRowMatchReasons(def, row, matchedNames)
+			if len(reasons) == 0 {
+				continue
+			}
+			family.ProgressRows = append(family.ProgressRows, progressRowEvidence(row, reasons))
+		}
+		family.Examples = uniqueSorted(family.Examples)
+		family.SourcePairs = sortSourcePairEvidence(family.SourcePairs)
+		family.ProgressRows = sortProgressRowEvidence(family.ProgressRows)
+		family.Status, family.Reason, family.Confidence = deriveCatalogFamilyStatus(*family)
+		family.GapSeverity = gapSeverity(family.Status, true)
+	}
+
+	out := make([]CatalogFamilyReport, 0, len(byID))
+	for _, family := range byID {
+		out = append(out, *family)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func skillCatalogEvidencePath(path string) bool {
+	path = cleanHermesRel(path)
+	if !strings.HasPrefix(path, "skills/") && !strings.HasPrefix(path, "optional-skills/") {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".md", ".yaml", ".yml", ".json", ".html", ".css", ".js", ".ts", ".py", ".sh", ".txt", ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp":
+		return true
+	default:
+		return filepath.Base(path) == "requirements.txt"
+	}
+}
+
+func skillCatalogFamilyIDsForEvidence(path, body string) []string {
+	path = cleanHermesRel(path)
+	if !skillCatalogEvidencePath(path) {
+		return nil
+	}
+	lowerPath := strings.ToLower(path)
+	base := filepath.Base(lowerPath)
+	lowerBody := strings.ToLower(body)
+	var ids []string
+
+	if base == "skill.md" {
+		if strings.HasPrefix(lowerPath, "optional-skills/") {
+			ids = append(ids, "optional_catalog_metadata")
+		} else {
+			ids = append(ids, "bundled_catalog_metadata")
+		}
+		if containsAny(lowerBody, []string{"prerequisites:", "required_environment_variables", "required_environment_variable_groups", "credential_groups", "conditions:", "review_state:"}) {
+			ids = append(ids, "prerequisites_readiness_metadata")
+		}
+		if containsAny(lowerBody, []string{"triggers:", "tags:", "related_skills:", "metadata:", "hermes:"}) {
+			ids = append(ids, "triggers_tags_related_skills")
+		}
+	}
+	if base == "description.md" {
+		ids = append(ids, "category_descriptions")
+	}
+	if strings.Contains(lowerPath, "/index-cache/") || containsAny(lowerPath, []string{"skill-lock", "source-lock", "manifest", "sync", "reset"}) {
+		ids = append(ids, "sync_reset_boundaries")
+	}
+	if strings.Contains(lowerPath, "/scripts/") || strings.HasSuffix(lowerPath, ".py") || strings.HasSuffix(lowerPath, ".sh") {
+		ids = append(ids, "python_script_examples")
+	}
+	if skillCatalogSupportAssetPath(lowerPath) {
+		ids = append(ids, "support_assets")
+	}
+	return uniqueSorted(ids)
+}
+
+func skillCatalogSupportAssetPath(path string) bool {
+	base := filepath.Base(path)
+	if base == "skill.md" || base == "description.md" || strings.Contains(path, "/index-cache/") || strings.Contains(path, "/scripts/") {
+		return false
+	}
+	if strings.Contains(path, "/references/") || strings.Contains(path, "/templates/") || strings.Contains(path, "/assets/") {
+		return true
+	}
+	switch base {
+	case "readme.md", "examples.md", "port_notes.md", "troubleshooting.md", "attribution.md", "requirements.txt":
+		return true
+	default:
+		return false
+	}
+}
+
+func skillCatalogFamilyMatchesPath(def skillCatalogFamilyDefinition, path string) bool {
+	for _, id := range skillCatalogFamilyIDsForEvidence(path, "") {
+		if id == def.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func skillCatalogFamilyMatchesSourcePair(def skillCatalogFamilyDefinition, pair sourcePair) bool {
+	if skillCatalogFamilyMatchesPath(def, pair.HermesFile) {
+		return true
+	}
+	text := strings.ToLower(cleanHermesRel(pair.HermesFile) + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
+	return containsKeyword(text, def.Keywords)
+}
+
+func skillCatalogFamilyRowMatchReasons(def skillCatalogFamilyDefinition, row progressRow, matchedNames map[string]bool) []string {
+	var reasons []string
+	name := strings.ToLower(strings.TrimSpace(row.Item.Name))
+	if matchedNames[name] {
+		reasons = append(reasons, "source_pair_progress_row")
+	}
+	for _, source := range row.Item.SourceRefs {
+		normalized := cleanHermesRel(source)
+		if normalized != "" && skillCatalogFamilyMatchesPath(def, normalized) {
+			reasons = append(reasons, "source_ref:"+normalized)
+		}
+	}
+	if containsKeyword(row.Text, def.Keywords) {
+		reasons = append(reasons, "taxonomy_keyword")
+	}
+	return uniqueSorted(reasons)
+}
+
+func containsAny(text string, fragments []string) bool {
+	for _, fragment := range fragments {
+		if fragment != "" && strings.Contains(text, fragment) {
+			return true
+		}
+	}
+	return false
 }
 
 func sortSourcePairEvidence(values []SourcePairEvidence) []SourcePairEvidence {
