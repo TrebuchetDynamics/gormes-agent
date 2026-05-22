@@ -59,6 +59,7 @@ type Report struct {
 	PluginCatalog          []CatalogFamilyReport     `json:"plugin_catalog,omitempty"`
 	SkillCatalog           []CatalogFamilyReport     `json:"skill_catalog,omitempty"`
 	GatewayPlatformCatalog []CatalogFamilyReport     `json:"gateway_platform_catalog,omitempty"`
+	WebDashboardCatalog    []CatalogFamilyReport     `json:"web_dashboard_catalog,omitempty"`
 	UnmappedUpstream       UpstreamUnmappedInventory `json:"unmapped_upstream"`
 	ReleaseCheckpoints     []ReleaseCheckpoint       `json:"release_checkpoints,omitempty"`
 	ContinuityCategories   []ContinuityCategory      `json:"continuity_categories,omitempty"`
@@ -285,6 +286,7 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 	report.PluginCatalog = buildPluginCatalogClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
 	report.SkillCatalog = buildSkillCatalogClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
 	report.GatewayPlatformCatalog = buildGatewayPlatformClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
+	report.WebDashboardCatalog = buildWebDashboardClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
 	definitions := defaultSurfaces()
 	mappedUpstream := mappedUpstreamRefs(definitions, sourcePairs.Pairs, rows)
 	report.UnmappedUpstream = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream, rows)
@@ -1696,6 +1698,236 @@ func gatewayPlatformFamilyRowMatchReasons(def gatewayPlatformFamilyDefinition, r
 	for _, source := range row.Item.SourceRefs {
 		normalized := cleanHermesRel(source)
 		if normalized != "" && gatewayPlatformFamilyMatchesPath(def, normalized) {
+			reasons = append(reasons, "source_ref:"+normalized)
+		}
+	}
+	if containsKeyword(row.Text, def.Keywords) {
+		reasons = append(reasons, "taxonomy_keyword")
+	}
+	return uniqueSorted(reasons)
+}
+
+type webDashboardFamilyDefinition struct {
+	ID       string
+	Title    string
+	Keywords []string
+}
+
+func defaultWebDashboardFamilies() []webDashboardFamilyDefinition {
+	return []webDashboardFamilyDefinition{
+		{
+			ID:       "gateway_client_events",
+			Title:    "Dashboard Gateway Client Event Shapes",
+			Keywords: []string{"gateway client", "websocket", "event shape", "session submit", "sse"},
+		},
+		{
+			ID:       "terminal_chat_pty",
+			Title:    "Terminal Chat And PTY Dashboard Surface",
+			Keywords: []string{"terminal chat", "pty", "chat page", "tool call", "slash popover"},
+		},
+		{
+			ID:       "sessions_page",
+			Title:    "Dashboard Sessions Page",
+			Keywords: []string{"sessions page", "session endpoint", "conversation history", "dashboard sessions"},
+		},
+		{
+			ID:       "profiles_config",
+			Title:    "Dashboard Profiles And Config Pages",
+			Keywords: []string{"profiles", "profile config", "config page", "workspace profile"},
+		},
+		{
+			ID:       "plugin_pages_slots",
+			Title:    "Dashboard Plugin Pages And Page-Scoped Slots",
+			Keywords: []string{"plugin slot", "plugins page", "page-scoped", "plugin registry", "plugin sdk"},
+		},
+		{
+			ID:       "oauth_provider_panels",
+			Title:    "Dashboard OAuth And Provider Panels",
+			Keywords: []string{"oauth", "provider panel", "login modal", "provider card", "capabilities"},
+		},
+		{
+			ID:       "model_picker",
+			Title:    "Dashboard Model Picker",
+			Keywords: []string{"model picker", "model dialog", "model info", "provider model"},
+		},
+		{
+			ID:       "cron_admin_jobs",
+			Title:    "Dashboard Cron Admin And Jobs",
+			Keywords: []string{"cron", "admin jobs", "scheduled jobs", "cron admin"},
+		},
+		{
+			ID:       "i18n_catalog",
+			Title:    "Dashboard I18n Catalog",
+			Keywords: []string{"i18n", "locale", "language switcher", "translation"},
+		},
+		{
+			ID:       "theme_system",
+			Title:    "Dashboard Theme System",
+			Keywords: []string{"theme", "theme provider", "theme switcher", "preset"},
+		},
+	}
+}
+
+func buildWebDashboardClassification(root, hermesSHA, sourcePairsState string, pairs []sourcePair, rows []progressRow) []CatalogFamilyReport {
+	if root == "" {
+		return nil
+	}
+	definitions := defaultWebDashboardFamilies()
+	byID := map[string]*CatalogFamilyReport{}
+	byDef := map[string]webDashboardFamilyDefinition{}
+	for _, def := range definitions {
+		byDef[def.ID] = def
+	}
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredInventoryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		slash := filepath.ToSlash(rel)
+		if !webDashboardEvidencePath(slash) {
+			return nil
+		}
+		for _, id := range webDashboardFamilyIDsForEvidence(slash) {
+			def := byDef[id]
+			if def.ID == "" {
+				continue
+			}
+			family := byID[id]
+			if family == nil {
+				family = &CatalogFamilyReport{ID: def.ID, Title: def.Title}
+				byID[id] = family
+			}
+			family.Count++
+			family.Examples = append(family.Examples, slash)
+		}
+		return nil
+	})
+
+	for id, family := range byID {
+		def := byDef[id]
+		matchedNames := map[string]bool{}
+		for _, pair := range pairs {
+			if !webDashboardFamilyMatchesSourcePair(def, pair) {
+				continue
+			}
+			ev := SourcePairEvidence{
+				HermesFile:           cleanHermesRel(pair.HermesFile),
+				Status:               pair.Status,
+				Contract:             pair.Contract,
+				GormesTargets:        cleanStrings(pair.GormesTargets),
+				Tests:                cleanStrings(pair.Tests),
+				ProgressRows:         cleanStrings(pair.ProgressRows),
+				UpstreamTests:        cleanStrings(pair.UpstreamTests),
+				LastCheckedHermesSHA: pair.LastCheckedHermesSHA,
+				Stale:                pairStale(hermesSHA, pair.LastCheckedHermesSHA) || sourcePairsState == "stale",
+			}
+			family.SourcePairs = append(family.SourcePairs, ev)
+			for _, name := range pair.ProgressRows {
+				matchedNames[strings.ToLower(strings.TrimSpace(name))] = true
+			}
+		}
+
+		for _, row := range rows {
+			reasons := webDashboardFamilyRowMatchReasons(def, row, matchedNames)
+			if len(reasons) == 0 {
+				continue
+			}
+			family.ProgressRows = append(family.ProgressRows, progressRowEvidence(row, reasons))
+		}
+		family.Examples = uniqueSorted(family.Examples)
+		family.SourcePairs = sortSourcePairEvidence(family.SourcePairs)
+		family.ProgressRows = sortProgressRowEvidence(family.ProgressRows)
+		family.Status, family.Reason, family.Confidence = deriveCatalogFamilyStatus(*family)
+		family.GapSeverity = gapSeverity(family.Status, true)
+	}
+
+	out := make([]CatalogFamilyReport, 0, len(byID))
+	for _, family := range byID {
+		out = append(out, *family)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func webDashboardEvidencePath(path string) bool {
+	path = cleanHermesRel(path)
+	if !strings.HasPrefix(path, "web/src/") {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".ts", ".tsx", ".js", ".jsx", ".css":
+		return len(webDashboardFamilyIDsForEvidence(path)) > 0
+	default:
+		return false
+	}
+}
+
+func webDashboardFamilyIDsForEvidence(path string) []string {
+	path = cleanHermesRel(path)
+	lower := strings.ToLower(path)
+	base := strings.TrimSuffix(filepath.Base(lower), filepath.Ext(lower))
+	var ids []string
+	switch {
+	case lower == "web/src/lib/gatewayclient.ts" || lower == "web/src/lib/api.ts" || lower == "web/src/lib/slashexec.ts":
+		ids = append(ids, "gateway_client_events")
+	case lower == "web/src/pages/chatpage.tsx" || lower == "web/src/components/chatsidebar.tsx" || lower == "web/src/components/toolcall.tsx" || lower == "web/src/components/slashpopover.tsx" || lower == "web/src/components/markdown.tsx":
+		ids = append(ids, "terminal_chat_pty")
+	case lower == "web/src/pages/sessionspage.tsx":
+		ids = append(ids, "sessions_page")
+	case lower == "web/src/pages/profilespage.tsx" || lower == "web/src/pages/configpage.tsx" || lower == "web/src/components/platformscard.tsx":
+		ids = append(ids, "profiles_config")
+	case lower == "web/src/pages/pluginspage.tsx" || strings.HasPrefix(lower, "web/src/plugins/"):
+		ids = append(ids, "plugin_pages_slots")
+	case lower == "web/src/components/oauthproviderscard.tsx" || lower == "web/src/components/oauthloginmodal.tsx":
+		ids = append(ids, "oauth_provider_panels")
+	case lower == "web/src/components/modelpickerdialog.tsx" || lower == "web/src/components/modelinfocard.tsx" || lower == "web/src/pages/modelspage.tsx":
+		ids = append(ids, "model_picker")
+	case lower == "web/src/pages/cronpage.tsx":
+		ids = append(ids, "cron_admin_jobs")
+	case strings.HasPrefix(lower, "web/src/i18n/") || base == "languageswitcher":
+		ids = append(ids, "i18n_catalog")
+	case strings.HasPrefix(lower, "web/src/themes/") || base == "themeswitcher":
+		ids = append(ids, "theme_system")
+	}
+	return uniqueSorted(ids)
+}
+
+func webDashboardFamilyMatchesPath(def webDashboardFamilyDefinition, path string) bool {
+	for _, id := range webDashboardFamilyIDsForEvidence(path) {
+		if id == def.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func webDashboardFamilyMatchesSourcePair(def webDashboardFamilyDefinition, pair sourcePair) bool {
+	if webDashboardFamilyMatchesPath(def, pair.HermesFile) {
+		return true
+	}
+	text := strings.ToLower(cleanHermesRel(pair.HermesFile) + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
+	return containsKeyword(text, def.Keywords)
+}
+
+func webDashboardFamilyRowMatchReasons(def webDashboardFamilyDefinition, row progressRow, matchedNames map[string]bool) []string {
+	var reasons []string
+	name := strings.ToLower(strings.TrimSpace(row.Item.Name))
+	if matchedNames[name] {
+		reasons = append(reasons, "source_pair_progress_row")
+	}
+	for _, source := range row.Item.SourceRefs {
+		normalized := cleanHermesRel(source)
+		if normalized != "" && webDashboardFamilyMatchesPath(def, normalized) {
 			reasons = append(reasons, "source_ref:"+normalized)
 		}
 	}
