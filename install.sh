@@ -2,9 +2,10 @@
 # install.sh - release-first Unix installer for Gormes, with source fallback.
 #
 # Usage:
-#   curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | bash
+#   curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
 #   curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh && sh install.sh
 #   sh install.sh --branch main
+#   sh install.sh --from-source
 #   sh install.sh --uninstall
 #
 # Environment overrides:
@@ -15,6 +16,7 @@
 #                        default (non-root): $HOME/.local/bin
 #                        default (root Linux): /usr/local/bin
 #   GORMES_PREFIX        compatibility prefix; publishes into $GORMES_PREFIX/bin
+#   GORMES_INSTALL_FROM_SOURCE set to 1/true/yes/on to force source build
 #   GORMES_RESTART_GATEWAY restart policy for default gateway and active
 #                         profile gateway services: auto, always, never
 #                         (default: auto)
@@ -141,6 +143,9 @@ print_banner() {
 usage() {
   cat <<'EOF'
 Gormes Unix installer
+
+Release install:
+  curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
 
 Usage:
   install.sh [--branch NAME] [--home DIR] [--dir DIR] [--bin-dir DIR]

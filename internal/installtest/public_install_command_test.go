@@ -2,10 +2,76 @@ package installtest
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestInstallScriptHeaderLeadsWithReleasePOSIXShellCommand(t *testing.T) {
+	root := repoRoot(t)
+	installSH := readFileFromRoot(t, root, "install.sh")
+	header, _, ok := strings.Cut(installSH, "\nset -eu\n")
+	if !ok {
+		t.Fatal("install.sh header terminator not found")
+	}
+
+	const canonical = "#   curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh"
+	if !strings.Contains(header, canonical) {
+		t.Fatalf("install.sh header must lead with canonical POSIX shell install command %q\nheader:\n%s", canonical, header)
+	}
+	if strings.Contains(header, "releases/latest/download/install.sh | bash") {
+		t.Fatalf("install.sh header must not advertise bash for the POSIX installer; use sh instead\nheader:\n%s", header)
+	}
+}
+
+func TestInstallScriptHeaderDocumentsSourceFallbackOverride(t *testing.T) {
+	root := repoRoot(t)
+	installSH := readFileFromRoot(t, root, "install.sh")
+	header, _, ok := strings.Cut(installSH, "\nset -eu\n")
+	if !ok {
+		t.Fatal("install.sh header terminator not found")
+	}
+
+	for _, want := range []string{
+		"# install.sh - release-first Unix installer for Gormes, with source fallback.",
+		"#   sh install.sh --from-source",
+		"#   GORMES_INSTALL_FROM_SOURCE set to 1/true/yes/on to force source build",
+	} {
+		if !strings.Contains(header, want) {
+			t.Fatalf("install.sh header missing %q\nheader:\n%s", want, header)
+		}
+	}
+}
+
+func TestInstallScriptHelpLeadsWithReleaseInstallerAndSourceFallback(t *testing.T) {
+	root := repoRoot(t)
+	cmd := exec.Command("sh", filepath.Join(root, "install.sh"), "--help")
+	cmd.Dir = root
+	cmd.Env = []string{"HOME=" + t.TempDir(), "PATH=/usr/bin:/bin"}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("install.sh --help failed: %v\noutput:\n%s", err, string(out))
+	}
+	help := string(out)
+
+	const releaseInstall = "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh"
+	for _, want := range []string{
+		"Gormes Unix installer",
+		"Release install:",
+		releaseInstall,
+		"Default installs fetch the latest signed release binary",
+		"--from-source",
+		"GORMES_INSTALL_FROM_SOURCE=1",
+	} {
+		if !strings.Contains(help, want) {
+			t.Fatalf("install.sh --help missing %q\nhelp:\n%s", want, help)
+		}
+	}
+	if strings.Contains(help, "releases/latest/download/install.sh | bash") {
+		t.Fatalf("install.sh --help must not advertise bash for the POSIX installer; use sh instead\nhelp:\n%s", help)
+	}
+}
 
 func TestPublicInstallSurfacesLeadWithReleaseInstaller(t *testing.T) {
 	root := repoRoot(t)
