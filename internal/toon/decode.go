@@ -23,6 +23,9 @@ func DecodeValue(raw []byte) (Value, error) {
 	if len(lines) == 1 && strings.TrimSpace(lines[0].text) == "[]" {
 		return Value{Kind: KindArray}, nil
 	}
+	if len(lines) == 1 && strings.TrimSpace(lines[0].text) == "{}" {
+		return Value{Kind: KindObject}, nil
+	}
 	if header, ok, err := parseHeader(lines[0].text); err != nil {
 		return Value{}, err
 	} else if ok && header.key == nil {
@@ -147,6 +150,9 @@ func parseField(lines []parsedLine, index, depth int) (Member, int, error) {
 	}
 	if rawValue == "[]" {
 		return Member{Key: key, Value: Value{Kind: KindArray}}, index + 1, nil
+	}
+	if rawValue == "{}" {
+		return Member{Key: key, Value: Value{Kind: KindObject}}, index + 1, nil
 	}
 	value, err := parsePrimitive(rawValue)
 	if err != nil {
@@ -316,6 +322,9 @@ func parseListItem(lines []parsedLine, index, depth int) (Value, int, error) {
 	body := strings.TrimSpace(strings.TrimPrefix(line.text, "- "))
 	if body == "[]" {
 		return Value{Kind: KindArray}, index + 1, nil
+	}
+	if body == "{}" {
+		return Value{Kind: KindObject}, index + 1, nil
 	}
 	if h, ok, err := parseHeader(body); err != nil {
 		return Value{}, index, err

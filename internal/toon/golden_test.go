@@ -118,6 +118,16 @@ formfeed: "a\fb"`,
 			toon: "[]   \n",
 			want: `[]`,
 		},
+		{
+			name: "root empty object shorthand with trailing spaces",
+			toon: "{}   \n",
+			want: `{}`,
+		},
+		{
+			name: "nested empty object shorthand",
+			toon: "meta: {}\nitems[2]:\n  - {}\n  - name: Ada",
+			want: `{"meta":{},"items":[{},{"name":"Ada"}]}`,
+		},
 	}
 
 	for _, tt := range tests {
