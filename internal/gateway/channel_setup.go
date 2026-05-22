@@ -142,6 +142,8 @@ func applyWhatsAppPairingSetupStatus(entry *ChannelSetupEntry, pairing PairingSt
 			entry.NextCommand = "gormes gateway"
 		}
 		if state == PairingPlatformStateUnpaired && entry.Status == ChannelSetupStatusConfigured {
+			entry.Status = ChannelSetupStatusPartial
+			entry.NextCommand = "gormes whatsapp"
 			entry.Warnings = append(entry.Warnings, "WhatsApp pairing is not complete; run gormes whatsapp to link a device.")
 			entry.PlannedWrites = append(entry.PlannedWrites, "WhatsApp pairing session -> gormes whatsapp")
 		}

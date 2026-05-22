@@ -235,6 +235,61 @@ func TestProfileChannelSetupPlanWhatsAppReportsPairedLoginStatus(t *testing.T) {
 	}
 }
 
+func TestProfileChannelSetupPlanWhatsAppReportsUnpairedLoginStatus(t *testing.T) {
+	cfg := config.Config{
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Channels: map[string]config.ProfileChannelCfg{
+					"whatsapp": {
+						Enabled:      true,
+						Credential:   "main-whatsapp",
+						AllowedChats: []string{"12025550123@s.whatsapp.net"},
+						AllowedUsers: []string{"6586915095"},
+					},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-whatsapp": channelCredential("whatsapp", "main", "GORMES_MAIN_WHATSAPP_TOKEN"),
+		},
+	}
+
+	plan := BuildChannelSetupPlanWithOptions(cfg, ChannelSetupPlanOptions{
+		Pairing: PairingStatus{
+			Platforms: []PairingPlatformStatus{{
+				Platform:      "whatsapp",
+				State:         PairingPlatformStateUnpaired,
+				PendingCount:  1,
+				ApprovedCount: 0,
+			}},
+		},
+	})
+	whatsapp := findChannelSetupEntry(t, plan, "whatsapp")
+	if whatsapp.Status != ChannelSetupStatusPartial {
+		t.Fatalf("whatsapp status = %q, want partial until WhatsApp pairing is complete: %+v", whatsapp.Status, whatsapp)
+	}
+	if whatsapp.NextCommand != "gormes whatsapp" {
+		t.Fatalf("whatsapp next command = %q, want live pairing wizard", whatsapp.NextCommand)
+	}
+	rendered := strings.Join(append(append([]string{}, whatsapp.CurrentValues...), whatsapp.Warnings...), "\n")
+	for _, want := range []string{
+		"whatsapp.pairing=unpaired",
+		"whatsapp.pairing_approved_users=0",
+		"whatsapp.pairing_pending_codes=1",
+		"WhatsApp pairing is not complete",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("whatsapp setup values missing %q:\n%s", want, rendered)
+		}
+	}
+	for _, forbidden := range []string{"12025550123", "6586915095", "GORMES_MAIN_WHATSAPP_TOKEN"} {
+		if strings.Contains(rendered, forbidden) {
+			t.Fatalf("whatsapp setup login values leaked sensitive value %q:\n%s", forbidden, rendered)
+		}
+	}
+}
+
 func TestProfileChannelSetupPlanWhatsAppSeparatesGroupAndDirectAllowedChats(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{
