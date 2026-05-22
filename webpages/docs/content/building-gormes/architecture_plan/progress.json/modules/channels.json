@@ -6067,28 +6067,6 @@
   },
   {
     "phase": "6",
-    "subphase": "6.A",
-    "pos": 1,
-    "item": {
-      "name": "Heuristic or LLM-scored signal",
-      "priority": "P3",
-      "status": "planned",
-      "slice_size": "umbrella",
-      "execution_owner": "docs",
-      "module": "channels",
-      "not_ready_when": [
-        "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
-      ],
-      "note": "TDD: start with deterministic local signals from transcript length, tool-call count, retries, edits, and operator feedback before adding any LLM scorer, so learning-loop triggers are explainable.",
-      "done_signal": [
-        "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-      ],
-      "no_test_required": "",
-      "test_commands": []
-    }
-  },
-  {
-    "phase": "6",
     "subphase": "6.F",
     "pos": 3,
     "item": {

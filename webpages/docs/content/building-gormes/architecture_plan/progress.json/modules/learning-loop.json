@@ -81,6 +81,78 @@
   },
   {
     "phase": "6",
+    "subphase": "6.A",
+    "pos": 1,
+    "item": {
+      "name": "Deterministic learning-loop trigger signals",
+      "priority": "P3",
+      "status": "planned",
+      "contract": "Add a pure deterministic trigger-signal scorer for the learning loop before any live LLM scoring: derive memory-review and skill-review decisions from transcript/user-turn counts, tool-iteration counts, retry/error markers, edit/patch counts, and optional explicit operator feedback. The scorer must emit explainable reason codes and redacted feature counts that can drive the existing background review fork without storing raw prompt text, launching a provider call, promoting skills, or mutating memory by itself.",
+      "contract_status": "fixture_ready",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "learning-loop",
+      "trust_class": [
+        "operator",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Without this slice, Gormes can run the background review fork only from coarse interval counters and cannot explain why a turn should trigger memory/skill review before later extractor, scorer, or promotion logic runs.",
+      "fixture": "internal/hermes/learning_loop_signal_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md:6.A deterministic detector execution note",
+        "hermes-agent/tests/run_agent/test_codex_app_server_integration.py::test_background_review_NOT_invoked_below_threshold",
+        "hermes-agent/tests/run_agent/test_codex_app_server_integration.py::test_background_review_skill_trigger_fires_above_threshold",
+        "hermes-agent/tests/run_agent/test_memory_nudge_counter_hydration.py::_run_hydration",
+        "hermes-agent/agent/background_review.py:_SKILL_REVIEW_PROMPT Signals to look for",
+        "internal/hermes/background_review.go",
+        "internal/hermes/background_review_test.go"
+      ],
+      "ready_when": [
+        "Hermes background review fork lifecycle is complete and test-backed, so this slice only decides when to request that fork and what reason codes to pass along.",
+        "The builder can use synthetic transcripts and injected counters; no live provider, gateway, Telegram, memory backend, skill store mutation, or external network is required.",
+        "The first implementation is deterministic only; LLM-scored signals remain out of scope until the local reason-code contract is stable."
+      ],
+      "not_ready_when": [
+        "The slice calls an LLM, background reviewer, memory write, skill_manage mutation, curator scheduler, or automatic promotion/demotion path instead of returning a pure decision object.",
+        "The scorer stores raw prompt text, tool output, secrets, or full transcripts instead of redacted counts, hashes, and reason codes.",
+        "The implementation changes extractor schema, skill-effectiveness ledger persistence, curator state transitions, or channel operator surfaces."
+      ],
+      "unblocks": [
+        "Skill effectiveness scoring",
+        "LLM-assisted pattern distillation"
+      ],
+      "acceptance": [
+        "TestLearningLoopSignalScorer_Deterministic proves identical transcript/counter fixtures produce byte-stable reason codes, scores, and review_memory/review_skills decisions across repeated runs.",
+        "TestLearningLoopSignalScorer_Thresholds proves below-threshold single turns do not trigger review, memory nudge cadence hydrates from prior user turns, and tool-iteration counts crossing the skill threshold request skill review with Hermes-compatible rationale.",
+        "TestLearningLoopSignalScorer_FeedbackAndRedaction proves explicit operator correction/frustration feedback can trigger a skill signal while raw prompt/tool content and secret-looking strings are absent from emitted evidence.",
+        "The scorer exposes reason codes such as user_turn_threshold, tool_iteration_threshold, retry_loop, edit_burst, and operator_feedback without invoking live LLM scoring or mutating memory/skills."
+      ],
+      "note": "Planner 2026-05-21 development-loop iteration 4: narrowed the Phase 6.A inventory placeholder into a fixture-ready deterministic trigger-signal slice and moved it from the stale channels module to learning-loop. LLM-scored signals, extractor schema, skill-effectiveness ledger persistence, and automatic promotion/demotion remain separate rows.",
+      "write_scope": [
+        "internal/hermes/learning_loop_signal.go",
+        "internal/hermes/learning_loop_signal_test.go",
+        "internal/hermes/background_review.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/hermes -run TestLearningLoopSignalScorer -count=1",
+        "go test ./internal/hermes -run 'TestBackgroundReviewFork|TestLearningLoopSignalScorer' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Learning-loop signal fixtures prove deterministic, redacted, explainable memory/skill review trigger decisions over transcript counters, tool iterations, retry/edit signals, and operator feedback, with no live LLM call or memory/skill mutation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:b816fd4e2 background review nudge counters + Gormes-owned deterministic signal scorer",
+        "note": "Hermes owns the background-review cadence and prompt-signal floor; Gormes owns the local deterministic reason-code scorer that gates future learning-loop automation before LLM scoring."
+      }
+    }
+  },
+  {
+    "phase": "6",
     "subphase": "6.E",
     "pos": 3,
     "item": {
