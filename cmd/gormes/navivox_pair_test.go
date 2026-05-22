@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,8 +12,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
@@ -130,6 +134,119 @@ func TestNavivoxPairWaitStartsLocalBridgeUntilContextCanceled(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, out)
 		}
 	}
+}
+
+func TestNavivoxPairPrintsConnectedWhenNavivoxStreams(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	previousToken, hadPreviousToken := os.LookupEnv("GORMES_NAVIVOX_TOKEN")
+	if err := os.Unsetenv("GORMES_NAVIVOX_TOKEN"); err != nil {
+		t.Fatalf("unset GORMES_NAVIVOX_TOKEN: %v", err)
+	}
+	t.Cleanup(func() {
+		if hadPreviousToken {
+			_ = os.Setenv("GORMES_NAVIVOX_TOKEN", previousToken)
+		} else {
+			_ = os.Unsetenv("GORMES_NAVIVOX_TOKEN")
+		}
+	})
+
+	port := freeLocalTCPPort(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	cmd.SetContext(ctx)
+	var stdout, stderr syncBuffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- executeRootCommand(cmd, "navivox", "pair", "--host", "127.0.0.1", "--port", strconv.Itoa(port))
+	}()
+
+	healthURL := fmt.Sprintf("http://127.0.0.1:%d/healthz", port)
+	if err := waitForNavivoxPairHealth(t, healthURL); err != nil {
+		cancel()
+		<-errCh
+		t.Fatalf("navivox pair did not start local bridge at %s: %v\nstdout=%s\nstderr=%s", healthURL, err, stdout.String(), stderr.String())
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		cancel()
+		<-errCh
+		t.Fatalf("load generated navivox config: %v", err)
+	}
+	conn := dialNavivoxPairWebSocket(t, fmt.Sprintf("ws://127.0.0.1:%d/v1/navivox/stream", port), cfg.Navivox.Token)
+	defer conn.Close()
+
+	if err := waitForOutputContains(&stdout, "Navivox connected. Continue setup in Navivox."); err != nil {
+		cancel()
+		<-errCh
+		t.Fatalf("navivox pair did not report app connection: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+	select {
+	case err := <-errCh:
+		t.Fatalf("navivox pair exited after app connection before cancellation: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	case <-time.After(100 * time.Millisecond):
+	}
+	_ = conn.Close()
+	cancel()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("navivox pair after cancel: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("navivox pair did not exit after context cancellation\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+	}
+}
+
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func dialNavivoxPairWebSocket(t *testing.T, wsURL, token string) *websocket.Conn {
+	t.Helper()
+	if token == "" {
+		t.Fatal("generated navivox token is empty")
+	}
+	dialer := websocket.Dialer{Subprotocols: []string{
+		"navivox.v1",
+		"gormes.navivox.token." + base64.RawURLEncoding.EncodeToString([]byte(token)),
+	}}
+	conn, resp, err := dialer.Dial(wsURL, nil)
+	if err != nil {
+		if resp != nil {
+			t.Fatalf("websocket dial status=%d err=%v", resp.StatusCode, err)
+		}
+		t.Fatal(err)
+	}
+	return conn
+}
+
+func waitForOutputContains(buf *syncBuffer, want string) error {
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if strings.Contains(buf.String(), want) {
+			return nil
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	return fmt.Errorf("timed out waiting for %q", want)
 }
 
 func freeLocalTCPPort(t *testing.T) int {

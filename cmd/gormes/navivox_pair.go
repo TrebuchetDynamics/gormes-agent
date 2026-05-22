@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -130,17 +131,34 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 		return nil
 	}
 	fmt.Fprintln(out, "Waiting for Navivox connection... Press Ctrl-C to stop.")
-	select {
-	case <-cmd.Context().Done():
-		if err := stopNavivoxPairBridge(bridgeStop, bridgeDone); err != nil {
-			return err
-		}
-		return nil
-	case err := <-bridgeDone:
-		if err == nil || errors.Is(err, context.Canceled) {
+	connected := make(chan error, 1)
+	go func() {
+		connected <- waitForNavivoxPairConnection(cmd.Context(), baseURL+"/v1/navivox/status", token)
+	}()
+	for {
+		select {
+		case <-cmd.Context().Done():
+			if err := stopNavivoxPairBridge(bridgeStop, bridgeDone); err != nil {
+				return err
+			}
 			return nil
+		case err := <-bridgeDone:
+			if err == nil || errors.Is(err, context.Canceled) {
+				return nil
+			}
+			return fmt.Errorf("navivox pair: local bridge stopped: %w", err)
+		case err := <-connected:
+			connected = nil
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					continue
+				}
+				_ = stopNavivoxPairBridge(bridgeStop, bridgeDone)
+				return err
+			}
+			fmt.Fprintln(out, "Navivox connected. Continue setup in Navivox.")
+			fmt.Fprintln(out, "Keep this Termux session open to keep the local bridge online.")
 		}
-		return fmt.Errorf("navivox pair: local bridge stopped: %w", err)
 	}
 }
 
@@ -171,6 +189,42 @@ func startNavivoxPairBridge(ctx context.Context, cfg config.NavivoxCfg) (context
 		done <- err
 	}()
 	return stop, done, nil
+}
+
+func waitForNavivoxPairConnection(ctx context.Context, statusURL, token string) error {
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
+			if err != nil {
+				return err
+			}
+			req.Header.Set("Authorization", "Bearer "+token)
+			resp, err := client.Do(req)
+			if err != nil {
+				continue
+			}
+			var payload struct {
+				WSConnections int `json:"ws_connections"`
+			}
+			decodeErr := json.NewDecoder(resp.Body).Decode(&payload)
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				return fmt.Errorf("navivox pair: status check returned HTTP %d", resp.StatusCode)
+			}
+			if decodeErr != nil {
+				return fmt.Errorf("navivox pair: decode status: %w", decodeErr)
+			}
+			if payload.WSConnections > 0 {
+				return nil
+			}
+		}
+	}
 }
 
 func stopNavivoxPairBridge(stop context.CancelFunc, done <-chan error) error {
