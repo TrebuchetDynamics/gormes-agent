@@ -166,6 +166,7 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 				return err
 			}
 			fmt.Fprintln(out, "Navivox connected. Continue setup in Navivox.")
+			fmt.Fprintf(out, "Local bridge remains online: %s\n", baseURL)
 			fmt.Fprintln(out, "Keep this Termux session open to keep the local bridge online.")
 		}
 	}

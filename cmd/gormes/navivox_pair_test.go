@@ -207,6 +207,12 @@ func TestNavivoxPairPrintsConnectedWhenNavivoxStreams(t *testing.T) {
 		<-errCh
 		t.Fatalf("navivox pair did not report app connection: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
 	}
+	expectedBridgeLine := fmt.Sprintf("Local bridge remains online: http://127.0.0.1:%d", port)
+	if err := waitForOutputContains(&stdout, expectedBridgeLine); err != nil {
+		cancel()
+		<-errCh
+		t.Fatalf("navivox pair did not report persistent bridge URL: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
 	select {
 	case err := <-errCh:
 		t.Fatalf("navivox pair exited after app connection before cancellation: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
