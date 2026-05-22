@@ -52,7 +52,7 @@ func TestInstallDocsWarnTermuxV020LatestReleaseCaveat(t *testing.T) {
 		"webpages/docs/content/install/linux-macos.md",
 		"webpages/docs/content/install/termux.md",
 	} {
-		assertContainsTermuxV020Caveat(t, rel, readRepoFileTermuxGuide(t, rel))
+		assertContainsTermuxV021Recovery(t, rel, readRepoFileTermuxGuide(t, rel))
 	}
 }
 
@@ -86,17 +86,17 @@ func TestLinuxMacInstallGuideDocumentsTermuxRemoteExecutionBoundary(t *testing.T
 	}
 }
 
-func assertContainsTermuxV020Caveat(t *testing.T, rel string, doc string) {
+func assertContainsTermuxV021Recovery(t *testing.T, rel string, doc string) {
 	t.Helper()
 	for _, want := range []string{
-		"Termux/Android caveat",
-		"live `v0.2.20` latest-release installer",
+		"Termux/Android status",
+		"`v0.2.21` includes the installer recovery",
 		"unknown command /data/data/com.termux/files/usr/bin/gormes for gormes",
-		"fix is committed on `development`",
-		"follow-up release",
+		"reinstall from the latest release",
+		"gormes doctor --offline",
 	} {
 		if !strings.Contains(doc, want) {
-			t.Fatalf("%s missing Termux v0.2.20 caveat %q", rel, want)
+			t.Fatalf("%s missing Termux v0.2.21 recovery %q", rel, want)
 		}
 	}
 }

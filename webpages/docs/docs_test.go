@@ -429,61 +429,61 @@ func TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials(t *testing.T) 
 	}
 }
 
-func TestDiagnoseBrokenInstallSurfacesTermuxV020Issue(t *testing.T) {
+func TestDiagnoseBrokenInstallSurfacesTermuxV021Recovery(t *testing.T) {
 	diagnose := readDoc(t, "content/troubleshooting/diagnose.md")
 	for _, want := range []string{
-		"Termux latest-release `v0.2.20` reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
-		"fix is already committed on `development`",
-		"not in the public latest release",
-		"Do not report Termux latest install as repaired until a follow-up release exists",
+		"Older Termux `v0.2.20` installs report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
+		"Install `v0.2.21` or newer",
+		"gormes doctor --offline",
+		"stale binary on PATH",
 	} {
 		if !strings.Contains(diagnose, want) {
-			t.Fatalf("diagnose broken install docs missing Termux v0.2.20 issue text %q", want)
+			t.Fatalf("diagnose broken install docs missing Termux v0.2.21 recovery text %q", want)
 		}
 	}
 }
 
-func TestTroubleshootingIndexSurfacesTermuxV020InstallerIssue(t *testing.T) {
+func TestTroubleshootingIndexSurfacesTermuxV021Recovery(t *testing.T) {
 	troubleshooting := readDoc(t, "content/troubleshooting/_index.md")
 	for _, want := range []string{
-		"Known live release issue",
-		"live `v0.2.20` latest-release installer",
+		"Termux recovery note",
+		"`v0.2.21` carries the installer fix",
 		"unknown command /data/data/com.termux/files/usr/bin/gormes for gormes",
-		"fix is committed on `development` but unreleased",
+		"older Termux install is still on PATH",
 		"[Common errors](./common-errors/)",
 	} {
 		if !strings.Contains(troubleshooting, want) {
-			t.Fatalf("troubleshooting index missing Termux v0.2.20 release issue text %q", want)
+			t.Fatalf("troubleshooting index missing Termux v0.2.21 recovery text %q", want)
 		}
 	}
 }
 
-func TestCommonErrorsIncludesTermuxIssueAnswerTemplate(t *testing.T) {
+func TestCommonErrorsIncludesTermuxRecoveryAnswerTemplate(t *testing.T) {
 	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
 	for _, want := range []string{
-		"## Termux v0.2.20 answer template",
-		"Public latest: `v0.2.20` remains affected for this Termux installer path.",
-		"Fix status: commit `72b4ee248475` is on `origin/development`, but not in the public latest release.",
-		"Required next step: publish a follow-up release through `development -> main -> tag` before calling Termux latest install repaired.",
-		"Do not describe the fix as only local or uncommitted.",
+		"## Termux v0.2.21 recovery answer template",
+		"Public latest: `v0.2.21` carries the Termux executable-argument recovery.",
+		"Historical symptom: `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes` on affected `v0.2.20` installs.",
+		"Operator action: reinstall from the latest release",
+		"stale `v0.2.20` binary earlier on PATH",
 	} {
 		if !strings.Contains(commonErrors, want) {
-			t.Fatalf("common errors docs missing Termux answer template text %q", want)
+			t.Fatalf("common errors docs missing Termux recovery template text %q", want)
 		}
 	}
 }
 
-func TestCommonErrorsDocumentsTermuxV020UnknownCommand(t *testing.T) {
+func TestCommonErrorsDocumentsTermuxV021Recovery(t *testing.T) {
 	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
 	for _, want := range []string{
 		"Termux install reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
-		"live `v0.2.20` latest-release installer",
-		"fix is committed on `development`",
-		"not released until a follow-up release is published",
-		"Run `gormes version` after the follow-up release",
+		"older `v0.2.20` Termux binary",
+		"Install `v0.2.21` or newer",
+		"which -a gormes",
+		"gormes doctor --offline",
 	} {
 		if !strings.Contains(commonErrors, want) {
-			t.Fatalf("common errors docs missing Termux v0.2.20 troubleshooting text %q", want)
+			t.Fatalf("common errors docs missing Termux v0.2.21 recovery text %q", want)
 		}
 	}
 }

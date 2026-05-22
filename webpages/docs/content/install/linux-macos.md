@@ -48,7 +48,7 @@ curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/dow
 
 On Termux, repo-root `install.sh` detects `TERMUX_VERSION` or the standard Termux `$PREFIX` path and publishes the command to `$PREFIX/bin/gormes`. The release asset is `android-arm64`, not `linux-arm64`; source build is a fallback for unsupported architectures, unavailable release assets, non-main branches, or contributor workflows.
 
-> **Termux/Android caveat:** The live `v0.2.20` latest-release installer can still fail publish verification on affected Termux devices, then report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`. The fix is committed on `development`, but Termux latest install should not be called repaired until a follow-up release is published.
+> **Termux/Android status:** `v0.2.21` includes the installer recovery for the `v0.2.20` executable-argument issue. If you saw `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`, reinstall from the latest release, then verify with `gormes version` and `gormes doctor --offline`.
 
 Only source fallback or contributor builds need the build toolchain:
 

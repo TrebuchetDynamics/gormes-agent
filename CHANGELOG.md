@@ -8,8 +8,25 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.21] - 2026-05-22
+
+Date alias: `v2026.5.22`.
+
+> **Termux installer recovery, WhatsApp profile setup readiness, and Navivox pairing handoff.**
+
+### Added
+- WhatsApp profile-channel setup readiness now reports access-policy state, pairing status, degraded pairing readouts, duplicate token-hash conflicts, group/direct chat counts, and canonicalized user JID forms without leaking tokens, user IDs, or chat IDs.
+- Navivox setup now writes an owner-only QR PNG pairing handoff containing the HTTP/WebSocket descriptor and REST token while terminal output stays token-redacted.
+- Navivox profile routing and F-Droid preparation docs now carry local gateway, first-run, screenshot, metadata, artifact, privacy, and data-safety evidence.
+- `gormes setup providers` now works as a plural alias for `gormes setup provider`.
+
+### Changed
+- Setup provider non-interactive mode now honors `GORMES_INFERENCE_PROVIDER` and `GORMES_INFERENCE_MODEL` fallbacks alongside the existing endpoint/API-key flow.
+- Memory, Goncho, learning-loop, provider, Navivox, and release progress surfaces were refreshed from the split backlog.
+
 ### Fixed
-- Termux latest-release installer recovery is fixed on `development` but not yet released: affected live `v0.2.20` installs can still fail publish verification after copying the android-arm64 binary, then report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`. The unreleased fix normalizes Termux `/data/data` versus `/data/user/0` executable-path aliases before Cobra parsing and falls back from Termux binary-fetch publish verification failures to one source-build retry.
+- Termux latest-release installer recovery now normalizes `/data/data` versus `/data/user/0` executable-path aliases before Cobra parsing and falls back from Termux binary-fetch publish verification failures to one source-build retry.
+- Navivox Bubble Tea gateway selection now routes through the native Navivox setup path instead of the generic row-backed fallback.
 
 ## [0.2.20] - 2026-05-21
 

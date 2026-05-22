@@ -82,8 +82,8 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(installCommand).toContainText('gormes chat');
   await expect(installCommand).not.toContainText('raw.githubusercontent.com');
   await expect(page.locator('button.copy-btn')).toHaveCount(1);
-  await expect(page.getByText('Termux/Android caveat: latest public v0.2.20 install is affected')).toBeVisible();
-  await expect(page.getByText('fixed-on-development executable-argument bug until a follow-up release')).toBeVisible();
+  await expect(page.getByText('Termux/Android status: v0.2.21 carries the installer recovery')).toBeVisible();
+  await expect(page.getByText('v0.2.20 executable-argument bug')).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Evidence, not a sidecar stack' })).toBeVisible();
   await expect(page.locator('.proof-card')).toHaveCount(4);
