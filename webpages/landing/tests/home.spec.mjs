@@ -52,7 +52,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(page.locator('.proof-item-pop').getByText('Static Go binary', { exact: true })).toBeVisible();
   await expect(page.locator('.proof-item-pop').getByText('No venv drift', { exact: true })).toBeVisible();
   await expect(page.locator('.proof-item').getByText('Offline doctor', { exact: true })).toBeVisible();
-  await expect(page.locator('.proof-item').getByText('Termux-ready', { exact: true })).toBeVisible();
+  await expect(page.locator('.proof-item').getByText('Termux fix pending release', { exact: true })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Python agents break for boring reasons.' })).toBeVisible();
   await expect(page.getByText('Venvs drift, installs fail, streams drop, tools miswire, and servers rot.')).toBeVisible();
@@ -79,6 +79,8 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(installCommand).toContainText('gormes chat');
   await expect(installCommand).not.toContainText('raw.githubusercontent.com');
   await expect(page.locator('button.copy-btn')).toHaveCount(1);
+  await expect(page.getByText('Termux/Android caveat: latest public v0.2.20 install is affected')).toBeVisible();
+  await expect(page.getByText('fixed-on-development executable-argument bug until a follow-up release')).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Evidence, not a sidecar stack' })).toBeVisible();
   await expect(page.locator('.proof-card')).toHaveCount(4);

@@ -36,7 +36,7 @@ export const page = {
     { label: 'Static Go binary', kind: 'pop' },
     { label: 'No venv drift', kind: 'pop' },
     { label: 'Offline doctor' },
-    { label: 'Termux-ready' },
+    { label: 'Termux fix pending release' },
   ],
   whyLabel: 'WHY GORMES',
   whyPainHeadline: 'Python agents break for boring reasons.',
@@ -80,7 +80,7 @@ export const page = {
   installCommand:
     'curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat',
   installFootnote:
-    'Windows, source builds, and advanced installer flags are covered in the install docs.',
+    'Termux/Android caveat: latest public v0.2.20 install is affected by a fixed-on-development executable-argument bug until a follow-up release; Windows, source builds, and advanced installer flags are covered in the install docs.',
   installFootnoteLink: {
     label: 'Read install docs',
     href: '/install',
