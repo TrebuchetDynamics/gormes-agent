@@ -8052,43 +8052,94 @@
       "name": "SimpleX Chat platform plugin parity",
       "priority": "P2",
       "status": "planned",
-      "contract": "Port Hermes' SimpleX Chat platform plugin into Gormes behind the shared channel adapter contract: local daemon/WebSocket configuration, allowlist admission, opaque contact IDs, DM pairing, outbound delivery, command routing, and status/degraded evidence.",
-      "contract_status": "draft",
+      "contract": "Port Hermes' bundled SimpleX platform plugin into a native Gormes channel behind the shared gateway.Channel contract. The builder must use a fakeable WebSocket transport to prove daemon configuration, disabled/missing-url/dependency-degraded status, opaque contact/group IDs, allowlist and allow-all admission, DM pairing prompts, correlation-ID echo filtering, inbound newChatItem/newChatItems normalization, outbound @[]/#[group] command formatting, home-channel/standalone delivery evidence, and bounded reconnect/health degradation without requiring a live SimpleX account or daemon.",
+      "contract_status": "fixture_ready",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "channels",
-      "fixture": "internal/channels/simplex fake WebSocket fixtures",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Until this adapter lands, Gormes must keep SimpleX visible as row-backed in the platform manifest/status checks and report missing WebSocket URL, dependency, daemon, allowlist, and delivery failures as degraded evidence rather than claiming SimpleX channel parity.",
+      "fixture": "internal/channels/simplex/simplex_test.go",
       "source_refs": [
-        "../hermes-agent/plugins/platforms/simplex/plugin.yaml",
-        "../hermes-agent/plugins/platforms/simplex/adapter.py",
-        "internal/gateway/platform_manifest.go",
-        "internal/gateway/platform_connected_checkers.go"
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Channels",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-v0.14-module-pairings.md:LINE and SimpleX platform plugins",
+        "hermes-agent/plugins/platforms/simplex/plugin.yaml:requires_env.SIMPLEX_WS_URL",
+        "hermes-agent/plugins/platforms/simplex/plugin.yaml:optional_env.SIMPLEX_ALLOWED_USERS",
+        "hermes-agent/plugins/platforms/simplex/plugin.yaml:optional_env.SIMPLEX_ALLOW_ALL_USERS",
+        "hermes-agent/plugins/platforms/simplex/plugin.yaml:optional_env.SIMPLEX_HOME_CHANNEL",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter.connect",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter._ws_listener",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter._health_monitor",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter._handle_event",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter._handle_new_chat_item",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter.send",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter.send_image",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:check_requirements",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:_env_enablement",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:_standalone_send",
+        "hermes-agent/plugins/platforms/simplex/adapter.py:register",
+        "internal/gateway/platform_manifest.go:HermesGatewayPlatformManifest",
+        "internal/gateway/platform_manifest_test.go:TestHermesGatewayPlatformManifestCoversBundledPluginPlatforms",
+        "internal/gateway/platform_connected_checkers.go:PlatformLooksConfigured",
+        "internal/gateway/platform_connected_checkers_test.go:TestPlatformConnectedCheckersRequireBundledPluginFields",
+        "internal/gateway/channel.go:Channel",
+        "internal/gateway/authorization.go:HandleUnauthorizedDM",
+        "internal/gateway/delivery.go:ResolveHomeChannelTargetWithFallback",
+        "internal/channels/threadtext/contract.go:NormalizeInbound"
       ],
       "ready_when": [
-        "Gateway platform manifest already classifies SimpleX as row-backed.",
-        "Shared channel adapter fixtures can run without a live SimpleX daemon."
+        "The builder can implement `internal/channels/simplex` with an in-process fake WebSocket daemon/transport; no real SimpleX account, QR/contact pairing, filesystem downloads, network daemon, or external `websockets` dependency is needed for tests.",
+        "The existing platform manifest already marks SimpleX as a row-backed bundled platform plugin and `PlatformLooksConfigured` already keys synthetic readiness on `ws_url`; this row narrows runtime adapter behavior rather than inventing a second platform registry.",
+        "The first slice can prove text DM/group ingress, allowlist decisions, outbound command formatting, home-channel delivery target evidence, and degraded status; native media/file download support may stay explicitly unsupported/degraded unless fake filesystem fixtures are added in the same slice."
       ],
       "not_ready_when": [
-        "The slice requires a real SimpleX account, daemon, or network socket in tests.",
-        "The slice bypasses shared gateway admission/delivery abstractions."
+        "The implementation needs a live simplex-chat daemon, live contact IDs, public network access, SimpleX account setup, Docker, or Python `websockets` installation to pass tests.",
+        "The adapter bypasses `gateway.Channel`, shared unauthorized-DM/pairing policy, delivery target resolution, platform manifest/status evidence, or channel-neutral error redaction.",
+        "The slice silently marks media/file transfer, SimpleX QR/contact onboarding, or full plugin parity complete without fake fixtures and explicit degraded/error paths."
+      ],
+      "unblocks": [
+        "Hermes gateway platform strict-fidelity source-pair expansion",
+        "Per-profile channel credential readiness and allow-lists",
+        "Native skills list/view tool surface"
       ],
       "acceptance": [
-        "Config/status checks distinguish disabled, missing ws_url, unauthorized, and connected fake-daemon states.",
-        "Inbound fake events produce normalized PlatformEvent values with opaque contact identity preserved.",
-        "Outbound fake delivery and DM pairing preserve Hermes-visible SimpleX behavior and degraded errors."
+        "`TestSimpleXConfigAndStatus` covers disabled, missing `ws_url`, configured, dependency/daemon-unavailable, and connected fake-daemon states with redacted operator evidence and without opening a real socket.",
+        "`TestSimpleXInboundNormalization` feeds fake `newChatItem` and `newChatItems` WebSocket events for DM and group messages, ignores outbound echo correlation IDs, preserves opaque contact/group/member IDs, maps `/start` and plain text through the shared gateway event parser, and records raw-message evidence only in bounded fixtures.",
+        "`TestSimpleXAllowlistAndPairing` proves `SIMPLEX_ALLOWED_USERS`, `SIMPLEX_ALLOW_ALL_USERS`, unauthorized DM deny/pair/ignore modes, and group-message silence using the shared gateway authorization/pairing fixtures.",
+        "`TestSimpleXOutboundDelivery` proves text send command formatting (`@[contact] message`, `#[group] message`), send-image text fallback, standalone/home-channel delivery error evidence, and no-op typing behavior against a fake WebSocket transport.",
+        "Existing platform manifest and connected-checker tests still pass, and SimpleX remains row-backed/partial until the adapter fixture evidence updates the manifest intentionally in the same commit."
       ],
+      "note": "Planner 2026-05-21 development-loop iteration 9: upgraded the SimpleX bundled-platform row from draft to fixture-ready. Scope is one fake-WebSocket native channel slice that preserves Hermes-visible SimpleX semantics (opaque IDs, allowlists, home-channel/standalone delivery, correlation echo filtering) while explicitly excluding live daemon/account and unproven media/file transfer parity.",
       "write_scope": [
-        "internal/channels/simplex",
-        "internal/gateway",
-        "cmd/gormes/gateway.go"
+        "internal/channels/simplex/",
+        "internal/channels/simplex/simplex_test.go",
+        "internal/gateway/platform_manifest.go",
+        "internal/gateway/platform_manifest_test.go",
+        "internal/gateway/platform_connected_checkers.go",
+        "internal/gateway/platform_connected_checkers_test.go",
+        "internal/gateway/channel_setup.go",
+        "internal/gateway/channel_setup_test.go",
+        "cmd/gormes/gateway.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/channels/simplex ./internal/gateway -run 'SimpleX|PlatformManifest|Connected' -count=1",
-        "go run ./cmd/progress validate"
+        "go test ./internal/channels/simplex -count=1",
+        "go test ./internal/gateway -run 'TestHermesGatewayPlatformManifest|TestPlatformConnectedCheckers|TestUnauthorizedDM|TestResolveHomeChannelTarget|TestChannelSetup' -count=1",
+        "go test ./cmd/gormes -run 'Gateway|SetupGateway|ChannelSetup' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
       ],
       "done_signal": [
-        "SimpleX fake-daemon fixtures prove config/status, inbound admission, outbound delivery, DM pairing, and command routing without live credentials."
-      ]
+        "SimpleX appears as a native, fake-tested Gormes channel with deterministic status/degraded evidence, opaque-ID ingress, allowlist/pairing behavior, outbound command formatting, and home-channel delivery proof; no live SimpleX daemon/account is required for CI, and unsupported media/onboarding behavior remains explicit."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes bundled SimpleX platform plugin (`hermes-agent/plugins/platforms/simplex/plugin.yaml` and `adapter.py`) plus Gormes gateway platform manifest/checker seams",
+        "note": "Hermes owns the SimpleX plugin semantics; Gormes owns a native fakeable channel adapter that preserves operator-visible behavior without importing or executing Hermes Python."
+      }
     }
   },
   {

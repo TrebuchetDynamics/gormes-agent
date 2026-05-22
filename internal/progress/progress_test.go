@@ -729,8 +729,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if simpleX.Status != StatusPlanned {
 		t.Fatalf("Phase 7.E SimpleX status = %q, want planned", simpleX.Status)
 	}
-	if simpleX.ContractStatus != ContractStatusDraft || simpleX.Module != ModuleChannels {
-		t.Fatalf("Phase 7.E SimpleX metadata = contract_status %q module %q, want draft channels", simpleX.ContractStatus, simpleX.Module)
+	if simpleX.ContractStatus != ContractStatusFixtureReady || simpleX.Module != ModuleChannels {
+		t.Fatalf("Phase 7.E SimpleX metadata = contract_status %q module %q, want fixture_ready channels", simpleX.ContractStatus, simpleX.Module)
+	}
+	if simpleX.Fixture != "internal/channels/simplex/simplex_test.go" || !containsString(simpleX.SourceRefs, "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter._handle_new_chat_item") {
+		t.Fatalf("Phase 7.E SimpleX evidence = fixture %q refs %v, want fake-WebSocket fixture and upstream handler ref", simpleX.Fixture, simpleX.SourceRefs)
 	}
 	blueBubblesHA := longTailItems["BlueBubbles + HomeAssistant adapters"]
 	if blueBubblesHA.Status != StatusComplete {
