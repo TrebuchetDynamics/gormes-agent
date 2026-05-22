@@ -259,6 +259,8 @@ func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string 
 	values.Set("setup_mutation_policy", "read_only_handoff")
 	values.Set("setup_sections", "provider,model,workspace,channels")
 	values.Set("setup_entry_screen", "setup.provider")
+	values.Set("bridge_keepalive_required", "true")
+	values.Set("bridge_lifecycle", "termux_pair_command")
 	values.Set("recommended_path", "navivox")
 	values.Set("auth_mode", cfg.AuthMode)
 	values.Set("exposure_mode", cfg.ExposureMode)
