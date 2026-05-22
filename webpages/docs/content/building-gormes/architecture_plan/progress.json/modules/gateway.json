@@ -9601,8 +9601,8 @@
       "name": "Hermes web dashboard strict-fidelity contract map",
       "priority": "P1",
       "status": "planned",
-      "contract": "Classify Hermes `web/src` dashboard behavior into Gormes API/TUI gateway contracts, owned public-site divergence, or explicit exclusions. The map must connect chat, sessions, profiles, plugins, OAuth/provider panels, model picker, cron/admin pages, i18n, theme/plugin slots, and gateway client event shapes to Gormes runtime rows before dashboard parity is claimed.",
-      "contract_status": "draft",
+      "contract": "Build a report-only Hermes web dashboard strict-fidelity classifier for `cmd/repoctl hermes-contract-inventory`: scan the current `hermes-agent/web/src` dashboard tree, group exact files into deterministic surface families (terminal chat/PTY, sessions, profiles, plugins and page-scoped slots, OAuth/provider panels, model picker, cron/admin/jobs, i18n, themes, and gateway client event shapes), and attach each family to an existing Gormes API/TUI gateway row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not import or execute React/TypeScript dashboard code, mutate `internal/apiserver` or `internal/tuigateway` behavior, or claim strict dashboard parity without row/source-pair/test proof.",
+      "contract_status": "fixture_ready",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "gateway",
@@ -9610,53 +9610,80 @@
         "operator",
         "system"
       ],
-      "degraded_mode": "Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.",
-      "fixture": "internal/apiserver dashboard contract fixtures; internal/tuigateway gateway-client fixtures",
+      "degraded_mode": "Until this classifier lands, strict-fidelity reports can only show Hermes `web/src` dashboard files as an undifferentiated unmapped bucket, so Gormes must avoid claiming complete dashboard/API/TUI gateway parity.",
+      "fixture": "internal/repoctl/hermes_contract_inventory_dashboard_test.go",
       "source_refs": [
-        "hermes-agent/web/src/lib/gatewayClient.ts",
-        "hermes-agent/web/src/pages/ChatPage.tsx",
-        "hermes-agent/web/src/pages/ProfilesPage.tsx",
-        "hermes-agent/web/src/pages/PluginsPage.tsx",
-        "hermes-agent/web/src/components/ModelPickerDialog.tsx",
-        "hermes-agent/web/src/plugins/registry.ts",
-        "internal/apiserver",
-        "internal/tuigateway"
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:OpenAI-compatible API",
+        "internal/fidelity/report.go:buildCandidateInventory",
+        "internal/repoctl/hermes_contract_inventory.go:RenderHermesContractInventoryMarkdown",
+        "internal/repoctl/hermes_contract_inventory_test.go:TestWriteHermesContractInventoryWritesJSONAndMarkdown",
+        "hermes-agent/web/src/lib/gatewayClient.ts:GatewayClient.request",
+        "hermes-agent/web/src/pages/ChatPage.tsx:ChatPage",
+        "hermes-agent/web/src/pages/SessionsPage.tsx:SessionsPage",
+        "hermes-agent/web/src/pages/ProfilesPage.tsx:ProfilesPage",
+        "hermes-agent/web/src/pages/PluginsPage.tsx:PluginsPage",
+        "hermes-agent/web/src/pages/CronPage.tsx:CronPage",
+        "hermes-agent/web/src/components/ModelPickerDialog.tsx:ModelPickerDialog",
+        "hermes-agent/web/src/components/OAuthProvidersCard.tsx:OAuthProvidersCard",
+        "hermes-agent/web/src/components/OAuthLoginModal.tsx:OAuthLoginModal",
+        "hermes-agent/web/src/plugins/slots.ts:KNOWN_SLOT_NAMES",
+        "hermes-agent/web/src/plugins/registry.ts:exposePluginSDK",
+        "hermes-agent/web/src/themes/context.tsx:ThemeProvider",
+        "hermes-agent/web/src/i18n/context.tsx:I18nProvider",
+        "internal/apiserver/dashboard_contract_test.go:TestDashboardContract_CoversNativeDashboardEndpoints",
+        "internal/apiserver/dashboard_extensions_test.go:TestDashboardExtensionStatusDistinguishesThemesPluginsAndBackendRoutes",
+        "internal/apiserver/page_scoped_slots_test.go:TestDashboardPluginsEndpointPreservesPageScopedSlotMetadata",
+        "internal/apiserver/cron_admin_read_test.go:TestAPIServerCronAdmin_ListJobs",
+        "internal/apiserver/cron_admin_mutate_test.go:TestAPIServerCronAdmin_CreateUpdateDelete",
+        "internal/apiserver/capabilities_endpoint_test.go:TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract",
+        "internal/tuigateway/gateway_mux_test.go:TestGatewayMuxWebSocket_SessionSubmitAndFrameEvent"
       ],
       "ready_when": [
-        "`webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json` is generated for the current Hermes SHA.",
-        "The row uses exact Hermes files/tests as evidence, not only broad directory globs.",
-        "The pass is allowed to add source-pair entries, progress source_refs, planned child rows, or explicit exclusions, but not to mark runtime behavior covered without tests."
+        "The builder works in the report/fidelity layer and uses synthetic Hermes dashboard-tree fixtures; no live web build, browser session, gateway process, OAuth account, provider credential, cron worker, or React runtime is required.",
+        "The row maps dashboard evidence to canonical progress/source-pair/exclusion outputs only; runtime API, PTY, TUI gateway, plugin-slot, profile, cron, OAuth, model-picker, theme, and i18n ports stay in their existing rows.",
+        "Existing apiserver and tuigateway tests remain the runtime safety baseline; this row only teaches the strict-fidelity inventory how to classify upstream web dashboard files by surface family."
       ],
       "not_ready_when": [
-        "The implementation treats low-confidence taxonomy matches as proof of coverage.",
-        "The implementation creates a side backlog outside progress.json or mutates hundreds of rows without feature-module grouping.",
-        "The implementation copies unsupported Hermes Python/TypeScript runtime code into Gormes instead of classifying the Go contract first."
+        "The implementation imports, executes, vendors, transpiles, or rewrites Hermes React/TypeScript dashboard runtime code instead of reading paths, symbols, and report evidence.",
+        "The classifier marks a dashboard family covered without a validated complete row, covered source-pair, or exact Go test evidence.",
+        "The change edits live `internal/apiserver`, `internal/tuigateway`, TUI, public landing, or dashboard runtime behavior, or creates TODO/issue side queues outside progress.json and hermes-source-pairs evidence."
+      ],
+      "unblocks": [
+        "Hermes ui-tui strict-fidelity action matrix",
+        "Hermes gateway platform strict-fidelity source-pair expansion",
+        "Hermes plugin catalog strict-fidelity classifier"
       ],
       "acceptance": [
-        "The relevant Hermes files/tests no longer appear as anonymous examples in the strict-fidelity unmapped bucket; they are linked to rows, source pairs, planned child rows, explicit exclusions, or owned-divergence notes.",
-        "`go run ./cmd/repoctl hermes-contract-inventory --repo-root .` regenerates JSON and Markdown with this bucket broken into actionable evidence.",
-        "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
-        "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
+        "TestHermesContractInventoryClassifiesWebDashboardSurface builds a fixture Hermes `web/src` tree containing gatewayClient, ChatPage, SessionsPage, ProfilesPage, PluginsPage, CronPage, ModelPickerDialog, OAuth components, plugin slot/registry, theme, and i18n files, then proves the generated report lists deterministic dashboard-surface rows with exact examples and progress/source-pair/exclusion attachment state.",
+        "The Markdown/JSON report gains a dashboard strict-fidelity classification section or candidate table rows whose family names and example paths are stable and sorted; anonymous `web/src/**` examples are not the only evidence for this bucket.",
+        "Families with existing Gormes fixtures point at exact tests for native dashboard endpoints, plugin/slot metadata, cron admin/jobs, capabilities, and TUI gateway websocket/SSE behavior; missing or intentionally divergent React dashboard surfaces remain planned, excluded, or owned-divergence instead of covered.",
+        "The report code never imports or executes Hermes React/TypeScript modules and preserves strict-mode semantics: covered requires validated row/source-pair evidence, while planned/excluded/owned-divergence remain explicit non-coverage classifications."
       ],
-      "note": "draft_until: classifier pass narrows this strict-fidelity bucket into exact child rows, source-pair mappings, or exclusions; strict_fidelity_origin: 2026-05-18 report shows 84 unmapped `web/src` source files plus large `website/docs` docs buckets.",
+      "note": "Planner 2026-05-22 development-loop iteration 6: converted the Hermes web dashboard strict-fidelity bucket from a broad draft into a fixture-ready report-classifier slice. Runtime dashboard/API/TUI gateway ports remain separate rows; this slice only classifies upstream `web/src` evidence for strict-fidelity reports.",
       "write_scope": [
-        "internal/apiserver",
-        "internal/tuigateway",
+        "internal/fidelity/report.go",
+        "internal/fidelity/report_test.go",
+        "internal/repoctl/hermes_contract_inventory.go",
+        "internal/repoctl/hermes_contract_inventory_test.go",
+        "internal/repoctl/hermes_contract_inventory_dashboard_test.go",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/apiserver ./internal/tuigateway -count=1",
-        "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
-        "go run ./cmd/progress validate"
+        "go test ./internal/repoctl -run TestHermesContractInventoryClassifiesWebDashboardSurface -count=1",
+        "go test ./internal/repoctl ./internal/fidelity -count=1",
+        "go test ./internal/apiserver ./internal/tuigateway -run 'TestDashboardContract|TestDashboardExtensionStatus|TestDashboardPluginsEndpoint|TestDashboardSSE|TestAPIServerCronAdmin|TestAPIServerCapabilitiesEndpoint|TestGatewayMux' -count=1",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
+        "go run ./cmd/progress validate",
+        "git diff --check"
       ],
       "done_signal": [
-        "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
+        "Hermes web dashboard strict-fidelity output groups `web/src` files into deterministic surface families with exact row/source-pair/exclusion evidence, while runtime dashboard behavior remains unchanged and no unsupported full-dashboard-parity claim is made."
       ],
       "provenance": {
         "origin_type": "hybrid",
-        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634",
-        "note": "Planner row created from hermes-contract-inventory.json strict-mode blockers."
+        "upstream_ref": "Hermes strict-fidelity blocker inventory @ 43e566f77eaf01293086eb7cb99a21e240d60634 plus current hermes-agent/web/src dashboard surface",
+        "note": "Hermes owns the React dashboard contract; Gormes owns the report-only classifier that maps dashboard evidence to Go API/TUI gateway progress, source-pair, exclusion, or owned-divergence state before runtime ports are selected."
       }
     }
   },
