@@ -43,7 +43,7 @@ func TestEncodeJSON_GoldenFixtures(t *testing.T) {
 		{
 			name: "empty arrays and objects",
 			json: `{"items":[],"meta":{}}`,
-			want: "items: []\nmeta:",
+			want: "items: []\nmeta: {}",
 		},
 		{
 			name: "root empty array",

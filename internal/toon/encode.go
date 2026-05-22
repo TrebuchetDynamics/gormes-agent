@@ -96,6 +96,7 @@ func (e *encoder) writeField(buf *bytes.Buffer, key string, value Value, depth i
 		buf.WriteString(encodedKey)
 		buf.WriteByte(':')
 		if len(value.Object) == 0 {
+			buf.WriteString(" {}")
 			return nil
 		}
 		buf.WriteByte('\n')
