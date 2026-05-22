@@ -52,3 +52,17 @@ func TestNavivoxFDroidDocsExplainWhyGooglePlayIsNotFirstProof(t *testing.T) {
 		"F-Droid lets the first audience validate source, builds, permissions, and gateway pairing before a mass-market listing.",
 	})
 }
+
+func TestNavivoxFDroidDocsNameAudienceFitMatrix(t *testing.T) {
+	page := readDoc(t, "content/operate/navivox-fdroid.md")
+
+	assertContainsAll(t, "content/operate/navivox-fdroid.md", page, []string{
+		"## Audience fit matrix",
+		"| Audience | Why F-Droid fits |",
+		"| Termux users | Already treat Android like a Linux workstation and expect package-manager-style installs. |",
+		"| Self-hosters | Prefer companion apps that pair to their own services instead of opaque hosted accounts. |",
+		"| AI tinkerers | Want inspectable local tooling before trusting an assistant on a phone. |",
+		"| Privacy-first users | Avoid Google-account-only distribution and look for explicit permission boundaries. |",
+		"| OSS Android users | Discover tools through source-available, reproducible, community-reviewed channels. |",
+	})
+}

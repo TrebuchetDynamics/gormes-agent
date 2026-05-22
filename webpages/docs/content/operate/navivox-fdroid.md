@@ -39,6 +39,16 @@ Use the current Gormes/Android path today:
 - F-Droid packaging sets a public expectation that the app build is auditable
   and reproducible.
 
+## Audience fit matrix
+
+| Audience | Why F-Droid fits |
+|---|---|
+| Termux users | Already treat Android like a Linux workstation and expect package-manager-style installs. |
+| Self-hosters | Prefer companion apps that pair to their own services instead of opaque hosted accounts. |
+| AI tinkerers | Want inspectable local tooling before trusting an assistant on a phone. |
+| Privacy-first users | Avoid Google-account-only distribution and look for explicit permission boundaries. |
+| OSS Android users | Discover tools through source-available, reproducible, community-reviewed channels. |
+
 ## Channel strategy
 
 | Channel | Role | Use when |
