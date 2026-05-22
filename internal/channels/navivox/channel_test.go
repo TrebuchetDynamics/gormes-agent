@@ -113,6 +113,32 @@ func TestNavivoxStatusIncludesSetupHandoffForAppContinuation(t *testing.T) {
 	if !ok || len(steps) < 4 {
 		t.Fatalf("steps = %#v, want provider/model/workspace/channel setup steps", handoff["steps"])
 	}
+	if handoff["mutation_policy"] != "read_only_handoff" {
+		t.Fatalf("mutation_policy = %#v, want read_only_handoff", handoff["mutation_policy"])
+	}
+	sections, ok := handoff["sections"].([]any)
+	if !ok || len(sections) != 4 {
+		t.Fatalf("sections = %#v, want four structured setup sections", handoff["sections"])
+	}
+	for i, want := range []struct {
+		id      string
+		title   string
+		screen  string
+		command string
+	}{
+		{"provider", "Choose provider", "setup.provider", "gormes setup provider"},
+		{"model", "Choose model", "setup.model", "gormes setup model"},
+		{"workspace", "Confirm workspace", "setup.workspace", "gormes setup workspace"},
+		{"channels", "Enable channels", "setup.channels", "gormes setup gateway"},
+	} {
+		section, ok := sections[i].(map[string]any)
+		if !ok {
+			t.Fatalf("section[%d] = %#v, want object", i, sections[i])
+		}
+		if section["id"] != want.id || section["title"] != want.title || section["navivox_screen"] != want.screen || section["fallback_cli_command"] != want.command {
+			t.Fatalf("section[%d] = %#v, want id=%s title=%q screen=%s fallback=%q", i, section, want.id, want.title, want.screen, want.command)
+		}
+	}
 	for _, secretLike := range []string{"api_key", "token", "secret", "password"} {
 		if strings.Contains(strings.ToLower(fmt.Sprint(handoff)), secretLike) {
 			t.Fatalf("setup handoff must not expose secret fields: %#v", handoff)
