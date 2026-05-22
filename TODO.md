@@ -2,7 +2,7 @@
 
 [BLOCKED] Publish follow-up release for Termux latest installer — 2026-05-21 20:14:15 CST
   blocker: live public `v0.2.20` remains the latest release and affected Termux/Android installs can still fail publish verification, then report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`; the recovery fix is committed on `development` but not released.
-  evidence: `gh release view v0.2.20` returned published release https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.20; `refs/tags/v0.2.20` is `c27835f25d32`; `origin/development` is `6c2cdc3613ab`; `git ls-remote --tags origin refs/tags/v0.2.21` returned zero lines.
+  evidence: `gh release view v0.2.20` returned published release https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.20; `refs/tags/v0.2.20` is `c27835f25d32`; Termux recovery fix commit `72b4ee248475` is on `origin/development`; `git ls-remote --tags origin refs/tags/v0.2.21` returned zero lines.
   unblocks when: a `development` -> `main` PR is merged through the required release lane and a follow-up tag/release, expected `v0.2.21` unless superseded, publishes fixed Termux installer artifacts.
   owner: Gormes release lane / operator with release approval.
   workaround/pivot: keep public docs explicit that `v0.2.20` Termux latest install is affected; use the committed `development` fix only for source/local validation until release is approved.

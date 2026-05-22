@@ -212,10 +212,10 @@ witness.
   `gormes --version`, `gormes version`, or `gormes doctor --offline`.
 - **Status**: `fixed-in-development` for the next release; not fixed in
   public latest `v0.2.20`. Evidence on 2026-05-21: `v0.2.20` points at
-  tag commit `c27835f25d32`, `origin/development` points at
-  `df1c011d61c3`, and no `v0.2.21` tag exists yet. Operators should
-  treat the latest public Termux installer as affected until a follow-up
-  release is published.
+  tag commit `c27835f25d32`, the Termux recovery fix commit is
+  `72b4ee248475` and is on `origin/development`, and no `v0.2.21` tag
+  exists yet. Operators should treat the latest public Termux installer
+  as affected until a follow-up release is published.
   `cmd/gormes/main.go:sanitizeTermuxExecArgs` detects the injected path
   by comparing `os.Args[1]` (and `os.Args[2]` in the less-common shift
   case) against `os.Executable()`. When they match on `GOOS=android`,
