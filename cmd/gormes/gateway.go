@@ -641,7 +641,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")
 		},
 		Navivox: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			return navivoxchannel.NewChannel(cfg.Navivox, log)
+			return navivoxchannel.NewChannel(cfg.Navivox, log, navivoxchannel.WithProfileRouting(cfg.NavivoxProfileRouting()))
 		},
 	}
 }

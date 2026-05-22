@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -69,6 +70,83 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	capabilities, ok := payload["capabilities"].([]any)
 	if !ok || !containsAny(capabilities, "profile_contacts") || !containsAny(capabilities, "turn_control") {
 		t.Fatalf("capabilities = %#v, want profile_contacts and turn_control", payload["capabilities"])
+	}
+}
+
+func TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree(t *testing.T) {
+	routingSource := config.Config{Profiles: map[string]config.ProfileCfg{
+		"mineru": {
+			Enabled:    true,
+			Name:       "Mineru Ops",
+			Workspaces: []string{"/srv/gormes", "/srv/navivox"},
+			Providers: map[string]config.ProfileProviderCfg{
+				"openai-codex": {Enabled: true, Credential: "provider-secret-ref"},
+			},
+			Channels: map[string]config.ProfileChannelCfg{
+				"navivox":  {Enabled: true},
+				"telegram": {Enabled: true, Credential: "telegram-secret-ref"},
+			},
+		},
+	}}
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil, WithProfileRouting(routingSource.NavivoxProfileRouting()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	unauth, err := http.Get(server.URL + "/v1/navivox/profile-routing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unauth.Body.Close()
+	if unauth.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unauthorized profile-routing status = %d, want 401", unauth.StatusCode)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/profile-routing", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("profile-routing status = %d, want 200", resp.StatusCode)
+	}
+	var got config.NavivoxProfileRoutingReport
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	want := config.NavivoxProfileRoutingReport{Profiles: []config.NavivoxProfileRoute{{
+		ProfileID:   "mineru",
+		DisplayName: "Mineru Ops",
+		Workspaces:  []string{"/srv/gormes", "/srv/navivox"},
+		Providers:   []string{"openai-codex"},
+		Channels:    []string{"navivox", "telegram"},
+	}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("profile-routing payload = %#v, want %#v", got, want)
+	}
+	raw, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"provider-secret-ref", "telegram-secret-ref", "nvbx_test_token"} {
+		if strings.Contains(string(raw), forbidden) {
+			t.Fatalf("profile-routing leaked %q: %s", forbidden, raw)
+		}
 	}
 }
 
