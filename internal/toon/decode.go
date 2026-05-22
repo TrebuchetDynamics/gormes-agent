@@ -379,6 +379,9 @@ func parseListItem(lines []parsedLine, index, depth int) (Value, int, error) {
 
 func parsePrimitive(token string) (Value, error) {
 	token = strings.TrimSpace(token)
+	if token == "" {
+		return Value{}, fmt.Errorf("empty primitive token")
+	}
 	if strings.HasPrefix(token, `"`) {
 		s, err := unquoteTOONString(token)
 		if err != nil {

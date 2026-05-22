@@ -179,6 +179,27 @@ func TestDecodeJSON_StrictTabularCount(t *testing.T) {
 	}
 }
 
+func TestDecodeJSON_RejectsEmptyPrimitiveTokens(t *testing.T) {
+	tests := []struct {
+		name string
+		toon string
+	}{
+		{name: "inline trailing delimiter", toon: "items[2]: a,"},
+		{name: "inline leading delimiter", toon: "items[2]: ,a"},
+		{name: "tabular missing cell", toon: "items[1]{id,name}:\n  1,"},
+		{name: "list missing body", toon: "items[1]:\n  - "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := DecodeJSON([]byte(tt.toon))
+			if err == nil {
+				t.Fatalf("DecodeJSON(%q) succeeded; want empty primitive token error", tt.toon)
+			}
+		})
+	}
+}
+
 func BenchmarkEncodeJSON_TOON(b *testing.B) {
 	raw := []byte(`{"rows":[{"id":1,"name":"Ada","role":"admin","active":true},{"id":2,"name":"Bob","role":"user","active":false},{"id":3,"name":"Cam","role":"ops","active":true}],"meta":{"source":"bench","count":3}}`)
 	b.ReportAllocs()
