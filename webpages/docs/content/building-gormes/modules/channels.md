@@ -7,9 +7,9 @@ title: "Channels Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `channels`
-**Rows:** 135
-**Status counts:** `complete`: 130 · `in_progress`: 0 · `planned`: 5
-**Priority counts:** `P0`: 7 · `P1`: 47 · `P2`: 27 · `P3`: 5 · `P4`: 2 · `unset`: 47
+**Rows:** 134
+**Status counts:** `complete`: 130 · `in_progress`: 0 · `planned`: 4
+**Priority counts:** `P0`: 7 · `P1`: 47 · `P2`: 27 · `P3`: 4 · `P4`: 2 · `unset`: 47
 
 ## Phase 2 — The Gateway
 
@@ -185,12 +185,6 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `channels` | WhatsApp gateway event-bus adapter |
 
 ## Phase 6 — The Learning Loop (Soul)
-
-### 6.A — Complexity Detector
-
-| Status | Priority | Module | Row |
-|---|---|---|---|
-| `planned` | `P3` | `channels` | Heuristic or LLM-scored signal |
 
 ### 6.F — Skill Surface
 

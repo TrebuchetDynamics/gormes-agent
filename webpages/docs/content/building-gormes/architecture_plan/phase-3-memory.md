@@ -208,6 +208,39 @@ Gormes Phase 3 is converging toward that same separation in Go. The local SQLite
 | **`peer.chat()` dialectic path** | Higher-level natural-language reasoning over a peer's learned representation | Not a Phase 3 deliverable. Phase 3 supplies the graph, decay model, and cross-chat identity that such a layer would query later, whether via Honcho plugin parity or a Gormes-native dialectic surface. |
 | **Observation topology** | Asymmetric peer observation (`observe_me`, `observe_others`), dynamic agent peers, subagent hierarchies | Important for Honcho integration design, but outside the local memory-core mandate of Phase 3. That belongs with gateway/plugin parity once the substrate is stable. |
 
+## Learning-loop import map
+
+The learning loop has three different evidence streams, and Phase 3 should keep
+those streams separate:
+
+1. **Hermes contract** — `hermes-agent/README.md` lines 15 and 22 define the
+   product promise: curated memory nudges, skill creation and improvement,
+   FTS5 session search, and Honcho-backed user modeling. `hermes-agent/run_agent.py`
+   imports `build_memory_context_block` and `StreamingContextScrubber`, then
+   wires background memory/skill review near the main turn loop. `hermes-agent/toolsets.py`
+   exposes `memory` plus `skills_list`, `skill_view`, and `skill_manage` as the
+   restricted procedural/declarative memory tool lane.
+2. **Honcho/GONCHO model** — `../honcho/README.md` frames memory as workspace,
+   peer, session, representation, summary, search, and dialectic context. The
+   local Go usage surface is already source-backed in `internal/gonchotools`:
+   `honcho_profile`, `honcho_search`, `honcho_context`, `honcho_reasoning`, and
+   `honcho_conclude` are registered tools, while `internal/memory/goncho_v1.go`
+   and its tests pin markdown/MCP contract versions, scopes, tombstones,
+   checksums, and private/shared recall boundaries.
+3. **OpenClaw donor evidence** — OpenClaw active memory is not the parity
+   contract, but it supplies useful operator-facing safeguards: bounded hidden
+   recall, `memory_search`/`memory_get` QA scenarios, graceful no-plugin
+   degradation, per-conversation allow/deny filters, timeout partial summaries,
+   lazy QMD startup, and memory-status diagnostics. Those ideas should become
+   Gormes-owned enhancements only when they preserve Hermes-visible behavior.
+
+The immediate planner rule is: if a future slice changes recall behavior,
+background review, or `honcho_*` tool semantics, cite the Hermes/Honcho source
+above as the contract and cite OpenClaw only as an optional hardening donor. A
+valid implementation slice should name the exact Gormes seam first: extractor,
+recall provider, session catalog, Goncho V1 markdown/MCP contract, or
+`internal/gonchotools` tool adapter.
+
 ## Scope guard
 
 Phase 3 should therefore be read as **GONCHO-aligned substrate work**, not "port all of Honcho now."

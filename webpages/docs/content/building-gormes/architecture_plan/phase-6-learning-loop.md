@@ -131,6 +131,32 @@ Do not begin Phase 6 with live LLM extraction. The dependency order is:
 11. **6.F operator surfaces** — expose review/edit/disable flows only after the
    underlying store and feedback records are stable.
 
+## Goncho Usage Boundary
+
+Phase 6 should use Goncho as the learning loop's durable memory substrate, not
+create another store. The safe contract is four seams:
+
+1. **Recall input** — turn-time learning signals read through the existing
+   Phase 3 recall path and `<memory-context>` fence, not direct table scans.
+2. **Honcho-compatible tools** — model-visible memory introspection keeps the
+   public `honcho_profile`, `honcho_search`, `honcho_context`,
+   `honcho_reasoning`, and `honcho_conclude` names registered by
+   `internal/gonchotools`.
+3. **Outcome writes** — skill-use results, curator conclusions, and retained
+   facts become Goncho conclusions or memory-category writes with provenance,
+   review state, and tombstone/rollback evidence rather than unreviewed prompt
+   mutations.
+4. **Diagnostics** — operator-facing reports should prefer existing Goncho
+   recall traces, queue status, and memory-status surfaces before adding a new
+   learning-loop dashboard.
+
+Hermes defines the compatibility floor here: background review is restricted to
+memory and skills tools, and `hermes curator` owns user-visible state/report
+semantics. OpenClaw memory behavior is donor evidence only: bounded hidden
+recall, graceful no-plugin degradation, `memory_search`/`memory_get` QA, lazy
+QMD startup, and plugin diagnostics can harden Gormes reports, but they do not
+replace the Hermes/Honcho contract.
+
 ### 6.K Self-Evolution Row Status
 
 The GEPA lane is now test-backed but remains offline and deterministic:

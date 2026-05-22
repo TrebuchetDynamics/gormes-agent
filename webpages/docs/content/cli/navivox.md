@@ -22,9 +22,13 @@ gormes navivox [command]
 
 ## Current Channel Contract
 
-`connect-info` is the supported host-facing setup command for the Flutter
-Navivox app. It prints base URLs the app can paste or scan, plus the matching
-health and WebSocket stream URLs.
+`connect-info` is the supported token-redacted host-facing setup command for
+the Flutter Navivox app. It prints base URLs the app can paste, plus the
+matching health and WebSocket stream URLs. For first-run setup,
+`gormes setup gateway` also writes `$GORMES_HOME/navivox/pairing.png`: a
+scannable QR image containing a `navivox://connect` descriptor with the base
+URL, WebSocket URL, auth mode, and REST token when token auth is selected.
+Treat that PNG as secret material.
 
 Supported runtime endpoints:
 
@@ -46,8 +50,13 @@ Supported runtime endpoints:
   WireGuard, and generic tun-class VPN interfaces.
 - Public exposure is validated by server config and requires explicit
   confirmation.
-- Token values are never printed; output only reports whether a token is
-  required.
+- Token values are never printed by `connect-info`; output only reports
+  whether a token is required.
+- Setup QR images may embed token values and are written with owner-only file
+  permissions under `$GORMES_HOME/navivox/`.
+- REST clients send `Authorization: Bearer <Navivox token>` for
+  `/v1/navivox/*`; browser WebSocket clients may use the Navivox token
+  subprotocol.
 - JSON entries include `base_url`, `healthz_url`, and `websocket_url`; IPv6
   hosts are bracketed in emitted URLs.
 
