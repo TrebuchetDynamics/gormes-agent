@@ -1615,6 +1615,10 @@ update_active_command() {
     log "skipping active PATH command update (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
     return 0
   fi
+  if is_termux; then
+    log "skipping active PATH command update (Termux runtime; respecting $PREFIX/bin boundary)"
+    return 0
+  fi
   paths=""
   if has which; then
     paths=$(which -a gormes 2>/dev/null || true)
@@ -2266,7 +2270,7 @@ print_install_plan_body() {
     log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
     log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
   elif is_termux; then
-    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  update_active_path_command: skipped (Termux runtime; respecting $PREFIX/bin boundary)"
     log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
     log "  install_system_service: skipped (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
   else
@@ -2341,7 +2345,7 @@ print_verbose_plan() {
     log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
     log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
   elif is_termux; then
-    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  update_active_path_command: skipped (Termux runtime; respecting $PREFIX/bin boundary)"
     log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
     log "  install_system_service: skipped (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
   else

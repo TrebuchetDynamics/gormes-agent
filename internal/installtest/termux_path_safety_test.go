@@ -16,13 +16,15 @@ func TestInstall_DryRunTermuxPublishesOnlyToPrefixBin(t *testing.T) {
 	fixture := newTermuxDryRunFixture(sb)
 	out := runInstallDryRun(t, fixture.env(nil), "--verbose")
 
-	wantPublished := filepath.Join(fixture.Prefix, "bin", "gormes")
+	wantPrefixBin := filepath.Join(fixture.Prefix, "bin")
+	wantPublished := filepath.Join(wantPrefixBin, "gormes")
 	wantManaged := filepath.Join(fixture.InstallHome, "bin", "gormes")
 	for _, want := range []string{
 		"termux: yes",
 		"release_arch: android-arm64",
 		"published_binary: " + wantPublished,
 		"managed_binary: " + wantManaged,
+		"update_active_path_command: skipped (Termux runtime; respecting " + wantPrefixBin + " boundary)",
 		"install_system_service: skipped (Termux runtime;",
 	} {
 		if !strings.Contains(out, want) {
