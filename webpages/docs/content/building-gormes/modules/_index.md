@@ -30,7 +30,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Profiles](profiles/) | 24 | 24 | 0 | 0 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `unset`: 6 |
 | [Progress](progress/) | 20 | 20 | 0 | 0 | `P1`: 5 · `P2`: 15 |
 | [Providers](providers/) | 120 | 120 | 0 | 0 | `P0`: 9 · `P1`: 50 · `P2`: 24 · `P3`: 2 · `unset`: 35 |
-| [Release](release/) | 13 | 10 | 0 | 3 | `P0`: 3 · `P1`: 10 |
+| [Release](release/) | 13 | 12 | 0 | 1 | `P0`: 3 · `P1`: 10 |
 | [Runtime](runtime/) | 18 | 18 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
 | [Sessions](sessions/) | 28 | 28 | 0 | 0 | `P1`: 8 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
 | [Skills](skills/) | 46 | 46 | 0 | 0 | `P0`: 6 · `P1`: 8 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9 |

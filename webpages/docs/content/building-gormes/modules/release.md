@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `release`
 **Rows:** 13
-**Status counts:** `complete`: 10 · `in_progress`: 0 · `planned`: 3
+**Status counts:** `complete`: 12 · `in_progress`: 0 · `planned`: 1
 **Priority counts:** `P0`: 3 · `P1`: 10
 
 ## Phase 8 — Reputation & Publication
@@ -28,5 +28,5 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `release` | Release build provenance attest action contract |
 | `complete` | `P1` | `release` | Release notes SBOM attestation wording |
 | `complete` | `P1` | `release` | Release archive 30 MB size gate |
-| `planned` | `P0` | `release` | Termux latest-installer follow-up release publication |
-| `planned` | `P0` | `release` | Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs |
+| `complete` | `P0` | `release` | Termux latest-installer follow-up release publication |
+| `complete` | `P0` | `release` | Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs |

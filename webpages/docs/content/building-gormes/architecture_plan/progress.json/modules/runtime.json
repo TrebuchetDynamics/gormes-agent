@@ -698,6 +698,11 @@
       "done_signal": [
         "Builder reports status text/JSON fixtures for latest operator run report, unavailable-report degradation, redaction, and unchanged existing status output."
       ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-18T00:00:00Z",
+        "note": "Gormes-owned operator reliability behavior; no Hermes upstream analog."
+      },
       "evidence": {
         "completed_at": "2026-05-19T00:00:00Z",
         "implementation": [
@@ -710,11 +715,6 @@
           "GREEN: go test ./internal/cron -run TestOperatorRunReport -count=1 -> ok (6 subtests)",
           "go run ./cmd/progress validate -> validated 9 phases"
         ]
-      },
-      "provenance": {
-        "origin_type": "gormes",
-        "owned_since": "2026-05-18T00:00:00Z",
-        "note": "Gormes-owned operator reliability behavior; no Hermes upstream analog."
       }
     }
   },

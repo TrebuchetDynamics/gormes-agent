@@ -1374,6 +1374,7 @@
         "Missing or empty sessions return explicit diagnostics without panics or live provider calls.",
         "Long transcripts are bounded with visible truncation evidence."
       ],
+      "note": "Complete 2026-05-19: TDD shipped internal/session/recap.go with RecapConfig, RecapEntry, RecapEnvelope (HumanOutput), SessionRecapResult (HumanOutput), GenerateRecap (list all sessions with truncation), and GenerateSessionRecap (single session with not_found diagnostics). 10 tests cover empty store, single session, missing session, known session, truncation evidence, human output (empty/non-empty), single session human output, not-found human output, and sorted-by-updated-at ordering. CLI wired as `gormes session recap [session-id]` with --limit and --json flags in cmd/gormes/session.go and internal/app/gormescli/modules/sessions/session.go. No live provider or model calls required.",
       "write_scope": [
         "cmd/gormes",
         "internal/session",
@@ -1387,7 +1388,6 @@
       "done_signal": [
         "Session recap fixtures prove read-only transcript loading, bounded output, missing-session diagnostics, and no live provider dependency."
       ],
-      "note": "Complete 2026-05-19: TDD shipped internal/session/recap.go with RecapConfig, RecapEntry, RecapEnvelope (HumanOutput), SessionRecapResult (HumanOutput), GenerateRecap (list all sessions with truncation), and GenerateSessionRecap (single session with not_found diagnostics). 10 tests cover empty store, single session, missing session, known session, truncation evidence, human output (empty/non-empty), single session human output, not-found human output, and sorted-by-updated-at ordering. CLI wired as `gormes session recap [session-id]` with --limit and --json flags in cmd/gormes/session.go and internal/app/gormescli/modules/sessions/session.go. No live provider or model calls required.",
       "evidence": {
         "completed_at": "2026-05-19T00:00:00Z",
         "implementation": [
