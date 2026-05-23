@@ -18,11 +18,11 @@ gormes navivox [command]
 
 | Command | Purpose |
 |---|---|
-| `gormes navivox connect-info` | Print Navivox connect URLs for active VPN/local interfaces |
+| `gormes navivox connect` | Print Navivox connect URLs for active VPN/local interfaces |
 
 ## Current Channel Contract
 
-`connect-info` is the supported token-redacted host-facing setup command for
+`connect` is the supported token-redacted host-facing setup command for
 the Flutter Navivox app. It prints base URLs the app can paste, plus the
 matching health and WebSocket stream URLs. For first-run setup,
 `gormes setup gateway` also writes `$GORMES_HOME/navivox/pairing.png`: a
@@ -50,7 +50,7 @@ Supported runtime endpoints:
   WireGuard, and generic tun-class VPN interfaces.
 - Public exposure is validated by server config and requires explicit
   confirmation.
-- Token values are never printed by `connect-info`; output only reports
+- Token values are never printed by `connect`; output only reports
   whether a token is required.
 - Setup QR images may embed token values and are written with owner-only file
   permissions under `$GORMES_HOME/navivox/`.

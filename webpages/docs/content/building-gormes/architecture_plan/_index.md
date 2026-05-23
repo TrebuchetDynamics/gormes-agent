@@ -1563,7 +1563,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Remove Flutter SSH keys feature
 - [x] `navivox` Navivox VPN host enumeration helper
 - [x] `navivox` Navivox HTTP gateway mandatory-VPN bind
-- [x] `navivox` Navivox HTTP gateway connect-info command
+- [x] `navivox` Navivox HTTP gateway connect command
 - [x] `navivox` Navivox setup QR image pairing handoff
 
 ### 9.F — Navivox Operator Activation 🔨

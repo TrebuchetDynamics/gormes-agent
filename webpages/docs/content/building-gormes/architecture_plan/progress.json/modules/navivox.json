@@ -407,7 +407,7 @@
       "unblocks": [
         "Navivox VPN host enumeration helper",
         "Navivox HTTP gateway mandatory-VPN bind",
-        "Navivox HTTP gateway connect-info command"
+        "Navivox HTTP gateway connect command"
       ],
       "acceptance": [
         "`grep -rE \"dartssh2|navivox.NewServer|navivox.NewCodec|navivox.Frame\" cmd/ internal/ flutter-navivox/app/lib flutter-navivox/app/test` returns no matches.",
@@ -584,7 +584,7 @@
     "item": {
       "name": "Navivox VPN host enumeration helper",
       "status": "complete",
-      "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. The navivox HTTP gateway channel (mandatory-VPN bind, connect-info command) consumes it. The package is built fresh — no SSH-pair code remains by this point.",
+      "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. The navivox HTTP gateway channel (mandatory-VPN bind, connect command) consumes it. The package is built fresh — no SSH-pair code remains by this point.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -607,7 +607,7 @@
       ],
       "unblocks": [
         "Navivox HTTP gateway mandatory-VPN bind",
-        "Navivox HTTP gateway connect-info command"
+        "Navivox HTTP gateway connect command"
       ],
       "acceptance": [
         "internal/network/vpnhost.List(ctx) returns at least one entry on a host with Tailscale or WireGuard up, with kind ∈ {tailscale, wireguard, tun-other}.",
@@ -666,7 +666,7 @@
         "Navivox VPN host enumeration helper"
       ],
       "unblocks": [
-        "Navivox HTTP gateway connect-info command"
+        "Navivox HTTP gateway connect command"
       ],
       "acceptance": [
         "Config validation fails closed with a typed error when exposure_mode ∈ {tailscale,wireguard,vpn} and bind_host does not match any IP returned by vpnhost.List.",
@@ -701,9 +701,9 @@
     "subphase": "9.E",
     "pos": 5,
     "item": {
-      "name": "Navivox HTTP gateway connect-info command",
+      "name": "Navivox HTTP gateway connect command",
       "status": "complete",
-      "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url, websocket_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
+      "contract": "A `gormes navivox connect` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url, websocket_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "gateway",
@@ -727,13 +727,13 @@
         "Navivox HTTP gateway mandatory-VPN bind"
       ],
       "acceptance": [
-        "`gormes navivox connect-info --json` returns one entry per VPN interface with `base_url=http://<vpn-ip>:<port>`, `host_source` ∈ {tailscale,wireguard,tun-other}, `healthz_url=base_url+/healthz`, `websocket_url=ws://<vpn-ip>:<port>/v1/navivox/stream`, `token_required=true` when auth_mode ∈ {static_token, pairing_token}.",
+        "`gormes navivox connect --json` returns one entry per VPN interface with `base_url=http://<vpn-ip>:<port>`, `host_source` ∈ {tailscale,wireguard,tun-other}, `healthz_url=base_url+/healthz`, `websocket_url=ws://<vpn-ip>:<port>/v1/navivox/stream`, `token_required=true` when auth_mode ∈ {static_token, pairing_token}.",
         "Without --json, a human-readable list is printed (one URL per line) with the VPN kind shown next to each.",
         "When exposure_mode=local, only `http://127.0.0.1:<port>` is printed.",
         "When the channel is disabled, the command exits non-zero with a typed error pointing at `[navivox] enabled`.",
         "The static_token value never appears in stdout or JSON output."
       ],
-      "note": "Shipped 2026-05-14; refreshed 2026-05-20. New cmd/gormes/navivox_connect_info.go (and reintroduced top-level `gormes navivox` cobra command). `gormes navivox connect-info [--json]` emits one entry per reachable Navivox interface: loopback for exposure_mode=local; tailscale/wireguard/tun-other entries from vpnhostList for VPN-class modes. JSON shape {entries:[{host, host_source, port, base_url, healthz_url, websocket_url, token_required}]}; never includes the static_token value. Disabled config returns a typed error pointing at [navivox].enabled. Tests cover disabled, local-mode JSON, never-leaks-token (both formats), tailscale-mode JSON, vpn-mode lists all kinds, IPv6 bracketed URLs, and text output includes URL+kind+healthz+websocket.",
+      "note": "Shipped 2026-05-14; refreshed 2026-05-20. New cmd/gormes/navivox_connect_info.go (and reintroduced top-level `gormes navivox` cobra command). `gormes navivox connect [--json]` emits one entry per reachable Navivox interface: loopback for exposure_mode=local; tailscale/wireguard/tun-other entries from vpnhostList for VPN-class modes. JSON shape {entries:[{host, host_source, port, base_url, healthz_url, websocket_url, token_required}]}; never includes the static_token value. Disabled config returns a typed error pointing at [navivox].enabled. Tests cover disabled, local-mode JSON, never-leaks-token (both formats), tailscale-mode JSON, vpn-mode lists all kinds, IPv6 bracketed URLs, and text output includes URL+kind+healthz+websocket.",
       "write_scope": [
         "cmd/gormes/navivox_connect_info.go",
         "cmd/gormes/navivox_connect_info_test.go",
@@ -744,7 +744,7 @@
         "go test ./cmd/gormes -run NavivoxConnectInfo -count=1"
       ],
       "done_signal": [
-        "`go test ./cmd/gormes -run NavivoxConnectInfo -count=1` passes; on a tailscale host `gormes navivox connect-info --json` prints one base_url with host_source=tailscale and no token value."
+        "`go test ./cmd/gormes -run NavivoxConnectInfo -count=1` passes; on a tailscale host `gormes navivox connect --json` prints one base_url with host_source=tailscale and no token value."
       ],
       "provenance": {
         "origin_type": "gormes",
@@ -772,7 +772,7 @@
         "gateway",
         "system"
       ],
-      "degraded_mode": "If QR generation fails, setup exits with typed setup evidence instead of printing token material. If the operator cannot scan QR, the existing token-redacted `gormes navivox connect-info` command and manual token entry remain available.",
+      "degraded_mode": "If QR generation fails, setup exits with typed setup evidence instead of printing token material. If the operator cannot scan QR, the existing token-redacted `gormes navivox connect` command and manual token entry remain available.",
       "fixture": "cmd/gormes/setup_gateway_test.go::TestSetupGatewayNavivoxLocalModeWritesSafeConfig and cmd/gormes/setup_navivox_test.go::TestNavivoxSetupPairingURIIncludesRESTTokenAndURLs",
       "source_refs": [
         "cmd/gormes/setup_navivox.go:runSetupNavivoxGateway",
@@ -782,7 +782,7 @@
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox HTTP/WS Flutter channel"
       ],
       "ready_when": [
-        "Navivox HTTP gateway connect-info command is complete and owns token-redacted URL generation.",
+        "Navivox HTTP gateway connect command is complete and owns token-redacted URL generation.",
         "Navivox auth accepts bearer REST tokens and WebSocket token subprotocols.",
         "Tests use synthetic tokens and temp `GORMES_HOME`; no live gateway, phone, browser, or private config is required."
       ],
@@ -796,7 +796,7 @@
         "Interactive `gormes setup gateway` Navivox local mode generates a token into `.env`, writes `$GORMES_HOME/navivox/pairing.png`, and keeps the raw token out of stdout/stderr.",
         "The QR PNG has owner-only 0600 permissions and begins with a valid PNG header.",
         "Setup prints REST/WebSocket auth rules using `Authorization: Bearer <Navivox token>` placeholder text and states that the QR image is secret because it embeds the token.",
-        "Existing `gormes navivox connect-info` behavior remains token-redacted."
+        "Existing `gormes navivox connect` behavior remains token-redacted."
       ],
       "note": "Shipped 2026-05-21: TDD added a `navivox://connect` setup descriptor and PNG QR artifact for Navivox setup. The descriptor carries base_url, websocket_url, auth/exposure modes, token_required, and rest_token only inside the QR payload; stdout keeps token placeholders only. The QR file is written to `$GORMES_HOME/navivox/pairing.png` with mode 0600. Added `github.com/skip2/go-qrcode` as the PNG encoder after source/API verification.",
       "write_scope": [
@@ -817,7 +817,7 @@
         "git diff --check"
       ],
       "done_signal": [
-        "Navivox setup now leaves a scannable, owner-only PNG QR handoff that embeds the HTTP/WebSocket URLs and REST token while terminal output and connect-info remain token-redacted."
+        "Navivox setup now leaves a scannable, owner-only PNG QR handoff that embeds the HTTP/WebSocket URLs and REST token while terminal output and `gormes navivox connect` remain token-redacted."
       ],
       "provenance": {
         "origin_type": "gormes",
@@ -844,7 +844,7 @@
       "name": "Navivox HTTP/WS documentation refresh",
       "priority": "P0",
       "status": "complete",
-      "contract": "Refresh the stale Navivox planning docs so every operator and builder surface describes the current HTTP/WebSocket gateway channel, not the deleted SSH stdio transport. The pass updates the decision record, PRD, architecture, routes, testing plan, and generated CLI/docs references to say that `gormes navivox connect-info`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream` are the supported path; `gormes navivox serve|pair|setup-host`, NVOX binary frames, dartssh2, SSH keys, and fake-server mode are historical/deleted only.",
+      "contract": "Refresh the stale Navivox planning docs so every operator and builder surface describes the current HTTP/WebSocket gateway channel, not the deleted SSH stdio transport. The pass updates the decision record, PRD, architecture, routes, testing plan, and generated CLI/docs references to say that `gormes navivox connect`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream` are the supported path; `gormes navivox serve|pair|setup-host`, NVOX binary frames, dartssh2, SSH keys, and fake-server mode are historical/deleted only.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "docs",
@@ -874,7 +874,7 @@
       ],
       "ready_when": [
         "The current changelog proves SSH stdio was removed and HTTP/WS is the only Navivox transport.",
-        "`docs/content/cli/navivox.md` already documents `connect-info` as the surviving CLI surface.",
+        "`docs/content/cli/navivox.md` already documents `connect` as the surviving CLI surface.",
         "The pass stays docs-only and does not edit runtime code under cmd/ or internal/."
       ],
       "not_ready_when": [
@@ -894,11 +894,11 @@
       ],
       "acceptance": [
         "`rg -n 'serve --stdio|navivox pair|setup-host|dartssh2|NVOX|SSH stdio|fake-server' flutter-navivox docs/content/cli docs/content/building-gormes` returns only historical/deleted mentions that are explicitly labeled as removed.",
-        "The docs name the live HTTP/WS endpoints and `gormes navivox connect-info` path.",
+        "The docs name the live HTTP/WS endpoints and `gormes navivox connect` path.",
         "The Dograh-inspired activation principle is documented as `connect and talk without telephony setup`, not as telephony/campaign scope.",
         "HTTP/WS trust boundaries remain visible: disabled by default, loopback by default, VPN/public exposure gates, token redaction."
       ],
-      "note": "Complete 2026-05-16: refreshed the Navivox decision record, PRD, architecture, route, testing, library, UI, data-model, chat-UI research, CLI, and Hermes/Honcho feature-map docs around the current HTTP/WebSocket gateway. Current docs now name `gormes navivox connect-info`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream`; the Dograh-inspired activation principle is connect-and-talk without telephony setup; tool calls stay structured UI objects; config admin stays schema-driven/redacted/server-authoritative; stale transport terms remain only in historical progress/generated evidence or deleted-code comments.",
+      "note": "Complete 2026-05-16: refreshed the Navivox decision record, PRD, architecture, route, testing, library, UI, data-model, chat-UI research, CLI, and Hermes/Honcho feature-map docs around the current HTTP/WebSocket gateway. Current docs now name `gormes navivox connect`, `/healthz`, `/v1/navivox/status`, `/v1/navivox/turn`, and `/v1/navivox/stream`; the Dograh-inspired activation principle is connect-and-talk without telephony setup; tool calls stay structured UI objects; config admin stays schema-driven/redacted/server-authoritative; stale transport terms remain only in historical progress/generated evidence or deleted-code comments.",
       "write_scope": [
         "flutter-navivox/navivox-decision-record.md",
         "flutter-navivox/navivox-prd.md",
@@ -936,7 +936,7 @@
       "name": "Navivox connect-and-talk first screen",
       "priority": "P0",
       "status": "complete",
-      "contract": "Make the first useful Navivox screen a connected chat/voice test surface: after the operator pastes or scans `gormes navivox connect-info`, the app connects to the HTTP/WS gateway, shows gateway readiness, opens chat as the primary surface, and lets the operator send text or a device-transcribed voice turn to Gormes without configuring telephony. The slice should prove the Dograh-style Web Call insight through a local fake HTTP gateway and one real `internal/channels/navivox` fixture.",
+      "contract": "Make the first useful Navivox screen a connected chat/voice test surface: after the operator pastes or scans `gormes navivox connect`, the app connects to the HTTP/WS gateway, shows gateway readiness, opens chat as the primary surface, and lets the operator send text or a device-transcribed voice turn to Gormes without configuring telephony. The slice should prove the Dograh-style Web Call insight through a local fake HTTP gateway and one real `internal/channels/navivox` fixture.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
@@ -946,7 +946,7 @@
         "gateway",
         "system"
       ],
-      "degraded_mode": "When the gateway is not reachable, the app shows a bounded setup/connect error with `connect-info` guidance and keeps text-only fallback available; it never suggests telephony as the prerequisite for a first agent turn.",
+      "degraded_mode": "When the gateway is not reachable, the app shows a bounded setup/connect error with `gormes navivox connect` guidance and keeps text-only fallback available; it never suggests telephony as the prerequisite for a first agent turn.",
       "fixture": "flutter-navivox/app/test/features/setup/navivox_connect_and_talk_test.dart",
       "source_refs": [
         "internal/channels/navivox/channel.go:handleStatus",
@@ -962,7 +962,7 @@
       ],
       "ready_when": [
         "`Navivox HTTP/WS documentation refresh` has landed so builders follow the current transport contract.",
-        "`Navivox HTTP gateway connect-info command` is complete and prints token-redacted URLs.",
+        "`Navivox HTTP gateway connect command` is complete and prints token-redacted URLs.",
         "Flutter Navivox can build for web after the SSH key/drift dependency removal."
       ],
       "not_ready_when": [
@@ -982,9 +982,9 @@
         "A widget/integration test starts a fake HTTP/WS Navivox gateway, enters base URL plus token, lands on chat, sends a text turn, receives streamed assistant output, and shows no telephony setup prompt.",
         "A Go fixture posts to `/v1/navivox/turn` and opens `/v1/navivox/stream`, proving the HTTP channel can queue a normal gateway submit and broadcast the response lifecycle.",
         "Voice capture with a device transcript submits as a normal Navivox turn and renders a voice message bubble locally; when no voice service exists, the text composer remains primary.",
-        "Gateway disconnected/unauthorized states show bounded errors and `gormes navivox connect-info` guidance without leaking bearer tokens."
+        "Gateway disconnected/unauthorized states show bounded errors and `gormes navivox connect` guidance without leaking bearer tokens."
       ],
-      "note": "Complete 2026-05-16: Navivox now starts from a connect-and-talk setup screen using `gormes navivox connect-info`, opens the gateway chat surface after base URL plus token entry, sends text turns, renders device-transcribed voice turns as local voice bubbles, and keeps disconnected failures bounded with connect-info guidance and no token leak. Backend coverage proves authenticated HTTP turns queue normal gateway submits and subscribed WebSockets receive assistant lifecycle events without telephony setup.",
+      "note": "Complete 2026-05-16: Navivox now starts from a connect-and-talk setup screen using `gormes navivox connect`, opens the gateway chat surface after base URL plus token entry, sends text turns, renders device-transcribed voice turns as local voice bubbles, and keeps disconnected failures bounded with `gormes navivox connect` guidance and no token leak. Backend coverage proves authenticated HTTP turns queue normal gateway submits and subscribed WebSockets receive assistant lifecycle events without telephony setup.",
       "write_scope": [
         "internal/channels/navivox/channel.go",
         "internal/channels/navivox/channel_test.go",
@@ -1004,7 +1004,7 @@
         "git diff --check"
       ],
       "done_signal": [
-        "A fresh Navivox user can enter connect-info, reach chat, send text or a voice transcript, see the streamed answer, and never touch telephony setup."
+        "A fresh Navivox user can enter connect information, reach chat, send text or a voice transcript, see the streamed answer, and never touch telephony setup."
       ],
       "provenance": {
         "origin_type": "gormes",

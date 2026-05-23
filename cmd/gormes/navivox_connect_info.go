@@ -38,15 +38,16 @@ func newNavivoxCommand() *cobra.Command {
 		Use:   "navivox",
 		Short: "Navivox HTTP channel utilities",
 	}
-	cmd.AddCommand(newNavivoxConnectInfoCommand(), newNavivoxPairCommand())
+	cmd.AddCommand(newNavivoxConnectCommand("connect", false), newNavivoxConnectCommand("connect-info", true), newNavivoxPairCommand())
 	return cmd
 }
 
-func newNavivoxConnectInfoCommand() *cobra.Command {
+func newNavivoxConnectCommand(use string, hidden bool) *cobra.Command {
 	var jsonOut bool
 	cmd := &cobra.Command{
-		Use:   "connect-info",
-		Short: "Print Navivox connect URLs for active VPN/local interfaces",
+		Use:    use,
+		Short:  "Print Navivox connect URLs for active VPN/local interfaces",
+		Hidden: hidden,
 		Long: `Print one connect URL per interface where the running Navivox HTTP channel
 should be reachable. Loopback is shown only for exposure_mode=local; VPN-class
 modes (tailscale, wireguard, vpn) list every active VPN interface detected by
@@ -66,7 +67,7 @@ token_required flag.`,
 
 func runNavivoxConnectInfo(cmd *cobra.Command, cfg config.NavivoxCfg, jsonOut bool) error {
 	if !cfg.Enabled {
-		return fmt.Errorf("navivox connect-info: [navivox].enabled=false; set [navivox].enabled=true in config.toml")
+		return fmt.Errorf("navivox connect: [navivox].enabled=false; set [navivox].enabled=true in config.toml")
 	}
 	entries := buildNavivoxConnectInfoEntries(cmd, cfg)
 	out := cmd.OutOrStdout()
@@ -167,7 +168,7 @@ func navivoxConnectInfoTerminalQR(cfg config.NavivoxCfg, entry navivoxConnectInf
 	}
 	qr, err := qrcode.New(descriptor, qrcode.Medium)
 	if err != nil {
-		return "", fmt.Errorf("navivox connect-info: encode terminal QR: %w", err)
+		return "", fmt.Errorf("navivox connect: encode terminal QR: %w", err)
 	}
 	return qr.ToSmallString(false), nil
 }
@@ -182,7 +183,7 @@ func navivoxConnectInfoDescriptor(cfg config.NavivoxCfg, entry navivoxConnectInf
 	if entry.TokenRequired {
 		token := strings.TrimSpace(cfg.Token)
 		if token == "" {
-			return "", fmt.Errorf("navivox connect-info: token auth selected but token is empty")
+			return "", fmt.Errorf("navivox connect: token auth selected but token is empty")
 		}
 		values.Set("rest_token", token)
 	}

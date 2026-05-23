@@ -22,6 +22,32 @@ func newConnectInfoTestCommand(t *testing.T) (*cobra.Command, *bytes.Buffer) {
 	return cmd, buf
 }
 
+func TestNavivoxCommandHelpUsesConnectNotConnectInfo(t *testing.T) {
+	cmd := newNavivoxCommand()
+	buf := &bytes.Buffer{}
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("navivox help: %v", err)
+	}
+	help := buf.String()
+	if !strings.Contains(help, "connect      Print Navivox connect URLs") {
+		t.Fatalf("navivox help must advertise connect command:\n%s", help)
+	}
+	if strings.Contains(help, "connect-info") {
+		t.Fatalf("navivox help must not advertise connect-info after rename:\n%s", help)
+	}
+
+	legacy, _, err := cmd.Find([]string{"connect-info"})
+	if err != nil {
+		t.Fatalf("legacy connect-info alias should still resolve: %v", err)
+	}
+	if !legacy.Hidden {
+		t.Fatalf("legacy connect-info alias should be hidden from help")
+	}
+}
+
 func TestNavivoxConnectInfo_Disabled_ReturnsTypedError(t *testing.T) {
 	cmd, _ := newConnectInfoTestCommand(t)
 	err := runNavivoxConnectInfo(cmd, config.NavivoxCfg{Enabled: false}, false)
@@ -175,7 +201,7 @@ func TestNavivoxConnectInfo_LayeredAuthRequiresToken(t *testing.T) {
 		t.Error("token_required = false, want true for layered token+identity auth")
 	}
 	if strings.Contains(buf.String(), cfg.Token) {
-		t.Fatalf("connect-info leaked token: %s", buf.String())
+		t.Fatalf("connect leaked token: %s", buf.String())
 	}
 }
 

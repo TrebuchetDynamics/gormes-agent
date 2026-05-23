@@ -46,7 +46,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `navivox` | Remove Flutter SSH keys feature |
 | `complete` | `unset` | `navivox` | Navivox VPN host enumeration helper |
 | `complete` | `unset` | `navivox` | Navivox HTTP gateway mandatory-VPN bind |
-| `complete` | `unset` | `navivox` | Navivox HTTP gateway connect-info command |
+| `complete` | `unset` | `navivox` | Navivox HTTP gateway connect command |
 | `complete` | `P0` | `navivox` | Navivox setup QR image pairing handoff |
 
 ### 9.F — Navivox Operator Activation
