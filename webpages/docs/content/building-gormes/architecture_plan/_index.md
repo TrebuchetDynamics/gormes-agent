@@ -1523,8 +1523,8 @@ classification and row-backed implementation queue.
 - [x] `tui` Gormes-owned streaming feedback uplift
 - [x] `tui` Gormes streaming tool-trail status + spinner cadence wiring
 - [x] `tui` Gormes welcome panel version/tool-count wiring
-- [ ] `release` Termux latest-installer follow-up release publication
-- [ ] `release` Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs
+- [x] `release` Termux latest-installer follow-up release publication
+- [x] `release` Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs
 
 ### 8.E — Toolkit Extraction 🔨
 
