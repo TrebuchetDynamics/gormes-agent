@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `config`
 **Rows:** 31
-**Status counts:** `complete`: 30 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 31 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 3 · `P1`: 8 · `P2`: 7 · `P3`: 1 · `unset`: 12
 
 ## Phase 3 — The Black Box (Memory)
@@ -82,7 +82,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `config` | Internal onboarding interactive action runner |
 | `complete` | `P0` | `config` | CLI setup/onboard/help text fidelity matrix |
 | `complete` | `P1` | `config` | Root config.toml v2 profile service schema |
-| `planned` | `P1` | `config` | Legacy profile config v2 migration planner |
+| `complete` | `P1` | `config` | Legacy profile config v2 migration planner |
 
 ### 5.R — Code Execution Mode Policy
 

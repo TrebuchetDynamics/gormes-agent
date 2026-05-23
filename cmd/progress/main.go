@@ -12,7 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progressctl"
 )
 
-const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact|split <dir>|emit|list --module <module>}"
+const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact|split <dir>|emit|list --module <module>|next-work [--repo-only]}"
 
 var errParse = errors.New("parse error")
 
@@ -70,6 +70,12 @@ func run(stdout, stderr io.Writer, args []string) error {
 			return err
 		}
 		return progressctl.List(stdout, root, opts)
+	case "next-work":
+		opts, err := parseNextWorkOptions(args[1:])
+		if err != nil {
+			return err
+		}
+		return progressctl.NextWorkWithOptions(stdout, root, opts)
 	default:
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}
@@ -119,6 +125,19 @@ func parseFormat(args []string) (string, error) {
 		return "", fmt.Errorf("%w: unexpected argument %q\n%s", errParse, args[i], usage)
 	}
 	return format, nil
+}
+
+func parseNextWorkOptions(args []string) (progressctl.NextWorkOptions, error) {
+	var opts progressctl.NextWorkOptions
+	for _, arg := range args {
+		switch arg {
+		case "--repo-only":
+			opts.RepoOnly = true
+		default:
+			return opts, fmt.Errorf("%w: unexpected argument %q\n%s", errParse, arg, usage)
+		}
+	}
+	return opts, nil
 }
 
 func parseListOptions(args []string) (progressctl.ListOptions, error) {

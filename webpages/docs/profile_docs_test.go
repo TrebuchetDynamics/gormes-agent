@@ -129,7 +129,7 @@ func TestSetupAndConfigDocsDescribeProfileWorkspaceListPolicy(t *testing.T) {
 	}
 }
 
-func TestWebsiteRoadmapDoesNotMarkPartialSetupProfilesUmbrellaComplete(t *testing.T) {
+func TestWebsiteRoadmapMarksProfileControlCenterCloseoutComplete(t *testing.T) {
 	profileConfigV2 := readDoc(t, "content/building-gormes/architecture_plan/profile-config-v2.md")
 	assertContainsAll(t, "content/building-gormes/architecture_plan/profile-config-v2.md", profileConfigV2, []string{
 		"config_version = 2",
@@ -145,7 +145,7 @@ func TestWebsiteRoadmapDoesNotMarkPartialSetupProfilesUmbrellaComplete(t *testin
 
 	navivox := readDoc(t, "content/building-gormes/modules/navivox.md")
 	assertContainsAll(t, "content/building-gormes/modules/navivox.md", navivox, []string{
-		"| `planned` | `P1` | `navivox` | Navivox multi-server profile routing config model |",
+		"| `complete` | `P1` | `navivox` | Navivox multi-server profile routing config model |",
 	})
 	if strings.Contains(navivox, "default_profile") ||
 		strings.Contains(navivox, "navivox-accessible by default") ||
@@ -155,10 +155,10 @@ func TestWebsiteRoadmapDoesNotMarkPartialSetupProfilesUmbrellaComplete(t *testin
 
 	roadmap := readDoc(t, "content/building-gormes/architecture_plan/_index.md")
 	assertContainsAll(t, "content/building-gormes/architecture_plan/_index.md", roadmap, []string{
-		"- [ ] `profiles` Profile Control Center v2 umbrella — single root config and active services",
+		"- [x] `profiles` Profile Control Center v2 umbrella — single root config and active services",
 		"- [x] `profiles` gormes setup profiles — section scaffold + per-profile workspace list",
 		"- [x] `profiles` gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)",
-		"- [ ] `navivox` Navivox multi-server profile routing config model",
+		"- [x] `navivox` Navivox multi-server profile routing config model",
 	})
 	if strings.Contains(roadmap, "navivox-default") ||
 		strings.Contains(roadmap, "default_profile") {

@@ -4361,9 +4361,9 @@
     "item": {
       "name": "Hermes gateway platform strict-fidelity source-pair expansion",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Build a report-only strict-fidelity classifier for Hermes gateway platform evidence: scan the current `hermes-agent/gateway/config.py:Platform` enum, `gateway/platforms` connector/helper/docs files, bundled `plugins/platforms/*` platform plugins, and `tui_gateway` bridge files, then group them into deterministic platform-source families tied to the completed Gormes platform manifest, existing source-pair rows, planned adapter rows, explicit exclusions, or owned-divergence notes. The classifier must expand `cmd/repoctl hermes-contract-inventory` and source-pair evidence only; it must not import or execute Hermes Python, start live SDKs/webhooks/sockets, mutate channel runtime behavior, or claim strict channel/TUI parity without exact row/source-pair/test proof.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "channels",
@@ -4434,7 +4434,7 @@
         "Families with existing Gormes evidence point to exact manifest and TUI tests (`TestHermesGatewayPlatformManifestCoversUpstream`, `TestHermesGatewayPlatformManifestCoversBundledPluginPlatforms`, `TestPlatformConnectedCheckersCoverManifest`, `TestGatewayMuxWebSocket_SessionSubmitAndFrameEvent`, `TestValidatePlatformEventKind`); remaining platform-specific behavior stays planned, excluded, or owned-divergence rather than covered.",
         "The implementation preserves strict-mode semantics: covered requires row/source-pair/test proof, report-only classification never starts platforms or imports Hermes Python, and source-pair validation remains the gate after any manifest edits."
       ],
-      "note": "Planner 2026-05-21 development-loop iteration 8: narrowed the Hermes gateway platform strict-fidelity bucket into a fixture-ready report/source-pair classifier. The completed platform manifest remains the runtime inventory; this row only teaches strict-fidelity reports how to classify gateway platform, platform-plugin, API-server, helper, docs, generated, and tui_gateway evidence before implementation rows are selected.",
+      "note": "Complete 2026-05-23: report-only gateway platform classifier validated by internal/repoctl, internal/fidelity, internal/gateway, internal/tuigateway, hermes-source-pairs, and progress gates; no channel runtime behavior changed.",
       "write_scope": [
         "internal/fidelity/report.go",
         "internal/fidelity/report_test.go",
@@ -5537,9 +5537,9 @@
     "item": {
       "name": "Per-profile channel credential readiness and allow-lists",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add channel setup/readiness for v2 profiles: each `[profiles.<id>.channels.<channel>]` block references an explicit credential id, enabled flag, channel-specific allow-lists, mention/thread/tool-progress settings, and optional runtime labels; each channel credential in `[credentials.<id>]` records kind/channel/owner_profile/secret_ref. Telegram, Slack, Discord, WhatsApp, and future channel adapters must resolve credentials through the profile/channel binding rather than top-level global token fields, while legacy top-level channel config remains a fallback/migration input.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "channels",
@@ -5556,7 +5556,13 @@
         "internal/gateway/channel_setup.go",
         "internal/gateway/token_lock_test.go",
         "cmd/gormes/setup_profiles_tui.go",
-        "cmd/gormes/setup_gateway.go"
+        "cmd/gormes/setup_gateway.go",
+        "/home/xel/.cache/tmp/architecture-review-gormes-20260523T094518Z.html",
+        "internal/gateway/profile_channel_config.go:BuildProfileChannelReadinessWithOptions",
+        "internal/gateway/fleet_supervisor.go:FleetSupervisor.Status",
+        "internal/app/gormescli/modules/profiles/profile.go:newProfileChannelsCommand",
+        "internal/app/gormescli/modules/profiles/control_center_tui.go:ControlCenterDraft.SetProfileChannelPolicy",
+        "cmd/gormes/setup_profiles_tui.go:parseSetupProfilesChannelAssignment"
       ],
       "ready_when": [
         "Root config.toml v2 profile service schema exists.",
@@ -5566,9 +5572,6 @@
         "The slice stores raw bot tokens in config.toml or uses one top-level token for all profiles without an explicit credential id.",
         "Allowed chats/channels are global-only and cannot differ per profile.",
         "The implementation starts Telegram/Slack/Discord/WhatsApp clients in unit tests."
-      ],
-      "blocked_by": [
-        "Root config.toml v2 profile service schema"
       ],
       "unblocks": [
         "Profile Control Center read model",
@@ -5581,7 +5584,7 @@
         "Legacy top-level `[telegram]`, `[discord]`, `[slack]`, and WhatsApp state are read as fallback/migration inputs but new setup writes only v2 profile/channel blocks.",
         "Readiness output redacts all tokens, secret refs, chat ids where configured as sensitive, and local session paths."
       ],
-      "note": "This row implements the user's correction that channels need credentials per profile; channel list alone is not setup.",
+      "note": "Complete. Channel readiness now has one deep redacted interface (`gateway.BuildProfileChannelReadiness`) reused by gateway fleet status, the new `gormes profile channels` operator surface, and Profile Control Center setup. Fixtures prove two profiles can use the same channel with different credential ids and allow-list hashes, duplicate token hashes become conflict evidence before another profile-channel poller starts, missing credentials degrade only the affected binding, SecretRef/env names and raw allow-list values stay out of readiness JSON/text, and setup profiles can stage channel credential plus allowed chats/users, require_mention, and tool_progress through the root config-v2 draft/apply flow without writing per-profile config.toml.",
       "write_scope": [
         "internal/config/profile_config_v2.go",
         "internal/gateway/",
@@ -5592,13 +5595,19 @@
         "cmd/gormes/setup_gateway.go",
         "internal/app/gormescli/modules/profiles/",
         "docs/content/building-gormes/architecture_plan/progress.json",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/app/gormescli/modules/profiles/profile.go",
+        "internal/app/gormescli/modules/profiles/profile_command_test.go",
+        "cmd/gormes/setup_profiles_tui.go",
+        "cmd/gormes/setup_profiles_test.go"
       ],
       "test_commands": [
         "go test ./internal/gateway ./internal/channels/telegram ./internal/channels/discord ./internal/channels/whatsapp ./internal/slack -run 'TestProfileChannel|TestTokenLock|TestWhitelist' -count=1",
         "go test ./cmd/gormes -run 'TestSetupGateway|TestSetupProfiles' -count=1",
         "go run ./cmd/progress validate",
-        "git diff --check"
+        "git diff --check",
+        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileModuleChannelsCommandRendersReadiness|TestProfileDraftStagesCreateWorkspaceCredentialsApplyAndDiscard|TestProfileControlCenter' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupProfilesControlCenterTUIShowsChannelReadinessAndStagesAllowLists|TestSetupProfilesV2TUIAppliesOneRootConfigTransaction|TestSetupProfiles' -count=1"
       ],
       "done_signal": [
         "Channel fixtures prove per-profile credential refs, distinct allow-lists, duplicate-token conflict detection, redacted readiness, and legacy fallback/migration behavior without live channel clients."
@@ -6113,9 +6122,9 @@
     "item": {
       "name": "TUI + Telegram browsing",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Complete the remaining Hermes-compatible skills.manage browsing path for native TUI and Telegram operators: keep the existing /skills list and inspect behavior, add source-backed browse/search/read-only management routing through the gateway command surface, render bounded channel-safe skill summaries, and return explicit row-backed unavailable evidence for mutating actions such as install, edit, disable, or review.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "channels",
@@ -6153,7 +6162,7 @@
         "TUI slash-dispatch tests prove /skills remains an immediate local command and is not submitted to the model as a normal prompt while another turn is active.",
         "Mutating Hermes skills.manage actions (install, edit, disable, review) return typed row-backed unavailable evidence without changing the skill store or candidate review state."
       ],
-      "note": "TDD: expose browse/edit/disable/review flows through TUI and gateway commands after the store and feedback records are stable, with permission and active-turn behavior pinned by tests. Planner 2026-05-21 new-loop iteration 2: replaced the inventory-only placeholder with a fixture-ready gateway/channels contract focused on the missing read-only skills.manage browse/search path; installed list/inspect already exists and mutating skills actions stay row-backed unavailable.",
+      "note": "Complete 2026-05-23: internal/gateway/skills_command.go now owns the shared read-only /skills command seam for installed list/inspect, hub search, hub browse, and row-backed unavailable evidence for install/edit/disable/review. Search and browse run over injected internal/skills HubRegistryProvider adapters, render bounded summaries with source/status/trust/tag/count/page evidence, redact secrets and path-like tokens, and never emit full skill bodies. internal/tui/slash_dispatch.go handles /skills locally while busy without submitting to the model. Telegram skills replies use the plain-text send seam, preserving command/menu limits and avoiding MarkdownV2 parse fragility without live bot credentials.",
       "write_scope": [
         "internal/gateway/skills_command.go",
         "internal/gateway/skills_command_test.go",
@@ -8051,9 +8060,9 @@
     "item": {
       "name": "SimpleX Chat platform plugin parity",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Port Hermes' bundled SimpleX platform plugin into a native Gormes channel behind the shared gateway.Channel contract. The builder must use a fakeable WebSocket transport to prove daemon configuration, disabled/missing-url/dependency-degraded status, opaque contact/group IDs, allowlist and allow-all admission, DM pairing prompts, correlation-ID echo filtering, inbound newChatItem/newChatItems normalization, outbound @[]/#[group] command formatting, home-channel/standalone delivery evidence, and bounded reconnect/health degradation without requiring a live SimpleX account or daemon.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "channels",
@@ -8112,7 +8121,7 @@
         "`TestSimpleXOutboundDelivery` proves text send command formatting (`@[contact] message`, `#[group] message`), send-image text fallback, standalone/home-channel delivery error evidence, and no-op typing behavior against a fake WebSocket transport.",
         "Existing platform manifest and connected-checker tests still pass, and SimpleX remains row-backed/partial until the adapter fixture evidence updates the manifest intentionally in the same commit."
       ],
-      "note": "Planner 2026-05-21 development-loop iteration 9: upgraded the SimpleX bundled-platform row from draft to fixture-ready. Scope is one fake-WebSocket native channel slice that preserves Hermes-visible SimpleX semantics (opaque IDs, allowlists, home-channel/standalone delivery, correlation echo filtering) while explicitly excluding live daemon/account and unproven media/file transfer parity.",
+      "note": "Complete 2026-05-23: added native fakeable internal/channels/simplex adapter behind gateway.Channel. The slice ports Hermes SimpleX plugin text semantics without Python/websockets runtime dependency in tests: env-backed SIMPLEX_WS_URL/SIMPLEX_ALLOWED_USERS/SIMPLEX_ALLOW_ALL_USERS/SIMPLEX_HOME_CHANNEL config parsing, deterministic status/degraded evidence with redacted daemon URL/errors, fake transport health/connect/receive/send, newChatItem/newChatItems normalization for DM and group opaque IDs, hermes-* correlation echo filtering, outbound @[contact]/#[group] command formatting, SendImage/SendMedia text fallback, no-op typing, env-backed cmd/gormes gateway registration, SimpleX home-channel/allowed-user policy maps, wildcard allowed-user admission for explicit allow-all, and manifest upgrade from row_backed to partial. Unsupported QR/contact onboarding and media/file transfer remain explicit degraded follow-up behavior rather than implemented parity.",
       "write_scope": [
         "internal/channels/simplex/",
         "internal/channels/simplex/simplex_test.go",

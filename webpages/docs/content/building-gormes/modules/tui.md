@@ -7,9 +7,9 @@ title: "TUI Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `tui`
-**Rows:** 50
-**Status counts:** `complete`: 48 · `in_progress`: 0 · `planned`: 2
-**Priority counts:** `P0`: 3 · `P1`: 12 · `P2`: 24 · `P3`: 1 · `unset`: 10
+**Rows:** 69
+**Status counts:** `complete`: 69 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 3 · `P1`: 12 · `P2`: 43 · `P3`: 1 · `unset`: 10
 
 ## Phase 1 — The Dashboard
 
@@ -52,6 +52,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `tui` | Native TUI /save XDG export helper |
 | `complete` | `P2` | `tui` | Native TUI /save local runtime binding |
 | `complete` | `P3` | `tui` | Native TUI /branch session fork + transcript target switch |
+| `complete` | `P2` | `tui` | Native TUI /branch local runtime resident-session binding |
+| `complete` | `P2` | `tui` | Native TUI resident session-switch replay helper |
 | `complete` | `P2` | `tui` | Native TUI conversation viewport tail helper |
 | `complete` | `P2` | `tui` | Native TUI queued-message edit helper |
 | `complete` | `P2` | `tui` | Native TUI renderConv viewport budget binding |
@@ -72,12 +74,29 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `tui` | SSE streaming to Bubble Tea TUI |
 | `complete` | `P1` | `tui` | Native TUI /model slash command binding over the existing model picker |
 | `complete` | `P1` | `tui` | Kernel in-session model-switch seam for the native TUI |
-| `planned` | `P2` | `tui` | Native TUI slash handler-port coverage |
+| `complete` | `P2` | `tui` | Native TUI slash handler-port coverage |
+| `complete` | `P2` | `tui` | Native TUI shipped slash command registry availability metadata |
 | `complete` | `P1` | `tui` | Native TUI Terminal.app truecolor and ANSI sanitizer parity |
-| `planned` | `P1` | `tui` | Hermes ui-tui strict-fidelity action matrix |
+| `complete` | `P1` | `tui` | Hermes ui-tui strict-fidelity action matrix |
 | `complete` | `P2` | `tui` | Native TUI /help slash command binding |
+| `complete` | `P2` | `tui` | Native TUI /redraw local repaint binding |
+| `complete` | `P2` | `tui` | Native TUI /statusbar chrome mode binding |
+| `complete` | `P2` | `tui` | Native TUI /details detail-section visibility binding |
+| `complete` | `P2` | `tui` | Native TUI /indicator busy-indicator style binding |
+| `complete` | `P2` | `tui` | Native TUI /history current transcript page binding |
+| `complete` | `P2` | `tui` | Native TUI /status current frame page binding |
+| `complete` | `P2` | `tui` | Native TUI /logs gateway tail page binding |
+| `complete` | `P2` | `tui` | Native TUI /title session-title binding |
+| `complete` | `P2` | `tui` | Native TUI /sessions and /resume picker page binding |
+| `complete` | `P2` | `tui` | Native TUI /resume session switch binding |
+| `complete` | `P2` | `tui` | Native TUI /usage local frame usage page binding |
+| `complete` | `P2` | `tui` | Native TUI /usage provider account usage adapter binding |
 | `complete` | `P2` | `tui` | Native TUI /clear and /new reset-session binding |
 | `complete` | `P2` | `tui` | Native TUI /compact transcript toggle binding |
+| `complete` | `P2` | `tui` | Native TUI /skills read-only hub binding |
+| `complete` | `P2` | `tui` | Native TUI /tools enable-disable binding |
+| `complete` | `P2` | `tui` | Native TUI /voice status and toggle binding |
+| `complete` | `P2` | `tui` | Native TUI /skin get-set binding |
 
 ## Phase 8 — Reputation & Publication
 

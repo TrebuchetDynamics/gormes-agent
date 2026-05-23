@@ -2130,9 +2130,9 @@
     "item": {
       "name": "Legacy profile config v2 migration planner",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add an `internal/config` migration planner/apply path that converts legacy Gormes profile state into the v2 single-root schema with a previewable diff. Inputs include top-level v1 `[hermes]`, `[telegram]`, `[discord]`, `[slack]`, `[agents.defaults]`, legacy `$GORMES_HOME/active_profile`, and existing `$GORMES_HOME/profiles/<id>/config.toml` files. Output is one `$GORMES_HOME/config.toml` with `[profiles.<id>]`, `[credentials.<id>]`, per-profile provider/channel references, and migration notes; profile directories remain runtime data homes only.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
       "module": "config",
@@ -2147,7 +2147,13 @@
         "internal/config/config.go:migrateConfig",
         "cmd/gormes/config.go:config migrate",
         "cmd/gormes/setup_profiles_tui.go",
-        "cmd/gormes/profile.go"
+        "cmd/gormes/profile.go",
+        "/home/xel/.cache/tmp/architecture-review-gormes-20260523T0924Z.html",
+        "internal/config/profile_migration_v2.go:PlanProfileConfigV2Migration",
+        "internal/config/profile_migration_v2.go:ApplyProfileConfigV2Migration",
+        "cmd/gormes/config.go:runConfigProfilesV2Migration",
+        "cmd/gormes/config_profile_migration_test.go:TestConfigMigrateProfilesV2DryRunJSONReportsConflictsWithoutMutation",
+        "cmd/gormes/setup_profiles_tui.go:buildSetupProfilesMigrationTUIState"
       ],
       "ready_when": [
         "Root config.toml v2 profile service schema is complete or the migration tests can construct the same target structs without command wiring.",
@@ -2157,9 +2163,6 @@
         "The planner mutates files during preview or deletes/moves legacy profile directories.",
         "The migration collapses several legacy profiles into one default/active profile.",
         "The migration copies raw secrets into config.toml instead of refs/env entries."
-      ],
-      "blocked_by": [
-        "Root config.toml v2 profile service schema"
       ],
       "unblocks": [
         "Profile Control Center read model",
@@ -2171,7 +2174,7 @@
         "Legacy active-profile state is reported as compatibility state, not promoted into v2 config.",
         "Conflicting credential/profile ids require explicit rename/skip decisions and never silently overwrite."
       ],
-      "note": "Setup should call this planner for inline migration preview; command wiring can be a follow-up, but the planner/apply logic belongs in internal/config.",
+      "note": "Complete. Iteration 17 validated the config-owned legacy profile config v2 migration seam: internal/config PlanProfileConfigV2Migration produces deterministic redacted previews with profile/credential additions, fallback reads, active_profile compatibility notes, secret env movements, and conflict evidence; ApplyProfileConfigV2Migration backs up root config.toml, writes only the single-root config_version=2 document, preserves legacy profile runtime directories, refuses unresolved conflicts, and is idempotent. cmd/gormes config migrate --profiles-v2 exposes dry-run/apply JSON and text summaries without leaking raw secrets, and gormes setup profiles presents the same plan through the Profile Control Center before applying via internal/config rather than hand-writing TOML.",
       "write_scope": [
         "internal/config/profile_migration_v2.go",
         "internal/config/profile_migration_v2_test.go",
@@ -2186,7 +2189,9 @@
         "go test ./internal/config -run 'TestProfileMigrationV2' -count=1",
         "go test ./cmd/gormes -run 'TestConfigMigrate|TestSetupProfilesMigration' -count=1",
         "go run ./cmd/progress validate",
-        "git diff --check"
+        "git diff --check",
+        "go test ./cmd/gormes -run 'TestConfigMigrateProfilesV2|TestSetupProfilesMigration' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupProfilesControlCenterTUIKeyFlowStagesLegacyMigrationForApply|TestSetupProfilesLegacyControlCenterMigrationAppliesViaInternalConfig' -count=1"
       ],
       "done_signal": [
         "Migration fixtures prove dry-run/apply, backup, redaction, active-profile compatibility handling, and idempotence from v1 roots into single-root v2 config."

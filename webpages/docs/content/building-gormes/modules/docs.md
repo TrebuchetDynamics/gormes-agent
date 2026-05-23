@@ -7,9 +7,9 @@ title: "Docs Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `docs`
-**Rows:** 15
-**Status counts:** `complete`: 11 · `in_progress`: 0 · `planned`: 4
-**Priority counts:** `P1`: 11 · `P2`: 2 · `P3`: 2
+**Rows:** 21
+**Status counts:** `complete`: 18 · `in_progress`: 0 · `planned`: 3
+**Priority counts:** `P1`: 13 · `P2`: 6 · `P3`: 2
 
 ## Phase 8 — Reputation & Publication
 
@@ -27,7 +27,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `docs` | README rewrite to methodology-first positioning |
 | `complete` | `P1` | `docs` | README release and benchmark metadata sync |
 | `complete` | `P1` | `docs` | Gormes market comparison positioning brief |
-| `planned` | `P1` | `docs` | Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents |
+| `complete` | `P1` | `docs` | Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents |
 | `complete` | `P1` | `docs` | Canonical config.toml v2 profile schema docs |
 
 ### 8.C — Engineering Writeups
@@ -35,6 +35,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `planned` | `P1` | `docs` | Engineering writeup #1: autonomous Hermes-porting loop |
+| `complete` | `P1` | `docs` | Engineering writeup #1 cost telemetry evidence packet |
+| `complete` | `P1` | `docs` | Engineering writeup #1 local publication review packet |
 | `complete` | `P1` | `docs` | Hermes v0.14 release feature-to-module pairing ledger |
 | `complete` | `P1` | `docs` | Hermes contract inventory gate |
 | `complete` | `P1` | `docs` | Strict-fidelity upstream test-suite classifier |
@@ -44,6 +46,10 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P2` | `docs` | Agentic-porting-kit extraction spec |
+| `complete` | `P2` | `docs` | Agentic-porting-kit local standalone fixture |
+| `complete` | `P2` | `docs` | Agentic-porting-kit local porting skill skeletons |
+| `complete` | `P2` | `docs` | Agentic-porting-kit local README and license fixture |
+| `complete` | `P2` | `docs` | Agentic-porting-kit local public layout assembly gate |
 | `planned` | `P2` | `docs` | Agentic-porting-kit public repo scaffold |
 
 ### 8.G — Community & External Contributions

@@ -2,12 +2,12 @@
 
 - Hermes SHA: `43e566f77eaf01293086eb7cb99a21e240d60634`
 - Current checkout SHA: `43e566f77eaf01293086eb7cb99a21e240d60634`
-- Source pairs: `26`
+- Source pairs: `27`
 
 ## Status Counts
 
 - `covered`: 5
-- `partial`: 21
+- `partial`: 22
 
 ## Source Pair Table
 
@@ -39,3 +39,4 @@
 | `tools/web_tools.py` | `partial` | `internal/tools/web_tools.go`<br>`internal/tools/web_content_chunked.go`<br>`internal/tools/url_safety.go` | `go test ./internal/tools -run 'TestWebSearchTool\|TestWebExtractTool\|TestWebCrawlTool\|TestResolveWebBackend' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion`<br>`Goscrapling local crawler adapter gate for web_crawl` | Hermes web_search, web_extract, and web_crawl provider routing, Tavily/Firecrawl/Brave/SearXNG/DDG/Perplexity adapters, URL and website policy enforcement, result budgeting, and degraded evidence. |
 | `tools/website_policy.py` | `covered` | `internal/tools/url_safety.go`<br>`internal/tools/safety` | `go test ./internal/tools ./internal/tools/safety -run 'WebsitePolicy\|WebExtractToolAppliesWebsitePolicy\|WebCrawlToolAppliesWebsitePolicy' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion` | Hermes website policy file loading, domain blocking, shared policy files, cache invalidation, and pre-fetch policy errors for web tools. |
 | `tools/x_search_tool.py` | `partial` | `internal/tools/x_search.go`<br>`internal/tools/x_search_test.go` | `go test ./internal/tools -run 'TestXSearch' -count=1` | `Hermes tool tail strict-fidelity source-pair expansion` | Hermes X search auth modes, OAuth expiry/rate-limit degraded evidence, tool schema, bounded fake-mode fixtures, and redacted credential behavior. |
+| `ui-tui/package.json` | `partial` | `internal/tui`<br>`internal/tuigateway` | `go test ./internal/tui ./internal/tuigateway -count=1` | `Hermes ui-tui strict-fidelity action matrix` | Current Hermes ui-tui package, terminal interaction tests, gateway-client event tests, slash/action dispatch tests, viewport/history tests, clipboard/OSC52 tests, provider/model UI tests, approval-action tests, and state-isolation tests are classified as a Gormes native-TUI parity action matrix. Runtime coverage remains partial: mapped files are evidence for child rows, source-pair checks, owned divergence, or future TDD slices, not a full-fidelity runtime claim. |

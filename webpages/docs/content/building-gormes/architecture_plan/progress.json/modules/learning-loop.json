@@ -86,9 +86,9 @@
     "item": {
       "name": "Deterministic learning-loop trigger signals",
       "priority": "P3",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add a pure deterministic trigger-signal scorer for the learning loop before any live LLM scoring: derive memory-review and skill-review decisions from transcript/user-turn counts, tool-iteration counts, retry/error markers, edit/patch counts, and optional explicit operator feedback. The scorer must emit explainable reason codes and redacted feature counts that can drive the existing background review fork without storing raw prompt text, launching a provider call, promoting skills, or mutating memory by itself.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "orchestrator",
       "module": "learning-loop",
@@ -128,7 +128,7 @@
         "TestLearningLoopSignalScorer_FeedbackAndRedaction proves explicit operator correction/frustration feedback can trigger a skill signal while raw prompt/tool content and secret-looking strings are absent from emitted evidence.",
         "The scorer exposes reason codes such as user_turn_threshold, tool_iteration_threshold, retry_loop, edit_burst, and operator_feedback without invoking live LLM scoring or mutating memory/skills."
       ],
-      "note": "Planner 2026-05-21 development-loop iteration 4: narrowed the Phase 6.A inventory placeholder into a fixture-ready deterministic trigger-signal slice and moved it from the stale channels module to learning-loop. LLM-scored signals, extractor schema, skill-effectiveness ledger persistence, and automatic promotion/demotion remain separate rows.",
+      "note": "Complete 2026-05-23: pure deterministic scorer already fixture-backed in internal/hermes/learning_loop_signal.go. Tests prove stable reason codes, threshold-triggered memory/skill review decisions, feedback-triggered skill review, and redacted count-only evidence with no provider call or memory/skill mutation.",
       "write_scope": [
         "internal/hermes/learning_loop_signal.go",
         "internal/hermes/learning_loop_signal_test.go",

@@ -4405,6 +4405,7 @@
         "TestAtomicWriteNonExistentDir proves a missing target directory returns a typed error without creating a temp file.",
         "TestAtomicWriteConcurrentRaces proves two concurrent writes to the same target both succeed (last rename wins) without corruption."
       ],
+      "note": "Complete 2026-05-19: AtomicWrite + AtomicReplace already implemented in internal/tools/atomic_replace.go with 4 passing tests (nominal, perms, partial cleanup, non-existent dir).",
       "write_scope": [
         "internal/tools/atomic_write.go",
         "internal/tools/atomic_write_test.go"
@@ -4417,8 +4418,7 @@
       ],
       "blocked_by": [],
       "not_ready_when": [],
-      "unblocks": [],
-      "note": "Complete 2026-05-19: AtomicWrite + AtomicReplace already implemented in internal/tools/atomic_replace.go with 4 passing tests (nominal, perms, partial cleanup, non-existent dir)."
+      "unblocks": []
     }
   },
   {
@@ -6486,6 +6486,7 @@
         "Range-shift fixtures cover insert/delete/move edits and preserve baseline diagnostic identity.",
         "Unsupported or missing LSP backends return degraded evidence without failing successful file writes."
       ],
+      "note": "Complete 2026-05-21: added internal/lsp diagnostic delta core with line-shifted baseline filtering plus injectable write/patch file-tool LSP evidence. Hermetic tests cover shifted baseline filtering, insert/delete/replace line shifts, write_file diagnostic deltas, and patch degraded/unsupported LSP evidence without launching real language servers or failing successful edits.",
       "write_scope": [
         "internal/tools",
         "internal/lsp"
@@ -6498,7 +6499,6 @@
       "done_signal": [
         "File write/patch fixtures prove LSP diagnostic deltas, range shifting, and graceful unsupported-language degradation."
       ],
-      "note": "Complete 2026-05-21: added internal/lsp diagnostic delta core with line-shifted baseline filtering plus injectable write/patch file-tool LSP evidence. Hermetic tests cover shifted baseline filtering, insert/delete/replace line shifts, write_file diagnostic deltas, and patch degraded/unsupported LSP evidence without launching real language servers or failing successful edits.",
       "implementation": [
         "internal/lsp/diagnostics.go",
         "internal/lsp/diagnostics_test.go",
@@ -9192,6 +9192,7 @@
         "OAuth and API-key auth modes produce redacted status and missing-auth diagnostics.",
         "Fake search results normalize into a bounded model-visible result envelope; rate-limit and auth failures degrade explicitly."
       ],
+      "note": "Complete 2026-05-19: TDD shipped internal/tools/x_search.go with XSearchTool implementing Name/Description/Schema/Execute, XSearchConfig with AuthMode/APIKey/OAuthToken/OAuthExpiry/Fake/RateLimit, AuthStatus() returning redacted key or expired diagnostics, fake result normalization with bounded XSearchResponse/XSearchResult/XSearchMetrics envelopes, and rate-limit/auth-failure degradation. Registered in cmd/gormes/registry.go via RegisterXSearchTools with Fake mode. 10 tests cover auth status (missing/API-key/OAuth/expired), execution (missing-auth/fake-results/rate-limit), registry integration, and schema query field.",
       "write_scope": [
         "internal/tools",
         "internal/config",
@@ -9205,7 +9206,6 @@
       "done_signal": [
         "x_search descriptor, auth status, fake-result normalization, and degraded errors are proven without live X credentials."
       ],
-      "note": "Complete 2026-05-19: TDD shipped internal/tools/x_search.go with XSearchTool implementing Name/Description/Schema/Execute, XSearchConfig with AuthMode/APIKey/OAuthToken/OAuthExpiry/Fake/RateLimit, AuthStatus() returning redacted key or expired diagnostics, fake result normalization with bounded XSearchResponse/XSearchResult/XSearchMetrics envelopes, and rate-limit/auth-failure degradation. Registered in cmd/gormes/registry.go via RegisterXSearchTools with Fake mode. 10 tests cover auth status (missing/API-key/OAuth/expired), execution (missing-auth/fake-results/rate-limit), registry integration, and schema query field.",
       "evidence": {
         "completed_at": "2026-05-19T00:00:00Z",
         "implementation": [

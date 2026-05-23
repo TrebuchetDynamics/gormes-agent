@@ -73,7 +73,7 @@
       "priority": "P3",
       "status": "planned",
       "contract": "After the TrebuchetDynamics engineering blog feed is live and the operator selects a social account, provide a reproducible feed-to-social automation with a dry-run preview, idempotency guard, and documented publish method so blog posts can be announced without click-only console configuration.",
-      "contract_status": "draft",
+      "contract_status": "fixture_ready",
       "slice_size": "small",
       "execution_owner": "docs",
       "module": "docs",
@@ -86,7 +86,11 @@
         "docs/content/building-gormes/strategy/success-plan.md",
         "webpages/docs/content/building-gormes/strategy/success-plan.md:Q1 publication stack",
         "webpages/blog/src/pages/rss.xml.ts",
-        "webpages/blog/package.json:test/build scripts"
+        "webpages/blog/package.json:test/build scripts",
+        "webpages/blog/src/pages/feed.xml.js",
+        "scripts/blog-feed-social/publish.mjs",
+        "scripts/blog-feed-social/publish.test.mjs",
+        "docs/content/building-gormes/strategy/success-plan.md#publication-stack"
       ],
       "ready_when": [
         "TD blog (8.A row 1) is live and emitting a stable feed.",
@@ -99,13 +103,17 @@
         "The implementation requires storing raw social tokens in the repository or progress backlog.",
         "The builder cannot run a dry-run preview without publishing to the live social account."
       ],
+      "blocked_by": [
+        "Operator-selected social platform/account and non-repo credentials",
+        "Public social test-post URL evidence"
+      ],
       "acceptance": [
         "A dry-run against a repo-local or freshly built blog feed emits the exact social post text, canonical blog URL, and idempotency key without network publication.",
         "With operator-provided credentials outside the repository, a test post on the blog produces one corresponding public social post within 1 hour.",
         "The automation is reproducible from a script and documented inputs, not click-configured in a provider console.",
         "success-plan.md records the social account URL, automation method, and secret-handling boundary without storing tokens."
       ],
-      "note": "Source: success-plan.md Q1 publication-stack milestone. Planner 2026-05-21 new-loop iteration 1: converted this publication-stack row from a no-test planning placeholder into a docs-owned automation contract with dry-run proof, idempotency, scoped write paths, and a secret-handling boundary; live posting remains gated on the operator-selected social account.",
+      "note": "Dry-run package advanced 2026-05-23 in development-goal iteration 24: scripts/blog-feed-social/publish.mjs now reads a built RSS feed and writes deterministic social preview JSON with canonical URL, post text, idempotency key, network_publish=false, and a no-token dry-run secret policy. Row intentionally remains planned because live social posting still requires an operator-selected platform/account, credentials outside the repo, and public test-post evidence.",
       "write_scope": [
         "scripts/blog-feed-social/",
         "webpages/blog/",
@@ -115,6 +123,7 @@
       ],
       "test_commands": [
         "(cd webpages/blog && npm run test)",
+        "node --test scripts/blog-feed-social/publish.test.mjs",
         "node scripts/blog-feed-social/publish.mjs --dry-run --feed webpages/blog/dist/feed.xml --out /tmp/gormes-social-post.json",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -344,7 +353,7 @@
     "item": {
       "name": "Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Publish an operator-facing comparison matrix that explains Gormes beside Hermes, OpenClaw, and hosted agent services on the axes buyers already use: integrations/channels, learning loop, operational stack, ownership/control, security/trust posture, and first-run proof. The page must be evidence-based: Gormes claims cite local docs/tests/artifacts, competitor claims are phrased as category tradeoffs unless primary sources are verified, and the copy avoids popularity, token-ranking, release-count, and CVE claims sourced only from social posts.",
       "contract_status": "validated",
       "slice_size": "small",
@@ -358,10 +367,11 @@
       "source_refs": [
         "docs/content/building-gormes/strategy/market-positioning.md",
         "README.md",
-        "webpages/docs/content/why-gormes.md",
+        "webpages/docs/content/why-gormes.md#public-comparison-matrix",
         "webpages/docs/content/start-here/_index.md",
-        "webpages/docs/content/recipes/migrate-hermes.md",
-        "webpages/landing/src/data/landing.js"
+        "webpages/docs/docs_test.go:TestWhyGormesComparisonMatrixDocumentsSafeTradeoffs",
+        "webpages/landing/src/data/landing.js",
+        "webpages/landing/tests/home.spec.mjs"
       ],
       "ready_when": [
         "Gormes market comparison positioning brief is complete.",
@@ -379,7 +389,7 @@
         "README or landing Explore/Why links expose the comparison without making it the hero.",
         "A docs test pins the no-unverified-social-stats rule and the core comparison axes."
       ],
-      "note": "Market-positioning follow-up from 2026-05-17 gormes-planner. This is a public docs/landing proof row, not a runtime parity row.",
+      "note": "Completed 2026-05-23 in development-goal iteration 22: the public Why Gormes comparison matrix, quickstart link, and landing comparison card are present and guarded by docs/landing tests. Copy stays conservative: Gormes is local software, not hosted zero-infrastructure SaaS; no unverified star-count, token-ranking, CVE-count, release-count, no-terminal, or drop-in OpenClaw claims are made.",
       "write_scope": [
         "webpages/docs/content/why-gormes.md",
         "webpages/docs/content/start-here/_index.md",
@@ -392,11 +402,13 @@
       "test_commands": [
         "go test ./webpages/docs -run 'Test.*(WhyGormes|Comparison|Landing)' -count=1",
         "(cd webpages/landing && npm run test:e2e)",
+        "go test ./webpages/docs ./webpages/docs/install -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
       "done_signal": [
-        "Public comparison matrix is linked, source-honest, no-stack/local-ownership centered, and guarded by docs or landing tests."
+        "Public comparison matrix is linked from quickstart and landing without becoming the hero.",
+        "Docs and landing tests guard source-honest local-ownership copy and forbidden social/stat claims."
       ],
       "provenance": {
         "origin_type": "gormes",
@@ -490,12 +502,20 @@
         "scripts/gormes-builder-cron.sh",
         "scripts/gormes-builder-loop.sh",
         "docs/content/building-gormes/architecture_plan/progress.json",
-        "webpages/docs/development-skills/gormes-builder/SKILL.md"
+        "webpages/docs/development-skills/gormes-builder/SKILL.md",
+        "webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md",
+        "webpages/blog/tests/build-output.test.mjs:autonomous Hermes-porting writeup has evidence-backed draft structure",
+        "git show 2e3a56a21 -- install.sh internal/installtest/termux_path_safety_test.go",
+        "git show 5cd4f870f -- cmd/gormes/navivox_connect_info.go cmd/gormes/navivox_connect_info_test.go",
+        "git show c2a267dad -- .pi/development-loop/logs.jsonl"
       ],
       "ready_when": [
         "TD blog (8.A row 1) is live.",
         "Loop $/iteration cost telemetry (8.F) has at least one week of data.",
-        "Operator has decided the publication date and platform (HN/Lobsters/Reddit)."
+        "Operator has decided the publication date and platform (HN/Lobsters/Reddit).",
+        "`Engineering writeup #1 local publication review packet` is complete and gives Juan a source-backed review checklist before public posting.",
+        "`Engineering writeup #1 cost telemetry evidence packet` is complete and captures current unknown-cost evidence without fabricating numbers; final public cost claims still require one week of measured cost telemetry.",
+        "`OpenCode part-cost telemetry adapter for builder loop` is complete and proves current local 30-day OpenCode spend extraction without satisfying the one-week 7-day window."
       ],
       "not_ready_when": [
         "Cost numbers are estimated rather than measured.",
@@ -503,8 +523,8 @@
         "The post is published without operator review of voice and tone."
       ],
       "blocked_by": [
-        "TD engineering blog scaffolded and live",
-        "Loop $/iteration cost metric in status file"
+        "One week of loop cost telemetry data collected from the 8.F cost fields",
+        "Operator publication review/date/platform decision"
       ],
       "unblocks": [
         "Engineering writeup #2: validation-gated agentic engineering",
@@ -518,13 +538,17 @@
         "Post includes real cost-per-feature numbers from 8.F telemetry.",
         "Post has been submitted to HN/Lobsters at least once (success metric is the submission, not front-page placement)."
       ],
-      "note": "Source: success-plan.md 30-day action sprint item #3. Loop can draft structural sections and assemble diff walkthroughs from git log + commit ranges; final voice and editorial choices are operator-only.",
+      "note": "Local draft package advanced 2026-05-23 in development-goal iteration 23: webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md now contains a 1500+ word source-backed draft with architecture diagram, three recent commit walkthroughs (2e3a56a21, 5cd4f870f, c2a267dad), validation-gate flow, and explicit cost/operator-review blockers. Row intentionally remains planned/draft because final acceptance still requires measured cost-per-feature telemetry, operator voice/publication review, public URL evidence, and submission evidence. Planner 2026-05-23 iteration 52: split an unblocked local publication review-packet child row from this blocked parent so agents can prepare operator-review evidence without needing cost telemetry, social credentials, public posting, or date/platform approval. Planner 2026-05-23 iteration 54: removed the completed local review-packet child from `blocked_by` and split a builder-ready local cost-telemetry evidence-packet child row so the parent keeps waiting only on measured cost evidence and operator publication decisions. Builder 2026-05-23 iteration 55: completed the local cost telemetry evidence packet and removed that child row from active blockers; the parent remains blocked by one week of measured cost telemetry and operator publication review/date/platform decision. Planner 2026-05-23 iteration 56: added a builder-ready telemetry adapter row after local OpenCode logs showed `part.cost` spend data that the current cost-report parser ignored; this keeps the writeup parent blocked until the adapter and one-week measured window are both proven. Builder 2026-05-23 iteration 56: completed the OpenCode part-cost telemetry adapter and removed that child row from active blockers; the parent remains blocked by one week of recent 7-day priced telemetry and operator publication review/date/platform decision.",
       "write_scope": [
         "webpages/blog/ (or external blog repo path)",
         "docs/content/building-gormes/strategy/writeups/",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
-      "no_test_required": "Documentation/research/planning row — automated tests not applicable",
+      "test_commands": [
+        "(cd webpages/blog && npm run test)",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
       "done_signal": [
         "Public URL recorded in success-plan.md and README.md; submission record archived under docs/content/building-gormes/strategy/writeups/."
       ],
@@ -537,6 +561,153 @@
     "phase": "8",
     "subphase": "8.C",
     "pos": 1,
+    "item": {
+      "name": "Engineering writeup #1 cost telemetry evidence packet",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Create a local, no-credential cost telemetry evidence packet for Engineering Writeup #1. The packet must snapshot the current builder-loop cost-report output, development-goal iteration log coverage, elapsed telemetry window, known 7-day/30-day cost fields or explicit unknown_no_cost_data evidence, and the exact remaining evidence needed before the public post can claim cost-per-feature numbers. It must not publish externally, estimate missing costs, or treat unknown cost as $0.00.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the builder loop has no opencode JSONL cost events or less than one week of measured telemetry, the packet must report unknown or insufficient data with command output and keep the parent writeup blocked.",
+      "fixture": "docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/success-plan.md#publication-stack",
+        "webpages/docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-review-packet.md",
+        "scripts/gormes-builder-loop.sh:cost_window_metrics",
+        "internal/loopcost/cost.go",
+        "internal/loopcost/cost_test.go",
+        ".pi/development-goal/logs.jsonl",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/docs.json:Engineering writeup #1: autonomous Hermes-porting loop",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/progress.json:Loop $/iteration cost metric in status file"
+      ],
+      "ready_when": [
+        "The 8.F `Loop $/iteration cost metric in status file` mechanism row is complete and validated.",
+        "The development-goal log exists at `.pi/development-goal/logs.jsonl` and can be summarized without credentials.",
+        "The builder-loop cost-report command can be run in dry/local mode and reports either cost rollups or explicit unknown-cost evidence.",
+        "The parent writeup row remains blocked for public publication; this child owns only local telemetry evidence capture."
+      ],
+      "not_ready_when": [
+        "The slice attempts to publish the writeup, choose Juan's publication platform/date, create a release, post to social media, or edit live credentials.",
+        "The packet fabricates token spend, provider spend, cost-per-feature numbers, or treats missing cost data as zero.",
+        "The packet changes runtime cost collection logic instead of recording the current measured/degraded evidence; runtime fixes require a separate tools/progress row."
+      ],
+      "unblocks": [
+        "Engineering writeup #1: autonomous Hermes-porting loop"
+      ],
+      "acceptance": [
+        "A markdown cost-evidence packet exists and links the review packet, draft post, 8.F cost mechanism row, cost-report command, and development-goal log path.",
+        "The packet records exact local command output from `bash scripts/gormes-builder-loop.sh cost-report` or an explicitly isolated state-dir variant, including cost_status, 7-day fields, and 30-day fields.",
+        "The packet counts available development-goal iterations/results from `.pi/development-goal/logs.jsonl` and states whether the elapsed window satisfies the parent row's one-week requirement.",
+        "If measured data is unavailable or insufficient, the packet preserves the parent blocker and names the next non-fabricated collection step.",
+        "Progress/docs validation passes without live network, social credentials, or release actions."
+      ],
+      "note": "Planner 2026-05-23 iteration 54: split from the blocked public writeup parent after the local review packet completed, so the next builder can capture measured or explicitly unknown loop-cost evidence without publishing or fabricating cost numbers. Builder 2026-05-23 iteration 55: created `docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md`, recorded default and isolated cost-report output as `unknown_no_cost_data`, summarized 249 development-goal log events over a 10.5-hour window, and preserved the parent blocker because one-week measured telemetry is not satisfied.",
+      "write_scope": [
+        "docs/content/building-gormes/strategy/writeups/",
+        "webpages/docs/content/building-gormes/strategy/writeups/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/docs.json",
+        "webpages/docs/content/building-gormes/builder-loop/",
+        "webpages/docs/content/building-gormes/modules/docs.md"
+      ],
+      "test_commands": [
+        "GORMES_CODEXU_STATE_DIR=$(mktemp -d) bash scripts/gormes-builder-loop.sh cost-report",
+        "go test ./internal/loopcost -count=1",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report the cost-evidence packet path, cost-report status fields, development-goal log iteration/result counts, whether the one-week requirement is satisfied, and the exact validation commands that passed without live credentials.",
+        "Iteration 55 evidence: cost-evidence packet path `docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md`; cost_status=unknown_no_cost_data, cost_7d_runs=0, cost_30d_runs=0; development-goal log parsed 249 events with 54 iteration_result entries over 10.5 hours; one-week requirement not satisfied."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-23T10:47:00-06:00",
+        "note": "Gormes-owned publication telemetry evidence row; no upstream Hermes analog."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.C",
+    "pos": 2,
+    "item": {
+      "name": "Engineering writeup #1 local publication review packet",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Create a local, no-credential review packet for Engineering Writeup #1 that lets Juan review the autonomous Hermes-porting loop draft before any public posting. The packet must point to the draft post, summarize the three diff walkthroughs and validation-gate evidence already in the draft, list exact missing final-acceptance inputs (one week of cost telemetry, publication date/platform, social submission target), and preserve the secret/publication boundary so no live social credentials or external posting are required.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If measured cost telemetry, publication date, platform, or social account evidence is missing, the packet must show those as explicit pending operator inputs rather than inventing estimates or publishing live.",
+      "fixture": "docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-review-packet.md",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/success-plan.md#publication-stack",
+        "webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md",
+        "webpages/blog/tests/build-output.test.mjs:autonomous Hermes-porting writeup has evidence-backed draft structure",
+        "scripts/blog-feed-social/publish.mjs",
+        "scripts/blog-feed-social/publish.test.mjs",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/docs.json:Engineering writeup #1: autonomous Hermes-porting loop"
+      ],
+      "ready_when": [
+        "The local autonomous Hermes-porting loop draft exists under `webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md`.",
+        "The TD blog/feed dry-run stack exists and can be tested without social credentials.",
+        "The parent writeup row remains blocked for public publication; this child owns only local review evidence."
+      ],
+      "not_ready_when": [
+        "The slice attempts to publish the post, trigger social automation in live mode, choose Juan's publication platform/date, fabricate cost telemetry, or remove the parent row's publication blockers.",
+        "The packet creates a second backlog outside `progress.json` instead of recording remaining final inputs as review checklist fields."
+      ],
+      "unblocks": [
+        "Engineering writeup #1: autonomous Hermes-porting loop"
+      ],
+      "acceptance": [
+        "A review-packet markdown file exists and links the draft post path, feed URL, social dry-run command, and progress parent row.",
+        "The packet lists draft evidence from the three walkthrough commits already cited by the post and calls out the exact missing final-publication inputs without estimates.",
+        "The packet includes Juan-facing review questions for voice/tone, publication date, target platform, and social account while confirming no credentials are stored in the repository.",
+        "Blog tests and progress/docs validation pass without live network publication."
+      ],
+      "note": "Planner 2026-05-23 iteration 52: split from the blocked public writeup parent so local review-prep work can proceed while cost telemetry and operator publication decisions remain blocked on the parent row. Builder 2026-05-23 iteration 53: created `docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-review-packet.md`, added blog build-output coverage for the packet's draft path/feed/dry-run/commit evidence/pending inputs/secret boundary, and verified the dry-run social preview without live publication.",
+      "write_scope": [
+        "docs/content/building-gormes/strategy/writeups/",
+        "webpages/docs/content/building-gormes/strategy/writeups/",
+        "webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md",
+        "webpages/blog/tests/build-output.test.mjs",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/docs.json",
+        "webpages/docs/content/building-gormes/builder-loop/"
+      ],
+      "test_commands": [
+        "(cd webpages/blog && npm run test)",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report the review-packet path, the draft post path, the pending public-publication inputs, and the exact blog/docs/progress validation commands that passed without live social credentials.",
+        "Iteration 53 evidence: `(cd webpages/blog && npm run test)` passed 4/4 after RED ENOENT proof; social dry-run wrote `/tmp/gormes-social-post-iter53.json` with `network_publish=false`; docs/progress validation commands are recorded in the delivery report."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-23T10:32:00-06:00",
+        "note": "Gormes-owned publication workflow row; no upstream Hermes analog."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.C",
+    "pos": 3,
     "item": {
       "name": "Hermes v0.14 release feature-to-module pairing ledger",
       "priority": "P1",
@@ -588,7 +759,7 @@
   {
     "phase": "8",
     "subphase": "8.C",
-    "pos": 2,
+    "pos": 4,
     "item": {
       "name": "Hermes contract inventory gate",
       "priority": "P1",
@@ -695,7 +866,7 @@
   {
     "phase": "8",
     "subphase": "8.C",
-    "pos": 3,
+    "pos": 5,
     "item": {
       "name": "Strict-fidelity upstream test-suite classifier",
       "priority": "P1",
@@ -838,6 +1009,283 @@
     "subphase": "8.E",
     "pos": 1,
     "item": {
+      "name": "Agentic-porting-kit local standalone fixture",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Add a repo-local, copy-ready standalone Python-greeter-to-Go example, minimal progress schema, and validation script that prove the agentic-porting-kit example can validate and test without Gormes tooling, GitHub repository creation, provider credentials, or network access.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "docs",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without the local fixture, the blocked public repo scaffold must design schema/example/script details during an external GitHub operation instead of copying a locally validated package.",
+      "fixture": "examples/agentic-porting-kit/python-greeter-to-go/progress.json + scripts/agentic-porting-kit/validate-local-example.sh",
+      "source_refs": [
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#local-no-auth-fixture",
+        "schemas/agentic-porting-kit-progress.schema.json",
+        "scripts/agentic-porting-kit/validate-local-example.sh",
+        "examples/agentic-porting-kit/python-greeter-to-go/progress.json",
+        "examples/agentic-porting-kit/python-greeter-to-go/source/greeter.py:greet",
+        "examples/agentic-porting-kit/python-greeter-to-go/target/greeter.go:Hello"
+      ],
+      "ready_when": [
+        "Agentic-porting-kit extraction spec is complete.",
+        "The public repo scaffold row is blocked on GitHub access/name confirmation, so only no-auth local prep is in scope.",
+        "The fixture avoids Gormes-specific runtime dependencies and can be copied into the future public repo."
+      ],
+      "not_ready_when": [
+        "The validation script calls `go run ./cmd/progress`, imports Gormes packages, or requires a Gormes checkout after copying.",
+        "The slice copies or edits Gormes repo-local skills instead of the standalone example/schema/script artifacts.",
+        "The work creates, commits to, or pushes the external TrebuchetDynamics/agentic-porting-kit repository."
+      ],
+      "unblocks": [
+        "Agentic-porting-kit public repo scaffold"
+      ],
+      "acceptance": [
+        "schemas/agentic-porting-kit-progress.schema.json defines the minimal row fields required by the local example.",
+        "examples/agentic-porting-kit/python-greeter-to-go/progress.json records one complete row with source_refs, write_scope, test_commands, acceptance, and done_signal.",
+        "The Python source and Go target prove the same greeting behavior, including the blank-name world fallback.",
+        "scripts/agentic-porting-kit/validate-local-example.sh validates the example progress shape and runs the target Go tests without calling Gormes cmd/progress or touching GitHub.",
+        "agentic-porting-kit.md records the local no-auth fixture and extraction order before the public repo row."
+      ],
+      "note": "Complete 2026-05-23 development-goal iteration 42: added the no-auth local standalone fixture for the future agentic-porting-kit public repo. RED evidence: `./scripts/agentic-porting-kit/validate-local-example.sh` failed before `target/greeter.go` existed with `undefined: Hello`. GREEN evidence: the same script validates the progress schema smoke and passes `go test ./...` in the example target module. The public repo scaffold remains blocked on external GitHub access/name confirmation; this row only creates copy-ready local artifacts.",
+      "write_scope": [
+        "schemas/agentic-porting-kit-progress.schema.json",
+        "scripts/agentic-porting-kit/validate-local-example.sh",
+        "examples/agentic-porting-kit/python-greeter-to-go/",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "./scripts/agentic-porting-kit/validate-local-example.sh",
+        "go run ./cmd/progress validate",
+        "go test ./webpages/docs -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Local fixture script prints `agentic-porting-kit local example: ok`, progress validation passes, and no external repo create/push is attempted."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.E",
+    "pos": 2,
+    "item": {
+      "name": "Agentic-porting-kit local porting skill skeletons",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Add six repo-local, copy-ready `porting-*` skill skeletons and validation checks that prove the future agentic-porting-kit scaffold has loadable generic skill names, source/target implementation terminology, `PORTING_PROGRESS_PATH` guidance, and no Gormes-only paths before any external repository is created.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "docs",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without local skill skeletons, the blocked public repo scaffold must generalize six skills during a GitHub create/push operation instead of copying a locally validated loadable set.",
+      "fixture": "examples/agentic-porting-kit/skills/porting-*/SKILL.md + scripts/agentic-porting-kit/validate-local-example.sh",
+      "source_refs": [
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#skill-name-mapping",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#local-no-auth-fixture",
+        "docs/development-skills/gormes-skill-manager/SKILL.md",
+        "docs/development-skills/gormes-planner/SKILL.md",
+        "docs/development-skills/gormes-builder/SKILL.md",
+        "docs/development-skills/gormes-tdd-slice/SKILL.md",
+        "docs/development-skills/gormes-parity-auditor/SKILL.md",
+        "docs/development-skills/gormes-references/SKILL.md",
+        "scripts/agentic-porting-kit/validate-local-example.sh"
+      ],
+      "ready_when": [
+        "Agentic-porting-kit extraction spec is complete.",
+        "Agentic-porting-kit local standalone fixture is complete and green.",
+        "The public repo scaffold row is blocked on GitHub access/name confirmation, so only no-auth local skill prep is in scope."
+      ],
+      "not_ready_when": [
+        "The slice edits Gormes repo-local skills in place instead of creating copy-ready local kit skeletons.",
+        "The skill skeletons retain Gormes-only paths, `cmd/progress`, or product-specific source names instead of generic source/target terminology.",
+        "The work creates, commits to, or pushes the external TrebuchetDynamics/agentic-porting-kit repository."
+      ],
+      "unblocks": [
+        "Agentic-porting-kit public repo scaffold"
+      ],
+      "acceptance": [
+        "examples/agentic-porting-kit/skills contains porting-skill-manager, porting-planner, porting-builder, porting-tdd-slice, porting-parity-auditor, and porting-references skill skeletons.",
+        "Each SKILL.md has YAML frontmatter with the expected porting-* name and a description beginning with `Use when`.",
+        "Each skeleton uses `source implementation`, `target implementation`, and `PORTING_PROGRESS_PATH` terminology and avoids Gormes-only paths or product names.",
+        "scripts/agentic-porting-kit/validate-local-example.sh validates the skill skeletons in addition to the schema/example Go tests.",
+        "agentic-porting-kit.md records the local skill skeleton fixture and extraction order before the public repo row."
+      ],
+      "note": "Complete 2026-05-23 development-goal iteration 43: extended the no-auth local fixture with six copy-ready `porting-*` skill skeletons and validator checks. RED evidence: `./scripts/agentic-porting-kit/validate-local-example.sh` failed with `missing skill: .../porting-skill-manager/SKILL.md` before the skeletons existed. GREEN evidence: the same script reports `porting skill skeletons: ok` and passes the greeter target Go tests. The public repo scaffold remains blocked on external GitHub access/name confirmation; this row only creates local copy-ready skill artifacts.",
+      "write_scope": [
+        "examples/agentic-porting-kit/skills/",
+        "scripts/agentic-porting-kit/validate-local-example.sh",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "./scripts/agentic-porting-kit/validate-local-example.sh",
+        "go run ./cmd/progress validate",
+        "go test ./webpages/docs -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Local fixture script prints `porting skill skeletons: ok` and `agentic-porting-kit local example: ok`; no external repo create/push is attempted."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.E",
+    "pos": 3,
+    "item": {
+      "name": "Agentic-porting-kit local README and license fixture",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Add copy-ready local README.md and LICENSE fixtures for the future agentic-porting-kit public repository, and extend the no-auth local validator so it proves the README promise, Codex and Claude Code loading guidance, public quick-start paths, schema adaptation guidance, Gormes proof language, license section, and MIT-shaped license before any external repository is created.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without local README/LICENSE fixtures, the blocked public repo scaffold still has to draft operator-facing copy and license content during the external GitHub create/push operation.",
+      "fixture": "examples/agentic-porting-kit/README.md + examples/agentic-porting-kit/LICENSE + scripts/agentic-porting-kit/validate-local-example.sh",
+      "source_refs": [
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#readme-promise",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#public-repo-shape",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#local-no-auth-fixture",
+        "examples/agentic-porting-kit/README.md",
+        "examples/agentic-porting-kit/LICENSE",
+        "scripts/agentic-porting-kit/validate-local-example.sh"
+      ],
+      "ready_when": [
+        "Agentic-porting-kit extraction spec is complete.",
+        "Agentic-porting-kit local standalone fixture is complete and green.",
+        "Agentic-porting-kit local porting skill skeletons are complete and green.",
+        "The public repo scaffold row is blocked on GitHub access/name confirmation, so only no-auth local README/license prep is in scope."
+      ],
+      "not_ready_when": [
+        "The slice writes to the external TrebuchetDynamics/agentic-porting-kit repository or requires GitHub access.",
+        "The README depends on Gormes-local paths such as docs/content/building-gormes or cmd/progress instead of public scaffold paths.",
+        "The license text is omitted or not validated by the local fixture command."
+      ],
+      "unblocks": [
+        "Agentic-porting-kit public repo scaffold"
+      ],
+      "acceptance": [
+        "examples/agentic-porting-kit/README.md leads with the required validation-gated agentic porting promise.",
+        "README.md includes Codex and Claude Code skill-loading instructions, a three-step quick start using examples/python-greeter-to-go, schema adaptation guidance, Gormes proof language, and a license section.",
+        "examples/agentic-porting-kit/LICENSE contains MIT license text for Trebuchet Dynamics.",
+        "scripts/agentic-porting-kit/validate-local-example.sh validates README/LICENSE fixtures in addition to schema, example, and skill skeleton checks.",
+        "agentic-porting-kit.md records README/LICENSE as local no-auth fixtures and says the public repo scaffold can copy them."
+      ],
+      "note": "Complete 2026-05-23 development-goal iteration 44: extended the no-auth local fixture with copy-ready README.md and LICENSE content plus validator checks. RED evidence: `./scripts/agentic-porting-kit/validate-local-example.sh` failed with `missing README fixture: .../examples/agentic-porting-kit/README.md` before the files existed. GREEN evidence: the same script reports `readme license fixture: ok` and passes the greeter target Go tests. The public repo scaffold remains blocked on external GitHub access/name confirmation; this row only creates local copy-ready docs/license artifacts.",
+      "write_scope": [
+        "examples/agentic-porting-kit/README.md",
+        "examples/agentic-porting-kit/LICENSE",
+        "scripts/agentic-porting-kit/validate-local-example.sh",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "./scripts/agentic-porting-kit/validate-local-example.sh",
+        "go run ./cmd/progress validate",
+        "go test ./webpages/docs -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Local fixture script prints `readme license fixture: ok` and `agentic-porting-kit local example: ok`; no external repo create/push is attempted."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.E",
+    "pos": 4,
+    "item": {
+      "name": "Agentic-porting-kit local public layout assembly gate",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Add a copy-ready public `scripts/validate-example.sh` and a local `validate-public-layout.sh` assembler that builds the future agentic-porting-kit repository shape in a temporary directory, maps the Gormes-local fixture paths to public repo paths, and runs the public validator without GitHub access.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "docs",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Without a local public-layout gate, path and script-shape mistakes in the future public repo scaffold would only be discovered during the blocked GitHub create/push operation.",
+      "fixture": "scripts/agentic-porting-kit/validate-public-layout.sh assembles a temp public repo and runs examples/agentic-porting-kit/scripts/validate-example.sh",
+      "source_refs": [
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#public-repo-shape",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#standalone-acceptance",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md#local-no-auth-fixture",
+        "examples/agentic-porting-kit/scripts/validate-example.sh",
+        "scripts/agentic-porting-kit/validate-public-layout.sh"
+      ],
+      "ready_when": [
+        "Agentic-porting-kit extraction spec is complete.",
+        "Agentic-porting-kit local standalone fixture is complete and green.",
+        "Agentic-porting-kit local porting skill skeletons are complete and green.",
+        "Agentic-porting-kit local README and license fixture is complete and green.",
+        "The public repo scaffold row is blocked on GitHub access/name confirmation, so only no-auth local layout proof is in scope."
+      ],
+      "not_ready_when": [
+        "The slice creates, commits to, or pushes the external TrebuchetDynamics/agentic-porting-kit repository.",
+        "The assembled layout depends on Gormes-local paths, cmd/progress, provider credentials, or network access.",
+        "The public validator cannot be run from the temporary repo root as ./scripts/validate-example.sh."
+      ],
+      "unblocks": [
+        "Agentic-porting-kit public repo scaffold"
+      ],
+      "acceptance": [
+        "examples/agentic-porting-kit/scripts/validate-example.sh is copy-ready for the future public repo and validates README, LICENSE, schema, skills, and the Python greeter target tests from public paths.",
+        "scripts/agentic-porting-kit/validate-public-layout.sh assembles README.md, LICENSE, schemas/progress.schema.json, scripts/validate-example.sh, skills/, and examples/python-greeter-to-go/ into a temporary public repo layout.",
+        "The assembled public layout rejects local operator paths and runs ./scripts/validate-example.sh successfully without cloning Gormes or touching GitHub.",
+        "scripts/agentic-porting-kit/validate-local-example.sh includes the public-layout gate so the existing fixture command proves both local and public-checkout shapes.",
+        "agentic-porting-kit.md records the public-layout validation command and extraction order before the external scaffold row."
+      ],
+      "note": "Complete 2026-05-23 development-goal iteration 45: added a copy-ready public `scripts/validate-example.sh`, a local temp-layout assembler, and wired the existing local fixture validator to run the public layout gate. RED evidence: `./scripts/agentic-porting-kit/validate-public-layout.sh` failed with `No such file or directory` before the gate existed. Debug evidence: first GREEN attempt failed because the copied public validator contained the literal forbidden local-path token; root cause was the validator's own forbidden-token data, fixed by computing the current home path dynamically. GREEN evidence: `validate-public-layout.sh` prints `public layout shape: ok`, runs the public validator, and prints `agentic-porting-kit public layout: ok`; `validate-local-example.sh` now includes that proof. The public repo scaffold remains blocked on external GitHub access/name confirmation.",
+      "write_scope": [
+        "examples/agentic-porting-kit/scripts/validate-example.sh",
+        "scripts/agentic-porting-kit/validate-public-layout.sh",
+        "scripts/agentic-porting-kit/validate-local-example.sh",
+        "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "./scripts/agentic-porting-kit/validate-public-layout.sh",
+        "./scripts/agentic-porting-kit/validate-local-example.sh",
+        "go run ./cmd/progress validate",
+        "go test ./webpages/docs -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Public-layout script prints `agentic-porting-kit public layout: ok`; local fixture script prints `agentic-porting-kit local example: ok`; no external repo create/push is attempted."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.E",
+    "pos": 5,
+    "item": {
       "name": "Agentic-porting-kit public repo scaffold",
       "priority": "P2",
       "status": "planned",
@@ -862,6 +1310,10 @@
         "webpages/docs/development-skills/gormes-skill-manager/SKILL.md"
       ],
       "ready_when": [
+        "Agentic-porting-kit local public layout assembly gate is complete and green, or the external repo builder intentionally replaces it with equivalent pre-push validation.",
+        "Agentic-porting-kit local README and LICENSE fixtures are complete and green, or the external repo builder intentionally replaces them with validated equivalent files.",
+        "Agentic-porting-kit local porting skill skeletons are complete and green, or the external repo builder intentionally replaces them with a validated equivalent.",
+        "Agentic-porting-kit local standalone fixture is complete and green, or the external repo builder intentionally recreates an equivalent example in the public repo.",
         "Agentic-porting-kit extraction spec is complete.",
         "GitHub authentication can create or push to TrebuchetDynamics/agentic-porting-kit, or the operator has created the empty repo.",
         "The public repo name is confirmed as agentic-porting-kit or an equivalent name before the first push."
@@ -871,6 +1323,10 @@
         "The builder plans to edit Gormes' repo-local skills in place instead of copied kit skills.",
         "The standalone example still requires cloning Gormes or running cmd/progress."
       ],
+      "blocked_by": [
+        "GitHub create-or-push access to TrebuchetDynamics/agentic-porting-kit",
+        "Operator confirmation of the public repo name before first push"
+      ],
       "acceptance": [
         "Public repo exists with README.md, LICENSE, schemas/progress.schema.json, scripts/validate-example.sh, skills/, and examples/python-greeter-to-go/.",
         "README.md explains the kit independent of Gormes/Hermes and includes Codex plus Claude Code loading instructions.",
@@ -878,7 +1334,20 @@
         "scripts/validate-example.sh validates the example progress file and runs the example tests without cloning Gormes.",
         "Gormes README.md and success-plan.md record the public repo URL after the repo is reachable."
       ],
-      "note": "Source: success-plan.md Q2 milestone and agentic-porting-kit.md extraction spec. This row owns the external repository scaffold only; deeper skill hardening can be split after the first standalone validation run exposes concrete drift. Contract remains draft so the generated queue keeps it visible until a builder confirms authenticated access to create or update the public repo.",
+      "note": "Source: success-plan.md Q2 milestone and agentic-porting-kit.md extraction spec. This row owns the external repository scaffold only; deeper skill hardening can be split after the first standalone validation run exposes concrete drift. Contract remains draft so the generated queue keeps it visible until a builder confirms authenticated access to create or update the public repo. Planner 2026-05-23 iteration 41: corrected readiness metadata. The row remains planned/draft but is now explicitly blocked because it requires external GitHub create-or-push access and operator repo-name confirmation; generated agent queues should not offer it as a builder-ready slice until those blockers clear.",
+      "blocker": {
+        "title": "Agentic-porting-kit public repo scaffold external access gate",
+        "type": "access",
+        "status": "blocked",
+        "recorded_at": "2026-05-23 00:00:00 America/Monterrey",
+        "blocker": "The scaffold contract writes a separate public GitHub repository, but this development-goal run has no explicit permission to create/push external repos and no confirmed public repo name beyond the default proposal.",
+        "evidence": "Row ready_when requires GitHub authentication/create-or-push access or an operator-created empty repo plus public repo name confirmation; commit/push policy says do not commit or push unless explicitly asked.",
+        "unblocks_when": "Juan confirms the public repo name and either creates the empty repository or explicitly authorizes authenticated create/push work for TrebuchetDynamics/agentic-porting-kit.",
+        "owner": "operator / Gormes release-publication lane",
+        "pivot": "Keep the extraction spec and row intent in progress.json; autonomous builders must not select the external scaffold until the access/name gate is satisfied.",
+        "next_check": "next explicit agentic-porting-kit publication or release-lane iteration",
+        "degraded": true
+      },
       "write_scope": [
         "(separate repo) README.md",
         "(separate repo) LICENSE",
@@ -900,8 +1369,7 @@
       ],
       "provenance": {
         "origin_type": "gormes"
-      },
-      "blocked_by": []
+      }
     }
   },
   {

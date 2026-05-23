@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `learning-loop`
 **Rows:** 6
-**Status counts:** `complete`: 5 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 6 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P1`: 3 · `P2`: 2 · `P3`: 1
 
 ## Phase 6 — The Learning Loop (Soul)
@@ -18,7 +18,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P1` | `learning-loop` | Hermes background review fork lifecycle |
-| `planned` | `P3` | `learning-loop` | Deterministic learning-loop trigger signals |
+| `complete` | `P3` | `learning-loop` | Deterministic learning-loop trigger signals |
 
 ### 6.E — Feedback Loop
 

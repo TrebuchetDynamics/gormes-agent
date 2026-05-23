@@ -813,9 +813,9 @@
     "item": {
       "name": "Profile Control Center v2 umbrella — single root config and active services",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Inventory-only, fixture-backed parent for the Gormes-owned Profile Control Center v2 direction. The target config surface is one root `$GORMES_HOME/config.toml` at `config_version = 2`, stable `[profiles.<id>]` service records, global `[credentials.<id>]` records referenced by profiles, no v2 `active_profile`/`default_profile` field, and screen-reader-first `gormes setup profiles` control-center flows. Runtime/profile data may still live under profile directories, but canonical v2 config is rooted once; implementation must happen only through child rows for schema, migration, read-model, TUI, provider/channel credentials, Navivox routing, docs, and fleet supervision.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "umbrella",
       "execution_owner": "tools",
       "module": "profiles",
@@ -874,7 +874,7 @@
         "The row records degraded/compatibility behavior: legacy profile/config paths are inputs only, not the canonical v2 destination.",
         "No separate TODO/private queue is introduced; child rows in progress.json remain the only implementation order."
       ],
-      "note": "Planner 2026-05-21 development-loop iteration 12: sharpened the Profile Control Center parent from draft architecture direction into a fixture-backed non-selectable row. This pins the v2 root-config/schema/control-center invariants to exact docs and Go symbols while keeping runtime implementation in child rows.",
+      "note": "Planner closeout by development-goal iteration 50 on 2026-05-23. The Profile Control Center v2 parent is now satisfied by validated child evidence: canonical config.toml v2 docs, root profile service schema, legacy migration planner, control-center read model, control-center TUI draft/apply shell, per-profile provider credential readiness, per-profile channel credential readiness, Navivox multi-server profile routing, workspace allow-list enforcement, profile-local subprocess HOME, and long-term fleet supervisor planning. The parent remains inventory evidence only; future Navivox product rows and release rows are separate work. Validation: go run ./cmd/progress validate; go test ./internal/progress -count=1; go test ./cmd/progress -count=1; go test ./webpages/docs -count=1; git diff --check.",
       "write_scope": [
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/profiles.json",
         "docs/content/building-gormes/architecture_plan/profile-config-v2.md"
@@ -1199,9 +1199,9 @@
     "item": {
       "name": "Long-term plan: profile fleet supervisor and single control-plane gateway",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Define Gormes' long-term profile-fleet runtime so operators get one control surface for all named profiles while preserving Hermes-compatible profile state separation. The near-term per-profile gateway services remain a compatibility bridge; the target is a fleet supervisor that can enumerate configured profiles, start/stop/restart profile-scoped workers or a proven profile-scoped in-process equivalent, validate token ownership, surface per-profile health, and coordinate update/restart-all flows without sharing config, auth, sessions, memory, tool state, or kernels across profiles.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "large",
       "execution_owner": "orchestrator",
       "module": "profiles",
@@ -1219,7 +1219,20 @@
         "webpages/docs/content/upstream-hermes/reference/faq.md:multiple profiles and bot tokens",
         "cmd/gormes/gateway.go:gatewayManagerConfig",
         "internal/config/agents.go:AgentDefaultsCfg",
-        "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile"
+        "internal/gateway/manager.go:ManagerConfig.ContextFilesProfile",
+        "internal/gateway/fleet_supervisor.go:NewFleetSupervisor",
+        "cmd/gormes/gateway_fleet.go:newGatewayFleetCommand",
+        "internal/app/gormescli/modules/gateway/live.go:GatewayCommandSeams",
+        "internal/gateway/fleet_supervisor.go:resolveCredentialHashes",
+        "internal/gateway/profile_channel_config.go:ProfileChannelEvidenceCredentialHashUnavailable",
+        "internal/gateway/fleet_supervisor.go:CommandFleetWorker",
+        "internal/gateway/fleet_supervisor.go:OSFleetCommandRunner",
+        "cmd/gormes/gateway_fleet.go:newGatewayFleetSupervisor",
+        "cmd/gormes/update.go:runUpdateGatewayRestartForPolicy",
+        "cmd/gormes/update.go:updateGatewayRestartProfileFleet",
+        "cmd/gormes/update.go:defaultReleaseProfileFleetManagedServices",
+        "cmd/gormes/update.go:profileFleetUpdateManagedService",
+        "internal/gateway/fleet_supervisor.go:fleetGatewayServiceName"
       ],
       "ready_when": [
         "The current per-profile gateway-service bridge is documented as migration/runtime compatibility, not the final operator model.",
@@ -1238,7 +1251,7 @@
         "Update/release restart hooks can target the fleet through one operator-facing command or service instead of requiring hand-managed unit names.",
         "Regression tests use fake profile roots and fake supervisors only; no live systemd, Telegram, or provider credentials are required."
       ],
-      "note": "Profile fleet separation here means config/auth/session/memory/tool-state boundaries, not project filesystem sandboxing; the separate profile workspace allow-list row owns project read/write restrictions.",
+      "note": "Validated 2026-05-23: the profile fleet supervisor now has one operator-facing control plane for configured v2 profiles while preserving isolated profile homes and the per-profile service bridge as compatibility. Evidence includes FleetSupervisor status over every configured profile with redacted profile-home hashes, desired channels, runtime owner/state, health, token-lock conflicts, and SecretRef credential-hash unavailable degradation; command-worker start/stop/restart-all operations over profile-scoped GORMES_HOME targets; `gormes gateway fleet --json` plus `start-all`, `stop-all`, and `restart-all` through the module-owned gateway command seam; native `gormes update` restart policy delegation to FleetSupervisor `RestartAll`; and release binary/service coordination using the same FleetSupervisor seam as a managed `gormes-profile-fleet` service that stops all live profile gateways before mutation, starts them afterward, and health-checks profile liveness without systemd, Telegram, or provider credentials. The profile gateway service-name contract is validated by command-worker tests: main maps to `gormes-gateway.service`, named profiles map to `gormes-gateway-<profile>.service`, and operation reports do not leak profile home paths.",
       "write_scope": [
         "cmd/gormes/gateway.go",
         "cmd/gormes/gateway_fleet_test.go",
@@ -1246,13 +1259,24 @@
         "internal/gateway/fleet_supervisor_test.go",
         "internal/config/agents.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
-        "webpages/docs/content/building-gormes/modules/profiles.md"
+        "webpages/docs/content/building-gormes/modules/profiles.md",
+        "cmd/gormes/gateway_fleet.go",
+        "internal/app/gormescli/modules/gateway/live.go",
+        "internal/app/gormescli/modules/gateway/live_test.go",
+        "internal/gateway/profile_channel_config.go",
+        "cmd/gormes/update.go",
+        "cmd/gormes/update_command_test.go",
+        "cmd/gormes/update_release_services_test.go"
       ],
       "test_commands": [
         "go test ./internal/gateway -run 'TestFleetSupervisor|TestGatewayFleet' -count=1",
-        "go test ./cmd/gormes -run 'TestGatewayFleet' -count=1",
+        "go test ./cmd/gormes -run 'TestGatewayFleet|TestGatewayCommand_ConstructorReturnsIndependentInstances' -count=1",
+        "go test ./internal/app/gormescli/modules/gateway -run 'TestGatewayCommand' -count=1",
         "go run ./cmd/progress validate",
-        "git diff --check"
+        "git diff --check",
+        "go test ./cmd/gormes -run 'TestUpdateGatewayRestart(UsesFleetSupervisor|NeverReportsProfileFleet|AlwaysFails)' -count=1",
+        "go test ./cmd/gormes -run 'TestUpdateReleaseServiceCoordinationUsesFleetSupervisorForProfileConfig' -count=1",
+        "go test ./cmd/gormes -run 'TestUpdateReleaseServiceCoordination|TestUpdateGatewayRestart(UsesFleetSupervisor|NeverReportsProfileFleet|AlwaysFails)|TestUpdateReleaseBinaryCommandUsesReleaseUpdaterForReleaseInstall|TestUpdateReleaseAssetsCommandRuns' -count=1"
       ],
       "done_signal": [
         "The profiles module documents one operator-facing fleet gateway/supervisor target, preserves profile isolation as non-negotiable, and makes the current per-profile services an explicit compatibility bridge rather than silent architecture drift."
@@ -1271,9 +1295,9 @@
     "item": {
       "name": "Profile Control Center read model",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Move profile setup state projection out of `cmd/gormes` into `internal/app/gormescli/modules/profiles` as a pure read model for a Profile Control Center. The model enumerates all enabled and disabled v2 profiles, shows profile id, display name status, Runtime/Readiness/Activity lanes, workspaces, provider readiness, channel readiness, credential ownership/share warnings, legacy migration warnings, and action availability from a typed catalog. It must not require a live gateway, provider, channel token, or Navivox server.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
       "module": "profiles",
@@ -1289,7 +1313,9 @@
         "cmd/gormes/setup_profiles_tui.go",
         "internal/config/config.go",
         "internal/doctor/",
-        "internal/gateway/token_lock_test.go"
+        "internal/gateway/token_lock_test.go",
+        "internal/app/gormescli/modules/profiles/control_center_model.go:BuildControlCenterModel",
+        "internal/app/gormescli/modules/profiles/control_center_model.go:ControlCenterActionCatalog"
       ],
       "ready_when": [
         "Root config v2 structs exist or are faked behind a test seam.",
@@ -1313,7 +1339,7 @@
         "Readiness lanes distinguish missing workspace, missing provider credential, missing channel credential, and legacy migration available.",
         "The action catalog is typed and finite; no arbitrary command launcher appears in the model."
       ],
-      "note": "This is the non-visual contract that makes the richer TUI testable and screen-reader friendly before layout work.",
+      "note": "Validated 2026-05-23: the Profile Control Center now has a pure config-v2 read model in internal/app/gormescli/modules/profiles. Fixtures prove stable all-profile ordering for enabled and disabled profiles with no single active marker, blank main display-name readiness warnings, missing workspace/provider/channel credential lanes, legacy_config_detected plus migration_available degraded rows when v2 config is absent, redacted provider and channel credential sharing evidence with owner_profile visible, and a finite typed action catalog that rejects unsupported command-like actions. The model takes injected workspace existence facts only; it does not start gateways, probe providers, log into channels, resolve SecretRef values, read live profile homes, or launch arbitrary commands.",
       "write_scope": [
         "internal/app/gormescli/modules/profiles/control_center_model.go",
         "internal/app/gormescli/modules/profiles/control_center_model_test.go",
@@ -1326,7 +1352,8 @@
         "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterModel' -count=1",
         "go test ./cmd/gormes -run 'TestSetupProfiles' -count=1",
         "go run ./cmd/progress validate",
-        "git diff --check"
+        "git diff --check",
+        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterModel(ActionCatalog|ReportsSharedChannel|ListsAll|SurfacesLegacy)' -count=1"
       ],
       "done_signal": [
         "Pure read-model fixtures prove all-profile service visibility, readiness lanes, redacted credentials, legacy migration warnings, and typed action availability without live runtime dependencies."
@@ -1345,9 +1372,9 @@
     "item": {
       "name": "Profile Control Center TUI shell and draft apply flow",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Replace the current narrow `gormes setup profiles` flow with a screen-reader-first Profile Control Center TUI over the read model. First screen lists every profile service with status lanes; detail view exposes workspaces, providers, channels, credentials, and migration state; edits are staged as a draft, summarized as a redacted diff, and only written on explicit Apply. Add-profile creates a staged stable id plus display name; naming the seed `main` profile is a staged edit. Slice excludes live start/stop/reset/restart, arbitrary command launchers, and secret echoing.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tui",
       "module": "profiles",
@@ -1362,7 +1389,17 @@
         "cmd/gormes/setup_profiles_tui.go",
         "internal/app/gormescli/modules/profiles/control_center_model.go",
         "internal/tui/wizard/",
-        "cmd/gormes/setup.go:runSetupSection"
+        "cmd/gormes/setup.go:runSetupSection",
+        "internal/app/gormescli/modules/profiles/control_center_tui.go:BuildControlCenterTUIScreen",
+        "internal/app/gormescli/modules/profiles/control_center_tui.go:NewControlCenterDraft",
+        "internal/app/gormescli/modules/profiles/control_center_tui.go:RenderControlCenterDraftPreview",
+        "cmd/gormes/setup_profiles_tui.go:applySetupProfilesControlCenterTUIResult",
+        "internal/config/profile_config_v2.go:WriteProfileConfigV2",
+        "/home/xel/.cache/tmp/architecture-review-gormes-20260523T0915Z.html",
+        "cmd/gormes/setup_profiles_tui.go:setupProfilesModel.controlCenterView",
+        "/home/xel/.cache/tmp/architecture-review-gormes-20260523T0930Z.html",
+        "cmd/gormes/setup_profiles_tui.go:buildSetupProfilesMigrationTUIState",
+        "cmd/gormes/setup_profiles_tui.go:applySetupProfilesLegacyMigration"
       ],
       "ready_when": [
         "Profile Control Center read model is complete and exposes typed rows/actions.",
@@ -1373,9 +1410,6 @@
         "The TUI performs live service operations or uses command strings as the action catalog.",
         "The visual layout is tested only with sighted snapshots and lacks stable screen-reader text."
       ],
-      "blocked_by": [
-        "Profile Control Center read model"
-      ],
       "acceptance": [
         "Initial render lists all enabled profiles plus disabled profiles in a separate section, with stable profile ids and display names.",
         "Keyboard-only flows can rename `main`, add a profile, edit workspaces, assign provider/channel credentials, preview migration, Apply, and Discard.",
@@ -1383,7 +1417,7 @@
         "Cancel/escape does not write config; Apply writes one root config.toml transaction through `internal/config`.",
         "Non-TTY path returns deterministic setup_requires_tty/help text and no false success footer."
       ],
-      "note": "This row owns UI/UX only after the read model exists; it intentionally keeps live runtime controls for a later fleet supervisor row.",
+      "note": "Complete. Iterations 14-16 delivered the Profile Control Center TUI shell and draft apply flow: config-v2 setup profiles renders root profile services instead of legacy active_profile state, stages display-name/profile/workspace/channel/provider/channel-credential edits in memory, previews redacted draft changes, applies through one root config.toml transaction, and supports explicit Discard/Cancel with zero writes. Legacy profile config migration now opens the same Control Center surface with a redacted PlanProfileConfigV2Migration preview, stages migration through keyboard action, and applies via internal/config.ApplyProfileConfigV2Migration with a backup; setup profiles does not hand-write migration TOML or leak raw secrets.",
       "write_scope": [
         "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/setup_profiles_test.go",
@@ -1392,14 +1426,21 @@
         "internal/tui/wizard/",
         "webpages/docs/profile_docs_test.go",
         "docs/content/building-gormes/architecture_plan/progress.json",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/config/profile_config_v2.go",
+        "internal/config/profile_config_v2_test.go"
       ],
       "test_commands": [
         "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterTUI|TestProfileDraft' -count=1",
         "go test ./cmd/gormes -run 'TestSetupProfiles' -count=1",
         "go test ./webpages/docs -run 'TestProfile|TestSetup' -count=1",
         "go run ./cmd/progress validate",
-        "git diff --check"
+        "git diff --check",
+        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileControlCenterTUI|TestProfileDraft|TestProfileControlCenterModelActionCatalog' -count=1",
+        "go test ./internal/config -run 'TestWriteProfileConfigV2|TestProfileConfigV2' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupProfiles|TestSetupProfilesTUI' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupProfilesControlCenterTUIKeyFlowStagesRenameCredentialsAndDiscard|TestSetupProfilesV2TUIDiscardWritesNothing|TestSetupProfilesV2TUIAppliesOneRootConfigTransaction' -count=1",
+        "go test ./cmd/gormes -run 'TestSetupProfilesControlCenterTUIKeyFlowStagesLegacyMigrationForApply|TestSetupProfilesLegacyControlCenterMigrationAppliesViaInternalConfig|TestSetupProfilesV2TUICancelWritesNothing' -count=1"
       ],
       "done_signal": [
         "TUI fixtures prove all-profile first screen, staged edits, redacted diff, apply/discard, no live ops, and screen-reader text stability."
