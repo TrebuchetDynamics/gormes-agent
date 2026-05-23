@@ -8,6 +8,25 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.22] - 2026-05-23
+
+Date alias: `v2026.5.23`.
+
+> **Native TUI slash parity, Navivox profile/voice APIs, and porting-kit publication prep.**
+
+### Added
+- Native TUI slash handlers and adapter seams for local `/tools`, `/voice`, `/skin`, session, logs, status, details, history, usage, and title workflows.
+- Navivox backend APIs for redacted voice run records, natural-language profile seed drafts, safe config administration, and per-profile voice-provider validation.
+- Agentic porting-kit example scaffolding, schema validation, local/public layout checks, and engineering writeup evidence packets.
+
+### Changed
+- Progress, docs, landing, and benchmark mirrors were refreshed from the split backlog and current release evidence.
+- Gateway/profile setup surfaces now expose clearer profile, fleet, SimpleX, and Navivox readiness state for operator workflows.
+
+### Fixed
+- Local release hygiene now ignores `.env.backup.*` and `.pi/development-goal/` so credential backups and run logs cannot be staged accidentally.
+- Update/install/docs coverage now checks release freshness, installer asset sync, and public surface drift around the release lane.
+
 ## [0.2.21] - 2026-05-22
 
 Date alias: `v2026.5.22`.

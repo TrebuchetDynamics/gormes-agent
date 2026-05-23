@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'webpages/landing/**'
+      - 'install.sh'
       - 'benchmarks.json'
       - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
       - 'webpages/docs/content/building-gormes/architecture_plan/progress.json/**'
@@ -65,7 +66,7 @@ jobs:
         working-directory: webpages/landing
         run: |
           test -f dist/index.html
-          test ! -e dist/install.sh
+          test -f dist/install.sh
           test -f dist/install.ps1
           test -f dist/install.cmd
           test -f dist/static/favicon.ico
@@ -101,8 +102,8 @@ jobs:
           ! grep -F "One Go Binary. No Python. No Drift." dist/index.html >/dev/null
           ! grep -F "Same Hermes Brain" dist/index.html >/dev/null
           ! grep -F "Why a Go layer matters" dist/index.html >/dev/null
-          grep -F "https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh" dist/index.html >/dev/null
-          ! grep -E 'https://gormes[.]ai/install[.]sh' dist/index.html >/dev/null
+          grep -F "curl -fsSL https://gormes.ai/install.sh" dist/index.html >/dev/null
+          ! grep -E 'github[.]com/TrebuchetDynamics/gormes-agent/releases/latest/download/install[.]sh' dist/index.html >/dev/null
           ! grep -F "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh" dist/index.html >/dev/null
           ! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null
 

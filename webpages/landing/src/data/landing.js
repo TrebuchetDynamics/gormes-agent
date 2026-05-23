@@ -84,9 +84,9 @@ export const page = {
   installIntro:
     'Use the release installer, verify the binary, prove the machine offline before credentials, then add a provider and start chat. No pip, no venv, no Docker daemon.',
   installCommand:
-    'curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat',
+    'curl -fsSL https://gormes.ai/install.sh | bash\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat',
   installFootnote:
-    'Termux/Android status: v0.2.21 carries the installer recovery for the v0.2.20 executable-argument bug; Windows, source builds, and advanced installer flags are covered in the install docs.',
+    'Termux/Android status: v0.2.22 carries forward the installer recovery for the v0.2.20 executable-argument bug; Windows, source builds, and advanced installer flags are covered in the install docs.',
   installFootnoteLink: {
     label: 'Read install docs',
     href: '/install',

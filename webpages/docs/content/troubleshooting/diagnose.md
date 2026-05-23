@@ -47,7 +47,7 @@ Expected: a `{build, failed, checks: [...]}` JSON document. Every check has a `n
 
 ## Troubleshooting
 
-- **Older Termux `v0.2.20` installs report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`** → Install `v0.2.21` or newer from the latest release, then run `gormes version` and `gormes doctor --offline`. If the same path error appears after reinstall, check `which -a gormes` for a stale binary on PATH.
+- **Older Termux `v0.2.20` installs report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`** → Install `v0.2.22` or newer from the latest release, then run `gormes version` and `gormes doctor --offline`. If the same path error appears after reinstall, check `which -a gormes` for a stale binary on PATH.
 - **`Auth: missing`** → Run `gormes auth add <provider>` (see [first chat](../../operate/first-chat/)).
 - **`provider health: [FAIL]`** → Wrong endpoint, wrong model id, or expired credentials. Try [provider setup](../../configure/providers/).
 - **Gateway `lifecycle=failed`** → The channel adapter failed to start. The `error` field in `gateway status` names the cause (token conflict, missing allowlist, etc.).

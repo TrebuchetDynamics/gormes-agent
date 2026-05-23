@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-21",
+    "last_updated": "2026-05-23",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -782,7 +782,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ]
         },
@@ -2827,7 +2827,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -3864,19 +3864,7 @@
             },
             {
               "name": "",
-              "status": "planned"
-            },
-            {
-              "name": "",
               "status": "complete"
-            },
-            {
-              "name": "",
-              "status": "complete"
-            },
-            {
-              "name": "",
-              "status": "planned"
             },
             {
               "name": "",
@@ -3952,10 +3940,6 @@
             },
             {
               "name": "",
-              "status": "planned"
-            },
-            {
-              "name": "",
               "status": "complete"
             },
             {
@@ -4000,23 +3984,39 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "in_progress"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             },
             {
               "name": "",
@@ -4311,7 +4311,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -4319,11 +4319,87 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             },
             {
               "name": "",
@@ -4482,7 +4558,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ]
         },
@@ -4516,7 +4592,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -4572,7 +4648,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ]
         },
@@ -4593,7 +4669,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -4881,7 +4957,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -4930,7 +5006,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -4956,6 +5032,14 @@
             {
               "name": "",
               "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             },
             {
               "name": "",
@@ -5081,6 +5165,22 @@
             },
             {
               "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
               "status": "planned"
             }
           ]
@@ -5088,6 +5188,18 @@
         "8.F": {
           "name": "Cost Discipline \u0026 Loop Economics",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"
@@ -5276,7 +5388,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -5284,11 +5396,31 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
               "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "complete"
             },
             {
               "name": "",

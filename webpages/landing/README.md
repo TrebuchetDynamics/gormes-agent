@@ -25,7 +25,7 @@ The former Go-rendered site is deprecated and preserved under
 - `src/styles/global.css` - Tailwind import, theme fonts, and base focus/copy
   states.
 - `public/static/*` - favicon, social card, and landing visual assets.
-- `public/install.ps1` and `public/install.cmd` - generated Windows installer aliases served as static files.
+- `public/install.sh`, `public/install.ps1`, and `public/install.cmd` - generated installer aliases served as static files.
 - `scripts/sync-assets.mjs` - copies canonical installers, benchmark, and
   static assets before dev/build.
 - `tests/home.spec.mjs` - Playwright smoke test for the homepage.
@@ -33,12 +33,12 @@ The former Go-rendered site is deprecated and preserved under
 
 ## Installer Surface
 
-The site serves Windows installer assets only. Unix users install from the
-GitHub Releases `install.sh` asset so the bootstrap URL stays inside GitHub's
-release trust surface.
+The site serves the short custom-domain installer assets used by public copy.
+Unix users can run the Hermes-style command `curl -fsSL https://gormes.ai/install.sh | bash`; Windows users keep the PowerShell/CMD aliases.
 
 | Path | Source | Audience |
 |------|--------|----------|
+| `/install.sh` | `../../install.sh` | Linux, macOS, WSL2, Termux |
 | `/install.ps1` | `../../scripts/install.ps1` | Windows PowerShell 5.1+ / pwsh 7+ |
 | `/install.cmd` | `../../scripts/install.cmd` | CMD wrapper that launches the PowerShell installer |
 
@@ -49,9 +49,10 @@ update flow. Use `--skip-setup` or `GORMES_SKIP_SETUP=1` to defer that wizard.
 Termux publishes to `$PREFIX/bin`. Root Linux publishes to `/usr/local/bin`;
 non-root installs publish to a user-scoped bin directory unless overridden.
 
-The landing page should keep the GitHub Releases installer and source build
-paths visible until package-manager manifests land. `/install.ps1` and
-`/install.cmd` remain Windows convenience aliases, not the primary trust story.
+The landing page should lead with the `https://gormes.ai/install.sh` Unix
+installer command and keep source build paths visible until package-manager
+manifests land. `/install.ps1` and `/install.cmd` remain Windows convenience
+aliases.
 
 ## Local Development
 

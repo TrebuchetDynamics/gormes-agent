@@ -75,14 +75,14 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Install Gormes' })).toBeVisible();
   const installCommand = page.locator('#install pre code');
-  await expect(installCommand).toContainText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh');
+  await expect(installCommand).toContainText('curl -fsSL https://gormes.ai/install.sh | bash');
   await expect(installCommand).toContainText('gormes version');
   await expect(installCommand).toContainText('gormes doctor --offline');
   await expect(installCommand).toContainText('gormes setup');
   await expect(installCommand).toContainText('gormes chat');
   await expect(installCommand).not.toContainText('raw.githubusercontent.com');
   await expect(page.locator('button.copy-btn')).toHaveCount(1);
-  await expect(page.getByText('Termux/Android status: v0.2.21 carries the installer recovery')).toBeVisible();
+  await expect(page.getByText('Termux/Android status: v0.2.22 carries forward the installer recovery')).toBeVisible();
   await expect(page.getByText('v0.2.20 executable-argument bug')).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Evidence, not a sidecar stack' })).toBeVisible();
@@ -112,7 +112,6 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(page.getByText('Runtime RSS')).toHaveCount(0);
   await expect(page.getByText('Scout release.')).toHaveCount(0);
   await expect(page.getByText('Teams that require signed enterprise releases')).toHaveCount(0);
-  await expect(page.getByText(/https:\/\/gormes[.]ai\/install[.]sh/)).toHaveCount(0);
 });
 
 test('install copy interaction copies the exact release-first command', async ({ page }) => {
@@ -132,13 +131,13 @@ test('install copy interaction copies the exact release-first command', async ({
   await page.goto('/');
   const install = page.locator('#install');
   const command = await install.locator('pre code').innerText();
-  expect(command).toContain('https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh');
+  expect(command).toContain('https://gormes.ai/install.sh');
   expect(command).toContain('gormes version');
   expect(command).toContain('gormes doctor --offline');
   expect(command).toContain('gormes setup');
   expect(command).toContain('gormes chat');
   expect(command).not.toContain('raw.githubusercontent.com');
-  expect(command).not.toContain('https://gormes.ai/' + 'install.sh');
+  expect(command).not.toContain('github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh');
 
   await install.getByRole('button', { name: 'Copy install command' }).click();
   await expect(install.locator('.copy-label')).toHaveText('Copied');
@@ -215,7 +214,7 @@ for (const vp of MOBILE_VIEWPORTS) {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'Go-native AI agent runtime without Python or Docker.' })).toBeVisible();
-    await expect(page.getByText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh')).toBeVisible();
+    await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh')).toBeVisible();
 
     const heroLayout = await page.evaluate(() => {
       const content = document.querySelector('.hero-content')?.getBoundingClientRect();

@@ -42,7 +42,7 @@ The demo above is a real operator path: install, setup, provider setup, first ta
 **Linux, macOS, WSL2:**
 
 ```bash
-curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+curl -fsSL https://gormes.ai/install.sh | bash
 ```
 
 **Windows (native PowerShell):**
@@ -215,9 +215,9 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the b
 
 ## Status
 
-Latest public release: [v0.2.21](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.21) (`v2026.5.22`).
+Latest public release: [v0.2.22](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.22) (`v2026.5.23`).
 
-Termux/Android status: `v0.2.21` carries the installer recovery for the `v0.2.20` Termux executable-argument issue. Affected users should reinstall from the latest release and verify with `gormes version` plus `gormes doctor --offline`.
+Termux/Android status: `v0.2.22` carries forward the installer recovery for the `v0.2.20` Termux executable-argument issue. Affected users should reinstall from the latest release and verify with `gormes version` plus `gormes doctor --offline`.
 
 CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. Release assets ship for Linux, macOS, Windows, and Termux/Android with SHA-256 checksums and SBOMs. The current Linux build measures ~47.7 MB (`benchmarks.json`).
 
@@ -228,13 +228,13 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
+| Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 <!-- PROGRESS:END -->
 

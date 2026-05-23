@@ -429,31 +429,31 @@ func TestFirstRunProofPathDocumentsOfflineDoctorBeforeCredentials(t *testing.T) 
 	}
 }
 
-func TestDiagnoseBrokenInstallSurfacesTermuxV021Recovery(t *testing.T) {
+func TestDiagnoseBrokenInstallSurfacesTermuxV022Recovery(t *testing.T) {
 	diagnose := readDoc(t, "content/troubleshooting/diagnose.md")
 	for _, want := range []string{
 		"Older Termux `v0.2.20` installs report `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
-		"Install `v0.2.21` or newer",
+		"Install `v0.2.22` or newer",
 		"gormes doctor --offline",
 		"stale binary on PATH",
 	} {
 		if !strings.Contains(diagnose, want) {
-			t.Fatalf("diagnose broken install docs missing Termux v0.2.21 recovery text %q", want)
+			t.Fatalf("diagnose broken install docs missing Termux v0.2.22 recovery text %q", want)
 		}
 	}
 }
 
-func TestTroubleshootingIndexSurfacesTermuxV021Recovery(t *testing.T) {
+func TestTroubleshootingIndexSurfacesTermuxV022Recovery(t *testing.T) {
 	troubleshooting := readDoc(t, "content/troubleshooting/_index.md")
 	for _, want := range []string{
 		"Termux recovery note",
-		"`v0.2.21` carries the installer fix",
+		"`v0.2.22` carries forward the installer fix",
 		"unknown command /data/data/com.termux/files/usr/bin/gormes for gormes",
 		"older Termux install is still on PATH",
 		"[Common errors](./common-errors/)",
 	} {
 		if !strings.Contains(troubleshooting, want) {
-			t.Fatalf("troubleshooting index missing Termux v0.2.21 recovery text %q", want)
+			t.Fatalf("troubleshooting index missing Termux v0.2.22 recovery text %q", want)
 		}
 	}
 }
@@ -461,8 +461,8 @@ func TestTroubleshootingIndexSurfacesTermuxV021Recovery(t *testing.T) {
 func TestCommonErrorsIncludesTermuxRecoveryAnswerTemplate(t *testing.T) {
 	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
 	for _, want := range []string{
-		"## Termux v0.2.21 recovery answer template",
-		"Public latest: `v0.2.21` carries the Termux executable-argument recovery.",
+		"## Termux v0.2.22 recovery answer template",
+		"Public latest: `v0.2.22` carries forward the Termux executable-argument recovery.",
 		"Historical symptom: `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes` on affected `v0.2.20` installs.",
 		"Operator action: reinstall from the latest release",
 		"stale `v0.2.20` binary earlier on PATH",
@@ -473,17 +473,17 @@ func TestCommonErrorsIncludesTermuxRecoveryAnswerTemplate(t *testing.T) {
 	}
 }
 
-func TestCommonErrorsDocumentsTermuxV021Recovery(t *testing.T) {
+func TestCommonErrorsDocumentsTermuxV022Recovery(t *testing.T) {
 	commonErrors := readDoc(t, "content/troubleshooting/common-errors.md")
 	for _, want := range []string{
 		"Termux install reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`",
 		"older `v0.2.20` Termux binary",
-		"Install `v0.2.21` or newer",
+		"Install `v0.2.22` or newer",
 		"which -a gormes",
 		"gormes doctor --offline",
 	} {
 		if !strings.Contains(commonErrors, want) {
-			t.Fatalf("common errors docs missing Termux v0.2.21 recovery text %q", want)
+			t.Fatalf("common errors docs missing Termux v0.2.22 recovery text %q", want)
 		}
 	}
 }

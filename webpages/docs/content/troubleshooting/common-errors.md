@@ -20,7 +20,7 @@ gormes gateway status
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `gormes` not found after `install.sh` | The current shell has not picked up the installer's published bin directory. Non-root Unix installs use `$HOME/.local/bin` by default. | Open a new shell, or add `export PATH="$HOME/.local/bin:$PATH"` to your shell rc. |
-| Termux install reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes` | The installed command is likely the older `v0.2.20` Termux binary or another stale `gormes` earlier on PATH. | Install `v0.2.21` or newer from the latest release, then run `which -a gormes`, `gormes version`, and `gormes doctor --offline` to confirm the recovered binary is active. |
+| Termux install reports `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes` | The installed command is likely the older `v0.2.20` Termux binary or another stale `gormes` earlier on PATH. | Install `v0.2.22` or newer from the latest release, then run `which -a gormes`, `gormes version`, and `gormes doctor --offline` to confirm the recovered binary is active. |
 | Command behavior looks stale or matches an older release | Multiple `gormes` binaries on `PATH`. | `which -a gormes` and run the intended path directly, or remove the older copy. |
 | `gormes chat -q "..."` fails with "provider auth missing" | No API key for the configured provider. | `gormes auth add <provider> --api-key ...` or run `gormes setup provider`. |
 | `gormes doctor` reports provider not reachable | Endpoint, network, or credential mismatch. | `gormes config show` and verify `[hermes].endpoint`, then re-run `gormes doctor`. |
@@ -32,11 +32,11 @@ gormes gateway status
 | TUI session resumes with stale state | bbolt session map at `~/.gormes/sessions.db`. | `gormes --resume new` starts a fresh default session. |
 | `gormes doctor` warns about GitHub auth | `gh` not authenticated and no token in env. | `gh auth login`, or `export GITHUB_TOKEN=...`. |
 
-## Termux v0.2.21 recovery answer template
+## Termux v0.2.22 recovery answer template
 
 When summarizing the recovered Termux installer issue, use this wording:
 
-- Public latest: `v0.2.21` carries the Termux executable-argument recovery.
+- Public latest: `v0.2.22` carries forward the Termux executable-argument recovery.
 - Historical symptom: `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes` on affected `v0.2.20` installs.
 - Operator action: reinstall from the latest release, then run `which -a gormes`, `gormes version`, and `gormes doctor --offline`.
 - If the symptom persists after reinstall, check for a stale `v0.2.20` binary earlier on PATH before filing a new installer bug.

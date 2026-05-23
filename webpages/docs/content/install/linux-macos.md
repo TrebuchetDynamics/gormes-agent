@@ -14,7 +14,7 @@ aliases:
 ## 60-second install
 
 ```bash
-curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+curl -fsSL https://gormes.ai/install.sh | bash
 ```
 
 After the installer finishes:
@@ -43,12 +43,12 @@ The default post-install path is:
 Termux is supported as a no-root Android arm64/aarch64 runtime for PC-like Gormes operator workflows. Use the same release-first installer command as Linux and macOS:
 
 ```bash
-curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+curl -fsSL https://gormes.ai/install.sh | bash
 ```
 
 On Termux, repo-root `install.sh` detects `TERMUX_VERSION` or the standard Termux `$PREFIX` path and publishes the command to `$PREFIX/bin/gormes`. The release asset is `android-arm64`, not `linux-arm64`; source build is a fallback for unsupported architectures, unavailable release assets, non-main branches, or contributor workflows.
 
-> **Termux/Android status:** `v0.2.21` includes the installer recovery for the `v0.2.20` executable-argument issue. If you saw `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`, reinstall from the latest release, then verify with `gormes version` and `gormes doctor --offline`.
+> **Termux/Android status:** `v0.2.22` carries forward the installer recovery for the `v0.2.20` executable-argument issue. If you saw `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`, reinstall from the latest release, then verify with `gormes version` and `gormes doctor --offline`.
 
 Only source fallback or contributor builds need the build toolchain:
 
@@ -121,7 +121,7 @@ The rule is simple: do not add a new top-level `gormes run` command for this wor
 If you would rather read the script before executing it:
 
 ```bash
-curl -fsSLO https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh
+curl -fsSLO https://gormes.ai/install.sh
 less install.sh
 sh install.sh
 ```

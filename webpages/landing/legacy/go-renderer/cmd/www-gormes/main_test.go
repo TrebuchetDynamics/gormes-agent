@@ -13,12 +13,9 @@ func TestRunExportWritesStaticSite(t *testing.T) {
 		t.Fatalf("run() error = %v", err)
 	}
 
-	for _, rel := range []string{"index.html", filepath.Join("static", "site.css")} {
+	for _, rel := range []string{"index.html", "install.sh", filepath.Join("static", "site.css")} {
 		if _, err := os.Stat(filepath.Join(out, rel)); err != nil {
 			t.Fatalf("export missing %s: %v", rel, err)
 		}
-	}
-	if _, err := os.Stat(filepath.Join(out, "install.sh")); !os.IsNotExist(err) {
-		t.Fatalf("export should not publish install.sh: %v", err)
 	}
 }

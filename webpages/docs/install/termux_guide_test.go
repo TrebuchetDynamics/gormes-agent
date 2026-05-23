@@ -16,7 +16,7 @@ func TestLinuxMacInstallGuideDocumentsTermuxReleaseFirstPath(t *testing.T) {
 		"android-arm64",
 		"$PREFIX/bin/gormes",
 		"install.sh stays in the repository root",
-		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
+		"curl -fsSL https://gormes.ai/install.sh | bash",
 		"gormes version",
 		"gormes doctor --offline --json",
 		"gormes config check",
@@ -41,8 +41,8 @@ func TestLinuxMacInstallGuideDocumentsTermuxReleaseFirstPath(t *testing.T) {
 	if !strings.Contains(installer, "is_termux()") {
 		t.Fatalf("repo-root install.sh missing Termux detection helper")
 	}
-	if strings.Contains(guide, "https://gormes.ai/"+"install.sh") {
-		t.Fatalf("Termux guide must not point Unix users at a non-canonical gormes.ai install.sh mirror")
+	if strings.Contains(guide, "https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh") {
+		t.Fatalf("Termux guide must not point Unix users at the old long GitHub Releases install.sh URL")
 	}
 }
 
@@ -52,7 +52,7 @@ func TestInstallDocsWarnTermuxV020LatestReleaseCaveat(t *testing.T) {
 		"webpages/docs/content/install/linux-macos.md",
 		"webpages/docs/content/install/termux.md",
 	} {
-		assertContainsTermuxV021Recovery(t, rel, readRepoFileTermuxGuide(t, rel))
+		assertContainsTermuxV022Recovery(t, rel, readRepoFileTermuxGuide(t, rel))
 	}
 }
 
@@ -86,17 +86,17 @@ func TestLinuxMacInstallGuideDocumentsTermuxRemoteExecutionBoundary(t *testing.T
 	}
 }
 
-func assertContainsTermuxV021Recovery(t *testing.T, rel string, doc string) {
+func assertContainsTermuxV022Recovery(t *testing.T, rel string, doc string) {
 	t.Helper()
 	for _, want := range []string{
 		"Termux/Android status",
-		"`v0.2.21` includes the installer recovery",
+		"`v0.2.22` carries forward the installer recovery",
 		"unknown command /data/data/com.termux/files/usr/bin/gormes for gormes",
 		"reinstall from the latest release",
 		"gormes doctor --offline",
 	} {
 		if !strings.Contains(doc, want) {
-			t.Fatalf("%s missing Termux v0.2.21 recovery %q", rel, want)
+			t.Fatalf("%s missing Termux v0.2.22 recovery %q", rel, want)
 		}
 	}
 }

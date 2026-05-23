@@ -27,10 +27,11 @@ type installerSpec struct {
 }
 
 // installerSpecs lists every installer asset the site serves and exports.
-// Unix install.sh is intentionally not served from gormes.ai; the public Unix
-// bootstrap stays on GitHub Releases. Windows installers remain convenience
-// aliases for the legacy renderer.
+// The Unix installer is loaded from the repository root so https://gormes.ai/install.sh
+// mirrors the same audited script as README and docs. Windows installers remain
+// convenience aliases for the legacy renderer.
 var installerSpecs = map[string]installerSpec{
+	"install.sh":  {SourcePath: "install.sh", ContentType: "text/x-shellscript; charset=utf-8", ExportMode: 0o755},
 	"install.ps1": {Embed: "installers/install.ps1", ContentType: "text/plain; charset=utf-8", ExportMode: 0o644},
 	"install.cmd": {Embed: "installers/install.cmd", ContentType: "text/plain; charset=utf-8", ExportMode: 0o644},
 }

@@ -38,7 +38,7 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"Install first. Build from source when needed.",
 		"Use install.sh for the release-first managed install.",
 		"1. INSTALL.SH",
-		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
+		"curl -fsSL https://gormes.ai/install.sh | bash",
 		"gormes --version",
 		"gormes doctor --offline",
 		"2. BUILD FROM SOURCE",
@@ -226,11 +226,7 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(root, "install.sh")); !os.IsNotExist(err) {
-		t.Fatalf("static export should not publish install.sh: %v", err)
-	}
-
-	for _, asset := range []string{"install.ps1", "install.cmd"} {
+	for _, asset := range []string{"install.sh", "install.ps1", "install.cmd"} {
 		body, err := os.ReadFile(filepath.Join(root, asset))
 		if err != nil {
 			t.Fatalf("read %s: %v", asset, err)
@@ -238,6 +234,14 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		if len(body) == 0 {
 			t.Fatalf("%s is empty in static export", asset)
 		}
+	}
+
+	shBody, err := os.ReadFile(filepath.Join(root, "install.sh"))
+	if err != nil {
+		t.Fatalf("read install.sh: %v", err)
+	}
+	if !strings.Contains(string(shBody), "Gormes Unix installer") {
+		t.Fatalf("install.sh missing Unix installer header in static export")
 	}
 
 	ps1Body, err := os.ReadFile(filepath.Join(root, "install.ps1"))

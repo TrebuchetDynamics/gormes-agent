@@ -20,7 +20,7 @@ gormes doctor --offline
 Installer-managed Unix installs can also rerun the release installer:
 
 ```bash
-curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+curl -fsSL https://gormes.ai/install.sh | bash
 gormes doctor --offline
 ```
 
