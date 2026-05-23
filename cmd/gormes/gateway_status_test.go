@@ -20,7 +20,7 @@ func TestGatewayCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
 	if a == b {
 		t.Fatal("newGatewayCommand must return distinct instances")
 	}
-	want := 16
+	want := 17
 	if got := len(a.Commands()); got != want {
 		t.Fatalf("gateway tree must have %d subcommands; got %d", want, got)
 	}

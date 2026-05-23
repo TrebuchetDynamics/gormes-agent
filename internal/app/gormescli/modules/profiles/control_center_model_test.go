@@ -110,6 +110,76 @@ func TestProfileControlCenterModelListsAllProfilesAndReadiness(t *testing.T) {
 	}
 }
 
+func TestProfileControlCenterModelReportsSharedChannelCredentialWithoutSecrets(t *testing.T) {
+	cfg := config.Config{
+		ConfigVersion: config.CurrentConfigVersion,
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Name:    "Main",
+				Channels: map[string]config.ProfileChannelCfg{
+					"telegram": {Enabled: true, Credential: "shared-telegram"},
+				},
+			},
+			"tulin": {
+				Enabled: true,
+				Name:    "Tulin",
+				Channels: map[string]config.ProfileChannelCfg{
+					"telegram": {Enabled: true, Credential: "shared-telegram"},
+				},
+			},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"shared-telegram": {
+				Kind:         "channel",
+				Channel:      "telegram",
+				OwnerProfile: "main",
+				SecretRef:    &config.SecretRef{Source: config.SecretRefSourceEnv, ID: "GORMES_TELEGRAM_BOT_TOKEN"},
+			},
+		},
+	}
+
+	model := BuildControlCenterModel(cfg, ControlCenterModelOptions{})
+	for _, profile := range model.Profiles {
+		if len(profile.Channels) != 1 || !profile.Channels[0].Shared || profile.Channels[0].OwnerProfile != "main" {
+			t.Fatalf("profile %s channels = %+v, want shared channel credential owned by main", profile.ID, profile.Channels)
+		}
+		assertIssue(t, profile.Readiness.Issues, ControlCenterIssueCredentialShared, "shared-telegram")
+	}
+	if strings.Contains(model.String(), "GORMES_TELEGRAM_BOT_TOKEN") {
+		t.Fatalf("model string leaked secret ref id:\n%s", model.String())
+	}
+}
+
+func TestProfileControlCenterModelActionCatalogIsFiniteAndTyped(t *testing.T) {
+	catalog := ControlCenterActionCatalog()
+	gotCodes := make([]ControlCenterActionCode, 0, len(catalog))
+	for _, action := range catalog {
+		gotCodes = append(gotCodes, action.Code)
+		if !action.Available || strings.TrimSpace(action.Label) == "" {
+			t.Fatalf("catalog action = %+v, want available labeled action", action)
+		}
+	}
+	wantCodes := []ControlCenterActionCode{
+		ControlCenterActionCreateProfile,
+		ControlCenterActionEditProfile,
+		ControlCenterActionAddProvider,
+		ControlCenterActionAddChannel,
+		ControlCenterActionEnableProfile,
+		ControlCenterActionDisableProfile,
+		ControlCenterActionMigrateLegacyConfig,
+		ControlCenterActionApplyDraft,
+		ControlCenterActionDiscardDraft,
+	}
+	if !reflect.DeepEqual(gotCodes, wantCodes) {
+		t.Fatalf("catalog codes = %#v, want %#v", gotCodes, wantCodes)
+	}
+	unknown := controlCenterAction(ControlCenterActionCode("shell rm -rf"))
+	if unknown.Available || unknown.Label != "unsupported action" {
+		t.Fatalf("unknown action = %+v, want unavailable unsupported action", unknown)
+	}
+}
+
 func TestProfileControlCenterModelSurfacesLegacyMigrationWhenV2Missing(t *testing.T) {
 	model := BuildControlCenterModel(config.Config{LegacyConfigVersion: 1}, ControlCenterModelOptions{LegacyMigrationAvailable: true})
 

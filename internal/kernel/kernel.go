@@ -385,6 +385,28 @@ func (k *Kernel) SetSessionModel(provider, model string) error {
 	}
 }
 
+// ResumeSession installs a resident session id and replayed visible history.
+// It preserves the single-owner invariant by asking the Run loop to mutate
+// state synchronously, and refuses to run while a turn is active.
+func (k *Kernel) ResumeSession(sessionID string, history []hermes.Message) error {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return ErrResumeSessionIDRequired
+	}
+	ack := make(chan error, 1)
+	select {
+	case k.events <- PlatformEvent{Kind: PlatformEventResumeSession, SessionID: sessionID, History: cloneKernelMessages(history), ack: ack}:
+	default:
+		return ErrEventMailboxFull
+	}
+	select {
+	case err := <-ack:
+		return err
+	case <-time.After(500 * time.Millisecond):
+		return errors.New("kernel: ResumeSession ack timeout")
+	}
+}
+
 // Run is the kernel loop. MUST be called from exactly one goroutine. Exits
 // when ctx is cancelled or a PlatformEventQuit is received. Closes the
 // render channel on exit.
@@ -473,6 +495,34 @@ func (k *Kernel) Run(ctx context.Context) error {
 					continue
 				}
 				k.emitFrame("model switched")
+				if e.ack != nil {
+					e.ack <- nil
+				}
+			case PlatformEventResumeSession:
+				if k.phase != PhaseIdle && k.phase != PhaseFailed {
+					if e.ack != nil {
+						e.ack <- ErrResumeDuringTurn
+					}
+					continue
+				}
+				sessionID := strings.TrimSpace(e.SessionID)
+				if sessionID == "" {
+					if e.ack != nil {
+						e.ack <- ErrResumeSessionIDRequired
+					}
+					continue
+				}
+				if k.cfg.ContextEngine != nil {
+					outgoingHistory := append([]hermes.Message(nil), k.history...)
+					_ = k.cfg.ContextEngine.OnSessionEnd(ctx, k.sessionID, outgoingHistory)
+					k.cfg.ContextEngine.OnSessionReset()
+				}
+				k.sessionID = sessionID
+				k.history = cloneKernelMessages(e.History)
+				k.draft = ""
+				k.lastError = ""
+				k.phase = PhaseIdle
+				k.emitFrame("session resumed")
 				if e.ack != nil {
 					e.ack <- nil
 				}
@@ -1016,6 +1066,18 @@ func cloneMessageContentParts(parts []hermes.MessageContentPart) []hermes.Messag
 		return nil
 	}
 	return append([]hermes.MessageContentPart(nil), parts...)
+}
+
+func cloneKernelMessages(messages []hermes.Message) []hermes.Message {
+	if len(messages) == 0 {
+		return nil
+	}
+	out := make([]hermes.Message, len(messages))
+	for i, msg := range messages {
+		out[i] = msg
+		out[i].ContentParts = cloneMessageContentParts(msg.ContentParts)
+	}
+	return out
 }
 
 const maxIterationSummaryRequest = "You've reached the maximum number of tool-calling iterations allowed. Please provide a final response summarizing what you've found and accomplished so far, without calling any more tools."

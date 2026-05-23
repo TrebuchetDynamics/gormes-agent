@@ -6,15 +6,37 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
-// HandleSkillsCommand parses and executes /skills subcommands (list, inspect).
+// SkillsCommandOptions injects read-only seams for /skills command tests and
+// non-network gateway/TUI callers. Zero values preserve the installed-skill
+// list/inspect defaults and use an empty hub provider set for browse/search.
+type SkillsCommandOptions struct {
+	SkillsRoot          string
+	BundledRoot         string
+	Disabled            map[string]struct{}
+	HubProviders        []skills.HubRegistryProvider
+	PageSize            int
+	MaxRows             int
+	MaxDescriptionRunes int
+}
+
+// HandleSkillsCommand parses and executes /skills subcommands.
 // Returns the text output to render in the channel.
 func HandleSkillsCommand(body string) string {
-	// Strip "/skills" prefix
+	return HandleSkillsCommandWithOptions(context.Background(), body, SkillsCommandOptions{})
+}
+
+// HandleSkillsCommandWithOptions parses and executes /skills subcommands using
+// explicit read-only dependencies. It is the shared gateway/TUI seam for
+// installed list/inspect, hub browse/search, and mutating-action unavailable
+// evidence.
+func HandleSkillsCommandWithOptions(ctx context.Context, body string, opts SkillsCommandOptions) string {
 	text := strings.TrimSpace(body)
 	text = strings.TrimPrefix(text, "/skills")
 	text = strings.TrimSpace(text)
@@ -27,33 +49,36 @@ func HandleSkillsCommand(body string) string {
 	subcommand := strings.ToLower(parts[0])
 	switch subcommand {
 	case "list":
-		return handleSkillsList(parts[1:])
-	case "inspect":
+		return handleSkillsList(parts[1:], opts)
+	case "inspect", "view", "show":
 		if len(parts) < 2 {
 			return "Usage: /skills inspect <skill-name>\n"
 		}
-		return handleSkillsInspect(parts[1])
+		return handleSkillsInspect(parts[1], opts)
+	case "search":
+		return handleSkillsSearch(ctx, parts[1:], opts)
+	case "browse":
+		return handleSkillsBrowse(ctx, parts[1:], opts)
+	case "install", "edit", "disable", "review":
+		return renderSkillsManageUnavailable(subcommand)
 	case "help":
 		return renderSkillsHelp()
 	default:
-		return fmt.Sprintf("Unknown /skills subcommand: %q. Try /skills list or /skills inspect <name>\n", subcommand)
+		return fmt.Sprintf("Unknown /skills subcommand: %q. Try /skills list, /skills inspect <name>, /skills search <query>, or /skills browse\n", subcommand)
 	}
 }
 
-func handleSkillsList(args []string) string {
-	opts := skills.ListOptions{}
-	disabled := map[string]struct{}{}
-
-	// Parse optional --source filter
-	for _, arg := range args {
-		if strings.HasPrefix(arg, "--source=") {
-			opts.Source = strings.TrimPrefix(arg, "--source=")
-		} else if arg == "--source" && len(args) > 1 {
-			opts.Source = args[1]
-		}
+func handleSkillsList(args []string, opts SkillsCommandOptions) string {
+	listOpts := skills.ListOptions{}
+	parsed := parseSkillsCommandArgs(args)
+	if source := parsed.value("source"); source != "" {
+		listOpts.Source = source
+	}
+	if parsed.bool("enabled-only") {
+		listOpts.EnabledOnly = true
 	}
 
-	rows := skills.ListInstalledSkills(opts, disabled)
+	rows := listInstalledSkillsForCommand(listOpts, opts)
 
 	if len(rows) == 0 {
 		return "No skills installed.\n"
@@ -66,6 +91,8 @@ func handleSkillsList(args []string) string {
 		status := "enabled"
 		if row.Status == skills.SkillStatusDisabled {
 			status = "disabled"
+		} else if row.Status != "" {
+			status = string(row.Status)
 		}
 		category := row.Category
 		if category == "" {
@@ -109,15 +136,14 @@ func handleSkillsList(args []string) string {
 	return b.String()
 }
 
-func handleSkillsInspect(name string) string {
+func handleSkillsInspect(name string, opts SkillsCommandOptions) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "Usage: /skills inspect <skill-name>\n"
 	}
 
 	// Find the skill by name
-	opts := skills.ListOptions{}
-	rows := skills.ListInstalledSkills(opts, nil)
+	rows := listInstalledSkillsForCommand(skills.ListOptions{}, opts)
 
 	var found *skills.SkillRow
 	for i := range rows {
@@ -176,22 +202,292 @@ func handleSkillsInspect(name string) string {
 	return b.String()
 }
 
+func handleSkillsSearch(ctx context.Context, args []string, opts SkillsCommandOptions) string {
+	parsed := parseSkillsCommandArgs(args)
+	query := strings.TrimSpace(strings.Join(parsed.positionals, " "))
+	if query == "" {
+		return "Usage: /skills search <query>\n"
+	}
+	resp, err := skills.Search(ctx, query, opts.HubProviders, skills.HubSearchOptions{Limit: skillsCommandMaxRows(opts)})
+	if err != nil {
+		return "Skill Hub Search\nerror: " + sanitizeSkillCommandText(err.Error(), opts) + "\n"
+	}
+	var b strings.Builder
+	b.WriteString("Skill Hub Search\n")
+	b.WriteString(fmt.Sprintf("query: %s\n", sanitizeSkillCommandText(query, opts)))
+	b.WriteString(fmt.Sprintf("%d result(s)\n", len(resp.Results)))
+	if resp.Evidence != "" {
+		b.WriteString(fmt.Sprintf("evidence: %s\n", resp.Evidence))
+	}
+	renderHubRows(&b, resp.Results, opts)
+	return b.String()
+}
+
+func handleSkillsBrowse(ctx context.Context, args []string, opts SkillsCommandOptions) string {
+	parsed := parseSkillsCommandArgs(args)
+	page := parsed.intValue("page")
+	if page == 0 && len(parsed.positionals) > 0 {
+		if parsedPage, err := strconv.Atoi(parsed.positionals[0]); err == nil {
+			page = parsedPage
+		}
+	}
+	pageSize := parsed.intValue("page-size")
+	if pageSize == 0 {
+		pageSize = skillsCommandPageSize(opts)
+	}
+	resp, err := skills.Browse(ctx, opts.HubProviders, skills.HubBrowseOptions{Page: page, PageSize: pageSize})
+	if err != nil {
+		return "Skill Hub Browse\nerror: " + sanitizeSkillCommandText(err.Error(), opts) + "\n"
+	}
+	var b strings.Builder
+	b.WriteString("Skill Hub Browse\n")
+	b.WriteString(fmt.Sprintf("page %d/%d, %d total\n", resp.Page, resp.TotalPages, resp.Total))
+	if resp.Evidence != "" {
+		b.WriteString(fmt.Sprintf("evidence: %s\n", resp.Evidence))
+	}
+	renderHubRows(&b, resp.Results, opts)
+	return b.String()
+}
+
+func renderHubRows(b *strings.Builder, rows []skills.HubSearchResult, opts SkillsCommandOptions) {
+	if len(rows) == 0 {
+		return
+	}
+	for i, row := range rows {
+		name := sanitizeSkillCommandText(row.Name, opts)
+		desc := sanitizeSkillCommandText(row.Description, opts)
+		if desc == "" {
+			desc = "no description"
+		}
+		source := sanitizeSkillCommandText(row.Source, opts)
+		if source == "" {
+			source = "unknown"
+		}
+		trust := sanitizeSkillCommandText(row.TrustLevel, opts)
+		if trust == "" {
+			trust = "unknown"
+		}
+		b.WriteString(fmt.Sprintf("%d. %s — %s\n", i+1, name, desc))
+		b.WriteString(fmt.Sprintf("   source=%s status=available trust=%s", source, trust))
+		if len(row.Tags) > 0 {
+			cleanTags := make([]string, 0, len(row.Tags))
+			for _, tag := range row.Tags {
+				if clean := sanitizeSkillCommandText(tag, opts); clean != "" {
+					cleanTags = append(cleanTags, clean)
+				}
+			}
+			if len(cleanTags) > 0 {
+				b.WriteString(" tags=" + strings.Join(cleanTags, ","))
+			}
+		}
+		b.WriteString("\n")
+	}
+}
+
+func renderSkillsManageUnavailable(action string) string {
+	return fmt.Sprintf("skills_manage_unavailable: /skills %s is row 6.F read-only in this build; mutating skills.manage actions are unavailable, and no skill store was changed.\n", action)
+}
+
 func renderSkillsHelp() string {
 	return `Skills commands:
   /skills list            List all installed skills
   /skills list --source hub|builtin|local  Filter by source
-  /skills inspect <name>  Show details for a specific skill
+  /skills inspect <name>  Show details for a specific installed skill
+  /skills search <query>  Search read-only skill hub metadata
+  /skills browse [page]   Browse read-only skill hub metadata
   /skills help            Show this help
+
+Read-only note:
+  /skills install, edit, disable, and review return row-backed unavailable evidence in this build.
 
 Examples:
   /skills list
   /skills list --source builtin
   /skills inspect gormes-builder
+  /skills search planner
+  /skills browse --page 2 --page-size 10
 `
 }
 
+func listInstalledSkillsForCommand(listOpts skills.ListOptions, opts SkillsCommandOptions) []skills.SkillRow {
+	if strings.TrimSpace(opts.SkillsRoot) != "" || strings.TrimSpace(opts.BundledRoot) != "" {
+		return skills.ListInstalledSkillsFromRoots(opts.SkillsRoot, opts.BundledRoot, listOpts, opts.Disabled)
+	}
+	return skills.ListInstalledSkills(listOpts, opts.Disabled)
+}
+
+type parsedSkillsArgs struct {
+	flags       map[string]string
+	positionals []string
+}
+
+func parseSkillsCommandArgs(args []string) parsedSkillsArgs {
+	parsed := parsedSkillsArgs{flags: map[string]string{}}
+	for i := 0; i < len(args); i++ {
+		arg := strings.TrimSpace(args[i])
+		if arg == "" {
+			continue
+		}
+		if strings.HasPrefix(arg, "--") {
+			nameValue := strings.TrimPrefix(arg, "--")
+			if name, value, ok := strings.Cut(nameValue, "="); ok {
+				parsed.flags[strings.ToLower(strings.TrimSpace(name))] = strings.TrimSpace(value)
+				continue
+			}
+			name := strings.ToLower(strings.TrimSpace(nameValue))
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+				parsed.flags[name] = strings.TrimSpace(args[i+1])
+				i++
+			} else {
+				parsed.flags[name] = "true"
+			}
+			continue
+		}
+		parsed.positionals = append(parsed.positionals, arg)
+	}
+	return parsed
+}
+
+func (p parsedSkillsArgs) value(name string) string {
+	return strings.TrimSpace(p.flags[strings.ToLower(name)])
+}
+
+func (p parsedSkillsArgs) bool(name string) bool {
+	switch strings.ToLower(p.value(name)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func (p parsedSkillsArgs) intValue(name string) int {
+	value := p.value(name)
+	if value == "" {
+		return 0
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 0 {
+		return 0
+	}
+	return parsed
+}
+
+func skillsCommandPageSize(opts SkillsCommandOptions) int {
+	if opts.PageSize > 0 {
+		return opts.PageSize
+	}
+	return 20
+}
+
+func skillsCommandMaxRows(opts SkillsCommandOptions) int {
+	if opts.MaxRows > 0 {
+		return opts.MaxRows
+	}
+	return 20
+}
+
+func skillsCommandMaxDescriptionRunes(opts SkillsCommandOptions) int {
+	if opts.MaxDescriptionRunes > 0 {
+		return opts.MaxDescriptionRunes
+	}
+	return 160
+}
+
+func sanitizeSkillCommandText(text string, opts SkillsCommandOptions) string {
+	cleaned := redaction.RedactSecrets(strings.TrimSpace(text))
+	cleaned = strings.ReplaceAll(cleaned, "\r", " ")
+	cleaned = strings.ReplaceAll(cleaned, "\n", " ")
+	fields := strings.Fields(cleaned)
+	for i, field := range fields {
+		trimmed := strings.Trim(field, "()[]{}.,;:")
+		if strings.HasPrefix(trimmed, "/") || strings.HasPrefix(trimmed, "~/") || strings.Contains(trimmed, ":\\") {
+			fields[i] = "[path]"
+		}
+	}
+	cleaned = strings.Join(fields, " ")
+	limit := skillsCommandMaxDescriptionRunes(opts)
+	if limit > 0 {
+		runes := []rune(cleaned)
+		if len(runes) > limit {
+			cleaned = string(runes[:limit]) + "…"
+		}
+	}
+	return cleaned
+}
+
+type skillsPlainSender interface {
+	SendPlain(ctx context.Context, chatID, text string) (string, error)
+}
+
+type skillsPlainReplySender interface {
+	SendPlainReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error)
+}
+
 func (m *Manager) handleSkillsCommand(ctx context.Context, ch Channel, ev InboundEvent) {
-	_, _ = m.sendWithHooksReply(ctx, ch, ev.ChatID, ev.MsgID, HandleSkillsCommand(ev.Text))
+	_, _ = m.sendSkillsCommandReply(ctx, ch, ev.ChatID, ev.MsgID, HandleSkillsCommand(ev.Text))
+}
+
+func (m *Manager) sendSkillsCommandReply(ctx context.Context, ch Channel, chatID, replyToMsgID, text string) (string, error) {
+	if ch != nil && strings.HasPrefix(ch.Name(), "telegram") {
+		if replyToMsgID != "" {
+			if sender, ok := ch.(skillsPlainReplySender); ok {
+				return m.sendPlainSkillsWithHooks(ctx, ch, chatID, replyToMsgID, text, func(sendCtx context.Context) (string, error) {
+					return sender.SendPlainReply(sendCtx, chatID, replyToMsgID, text)
+				})
+			}
+		}
+		if sender, ok := ch.(skillsPlainSender); ok {
+			return m.sendPlainSkillsWithHooks(ctx, ch, chatID, replyToMsgID, text, func(sendCtx context.Context) (string, error) {
+				return sender.SendPlain(sendCtx, chatID, text)
+			})
+		}
+	}
+	return m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, text)
+}
+
+func (m *Manager) sendPlainSkillsWithHooks(ctx context.Context, ch Channel, chatID, replyToMsgID, text string, send func(context.Context) (string, error)) (string, error) {
+	if ch == nil {
+		return "", nil
+	}
+	ev := HookEvent{
+		Point:            HookBeforeSend,
+		Platform:         ch.Name(),
+		ChatID:           chatID,
+		ReplyToMessageID: replyToMsgID,
+		Text:             text,
+	}
+	m.fireHook(ctx, ev)
+	msgID, err := send(ctx)
+	if err != nil {
+		m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+			Platform:      ch.Name(),
+			PlatformState: PlatformStateFailed,
+			ErrorMessage:  err.Error(),
+		})
+		m.fireHook(ctx, HookEvent{
+			Point:            HookOnError,
+			Platform:         ch.Name(),
+			ChatID:           chatID,
+			ReplyToMessageID: replyToMsgID,
+			Text:             text,
+			Err:              err,
+		})
+		return "", err
+	}
+	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
+		Platform:      ch.Name(),
+		PlatformState: PlatformStateRunning,
+	})
+	m.fireHook(ctx, HookEvent{
+		Point:            HookAfterSend,
+		Platform:         ch.Name(),
+		ChatID:           chatID,
+		MsgID:            msgID,
+		ReplyToMessageID: replyToMsgID,
+		Text:             text,
+	})
+	return msgID, nil
 }
 
 func min(a, b int) int {

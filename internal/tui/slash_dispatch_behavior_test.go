@@ -47,6 +47,36 @@ func TestHermesSlashDispatchBehavior_LocalHandlersStillRun(t *testing.T) {
 	}
 }
 
+func TestHermesSlashDispatchBehavior_RedrawClearsVisibleFrameLocally(t *testing.T) {
+	sub := &nopSubmitter{}
+	m := newSlashDispatchBehaviorModel(sub)
+	m.frame.History = []hermes.Message{{Role: "user", Content: "keep in kernel, clear from view"}}
+	m.frame.DraftText = "streaming draft"
+	m.frame.LastError = "stale terminal error"
+	m.frame.SessionID = "sess-redraw"
+
+	m = enterSlashDispatchBehavior(t, m, "/redraw")
+
+	if sub.calls != 0 {
+		t.Fatalf("/redraw reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if got := m.editor.Value(); got != "" {
+		t.Fatalf("editor value after /redraw = %q, want cleared", got)
+	}
+	if len(m.frame.History) != 0 || m.frame.DraftText != "" || m.frame.LastError != "" {
+		t.Fatalf("/redraw did not clear visible frame: history=%d draft=%q err=%q", len(m.frame.History), m.frame.DraftText, m.frame.LastError)
+	}
+	if m.frame.SessionID != "sess-redraw" {
+		t.Fatalf("/redraw SessionID = %q, want preserved", m.frame.SessionID)
+	}
+	if !strings.Contains(strings.ToLower(m.statusMessage), "ui redrawn") {
+		t.Fatalf("status after /redraw = %q, want ui redrawn", m.statusMessage)
+	}
+	if strings.Contains(strings.ToLower(m.statusMessage), "recognized") {
+		t.Fatalf("/redraw fell through to unavailable fallback: %q", m.statusMessage)
+	}
+}
+
 func TestHermesSlashDispatchBehavior_QuitExitsLocally(t *testing.T) {
 	for _, input := range []string{"/quit", "/exit"} {
 		t.Run(input, func(t *testing.T) {
@@ -72,15 +102,31 @@ func TestHermesSlashDispatchBehavior_QuitExitsLocally(t *testing.T) {
 	}
 }
 
+func TestHermesSlashDispatchBehavior_SkillsSlashRunsLocallyWhileBusy(t *testing.T) {
+	sub := &nopSubmitter{}
+	m := newSlashDispatchBehaviorModel(sub)
+	m.inFlight = true
+	m.frame.Phase = kernel.PhaseStreaming
+
+	m = enterSlashDispatchBehavior(t, m, "/skills search planner")
+
+	if sub.calls != 0 {
+		t.Fatalf("/skills search reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if got := m.editor.Value(); got != "" {
+		t.Fatalf("editor value after /skills search = %q, want cleared", got)
+	}
+	status := strings.ToLower(m.statusMessage)
+	if !strings.Contains(status, "skill hub search") || strings.Contains(status, "recognized but unavailable") {
+		t.Fatalf("status after /skills search = %q, want local skills command output", m.statusMessage)
+	}
+}
+
 func TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit(t *testing.T) {
 	for _, input := range []string{
 		"/provider openrouter",
-		"/skills",
-		"/details tools",
+		"/image ./diagram.png",
 		"/tools list",
-		"/history",
-		"/status",
-		"/title new name",
 		"/rollback",
 		"/queue later",
 	} {

@@ -349,6 +349,9 @@ func safeNavivoxToolMetadata(raw map[string]any) map[string]any {
 		if safeKey == "tool_progress" && strings.TrimSpace(key) != "tool_progress" {
 			continue
 		}
+		if navivoxToolMetadataSensitiveKey(safeKey) {
+			continue
+		}
 		switch typed := value.(type) {
 		case string:
 			out[safeKey] = safeNavivoxToolSummary(typed)
@@ -366,4 +369,14 @@ func safeNavivoxToolMetadata(raw map[string]any) map[string]any {
 		return nil
 	}
 	return out
+}
+
+func navivoxToolMetadataSensitiveKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	for _, marker := range []string{"secret", "token", "password", "api_key", "apikey", "credential", "raw_audio", "audio_bytes"} {
+		if strings.Contains(key, marker) {
+			return true
+		}
+	}
+	return false
 }

@@ -27,6 +27,7 @@ type GatewayCommandSeams struct {
 	RestartCommand             func() *cobra.Command
 	ReloadCommand              func() *cobra.Command
 	StatusCommand              func() *cobra.Command
+	FleetCommand               func() *cobra.Command
 	DiscoverCommand            func() *cobra.Command
 	ProbeCommand               func() *cobra.Command
 	UsageCostCommand           func() *cobra.Command
@@ -51,6 +52,7 @@ func NewGatewayCommandWithSeams(seams GatewayCommandSeams, opts Options) *cobra.
 		seams.RestartCommand(),
 		seams.ReloadCommand(),
 		seams.StatusCommand(),
+		seams.FleetCommand(),
 		seams.DiscoverCommand(),
 		seams.ProbeCommand(),
 		seams.UsageCostCommand(),
@@ -85,6 +87,9 @@ func (s GatewayCommandSeams) withDefaults() GatewayCommandSeams {
 	}
 	if s.StatusCommand == nil {
 		s.StatusCommand = unavailableChild("status")
+	}
+	if s.FleetCommand == nil {
+		s.FleetCommand = unavailableChild("fleet")
 	}
 	if s.DiscoverCommand == nil {
 		s.DiscoverCommand = unavailableChild("discover")

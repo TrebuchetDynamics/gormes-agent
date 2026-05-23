@@ -41,6 +41,7 @@ func newCuratorCommandWithDeps(deps curatorCommandDeps) *cobra.Command {
 	}
 	cmd.AddCommand(
 		newCuratorStatusCommand(deps),
+		newCuratorEffectivenessCommand(deps),
 		newCuratorRunCommand(deps),
 		newCuratorPauseCommand(deps),
 		newCuratorResumeCommand(deps),
@@ -209,6 +210,112 @@ func writeCuratorStatusJSON(out interface{ Write(p []byte) (int, error) }, state
 		return err
 	}
 	fmt.Fprintln(out, string(body))
+	return nil
+}
+
+func newCuratorEffectivenessCommand(deps curatorCommandDeps) *cobra.Command {
+	var asJSON bool
+	var staleAfterDays int
+	cmd := &cobra.Command{
+		Use:   "effectiveness",
+		Short: "Show skill outcome and operator-feedback effectiveness scores",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			root := resolveCuratorSkillsRoot(deps)
+			ledgerPath := skills.SkillEffectivenessLedgerPath(root)
+			ledger := skills.NewSkillEffectivenessLedger(ledgerPath, deps.now)
+			loaded, err := ledger.Load(cmd.Context())
+			if err != nil {
+				return err
+			}
+			if staleAfterDays < 1 {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "curator effectiveness: --stale-after-days must be >= 1 (got %d)\n", staleAfterDays)
+				return newExitCodeError(2, fmt.Errorf("curator_effectiveness_invalid_stale_after_days"))
+			}
+			staleAfter := time.Duration(staleAfterDays) * 24 * time.Hour
+			scores := skills.ScoreSkillEffectiveness(loaded.Records, skills.SkillEffectivenessScoreOptions{
+				Now:        curatorNow(deps),
+				StaleAfter: staleAfter,
+			})
+			if asJSON {
+				return writeCuratorEffectivenessJSON(cmd.OutOrStdout(), ledgerPath, staleAfterDays, loaded.Invalid, scores)
+			}
+			return writeCuratorEffectivenessText(cmd.OutOrStdout(), ledgerPath, staleAfterDays, loaded.Invalid, scores)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, ledger_path, stale_after_days, invalid, scores}`")
+	cmd.Flags().IntVar(&staleAfterDays, "stale-after-days", 7, "Decay outcome score weight after N days")
+	return cmd
+}
+
+type curatorEffectivenessReportJSON struct {
+	Build          buildProvenanceJSON                      `json:"build"`
+	LedgerPath     string                                   `json:"ledger_path"`
+	StaleAfterDays int                                      `json:"stale_after_days"`
+	Invalid        []skills.SkillEffectivenessInvalidRecord `json:"invalid,omitempty"`
+	Scores         []skills.SkillEffectivenessScore         `json:"scores"`
+}
+
+func writeCuratorEffectivenessJSON(out interface{ Write(p []byte) (int, error) }, ledgerPath string, staleAfterDays int, invalid []skills.SkillEffectivenessInvalidRecord, scores []skills.SkillEffectivenessScore) error {
+	report := curatorEffectivenessReportJSON{
+		Build:          newBuildProvenance(),
+		LedgerPath:     ledgerPath,
+		StaleAfterDays: staleAfterDays,
+		Invalid:        invalid,
+		Scores:         scores,
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(out, string(body))
+	return err
+}
+
+func writeCuratorEffectivenessText(out anyWriter, ledgerPath string, staleAfterDays int, invalid []skills.SkillEffectivenessInvalidRecord, scores []skills.SkillEffectivenessScore) error {
+	if _, err := fmt.Fprintf(out, "curator effectiveness: %d skill(s), %d invalid record(s)\n", len(scores), len(invalid)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "  ledger:          %s\n", ledgerPath); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "  stale after:     %dd\n", staleAfterDays); err != nil {
+		return err
+	}
+	if len(scores) == 0 {
+		if _, err := fmt.Fprintln(out, "  scores:          (none)"); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fmt.Fprintln(out, "  scores:"); err != nil {
+			return err
+		}
+		for _, score := range scores {
+			reasons := append([]string(nil), score.ReasonCodes...)
+			sort.Strings(reasons)
+			if _, err := fmt.Fprintf(out, "    %-32s score=%6.2f positive=%d neutral=%d negative=%d feedback=%d reasons=%s\n",
+				score.SkillName,
+				score.Score,
+				score.PositiveOutcomes,
+				score.NeutralOutcomes,
+				score.NegativeOutcomes,
+				score.OperatorFeedbackCount,
+				strings.Join(reasons, ","),
+			); err != nil {
+				return err
+			}
+		}
+	}
+	if len(invalid) > 0 {
+		if _, err := fmt.Fprintln(out, "  invalid records:"); err != nil {
+			return err
+		}
+		for _, record := range invalid {
+			if _, err := fmt.Fprintf(out, "    %s\n", record.String()); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

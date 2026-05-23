@@ -15,6 +15,7 @@ const (
 	ProfileChannelEvidenceCredentialChannelMismatch = "channel_credential_channel_mismatch"
 	ProfileChannelEvidenceCredentialOwnerMismatch   = "channel_credential_owner_mismatch"
 	ProfileChannelEvidenceCredentialSecretMissing   = "channel_credential_secret_missing"
+	ProfileChannelEvidenceCredentialHashUnavailable = "channel_credential_hash_unavailable"
 	ProfileChannelEvidenceAccessPolicyMissing       = "channel_access_policy_missing"
 	ProfileChannelEvidenceTokenHashConflict         = "channel_token_hash_conflict"
 )

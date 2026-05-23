@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -64,6 +65,123 @@ func TestCuratorCommand_Status(t *testing.T) {
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("curator status stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestCuratorCommand_Effectiveness(t *testing.T) {
+	root := setupCuratorCommandHome(t)
+	now := time.Date(2026, 5, 23, 12, 0, 0, 0, time.UTC)
+	ledger := skills.NewSkillEffectivenessLedger(skills.SkillEffectivenessLedgerPath(root), func() time.Time { return now })
+	for _, event := range []skills.SkillEffectivenessEvent{
+		{
+			SkillName:        "planner",
+			SessionID:        "sess-1",
+			TurnID:           "turn-1",
+			Prompt:           "please plan this without leaking token ghp_secret",
+			SelectionSource:  "hybrid",
+			LexicalScore:     25,
+			SemanticScore:    0.5,
+			TotalScore:       1.2,
+			Outcome:          skills.SkillOutcomePositive,
+			OperatorFeedback: "great result, api key sk-live-secret must stay hidden",
+			FeedbackReason:   "operator_explicit",
+			RecordedAt:       now.Add(-time.Hour),
+		},
+		{
+			SkillName:  "stale-skill",
+			SessionID:  "sess-1",
+			TurnID:     "turn-old",
+			Prompt:     "old selection",
+			Outcome:    skills.SkillOutcomePositive,
+			RecordedAt: now.Add(-15 * 24 * time.Hour),
+		},
+		{
+			SkillName:  "bad-skill",
+			SessionID:  "sess-1",
+			TurnID:     "turn-2",
+			Outcome:    skills.SkillOutcomeNegative,
+			RecordedAt: now.Add(-time.Hour),
+		},
+	} {
+		if err := ledger.Record(context.Background(), event); err != nil {
+			t.Fatalf("Record(%s): %v", event.SkillName, err)
+		}
+	}
+	f, err := os.OpenFile(skills.SkillEffectivenessLedgerPath(root), os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatalf("open ledger for corrupt append: %v", err)
+	}
+	if _, err := f.WriteString("{not-json}\n"); err != nil {
+		f.Close()
+		t.Fatalf("append corrupt line: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close corrupt append: %v", err)
+	}
+
+	cmd := newCuratorCommandWithDeps(curatorCommandDeps{
+		skillsRoot: func() string { return root },
+		now:        func() time.Time { return now },
+	})
+	stdout, stderr, err := executeRootCommandForTest(cmd, "effectiveness", "--json")
+	if err != nil {
+		t.Fatalf("curator effectiveness --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Build      buildProvenanceJSON `json:"build"`
+		LedgerPath string              `json:"ledger_path"`
+		Invalid    []struct {
+			Line  int    `json:"line"`
+			Error string `json:"error"`
+		} `json:"invalid"`
+		Scores []skills.SkillEffectivenessScore `json:"scores"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("curator effectiveness --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.LedgerPath != skills.SkillEffectivenessLedgerPath(root) {
+		t.Fatalf("ledger_path = %q, want %q", got.LedgerPath, skills.SkillEffectivenessLedgerPath(root))
+	}
+	if len(got.Invalid) != 1 || got.Invalid[0].Line != 4 || got.Invalid[0].Error == "" {
+		t.Fatalf("invalid evidence = %+v, want one corrupt line", got.Invalid)
+	}
+	if got.Scores[0].SkillName != "planner" || got.Scores[0].Score <= got.Scores[1].Score {
+		t.Fatalf("scores = %+v, want planner first with highest positive feedback score", got.Scores)
+	}
+	if !containsString(got.Scores[0].ReasonCodes, skills.SkillEffectivenessReasonOperatorFeedback) {
+		t.Fatalf("planner reasons = %v, want operator feedback", got.Scores[0].ReasonCodes)
+	}
+	if !containsString(got.Scores[1].ReasonCodes, skills.SkillEffectivenessReasonStaleDecay) {
+		t.Fatalf("stale-skill reasons = %v, want stale decay", got.Scores[1].ReasonCodes)
+	}
+	for _, forbidden := range []string{"ghp_secret", "sk-live-secret", "please plan this", "great result"} {
+		if strings.Contains(stdout, forbidden) {
+			t.Fatalf("effectiveness JSON leaked raw prompt or feedback %q:\n%s", forbidden, stdout)
+		}
+	}
+
+	cmd = newCuratorCommandWithDeps(curatorCommandDeps{
+		skillsRoot: func() string { return root },
+		now:        func() time.Time { return now },
+	})
+	stdout, stderr, err = executeRootCommandForTest(cmd, "effectiveness")
+	if err != nil {
+		t.Fatalf("curator effectiveness: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"curator effectiveness: 3 skill(s), 1 invalid record(s)",
+		"planner",
+		"score=125.00",
+		"reasons=operator_feedback,positive_outcome",
+		"invalid records:",
+		"line 4:",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("curator effectiveness stdout missing %q:\n%s", want, stdout)
 		}
 	}
 }

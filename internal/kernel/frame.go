@@ -19,6 +19,15 @@ var ErrResetDuringTurn = errors.New("kernel: cannot reset session during active 
 // ErrResetDuringTurn: in-flight turns are never disturbed by a model switch.
 var ErrSetModelDuringTurn = errors.New("kernel: cannot switch model during active turn")
 
+// ErrResumeDuringTurn is returned by Kernel.ResumeSession when the kernel is
+// not idle/failed. In-flight turns must never have their resident session or
+// visible history swapped underneath them.
+var ErrResumeDuringTurn = errors.New("kernel: cannot resume session during active turn")
+
+// ErrResumeSessionIDRequired is returned before enqueueing a resume request
+// with an empty session id.
+var ErrResumeSessionIDRequired = errors.New("kernel: resume session id required")
+
 // Phase is the kernel state-machine phase. Transitions happen only on the
 // Run goroutine, serialised by the select loop.
 type Phase int
@@ -108,6 +117,10 @@ const (
 	// client-swap follow-up; same-provider model switching is the shipped
 	// core. Carries Provider + the existing Model field.
 	PlatformEventSetModel
+	// PlatformEventResumeSession switches the resident session id and visible
+	// history to a previously persisted transcript. Valid only from idle/failed;
+	// rejected with ErrResumeDuringTurn otherwise.
+	PlatformEventResumeSession
 )
 
 type PlatformEvent struct {
@@ -152,8 +165,12 @@ type PlatformEvent struct {
 	// leaves this empty and inherits k.sessionID as before. The
 	// override is per-event — the kernel's resident sessionID is NOT
 	// mutated; after the turn completes, the next non-cron event uses
-	// whatever k.sessionID was before.
+	// whatever k.sessionID was before. PlatformEventResumeSession reuses
+	// this field as the new resident session id.
 	SessionID string
+	// History carries replayed transcript messages for PlatformEventResumeSession.
+	// Other event kinds ignore it.
+	History []hermes.Message
 	// SessionContext, when non-empty, is injected as the first system
 	// message for this turn. Gateway frontends use it to describe the
 	// current source chat and delivery options without mutating the

@@ -422,6 +422,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
+		if m.transientPage != nil && (msg.Type == tea.KeyEscape || msg.Type == tea.KeyCtrlC) {
+			m.transientPage = nil
+			m.statusMessage = "page closed"
+			return m, tea.Batch(cmds...)
+		}
 		if m.modelPicker != nil {
 			if cmd := m.updateModelPickerForKey(msg); cmd != nil {
 				cmds = append(cmds, cmd)
@@ -444,11 +449,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlD:
 			return m, tea.Quit
 		case tea.KeyCtrlL:
-			// Clear the local view by zeroing the frame's visible content.
-			// Kernel history is unchanged; next real frame repopulates.
-			m.frame.History = nil
-			m.frame.DraftText = ""
-			m.frame.LastError = ""
+			m.forceLocalRedraw()
 		case tea.KeyEnter:
 			if msg.Alt {
 				// Alt+Enter is treated as newline-in-editor on many terminals
@@ -535,6 +536,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case modelSessionSetMsg:
 		m.handleModelSessionSet(msg)
+		return m, tea.Batch(cmds...)
+
+	case usageAccountMsg:
+		m.handleUsageAccount(msg)
 		return m, tea.Batch(cmds...)
 	}
 
@@ -692,6 +697,14 @@ func (m Model) submitCmd(text string) tea.Cmd {
 		submit(text)
 		return submittedMsg{}
 	}
+}
+
+func (m *Model) forceLocalRedraw() {
+	// Clear the local view by zeroing the frame's visible content.
+	// Kernel history is unchanged; next real frame repopulates.
+	m.frame.History = nil
+	m.frame.DraftText = ""
+	m.frame.LastError = ""
 }
 
 func (m *Model) applyOfflineSmokeTurn(text string) {

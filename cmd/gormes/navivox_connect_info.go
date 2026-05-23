@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -20,13 +21,18 @@ import (
 // from a specific interface (loopback for local mode, VPN interfaces for
 // tailscale/wireguard/vpn modes).
 type navivoxConnectInfoEntry struct {
-	Host          string `json:"host"`
-	HostSource    string `json:"host_source"`
-	Port          int    `json:"port"`
-	BaseURL       string `json:"base_url"`
-	HealthzURL    string `json:"healthz_url"`
-	WebSocketURL  string `json:"websocket_url"`
-	TokenRequired bool   `json:"token_required"`
+	ServerID      string                              `json:"server_id,omitempty"`
+	Host          string                              `json:"host"`
+	HostSource    string                              `json:"host_source"`
+	Port          int                                 `json:"port"`
+	BaseURL       string                              `json:"base_url"`
+	HealthzURL    string                              `json:"healthz_url"`
+	WebSocketURL  string                              `json:"websocket_url"`
+	TokenRequired bool                                `json:"token_required"`
+	Transports    []string                            `json:"transports,omitempty"`
+	Capabilities  []string                            `json:"capabilities,omitempty"`
+	Profiles      []config.NavivoxProfileRoute        `json:"profiles,omitempty"`
+	Warnings      []config.NavivoxProfileRouteWarning `json:"warnings,omitempty"`
 }
 
 type navivoxConnectInfoReport struct {
@@ -58,7 +64,7 @@ token_required flag.`,
 			if err != nil {
 				return err
 			}
-			return runNavivoxConnectInfo(cmd, cfg.Navivox, jsonOut)
+			return runNavivoxConnectInfoForConfig(cmd, cfg, jsonOut)
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit machine-readable JSON")
@@ -66,27 +72,36 @@ token_required flag.`,
 }
 
 func runNavivoxConnectInfo(cmd *cobra.Command, cfg config.NavivoxCfg, jsonOut bool) error {
-	if !cfg.Enabled {
+	return runNavivoxConnectInfoForConfig(cmd, config.Config{Navivox: cfg}, jsonOut)
+}
+
+func runNavivoxConnectInfoForConfig(cmd *cobra.Command, cfg config.Config, jsonOut bool) error {
+	if !cfg.Navivox.Enabled {
 		return fmt.Errorf("navivox connect: [navivox].enabled=false; set [navivox].enabled=true in config.toml")
 	}
-	entries := buildNavivoxConnectInfoEntries(cmd, cfg)
+	entries := buildNavivoxConnectInfoEntriesForConfig(cmd, cfg)
 	out := cmd.OutOrStdout()
 	if jsonOut {
 		return writeNavivoxConnectInfoJSON(out, entries)
 	}
-	return writeNavivoxConnectInfoText(out, cfg, entries)
+	return writeNavivoxConnectInfoText(out, cfg.Navivox, entries)
 }
 
 func buildNavivoxConnectInfoEntries(cmd *cobra.Command, cfg config.NavivoxCfg) []navivoxConnectInfoEntry {
-	tokenRequired := cfg.AuthMode == config.NavivoxAuthStaticToken ||
-		cfg.AuthMode == config.NavivoxAuthPairingToken ||
-		cfg.AuthMode == config.NavivoxAuthTokenAndTailscaleIdentity
-	makeEntry := func(host, source string) navivoxConnectInfoEntry {
-		base, stream := navivoxConnectInfoURLs(host, cfg.Port)
+	return buildNavivoxConnectInfoEntriesForConfig(cmd, config.Config{Navivox: cfg})
+}
+
+func buildNavivoxConnectInfoEntriesForConfig(cmd *cobra.Command, cfg config.Config) []navivoxConnectInfoEntry {
+	navCfg := cfg.Navivox
+	tokenRequired := navCfg.AuthMode == config.NavivoxAuthStaticToken ||
+		navCfg.AuthMode == config.NavivoxAuthPairingToken ||
+		navCfg.AuthMode == config.NavivoxAuthTokenAndTailscaleIdentity
+	makeEntry := func(host, source string, port int) navivoxConnectInfoEntry {
+		base, stream := navivoxConnectInfoURLs(host, port)
 		return navivoxConnectInfoEntry{
 			Host:          host,
 			HostSource:    source,
-			Port:          cfg.Port,
+			Port:          port,
 			BaseURL:       base,
 			HealthzURL:    base + "/healthz",
 			WebSocketURL:  stream,
@@ -94,17 +109,50 @@ func buildNavivoxConnectInfoEntries(cmd *cobra.Command, cfg config.NavivoxCfg) [
 		}
 	}
 
-	if !config.NavivoxExposureRequiresVPN(cfg.ExposureMode) {
-		return []navivoxConnectInfoEntry{makeEntry(cfg.BindHost, "local")}
+	if len(navCfg.Servers) > 0 {
+		routing := cfg.NavivoxProfileRouting()
+		serverRoutes := map[string]config.NavivoxServerRoute{}
+		for _, route := range routing.Servers {
+			serverRoutes[route.ServerID] = route
+		}
+		ids := make([]string, 0, len(navCfg.Servers))
+		for id := range navCfg.Servers {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		out := make([]navivoxConnectInfoEntry, 0, len(ids))
+		for _, id := range ids {
+			server := navCfg.Servers[id]
+			if !server.Enabled {
+				continue
+			}
+			host, port := navivoxServerBindHostPort(server.Bind, navCfg)
+			entry := makeEntry(host, "server:"+id, port)
+			entry.ServerID = id
+			entry.Transports = append([]string(nil), server.Transports...)
+			entry.Capabilities = append([]string(nil), server.Capabilities...)
+			if route, ok := serverRoutes[id]; ok {
+				entry.Profiles = append([]config.NavivoxProfileRoute(nil), route.Profiles...)
+				entry.Warnings = append([]config.NavivoxProfileRouteWarning(nil), route.Warnings...)
+			}
+			out = append(out, entry)
+		}
+		if len(out) > 0 {
+			return out
+		}
+	}
+
+	if !config.NavivoxExposureRequiresVPN(navCfg.ExposureMode) {
+		return []navivoxConnectInfoEntry{makeEntry(navCfg.BindHost, "local", navCfg.Port)}
 	}
 
 	hosts, _ := vpnhostList(cmd.Context())
 	out := make([]navivoxConnectInfoEntry, 0, len(hosts))
 	for _, h := range hosts {
-		if cfg.ExposureMode == config.NavivoxExposureTailscale && h.Kind != vpnhost.KindTailscale {
+		if navCfg.ExposureMode == config.NavivoxExposureTailscale && h.Kind != vpnhost.KindTailscale {
 			continue
 		}
-		if cfg.ExposureMode == config.NavivoxExposureWireGuard && h.Kind != vpnhost.KindWireGuard {
+		if navCfg.ExposureMode == config.NavivoxExposureWireGuard && h.Kind != vpnhost.KindWireGuard {
 			continue
 		}
 		ip := h.IPv4
@@ -114,9 +162,23 @@ func buildNavivoxConnectInfoEntries(cmd *cobra.Command, cfg config.NavivoxCfg) [
 		if ip == "" {
 			continue
 		}
-		out = append(out, makeEntry(ip, string(h.Kind)))
+		out = append(out, makeEntry(ip, string(h.Kind), navCfg.Port))
 	}
 	return out
+}
+
+func navivoxServerBindHostPort(bind string, cfg config.NavivoxCfg) (string, int) {
+	bind = strings.TrimSpace(bind)
+	if bind == "" {
+		return cfg.BindHost, cfg.Port
+	}
+	if host, portText, err := net.SplitHostPort(bind); err == nil {
+		if port, parseErr := strconv.Atoi(portText); parseErr == nil && port > 0 {
+			return host, port
+		}
+		return host, cfg.Port
+	}
+	return strings.Trim(bind, "[]"), cfg.Port
 }
 
 func navivoxConnectInfoURLs(host string, port int) (baseURL, webSocketURL string) {
@@ -147,6 +209,15 @@ func writeNavivoxConnectInfoText(out io.Writer, cfg config.NavivoxCfg, entries [
 		fmt.Fprintf(out, "  - %s  (%s)%s\n", e.BaseURL, e.HostSource, tokenNote)
 		fmt.Fprintf(out, "    healthz: %s\n", e.HealthzURL)
 		fmt.Fprintf(out, "    websocket: %s\n", e.WebSocketURL)
+		if e.ServerID != "" {
+			fmt.Fprintf(out, "    server: %s\n", e.ServerID)
+			if len(e.Profiles) > 0 {
+				fmt.Fprintf(out, "    profiles: %s\n", navivoxConnectInfoProfileSummary(e.Profiles))
+			}
+			for _, warning := range e.Warnings {
+				fmt.Fprintf(out, "    warning: %s %s\n", warning.Code, warning.ProfileID)
+			}
+		}
 		qr, err := navivoxConnectInfoTerminalQR(cfg, e)
 		if err != nil {
 			return err
@@ -159,6 +230,19 @@ func writeNavivoxConnectInfoText(out io.Writer, cfg config.NavivoxCfg, entries [
 		fmt.Fprintln(out, "    QR payload includes the token when required; the raw token is not printed.")
 	}
 	return nil
+}
+
+func navivoxConnectInfoProfileSummary(profiles []config.NavivoxProfileRoute) string {
+	parts := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		label := strings.TrimSpace(profile.DisplayName)
+		if label == "" || label == profile.ProfileID {
+			parts = append(parts, profile.ProfileID)
+			continue
+		}
+		parts = append(parts, profile.ProfileID+" ("+label+")")
+	}
+	return strings.Join(parts, ", ")
 }
 
 func navivoxConnectInfoTerminalQR(cfg config.NavivoxCfg, entry navivoxConnectInfoEntry) (string, error) {

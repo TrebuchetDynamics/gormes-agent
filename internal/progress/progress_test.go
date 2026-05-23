@@ -225,8 +225,8 @@ func TestLoad_RealFile_NativeTUISlashHandlerCoverage(t *testing.T) {
 
 	items := itemsByName(p.Phases["5"].Subphases["5.Q"].Items)
 	coverage := items["Native TUI slash handler-port coverage"]
-	if coverage.Status != StatusPlanned || coverage.ContractStatus != ContractStatusFixtureReady || coverage.SliceSize != SliceSizeUmbrella || coverage.ExecutionOwner != ExecutionOwnerTui || coverage.Module != ModuleTUI {
-		t.Fatalf("Native TUI slash coverage metadata = status %q contract_status %q size %q owner %q module %q, want planned/fixture_ready/umbrella/tui/tui", coverage.Status, coverage.ContractStatus, coverage.SliceSize, coverage.ExecutionOwner, coverage.Module)
+	if coverage.Status != StatusComplete || coverage.ContractStatus != ContractStatusValidated || coverage.SliceSize != SliceSizeUmbrella || coverage.ExecutionOwner != ExecutionOwnerTui || coverage.Module != ModuleTUI {
+		t.Fatalf("Native TUI slash coverage metadata = status %q contract_status %q size %q owner %q module %q, want complete/validated/umbrella/tui/tui", coverage.Status, coverage.ContractStatus, coverage.SliceSize, coverage.ExecutionOwner, coverage.Module)
 	}
 	for _, want := range []string{
 		"hermes-agent/ui-tui/src/app/createSlashHandler.ts:createSlashHandler",
@@ -263,8 +263,8 @@ func TestLoad_RealFile_ProfileControlCenterV2Umbrella(t *testing.T) {
 
 	items := itemsByName(p.Phases["5"].Subphases["5.O"].Items)
 	umbrella := items["Profile Control Center v2 umbrella — single root config and active services"]
-	if umbrella.Status != StatusPlanned || umbrella.ContractStatus != ContractStatusFixtureReady || umbrella.SliceSize != SliceSizeUmbrella || umbrella.ExecutionOwner != ExecutionOwnerTools || umbrella.Module != ModuleProfiles {
-		t.Fatalf("Profile Control Center umbrella metadata = status %q contract_status %q size %q owner %q module %q, want planned/fixture_ready/umbrella/tools/profiles", umbrella.Status, umbrella.ContractStatus, umbrella.SliceSize, umbrella.ExecutionOwner, umbrella.Module)
+	if umbrella.Status != StatusComplete || umbrella.ContractStatus != ContractStatusValidated || umbrella.SliceSize != SliceSizeUmbrella || umbrella.ExecutionOwner != ExecutionOwnerTools || umbrella.Module != ModuleProfiles {
+		t.Fatalf("Profile Control Center umbrella metadata = status %q contract_status %q size %q owner %q module %q, want complete/validated/umbrella/tools/profiles", umbrella.Status, umbrella.ContractStatus, umbrella.SliceSize, umbrella.ExecutionOwner, umbrella.Module)
 	}
 	for _, want := range []string{
 		"docs/content/building-gormes/architecture_plan/profile-config-v2.md#invariants",
@@ -827,19 +827,19 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if longTail.Priority != "P4" {
 		t.Fatalf("Phase 7.E priority = %q, want P4", longTail.Priority)
 	}
-	if got := longTail.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 7.E = %q, want in_progress after SimpleX parity row reopened the adapter backlog", got)
+	if got := longTail.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 7.E = %q, want complete after SimpleX parity row closed the adapter backlog", got)
 	}
 	longTailItems := itemsByName(longTail.Items)
 	simpleX := longTailItems["SimpleX Chat platform plugin parity"]
-	if simpleX.Status != StatusPlanned {
-		t.Fatalf("Phase 7.E SimpleX status = %q, want planned", simpleX.Status)
+	if simpleX.Status != StatusComplete {
+		t.Fatalf("Phase 7.E SimpleX status = %q, want complete", simpleX.Status)
 	}
-	if simpleX.ContractStatus != ContractStatusFixtureReady || simpleX.Module != ModuleChannels {
-		t.Fatalf("Phase 7.E SimpleX metadata = contract_status %q module %q, want fixture_ready channels", simpleX.ContractStatus, simpleX.Module)
+	if simpleX.ContractStatus != ContractStatusValidated || simpleX.Module != ModuleChannels {
+		t.Fatalf("Phase 7.E SimpleX metadata = contract_status %q module %q, want validated channels", simpleX.ContractStatus, simpleX.Module)
 	}
-	if simpleX.Fixture != "internal/channels/simplex/simplex_test.go" || !containsString(simpleX.SourceRefs, "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter._handle_new_chat_item") {
-		t.Fatalf("Phase 7.E SimpleX evidence = fixture %q refs %v, want fake-WebSocket fixture and upstream handler ref", simpleX.Fixture, simpleX.SourceRefs)
+	if simpleX.Fixture != "internal/channels/simplex/simplex_test.go" || !containsString(simpleX.SourceRefs, "hermes-agent/plugins/platforms/simplex/adapter.py:SimplexAdapter._handle_new_chat_item") || !strings.Contains(simpleX.Note, "internal/channels/simplex") {
+		t.Fatalf("Phase 7.E SimpleX evidence = fixture %q refs %v note %q, want fake-WebSocket fixture, upstream handler ref, and native adapter note", simpleX.Fixture, simpleX.SourceRefs, simpleX.Note)
 	}
 	blueBubblesHA := longTailItems["BlueBubbles + HomeAssistant adapters"]
 	if blueBubblesHA.Status != StatusComplete {

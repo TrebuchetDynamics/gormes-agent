@@ -70,6 +70,28 @@ func TestParseRunCost_CostAsString(t *testing.T) {
 	}
 }
 
+func TestParseRunCost_CurrentOpenCodePartCostSchema(t *testing.T) {
+	jsonl := `{"type":"step_start","timestamp":1778160166743,"sessionID":"ses-test"}
+{"type":"step_finish","timestamp":1778160185296,"sessionID":"ses-test","part":{"type":"step-finish","cost":0.08239596,"tokens":{"input":46206,"output":126,"reasoning":448,"cache":{"read":0,"write":0}}}}
+{"type":"message","timestamp":1778160186000,"sessionID":"ses-test","part":{"type":"text","text":"done"}}`
+	rc, err := ParseRunCost(strings.NewReader(jsonl), "run-part")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rc.CostUSD != 0.08239596 {
+		t.Errorf("CostUSD = %f, want 0.08239596", rc.CostUSD)
+	}
+	if rc.InputTokens != 46206 {
+		t.Errorf("InputTokens = %d, want 46206", rc.InputTokens)
+	}
+	if rc.OutputTokens != 126 {
+		t.Errorf("OutputTokens = %d, want 126", rc.OutputTokens)
+	}
+	if got, want := rc.Timestamp, time.UnixMilli(1778160185296).UTC(); !got.Equal(want) {
+		t.Errorf("Timestamp = %s, want %s", got.Format(time.RFC3339Nano), want.Format(time.RFC3339Nano))
+	}
+}
+
 func TestDailyRollup(t *testing.T) {
 	now := fixedNow()
 	costs := []RunCost{

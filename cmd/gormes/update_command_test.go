@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
@@ -160,6 +162,101 @@ func TestUpdateCommandWiresGatewayRestartRunner(t *testing.T) {
 	}
 }
 
+func TestUpdateGatewayRestartUsesFleetSupervisorForProfileConfig(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	writeOneshotFlagConfig(t, []byte(`
+config_version = 2
+[profiles.main]
+enabled = true
+[profiles.ops]
+enabled = true
+`))
+	fake := &fakeUpdateFleetSupervisor{
+		status: gateway.FleetStatus{Profiles: []gateway.FleetProfileStatus{
+			{ProfileID: "main", Enabled: true, Runtime: gateway.FleetProfileRuntime{State: gateway.FleetRuntimeStateRunning, Live: true}},
+			{ProfileID: "ops", Enabled: true, Runtime: gateway.FleetProfileRuntime{State: gateway.FleetRuntimeStateStopped, Live: false}},
+		}},
+		restartReport: gateway.FleetOperationReport{
+			Action: gateway.FleetOperationRestartAll,
+			Results: []gateway.FleetOperationResult{
+				{ProfileID: "main", Status: gateway.FleetOperationStatusRestarted, RuntimeOwner: gateway.FleetRuntimeOwnerProfileCommandWorker},
+				{ProfileID: "ops", Status: gateway.FleetOperationStatusRestarted, RuntimeOwner: gateway.FleetRuntimeOwnerProfileCommandWorker},
+			},
+			Summary: gateway.FleetOperationSummary{TargetedProfiles: 2, Succeeded: 2},
+		},
+	}
+	restore := updateFleetSupervisorForTest(t, fake)
+	defer restore()
+
+	report := runUpdateGatewayRestartForPolicy(context.Background(), "auto")
+	if fake.statusCalls != 1 || fake.restartCalls != 1 {
+		t.Fatalf("fleet calls status=%d restart=%d, want 1/1", fake.statusCalls, fake.restartCalls)
+	}
+	assertUpdateCommandEvidence(t, report, cli.UpdateEvidenceGatewayRestarted)
+	if report.Failed {
+		t.Fatalf("report failed = true, want auto profile-fleet restart success: %+v", report)
+	}
+	if !strings.Contains(report.Evidence[0].Detail, "profile fleet restart-all targeted=2 succeeded=2") {
+		t.Fatalf("restart evidence detail = %q, want profile fleet counts", report.Evidence[0].Detail)
+	}
+}
+
+func TestUpdateGatewayRestartNeverReportsProfileFleetRestartNeeded(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	writeOneshotFlagConfig(t, []byte(`
+config_version = 2
+[profiles.main]
+enabled = true
+`))
+	fake := &fakeUpdateFleetSupervisor{status: gateway.FleetStatus{Profiles: []gateway.FleetProfileStatus{
+		{ProfileID: "main", Enabled: true, Runtime: gateway.FleetProfileRuntime{State: gateway.FleetRuntimeStateRunning, Live: true}},
+	}}}
+	restore := updateFleetSupervisorForTest(t, fake)
+	defer restore()
+
+	report := runUpdateGatewayRestartForPolicy(context.Background(), "never")
+	if fake.statusCalls != 1 || fake.restartCalls != 0 {
+		t.Fatalf("fleet calls status=%d restart=%d, want status only", fake.statusCalls, fake.restartCalls)
+	}
+	assertUpdateCommandEvidence(t, report, cli.UpdateEvidenceGatewayRestartNeeded)
+	if !strings.Contains(report.Evidence[0].Detail, "profile fleet restart skipped by policy=never") {
+		t.Fatalf("restart-needed detail = %q, want profile fleet policy evidence", report.Evidence[0].Detail)
+	}
+}
+
+func TestUpdateGatewayRestartAlwaysFailsWhenProfileFleetRestartFails(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	writeOneshotFlagConfig(t, []byte(`
+config_version = 2
+[profiles.main]
+enabled = true
+`))
+	fake := &fakeUpdateFleetSupervisor{
+		status: gateway.FleetStatus{Profiles: []gateway.FleetProfileStatus{
+			{ProfileID: "main", Enabled: true, Runtime: gateway.FleetProfileRuntime{State: gateway.FleetRuntimeStateRunning, Live: true}},
+		}},
+		restartReport: gateway.FleetOperationReport{
+			Action:  gateway.FleetOperationRestartAll,
+			Results: []gateway.FleetOperationResult{{ProfileID: "main", Status: gateway.FleetOperationStatusFailed, RuntimeOwner: gateway.FleetRuntimeOwnerProfileCommandWorker, Message: "redacted command failed"}},
+			Summary: gateway.FleetOperationSummary{TargetedProfiles: 1, Failed: 1},
+		},
+	}
+	restore := updateFleetSupervisorForTest(t, fake)
+	defer restore()
+
+	report := runUpdateGatewayRestartForPolicy(context.Background(), "always")
+	if fake.statusCalls != 1 || fake.restartCalls != 1 {
+		t.Fatalf("fleet calls status=%d restart=%d, want 1/1", fake.statusCalls, fake.restartCalls)
+	}
+	if !report.Failed {
+		t.Fatalf("report failed = false, want always policy to fail on profile fleet restart failure: %+v", report)
+	}
+	assertUpdateCommandEvidence(t, report, cli.UpdateEvidenceGatewayRestartUnavailable)
+	if strings.Contains(report.Evidence[0].Detail, config.GormesHome()) {
+		t.Fatalf("restart failure leaked GORMES_HOME in detail %q", report.Evidence[0].Detail)
+	}
+}
+
 func TestUpdateCommandWritesUpdateLogAndLedgerForRealUpdate(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	installHome := t.TempDir()
@@ -220,6 +317,69 @@ func TestUpdateCommandWritesUpdateLogAndLedgerForRealUpdate(t *testing.T) {
 	if len(event.Evidence) == 0 || event.Evidence[0].Kind != "update_publish_completed" {
 		t.Fatalf("ledger evidence = %+v, want update_publish_completed first", event.Evidence)
 	}
+}
+
+func updateFleetSupervisorForTest(t *testing.T, fake *fakeUpdateFleetSupervisor) func() {
+	t.Helper()
+	previous := newUpdateFleetSupervisor
+	newUpdateFleetSupervisor = func(config.Config) updateFleetSupervisor { return fake }
+	return func() { newUpdateFleetSupervisor = previous }
+}
+
+type fakeUpdateFleetSupervisor struct {
+	status        gateway.FleetStatus
+	startReport   gateway.FleetOperationReport
+	stopReport    gateway.FleetOperationReport
+	restartReport gateway.FleetOperationReport
+	statusErr     error
+	startErr      error
+	stopErr       error
+	restartErr    error
+	events        *[]string
+	statusCalls   int
+	startCalls    int
+	stopCalls     int
+	restartCalls  int
+}
+
+func (f *fakeUpdateFleetSupervisor) Status(context.Context) (gateway.FleetStatus, error) {
+	f.statusCalls++
+	f.appendEvent("status")
+	return f.status, f.statusErr
+}
+
+func (f *fakeUpdateFleetSupervisor) StartAll(context.Context) (gateway.FleetOperationReport, error) {
+	f.startCalls++
+	f.appendEvent("start-all")
+	return f.startReport, f.startErr
+}
+
+func (f *fakeUpdateFleetSupervisor) StopAll(context.Context) (gateway.FleetOperationReport, error) {
+	f.stopCalls++
+	f.appendEvent("stop-all")
+	return f.stopReport, f.stopErr
+}
+
+func (f *fakeUpdateFleetSupervisor) RestartAll(context.Context) (gateway.FleetOperationReport, error) {
+	f.restartCalls++
+	f.appendEvent("restart-all")
+	return f.restartReport, f.restartErr
+}
+
+func (f *fakeUpdateFleetSupervisor) appendEvent(event string) {
+	if f.events != nil {
+		*f.events = append(*f.events, event)
+	}
+}
+
+func assertUpdateCommandEvidence(t *testing.T, report cli.UpdateReport, kind cli.UpdateEvidenceKind) {
+	t.Helper()
+	for _, evidence := range report.Evidence {
+		if evidence.Kind == kind {
+			return
+		}
+	}
+	t.Fatalf("evidence = %+v, want %s", report.Evidence, kind)
 }
 
 func TestDefaultUpdateBinaryPublishOptionsRespectSandboxBinDir(t *testing.T) {

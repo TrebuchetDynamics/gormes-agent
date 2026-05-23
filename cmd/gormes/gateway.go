@@ -25,6 +25,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/simplex"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
@@ -53,6 +54,7 @@ func gatewayCommandSeams() gatewaymodule.GatewayCommandSeams {
 		RestartCommand:             newGatewayRestartCommand,
 		ReloadCommand:              newGatewayReloadCommand,
 		StatusCommand:              newGatewayStatusCommand,
+		FleetCommand:               newGatewayFleetCommand,
 		DiscoverCommand:            newGatewayDiscoverCommand,
 		ProbeCommand:               newGatewayProbeCommand,
 		UsageCostCommand:           newGatewayUsageCostCommand,
@@ -233,6 +235,7 @@ type gatewayChannelFactories struct {
 	Teams    gatewayChannelFactory
 	Yuanbao  gatewayChannelFactory
 	Navivox  gatewayChannelFactory
+	SimpleX  gatewayChannelFactory
 }
 
 func runGateway(cmd *cobra.Command, _ []string) error {
@@ -250,8 +253,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	securityReport := evaluateGatewayStartupSecurity(cfg, os.Getenv)
 	cfg = securityReport.Config
 	logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
-	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled && !cfg.Navivox.Enabled {
-		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], or [navivox] in config.toml")
+	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled && !cfg.Navivox.Enabled && !simplex.ConfigFromEnv(os.LookupEnv).Enabled() {
+		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], [navivox], or SIMPLEX_WS_URL")
 	}
 	if _, err := ensureGatewayAgentTemplates(cfg, slog.Default()); err != nil {
 		return err
@@ -374,8 +377,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		securityReport := evaluateGatewayStartupSecurity(next, os.Getenv)
 		next = securityReport.Config
 		logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
-		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Teams.Enabled && !next.Yuanbao.Enabled && !next.Navivox.Enabled {
-			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], or [navivox] in config.toml")
+		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Teams.Enabled && !next.Yuanbao.Enabled && !next.Navivox.Enabled && !simplex.ConfigFromEnv(os.LookupEnv).Enabled() {
+			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], [navivox], or SIMPLEX_WS_URL")
 		}
 		if _, err := ensureGatewayAgentTemplates(next, slog.Default()); err != nil {
 			return gateway.ManagerConfig{}, err
@@ -415,7 +418,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if registeredChannels == 0 {
-		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], [slack], [yuanbao], or [navivox] in config.toml")
+		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], [slack], [yuanbao], [navivox], or SIMPLEX_WS_URL")
 	}
 
 	memoryMonitor := gateway.NewMemoryMonitor(gateway.MemoryMonitorConfig{
@@ -643,6 +646,10 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 		Navivox: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
 			return navivoxchannel.NewChannel(cfg.Navivox, log, navivoxchannel.WithProfileRouting(cfg.NavivoxProfileRouting()))
 		},
+		SimpleX: func(_ config.Config, log *slog.Logger) (gateway.Channel, error) {
+			cfg := simplex.ConfigFromEnv(os.LookupEnv)
+			return simplex.NewChannel(cfg, simplex.NewWebSocketTransport(cfg.WSURL), log), nil
+		},
 	}
 }
 
@@ -766,6 +773,13 @@ func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
 	if cfg.Navivox.Enabled {
 		out[navivoxchannel.PlatformName] = map[string]bool{"navivox": true}
 	}
+	if simplexCfg := simplex.ConfigFromEnv(os.LookupEnv); simplexCfg.Enabled() {
+		if users := simplexCfg.AllowedUserSet(); len(users) > 0 {
+			out[simplex.PlatformName] = users
+		} else if simplexCfg.AllowAllUsers {
+			out[simplex.PlatformName] = map[string]bool{"*": true}
+		}
+	}
 	return out
 }
 
@@ -811,6 +825,12 @@ func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool, m
 	}
 	if cfg.Navivox.Enabled {
 		allowDiscovery[navivoxchannel.PlatformName] = false
+	}
+	if simplexCfg := simplex.ConfigFromEnv(os.LookupEnv); simplexCfg.Enabled() {
+		if home := strings.TrimSpace(simplexCfg.HomeChannel); home != "" {
+			allowedChats[simplex.PlatformName] = home
+		}
+		allowDiscovery[simplex.PlatformName] = false
 	}
 	return allowedChats, allowDiscovery, whitelists
 }
@@ -1085,6 +1105,28 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 			"auth_mode", cfg.Navivox.AuthMode)
 	}
 
+	if simplexCfg := simplex.ConfigFromEnv(os.LookupEnv); simplexCfg.Enabled() {
+		if home := strings.TrimSpace(simplexCfg.HomeChannel); home != "" {
+			allowedChats[simplex.PlatformName] = home
+		}
+		allowDiscovery[simplex.PlatformName] = false
+		if factories.SimpleX == nil {
+			return registered, fmt.Errorf("register simplex: missing channel factory")
+		}
+		ch, err := factories.SimpleX(cfg, log)
+		if err != nil {
+			errText := "simplex: startup failed: " + err.Error()
+			writeGatewayChannelDegraded(status, simplex.PlatformName, errText)
+			log.Warn("gateway: simplex channel startup failed", "err", err)
+		} else {
+			if err := mgr.Register(ch); err != nil {
+				return registered, fmt.Errorf("register simplex: %w", err)
+			}
+			registered++
+			log.Info("gateway: simplex channel enabled", "home_channel", simplexCfg.HomeChannel, "allowed_user_count", len(simplexCfg.AllowedUserSet()), "allow_all_users", simplexCfg.AllowAllUsers)
+		}
+	}
+
 	return registered, nil
 }
 
@@ -1185,6 +1227,12 @@ func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string)
 	if cfg.Navivox.Enabled {
 		return true
 	}
+	if simplex.ConfigFromEnv(func(key string) (string, bool) {
+		value := lookupEnv(key)
+		return value, strings.TrimSpace(value) != ""
+	}).Enabled() && strings.TrimSpace(lookupEnv("SIMPLEX_ALLOWED_USERS")) != "" {
+		return true
+	}
 	for _, key := range []string{
 		"SIGNAL_GROUP_ALLOWED_USERS",
 		"GORMES_TELEGRAM_ALLOWED_USERS",
@@ -1201,7 +1249,7 @@ func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string)
 }
 
 func gatewayStartupAllowAllConfigured(lookupEnv func(string) string) bool {
-	for _, key := range []string{"GATEWAY_ALLOW_ALL_USERS", "TELEGRAM_ALLOW_ALL_USERS", "TEAMS_ALLOW_ALL_USERS"} {
+	for _, key := range []string{"GATEWAY_ALLOW_ALL_USERS", "TELEGRAM_ALLOW_ALL_USERS", "TEAMS_ALLOW_ALL_USERS", "SIMPLEX_ALLOW_ALL_USERS"} {
 		if parseGatewayStartupBool(lookupEnv(key)) {
 			return true
 		}

@@ -293,11 +293,12 @@ type Manager struct {
 	typingActionMu   sync.Mutex
 	typingActionLast map[string]time.Time
 
-	toolProgressMu     sync.Mutex
-	toolProgressMsgID  string
-	toolProgressText   string
-	toolProgressChatID string
-	toolProgressPlat   string
+	toolProgressMu      sync.Mutex
+	toolProgressMsgID   string
+	toolProgressText    string
+	toolProgressChatID  string
+	toolProgressPlat    string
+	toolProgressSeenIDs map[string]bool
 
 	verboseHintMu   sync.Mutex
 	verboseHintSent map[string]bool
@@ -1632,9 +1633,23 @@ func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform
 		if len(events) == 0 {
 			return
 		}
-		fingerprint := toolProgressEventsFingerprint(events)
 		m.toolProgressMu.Lock()
 		sameTarget := m.toolProgressPlat == platform && m.toolProgressChatID == chatID
+		if !sameTarget || m.toolProgressSeenIDs == nil {
+			m.toolProgressSeenIDs = map[string]bool{}
+		}
+		for i := range events {
+			if events[i].Status != ToolProgressStarted {
+				continue
+			}
+			if m.toolProgressSeenIDs[events[i].ID] {
+				events[i].Status = ToolProgressUpdated
+				events[i].Summary = toolProgressSummary(events[i].ToolName, ToolProgressUpdated)
+				continue
+			}
+			m.toolProgressSeenIDs[events[i].ID] = true
+		}
+		fingerprint := toolProgressEventsFingerprint(events)
 		if sameTarget && m.toolProgressText == fingerprint {
 			m.toolProgressMu.Unlock()
 			return
@@ -2138,6 +2153,9 @@ func (m *Manager) allowed(ev InboundEvent) bool {
 		return true
 	}
 	if users := m.cfg.AllowedUsers[ev.Platform]; len(users) > 0 {
+		if users["*"] {
+			return true
+		}
 		return users[ev.UserID]
 	}
 	return false
@@ -2281,6 +2299,7 @@ func (m *Manager) clearToolProgress() {
 	m.toolProgressText = ""
 	m.toolProgressChatID = ""
 	m.toolProgressPlat = ""
+	m.toolProgressSeenIDs = nil
 	m.toolProgressMu.Unlock()
 }
 

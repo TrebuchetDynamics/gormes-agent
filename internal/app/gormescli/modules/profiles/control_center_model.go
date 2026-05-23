@@ -378,8 +378,45 @@ func controlCenterProfileActions(enabled bool) []ControlCenterAction {
 	return actions
 }
 
+func ControlCenterActionCatalog() []ControlCenterAction {
+	codes := []ControlCenterActionCode{
+		ControlCenterActionCreateProfile,
+		ControlCenterActionEditProfile,
+		ControlCenterActionAddProvider,
+		ControlCenterActionAddChannel,
+		ControlCenterActionEnableProfile,
+		ControlCenterActionDisableProfile,
+		ControlCenterActionMigrateLegacyConfig,
+		ControlCenterActionApplyDraft,
+		ControlCenterActionDiscardDraft,
+	}
+	catalog := make([]ControlCenterAction, 0, len(codes))
+	for _, code := range codes {
+		catalog = append(catalog, controlCenterAction(code))
+	}
+	return catalog
+}
+
 func controlCenterAction(code ControlCenterActionCode) ControlCenterAction {
-	return ControlCenterAction{Code: code, Label: strings.ReplaceAll(string(code), "_", " "), Available: true}
+	label, ok := controlCenterActionLabels()[code]
+	if !ok {
+		return ControlCenterAction{Code: code, Label: "unsupported action", Available: false}
+	}
+	return ControlCenterAction{Code: code, Label: label, Available: true}
+}
+
+func controlCenterActionLabels() map[ControlCenterActionCode]string {
+	return map[ControlCenterActionCode]string{
+		ControlCenterActionCreateProfile:       "create profile",
+		ControlCenterActionEditProfile:         "edit profile",
+		ControlCenterActionAddProvider:         "add provider",
+		ControlCenterActionAddChannel:          "add channel",
+		ControlCenterActionEnableProfile:       "enable profile",
+		ControlCenterActionDisableProfile:      "disable profile",
+		ControlCenterActionMigrateLegacyConfig: "migrate legacy profile config",
+		ControlCenterActionApplyDraft:          "apply",
+		ControlCenterActionDiscardDraft:        "discard",
+	}
 }
 
 func sortedStringKeys[T any](values map[string]T) []string {

@@ -17,6 +17,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/profileseed"
+	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
 const PlatformName = "navivox"
@@ -36,9 +38,13 @@ type Channel struct {
 	sessions map[string]*sessionState
 	clients  map[*client]struct{}
 
-	profileContacts map[string]ProfileContact
-	loadContacts    func(context.Context) ([]ProfileContact, error)
-	profileRouting  config.NavivoxProfileRoutingReport
+	profileContacts    map[string]ProfileContact
+	loadContacts       func(context.Context) ([]ProfileContact, error)
+	profileRouting     config.NavivoxProfileRoutingReport
+	configAdmin        configAdminBackend
+	voiceProfiles      voiceProfileBackend
+	runRecords         map[string]*sessionpkg.NavivoxRunRecord
+	latestRunBySession map[string]string
 }
 
 type ChannelOption func(*Channel)
@@ -72,13 +78,17 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger, opts ...ChannelOption) 
 		}
 	}
 	ch := &Channel{
-		cfg:             cfg,
-		log:             log,
-		now:             func() time.Time { return time.Now().UTC() },
-		newID:           randomID,
-		sessions:        map[string]*sessionState{},
-		clients:         map[*client]struct{}{},
-		profileContacts: map[string]ProfileContact{},
+		cfg:                cfg,
+		log:                log,
+		now:                func() time.Time { return time.Now().UTC() },
+		newID:              randomID,
+		sessions:           map[string]*sessionState{},
+		clients:            map[*client]struct{}{},
+		profileContacts:    map[string]ProfileContact{},
+		configAdmin:        defaultConfigAdminBackend(),
+		voiceProfiles:      defaultVoiceProfileBackend(),
+		runRecords:         map[string]*sessionpkg.NavivoxRunRecord{},
+		latestRunBySession: map[string]string{},
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -127,6 +137,12 @@ func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 	mux.HandleFunc("/v1/navivox/status", c.withAuth(c.handleStatus))
 	mux.HandleFunc("/v1/navivox/profile-contacts", c.withAuth(c.handleProfileContacts))
 	mux.HandleFunc("/v1/navivox/profile-routing", c.withAuth(c.handleProfileRouting))
+	mux.HandleFunc("/v1/navivox/profile-seed", c.withAuth(c.handleProfileSeed))
+	mux.HandleFunc("/v1/navivox/config-admin", c.withAuth(c.handleConfigAdmin))
+	mux.HandleFunc("/v1/navivox/config-admin/", c.withAuth(c.handleConfigAdmin))
+	mux.HandleFunc("/v1/navivox/voice-profiles", c.withAuth(c.handleVoiceProfiles))
+	mux.HandleFunc("/v1/navivox/voice-profiles/", c.withAuth(c.handleVoiceProfiles))
+	mux.HandleFunc("/v1/navivox/run-records/", c.withAuth(c.handleRunRecord))
 	mux.HandleFunc("/v1/navivox/memory/overview", c.withAuth(c.handleMemoryOverview))
 	mux.HandleFunc("/v1/navivox/sessions", c.withAuth(c.handleSessions))
 	mux.HandleFunc("/v1/navivox/sessions/", c.withAuth(c.handleSessionByID))
@@ -137,6 +153,7 @@ func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 
 func (c *Channel) Send(ctx context.Context, chatID, text string) (string, error) {
 	msgID := c.newID()
+	c.recordAssistantAndComplete(chatID, text)
 	c.broadcast(chatID, ServerEvent{
 		Type:      "assistant_message",
 		SessionID: chatID,
@@ -166,9 +183,13 @@ func (c *Channel) SendToolProgress(ctx context.Context, chatID string, progress 
 	}
 	eventType := "tool_call_started"
 	switch gateway.ToolProgressStatus(status) {
+	case gateway.ToolProgressUpdated:
+		eventType = "tool_call_updated"
 	case gateway.ToolProgressFinished, gateway.ToolProgressFailed:
 		eventType = "tool_call_finished"
 	}
+	metadata := safeNavivoxToolMetadata(progress.Metadata)
+	c.recordToolProgress(chatID, toolCallID, progress.ToolName, status, progress.Summary, metadata)
 	c.broadcast(chatID, ServerEvent{
 		Type:       eventType,
 		SessionID:  chatID,
@@ -176,7 +197,7 @@ func (c *Channel) SendToolProgress(ctx context.Context, chatID string, progress 
 		ToolCallID: toolCallID,
 		Status:     status,
 		Message:    safeNavivoxToolSummary(progress.Summary),
-		Metadata:   safeNavivoxToolMetadata(progress.Metadata),
+		Metadata:   metadata,
 	})
 	return toolCallID, ctx.Err()
 }
@@ -260,10 +281,73 @@ func (c *Channel) edit(chatID, msgID, text string, finalize bool) error {
 		}
 		return nil
 	}
+	c.recordAssistantAndComplete(chatID, text)
 	c.updateProfileContactForSession(chatID, text, "assistant", ProfileContactTurnIdle)
 	c.broadcast(chatID, ServerEvent{Type: "assistant_message", SessionID: chatID, Text: text})
 	c.broadcast(chatID, ServerEvent{Type: "done", SessionID: chatID})
 	return nil
+}
+
+func (c *Channel) recordRunStartLocked(sessionID, requestID, text string, metadata map[string]any) {
+	if c.runRecords == nil {
+		c.runRecords = map[string]*sessionpkg.NavivoxRunRecord{}
+	}
+	if c.latestRunBySession == nil {
+		c.latestRunBySession = map[string]string{}
+	}
+	record := sessionpkg.NewNavivoxRunRecord(requestID, sessionID, text, metadata, c.now())
+	c.runRecords[record.RunID] = &record
+	c.latestRunBySession[sessionID] = record.RunID
+}
+
+func (c *Channel) recordToolProgress(sessionID, toolCallID, toolName, status, summary string, metadata map[string]any) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	record := c.latestRunRecordLocked(sessionID)
+	if record == nil {
+		return
+	}
+	record.AppendToolEvent(toolCallID, safeNavivoxToolName(toolName), status, safeNavivoxToolSummary(summary), metadata, c.now())
+}
+
+func (c *Channel) recordAssistantAndComplete(sessionID, text string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	record := c.latestRunRecordLocked(sessionID)
+	if record == nil {
+		return
+	}
+	now := c.now()
+	record.AppendAssistant(text, now)
+	record.Complete(now)
+}
+
+func (c *Channel) latestRunRecordLocked(sessionID string) *sessionpkg.NavivoxRunRecord {
+	if c.latestRunBySession == nil || c.runRecords == nil {
+		return nil
+	}
+	runID := c.latestRunBySession[sessionID]
+	if runID == "" {
+		return nil
+	}
+	return c.runRecords[runID]
+}
+
+func (c *Channel) lookupRunRecord(id string) (sessionpkg.NavivoxRunRecord, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.runRecords == nil {
+		return sessionpkg.NavivoxRunRecord{}, false
+	}
+	if record := c.runRecords[id]; record != nil {
+		return record.Clone(), true
+	}
+	if runID := c.latestRunBySession[id]; runID != "" {
+		if record := c.runRecords[runID]; record != nil {
+			return record.Clone(), true
+		}
+	}
+	return sessionpkg.NavivoxRunRecord{}, false
 }
 
 func (c *Channel) handleHealthz(w http.ResponseWriter, r *http.Request) {
@@ -292,11 +376,15 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 		"port":                c.cfg.Port,
 		"exposure_mode":       c.cfg.ExposureMode,
 		"auth_mode":           c.cfg.AuthMode,
+		"profile_routing":     c.profileRouting,
 		"protocol_version":    navivoxWebSocketProtocol,
 		"websocket_protocols": []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol},
 		"capabilities": []string{
 			"profile_contacts",
 			"profile_routing",
+			"profile_seed",
+			"config_admin",
+			"voice_profiles",
 			"memory_overview",
 			"stream_turns",
 			"tool_progress",
@@ -346,6 +434,105 @@ func (c *Channel) handleProfileRouting(w http.ResponseWriter, r *http.Request, _
 		return
 	}
 	writeNavivoxJSON(w, http.StatusOK, c.profileRouting)
+}
+
+type profileSeedRequest struct {
+	Seed       string   `json:"seed"`
+	Apply      bool     `json:"apply"`
+	Workspaces []string `json:"workspaces"`
+	// WorkspaceRoots is accepted as a clearer client alias. It is still treated
+	// as explicit operator confirmation; inferred seed suggestions are never
+	// written to config.
+	WorkspaceRoots []string `json:"workspace_roots"`
+}
+
+type profileSeedResponse struct {
+	Action         string            `json:"action"`
+	Status         string            `json:"status"`
+	Applied        bool              `json:"applied,omitempty"`
+	ProfileID      string            `json:"profile_id,omitempty"`
+	Root           string            `json:"root,omitempty"`
+	WorkspaceCount int               `json:"workspace_count,omitempty"`
+	Draft          profileseed.Draft `json:"draft"`
+	Contact        *ProfileContact   `json:"contact,omitempty"`
+}
+
+func (c *Channel) handleProfileSeed(w http.ResponseWriter, r *http.Request, _ string) {
+	if r.Method != http.MethodPost {
+		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+		return
+	}
+	var req profileSeedRequest
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
+		writeNavivoxError(w, http.StatusBadRequest, "", "bad_request", "Invalid profile seed request")
+		return
+	}
+	seed := strings.TrimSpace(req.Seed)
+	if seed == "" {
+		writeNavivoxError(w, http.StatusBadRequest, "", "bad_request", "Seed is required")
+		return
+	}
+	draft, err := profileseed.NewDraft(seed, profileseed.DraftOptions{})
+	if err != nil {
+		writeNavivoxError(w, http.StatusBadRequest, "", "profile_seed_invalid", "Profile seed is unsafe or invalid")
+		return
+	}
+	if !req.Apply {
+		writeNavivoxJSON(w, http.StatusOK, profileSeedResponse{Action: "profile_seed_draft", Status: "draft", Draft: draft})
+		return
+	}
+	workspaces := append([]string{}, req.Workspaces...)
+	workspaces = append(workspaces, req.WorkspaceRoots...)
+	result, err := profileseed.Apply(seed, profileseed.ApplyOptions{ConfirmedWorkspaces: workspaces})
+	if err != nil {
+		writeNavivoxError(w, http.StatusConflict, "", "profile_seed_apply_failed", "Profile seed could not be applied")
+		return
+	}
+	contact := c.profileContactFromRoot(result.ProfileID, result.Root)
+	c.broadcastProfileContact(contact)
+	writeNavivoxJSON(w, http.StatusOK, profileSeedResponse{
+		Action:         "profile_seed_applied",
+		Status:         "applied",
+		Applied:        result.Applied,
+		ProfileID:      result.ProfileID,
+		Root:           redactNavivoxPathTail(result.Root),
+		WorkspaceCount: result.WorkspaceCount,
+		Draft:          result.Draft,
+		Contact:        &contact,
+	})
+}
+
+func redactNavivoxPathTail(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	parts := strings.FieldsFunc(path, func(r rune) bool { return r == '/' || r == '\\' })
+	if len(parts) == 0 {
+		return "..."
+	}
+	return ".../" + parts[len(parts)-1]
+}
+
+func (c *Channel) handleRunRecord(w http.ResponseWriter, r *http.Request, _ string) {
+	if r.Method != http.MethodGet {
+		writeNavivoxError(w, http.StatusMethodNotAllowed, "", "bad_request", "Method not allowed")
+		return
+	}
+	id := strings.TrimPrefix(r.URL.Path, "/v1/navivox/run-records/")
+	id = strings.TrimSpace(id)
+	if id == "" || strings.Contains(id, "/") {
+		writeNavivoxError(w, http.StatusNotFound, "", "not_found", "Run record not found")
+		return
+	}
+	record, ok := c.lookupRunRecord(id)
+	if !ok {
+		writeNavivoxError(w, http.StatusNotFound, "", "not_found", "Run record not found")
+		return
+	}
+	writeNavivoxJSON(w, http.StatusOK, map[string]any{"run_record": record})
 }
 
 func (c *Channel) handleSessions(w http.ResponseWriter, r *http.Request, _ string) {

@@ -101,6 +101,63 @@ func TestNavivoxConnectInfo_LocalMode_PrintsLoopbackOnly_JSON(t *testing.T) {
 	}
 }
 
+func TestNavivoxConnectInfoJSONIncludesServerScopedRouting(t *testing.T) {
+	cmd, buf := newConnectInfoTestCommand(t)
+	cfg := config.Config{
+		Navivox: config.NavivoxCfg{
+			Enabled:      true,
+			BindHost:     "127.0.0.1",
+			Port:         8765,
+			ExposureMode: config.NavivoxExposureLocal,
+			AuthMode:     config.NavivoxAuthTailscaleIdentity,
+			Servers: map[string]config.NavivoxServerCfg{
+				"local": {
+					Enabled:      true,
+					Bind:         "127.0.0.1:8787",
+					Profiles:     []string{"main", "missing"},
+					Transports:   []string{"http", "ws"},
+					Capabilities: []string{"connect_and_talk"},
+				},
+			},
+		},
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Name:    "Main Desk",
+				Channels: map[string]config.ProfileChannelCfg{
+					"navivox": {Enabled: true, Servers: []string{"local"}, Credential: "main-navivox", VoiceProfile: "private-voice-main"},
+				},
+			},
+		},
+	}
+
+	if err := runNavivoxConnectInfoForConfig(cmd, cfg, true); err != nil {
+		t.Fatal(err)
+	}
+	var got navivoxConnectInfoReport
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if len(got.Entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1: %+v", len(got.Entries), got.Entries)
+	}
+	entry := got.Entries[0]
+	if entry.ServerID != "local" || entry.BaseURL != "http://127.0.0.1:8787" || entry.WebSocketURL != "ws://127.0.0.1:8787/v1/navivox/stream" {
+		t.Fatalf("entry = %+v, want local server URLs", entry)
+	}
+	if len(entry.Profiles) != 1 || entry.Profiles[0].ProfileID != "main" || entry.Profiles[0].DisplayName != "Main Desk" || !entry.Profiles[0].CredentialConfigured || !entry.Profiles[0].VoiceProfileConfigured {
+		t.Fatalf("entry profiles = %+v, want redacted main readiness", entry.Profiles)
+	}
+	if len(entry.Warnings) != 1 || entry.Warnings[0].ProfileID != "missing" || entry.Warnings[0].Code != "navivox_profile_unavailable" {
+		t.Fatalf("entry warnings = %+v, want missing profile warning", entry.Warnings)
+	}
+	for _, banned := range []string{"main-navivox", "private-voice-main", "default_profile"} {
+		if strings.Contains(buf.String(), banned) {
+			t.Fatalf("connect-info leaked or emitted banned value %q:\n%s", banned, buf.String())
+		}
+	}
+}
+
 func TestNavivoxConnectInfo_TextOutputIncludesTerminalQRAndKeepsTokenOpaque(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })

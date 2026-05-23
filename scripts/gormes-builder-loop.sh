@@ -158,6 +158,62 @@ file_age_seconds() {
   printf '%s\n' "$((now - mtime))"
 }
 
+cost_window_metrics() {
+  local window_seconds="$1"
+  local now_epoch cutoff total runs logfile file_ts line cost
+  now_epoch="$(date +%s)"
+  cutoff=$((now_epoch - window_seconds))
+  total="0.0000"
+  runs=0
+
+  if ! command -v jq >/dev/null 2>&1; then
+    printf 'unknown_missing_jq unknown 0\n'
+    return 0
+  fi
+
+  for logfile in "$LOG_DIR"/*.opencode.jsonl; do
+    [[ -f "$logfile" ]] || continue
+    file_ts="$(stat -c %Y "$logfile" 2>/dev/null || echo 0)"
+    [[ "$file_ts" =~ ^[0-9]+$ ]] || file_ts=0
+    [[ "$file_ts" -ge "$cutoff" ]] || continue
+
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || continue
+      cost="$(printf '%s' "$line" | jq -r '.usage.cost // .part.cost // empty' 2>/dev/null || true)"
+      [[ -n "$cost" && "$cost" != "null" ]] || continue
+      [[ "$cost" =~ ^[0-9]+([.][0-9]+)?$ ]] || continue
+      total="$(awk "BEGIN { printf \"%.4f\", $total + $cost }")"
+      runs=$((runs + 1))
+    done <"$logfile"
+  done
+
+  if [[ "$runs" -eq 0 ]]; then
+    printf 'unknown_no_cost_data unknown 0\n'
+    return 0
+  fi
+  printf 'ok %s %d\n' "$total" "$runs"
+}
+
+combine_cost_status() {
+  local status_7d="$1" status_30d="$2"
+  if [[ "$status_7d" == "ok" || "$status_30d" == "ok" ]]; then
+    printf 'ok\n'
+  elif [[ "$status_7d" == "unknown_missing_jq" || "$status_30d" == "unknown_missing_jq" ]]; then
+    printf 'unknown_missing_jq\n'
+  else
+    printf 'unknown_no_cost_data\n'
+  fi
+}
+
+format_cost_usd() {
+  local value="$1"
+  if [[ "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    printf '$%.2f' "$value"
+  else
+    printf '%s' "$value"
+  fi
+}
+
 pause_field() {
   local field="$1"
   local timestamp="" reason="" expires_at="" expires_at_epoch="" ttl_seconds="" forever=""
@@ -230,8 +286,11 @@ clear_expired_pause() {
 }
 
 write_health() {
-  local latest_log
+  local latest_log cost_7d_status cost_7d_usd cost_7d_runs cost_30d_status cost_30d_usd cost_30d_runs cost_status
   latest_log="$(latest_log_path)"
+  read -r cost_7d_status cost_7d_usd cost_7d_runs < <(cost_window_metrics $((7*86400)))
+  read -r cost_30d_status cost_30d_usd cost_30d_runs < <(cost_window_metrics $((30*86400)))
+  cost_status="$(combine_cost_status "$cost_7d_status" "$cost_30d_status")"
   atomic_kv_write "$HEALTH_FILE" \
     timestamp "$(timestamp)" \
     status "${1:-running}" \
@@ -251,6 +310,11 @@ write_health() {
     latest_log "$latest_log" \
     latest_log_size_bytes "$(file_size_bytes "$latest_log")" \
     latest_log_age_seconds "$(file_age_seconds "$latest_log")" \
+    cost_status "$cost_status" \
+    cost_7d_usd "$cost_7d_usd" \
+    cost_7d_runs "$cost_7d_runs" \
+    cost_30d_usd "$cost_30d_usd" \
+    cost_30d_runs "$cost_30d_runs" \
     last_message_file "$LAST_MESSAGE_FILE" \
     last_message_age_seconds "$(file_age_seconds "$LAST_MESSAGE_FILE")" \
     node "$(command -v node >/dev/null 2>&1 && node --version || true)" \
@@ -510,42 +574,22 @@ pause_loop() {
 }
 
 cost_report() {
-  local now_epoch
-  now_epoch="$(date +%s)"
+  local cost_7d_status cost_7d_usd cost_7d_runs cost_30d_status cost_30d_usd cost_30d_runs cost_status
+  read -r cost_7d_status cost_7d_usd cost_7d_runs < <(cost_window_metrics $((7*86400)))
+  read -r cost_30d_status cost_30d_usd cost_30d_runs < <(cost_window_metrics $((30*86400)))
+  cost_status="$(combine_cost_status "$cost_7d_status" "$cost_30d_status")"
 
-  local total_7d=0 total_30d=0 run_count_7d=0 run_count_30d=0
-  local cutoff_7d=$((now_epoch - 7*86400))
-  local cutoff_30d=$((now_epoch - 30*86400))
-
-  if [[ ! -d "$LOG_DIR" ]]; then
-    printf '7-day spend: $0.00 | 30-day spend: $0.00 | runs: 0 (no log directory)\n'
-    return 0
+  printf 'cost_status=%s\n' "$cost_status"
+  printf 'cost_7d_usd=%s\n' "$cost_7d_usd"
+  printf 'cost_7d_runs=%s\n' "$cost_7d_runs"
+  printf 'cost_30d_usd=%s\n' "$cost_30d_usd"
+  printf 'cost_30d_runs=%s\n' "$cost_30d_runs"
+  if [[ "$cost_status" == "ok" ]]; then
+    printf '7-day spend: %s | 30-day spend: %s | runs: %d (7d) / %d (30d)\n' \
+      "$(format_cost_usd "$cost_7d_usd")" "$(format_cost_usd "$cost_30d_usd")" "$cost_7d_runs" "$cost_30d_runs"
+  else
+    printf 'cost_report=%s\n' "$cost_status"
   fi
-
-  for logfile in "$LOG_DIR"/*.opencode.jsonl; do
-    [[ -f "$logfile" ]] || continue
-    local file_ts
-    file_ts="$(stat -c %Y "$logfile" 2>/dev/null || echo 0)"
-
-    while IFS= read -r line; do
-      [[ -n "$line" ]] || continue
-      local cost
-      cost="$(printf '%s' "$line" | jq -r '.usage.cost // empty' 2>/dev/null)"
-      [[ -n "$cost" && "$cost" != "null" ]] || continue
-
-      if [[ "$file_ts" -ge "$cutoff_30d" ]]; then
-        total_30d="$(awk "BEGIN { printf \"%.4f\", $total_30d + $cost }")"
-        run_count_30d=$((run_count_30d + 1))
-      fi
-      if [[ "$file_ts" -ge "$cutoff_7d" ]]; then
-        total_7d="$(awk "BEGIN { printf \"%.4f\", $total_7d + $cost }")"
-        run_count_7d=$((run_count_7d + 1))
-      fi
-    done < "$logfile"
-  done
-
-  printf '7-day spend: $%.2f | 30-day spend: $%.2f | runs: %d (7d) / %d (30d)\n' \
-    "$total_7d" "$total_30d" "$run_count_7d" "$run_count_30d"
 }
 
 case "${1:-run}" in

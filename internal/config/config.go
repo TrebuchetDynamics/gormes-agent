@@ -306,15 +306,24 @@ const (
 // NavivoxCfg configures the native gateway-owned HTTP/WebSocket channel used
 // by the Flutter Navivox app. The disabled zero value is intentionally safe.
 type NavivoxCfg struct {
-	Enabled                  bool     `toml:"enabled" yaml:"enabled"`
-	BindHost                 string   `toml:"bind_host" yaml:"bind_host"`
-	Port                     int      `toml:"port" yaml:"port"`
-	ExposureMode             string   `toml:"exposure_mode" yaml:"exposure_mode"`
-	AuthMode                 string   `toml:"auth_mode" yaml:"auth_mode"`
-	Token                    string   `toml:"token" yaml:"token"`
-	AllowOrigins             []string `toml:"allow_origins" yaml:"allow_origins"`
-	AllowedTailnetIdentities []string `toml:"allowed_tailnet_identities" yaml:"allowed_tailnet_identities"`
-	PublicConfirmed          bool     `toml:"public_confirmed" yaml:"public_confirmed"`
+	Enabled                  bool                        `toml:"enabled" yaml:"enabled"`
+	BindHost                 string                      `toml:"bind_host" yaml:"bind_host"`
+	Port                     int                         `toml:"port" yaml:"port"`
+	ExposureMode             string                      `toml:"exposure_mode" yaml:"exposure_mode"`
+	AuthMode                 string                      `toml:"auth_mode" yaml:"auth_mode"`
+	Token                    string                      `toml:"token" yaml:"token"`
+	AllowOrigins             []string                    `toml:"allow_origins" yaml:"allow_origins"`
+	AllowedTailnetIdentities []string                    `toml:"allowed_tailnet_identities" yaml:"allowed_tailnet_identities"`
+	PublicConfirmed          bool                        `toml:"public_confirmed" yaml:"public_confirmed"`
+	Servers                  map[string]NavivoxServerCfg `toml:"servers" yaml:"servers"`
+}
+
+type NavivoxServerCfg struct {
+	Enabled      bool     `toml:"enabled" yaml:"enabled"`
+	Bind         string   `toml:"bind" yaml:"bind"`
+	Profiles     []string `toml:"profiles" yaml:"profiles"`
+	Transports   []string `toml:"transports" yaml:"transports"`
+	Capabilities []string `toml:"capabilities" yaml:"capabilities"`
 }
 
 // BrowserCfg mirrors Hermes browser/CDP connection settings used by browser
@@ -1748,6 +1757,9 @@ func normalizeNavivoxConfig(cfg *NavivoxCfg) error {
 	cfg.Token = strings.TrimSpace(cfg.Token)
 	cfg.AllowOrigins = compactStrings(cfg.AllowOrigins)
 	cfg.AllowedTailnetIdentities = compactStrings(cfg.AllowedTailnetIdentities)
+	if err := normalizeNavivoxServers(cfg); err != nil {
+		return err
+	}
 
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return fmt.Errorf("config: navivox.port must be between 1 and 65535, got %d", cfg.Port)
@@ -1787,6 +1799,80 @@ func normalizeNavivoxConfig(cfg *NavivoxCfg) error {
 
 func ValidateNavivoxForRuntime(cfg *NavivoxCfg) error {
 	return normalizeNavivoxConfig(cfg)
+}
+
+func normalizeNavivoxServers(cfg *NavivoxCfg) error {
+	if len(cfg.Servers) == 0 {
+		cfg.Servers = nil
+		return nil
+	}
+	servers := make(map[string]NavivoxServerCfg, len(cfg.Servers))
+	for id, server := range cfg.Servers {
+		normalizedID := strings.ToLower(strings.TrimSpace(id))
+		if normalizedID != id || !agentIDPattern.MatchString(normalizedID) {
+			return fmt.Errorf("config: navivox.servers.%s id is invalid", id)
+		}
+		server.Bind = strings.TrimSpace(server.Bind)
+		server.Profiles = normalizeNavivoxProfileIDs(server.Profiles)
+		server.Transports = normalizeNavivoxStringSet(server.Transports)
+		server.Capabilities = normalizeNavivoxStringSet(server.Capabilities)
+		servers[normalizedID] = server
+	}
+	cfg.Servers = servers
+	return nil
+}
+
+func normalizeNavivoxProfileIDs(values []string) []string {
+	cleaned := cleanStringSlice(values)
+	if len(cleaned) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(cleaned))
+	seen := map[string]struct{}{}
+	for _, value := range cleaned {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" {
+			continue
+		}
+		if !agentIDPattern.MatchString(value) {
+			// Keep the server usable and let the route report degraded evidence
+			// instead of failing unrelated profiles at config-load time.
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func normalizeNavivoxStringSet(values []string) []string {
+	cleaned := cleanStringSlice(values)
+	if len(cleaned) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(cleaned))
+	seen := map[string]struct{}{}
+	for _, value := range cleaned {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // NavivoxExposureRequiresVPN reports whether the given exposure_mode value

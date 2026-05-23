@@ -10,11 +10,16 @@ import (
 type profileCommandSeams = profilemodule.Seams
 
 func newProfileCommand() *cobra.Command {
-	return profilemodule.NewCommand(profileCommandOptions())
+	seams := defaultProfileCommandSeams()
+	cmd := profilemodule.NewCommandWithSeams(seams, profileCommandOptions())
+	cmd.AddCommand(newProfileSeedCommand(profileSeedSeamsFromProfileSeams(seams)))
+	return cmd
 }
 
 func newProfileCommandWithSeams(seams profileCommandSeams) *cobra.Command {
-	return profilemodule.NewCommandWithSeams(seams, profileCommandOptions())
+	cmd := profilemodule.NewCommandWithSeams(seams, profileCommandOptions())
+	cmd.AddCommand(newProfileSeedCommand(profileSeedSeamsFromProfileSeams(seams)))
+	return cmd
 }
 
 func defaultProfileCommandSeams() profileCommandSeams {

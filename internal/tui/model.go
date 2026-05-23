@@ -6,9 +6,12 @@
 package tui
 
 import (
+	"context"
+
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -31,6 +34,118 @@ type SetSessionModelFunc func(provider, model string) error
 // It clears the active conversation only when the kernel is idle/failed.
 type SessionResetFunc func() error
 
+// GatewayLogTailFunc returns the most recent gateway log lines for /logs.
+// The native TUI owns display and limit parsing; production callers own the
+// concrete log source so internal/tui stays free of HTTP and config-path I/O.
+type GatewayLogTailFunc func(limit int) (string, error)
+
+// SessionTitleResult is the TUI-local response shape for /title. Title is the
+// current or newly persisted title. Pending mirrors Hermes' session.title RPC
+// response for adapters that defer the write while a session initializes.
+type SessionTitleResult struct {
+	Title   string
+	Pending bool
+}
+
+// SessionTitleFunc gets or sets the active session title for /title. An empty
+// title argument queries the current title; a non-empty title persists an
+// operator-chosen title. Production callers own persistence so internal/tui
+// remains free of session DB I/O.
+type SessionTitleFunc func(sessionID, title string) (SessionTitleResult, error)
+
+// SessionDirectoryEntry is the TUI read model for the local /sessions and
+// /resume picker page. Production callers map their durable session directory
+// into this small shape so internal/tui stays free of SQLite and config paths.
+type SessionDirectoryEntry struct {
+	ID           string
+	Title        string
+	Preview      string
+	Source       string
+	LastActiveAt int64
+	MessageCount int
+}
+
+// SessionDirectoryFunc returns recent sessions for the native TUI picker page.
+// The limit is caller-supplied and already clamped by the slash handler.
+type SessionDirectoryFunc func(limit int) ([]SessionDirectoryEntry, error)
+
+// SessionResumeResult is the replay payload returned by the local /resume
+// adapter. History is already ordered for direct render-frame replacement.
+type SessionResumeResult struct {
+	SessionID string
+	History   []hermes.Message
+}
+
+// SessionResumeFunc resolves an operator-supplied id/prefix and switches the
+// resident runtime session. Production callers own persistence and kernel I/O
+// so internal/tui stays free of SQLite/config paths and kernel mutation policy.
+type SessionResumeFunc func(ctx context.Context, query string) (SessionResumeResult, error)
+
+// AccountUsageFunc fetches provider account-usage evidence for /usage. It is
+// injected so internal/tui can render provider limits/cost evidence without
+// knowing config paths, credentials, HTTP clients, or provider-specific policy.
+type AccountUsageFunc func(ctx context.Context) (hermes.AccountUsageSnapshot, error)
+
+// ToolsConfigureRequest is the TUI-local request shape for /tools enable|disable.
+// Production callers own config persistence and MCP/server policy; internal/tui
+// only parses the operator slash input and renders the adapter evidence.
+type ToolsConfigureRequest struct {
+	Action    string
+	Names     []string
+	SessionID string
+}
+
+// ToolsConfigureResult mirrors the Hermes ui-tui tools.configure response
+// fields that affect visible TUI output.
+type ToolsConfigureResult struct {
+	Changed        []string
+	Unknown        []string
+	MissingServers []string
+	Reset          bool
+}
+
+// ToolsConfigureFunc updates the active TUI tool configuration for /tools.
+// It is injected so internal/tui never writes config files directly.
+type ToolsConfigureFunc func(ToolsConfigureRequest) (ToolsConfigureResult, error)
+
+// VoiceToggleRequest is the TUI-local request shape for /voice status|on|off|tts.
+// Production callers own runtime voice state, setup checks, and config access;
+// internal/tui only parses slash input and renders adapter evidence.
+type VoiceToggleRequest struct {
+	Action    string
+	SessionID string
+}
+
+// VoiceToggleResult mirrors the Hermes ui-tui voice.toggle response fields
+// that affect visible output and frontend record-key state.
+type VoiceToggleResult struct {
+	Enabled   bool
+	TTS       bool
+	RecordKey string
+	Details   string
+}
+
+// VoiceToggleFunc updates or reads local voice mode state for /voice. It is
+// injected so internal/tui never starts live audio or writes config files.
+type VoiceToggleFunc func(VoiceToggleRequest) (VoiceToggleResult, error)
+
+// SkinConfigRequest is the TUI-local request shape for /skin. Name is empty
+// for read-only status and non-empty for a requested skin switch.
+type SkinConfigRequest struct {
+	Name      string
+	SessionID string
+}
+
+// SkinConfigResult mirrors the Hermes config.get/config.set skin response
+// value that affects visible output and active native TUI skin state.
+type SkinConfigResult struct {
+	Name string
+}
+
+// SkinConfigFunc gets or sets the active display skin for /skin. Production
+// callers own persistence so internal/tui never writes config files directly.
+type SkinConfigFunc func(SkinConfigRequest) (SkinConfigResult, error)
+
 // Options carries local TUI settings that do not belong to kernel state.
 type Options struct {
 	MouseTracking bool
@@ -38,6 +153,17 @@ type Options struct {
 	// VoiceRecordKey is the Hermes-compatible voice.record_key value used
 	// by the pure key resolver. Empty falls back to Ctrl+B.
 	VoiceRecordKey string
+	// VoiceToggle is the injected status/toggle adapter invoked by /voice.
+	// nil keeps /voice consumed with visible setup evidence; cmd/gormes wires
+	// a no-live-audio adapter for local TUI startup.
+	VoiceToggle VoiceToggleFunc
+	// SkinName seeds the active native TUI skin. Empty or unknown values fall
+	// back to default so invalid persisted config cannot break startup.
+	SkinName string
+	// SkinConfig is the injected get/set adapter invoked by /skin. nil keeps
+	// the command consumed with visible degraded evidence; cmd/gormes wires a
+	// config-backed adapter for local TUI startup.
+	SkinConfig SkinConfigFunc
 	// SessionBranch is the injected fork helper invoked by the /branch
 	// slash command. nil disables /branch (handler returns
 	// `branch: store unavailable`); cmd/gormes wires the real
@@ -65,6 +191,32 @@ type Options struct {
 	// nil keeps /kanban consumed with unavailable evidence; cmd/gormes wires
 	// this to the same Cobra command tree as `gormes kanban`.
 	KanbanSlash KanbanSlashFunc
+	// GatewayLogTail is the injected gateway log-tail reader invoked by /logs.
+	// nil keeps /logs consumed with `no gateway logs`; cmd/gormes wires a
+	// bounded live-gateway/file-fallback adapter for local TUI startup.
+	GatewayLogTail GatewayLogTailFunc
+	// SessionTitle is the injected get/set adapter invoked by /title. nil keeps
+	// /title consumed with visible degraded evidence; cmd/gormes wires a
+	// metadata-backed adapter for local TUI startup.
+	SessionTitle SessionTitleFunc
+	// SessionDirectory is the injected recent-session lister invoked by
+	// /sessions and /resume. nil keeps the commands consumed with visible
+	// degraded evidence; cmd/gormes wires a Goncho memory-backed adapter for
+	// local TUI startup.
+	SessionDirectory SessionDirectoryFunc
+	// AccountUsage is the injected provider account-usage fetcher invoked by
+	// /usage after the local frame-telemetry page is opened. nil keeps /usage
+	// local-only; cmd/gormes wires a provider adapter for local TUI startup.
+	AccountUsage AccountUsageFunc
+	// ToolsConfigure is the injected config adapter invoked by /tools
+	// enable|disable. nil keeps the command consumed with visible degraded
+	// evidence; cmd/gormes wires a platform_toolsets-backed adapter for local
+	// TUI startup.
+	ToolsConfigure ToolsConfigureFunc
+	// SessionResume is the injected id/prefix resolver + resident-session
+	// switcher invoked by `/resume <id-or-prefix>`. nil keeps argument-based
+	// resume consumed with visible degraded evidence.
+	SessionResume SessionResumeFunc
 	// SetSessionModel is the injected kernel apply seam invoked by /model.
 	// nil keeps /model consumed with visible degraded evidence.
 	SetSessionModelFunc SetSessionModelFunc
@@ -83,6 +235,15 @@ type Options struct {
 	// /compact mutates this at runtime; tiny terminals still auto-compact even
 	// when this option is false.
 	CompactTranscript bool
+	// StatusBarMode controls where the Hermes-compatible status rule renders.
+	// Empty defaults to top, matching Hermes ui-tui's display default.
+	StatusBarMode StatusBarMode
+	// DetailsState controls visibility of Hermes detail sections (thinking,
+	// tools, subagents, activity) in the native transcript renderer.
+	DetailsState DetailsState
+	// IndicatorStyle controls the running-turn busy indicator glyph family.
+	// Empty defaults to kaomoji, matching Hermes ui-tui's display default.
+	IndicatorStyle IndicatorStyle
 	// TodoReader returns the current session's active todo items for the TUI
 	// todo panel. nil disables the panel.
 	TodoReader func(sessionID string) []TodoItem
@@ -143,22 +304,36 @@ type Model struct {
 	mouseTracking     bool
 	mouseModeCmd      func(enabled bool) tea.Cmd
 	voiceRecordKey    string
+	activeSkinName    string
+	activeSkin        HermesSkin
 	statusMessage     string
+	transientPage     *TransientPageState
 	busyGuard         BusyInputEvaluator
 	offlineSmoke      bool
 	compactTranscript bool
+	statusBarMode     StatusBarMode
+	detailsState      DetailsState
+	indicatorStyle    IndicatorStyle
 	spinnerFrame      int
 
 	// sessionID, when non-empty, is the locally-tracked active session
 	// owned by a successful /branch fork. SessionID() prefers it over
 	// frame.SessionID so subsequent UI reads see the branch session even
 	// before the kernel acks the switch on its next render frame.
-	sessionID      string
-	sessionBranch  SessionBranchFunc
-	sessionExport  SessionExportFunc
-	clipboardWrite func(string) error
-	kanbanSlash    KanbanSlashFunc
-	todoReader     func(sessionID string) []TodoItem
+	sessionID        string
+	sessionBranch    SessionBranchFunc
+	sessionExport    SessionExportFunc
+	clipboardWrite   func(string) error
+	kanbanSlash      KanbanSlashFunc
+	gatewayLogTail   GatewayLogTailFunc
+	sessionTitle     SessionTitleFunc
+	sessionDirectory SessionDirectoryFunc
+	accountUsage     AccountUsageFunc
+	toolsConfigure   ToolsConfigureFunc
+	voiceToggle      VoiceToggleFunc
+	skinConfig       SkinConfigFunc
+	sessionResume    SessionResumeFunc
+	todoReader       func(sessionID string) []TodoItem
 
 	slashRegistry *SlashRegistry
 
@@ -194,13 +369,17 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	// keep the R1 best-effort/omit behavior.
 	SetWelcomeContext(opts.WelcomeVersion, opts.WelcomeToolCount, opts.WelcomeToolsets...)
 
+	skin := DefaultHermesSkin()
+	if resolved, ok := ResolveBuiltinSkin(opts.SkinName); ok {
+		skin = resolved
+	}
 	ta := textarea.New()
 	ta.Placeholder = "Type a message and hit Enter…"
 	ta.ShowLineNumbers = false
 	// Match Hermes prompt_toolkit prompt symbol so the bottom-pinned chrome
-	// shows the operator-recognisable `❯ ` glyph at the start of every input
-	// line instead of the textarea default cursor marker.
-	normalPrompt, _ := DefaultHermesSkin().PromptSymbols("default")
+	// shows the operator-recognisable skin prompt glyph at the start of every
+	// input line instead of the textarea default cursor marker.
+	normalPrompt, _ := skin.PromptSymbols("default")
 	ta.Prompt = normalPrompt
 	ta.SetHeight(1)
 	ta.Focus()
@@ -212,12 +391,22 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		mouseTracking:      opts.MouseTracking,
 		mouseModeCmd:       opts.MouseModeCmd,
 		voiceRecordKey:     opts.VoiceRecordKey,
+		activeSkinName:     skin.Name,
+		activeSkin:         skin,
 		sessionBranch:      opts.SessionBranch,
 		busyGuard:          opts.BusyGuard,
 		statusMessage:      opts.StartupNotice,
 		sessionExport:      opts.SessionExport,
 		clipboardWrite:     opts.ClipboardWrite,
 		kanbanSlash:        opts.KanbanSlash,
+		gatewayLogTail:     opts.GatewayLogTail,
+		sessionTitle:       opts.SessionTitle,
+		sessionDirectory:   opts.SessionDirectory,
+		accountUsage:       opts.AccountUsage,
+		toolsConfigure:     opts.ToolsConfigure,
+		voiceToggle:        opts.VoiceToggle,
+		skinConfig:         opts.SkinConfig,
+		sessionResume:      opts.SessionResume,
 		todoReader:         opts.TodoReader,
 		setSessionModel:    opts.SetSessionModelFunc,
 		modelPickerCatalog: opts.ModelPickerCatalog,
@@ -225,6 +414,9 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		modelName:          opts.ModelName,
 		sessionReset:       opts.SessionReset,
 		compactTranscript:  opts.CompactTranscript,
+		statusBarMode:      normalizeStatusBarMode(opts.StatusBarMode),
+		detailsState:       NormalizeDetailsState(opts.DetailsState),
+		indicatorStyle:     NormalizeIndicatorStyle(string(opts.IndicatorStyle)),
 		offlineSmoke:       opts.OfflineSmoke,
 		slashRegistry:      NewDefaultSlashRegistry(),
 	}

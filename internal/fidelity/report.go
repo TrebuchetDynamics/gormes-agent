@@ -1983,7 +1983,7 @@ func defaultSkillCatalogFamilies() []skillCatalogFamilyDefinition {
 		{
 			ID:       "python_script_examples",
 			Title:    "Python And Script-Only Skill Examples",
-			Keywords: []string{"python", "script", "script-only", "helper script"},
+			Keywords: []string{"python", "script-only", "helper script", "/scripts/"},
 		},
 	}
 }
@@ -2163,8 +2163,23 @@ func skillCatalogFamilyMatchesSourcePair(def skillCatalogFamilyDefinition, pair 
 	if skillCatalogFamilyMatchesPath(def, pair.HermesFile) {
 		return true
 	}
+	if !skillCatalogSourcePairInScope(pair) {
+		return false
+	}
 	text := strings.ToLower(cleanHermesRel(pair.HermesFile) + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
 	return containsKeyword(text, def.Keywords)
+}
+
+func skillCatalogSourcePairInScope(pair sourcePair) bool {
+	path := cleanHermesRel(pair.HermesFile)
+	if skillCatalogEvidencePath(path) {
+		return true
+	}
+	if skillCatalogSubsystemPath(path) {
+		return true
+	}
+	text := strings.ToLower(path + " " + pair.Contract + " " + strings.Join(pair.ProgressRows, " "))
+	return containsAny(text, []string{"skill", "skills", "skill.md", "optional-skill", "optional-skills", "skill_manage"})
 }
 
 func skillCatalogFamilyRowMatchReasons(def skillCatalogFamilyDefinition, row progressRow, matchedNames map[string]bool) []string {
@@ -2179,10 +2194,61 @@ func skillCatalogFamilyRowMatchReasons(def skillCatalogFamilyDefinition, row pro
 			reasons = append(reasons, "source_ref:"+normalized)
 		}
 	}
-	if containsKeyword(row.Text, def.Keywords) {
+	itemText := skillCatalogRowItemText(row.Item)
+	if skillCatalogRowInScope(row, itemText) && containsKeyword(itemText, def.Keywords) {
 		reasons = append(reasons, "taxonomy_keyword")
 	}
 	return uniqueSorted(reasons)
+}
+
+func skillCatalogRowInScope(row progressRow, itemText string) bool {
+	if strings.EqualFold(strings.TrimSpace(row.Item.Module), "skills") {
+		return true
+	}
+	for _, source := range row.Item.SourceRefs {
+		path := cleanHermesRel(source)
+		if skillCatalogEvidencePath(path) || skillCatalogSubsystemPath(path) {
+			return true
+		}
+	}
+	return containsAny(itemText, []string{"skill", "skills", "skill.md", "optional-skill", "optional-skills", "skill_manage"})
+}
+
+func skillCatalogRowItemText(item progress.Item) string {
+	parts := []string{
+		item.Name,
+		item.Priority,
+		string(item.Status),
+		item.Contract,
+		string(item.ContractStatus),
+		item.Module,
+		string(item.ExecutionOwner),
+		item.DegradedMode,
+		item.Fixture,
+		item.Note,
+		item.NoTestRequiredReason,
+		strings.Join(item.TrustClass, " "),
+		strings.Join(item.SourceRefs, " "),
+		strings.Join(item.ReadyWhen, " "),
+		strings.Join(item.NotReadyWhen, " "),
+		strings.Join(item.BlockedBy, " "),
+		strings.Join(item.Acceptance, " "),
+		strings.Join(item.WriteScope, " "),
+		strings.Join(item.TestCommands, " "),
+		strings.Join(item.DoneSignal, " "),
+	}
+	if item.Provenance != nil {
+		parts = append(parts, item.Provenance.OriginType, item.Provenance.UpstreamRef, strings.Join(item.Provenance.UpstreamRefs, " "), item.Provenance.Note)
+	}
+	return strings.ToLower(strings.Join(parts, " "))
+}
+
+func skillCatalogSubsystemPath(path string) bool {
+	path = cleanHermesRel(path)
+	return strings.HasPrefix(path, "agent/skill") ||
+		strings.HasPrefix(path, "tools/skill") ||
+		strings.HasPrefix(path, "hermes_cli/skill") ||
+		strings.HasPrefix(path, "internal/skills")
 }
 
 func containsAny(text string, fragments []string) bool {

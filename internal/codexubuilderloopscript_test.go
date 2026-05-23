@@ -94,6 +94,146 @@ func TestCodexuBuilderLoopStatusReportsLiveProgressSignals(t *testing.T) {
 	}
 }
 
+func TestCodexuBuilderLoopCostReportDoesNotFakeZeroWhenDataMissing(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	stateDir := t.TempDir()
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
+
+	cmd := exec.Command("bash", script, "cost-report")
+	cmd.Dir = repoRoot
+	cmd.Env = overlayEnv(os.Environ(), "GORMES_CODEXU_STATE_DIR="+stateDir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("cost-report failed: %v\noutput:\n%s", err, string(out))
+	}
+
+	output := string(out)
+	for _, want := range []string{
+		"cost_status=unknown_no_cost_data",
+		"cost_7d_usd=unknown",
+		"cost_30d_usd=unknown",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("cost-report output missing %q:\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "7-day spend: $0.00") || strings.Contains(output, "30-day spend: $0.00") {
+		t.Fatalf("cost-report must not present missing cost data as zero spend:\n%s", output)
+	}
+}
+
+func TestCodexuBuilderLoopCostReportAcceptsOpenCodePartCostTelemetry(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	stateDir := t.TempDir()
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
+	writeFile(t, filepath.Join(stateDir, "logs", "run-part.opencode.jsonl"), []byte(`{"type":"step_finish","timestamp":1778160185296,"sessionID":"ses-test","part":{"type":"step-finish","cost":0.08239596,"tokens":{"input":46206,"output":126}}}`+"\n"), 0o600)
+
+	cmd := exec.Command("bash", script, "cost-report")
+	cmd.Dir = repoRoot
+	cmd.Env = overlayEnv(os.Environ(), "GORMES_CODEXU_STATE_DIR="+stateDir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("cost-report failed: %v\noutput:\n%s", err, string(out))
+	}
+
+	output := string(out)
+	for _, want := range []string{
+		"cost_status=ok",
+		"cost_7d_usd=0.0824",
+		"cost_30d_usd=0.0824",
+		"cost_7d_runs=1",
+		"cost_30d_runs=1",
+		"7-day spend: $0.08 | 30-day spend: $0.08 | runs: 1 (7d) / 1 (30d)",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("cost-report output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestCodexuBuilderLoopCostReportDoesNotFakeZeroForMissingSevenDayWindow(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	stateDir := t.TempDir()
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
+	logFile := filepath.Join(stateDir, "logs", "run-part-old.opencode.jsonl")
+	writeFile(t, logFile, []byte(`{"type":"step_finish","timestamp":1778160185296,"sessionID":"ses-test","part":{"type":"step-finish","cost":0.08239596,"tokens":{"input":46206,"output":126}}}`+"\n"), 0o600)
+	oldEnoughForThirtyDaysOnly := time.Now().Add(-8 * 24 * time.Hour)
+	if err := os.Chtimes(logFile, oldEnoughForThirtyDaysOnly, oldEnoughForThirtyDaysOnly); err != nil {
+		t.Fatalf("set log time: %v", err)
+	}
+
+	cmd := exec.Command("bash", script, "cost-report")
+	cmd.Dir = repoRoot
+	cmd.Env = overlayEnv(os.Environ(), "GORMES_CODEXU_STATE_DIR="+stateDir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("cost-report failed: %v\noutput:\n%s", err, string(out))
+	}
+
+	output := string(out)
+	for _, want := range []string{
+		"cost_status=ok",
+		"cost_7d_usd=unknown",
+		"cost_7d_runs=0",
+		"cost_30d_usd=0.0824",
+		"cost_30d_runs=1",
+		"7-day spend: unknown | 30-day spend: $0.08 | runs: 0 (7d) / 1 (30d)",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("cost-report output missing %q:\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "7-day spend: $0.00") || strings.Contains(output, "invalid number") {
+		t.Fatalf("cost-report must keep unknown seven-day cost explicit without printf errors:\n%s", output)
+	}
+}
+
+func TestCodexuBuilderLoopHealthIncludesCostTelemetry(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	stateDir := t.TempDir()
+	homeDir := filepath.Join(stateDir, "home")
+	if err := os.Mkdir(homeDir, 0o700); err != nil {
+		t.Fatalf("mkdir home: %v", err)
+	}
+	runner := filepath.Join(stateDir, "runner.sh")
+	writeFile(t, runner, []byte(`#!/usr/bin/env bash
+set -Eeuo pipefail
+printf 'timestamp=%q\nreason=%q\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "cost telemetry test stop" > "$GORMES_CODEXU_STATE_DIR/stop-after-current"
+`), 0o755)
+	writeFile(t, filepath.Join(stateDir, "logs", "run-a.opencode.jsonl"), []byte(`{"usage":{"cost":0.0123,"input_tokens":1000,"output_tokens":200},"timestamp":"2026-05-23T00:00:00Z"}`+"\n"), 0o600)
+
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
+	cmd := exec.Command("timeout", "30s", "bash", script, "run")
+	cmd.Dir = repoRoot
+	cmd.Env = overlayEnv(os.Environ(),
+		"GORMES_CODEXU_REPO="+repoRoot,
+		"GORMES_CODEXU_RUNNER="+runner,
+		"GORMES_CODEXU_STATE_DIR="+stateDir,
+		"GORMES_CODEXU_LOOP_INTERVAL=0",
+		"GORMES_CODEXU_PAUSE_POLL=1",
+		"GORMES_CODEXU_FAIL_BACKOFF=1",
+		"HOME="+homeDir,
+		"PATH=/usr/local/bin:/usr/bin:/bin",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("loop run failed: %v\noutput:\n%s", err, string(out))
+	}
+
+	health := readOptionalFile(t, filepath.Join(stateDir, "loop-health.env"))
+	for _, want := range []string{
+		"cost_status=ok",
+		"cost_7d_usd=0.0123",
+		"cost_30d_usd=0.0123",
+		"cost_7d_runs=1",
+		"cost_30d_runs=1",
+	} {
+		if !strings.Contains(health, want) {
+			t.Fatalf("loop-health.env missing %q:\n%s", want, health)
+		}
+	}
+}
+
 func TestCodexuBuilderLoopAutoClearsExpiredPauseBeforeRunner(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	stateDir := t.TempDir()

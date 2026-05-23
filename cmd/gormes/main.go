@@ -1224,10 +1224,20 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	model := tui.NewModelWithOptions(hookedFrames, submit, cancelTurn, tui.Options{
 		MouseTracking:  cfg.TUI.MouseTracking,
 		VoiceRecordKey: cfg.Voice.RecordKey,
+		VoiceToggle:    newTUIVoiceToggleFunc(cfg),
+		SkinName:       cfg.TUI.Theme,
+		SkinConfig:     newTUISkinConfigFunc(cfg),
 		SessionExport:  newTUISaveExportFunc(),
+		SessionBranch:  newTUIBranchFunc(rootCtx, boltMap, k.ResumeSession),
 		KanbanSlash: func(input string) (string, error) {
 			return runTUIKanbanSlashCommand(rootCtx, input)
 		},
+		GatewayLogTail:      readLogsTail,
+		SessionTitle:        newTUITitleFunc(rootCtx, boltMap),
+		SessionDirectory:    newTUISessionDirectoryFunc(rootCtx),
+		SessionResume:       newTUIResumeSessionFunc(rootCtx, k.ResumeSession),
+		AccountUsage:        newTUIAccountUsageFunc(cfg),
+		ToolsConfigure:      newTUIToolsConfigureFunc(),
 		SetSessionModelFunc: k.SetSessionModel,
 		ModelPickerCatalog:  tui.DefaultModelPickerCatalog,
 		SessionReset:        k.ResetSession,

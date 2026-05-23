@@ -774,6 +774,8 @@ func toolProgressSummary(name string, status ToolProgressStatus) string {
 		return name + " finished"
 	case ToolProgressFailed:
 		return name + " failed"
+	case ToolProgressUpdated:
+		return name + " updated"
 	default:
 		return name + " started"
 	}

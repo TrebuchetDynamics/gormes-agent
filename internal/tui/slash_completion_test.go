@@ -80,30 +80,64 @@ func TestHermesSlashCompletion_SubcommandPrefix(t *testing.T) {
 	}
 }
 
+func TestHermesSlashCompletion_LocalNativeHandlersAreAvailable(t *testing.T) {
+	cases := []struct {
+		input string
+		name  string
+	}{
+		{input: "/bra", name: "branch"},
+		{input: "/fo", name: "fork"},
+		{input: "/sav", name: "save"},
+		{input: "/cop", name: "copy"},
+		{input: "/mou", name: "mouse"},
+		{input: "/scr", name: "scroll"},
+		{input: "/qui", name: "quit"},
+		{input: "/exi", name: "exit"},
+		{input: "/red", name: "redraw"},
+		{input: "/det", name: "details"},
+		{input: "/ind", name: "indicator"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			completions := HermesSlashCommandCompletions(tc.input)
+			for _, completion := range completions {
+				if completion.Name != tc.name {
+					continue
+				}
+				if !completion.Available {
+					t.Fatalf("completion for %s = unavailable; want available for shipped native handler (all=%+v)", tc.name, completions)
+				}
+				return
+			}
+			t.Fatalf("HermesSlashCommandCompletions(%q) = %+v, want %s", tc.input, completions, tc.name)
+		})
+	}
+}
+
 // TestHermesSlashCompletion_UnavailableCommandsStillComplete proves
 // recognized-but-unported commands appear in completion (so users can discover
 // them) while EvaluateActiveTurnVerdict still classifies their dispatch as
 // ActiveTurnPolicyUnavailable with explicit evidence — never letting the slash
 // text leak to the kernel.
 func TestHermesSlashCompletion_UnavailableCommandsStillComplete(t *testing.T) {
-	completions := HermesSlashCommandCompletions("/bra")
+	completions := HermesSlashCommandCompletions("/too")
 	names := completionNames(completions)
-	if !containsString(names, "branch") {
-		t.Fatalf("HermesSlashCommandCompletions(\"/bra\") = %v, want to include unavailable command \"branch\"", names)
+	if !containsString(names, "tools") {
+		t.Fatalf("HermesSlashCommandCompletions(\"/too\") = %v, want to include unavailable command \"tools\"", names)
 	}
 
-	verdict := cli.EvaluateActiveTurnVerdict("/branch", false)
+	verdict := cli.EvaluateActiveTurnVerdict("/tools", false)
 	if !verdict.Known {
-		t.Errorf("EvaluateActiveTurnVerdict(/branch) Known = false, want true (registry recognizes /branch)")
+		t.Errorf("EvaluateActiveTurnVerdict(/tools) Known = false, want true (registry recognizes /tools)")
 	}
 	if verdict.Allowed {
-		t.Errorf("EvaluateActiveTurnVerdict(/branch) Allowed = true, want false for unavailable command")
+		t.Errorf("EvaluateActiveTurnVerdict(/tools) Allowed = true, want false for unavailable command")
 	}
 	if verdict.Policy != cli.ActiveTurnPolicyUnavailable {
-		t.Errorf("EvaluateActiveTurnVerdict(/branch) Policy = %q, want %q", verdict.Policy, cli.ActiveTurnPolicyUnavailable)
+		t.Errorf("EvaluateActiveTurnVerdict(/tools) Policy = %q, want %q", verdict.Policy, cli.ActiveTurnPolicyUnavailable)
 	}
 	if !strings.Contains(strings.ToLower(verdict.Evidence), "unavailable") {
-		t.Errorf("EvaluateActiveTurnVerdict(/branch) Evidence = %q, want to mention unavailable", verdict.Evidence)
+		t.Errorf("EvaluateActiveTurnVerdict(/tools) Evidence = %q, want to mention unavailable", verdict.Evidence)
 	}
 }
 

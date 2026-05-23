@@ -13,6 +13,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -66,6 +67,39 @@ func TestBot_RunRegistersDynamicSkillTelegramCommands(t *testing.T) {
 		}
 	}
 	t.Fatalf("setMyCommands missing dynamic skill command in %#v", cfg.Commands)
+}
+
+func TestTelegramSkillsSearchReplyPlainTextSafe(t *testing.T) {
+	body := gateway.HandleSkillsCommandWithOptions(context.Background(), "/skills search plan", gateway.SkillsCommandOptions{
+		HubProviders: []skills.HubRegistryProvider{skills.NewInMemoryRegistryProvider([]skills.HubSearchResult{{
+			Name:        "planner-pro_[safe]",
+			Description: "Plan *without* mutating installed skills or leaking /home/xel/.env paths.",
+			Source:      "hermes-index",
+			InstallID:   "planner-pro",
+			Score:       0.90,
+			TrustLevel:  "community",
+		}}, nil)},
+	})
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+	if _, err := b.SendPlain(context.Background(), "42", body); err != nil {
+		t.Fatalf("SendPlain(/skills search): %v", err)
+	}
+
+	sent := mc.sentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(sent))
+	}
+	msg, ok := sent[0].(tgbotapi.MessageConfig)
+	if !ok {
+		t.Fatalf("sent type = %T, want MessageConfig", sent[0])
+	}
+	if msg.ParseMode != "" {
+		t.Fatalf("ParseMode = %q, want empty plain-text skills reply", msg.ParseMode)
+	}
+	if !strings.Contains(msg.Text, "planner-pro_[safe]") || strings.Contains(msg.Text, "/home/xel/.env") {
+		t.Fatalf("plain skills reply text not bounded/sanitized:\n%s", msg.Text)
+	}
 }
 
 func TestBot_RunCapsTelegramCommandsAtPlatformLimit(t *testing.T) {
