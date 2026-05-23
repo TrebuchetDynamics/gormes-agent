@@ -96,7 +96,10 @@
       "source_refs": [
         "docs/content/building-gormes/strategy/success-plan.md",
         "scripts/gormes-builder-loop.sh",
-        "scripts/gormes-builder-cron.sh"
+        "scripts/gormes-builder-cron.sh",
+        "internal/loopcost/cost.go",
+        "internal/loopcost/cost_test.go",
+        "internal/codexubuilderloopscript_test.go"
       ],
       "ready_when": [
         "The runner script captures opencode JSONL output to a per-run file (already true: $LOG_DIR/$RUN_ID.opencode.jsonl).",
@@ -116,16 +119,20 @@
         "TestLoopCost_MissingDataIsUnknown returns unknown_cost evidence rather than zero when JSONL is absent.",
         "The loop wrapper's `--cost-report` (or equivalent) subcommand prints the 7-day and 30-day rollups in <100 ms."
       ],
-      "note": "Complete: internal/loopcost package provides ParseRunCost, ParseJSONLCosts, DailyRollup, and WindowRollup with full TDD coverage (11 test cases including missing-cost sentinel, cost-as-string, multi-line JSONL, empty-line skipping, and empty-input handling). The loop wrapper's --cost-report subcommand scans $LOG_DIR/*.opencode.jsonl via jq, computes 7-day and 30-day rolling spend, and prints a one-line summary. Fixture-tested aggregation returns UnknownCost (-1) sentinel rather than false zero when cost data is missing. Source: success-plan.md 30-day action sprint item #5.",
+      "note": "Complete and hardened: internal/loopcost provides parser and rollup coverage, and iteration 25 added shell-wrapper evidence that scripts/gormes-builder-loop.sh writes cost_status, cost_7d_usd/runs, and cost_30d_usd/runs into loop-health.env while cost-report returns explicit unknown_no_cost_data instead of presenting missing telemetry as $0.00. This proves the mechanism; real one-week publication metrics still require elapsed collection time and operator review.",
       "write_scope": [
         "internal/loopcost/cost.go",
         "internal/loopcost/cost_test.go",
         "scripts/gormes-builder-loop.sh",
         "scripts/gormes-builder-cron.sh",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/codexubuilderloopscript_test.go"
       ],
       "test_commands": [
+        "go test ./internal -run TestCodexuBuilderLoop -count=1",
         "go test ./internal/loopcost -count=1",
+        "bash -n scripts/gormes-builder-loop.sh",
+        "GORMES_CODEXU_STATE_DIR=$(mktemp -d) bash scripts/gormes-builder-loop.sh cost-report",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -1048,6 +1055,202 @@
       ],
       "done_signal": [
         "Canonical path is the module-keyed split directory; merge byte-identical to the pre-flip monolith; all consumers/CI/fleet green; one atomic git-reversible commit; single logical backlog + internal/progress.Load contract preserved."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 18,
+    "item": {
+      "name": "OpenCode part-cost telemetry adapter for builder loop",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Teach the builder-loop cost telemetry parser to accept the current OpenCode JSONL step-finish schema where spend is emitted at `part.cost`, token counts are emitted at `part.tokens.input` and `part.tokens.output`, and timestamps may be numeric milliseconds. Preserve the older `usage.cost` schema and keep missing-cost output explicit. The shell `cost-report` path must return `cost_status=ok` for a local fixture containing `part.cost`, without using live providers or external credentials.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If neither `usage.cost` nor `part.cost` is present, keep reporting `unknown_no_cost_data` and never present missing telemetry as `$0.00`.",
+      "fixture": "internal/loopcost/cost_test.go current OpenCode part-cost fixture; internal/codexubuilderloopscript_test.go shell cost-report fixture",
+      "source_refs": [
+        "scripts/gormes-builder-loop.sh cost_window_metrics currently reads only `.usage.cost`",
+        "internal/loopcost/cost.go opencodeLine currently models only `usage.cost` and RFC3339 string timestamps",
+        "/home/xel/.local/state/gormes-agent/builder/logs/*.opencode.jsonl observed current OpenCode events with `type=step_finish`, `part.cost`, `part.tokens.input`, `part.tokens.output`, and numeric millisecond `timestamp`",
+        "docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md records the unknown-cost blocker and says a separate tools/progress row should update the cost-source adapter if JSONL schema drift is confirmed"
+      ],
+      "ready_when": [
+        "Local OpenCode JSONL evidence shows `part.cost` lines exist in the default builder state and no live provider access is required to test a fixture.",
+        "The row only changes parser behavior for telemetry extraction and preserves the public cost-report keys."
+      ],
+      "not_ready_when": [
+        "The implementation would need live provider credentials, external billing APIs, or publication/social credentials.",
+        "The parser would treat missing cost as zero spend or remove the existing `unknown_no_cost_data` degraded mode.",
+        "The change requires broad builder-loop process ownership changes outside cost telemetry extraction."
+      ],
+      "unblocks": [
+        "Engineering writeup #1: autonomous Hermes-porting loop"
+      ],
+      "acceptance": [
+        "`internal/loopcost.ParseRunCost` accepts a current OpenCode step-finish JSONL line with `part.cost`, nested `part.tokens`, and numeric millisecond timestamp while preserving old `usage.cost` fixtures.",
+        "`bash scripts/gormes-builder-loop.sh cost-report` returns `cost_status=ok` and priced 7-day/30-day fields for an isolated fixture log containing `part.cost`.",
+        "Missing-cost fixtures continue to report `unknown_no_cost_data` and do not print `$0.00` spend."
+      ],
+      "note": "Planner 2026-05-23 iteration 56: split from the cost-evidence packet follow-up after source evidence showed default OpenCode logs contain `part.cost` while the current parser only reads `usage.cost`; this is a local, fixture-backed telemetry adapter fix, not publication or billing integration. Builder 2026-05-23 iteration 56: added RED/GREEN coverage for current OpenCode `part.cost` events, numeric millisecond timestamps, and mixed 7-day unknown / 30-day priced summaries; updated `internal/loopcost` and `scripts/gormes-builder-loop.sh` so default builder logs now report 30-day priced telemetry without faking `$0.00` for the missing 7-day window.",
+      "write_scope": [
+        "internal/loopcost/cost.go",
+        "internal/loopcost/cost_test.go",
+        "internal/codexubuilderloopscript_test.go",
+        "scripts/gormes-builder-loop.sh",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "docs/content/building-gormes/strategy/writeups/autonomous-hermes-porting-loop-cost-evidence.md"
+      ],
+      "test_commands": [
+        "go test ./internal/loopcost -count=1",
+        "go test ./internal -run 'TestCodexuBuilderLoop.*Cost' -count=1",
+        "GORMES_CODEXU_STATE_DIR=$(mktemp -d) bash scripts/gormes-builder-loop.sh cost-report",
+        "go run ./cmd/progress validate",
+        "git diff --check",
+        "bash scripts/gormes-builder-loop.sh cost-report"
+      ],
+      "done_signal": [
+        "Report the RED failure for `part.cost`, the GREEN focused Go/shell cost tests, the isolated missing-cost command output, and whether real default builder logs now produce priced 30-day telemetry without claiming one-week publication completion.",
+        "Iteration 56 evidence: `go test ./internal/loopcost -count=1` and `go test ./internal -run 'TestCodexuBuilderLoop.*Cost' -count=1` passed; isolated cost-report remains `unknown_no_cost_data`; default cost-report now returns `cost_status=ok`, `cost_7d_usd=unknown`, `cost_7d_runs=0`, `cost_30d_usd=29.3266`, `cost_30d_runs=6703`, and `7-day spend: unknown | 30-day spend: $29.33 | runs: 0 (7d) / 6703 (30d)`."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 19,
+    "item": {
+      "name": "Progress next-work read-only selector",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Expose a pure read-only `go run ./cmd/progress next-work` command that hides builder-loop candidate-selection mechanics behind a small operator interface. When at least one unblocked builder-ready row exists, it must report `decision=build` plus the top candidate identity and selection reason using the same ranking as `internal/builderloop.NormalizeCandidates`. When no candidate exists, it must report `decision=plan` with an explicit planner action instead of forcing agents to hand-parse generated markdown or create side queues. The command must work identically from monolithic and split progress layouts and must not mutate the canonical backlog.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If candidate selection cannot load or validate progress, return the existing progress load/validation error; if zero candidates exist, return exit 0 with `decision=plan` and no side effects.",
+      "fixture": "internal/progressctl/progressctl_test.go next-work fixtures; cmd/progress/main_test.go CLI fixture",
+      "source_refs": [
+        "internal/builderloop/candidates.go NormalizeCandidates and Candidate.SelectionReason",
+        "internal/progressctl/progressctl.go List/Emit read-only split-safe command patterns",
+        "cmd/progress/main.go command dispatcher and usage string",
+        "docs/content/building-gormes/builder-loop/agent-queue.md empty-queue guidance",
+        "/tmp/architecture-review-gormes-20260523Titer57-next-work.html"
+      ],
+      "ready_when": [
+        "The generated agent queue can be empty while progress rows still need planner repair, so agents need a deterministic read-only command answer.",
+        "Existing `internal/builderloop.NormalizeCandidates` already owns candidate ranking and can be reused rather than duplicated."
+      ],
+      "not_ready_when": [
+        "The implementation changes candidate ranking, mutates progress.json, creates a side backlog, or requires live provider/GitHub credentials.",
+        "The command only works against the current monolithic layout and fails on the split-directory layouts already supported by `progress emit` and `progress list`."
+      ],
+      "acceptance": [
+        "`progress next-work` exits 0 and emits `decision=build` plus phase/subphase/name/reason for the top `NormalizeCandidates` row when a fixture backlog has candidates.",
+        "`progress next-work` exits 0 and emits `decision=plan` plus a concrete planner action when a fixture backlog has no builder-ready rows.",
+        "Tests prove monolith and module-keyed split fixture outputs are identical and the command leaves canonical bytes unchanged."
+      ],
+      "note": "Planner 2026-05-23 iteration 57: split from architecture review after repeated empty agent-queue cycles forced agents to manually inspect generated markdown and jq output. This row keeps the single logical backlog contract and only exposes a read-only command seam over existing candidate selection. Builder 2026-05-23 iteration 57: implemented `go run ./cmd/progress next-work` as a read-only command over `internal/builderloop.NormalizeCandidates`, with RED/GREEN tests for build and plan decisions, monolith/module-split parity, and read-only canonical bytes. Current pre-close smoke selected this row with `decision=build`, proving the command routes real candidate selection instead of markdown parsing.",
+      "write_scope": [
+        "cmd/progress/main.go",
+        "cmd/progress/main_test.go",
+        "internal/progressctl/progressctl.go",
+        "internal/progressctl/progressctl_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progressctl -run NextWork -count=1",
+        "go test ./cmd/progress -run NextWork -count=1",
+        "go run ./cmd/progress next-work",
+        "go run ./cmd/progress validate",
+        "git diff --check",
+        "go test ./internal/progressctl ./cmd/progress -count=1"
+      ],
+      "done_signal": [
+        "Report `progress next-work` output for the current repo, monolith/split-safe tests, read-only proof, and whether the current next decision is build or plan.",
+        "Iteration 57 evidence: focused RED failed for undefined `NextWork` and missing `next-work` CLI command; GREEN passed `go test ./internal/progressctl -run NextWork -count=1`, `go test ./cmd/progress -run NextWork -count=1`, and `go run ./cmd/progress next-work` reported `decision=build` for this row before closure."
+      ],
+      "provenance": {
+        "origin_type": "gormes"
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 20,
+    "item": {
+      "name": "Progress next-work repo-scope filter",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Extend the read-only `go run ./cmd/progress next-work` selector with a repo-scoped option so development-goal runs locked to this repository can avoid claiming rows whose `write_scope` escapes the repo root, such as sibling Navivox Flutter app work. The option must keep using `internal/builderloop.NormalizeCandidates` for ranking, then filter by normalized `write_scope` containment under the selected `--repo-root`. When all builder-ready rows are outside the repo, it must exit 0 with `decision=plan` and a clear split/repair action instead of selecting cross-root work or creating a side queue.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If no in-repo candidate remains after filtering, return `decision=plan` with explicit scope evidence; do not mutate progress data and do not treat cross-root candidates as buildable.",
+      "fixture": "internal/progressctl/progressctl_test.go repo-only next-work fixtures; cmd/progress/main_test.go CLI fixture",
+      "source_refs": [
+        "internal/progressctl/progressctl.go NextWork",
+        "internal/builderloop/candidates.go NormalizeCandidates",
+        "cmd/progress/main.go command dispatcher",
+        "docs/content/building-gormes/architecture_plan/progress.json row `Navivox Telegram-inspired chat polish` write_scope includes ../navivox-app",
+        "/tmp/architecture-review-gormes-20260523Titer58-repo-scope-next-work.html"
+      ],
+      "ready_when": [
+        "`Progress next-work read-only selector` is complete and validated.",
+        "The current highest-ranked builder candidates include cross-root Navivox rows, proving scoped agents need a repo-only selection mode."
+      ],
+      "not_ready_when": [
+        "The implementation changes builder ranking before filtering, mutates progress.json while selecting, or silently ignores ambiguous separate-repo write scopes.",
+        "The command requires live sibling repos, credentials, GitHub access, or Flutter tooling to decide whether a row is inside this repo."
+      ],
+      "blocked_by": [
+        "Progress next-work read-only selector"
+      ],
+      "acceptance": [
+        "`progress next-work --repo-only` selects the highest-ranked candidate whose `write_scope` paths all resolve inside `--repo-root` when such a candidate exists.",
+        "`progress next-work --repo-only` exits 0 with `decision=plan`, `scope=repo`, and a split/repair planner action when every otherwise builder-ready row writes outside the repo or has ambiguous separate-repo scope.",
+        "Tests prove relative `../` write scopes and `(separate repo)` markers are rejected while normal in-repo paths are accepted, without changing default `progress next-work` behavior."
+      ],
+      "note": "Planner 2026-05-23 iteration 58: created after `progress next-work` correctly selected the top builder candidate but the selected Navivox row wrote mostly to `../navivox-app`, outside the locked Gormes project root for this development-goal run. Builder 2026-05-23 iteration 58: implemented `go run ./cmd/progress next-work --repo-only` as a read-only scope filter over ranked builder candidates. RED failed for undefined `NextWorkWithOptions` and unsupported `--repo-only`; GREEN passed focused progressctl/cmd tests and showed the option selects this in-repo row before closure, then returns a scoped planner decision after closure when only cross-root candidates remain.",
+      "write_scope": [
+        "cmd/progress/main.go",
+        "cmd/progress/main_test.go",
+        "internal/progressctl/progressctl.go",
+        "internal/progressctl/progressctl_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progressctl -run NextWork -count=1",
+        "go test ./cmd/progress -run NextWork -count=1",
+        "go run ./cmd/progress next-work --repo-only",
+        "go run ./cmd/progress validate",
+        "git diff --check",
+        "go test ./internal/progressctl ./cmd/progress -count=1"
+      ],
+      "done_signal": [
+        "Report default next-work output, repo-only next-work output, RED/GREEN test evidence, and whether the current repo-only decision is build or plan.",
+        "Iteration 58 evidence: default next-work still preserves builder ranking; repo-only next-work emits `scope=repo` and filters `../`/separate-repo write scopes without mutating progress data."
       ],
       "provenance": {
         "origin_type": "gormes"

@@ -34,11 +34,11 @@ func (rc RunCost) IsUnknownCost() bool {
 
 // CostSummary aggregates cost and token counts across runs.
 type CostSummary struct {
-	TotalCost        float64 `json:"total_cost"`
-	TotalInputTokens int     `json:"total_input_tokens"`
-	TotalOutputTokens int    `json:"total_output_tokens"`
-	RunCount         int     `json:"run_count"`
-	UnknownRuns      int     `json:"unknown_runs"`
+	TotalCost         float64 `json:"total_cost"`
+	TotalInputTokens  int     `json:"total_input_tokens"`
+	TotalOutputTokens int     `json:"total_output_tokens"`
+	RunCount          int     `json:"run_count"`
+	UnknownRuns       int     `json:"unknown_runs"`
 }
 
 // Rollup represents a cost aggregation over a time window.
@@ -52,7 +52,8 @@ type Rollup struct {
 // opencodeLine is the subset of opencode JSONL we parse.
 type opencodeLine struct {
 	Usage     *opencodeUsage `json:"usage"`
-	Timestamp string         `json:"timestamp"`
+	Part      *opencodePart  `json:"part"`
+	Timestamp interface{}    `json:"timestamp"`
 }
 
 type opencodeUsage struct {
@@ -61,10 +62,21 @@ type opencodeUsage struct {
 	OutputTokens int         `json:"output_tokens"`
 }
 
+type opencodePart struct {
+	Cost   interface{}         `json:"cost"` // number or string
+	Tokens *opencodePartTokens `json:"tokens"`
+}
+
+type opencodePartTokens struct {
+	Input  int `json:"input"`
+	Output int `json:"output"`
+}
+
 // ParseRunCost parses a single opencode JSONL run file and returns a RunCost.
 func ParseRunCost(r io.Reader, runID string) (RunCost, error) {
 	scanner := bufio.NewScanner(r)
 	var lastCost *RunCost
+	seenJSON := false
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -75,34 +87,20 @@ func ParseRunCost(r io.Reader, runID string) (RunCost, error) {
 		if err := json.Unmarshal([]byte(line), &ol); err != nil {
 			continue // skip non-JSON lines
 		}
-		rc := RunCost{RunID: runID, Backend: "opencode"}
-		if ol.Usage != nil {
-			rc.InputTokens = ol.Usage.InputTokens
-			rc.OutputTokens = ol.Usage.OutputTokens
-			c, hasCost := parseCost(ol.Usage.Cost)
-			if hasCost {
-				rc.CostUSD = c
-			} else {
-				rc.CostUSD = UnknownCost
-			}
-		} else {
-			rc.CostUSD = UnknownCost
+		seenJSON = true
+		rc, hasCost := runCostFromOpenCodeLine(ol, runID)
+		if hasCost {
+			lastCost = &rc
 		}
-		if ol.Timestamp != "" {
-			if t, err := time.Parse(time.RFC3339, ol.Timestamp); err == nil {
-				rc.Timestamp = t
-			}
-		}
-		lastCost = &rc
 	}
 
 	if err := scanner.Err(); err != nil {
 		return RunCost{}, fmt.Errorf("reading run %q: %w", runID, err)
 	}
-	if lastCost == nil {
+	if !seenJSON {
 		return RunCost{}, fmt.Errorf("run %q: no valid JSONL lines found", runID)
 	}
-	if lastCost.CostUSD == UnknownCost {
+	if lastCost == nil {
 		return RunCost{}, fmt.Errorf("run %q: no cost data found in JSONL", runID)
 	}
 	return *lastCost, nil
@@ -124,27 +122,7 @@ func ParseJSONLCosts(r io.Reader) ([]RunCost, error) {
 		if err := json.Unmarshal([]byte(line), &ol); err != nil {
 			continue // skip non-JSON lines
 		}
-		rc := RunCost{
-			RunID:   fmt.Sprintf("line-%d", lineNum),
-			Backend: "opencode",
-		}
-		if ol.Usage != nil {
-			rc.InputTokens = ol.Usage.InputTokens
-			rc.OutputTokens = ol.Usage.OutputTokens
-			c, hasCost := parseCost(ol.Usage.Cost)
-			if hasCost {
-				rc.CostUSD = c
-			} else {
-				rc.CostUSD = UnknownCost
-			}
-		} else {
-			rc.CostUSD = UnknownCost
-		}
-		if ol.Timestamp != "" {
-			if t, err := time.Parse(time.RFC3339, ol.Timestamp); err == nil {
-				rc.Timestamp = t
-			}
-		}
+		rc, _ := runCostFromOpenCodeLine(ol, fmt.Sprintf("line-%d", lineNum))
 		costs = append(costs, rc)
 	}
 
@@ -196,6 +174,61 @@ func WindowRollup(costs []RunCost, window time.Duration, now time.Time) Rollup {
 		End:     now,
 		Summary: summary,
 	}
+}
+
+func runCostFromOpenCodeLine(ol opencodeLine, runID string) (RunCost, bool) {
+	rc := RunCost{RunID: runID, Backend: "opencode", CostUSD: UnknownCost}
+	hasCost := false
+	if ol.Usage != nil {
+		rc.InputTokens = ol.Usage.InputTokens
+		rc.OutputTokens = ol.Usage.OutputTokens
+		if c, ok := parseCost(ol.Usage.Cost); ok {
+			rc.CostUSD = c
+			hasCost = true
+		}
+	}
+	if ol.Part != nil {
+		if ol.Part.Tokens != nil {
+			rc.InputTokens = ol.Part.Tokens.Input
+			rc.OutputTokens = ol.Part.Tokens.Output
+		}
+		if c, ok := parseCost(ol.Part.Cost); ok {
+			rc.CostUSD = c
+			hasCost = true
+		}
+	}
+	if t, ok := parseTimestamp(ol.Timestamp); ok {
+		rc.Timestamp = t
+	}
+	return rc, hasCost
+}
+
+func parseTimestamp(v interface{}) (time.Time, bool) {
+	switch val := v.(type) {
+	case string:
+		if val == "" {
+			return time.Time{}, false
+		}
+		if t, err := time.Parse(time.RFC3339, val); err == nil {
+			return t, true
+		}
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			return timestampFromNumber(f)
+		}
+	case float64:
+		return timestampFromNumber(val)
+	}
+	return time.Time{}, false
+}
+
+func timestampFromNumber(v float64) (time.Time, bool) {
+	if v <= 0 {
+		return time.Time{}, false
+	}
+	if v > 1e12 {
+		return time.UnixMilli(int64(v)).UTC(), true
+	}
+	return time.Unix(int64(v), 0).UTC(), true
 }
 
 // parseCost extracts a float64 cost from either a JSON number or string.

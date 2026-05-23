@@ -91,18 +91,18 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 95/111 subphases shipped · 16 in progress · 0 planned
+**Overall:** 105/111 subphases shipped · 6 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
+| Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -164,7 +164,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux real-device smoke evidence
 - [x] `install` Termux remote execution guidance
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -306,7 +306,7 @@ classification and row-backed implementation queue.
 - [x] `channels` Discord SessionSource guild/parent/message evidence
 - [x] `channels` Discord forum media + polish parity
 
-### 2.B.12 — Channel-Neutral Native Runtime Adapter 🔨
+### 2.B.12 — Channel-Neutral Native Runtime Adapter ✅
 
 - [x] `gateway` Channel-neutral native runtime turn adapter
 - [x] `gateway` Hermes gateway platform registry manifest
@@ -317,7 +317,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox Flutter voice morph surface
 - [x] `gateway` Multimodal photo attachment passthrough
 - [x] `gateway` Hermes-style default prompt and image-path hints for inbound photos
-- [ ] `channels` Hermes gateway platform strict-fidelity source-pair expansion
+- [x] `channels` Hermes gateway platform strict-fidelity source-pair expansion
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -873,7 +873,7 @@ classification and row-backed implementation queue.
 - [x] `tools` ACP session CWD propagation into prompt runners
 - [x] `tools` ACP setup-browser bootstrap parity
 
-### 5.I — Plugins Architecture 🔨
+### 5.I — Plugins Architecture ✅
 
 - [x] `skills` Plugin SDK
 - [x] `skills` Dashboard theme/plugin extension status contract
@@ -889,7 +889,7 @@ classification and row-backed implementation queue.
 - [x] `doctor` Plugin Marketplace + Doctor
 - [x] `skills` Extension Lifecycle Hook System
 - [x] `skills` Plugin lifecycle hook: transform_llm_output
-- [ ] `skills` Hermes plugin catalog strict-fidelity classifier
+- [x] `skills` Hermes plugin catalog strict-fidelity classifier
 
 ### 5.J — Approval / Security Guards ✅
 
@@ -1053,7 +1053,7 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho golden transcript e2e harness
 - [x] `goncho` Goncho retrieval benchmark corpus
 
-### 5.O — Hermes CLI Parity 🔨
+### 5.O — Hermes CLI Parity ✅
 
 - [x] `cli` 49-file CLI tree port
 - [x] `cli` Hermes CLI command-tree parity manifest
@@ -1155,10 +1155,10 @@ classification and row-backed implementation queue.
 - [x] `doctor` gormes doctor ◆ Profiles section content
 - [x] `doctor` gormes doctor ◆ Security Advisories section content
 - [x] `config` gormes setup <section> boxed header + completion footer (UX parity)
-- [ ] `profiles` Profile Control Center v2 umbrella — single root config and active services
+- [x] `profiles` Profile Control Center v2 umbrella — single root config and active services
 - [x] `profiles` gormes setup profiles — section scaffold + per-profile workspace list
 - [x] `profiles` gormes setup profiles — per-profile channels (telegram/whatsapp/discord/slack)
-- [ ] `navivox` Navivox multi-server profile routing config model
+- [x] `navivox` Navivox multi-server profile routing config model
 - [x] `providers` Custom provider model-switch credential preservation
 - [x] `providers` Custom provider model-switch key_env write guard
 - [x] `cli` CLI log redactor for known secret shapes
@@ -1177,7 +1177,7 @@ classification and row-backed implementation queue.
 - [x] `sessions` Hermes session recap command surface
 - [x] `profiles` Profile workspace allow-list enforcement policy
 - [x] `profiles` Profile-local subprocess HOME parity
-- [ ] `profiles` Long-term plan: profile fleet supervisor and single control-plane gateway
+- [x] `profiles` Long-term plan: profile fleet supervisor and single control-plane gateway
 - [x] `cli` CLI module contract registry and manifest gate
 - [x] `cli` cmd/gormes profile command package extraction
 - [x] `cli` cmd/gormes setup section registry extraction
@@ -1189,11 +1189,11 @@ classification and row-backed implementation queue.
 - [x] `channels` cmd/gormes channel service command package extraction
 - [x] `cli` cmd/gormes root command assembly extraction
 - [x] `config` Root config.toml v2 profile service schema
-- [ ] `config` Legacy profile config v2 migration planner
-- [ ] `profiles` Profile Control Center read model
-- [ ] `profiles` Profile Control Center TUI shell and draft apply flow
-- [ ] `providers` Per-profile provider credential readiness
-- [ ] `channels` Per-profile channel credential readiness and allow-lists
+- [x] `config` Legacy profile config v2 migration planner
+- [x] `profiles` Profile Control Center read model
+- [x] `profiles` Profile Control Center TUI shell and draft apply flow
+- [x] `providers` Per-profile provider credential readiness
+- [x] `channels` Per-profile channel credential readiness and allow-lists
 - [x] `providers` Gormes setup providers plural alias
 
 ### 5.P — Docker / Packaging ✅
@@ -1213,7 +1213,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux exec argv path-alias sanitizer
 - [x] `install` Termux binary-fetch publish verification source fallback
 
-### 5.Q — API Server + TUI Gateway Streaming 🔨
+### 5.Q — API Server + TUI Gateway Streaming ✅
 
 - [x] `profiles` Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
 - [x] `gateway` TUI gateway tool-progress mode normalizer
@@ -1231,6 +1231,8 @@ classification and row-backed implementation queue.
 - [x] `tui` Native TUI /save XDG export helper
 - [x] `tui` Native TUI /save local runtime binding
 - [x] `tui` Native TUI /branch session fork + transcript target switch
+- [x] `tui` Native TUI /branch local runtime resident-session binding
+- [x] `tui` Native TUI resident session-switch replay helper
 - [x] `gateway` TUI running-agent placeholder surfaces interrupt + queued slash actions
 - [x] `tui` Native TUI conversation viewport tail helper
 - [x] `tui` Native TUI queued-message edit helper
@@ -1269,13 +1271,30 @@ classification and row-backed implementation queue.
 - [x] `tui` Native TUI /model slash command binding over the existing model picker
 - [x] `tui` Kernel in-session model-switch seam for the native TUI
 - [x] `gateway` Kernel cross-provider client swap for in-session model switch
-- [ ] `tui` Native TUI slash handler-port coverage
+- [x] `tui` Native TUI slash handler-port coverage
+- [x] `tui` Native TUI shipped slash command registry availability metadata
 - [x] `tui` Native TUI Terminal.app truecolor and ANSI sanitizer parity
-- [ ] `tui` Hermes ui-tui strict-fidelity action matrix
-- [ ] `gateway` Hermes web dashboard strict-fidelity contract map
+- [x] `tui` Hermes ui-tui strict-fidelity action matrix
+- [x] `gateway` Hermes web dashboard strict-fidelity contract map
 - [x] `tui` Native TUI /help slash command binding
+- [x] `tui` Native TUI /redraw local repaint binding
+- [x] `tui` Native TUI /statusbar chrome mode binding
+- [x] `tui` Native TUI /details detail-section visibility binding
+- [x] `tui` Native TUI /indicator busy-indicator style binding
+- [x] `tui` Native TUI /history current transcript page binding
+- [x] `tui` Native TUI /status current frame page binding
+- [x] `tui` Native TUI /logs gateway tail page binding
+- [x] `tui` Native TUI /title session-title binding
+- [x] `tui` Native TUI /sessions and /resume picker page binding
+- [x] `tui` Native TUI /resume session switch binding
+- [x] `tui` Native TUI /usage local frame usage page binding
+- [x] `tui` Native TUI /usage provider account usage adapter binding
 - [x] `tui` Native TUI /clear and /new reset-session binding
 - [x] `tui` Native TUI /compact transcript toggle binding
+- [x] `tui` Native TUI /skills read-only hub binding
+- [x] `tui` Native TUI /tools enable-disable binding
+- [x] `tui` Native TUI /voice status and toggle binding
+- [x] `tui` Native TUI /skin get-set binding
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1317,26 +1336,26 @@ classification and row-backed implementation queue.
 - [x] `runtime` Hermes i18n static-message port
 - [x] `runtime` Hermes i18n expanded locale catalog parity
 
-## Phase 6 — The Learning Loop (Soul) 🔨
+## Phase 6 — The Learning Loop (Soul) ✅
 
 *Hermes-compatible background review and skill curation, plus Gormes-native evidence gates for safe compounding intelligence.*
 
-### 6.A — Complexity Detector 🔨
+### 6.A — Complexity Detector ✅
 
 - [x] `learning-loop` Hermes background review fork lifecycle
-- [ ] `learning-loop` Deterministic learning-loop trigger signals
+- [x] `learning-loop` Deterministic learning-loop trigger signals
 
 ### 6.B — Skill Extractor ✅
 
 - [x] `skills` LLM-assisted pattern distillation
 
-### 6.C — Skill Storage Format 🔨
+### 6.C — Skill Storage Format ✅
 
 - [x] `skills` SKILL.md frontmatter validation guard
 - [x] `skills` Hermes creative skill metadata compatibility
 - [x] `skills` Portable SKILL.md format
 - [x] `skills` Hermes v0.14 optional skill catalog refresh
-- [ ] `skills` Hermes skill catalog strict-fidelity classifier
+- [x] `skills` Hermes skill catalog strict-fidelity classifier
 
 ### 6.D — Skill Retrieval + Matching ✅
 
@@ -1345,20 +1364,20 @@ classification and row-backed implementation queue.
 - [x] `gateway` Delta-bounded skill and memory maintenance passes
 - [x] `skills` Code Cathedral II code-context retrieval fixtures
 
-### 6.E — Feedback Loop 🔨
+### 6.E — Feedback Loop ✅
 
 - [x] `providers` Hermes curator auxiliary model routing slot
 - [x] `skills` Hermes curator state transitions and run reports
 - [x] `skills` Hermes curator rename summary notice
 - [x] `learning-loop` Hermes review prompt transient-environment guard
-- [ ] `skills` Skill effectiveness scoring
+- [x] `skills` Skill effectiveness scoring
 
-### 6.F — Skill Surface 🔨
+### 6.F — Skill Surface ✅
 
 - [x] `skills` Hermes skill_manage support-file and curator intent actions
 - [x] `skills` Hermes curator command surface
 - [x] `skills` Hermes curator archive/list/prune CLI catch-up
-- [ ] `channels` TUI + Telegram browsing
+- [x] `channels` TUI + Telegram browsing
 - [x] `skills` Native skills list/view tool surface
 
 ### 6.G — Structured Memory Types ✅
@@ -1392,7 +1411,7 @@ classification and row-backed implementation queue.
 - [x] `profiles` Agent personalities + enhanced display config
 - [x] `stt` Session auto-reset + STT config parity
 
-## Phase 7 — Paused Channel Backlog 🔨
+## Phase 7 — Paused Channel Backlog ✅
 
 *Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize*
 
@@ -1423,7 +1442,7 @@ classification and row-backed implementation queue.
 - [x] `channels` Signed event parsing + auth gates
 - [x] `channels` Prompt-to-delivery routing bridge
 
-### 7.E — Regional + Device Adapter Backlog 🔨
+### 7.E — Regional + Device Adapter Backlog ✅
 
 - [x] `channels` BlueBubbles + HomeAssistant adapters
 - [x] `channels` BlueBubbles iMessage bubble formatting parity
@@ -1448,7 +1467,7 @@ classification and row-backed implementation queue.
 - [x] `channels` Google Chat relay sender-type self-filter
 - [x] `channels` Google Chat standalone cron sender
 - [x] `channels` Google Chat install dependency hint refresh
-- [ ] `channels` SimpleX Chat platform plugin parity
+- [x] `channels` SimpleX Chat platform plugin parity
 
 ## Phase 8 — Reputation & Publication 🔨
 
@@ -1459,13 +1478,13 @@ classification and row-backed implementation queue.
 - [x] `docs` TD engineering blog scaffolded and live
 - [ ] `docs` TD social presence connected to blog feed
 
-### 8.B — Repository Messaging 🔨
+### 8.B — Repository Messaging ✅
 
 - [x] `docs` README rewrite to methodology-first positioning
 - [x] `docs` README release and benchmark metadata sync
 - [x] `landing` gormes.ai landing page positioning audit
 - [x] `docs` Gormes market comparison positioning brief
-- [ ] `docs` Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents
+- [x] `docs` Public comparison matrix: Gormes vs Hermes, OpenClaw, hosted agents
 - [x] `channels` Channel capability matrix with stable/fixture/planned labels
 - [x] `learning-loop` Learning-loop proof demo for skills, memory, and curator
 - [x] `install` No-stack first-run proof path from install to offline doctor
@@ -1474,6 +1493,8 @@ classification and row-backed implementation queue.
 ### 8.C — Engineering Writeups 🔨
 
 - [ ] `docs` Engineering writeup #1: autonomous Hermes-porting loop
+- [x] `docs` Engineering writeup #1 cost telemetry evidence packet
+- [x] `docs` Engineering writeup #1 local publication review packet
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
 - [x] `docs` Hermes contract inventory gate
 - [x] `docs` Strict-fidelity upstream test-suite classifier
@@ -1508,6 +1529,10 @@ classification and row-backed implementation queue.
 ### 8.E — Toolkit Extraction 🔨
 
 - [x] `docs` Agentic-porting-kit extraction spec
+- [x] `docs` Agentic-porting-kit local standalone fixture
+- [x] `docs` Agentic-porting-kit local porting skill skeletons
+- [x] `docs` Agentic-porting-kit local README and license fixture
+- [x] `docs` Agentic-porting-kit local public layout assembly gate
 - [ ] `docs` Agentic-porting-kit public repo scaffold
 
 ### 8.F — Cost Discipline & Loop Economics ✅
@@ -1530,6 +1555,9 @@ classification and row-backed implementation queue.
 - [x] `progress` Backlog split C5h: add module-scoped progress commands for planner and builder selection
 - [x] `progress` Backlog split C5i: render per-module roadmap pages before the physical split
 - [x] `progress` Backlog split C5: single atomic operator-gated flip to the module-keyed split directory
+- [x] `progress` OpenCode part-cost telemetry adapter for builder loop
+- [x] `progress` Progress next-work read-only selector
+- [x] `progress` Progress next-work repo-scope filter
 
 ### 8.G — Community & External Contributions ✅
 
@@ -1563,7 +1591,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Remove Flutter SSH keys feature
 - [x] `navivox` Navivox VPN host enumeration helper
 - [x] `navivox` Navivox HTTP gateway mandatory-VPN bind
-- [x] `navivox` Navivox HTTP gateway connect-info command
+- [x] `navivox` Navivox HTTP gateway connect command
 - [x] `navivox` Navivox setup QR image pairing handoff
 
 ### 9.F — Navivox Operator Activation 🔨
@@ -1573,11 +1601,16 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox profile contact summary API
 - [x] `navivox` Navivox continuous voice command mode
 - [ ] `navivox` Navivox Telegram-inspired chat polish
-- [ ] `navivox` Navivox natural-language profile seed flow
-- [ ] `navivox` Navivox structured tool event cards
-- [ ] `navivox` Navivox safe config admin over HTTP
-- [ ] `navivox` Navivox voice run records
-- [ ] `navivox` Navivox per-profile BYO voice profiles
+- [x] `navivox` Navivox natural-language profile seed backend API
+- [ ] `navivox` Navivox natural-language profile seed Flutter UI
+- [x] `navivox` Navivox structured tool event cards backend API
+- [ ] `navivox` Navivox structured tool event cards Flutter UI
+- [x] `navivox` Navivox safe config admin backend API
+- [ ] `navivox` Navivox safe config admin Flutter UI
+- [x] `navivox` Navivox voice run records backend API
+- [ ] `navivox` Navivox voice run records Flutter inspection UI
+- [x] `navivox` Navivox per-profile BYO voice profiles backend API
+- [ ] `navivox` Navivox per-profile BYO voice profiles Flutter UI
 
 ### 9.G — External Issue Radar Regression Guards ✅
 

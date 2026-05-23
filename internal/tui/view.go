@@ -61,7 +61,7 @@ func (m Model) View() string {
 		convW = 4
 	}
 
-	conv := conversationViewportTailWithMode(m.frame, convW, convH, m.compactTranscript)
+	conv := conversationViewportTailWithSkinAndDetails(m.frame, convW, convH, m.compactTranscript, m.detailsState, m.currentSkin())
 
 	editorW := m.width
 	if editorW < 10 {
@@ -70,13 +70,20 @@ func (m Model) View() string {
 	editor.SetWidth(editorW)
 	prompt := editor.View()
 
-	statusBar := RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
+	statusBar := ""
+	statusBarMode := normalizeStatusBarMode(m.statusBarMode)
+	if statusBarMode != StatusBarModeOff {
+		statusBar = RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
+	}
 
 	hint := m.renderHermesHint()
 	completions := renderSlashCompletionMenu(editor.Value(), m.width)
 
 	// Render the active modal panel if one is present.
 	panel := m.RenderActivePanel(m.width, m.height)
+	if m.transientPage != nil && panel == "" {
+		panel = RenderTransientPage(*m.transientPage, m.width, convH)
+	}
 	if m.modelPicker != nil {
 		picker := *m.modelPicker
 		picker.Width = m.width
@@ -88,25 +95,30 @@ func (m Model) View() string {
 	todoPanel := m.renderTodoPanel(convW)
 
 	return RenderHermesChrome(HermesChromeInput{
-		Width:        m.width,
-		Conversation: conv,
-		Spinner:      hint,
-		Panel:        panel,
-		TodoPanel:    todoPanel,
-		StatusBar:    statusBar,
-		Prompt:       prompt,
-		Completions:  completions,
+		Width:         m.width,
+		Conversation:  conv,
+		Spinner:       hint,
+		Panel:         panel,
+		TodoPanel:     todoPanel,
+		StatusBar:     statusBar,
+		StatusBarMode: statusBarMode,
+		Prompt:        prompt,
+		Completions:   completions,
 	})
 }
 
 func (m Model) renderHermesHint() string {
-	return renderHermesHint(m.frame, m.statusMessage, m.width, m.spinnerFrame)
+	return renderHermesHintWithIndicator(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle)
 }
 
 func renderHermesHint(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int) string {
+	return renderHermesHintWithIndicator(f, statusMessage, width, spinnerFrame, IndicatorStyleKaomoji)
+}
+
+func renderHermesHintWithIndicator(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle) string {
 	var parts []string
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
-		parts = append(parts, RenderSpinnerFrame("", spinnerFrame))
+		parts = append(parts, RenderIndicatorFrame(indicator, spinnerFrame))
 		parts = append(parts, strings.ToLower(f.Phase.String()))
 		if f.SessionID != "" {
 			parts = append(parts, "session "+shortSessionID(f.SessionID))
@@ -202,6 +214,14 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 }
 
 func conversationViewportTailWithMode(f kernel.RenderFrame, width, height int, forceCompact bool) string {
+	return conversationViewportTailWithDetails(f, width, height, forceCompact, DefaultDetailsState())
+}
+
+func conversationViewportTailWithDetails(f kernel.RenderFrame, width, height int, forceCompact bool, details DetailsState) string {
+	return conversationViewportTailWithSkinAndDetails(f, width, height, forceCompact, details, DefaultHermesSkin())
+}
+
+func conversationViewportTailWithSkinAndDetails(f kernel.RenderFrame, width, height int, forceCompact bool, details DetailsState, skin HermesSkin) string {
 	if width < 4 {
 		width = 4
 	}
@@ -210,7 +230,7 @@ func conversationViewportTailWithMode(f kernel.RenderFrame, width, height int, f
 	}
 	wrapWidth := width - 4
 	compact := forceCompact || width < 8 || height < 3
-	forced := conversationForcedBlocks(f, wrapWidth, compact)
+	forced := conversationForcedBlocksWithDetails(f, wrapWidth, compact, details)
 	maxLines := height + 1 + len(forced)
 
 	var visible []string
@@ -236,16 +256,21 @@ func conversationViewportTailWithMode(f kernel.RenderFrame, width, height int, f
 	lines = append(lines, visible...)
 	lines = append(lines, forced...)
 	if len(lines) == 0 {
-		return conversationEmptyIntro(f, width, compact)
+		return conversationEmptyIntroWithSkin(f, width, compact, skin)
 	}
 	return strings.Join(lines, "\n\n")
 }
 
 func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool) []string {
+	return conversationForcedBlocksWithDetails(f, wrapWidth, compact, DefaultDetailsState())
+}
+
+func conversationForcedBlocksWithDetails(f kernel.RenderFrame, wrapWidth int, compact bool, details DetailsState) []string {
+	details = NormalizeDetailsState(details)
 	var blocks []string
 	hasFinal := frameHasFinalAssistant(f)
 	if !hasFinal {
-		if progress := conversationToolProgressBlock(f, wrapWidth, compact); progress != "" {
+		if progress := conversationToolProgressBlockWithMode(f, wrapWidth, compact, details.SectionMode(DetailsSectionTools)); progress != "" {
 			blocks = append(blocks, progress)
 		}
 	}
@@ -260,7 +285,7 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool)
 	// thinking indicator so the user is never left wondering. Suppressed the
 	// moment any real signal exists so it never disturbs transcript order.
 	if len(blocks) == 0 && !hasFinal && turnIsActive(f.Phase) {
-		if think := conversationThinkingBlock(compact); think != "" {
+		if think := conversationThinkingBlockWithMode(compact, details.SectionMode(DetailsSectionThinking)); think != "" {
 			blocks = append(blocks, think)
 		}
 	}
@@ -279,11 +304,18 @@ func turnIsActive(p kernel.Phase) bool {
 // conversationThinkingBlock reuses thinking.go's RenderThinking (it is not
 // reimplemented here) to render the live "reasoning" indicator.
 func conversationThinkingBlock(compact bool) string {
+	return conversationThinkingBlockWithMode(compact, DetailsModeExpanded)
+}
+
+func conversationThinkingBlockWithMode(compact bool, mode DetailsMode) string {
+	if mode == DetailsModeHidden {
+		return ""
+	}
 	t := RenderThinking(ThinkingState{Visible: true})
 	if t == "" {
 		return ""
 	}
-	if compact {
+	if compact || mode == DetailsModeCollapsed {
 		return compactViewportText(t)
 	}
 	return muted.Render(t)
@@ -314,8 +346,15 @@ func lastAssistantContent(history []hermes.Message) string {
 }
 
 func conversationToolProgressBlock(f kernel.RenderFrame, wrapWidth int, compact bool) string {
+	return conversationToolProgressBlockWithMode(f, wrapWidth, compact, DetailsModeExpanded)
+}
+
+func conversationToolProgressBlockWithMode(f kernel.RenderFrame, wrapWidth int, compact bool, mode DetailsMode) string {
+	if mode == DetailsModeHidden {
+		return ""
+	}
 	if trail := RenderToolTrail(conversationToolTrailNodes(f)); trail != "" {
-		if compact {
+		if compact || mode == DetailsModeCollapsed {
 			return compactViewportText(trail)
 		}
 		if wrapWidth > 0 {
@@ -331,7 +370,7 @@ func conversationToolProgressBlock(f kernel.RenderFrame, wrapWidth int, compact 
 	if progress == "" {
 		return ""
 	}
-	if compact {
+	if compact || mode == DetailsModeCollapsed {
 		return compactViewportText(progress)
 	}
 	if wrapWidth > 0 {
@@ -533,6 +572,10 @@ func renderedLineCount(s string) int {
 }
 
 func conversationEmptyIntro(f kernel.RenderFrame, width int, compact bool) string {
+	return conversationEmptyIntroWithSkin(f, width, compact, DefaultHermesSkin())
+}
+
+func conversationEmptyIntroWithSkin(f kernel.RenderFrame, width int, compact bool, skin HermesSkin) string {
 	if compact {
 		return muted.Render("⚕ Gormes · /help for commands")
 	}
@@ -544,7 +587,7 @@ func conversationEmptyIntro(f kernel.RenderFrame, width int, compact bool) strin
 		SessionID: f.SessionID,
 		Version:   buildInfoVersion(),
 	}
-	return welcomePanel(DefaultHermesSkin(), ctx, width)
+	return welcomePanel(skin, ctx, width)
 }
 
 // buildInfoVersion returns the operator-facing module version when the binary

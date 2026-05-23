@@ -20,6 +20,8 @@ import (
 // Default STT provider configuration values
 const (
 	// Provider names (normalized) - reuse TTS constants where applicable
+	ProviderNameDevice  = "device"
+	ProviderNameLocal   = "local"
 	ProviderNameGroq    = "groq"
 	ProviderNameMistral = "mistral"
 	ProviderNameXAI     = "xai"
@@ -55,6 +57,21 @@ func (c TranscriptionProviderConfig) httpTimeout() time.Duration {
 		return c.Timeout
 	}
 	return DefaultSTTTimeout
+}
+
+var builtinTranscriptionProviderOrder = []string{
+	ProviderNameDevice,
+	ProviderNameLocal,
+	ProviderNameOpenAI,
+	ProviderNameGroq,
+	ProviderNameMistral,
+	ProviderNameXAI,
+}
+
+func BuiltinTranscriptionProviderNames() []string {
+	out := make([]string, len(builtinTranscriptionProviderOrder))
+	copy(out, builtinTranscriptionProviderOrder)
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -578,6 +595,8 @@ func RegisterTranscriptionProviders(into map[string]TranscriptionProvider, cfg T
 // nil if valid.
 func ValidateTranscriptionProviderConfig(provider string, cfg TranscriptionProviderConfig) error {
 	switch normalizeTranscriptionProviderName(provider) {
+	case ProviderNameDevice, ProviderNameLocal:
+		return nil
 	case ProviderNameOpenAI: // from tts_providers.go
 		if cfg.APIKey == "" {
 			key := os.Getenv("GORMES_STT_OPENAI_KEY")

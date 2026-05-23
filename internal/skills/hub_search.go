@@ -96,12 +96,30 @@ type HubSearchOptions struct {
 	Limit int
 }
 
+// HubBrowseOptions are the read-side options accepted by Browse.
+type HubBrowseOptions struct {
+	Page     int
+	PageSize int
+}
+
 // HubSearchResponse pairs the sorted, deduped result list with a typed
 // evidence value describing degraded conditions. The shape is wire-stable so
 // gateway and TUI slices can serialise it directly.
 type HubSearchResponse struct {
 	Results  []HubSearchResult `json:"results"`
 	Evidence HubSearchEvidence `json:"evidence,omitempty"`
+}
+
+// HubBrowseResponse is the paginated read-only view used by gateway and TUI
+// skills browsing. It deliberately carries only metadata and result summaries;
+// install/edit/review state belongs to later mutating rows.
+type HubBrowseResponse struct {
+	Results    []HubSearchResult `json:"results"`
+	Evidence   HubSearchEvidence `json:"evidence,omitempty"`
+	Page       int               `json:"page"`
+	PageSize   int               `json:"page_size"`
+	Total      int               `json:"total"`
+	TotalPages int               `json:"total_pages"`
 }
 
 // PreferHermesIndexProvider mirrors Hermes' source-router preference for the
@@ -150,14 +168,64 @@ func Search(ctx context.Context, query string, providers []HubRegistryProvider, 
 	}
 
 	needle := strings.ToLower(trimmed)
+	results, evidence, err := collectHubResults(ctx, providers, func(r HubSearchResult) bool {
+		haystack := strings.ToLower(r.Name + " " + r.Description)
+		return strings.Contains(haystack, needle)
+	})
+	if err != nil {
+		return HubSearchResponse{}, err
+	}
+	if opts.Limit > 0 && len(results) > opts.Limit {
+		results = results[:opts.Limit]
+	}
+	return HubSearchResponse{Results: results, Evidence: evidence}, nil
+}
 
+// Browse returns a page of all read-only registry results. It shares Search's
+// provider, dedupe, and sort rules, but does not require a query.
+func Browse(ctx context.Context, providers []HubRegistryProvider, opts HubBrowseOptions) (HubBrowseResponse, error) {
+	results, evidence, err := collectHubResults(ctx, providers, func(HubSearchResult) bool { return true })
+	if err != nil {
+		return HubBrowseResponse{}, err
+	}
+	pageSize := opts.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	page := opts.Page
+	if page <= 0 {
+		page = 1
+	}
+	total := len(results)
+	totalPages := 0
+	if total > 0 {
+		totalPages = (total + pageSize - 1) / pageSize
+		if page > totalPages {
+			page = totalPages
+		}
+	}
+	start := 0
+	if page > 1 {
+		start = (page - 1) * pageSize
+	}
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+	pageResults := []HubSearchResult(nil)
+	if start < end && start < total {
+		pageResults = append(pageResults, results[start:end]...)
+	}
+	return HubBrowseResponse{Results: pageResults, Evidence: evidence, Page: page, PageSize: pageSize, Total: total, TotalPages: totalPages}, nil
+}
+
+func collectHubResults(ctx context.Context, providers []HubRegistryProvider, keep func(HubSearchResult) bool) ([]HubSearchResult, HubSearchEvidence, error) {
 	var (
 		merged      []HubSearchResult
 		unavailable bool
 		rateLimited bool
 		malformed   bool
 	)
-
 	for _, p := range providers {
 		if p == nil {
 			continue
@@ -172,13 +240,12 @@ func Search(ctx context.Context, query string, providers []HubRegistryProvider, 
 			case errors.Is(err, ErrRegistryMalformed):
 				malformed = true
 			default:
-				return HubSearchResponse{}, err
+				return nil, "", err
 			}
 			continue
 		}
 		for _, r := range snap {
-			haystack := strings.ToLower(r.Name + " " + r.Description)
-			if strings.Contains(haystack, needle) {
+			if keep == nil || keep(r) {
 				merged = append(merged, r)
 			}
 		}
@@ -208,10 +275,6 @@ func Search(ctx context.Context, query string, providers []HubRegistryProvider, 
 		return deduped[i].Name < deduped[j].Name
 	})
 
-	if opts.Limit > 0 && len(deduped) > opts.Limit {
-		deduped = deduped[:opts.Limit]
-	}
-
 	var evidence HubSearchEvidence
 	switch {
 	case unavailable:
@@ -223,6 +286,5 @@ func Search(ctx context.Context, query string, providers []HubRegistryProvider, 
 	case len(deduped) == 0:
 		evidence = HubSearchEvidenceNoResults
 	}
-
-	return HubSearchResponse{Results: deduped, Evidence: evidence}, nil
+	return deduped, evidence, nil
 }

@@ -85,6 +85,28 @@ func TestExportMarkdown_MissingSession(t *testing.T) {
 	}
 }
 
+func TestLoadMessagesReturnsOrderedHermesMessages(t *testing.T) {
+	store := openTranscriptStore(t)
+	defer store.Close(context.Background())
+
+	mustInsertTurn(t, store.DB(), transcriptRow{SessionID: "sess-resume", Role: "assistant", Content: "second", TSUnix: 200})
+	mustInsertTurn(t, store.DB(), transcriptRow{SessionID: "sess-resume", Role: "user", Content: "first", TSUnix: 100})
+
+	got, err := LoadMessages(context.Background(), store.DB(), "sess-resume")
+	if err != nil {
+		t.Fatalf("LoadMessages: %v", err)
+	}
+	want := []Message{{Role: "user", Content: "first"}, {Role: "assistant", Content: "second"}}
+	if len(got) != len(want) {
+		t.Fatalf("LoadMessages len = %d, want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i].Role != want[i].Role || got[i].Content != want[i].Content {
+			t.Fatalf("LoadMessages[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
 type transcriptRow struct {
 	SessionID string
 	Role      string

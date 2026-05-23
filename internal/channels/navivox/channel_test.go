@@ -1,13 +1,17 @@
 package navivox
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -70,6 +74,114 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	capabilities, ok := payload["capabilities"].([]any)
 	if !ok || !containsAny(capabilities, "profile_contacts") || !containsAny(capabilities, "turn_control") {
 		t.Fatalf("capabilities = %#v, want profile_contacts and turn_control", payload["capabilities"])
+	}
+}
+
+func TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "gormes")
+	t.Setenv("GORMES_HOME", home)
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	ch := newTestChannel(t)
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	unauth, err := http.Post(server.URL+"/v1/navivox/profile-seed", "application/json", strings.NewReader(`{"seed":"work on mineru repo"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unauth.Body.Close()
+	if unauth.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unauthorized profile-seed status = %d, want 401", unauth.StatusCode)
+	}
+
+	draftReq, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/profile-seed", bytes.NewBufferString(`{"seed":"work on mineru repo"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	draftReq.Header.Set("Authorization", "Bearer nvbx_test_token")
+	draftReq.Header.Set("Content-Type", "application/json")
+	draftResp, err := http.DefaultClient.Do(draftReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer draftResp.Body.Close()
+	if draftResp.StatusCode != http.StatusOK {
+		t.Fatalf("draft profile-seed status = %d, want 200", draftResp.StatusCode)
+	}
+	var draftPayload struct {
+		Action string `json:"action"`
+		Status string `json:"status"`
+		Draft  struct {
+			ProfileID                string `json:"profile_id"`
+			GenerationSource         string `json:"generation_source"`
+			WorkspaceRootSuggestions []struct {
+				RequiresConfirmation bool `json:"requires_confirmation"`
+			} `json:"workspace_root_suggestions"`
+		} `json:"draft"`
+	}
+	if err := json.NewDecoder(draftResp.Body).Decode(&draftPayload); err != nil {
+		t.Fatal(err)
+	}
+	if draftPayload.Action != "profile_seed_draft" || draftPayload.Draft.ProfileID != "work-mineru-repo" || draftPayload.Draft.GenerationSource != "template" {
+		t.Fatalf("draft payload = %+v, want template work-mineru-repo", draftPayload)
+	}
+	if len(draftPayload.Draft.WorkspaceRootSuggestions) == 0 || !draftPayload.Draft.WorkspaceRootSuggestions[0].RequiresConfirmation {
+		t.Fatalf("workspace suggestions = %+v, want explicit confirmation required", draftPayload.Draft.WorkspaceRootSuggestions)
+	}
+	if _, err := os.Stat(filepath.Join(home, "profiles", "work-mineru-repo")); !os.IsNotExist(err) {
+		t.Fatalf("dry-run should not create profile root; stat err=%v", err)
+	}
+
+	applyReq, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/profile-seed", bytes.NewBufferString(`{"seed":"work on mineru repo","apply":true}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	applyReq.Header.Set("Authorization", "Bearer nvbx_test_token")
+	applyReq.Header.Set("Content-Type", "application/json")
+	applyResp, err := http.DefaultClient.Do(applyReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer applyResp.Body.Close()
+	if applyResp.StatusCode != http.StatusOK {
+		t.Fatalf("apply profile-seed status = %d, want 200", applyResp.StatusCode)
+	}
+	var applied struct {
+		Action         string          `json:"action"`
+		Applied        bool            `json:"applied"`
+		ProfileID      string          `json:"profile_id"`
+		WorkspaceCount int             `json:"workspace_count"`
+		Contact        *ProfileContact `json:"contact"`
+	}
+	if err := json.NewDecoder(applyResp.Body).Decode(&applied); err != nil {
+		t.Fatal(err)
+	}
+	if applied.Action != "profile_seed_applied" || !applied.Applied || applied.ProfileID != "work-mineru-repo" || applied.WorkspaceCount != 0 {
+		t.Fatalf("apply payload = %+v, want applied profile with no implicit workspaces", applied)
+	}
+	if applied.Contact == nil || applied.Contact.ProfileID != "work-mineru-repo" {
+		t.Fatalf("contact = %+v, want seeded profile contact", applied.Contact)
+	}
+
+	contactsReq, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/profile-contacts", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contactsReq.Header.Set("Authorization", "Bearer nvbx_test_token")
+	contactsResp, err := http.DefaultClient.Do(contactsReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer contactsResp.Body.Close()
+	var snapshot profileContactSnapshot
+	if err := json.NewDecoder(contactsResp.Body).Decode(&snapshot); err != nil {
+		t.Fatal(err)
+	}
+	ids := profileContactIDs(snapshot.Contacts)
+	if !slices.Contains(ids, "work-mineru-repo") {
+		t.Fatalf("contact IDs = %v, want seeded profile", ids)
 	}
 }
 
@@ -147,6 +259,68 @@ func TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree(t *testing.T) {
 		if strings.Contains(string(raw), forbidden) {
 			t.Fatalf("profile-routing leaked %q: %s", forbidden, raw)
 		}
+	}
+}
+
+func TestNavivoxStatusIncludesServerScopedProfileRoutingWithoutDefaultProfile(t *testing.T) {
+	routing := config.NavivoxProfileRoutingReport{Servers: []config.NavivoxServerRoute{{
+		ServerID:     "local",
+		Bind:         "127.0.0.1:8787",
+		Transports:   []string{"http", "ws"},
+		Capabilities: []string{"connect_and_talk"},
+		Profiles: []config.NavivoxProfileRoute{{
+			ProfileID:              "main",
+			DisplayName:            "Main Desk",
+			Ready:                  true,
+			CredentialConfigured:   true,
+			VoiceProfileConfigured: true,
+			ServerIDs:              []string{"local"},
+			Channels:               []string{"navivox"},
+		}},
+	}}}
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     config.NavivoxDefaultBindHost,
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthPairingToken,
+		Token:        "nvbx_test_token",
+		AllowOrigins: []string{"*"},
+	}, nil, WithProfileRouting(routing))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"profile_routing", "server_id", "local", "profile_id", "main", "display_name", "Main Desk", "credential_configured", "voice_profile_configured"} {
+		if !strings.Contains(string(raw), want) {
+			t.Fatalf("status payload missing %q:\n%s", want, raw)
+		}
+	}
+	if strings.Contains(string(raw), "default_profile") || strings.Contains(string(raw), "nvbx_test_token") {
+		t.Fatalf("status payload leaked token/default profile wording:\n%s", raw)
 	}
 }
 
@@ -540,6 +714,134 @@ func TestNavivoxVoiceMarkedStreamTurnEnqueuesTranscriptOnlyGatewayEvent(t *testi
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for voice-marked gateway event")
+	}
+}
+
+func TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline(t *testing.T) {
+	ch := newTestChannel(t)
+	inbox := make(chan gateway.InboundEvent, 1)
+	server := httptest.NewServer(ch.Handler(inbox))
+	defer server.Close()
+
+	reqBody := `{
+		"request_id":"req-run-record",
+		"session_id":"s-run-record",
+		"text":"transcribed voice command",
+		"metadata":{
+			"input_kind":"voice",
+			"audio_duration_ms":1200,
+			"audio_codec":"audio/opus",
+			"stt_provider":"device",
+			"tts_provider":"local",
+			"raw_audio_bytes":"raw-audio-bytes-must-not-leak",
+			"provider_api_key":"secret-token-must-not-leak"
+		}
+	}`
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/turn", strings.NewReader(reqBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer nvbx_test_token")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("authorized turn status = %d, want 202", resp.StatusCode)
+	}
+	select {
+	case <-inbox:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for queued gateway event")
+	}
+
+	if _, err := ch.SendToolProgress(context.Background(), "s-run-record", gateway.ToolProgressEvent{
+		ID:       "tool-1",
+		ToolName: "read_file",
+		Status:   gateway.ToolProgressFinished,
+		Summary:  "Read README",
+		Metadata: map[string]any{"artifact_ref": "artifact://readme", "secret_token": "must-not-leak"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ch.Send(context.Background(), "s-run-record", "assistant final answer"); err != nil {
+		t.Fatal(err)
+	}
+
+	getReq, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/run-records/req-run-record", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getReq.Header.Set("Authorization", "Bearer nvbx_test_token")
+	getResp, err := http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer getResp.Body.Close()
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("run-record status = %d, want 200", getResp.StatusCode)
+	}
+	var got struct {
+		Record struct {
+			RunID  string `json:"run_id"`
+			Status string `json:"status"`
+			Voice  struct {
+				DeviceTranscript string `json:"device_transcript"`
+				Audio            struct {
+					DurationMS     int    `json:"duration_ms"`
+					RawAudioStored bool   `json:"raw_audio_stored"`
+					Retention      string `json:"retention"`
+				} `json:"audio"`
+			} `json:"voice"`
+			ProviderUsage struct {
+				Status string `json:"status"`
+			} `json:"provider_usage"`
+			ProviderCost struct {
+				Status string `json:"status"`
+			} `json:"provider_cost"`
+			Transcript []struct {
+				Role string `json:"role"`
+				Text string `json:"text"`
+			} `json:"transcript"`
+			ToolEvents []struct {
+				ToolCallID string         `json:"tool_call_id"`
+				Name       string         `json:"name"`
+				Status     string         `json:"status"`
+				Metadata   map[string]any `json:"metadata"`
+			} `json:"tool_events"`
+		} `json:"run_record"`
+	}
+	if err := json.NewDecoder(getResp.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Record.RunID != "req-run-record" || got.Record.Status != "completed" {
+		t.Fatalf("run record identity/status = %+v", got.Record)
+	}
+	if got.Record.Voice.DeviceTranscript != "transcribed voice command" || got.Record.Voice.Audio.DurationMS != 1200 || got.Record.Voice.Audio.RawAudioStored || got.Record.Voice.Audio.Retention != "not_stored" {
+		t.Fatalf("voice evidence = %+v", got.Record.Voice)
+	}
+	if got.Record.ProviderUsage.Status != "unknown" || got.Record.ProviderCost.Status != "unknown" {
+		t.Fatalf("usage/cost = %+v/%+v, want unknown", got.Record.ProviderUsage, got.Record.ProviderCost)
+	}
+	if len(got.Record.Transcript) != 2 || got.Record.Transcript[0].Role != "user" || got.Record.Transcript[1].Role != "assistant" {
+		t.Fatalf("transcript = %+v", got.Record.Transcript)
+	}
+	if len(got.Record.ToolEvents) != 1 || got.Record.ToolEvents[0].ToolCallID != "tool-1" || got.Record.ToolEvents[0].Status != "finished" {
+		t.Fatalf("tool events = %+v", got.Record.ToolEvents)
+	}
+	if got.Record.ToolEvents[0].Metadata["artifact_ref"] != "artifact://readme" {
+		t.Fatalf("tool metadata = %+v", got.Record.ToolEvents[0].Metadata)
+	}
+	raw, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"raw-audio-bytes-must-not-leak", "secret-token-must-not-leak", "must-not-leak"} {
+		if strings.Contains(string(raw), forbidden) {
+			t.Fatalf("run record leaked %q: %s", forbidden, raw)
+		}
 	}
 }
 

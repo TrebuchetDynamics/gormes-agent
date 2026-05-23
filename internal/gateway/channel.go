@@ -97,6 +97,7 @@ type ToolProgressStatus string
 
 const (
 	ToolProgressStarted  ToolProgressStatus = "started"
+	ToolProgressUpdated  ToolProgressStatus = "updated"
 	ToolProgressFinished ToolProgressStatus = "finished"
 	ToolProgressFailed   ToolProgressStatus = "failed"
 )

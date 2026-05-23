@@ -7,9 +7,9 @@ title: "Navivox Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `navivox`
-**Rows:** 22
-**Status counts:** `complete`: 15 · `in_progress`: 0 · `planned`: 7
-**Priority counts:** `P0`: 3 · `P1`: 13 · `unset`: 6
+**Rows:** 27
+**Status counts:** `complete`: 21 · `in_progress`: 0 · `planned`: 6
+**Priority counts:** `P0`: 3 · `P1`: 18 · `unset`: 6
 
 ## Phase 2 — The Gateway
 
@@ -33,7 +33,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `planned` | `P1` | `navivox` | Navivox multi-server profile routing config model |
+| `complete` | `P1` | `navivox` | Navivox multi-server profile routing config model |
 
 ## Phase 9 — Design & Security Hardening
 
@@ -46,7 +46,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `navivox` | Remove Flutter SSH keys feature |
 | `complete` | `unset` | `navivox` | Navivox VPN host enumeration helper |
 | `complete` | `unset` | `navivox` | Navivox HTTP gateway mandatory-VPN bind |
-| `complete` | `unset` | `navivox` | Navivox HTTP gateway connect-info command |
+| `complete` | `unset` | `navivox` | Navivox HTTP gateway connect command |
 | `complete` | `P0` | `navivox` | Navivox setup QR image pairing handoff |
 
 ### 9.F — Navivox Operator Activation
@@ -58,8 +58,13 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `navivox` | Navivox profile contact summary API |
 | `complete` | `P1` | `navivox` | Navivox continuous voice command mode |
 | `planned` | `P1` | `navivox` | Navivox Telegram-inspired chat polish |
-| `planned` | `P1` | `navivox` | Navivox natural-language profile seed flow |
-| `planned` | `P1` | `navivox` | Navivox structured tool event cards |
-| `planned` | `P1` | `navivox` | Navivox safe config admin over HTTP |
-| `planned` | `P1` | `navivox` | Navivox voice run records |
-| `planned` | `P1` | `navivox` | Navivox per-profile BYO voice profiles |
+| `complete` | `P1` | `navivox` | Navivox natural-language profile seed backend API |
+| `planned` | `P1` | `navivox` | Navivox natural-language profile seed Flutter UI |
+| `complete` | `P1` | `navivox` | Navivox structured tool event cards backend API |
+| `planned` | `P1` | `navivox` | Navivox structured tool event cards Flutter UI |
+| `complete` | `P1` | `navivox` | Navivox safe config admin backend API |
+| `planned` | `P1` | `navivox` | Navivox safe config admin Flutter UI |
+| `complete` | `P1` | `navivox` | Navivox voice run records backend API |
+| `planned` | `P1` | `navivox` | Navivox voice run records Flutter inspection UI |
+| `complete` | `P1` | `navivox` | Navivox per-profile BYO voice profiles backend API |
+| `planned` | `P1` | `navivox` | Navivox per-profile BYO voice profiles Flutter UI |

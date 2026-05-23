@@ -7,13 +7,13 @@ test('docs home renders through Starlight with operator-first content', async ({
   await expect(page.getByRole('heading', { name: 'Gormes Documentation' })).toBeVisible();
   await expect(page.getByText('Install, configure, and operate Gormes from one Go-native runtime.')).toBeVisible();
 
-  await expect(page.getByText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh')).toBeVisible();
+  await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | bash')).toBeVisible();
   await expect(page.getByText('gormes doctor --offline').first()).toBeVisible();
   await expect(page.getByText('gormes setup').first()).toBeVisible();
   await expect(page.getByText('gormes chat').first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Install on Windows' })).toHaveAttribute('href', /\/?install\/windows\//);
   await expect(page.getByRole('link', { name: 'Install on Termux' })).toHaveAttribute('href', /\/?install\/termux\//);
-  await expect(page.locator('main')).not.toContainText(/https:\/\/gormes[.]ai\/install[.]sh/);
+  await expect(page.locator('main')).not.toContainText('github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh');
   await expect(page.locator('main')).not.toContainText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh');
   await expect(page.locator('main')).not.toContainText('brew install trebuchet/gormes');
 
@@ -40,7 +40,7 @@ test('operator docs journey keeps install commands and runtime checks consistent
   await page.goto('/install/linux-macos/');
 
   await expect(page.getByRole('heading', { name: 'Linux and macOS' }).first()).toBeVisible();
-  await expect(page.locator('main')).toContainText('github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh');
+  await expect(page.locator('main')).toContainText('https://gormes.ai/install.sh');
   await expect(page.locator('main')).not.toContainText('raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh');
   await expect(page.getByRole('link', { name: 'Providers', exact: true })).toHaveAttribute('href', /\/configure\/providers\//);
 

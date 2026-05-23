@@ -17,7 +17,7 @@ Gormes is a Go-native AI agent runtime: one static binary, no Python, no Docker,
 Linux, macOS, WSL2, and Termux:
 
 ```bash
-curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+curl -fsSL https://gormes.ai/install.sh | bash
 gormes version
 gormes doctor --offline
 gormes setup

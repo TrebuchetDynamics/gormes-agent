@@ -1158,7 +1158,139 @@
   {
     "phase": "5",
     "subphase": "5.Q",
+    "pos": 16,
+    "item": {
+      "name": "Native TUI /branch local runtime resident-session binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Complete the local-runtime half of the native `/branch [name]` port: cmd/gormes injects a production SessionBranchFunc for local Bubble Tea startup that forks the parent transcript into a fresh child session, persists fork metadata, switches the kernel's resident session through Kernel.ResumeSession, and replays the visible frame history (falling back to the copied transcript when the frame does not carry history). This closes the gap between the TUI-local branch SessionID and the kernel-owned resident session so following turns run under the branch, not the parent.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the local branch adapter is missing, `/branch` returns `branch: store unavailable`; if sessions.db is locked/corrupt or the Goncho memory database is missing, the handler consumes the slash text and reports `branch: fork failed: <error>` while leaving the parent active. A nil resume seam reports `kernel resume unavailable`; remote/plain TUI constructors keep SessionBranch nil and never open local state.",
+      "fixture": "internal/tui/slash_branch_test.go::TestSlashBranch_HappyPathSwitchesSessionIDAndDoesNotSubmit + cmd/gormes/tui_branch_slash_test.go::TestTUIBranchSlashAdapterForksTranscriptAndResumesKernelSession + cmd/gormes/tui_branch_slash_test.go::TestTUIBranchSlashBindingLocalModelReceivesSessionBranchAdapter",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts:session.branch",
+        "internal/tui/slash_branch.go:branchSlashHandler",
+        "internal/tui/model.go:SessionBranchFunc",
+        "cmd/gormes/main.go:runResolvedTUIWithRuntime",
+        "cmd/gormes/tui_branch_slash.go:newTUIBranchFunc",
+        "internal/session/fork.go:Fork",
+        "internal/transcript/fork.go:ForkTurns",
+        "internal/kernel/kernel.go:ResumeSession"
+      ],
+      "ready_when": [
+        "The native `/branch` handler and session.Fork/transcript.ForkTurns helpers are complete.",
+        "The kernel resident-session switch seam from `/resume <id-or-prefix>` is available and idle-safe.",
+        "Local TUI startup already owns the cmd/gormes adapter layer for `/title`, `/sessions`, `/resume`, `/logs`, and `/usage`."
+      ],
+      "not_ready_when": [
+        "The implementation mutates kernel session state directly from the TUI instead of using Kernel.ResumeSession.",
+        "The branch adapter opens provider/network resources or changes remote TUI behavior.",
+        "The branch command can fall through to Submitter/kernel.Submit as prompt text on any error path."
+      ],
+      "acceptance": [
+        "The `/branch` handler passes a cloned visible history snapshot in BranchRequest, updates both Model.SessionID() and frame.SessionID to the branch id, and never calls Submitter.",
+        "Local cmd/gormes TUI startup injects SessionBranch; remote/plain TUI leaves it nil.",
+        "The production adapter creates a fresh child id, calls session.Fork with transcript.ForkTurns, writes fork lineage metadata, then calls Kernel.ResumeSession with the child id and replay history.",
+        "When visible frame history is absent, the adapter loads the copied child transcript through transcript.LoadMessages before resuming.",
+        "Focused TUI/cmd/session/transcript tests and progress validation pass."
+      ],
+      "note": "Builder 2026-05-23 iteration 39: repaired `/branch` production local runtime binding. RED evidence: internal/tui test failed on missing BranchRequest.History and frame.SessionID update; cmd/gormes tests failed on undefined newTUIBranchFuncWithID and missing local SessionBranch injection. Green evidence: focused internal/tui, cmd/gormes, internal/session, internal/transcript tests pass; full validation runs in delivery report.",
+      "write_scope": [
+        "internal/tui/slash_branch.go",
+        "internal/tui/slash_branch_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_branch_slash.go",
+        "cmd/gormes/tui_branch_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestSlashBranch_|TestResumeSlash|TestSessionsSlash' -count=1",
+        "go test ./cmd/gormes -run 'TestTUIBranchSlash|TestTUIResumeSlashBinding|TestTUISessionsSlashBinding' -count=1",
+        "go test ./internal/session -run 'TestSessionFork_|TestBoltMap_ResolveLineageTipFollowsCompressionChildrenOnly' -count=1",
+        "go test ./internal/transcript -run 'TestForkTranscript|TestLoadMessages' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native local TUI `/branch [name]` forks persisted transcript state, switches the kernel resident session to the branch through the shared resume seam, and preserves the visible transcript for following turns."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
     "pos": 17,
+    "item": {
+      "name": "Native TUI resident session-switch replay helper",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Consolidate the shared local-runtime mechanics used by native TUI `/resume` and `/branch`: resolving command-specific policy remains in each slash adapter, while transcript-to-Hermes replay, visible-history cloning, nil-resume degradation, root-context fallback, and Kernel.ResumeSession invocation live behind one package-local cmd/gormes resident session-switch helper. This preserves the public slash contracts while reducing the persistence/replay interface burden before additional session-switch commands build on the same seam.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "The helper preserves the existing typed degraded evidence: missing kernel resume reports `kernel resume unavailable`; missing or unreadable transcript rows surface the underlying transcript/session DB error; `/resume` still validates empty id/prefix before resume availability; `/branch` still validates resume availability before metadata/id/fork work. Remote/plain TUI constructors keep their session switch seams nil.",
+      "fixture": "cmd/gormes/tui_sessions_slash_test.go::TestTUIResumeSlashBindingLocalModelReceivesSessionResumeAdapter + cmd/gormes/tui_branch_slash_test.go::TestTUIBranchSlashAdapterForksTranscriptAndResumesKernelSession + cmd/gormes/tui_branch_slash_test.go::TestTUIBranchSlashAdapterFallsBackToCopiedTranscriptWhenVisibleHistoryEmpty",
+      "source_refs": [
+        "cmd/gormes/tui_sessions_slash.go:newTUIResumeSessionFunc",
+        "cmd/gormes/tui_branch_slash.go:newTUIBranchFuncWithID",
+        "cmd/gormes/tui_session_switch.go:tuiResidentSessionSwitcher",
+        "internal/transcript/markdown.go:LoadMessages",
+        "internal/kernel/kernel.go:ResumeSession",
+        "internal/tui/slash_sessions.go:SessionResumeFunc",
+        "internal/tui/slash_branch.go:SessionBranchFunc"
+      ],
+      "ready_when": [
+        "Both `/resume <id-or-prefix>` and `/branch [name]` are complete, validated, and wired through Kernel.ResumeSession.",
+        "Focused cmd/gormes characterization tests already prove local adapter injection, transcript replay, fork metadata, branch fallback replay, and remote/plain TUI nil seams.",
+        "The refactor stays package-local to cmd/gormes and preserves all public slash result strings, model-visible schemas, and remote TUI behavior."
+      ],
+      "not_ready_when": [
+        "The helper changes public TUI slash output, command aliases, prompt submission behavior, or provider/runtime routing.",
+        "The extraction crosses into internal/tui or internal/kernel with a broader public interface change.",
+        "The slice requires live providers, user data, Chrome/browser state, gateway processes, or external credentials to validate."
+      ],
+      "acceptance": [
+        "`/resume` still resolves ids/prefixes through the session directory DB, replays persisted transcript rows as hermes.Message history, and switches the kernel resident session through the same resume seam.",
+        "`/branch` still forks parent transcript rows and metadata first, then switches the kernel resident session using visible history or copied-transcript fallback history.",
+        "The duplicated transcript replay, Hermes message mapping, history clone, root-context fallback, and nil-resume error are centralized in cmd/gormes/tui_session_switch.go.",
+        "Focused cmd/gormes and internal/tui slash characterization tests pass, followed by full Go/progress/diff validation."
+      ],
+      "note": "Builder 2026-05-23 iteration 40: behavior-preserving service-layer refactor after `/resume` and `/branch` became two real adapters. Characterization evidence was green before extraction; the package-local resident switch helper now centralizes transcript replay and Kernel.ResumeSession invocation without changing public slash behavior.",
+      "write_scope": [
+        "cmd/gormes/tui_session_switch.go",
+        "cmd/gormes/tui_sessions_slash.go",
+        "cmd/gormes/tui_branch_slash.go",
+        "cmd/gormes/tui_sessions_slash_test.go",
+        "cmd/gormes/tui_branch_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestTUIBranchSlash|TestTUIResumeSlashBinding|TestTUISessionsSlashBinding' -count=1",
+        "go test ./internal/tui -run 'TestSlashBranch_|TestResumeSlash|TestSessionsSlash' -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI local session switching now has one package-local replay helper shared by `/resume` and `/branch`, preserving both slash contracts and preparing future session-switch adapters to reuse the same seam."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 19,
     "item": {
       "name": "Native TUI conversation viewport tail helper",
       "priority": "P2",
@@ -1229,7 +1361,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 18,
+    "pos": 20,
     "item": {
       "name": "Native TUI queued-message edit helper",
       "priority": "P2",
@@ -1300,7 +1432,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 19,
+    "pos": 21,
     "item": {
       "name": "Native TUI renderConv viewport budget binding",
       "priority": "P2",
@@ -1363,7 +1495,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 20,
+    "pos": 22,
     "item": {
       "name": "Native TUI Hermes skin token renderer",
       "priority": "P2",
@@ -1435,7 +1567,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 21,
+    "pos": 23,
     "item": {
       "name": "Native TUI Hermes status bar renderer",
       "priority": "P2",
@@ -1505,7 +1637,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 22,
+    "pos": 24,
     "item": {
       "name": "Native TUI Hermes bottom-pinned chrome layout",
       "priority": "P1",
@@ -1598,7 +1730,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 23,
+    "pos": 25,
     "item": {
       "name": "Native TUI Hermes input keybinding semantics",
       "priority": "P1",
@@ -1681,7 +1813,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 24,
+    "pos": 26,
     "item": {
       "name": "Native TUI Shift+Enter newline CSI-u parity",
       "priority": "P1",
@@ -1762,7 +1894,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 25,
+    "pos": 27,
     "item": {
       "name": "Native TUI clipboard, OSC52, and terminal setup parity",
       "priority": "P1",
@@ -1837,7 +1969,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 26,
+    "pos": 28,
     "item": {
       "name": "Native TUI image/file drop + paste collapse ingress",
       "priority": "P0",
@@ -1924,7 +2056,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 27,
+    "pos": 29,
     "item": {
       "name": "Native TUI Hermes slash completion helpers",
       "priority": "P2",
@@ -2002,7 +2134,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 28,
+    "pos": 30,
     "item": {
       "name": "Native TUI absolute path completion routing",
       "priority": "P0",
@@ -2075,7 +2207,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 29,
+    "pos": 31,
     "item": {
       "name": "Native TUI Hermes slash dispatch behavioral matrix",
       "priority": "P1",
@@ -2153,7 +2285,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 30,
+    "pos": 32,
     "item": {
       "name": "Native TUI /quit local exit binding",
       "priority": "P1",
@@ -2232,7 +2364,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 31,
+    "pos": 33,
     "item": {
       "name": "Native TUI Hermes tool progress + modal panel renderers",
       "priority": "P2",
@@ -2311,7 +2443,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 32,
+    "pos": 34,
     "item": {
       "name": "Native TUI Ink behavioral transcript golden matrix",
       "priority": "P1",
@@ -2397,7 +2529,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 33,
+    "pos": 35,
     "item": {
       "name": "Native TUI markdown soft-wrap boundary trim",
       "priority": "P1",
@@ -2484,7 +2616,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 35,
+    "pos": 37,
     "item": {
       "name": "SSE streaming to Bubble Tea TUI",
       "status": "complete",
@@ -2563,7 +2695,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 51,
+    "pos": 53,
     "item": {
       "name": "Native TUI /model slash command binding over the existing model picker",
       "priority": "P1",
@@ -2661,7 +2793,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 52,
+    "pos": 54,
     "item": {
       "name": "Kernel in-session model-switch seam for the native TUI",
       "priority": "P1",
@@ -2718,13 +2850,13 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 54,
+    "pos": 56,
     "item": {
       "name": "Native TUI slash handler-port coverage",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Inventory-only, fixture-backed parent for native Bubble Tea TUI slash commands that Gormes recognizes but does not yet handle locally. `NewDefaultSlashRegistry` handles the shipped local commands (`/help`, `/clear`, `/new`, `/compact`, `/mouse`, `/scroll`, `/save`, `/branch`, `/copy`, `/browser`, `/kanban`, `/model`/`/m`, `/quit`/`/exit`). Remaining slash tokens route through `slashFallbackResult` to `cli.ResolveCommandAlias` and `CommandRegistry`, where recognized names are consumed with native-TUI or gateway unavailable evidence and unknown/ambiguous names are consumed with guidance so command text never reaches the model. Hermes ui-tui first tries local `SLASH_COMMANDS`, then gateway `slash.exec`/`command.dispatch`; Gormes keeps unported local handler ports as child rows instead of silently proxying every command through this umbrella.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "umbrella",
       "execution_owner": "tui",
       "module": "tui",
@@ -2764,7 +2896,6 @@
         "A child row changes public slash routing, busy-time policy, gateway-vs-local classification, or visible unavailable text without a focused TUI test first."
       ],
       "unblocks": [
-        "Native TUI /skills slash command binding",
         "Native TUI /skin slash command binding",
         "Native TUI /voice slash command binding",
         "Native TUI /config slash command binding",
@@ -2777,7 +2908,7 @@
         "Focused fixtures prove recognized unhandled slash commands, mutating commands, unknown commands, and ambiguous prefixes are consumed with visible evidence and never submitted as prompts.",
         "The next local ports are named as child-row unblocks, not as an external TODO or private queue."
       ],
-      "note": "Planner 2026-05-21 development-loop iteration 11: sharpened this parent from draft inventory into a fixture-backed non-selectable row. Evidence separates the shipped native registry from the fallback path and pins Hermes ui-tui local-command dispatch plus Gormes command-alias/registry behavior; the row must not be used to implement all slash handlers at once.",
+      "note": "Planner closeout by development-goal iteration 50 on 2026-05-23. All source-backed child rows listed for the native Bubble Tea slash-handler port are now complete/validated or intentionally covered by fallback/strict-fidelity rows: /help, /clear, /new, /compact, /mouse, /scroll, /save, /branch, /copy, /browser, /kanban, /model, /quit, /exit, /redraw, /statusbar, /details, /indicator, /history, /status, /logs, /title, /sessions, /resume, /usage, /skills, /tools, /voice, and /skin. The parent remains inventory evidence only; executable behavior lives in the child rows and tests. Validation: go run ./cmd/progress validate; go test ./internal/progress -count=1; go test ./cmd/progress -count=1; go test ./webpages/docs -count=1; git diff --check.",
       "write_scope": [
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
@@ -2799,7 +2930,72 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 55,
+    "pos": 57,
+    "item": {
+      "name": "Native TUI shipped slash command registry availability metadata",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Align the shared CLI CommandRegistry with native Bubble Tea slash handlers already shipped in NewDefaultSlashRegistry so slash completions, active-turn busy evaluation, and fallback evidence all report /branch, /fork, /save, /copy, /mouse, /scroll, /quit, and /exit as available local TUI commands instead of recognized-but-unavailable commands.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If registry metadata drifts from shipped native handlers, completion menus dim working commands, busy guards reject local commands with unavailable evidence, and future slash child-row selection starts from stale inventory.",
+      "fixture": "internal/tui/slash_completion_test.go::TestHermesSlashCompletion_LocalNativeHandlersAreAvailable",
+      "source_refs": [
+        "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+        "internal/cli/command_registry.go:CommandRegistry",
+        "internal/tui/slash_completion.go:HermesSlashCommandCompletions",
+        "internal/app/gormescli/default_contracts.go:DefaultContracts",
+        "internal/gateway/commands.go:CommandRegistry",
+        "internal/tui/slash_completion_test.go:TestHermesSlashCompletion_LocalNativeHandlersAreAvailable",
+        "cmd/gormes/cli_contract_manifest_test.go:TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces",
+        "internal/gateway/commands_test.go:TestGatewayRegistryRecognizesSharedAndGatewayCLICommands",
+        "internal/cli/command_registry_policy_test.go:TestCommandRegistryPolicyGatewayParity"
+      ],
+      "ready_when": [
+        "NewDefaultSlashRegistry already ships the listed local handlers.",
+        "No new slash command behavior is added; this row only aligns metadata for existing local handlers."
+      ],
+      "not_ready_when": [
+        "The slice tries to implement new /tools, /skin, /voice, or /config behavior instead of correcting existing-handler metadata.",
+        "Gateway-only slash commands are marked as locally ported without a native TUI handler."
+      ],
+      "acceptance": [
+        "Slash completions mark /branch, /fork, /save, /copy, /mouse, /scroll, /quit, and /exit available because native TUI handlers exist.",
+        "/tools remains recognized-but-unavailable evidence until a dedicated native handler row lands.",
+        "Gateway parity still permits gateway /branch to remain unavailable while the CLI/TUI /branch command is local."
+      ],
+      "note": "Complete in development-goal iteration 26: CommandRegistry now marks shipped native TUI handlers as available metadata, adds /mouse with /scroll alias, keeps /tools unavailable, assigns /mouse to the TUI module ownership contract, and preserves gateway behavior by recognizing /mouse as an unavailable gateway mirror while the local CLI/TUI handler remains ported.",
+      "write_scope": [
+        "internal/cli/command_registry.go",
+        "internal/tui/slash_completion_test.go",
+        "internal/app/gormescli/default_contracts.go",
+        "internal/gateway/commands.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestHermesSlashCompletion_(LocalNativeHandlersAreAvailable|UnavailableCommandsStillComplete|CommandPrefix|SubcommandPrefix)' -count=1",
+        "go test ./internal/cli -run 'TestCommandRegistryPolicy' -count=1",
+        "go test ./cmd/gormes -run TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces -count=1",
+        "go test ./internal/gateway -run TestGatewayRegistryRecognizesSharedAndGatewayCLICommands -count=1",
+        "go test ./internal/tui ./internal/cli ./internal/gateway ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI shipped slash handlers are available in completions and policy evaluation, while still-unported commands keep explicit unavailable evidence."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 58,
     "item": {
       "name": "Native TUI Terminal.app truecolor and ANSI sanitizer parity",
       "priority": "P1",
@@ -2849,13 +3045,13 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 56,
+    "pos": 59,
     "item": {
       "name": "Hermes ui-tui strict-fidelity action matrix",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Map the unmapped Hermes `ui-tui` source and test surface into Gormes-native TUI rows, owned-divergence notes, or explicit exclusions. The matrix must cover command dispatch, viewport/history stores, RPC/gateway client events, terminal modes, clipboard/OSC52, provider/model UI, approval actions, and state isolation before the strict-fidelity report can stop treating `ui-tui` as an undifferentiated blocker bucket.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "large",
       "execution_owner": "docs",
       "module": "tui",
@@ -2866,11 +3062,325 @@
       "degraded_mode": "Until this strict-fidelity bucket is classified, Gormes must continue treating the matching Hermes source/docs/tests as unmapped blockers and avoid claiming complete Hermes parity for this surface.",
       "fixture": "internal/tui hermes-ui-tui strict-fidelity matrix fixtures",
       "source_refs": [
-        "hermes-agent/ui-tui/src/__tests__/slashParity.test.ts",
-        "hermes-agent/ui-tui/src/__tests__/gatewayClient.test.ts",
-        "hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts",
-        "hermes-agent/ui-tui/src/__tests__/stateIsolation.test.ts",
+        "hermes-agent/ui-tui/README.md",
+        "hermes-agent/ui-tui/package.json",
+        "hermes-agent/ui-tui/packages/hermes-ink/ambient.d.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/index.d.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/index.js",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/bootstrap/state.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/entry-exports.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/hooks/use-stderr.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/hooks/use-stdout.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/Ansi.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/bidi.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/cache-eviction.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/clearTerminal.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/colorize.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/colorize.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/AlternateScreen.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/App.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/AppContext.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/Box.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/Button.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/ClockContext.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/CursorAdvanceContext.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/CursorDeclarationContext.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/ErrorOverview.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/Link.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/Newline.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/NoSelect.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/RawAnsi.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/ScrollBox.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/Spacer.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/StdinContext.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/TerminalFocusContext.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/TerminalSizeContext.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/Text.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/components/Text.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/constants.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/cursor.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/devtools.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/dom.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/click-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/cmd-shortcuts.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/dispatcher.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/emitter.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/event-handlers.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/focus-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/input-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/keyboard-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/mouse-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/paste-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/resize-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/terminal-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/events/terminal-focus-event.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/focus.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/frame.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/get-max-width.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/global.d.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hit-test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-animation-frame.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-app.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-cursor-advance.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-declared-cursor.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-external-process.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-input.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-interval.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-search-highlight.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-selection.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-stdin.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-tab-status.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-terminal-focus.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-terminal-title.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hooks/use-terminal-viewport.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/hyperlinkHover.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/ink-cursor-advance.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/ink-resize.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/ink.tsx",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/instances.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/layout/engine.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/layout/geometry.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/layout/node.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/layout/yoga.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/line-width-cache.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/log-update.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/log-update.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/lru.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/measure-element.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/measure-text.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/node-cache.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/optimizer.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/output.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/parse-keypress.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/parse-keypress.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/reconciler.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/render-border.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/render-node-to-output.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/render-to-screen.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/renderer.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/root.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/screen.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/searchHighlight.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/selection.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/squash-text-nodes.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/stringWidth.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/styles.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/supports-hyperlinks.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/tabstops.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/terminal-focus-state.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/terminal-querier.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/terminal.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/terminal.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/ansi.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/csi.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/dec.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/esc.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/osc.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/osc.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/parser.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/sgr.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/tokenize.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/termio/types.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/useTerminalNotification.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/warn.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/widest-line.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/wrap-text.test.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/wrap-text.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/ink/wrapAnsi.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/native-ts/yoga-layout/enums.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/native-ts/yoga-layout/index.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/debug.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/earlyInput.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/env.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/envUtils.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/execFileNoThrow.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/fullscreen.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/intl.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/log.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/semver.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/src/utils/sliceAnsi.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/text-input.d.ts",
+        "hermes-agent/ui-tui/packages/hermes-ink/text-input.js",
         "hermes-agent/ui-tui/src/__tests__/approvalAction.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/asCommandDispatch.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/clipboard.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/constants.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/createGatewayEventHandler.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/cursorDriftRegression.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/details.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/emoji.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/externalLink.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/gatewayClient.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/markdown.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/mathUnicode.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/messages.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/osc52.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/paths.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/platform.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/precisionWheel.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/providers.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/reasoning.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/rpc.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/scroll.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/slashParity.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/spawnHistoryStore.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/stateIsolation.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/statusBarTicker.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/streamingMarkdown.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/subagentTree.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/syntax.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/terminalModes.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/terminalSetup.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/text.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/textInputCursorSourceOfTruth.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/textInputFastEcho.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/textInputLineNav.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/textInputPassThrough.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/textInputRightClick.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/textInputWrap.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/theme.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/turnStore.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/useCompletion.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/useComposerState.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/useConfigSync.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/useInputHandlers.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/useQueue.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/useSessionLifecycle.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/useVirtualHistoryHeights.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/viewport.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/viewportStore.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/virtualHeights.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/virtualHistoryClamp.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/virtualHistoryOffsetCache.test.ts",
+        "hermes-agent/ui-tui/src/__tests__/wheelAccel.test.ts",
+        "hermes-agent/ui-tui/src/app.tsx",
+        "hermes-agent/ui-tui/src/app/createGatewayEventHandler.ts",
+        "hermes-agent/ui-tui/src/app/createSlashHandler.ts",
+        "hermes-agent/ui-tui/src/app/delegationStore.ts",
+        "hermes-agent/ui-tui/src/app/gatewayContext.tsx",
+        "hermes-agent/ui-tui/src/app/inputSelectionStore.ts",
+        "hermes-agent/ui-tui/src/app/interfaces.ts",
+        "hermes-agent/ui-tui/src/app/overlayStore.ts",
+        "hermes-agent/ui-tui/src/app/scroll.ts",
+        "hermes-agent/ui-tui/src/app/setupHandoff.ts",
+        "hermes-agent/ui-tui/src/app/slash/commands/core.ts",
+        "hermes-agent/ui-tui/src/app/slash/commands/debug.ts",
+        "hermes-agent/ui-tui/src/app/slash/commands/ops.ts",
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts",
+        "hermes-agent/ui-tui/src/app/slash/commands/setup.ts",
+        "hermes-agent/ui-tui/src/app/slash/registry.ts",
+        "hermes-agent/ui-tui/src/app/slash/types.ts",
+        "hermes-agent/ui-tui/src/app/spawnHistoryStore.ts",
+        "hermes-agent/ui-tui/src/app/turnController.ts",
+        "hermes-agent/ui-tui/src/app/turnStore.ts",
+        "hermes-agent/ui-tui/src/app/uiStore.ts",
+        "hermes-agent/ui-tui/src/app/useComposerState.ts",
+        "hermes-agent/ui-tui/src/app/useConfigSync.ts",
+        "hermes-agent/ui-tui/src/app/useInputHandlers.ts",
+        "hermes-agent/ui-tui/src/app/useLongRunToolCharms.ts",
+        "hermes-agent/ui-tui/src/app/useMainApp.ts",
+        "hermes-agent/ui-tui/src/app/useSessionLifecycle.ts",
+        "hermes-agent/ui-tui/src/app/useSubmission.ts",
+        "hermes-agent/ui-tui/src/banner.ts",
+        "hermes-agent/ui-tui/src/components/agentsOverlay.tsx",
+        "hermes-agent/ui-tui/src/components/appChrome.tsx",
+        "hermes-agent/ui-tui/src/components/appLayout.tsx",
+        "hermes-agent/ui-tui/src/components/appOverlays.tsx",
+        "hermes-agent/ui-tui/src/components/branding.tsx",
+        "hermes-agent/ui-tui/src/components/fpsOverlay.tsx",
+        "hermes-agent/ui-tui/src/components/helpHint.tsx",
+        "hermes-agent/ui-tui/src/components/markdown.tsx",
+        "hermes-agent/ui-tui/src/components/maskedPrompt.tsx",
+        "hermes-agent/ui-tui/src/components/messageLine.tsx",
+        "hermes-agent/ui-tui/src/components/modelPicker.tsx",
+        "hermes-agent/ui-tui/src/components/overlayControls.tsx",
+        "hermes-agent/ui-tui/src/components/prompts.tsx",
+        "hermes-agent/ui-tui/src/components/queuedMessages.tsx",
+        "hermes-agent/ui-tui/src/components/sessionPicker.tsx",
+        "hermes-agent/ui-tui/src/components/skillsHub.tsx",
+        "hermes-agent/ui-tui/src/components/streamingAssistant.tsx",
+        "hermes-agent/ui-tui/src/components/streamingMarkdown.tsx",
+        "hermes-agent/ui-tui/src/components/textInput.tsx",
+        "hermes-agent/ui-tui/src/components/themed.tsx",
+        "hermes-agent/ui-tui/src/components/thinking.tsx",
+        "hermes-agent/ui-tui/src/components/todoPanel.tsx",
+        "hermes-agent/ui-tui/src/config/env.ts",
+        "hermes-agent/ui-tui/src/config/limits.ts",
+        "hermes-agent/ui-tui/src/config/timing.ts",
+        "hermes-agent/ui-tui/src/content/charms.ts",
+        "hermes-agent/ui-tui/src/content/faces.ts",
+        "hermes-agent/ui-tui/src/content/fortunes.ts",
+        "hermes-agent/ui-tui/src/content/hotkeys.ts",
+        "hermes-agent/ui-tui/src/content/placeholders.ts",
+        "hermes-agent/ui-tui/src/content/setup.ts",
+        "hermes-agent/ui-tui/src/content/verbs.ts",
+        "hermes-agent/ui-tui/src/domain/details.ts",
+        "hermes-agent/ui-tui/src/domain/messages.ts",
+        "hermes-agent/ui-tui/src/domain/paths.ts",
+        "hermes-agent/ui-tui/src/domain/providers.ts",
+        "hermes-agent/ui-tui/src/domain/roles.ts",
+        "hermes-agent/ui-tui/src/domain/slash.ts",
+        "hermes-agent/ui-tui/src/domain/usage.ts",
+        "hermes-agent/ui-tui/src/domain/viewport.ts",
+        "hermes-agent/ui-tui/src/entry.tsx",
+        "hermes-agent/ui-tui/src/gatewayClient.ts",
+        "hermes-agent/ui-tui/src/gatewayTypes.ts",
+        "hermes-agent/ui-tui/src/hooks/useCompletion.ts",
+        "hermes-agent/ui-tui/src/hooks/useGitBranch.ts",
+        "hermes-agent/ui-tui/src/hooks/useInputHistory.ts",
+        "hermes-agent/ui-tui/src/hooks/useQueue.ts",
+        "hermes-agent/ui-tui/src/hooks/useVirtualHistory.ts",
+        "hermes-agent/ui-tui/src/lib/circularBuffer.ts",
+        "hermes-agent/ui-tui/src/lib/clipboard.ts",
+        "hermes-agent/ui-tui/src/lib/editor.test.ts",
+        "hermes-agent/ui-tui/src/lib/editor.ts",
+        "hermes-agent/ui-tui/src/lib/emoji.ts",
+        "hermes-agent/ui-tui/src/lib/externalCli.ts",
+        "hermes-agent/ui-tui/src/lib/externalLink.ts",
+        "hermes-agent/ui-tui/src/lib/forceTruecolor.ts",
+        "hermes-agent/ui-tui/src/lib/fpsStore.ts",
+        "hermes-agent/ui-tui/src/lib/gracefulExit.ts",
+        "hermes-agent/ui-tui/src/lib/history.ts",
+        "hermes-agent/ui-tui/src/lib/inputMetrics.ts",
+        "hermes-agent/ui-tui/src/lib/liveProgress.test.ts",
+        "hermes-agent/ui-tui/src/lib/liveProgress.ts",
+        "hermes-agent/ui-tui/src/lib/mathUnicode.ts",
+        "hermes-agent/ui-tui/src/lib/memory.ts",
+        "hermes-agent/ui-tui/src/lib/memoryMonitor.ts",
+        "hermes-agent/ui-tui/src/lib/messages.test.ts",
+        "hermes-agent/ui-tui/src/lib/messages.ts",
+        "hermes-agent/ui-tui/src/lib/openExternalUrl.test.ts",
+        "hermes-agent/ui-tui/src/lib/openExternalUrl.ts",
+        "hermes-agent/ui-tui/src/lib/osc52.ts",
+        "hermes-agent/ui-tui/src/lib/perfPane.tsx",
+        "hermes-agent/ui-tui/src/lib/platform.ts",
+        "hermes-agent/ui-tui/src/lib/precisionWheel.ts",
+        "hermes-agent/ui-tui/src/lib/reasoning.ts",
+        "hermes-agent/ui-tui/src/lib/rpc.ts",
+        "hermes-agent/ui-tui/src/lib/subagentTree.ts",
+        "hermes-agent/ui-tui/src/lib/syntax.ts",
+        "hermes-agent/ui-tui/src/lib/terminalModes.ts",
+        "hermes-agent/ui-tui/src/lib/terminalParity.ts",
+        "hermes-agent/ui-tui/src/lib/terminalSetup.ts",
+        "hermes-agent/ui-tui/src/lib/text.test.ts",
+        "hermes-agent/ui-tui/src/lib/text.ts",
+        "hermes-agent/ui-tui/src/lib/todo.test.ts",
+        "hermes-agent/ui-tui/src/lib/todo.ts",
+        "hermes-agent/ui-tui/src/lib/viewportStore.ts",
+        "hermes-agent/ui-tui/src/lib/virtualHeights.ts",
+        "hermes-agent/ui-tui/src/lib/wheelAccel.ts",
+        "hermes-agent/ui-tui/src/protocol/interpolation.ts",
+        "hermes-agent/ui-tui/src/protocol/paste.ts",
+        "hermes-agent/ui-tui/src/theme.ts",
+        "hermes-agent/ui-tui/src/types.ts",
+        "hermes-agent/ui-tui/src/types/hermes-ink.d.ts",
+        "hermes-agent/ui-tui/vitest.config.ts",
         "internal/tui",
         "internal/tuigateway"
       ],
@@ -2890,7 +3400,7 @@
         "`go run ./cmd/repoctl hermes-source-pairs validate` passes after any source-pair edits.",
         "`go run ./cmd/progress validate` passes and generated docs show the row in the correct module."
       ],
-      "note": "draft_until: classifier pass narrows this strict-fidelity bucket into exact child rows, source-pair mappings, or exclusions; strict_fidelity_origin: 2026-05-18 report shows 245 unmapped `ui-tui` source files and 72 unmapped `ui-tui` tests.",
+      "note": "Completed 2026-05-23 in development-goal iteration 21: classified the checked-in Hermes ui-tui source/test/doc inventory into exact source refs and a partial source-pair action matrix anchored at ui-tui/package.json. The contract inventory no longer reports the ui-tui suite or ui-tui source/docs/tests as anonymous unmapped strict-fidelity evidence. This is a classification closeout only; runtime behavior remains covered by existing/future focused child rows and the source-pair status stays partial to avoid unsupported full-parity claims.",
       "write_scope": [
         "internal/tui",
         "internal/tuigateway",
@@ -2900,11 +3410,14 @@
       ],
       "test_commands": [
         "go test ./internal/tui ./internal/tuigateway -count=1",
+        "go run ./cmd/repoctl hermes-source-pairs validate",
         "go run ./cmd/repoctl hermes-contract-inventory --repo-root .",
-        "go run ./cmd/progress validate"
+        "go run ./cmd/progress validate",
+        "git diff --check"
       ],
       "done_signal": [
-        "Strict-fidelity blockers for this bucket are classified into the canonical backlog/source-pair evidence with no side queue and no unsupported full-parity claim."
+        "Strict-fidelity blockers for this bucket are classified into canonical progress/source-pair evidence with no side queue.",
+        "The source-pair status remains partial, so the row does not claim full runtime fidelity without focused TUI tests."
       ],
       "provenance": {
         "origin_type": "hybrid",
@@ -2916,7 +3429,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 58,
+    "pos": 61,
     "item": {
       "name": "Native TUI /help slash command binding",
       "priority": "P2",
@@ -2985,7 +3498,873 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 59,
+    "pos": 62,
+    "item": {
+      "name": "Native TUI /redraw local repaint binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Bind Hermes ui-tui `/redraw` to the native Bubble Tea local repaint path so terminal-drift recovery is handled locally, never submitted to the model, and never routed through unavailable slash fallback. The slash command reuses the same visible-frame clearing seam as Ctrl+L and preserves kernel/session state for the next render frame.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If `/redraw` remains fallback-only, operators can recover terminal drift only via Ctrl+L while the slash command renders recognized-but-unavailable evidence despite Hermes exposing a local redraw slash command.",
+      "fixture": "internal/tui/slash_dispatch_behavior_test.go::TestHermesSlashDispatchBehavior_RedrawClearsVisibleFrameLocally",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/core.ts:redraw",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:handles /redraw locally without slash worker fallback",
+        "hermes-agent/cli.py:_force_full_redraw",
+        "hermes-agent/cli.py:/redraw command dispatch",
+        "internal/tui/update.go:forceLocalRedraw",
+        "internal/tui/slash_dispatch.go:redrawSlashHandler",
+        "internal/tui/hermes_keybindings_test.go:TestHermesKeybindings_CtrlLForcesRedraw",
+        "internal/tui/slash_dispatch_behavior_test.go:TestHermesSlashDispatchBehavior_RedrawClearsVisibleFrameLocally",
+        "internal/tui/slash_completion_test.go:TestHermesSlashCompletion_LocalNativeHandlersAreAvailable"
+      ],
+      "ready_when": [
+        "Hermes ui-tui exposes `/redraw` as a local slash command that does not call the slash worker/gateway fallback.",
+        "Gormes already has a Ctrl+L local visible-frame clearing behavior in the native TUI."
+      ],
+      "not_ready_when": [
+        "The implementation starts a new session, clears persisted kernel history, or calls gateway slash execution instead of local repaint recovery.",
+        "The slash binding changes broad terminal rendering behavior beyond reusing the existing local redraw seam."
+      ],
+      "acceptance": [
+        "`/redraw` is handled by NewDefaultSlashRegistry without reaching Submitter/kernel prompt submission.",
+        "`/redraw` clears only visible frame history, draft text, and last error while preserving the session id/kernel state for the next real render frame.",
+        "`/redraw` reports `ui redrawn`, does not show recognized-unavailable evidence, and appears available in slash completions.",
+        "Ctrl+L and `/redraw` share the same TUI repaint helper."
+      ],
+      "note": "Complete in development-goal iteration 27: `/redraw` now reuses Model.forceLocalRedraw, reports `ui redrawn`, is marked ported/available in shared CLI metadata, and is owned by the TUI module while the gateway mirror remains recognized-unavailable for messaging surfaces.",
+      "write_scope": [
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/update.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/tui/slash_completion_test.go",
+        "internal/cli/command_registry.go",
+        "internal/app/gormescli/default_contracts.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_RedrawClearsVisibleFrameLocally|TestHermesSlashCompletion_LocalNativeHandlersAreAvailable|TestHermesKeybindings_CtrlLForcesRedraw' -count=1",
+        "go test ./cmd/gormes -run TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces -count=1",
+        "go test ./internal/cli -run TestCommandRegistryPolicyGatewayParity -count=1",
+        "go test ./internal/gateway -run TestGatewayRegistryRecognizesSharedAndGatewayCLICommands -count=1",
+        "go test ./internal/tui ./internal/cli ./internal/gateway ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI `/redraw` recovers local terminal-drift state through the same seam as Ctrl+L and no longer falls through as unavailable or reaches the model."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 63,
+    "item": {
+      "name": "Native TUI /statusbar chrome mode binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Bind Hermes ui-tui `/statusbar`/`/sb` to the native Bubble Tea chrome so operators can toggle the model/context status rule locally with `on`, `off`, `top`, `bottom`, or `toggle`. The handler must not submit slash text to the model; it mutates only the TUI status-bar mode and uses the chrome assembler to place or hide the existing Hermes-compatible status rule.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If `/statusbar` is not ported, Gormes still consumes it with recognized-unavailable evidence, but operators cannot hide or reposition the native status rule without restarting or editing config.",
+      "fixture": "internal/tui/slash_statusbar_test.go::TestStatusBarSlashTogglesChromePlacementWithoutSubmitting",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/core.ts:statusbar",
+        "hermes-agent/ui-tui/src/components/appLayout.tsx:StatusRulePane",
+        "hermes-agent/ui-tui/src/__tests__/useConfigSync.test.ts:statusBar modes",
+        "internal/tui/statusbar.go:statusbarSlashHandler",
+        "internal/tui/hermes_chrome.go:RenderHermesChrome",
+        "internal/tui/view.go:Model.View",
+        "internal/tui/slash_statusbar_test.go:TestStatusBarSlashTogglesChromePlacementWithoutSubmitting",
+        "internal/tui/slash_statusbar_test.go:TestStatusBarSlashCompletionsAndBusyAvailability"
+      ],
+      "ready_when": [
+        "Native TUI already renders the Hermes-compatible status rule from RenderFrame state.",
+        "Hermes ui-tui supports `/statusbar [on|off|top|bottom|toggle]` and `/sb` as a local slash command that changes TUI chrome state."
+      ],
+      "not_ready_when": [
+        "The implementation requires live gateway config persistence or external credentials to prove the local chrome behavior.",
+        "The slice changes model/provider/session state instead of only native TUI chrome state.",
+        "The slash command reaches kernel.Submit or falls through to recognized-unavailable fallback."
+      ],
+      "acceptance": [
+        "`/statusbar off` hides the Hermes status rule from Model.View without clearing the transcript or prompt.",
+        "`/statusbar on` and `/statusbar top` render the status rule above the prompt; `/statusbar bottom` renders it below the prompt.",
+        "Bare `/statusbar` and `/statusbar toggle` flip between top and off, invalid arguments show Hermes usage, and alias `/sb` uses the same handler.",
+        "`/statusbar` completions are available, expose static subcommands, and the command is busy-safe like upstream Hermes."
+      ],
+      "note": "Complete in development-goal iteration 28: added StatusBarMode to the native TUI model/chrome seam, registered `/statusbar` and `/sb`, marked the CLI metadata ported with static subcommands, and validated through focused TUI/registry tests plus full gates.",
+      "write_scope": [
+        "internal/tui/statusbar.go",
+        "internal/tui/slash_statusbar_test.go",
+        "internal/tui/model.go",
+        "internal/tui/view.go",
+        "internal/tui/hermes_chrome.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/cli/command_registry.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestStatusBarSlash|TestHermesChrome_(BottomPinnedOrder|BottomPinnedOrder_View|OptionalRowsRemainBelowPrompt)|TestSlashCommandAliasAndPrefixDispatch|TestHermesSlashCompletion' -count=1",
+        "go test ./internal/cli -run 'TestCommandRegistryPolicy' -count=1",
+        "go test ./cmd/gormes -run TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces -count=1",
+        "go test ./internal/gateway -run TestGatewayRegistryRecognizesSharedAndGatewayCLICommands -count=1",
+        "go test ./internal/tui ./internal/cli ./internal/gateway ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI `/statusbar` no longer falls through as unavailable; operators can locally hide or place the status rule and completions show the command as available."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 64,
+    "item": {
+      "name": "Native TUI /details detail-section visibility binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Bind Hermes ui-tui `/details` to the native Bubble Tea detail-visibility seam so operators can locally inspect or set global detail mode (`hidden`, `collapsed`, `expanded`, `cycle`/`toggle`) and per-section overrides for `thinking`, `tools`, `subagents`, and `activity`. The handler must not submit slash text to the model; it updates native TUI detail state and the transcript renderer must honor that state for thinking and tool-progress sections while preserving existing transcript, draft, error, and status chrome behavior.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If `/details` is not ported, Gormes consumes it with recognized-unavailable evidence and operators cannot locally hide or expand thinking/tool progress visibility during a native TUI turn.",
+      "fixture": "internal/tui/slash_details_test.go::TestDetailsSlashControlsThinkingAndToolVisibilityWithoutSubmitting",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/core.ts:details",
+        "hermes-agent/ui-tui/src/domain/details.ts:sectionMode",
+        "hermes-agent/ui-tui/src/__tests__/details.test.ts:sectionMode",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:cycles details mode and persists it",
+        "internal/tui/details.go:DetailsState",
+        "internal/tui/slash_details.go:detailsSlashHandler",
+        "internal/tui/view.go:conversationForcedBlocksWithDetails",
+        "internal/tui/slash_details_test.go:TestDetailsStateMatchesHermesSectionDefaults",
+        "internal/tui/slash_details_test.go:TestDetailsSlashControlsThinkingAndToolVisibilityWithoutSubmitting",
+        "internal/tui/slash_details_test.go:TestDetailsSlashHidesFallbackThinkingIndicator",
+        "internal/tui/slash_details_test.go:TestDetailsSlashToggleSectionUsageAndCompletions"
+      ],
+      "ready_when": [
+        "Native TUI already renders fallback thinking and tool-progress forced blocks from kernel.RenderFrame.",
+        "Hermes ui-tui defines detail modes and section names in domain/details.ts and routes `/details` locally before gateway fallback."
+      ],
+      "not_ready_when": [
+        "The implementation requires live gateway config persistence or external credentials to prove local visibility behavior.",
+        "The slash command reaches kernel.Submit or falls through to recognized-unavailable fallback.",
+        "The renderer hides draft text, final assistant text, or error blocks when only thinking/tool detail visibility should change."
+      ],
+      "acceptance": [
+        "`/details hidden` is handled locally, clears the editor, does not submit to the model, and hides thinking/tool progress forced blocks from Model.View.",
+        "`/details tools expanded` restores tool progress visibility even when global detail mode is hidden; `/details tools reset` removes the override and falls back to global hidden.",
+        "Bare `/details` reports current state, `/details toggle` cycles the global mode from collapsed to expanded, invalid global/section arguments show Hermes-compatible usage, and `/details` is busy-available.",
+        "Completions mark `/details` available and expose static detail modes plus section names."
+      ],
+      "note": "Complete in development-goal iteration 29: added a native DetailsState seam with Hermes section defaults, wired `/details` into the slash registry, made thinking/tool forced blocks honor hidden/collapsed/expanded modes, marked command metadata ported, and validated with focused TUI/registry tests plus full gates.",
+      "write_scope": [
+        "internal/tui/details.go",
+        "internal/tui/slash_details.go",
+        "internal/tui/slash_details_test.go",
+        "internal/tui/model.go",
+        "internal/tui/view.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/tui/slash_completion_test.go",
+        "internal/cli/command_registry.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestDetails|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)|TestHermesSlashCompletion|TestSlashCommandAliasAndPrefixDispatch|TestGormesChatModelView_UserReportHardening|TestHermesChrome' -count=1",
+        "go test ./internal/cli -run 'TestCommandRegistryPolicy' -count=1",
+        "go test ./cmd/gormes -run TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces -count=1",
+        "go test ./internal/gateway -run TestGatewayRegistryRecognizesSharedAndGatewayCLICommands -count=1",
+        "go test ./internal/tui ./internal/cli ./internal/gateway ./cmd/gormes -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI `/details` no longer falls through as unavailable; thinking/tool detail sections obey local detail state and completions show the command as available."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 65,
+    "item": {
+      "name": "Native TUI /indicator busy-indicator style binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Bind Hermes ui-tui `/indicator` to the native Bubble Tea busy-indicator seam so operators can inspect the current indicator style and hot-swap the running-turn glyph family among `ascii`, `emoji`, `kaomoji`, and `unicode` without submitting slash text to the model. The native hint renderer must honor the selected style immediately while preserving the existing phase/session/status-message hint text and slash fallback behavior.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If `/indicator` is not ported, Gormes consumes it with recognized-unavailable evidence and operators cannot locally switch the running-turn busy indicator style in the native TUI.",
+      "fixture": "internal/tui/slash_indicator_test.go::TestIndicatorSlashControlsBusyHintWithoutSubmitting",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/interfaces.ts:INDICATOR_STYLES",
+        "hermes-agent/ui-tui/src/app/useConfigSync.ts:normalizeIndicatorStyle",
+        "hermes-agent/ui-tui/src/components/appChrome.tsx:renderIndicator",
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts:indicator",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:hot-swaps the live indicator",
+        "hermes-agent/ui-tui/src/__tests__/useConfigSync.test.ts:normalizeIndicatorStyle",
+        "internal/tui/indicator.go:IndicatorStyle",
+        "internal/tui/slash_indicator.go:indicatorSlashHandler",
+        "internal/tui/view.go:renderHermesHintWithIndicator",
+        "internal/tui/slash_indicator_test.go:TestIndicatorStyleMatchesHermesEnumAndFrames",
+        "internal/tui/slash_indicator_test.go:TestIndicatorSlashControlsBusyHintWithoutSubmitting",
+        "internal/tui/slash_indicator_test.go:TestIndicatorSlashUsageAndCompletions"
+      ],
+      "ready_when": [
+        "Native TUI already renders a running-turn hint from kernel.RenderFrame phase/session/status-message state.",
+        "Hermes ui-tui exposes the canonical indicator style enum and `/indicator` slash semantics in the in-repo upstream checkout."
+      ],
+      "not_ready_when": [
+        "The implementation requires live gateway config persistence or external provider credentials to prove local hot-swap behavior.",
+        "The slash command reaches kernel.Submit or falls through to recognized-unavailable fallback.",
+        "Changing indicator style rewrites unrelated status bar, transcript, or busy-input semantics."
+      ],
+      "acceptance": [
+        "`/indicator unicode` is handled locally, clears the editor, does not submit to the model, and makes the active running-turn hint render a braille indicator frame immediately.",
+        "Bare `/indicator` reports the current native style; invalid styles return `usage: /indicator [ascii|emoji|kaomoji|unicode]` without mutating the current style.",
+        "The native indicator style enum accepts `ascii`, `emoji`, `kaomoji`, and `unicode`, trims/lowercases input, and falls back to `kaomoji` for missing or unknown values like Hermes ui-tui.",
+        "Completions mark `/indicator` available, expose the four static styles, and list it as busy-available in the native registry."
+      ],
+      "note": "Complete in development-goal iteration 30: added a native IndicatorStyle module, wired `/indicator` into the TUI slash registry and running-turn hint renderer, marked command metadata ported with static style subcommands, and validated with focused TUI/registry tests plus full gates.",
+      "write_scope": [
+        "internal/tui/indicator.go",
+        "internal/tui/slash_indicator.go",
+        "internal/tui/slash_indicator_test.go",
+        "internal/tui/model.go",
+        "internal/tui/view.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_completion_test.go",
+        "internal/cli/command_registry.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestIndicator|TestHermesSlashCompletion|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)|TestStreamingSpinnerTickAdvancesActiveHintOnly|TestSpinner_RenderSpinnerFrame' -count=1",
+        "go test ./internal/cli -run 'TestCommandRegistryPolicy' -count=1",
+        "go test ./cmd/gormes -run TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces -count=1",
+        "go test ./internal/gateway -run TestGatewayRegistryRecognizesSharedAndGatewayCLICommands -count=1",
+        "go test ./internal/tui ./internal/cli ./internal/gateway ./cmd/gormes -count=1",
+        "go test ./internal/progress ./webpages/docs ./webpages/docs/install -count=1",
+        "go test ./... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI `/indicator` no longer falls through as unavailable; running-turn hints use the selected Hermes indicator style and completions show the command as available."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 66,
+    "item": {
+      "name": "Native TUI /history current transcript page binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port Hermes ui-tui's local `/history` behavior into the native Bubble Tea TUI without proxying through a detached CLI worker. `/history [preview]` must consume slash text locally, read the current in-memory kernel transcript, filter to user and assistant messages, render a dismissible `History` page with clipped bodies and tool-call placeholders, and report `no conversation yet` when no user/assistant turns exist. The page seam must stay local to the TUI and must not mutate kernel/session state.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Empty or non-conversation transcripts consume `/history` with `no conversation yet`; the transient page is local, read-only, and dismissible with Escape/Ctrl-C without submitting prompt text.",
+      "fixture": "internal/tui/slash_history_test.go::TestHistorySlashRendersCurrentTranscriptPageWithoutSubmitting",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/core.ts:history command",
+        "hermes-agent/ui-tui/src/app/interfaces.ts:SlashHandlerContext local.getHistoryItems and transcript.page",
+        "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+        "internal/tui/slash_history.go:historySlashHandler",
+        "internal/tui/transient_page.go:TransientPageState",
+        "internal/cli/command_registry.go:CommandRegistry history entry",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+      ],
+      "ready_when": [
+        "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella and `/history` is represented as this dedicated child row.",
+        "The active upstream contract is Hermes ui-tui `core.ts` local `/history`, not legacy detached CLI history output.",
+        "The native TUI has a local page seam that tests can assert without live gateway/provider dependencies."
+      ],
+      "not_ready_when": [
+        "`/history` falls through to `slashFallbackResult` or reaches kernel.Submit as prompt text.",
+        "The handler reads only persisted CLI-worker history and misses turns already visible in the current TUI.",
+        "The page renderer leaks system/tool messages into the user-visible conversation history."
+      ],
+      "acceptance": [
+        "`/history [preview]` consumes the slash command locally and clears the editor without calling Submitter.",
+        "The page includes user and assistant messages in order, clips long bodies, and uses a tool-call placeholder for empty assistant tool-call turns.",
+        "System and tool-role messages are omitted from the page body.",
+        "Empty conversations produce `no conversation yet` evidence and do not open a page.",
+        "Slash completions mark `/history` available, and the command is listed as busy-available because it is read-only local TUI state."
+      ],
+      "note": "Iteration 31: added the transient page seam and `/history` local handler. RED: `go test ./internal/tui -run TestHistorySlash -count=1` failed on missing `Model.transientPage`. GREEN: focused slash/history tests and registry policy tests passed after adding the handler, page renderer, command registry metadata, and fallback-test adjustment.",
+      "write_scope": [
+        "internal/tui/transient_page.go",
+        "internal/tui/slash_history.go",
+        "internal/tui/slash_history_test.go",
+        "internal/tui/model.go",
+        "internal/tui/view.go",
+        "internal/tui/update.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/cli/command_registry.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run TestHistorySlash -count=1",
+        "go test ./internal/tui -run 'TestHistorySlash|TestHermesSlashCompletion|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)' -count=1",
+        "go test ./internal/cli -run 'TestCommandRegistryPolicy' -count=1",
+        "go test ./cmd/gormes -run TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces -count=1",
+        "go test ./internal/gateway -run TestGatewayRegistryRecognizesSharedAndGatewayCLICommands -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "`/history` is a native local TUI handler with a transient page seam, focused tests, available completion metadata, and validated progress row evidence."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui core.ts `/history` local transcript page behavior",
+        "note": "Hermes defines local current-transcript history semantics; Gormes owns product label text and the Bubble Tea transient page seam."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 67,
+    "item": {
+      "name": "Native TUI /status current frame page binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port Hermes ui-tui's `/status` behavior into the native Bubble Tea TUI as a local read-only status page. Hermes calls `session.status` and renders a `Status` transcript page; Gormes native TUI must consume `/status` locally, avoid the slash fallback, use the current kernel RenderFrame as the authoritative live status snapshot, render the page through the transient page seam, and return `no active session` when there is no current session.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without an active session, `/status` consumes the slash text and reports `no active session`; with a session, the page remains local/read-only and never depends on live gateway credentials.",
+      "fixture": "internal/tui/slash_status_test.go::TestStatusSlashRendersCurrentFramePageWithoutSubmitting",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/core.ts:status command",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:routes /status to live session.status instead of slash worker",
+        "hermes-agent/ui-tui/src/app/interfaces.ts:SlashHandlerContext transcript.page",
+        "internal/kernel/frame.go:RenderFrame",
+        "internal/tui/slash_status.go:statusSlashHandler",
+        "internal/tui/transient_page.go:TransientPageState",
+        "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+        "internal/cli/command_registry.go:CommandRegistry status entry",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+      ],
+      "ready_when": [
+        "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella and `/status` is represented as this dedicated child row.",
+        "The active upstream contract is Hermes ui-tui `core.ts` `/status` rendering a `Status` page, not legacy slash-worker prompt fallback.",
+        "The native TUI has access to kernel.RenderFrame and the transient page seam from the `/history` child row."
+      ],
+      "not_ready_when": [
+        "`/status` falls through to `slashFallbackResult` or reaches kernel.Submit as prompt text.",
+        "The handler requires a live gateway RPC, provider credentials, or external process to render basic local status.",
+        "The page invents agent state outside the current RenderFrame snapshot."
+      ],
+      "acceptance": [
+        "`/status` consumes the slash command locally and clears the editor without calling Submitter.",
+        "With an active session, the TUI opens a `Status` transient page containing session, phase, model, provider/runtime, reasoning, context, telemetry, history count, and last-error evidence when present.",
+        "Without an active session, `/status` reports `no active session` and does not open a page.",
+        "Slash completions mark `/status` available, `/stat` remains ambiguous with `/statusbar`, and the command is busy-available because it is read-only local TUI state."
+      ],
+      "note": "Iteration 32: reused the transient page seam for `/status`. RED: `go test ./internal/tui -run TestStatusSlash -count=1` failed because `/status` fell through to fallback and opened no page. GREEN: focused slash/status and registry tests passed after adding the local handler, RenderFrame page formatting, dispatch registration, and fallback-test adjustment.",
+      "write_scope": [
+        "internal/tui/slash_status.go",
+        "internal/tui/slash_status_test.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/tui/slash_commands_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run TestStatusSlash -count=1",
+        "go test ./internal/tui -run 'TestStatusSlash|TestSlashCommandAliasAndPrefixDispatch|TestHermesSlashCompletion|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)' -count=1",
+        "go test ./internal/cli -run 'TestCommandRegistryPolicy' -count=1",
+        "go test ./cmd/gormes -run TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces -count=1",
+        "go test ./internal/gateway -run TestGatewayRegistryRecognizesSharedAndGatewayCLICommands -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "`/status` is a native local TUI handler backed by RenderFrame, transient page rendering, focused slash tests, available completion metadata, and validated progress evidence."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui core.ts `/status` session.status page behavior",
+        "note": "Hermes defines Status page semantics; Gormes owns the local RenderFrame-backed implementation for the Go-native direct TUI path."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 68,
+    "item": {
+      "name": "Native TUI /logs gateway tail page binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port Hermes ui-tui's `/logs [limit]` behavior into the native Bubble Tea TUI as a local read-only gateway log page. Hermes calls `ctx.gateway.gw.getLogTail(Math.min(80, Math.max(1, parseInt(arg, 10) || 20)))`; Gormes must consume `/logs` locally, clamp the requested tail limit the same way, render non-empty output through the transient page seam as `Logs`, and report `no gateway logs` when the tail is empty or no local adapter is wired.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Plain or remote TUI instances without a local log-tail adapter consume `/logs` and report `no gateway logs`; local `cmd/gormes` startup injects a bounded gateway/file-fallback adapter without adding HTTP or config-path I/O to internal/tui.",
+      "fixture": "internal/tui/slash_logs_test.go::TestLogsSlashRendersGatewayTailPageWithoutSubmitting",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/core.ts:/logs command",
+        "hermes-agent/ui-tui/src/gatewayClient.ts:getLogTail",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:buildCtx gateway getLogTail fixture",
+        "internal/tui/slash_logs.go:logsSlashHandler",
+        "internal/tui/model.go:GatewayLogTailFunc",
+        "internal/tui/transient_page.go:TransientPageState",
+        "cmd/gormes/logs.go:readLogsTail",
+        "cmd/gormes/main.go:local TUI GatewayLogTail injection",
+        "internal/cli/command_registry.go:CommandRegistry logs entry",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:TUI gateway and interactive UI"
+      ],
+      "ready_when": [
+        "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella and `/logs` is represented as this dedicated child row.",
+        "The active upstream contract is Hermes ui-tui `core.ts` `/logs` rendering `gw.getLogTail` into a `Logs` transcript page.",
+        "The native TUI has the transient page seam from the `/history` and `/status` child rows plus a caller-injected local adapter seam for log tail retrieval."
+      ],
+      "not_ready_when": [
+        "`/logs` falls through to `slashFallbackResult` or reaches kernel.Submit as prompt text.",
+        "internal/tui opens files, calls HTTP endpoints, or imports cmd/gormes/config directly to find logs.",
+        "The local adapter can hang indefinitely on a wedged gateway instead of using the existing bounded logs client/fallback behavior."
+      ],
+      "acceptance": [
+        "`/logs [limit]` consumes the slash command locally and clears the editor without calling Submitter.",
+        "The handler clamps limits to Hermes semantics: default 20, minimum 1 for negative values, zero/non-numeric defaulting to 20, and maximum 80.",
+        "A non-empty tail opens a `Logs` transient page containing the adapter output; an empty or missing adapter reports `no gateway logs` without opening a page.",
+        "Local `cmd/gormes` TUI startup injects the same bounded gateway/file-fallback log reader used by the CLI logs surface, while plain/remote TUI construction remains adapter-free.",
+        "Slash completions mark `/logs` available and the default slash registry marks it busy-available because it is read-only local state."
+      ],
+      "note": "Iteration 33: ported `/logs` through a deep `GatewayLogTailFunc` adapter seam. RED 1: `go test ./internal/tui -run TestLogsSlash -count=1` failed on missing `GatewayLogTailFunc`/Options field. RED 2: `go test ./cmd/gormes -run TestTUILogsSlash -count=1` failed because local TUI startup injected no adapter. GREEN: added the TUI handler, command registry metadata, production injection, shared bounded `readLogsTail`, and registry ownership entries.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_logs.go",
+        "internal/tui/slash_logs_test.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/cli/command_registry.go",
+        "internal/app/gormescli/default_contracts.go",
+        "internal/gateway/commands.go",
+        "cmd/gormes/logs.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_logs_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run TestLogsSlash -count=1",
+        "go test ./cmd/gormes -run TestTUILogsSlash -count=1",
+        "go test ./cmd/gormes -run 'TestTUILogsSlash|TestLogsCommand|TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces' -count=1",
+        "go test ./internal/tui -run 'TestLogsSlash|TestStatusSlash|TestHistorySlash|TestSlashCommandAliasAndPrefixDispatch|TestHermesSlashCompletion|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)' -count=1",
+        "go test ./internal/cli -run 'TestCommandRegistryPolicy' -count=1",
+        "go test ./internal/gateway -run TestGatewayRegistryRecognizesSharedAndGatewayCLICommands -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "`/logs` is a native local TUI handler backed by an injected bounded log-tail adapter, transient page rendering, focused slash tests, production injection tests, completion/registry metadata, and validated progress evidence."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui core.ts `/logs` gw.getLogTail page behavior",
+        "note": "Hermes defines the local TUI slash semantics; Gormes owns the adapter boundary and concrete bounded gateway/file-fallback implementation for the Go-native local TUI."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 69,
+    "item": {
+      "name": "Native TUI /title session-title binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port Hermes ui-tui `/title` local handler into the native Bubble Tea TUI. `/title` with an active session queries the current title; `/title <name>` persists an operator-chosen session title through an injected adapter; the handler consumes command text locally and never falls through to model submission or generic unavailable evidence. Local TUI startup wires the production adapter over session metadata so manual titles set `title_manually_set=true`; remote/plain TUI constructors leave the seam nil with explicit degraded evidence.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "No active session returns `no active session`; a nil SessionTitle adapter returns `title: session title unavailable`; adapter errors are consumed as visible title evidence. Remote TUI remains unwired rather than opening session DB handles inside internal/tui.",
+      "fixture": "internal/tui/slash_title_test.go::TestTitleSlashGetsAndSetsSessionTitleWithoutSubmitting + cmd/gormes/tui_title_slash_test.go::TestTUITitleSlashBindingLocalModelPersistsManualTitle",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/core.ts:/title",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:/title <name> uses session.title RPC and bypasses slash.exec",
+        "internal/tui/slash_title.go:titleSlashHandler",
+        "internal/tui/model.go:SessionTitleFunc",
+        "cmd/gormes/tui_title_slash.go:newTUITitleFunc",
+        "internal/session/directory.go:Metadata.TitleManuallySet"
+      ],
+      "ready_when": [
+        "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella.",
+        "The active Hermes ui-tui `/title` behavior is confirmed from `core.ts` and `createSlashHandler.test.ts`.",
+        "A fakeable local SessionTitle adapter is used by internal/tui tests and a production metadata adapter is wired by cmd/gormes."
+      ],
+      "not_ready_when": [
+        "The handler talks to Bolt/session DB directly from internal/tui.",
+        "Manual title writes do not preserve `title_manually_set=true` metadata evidence.",
+        "Remote/plain TUI constructors gain production session DB side effects."
+      ],
+      "acceptance": [
+        "`/title` and `/title <name>` are consumed locally without Submitter calls or unavailable fallback evidence.",
+        "Multi-word titles collapse like Hermes slash parsing and set confirmation uses `session title set: <title>`.",
+        "Local cmd/gormes TUI startup injects a metadata-backed adapter that persists manual titles; plain/remote TUI leaves the adapter nil."
+      ],
+      "note": "Builder 2026-05-23 iteration 34: shipped native `/title` over a fakeable SessionTitleFunc and cmd/gormes metadata adapter. RED evidence: internal/tui failed on undefined SessionTitle types; cmd/gormes failed because local TUI SessionTitle was nil. Green evidence: focused internal/cmd tests pass, then progress validation and full Go gate run in the delivery report.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_title.go",
+        "internal/tui/slash_title_test.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_title_slash.go",
+        "cmd/gormes/tui_title_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestTitleSlash|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback)' -count=1",
+        "go test ./cmd/gormes -run TestTUITitleSlash -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI `/title` is locally handled, production local TUI persists manual session titles through session metadata, and the slash-handler parent remains planned as an umbrella."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui `/title` local handler delegates to `session.title` RPC; Gormes owns a native metadata adapter instead of JS gateway RPC inside the Bubble Tea model.",
+        "note": "Hermes defines operator-visible `/title` text and local-first slash dispatch; Gormes preserves the text while keeping DB I/O outside internal/tui."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 70,
+    "item": {
+      "name": "Native TUI /sessions and /resume picker page binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port the Hermes ui-tui local resume/session picker entry point into the native Bubble Tea TUI. `/sessions` and `/resume` are consumed locally, open a dismissible Sessions transient page over an injected recent-session directory seam, and never fall through to model submission or generic unavailable evidence. The TUI owns rendering and degraded messages; cmd/gormes owns the Goncho memory database adapter. This slice intentionally opens the picker/list page only; selecting and switching the active kernel session remains future work.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A nil SessionDirectory adapter returns `sessions: directory unavailable`; an empty directory returns `no sessions found`; adapter errors are consumed as visible `sessions: <error>` evidence. Remote/plain TUI constructors leave the seam nil and never open local SQLite state.",
+      "fixture": "internal/tui/slash_sessions_test.go::TestSessionsSlashOpensPickerPageWithoutSubmitting + cmd/gormes/tui_sessions_slash_test.go::TestTUISessionsSlashBindingLocalModelReceivesSessionDirectory",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:opens the resume picker locally",
+        "hermes-agent/ui-tui/src/app/createSlashHandler.ts:findSlashCommand local-first dispatch",
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts:sessions command opens picker",
+        "internal/tui/slash_sessions.go:sessionsSlashHandler",
+        "internal/tui/model.go:SessionDirectoryFunc",
+        "cmd/gormes/tui_sessions_slash.go:newTUISessionDirectoryFunc",
+        "internal/session/directory.go:ListDirectorySessions",
+        "internal/cli/command_registry.go:resume CLI-only native picker metadata"
+      ],
+      "ready_when": [
+        "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella.",
+        "Hermes source evidence confirms `/resume` opens the session picker locally rather than submitting prompt text.",
+        "Gormes session-directory primitives already expose recent sessions from the Goncho memory database."
+      ],
+      "not_ready_when": [
+        "The TUI opens SQLite or config paths directly instead of using an injected adapter.",
+        "The slice claims full session switching/resume behavior without a kernel/session-switch test.",
+        "Remote/plain TUI constructors gain local session database side effects."
+      ],
+      "acceptance": [
+        "`/resume` and `/sessions` are consumed locally without Submitter calls or recognized-unavailable fallback evidence.",
+        "The Sessions transient page lists recent session title/preview/id/source/message-count evidence from a fakeable adapter.",
+        "Local cmd/gormes TUI startup injects a Goncho memory-backed directory adapter; remote/plain TUI leaves the adapter nil.",
+        "The CLI command registry marks `/resume` as a native CLI/TUI picker port while gateway `resume` remains unavailable until a separate gateway row ships."
+      ],
+      "note": "Builder 2026-05-23 iteration 35: shipped native `/sessions` and `/resume` picker-page binding over a fakeable SessionDirectoryFunc plus cmd/gormes Goncho-memory adapter. RED evidence: internal/cmd tests failed on undefined SessionDirectory types/options; command-registry policy test exposed the CLI-vs-gateway surface mismatch and was fixed by marking resume CLI-only. Green evidence: focused TUI/cmd/CLI tests pass; full validation runs in delivery report.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_sessions.go",
+        "internal/tui/slash_sessions_test.go",
+        "internal/cli/command_registry.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_sessions_slash.go",
+        "cmd/gormes/tui_sessions_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestSessionsSlash|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback)|TestHermesSlashCompletion|TestHermesChrome|TestTUIPackageDoesNotAdvertiseCopyHotkey' -count=1",
+        "go test ./internal/cli -run 'TestCommandRegistry|TestCommandRegistryPolicy|TestCommandRegistry.*' -count=1",
+        "go test ./cmd/gormes -run TestTUISessionsSlash -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI `/sessions` and `/resume` open a local recent-session picker page through an injected adapter, with production local startup wired to Goncho memory and gateway resume left unavailable."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui `/resume` opens the session picker locally through createSlashHandler/findSlashCommand; Gormes preserves local-first consumption while using a native transient page.",
+        "note": "This is a picker/list binding, not full session-switch selection. A future child row should own selection, kernel session switch, and transcript replay."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 71,
+    "item": {
+      "name": "Native TUI /resume session switch binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Extend the native `/sessions`/`/resume` picker port with an explicit `/resume <id-or-prefix>` switch path. The native Bubble Tea TUI resolves the operator-supplied session id or unique prefix through an injected SessionResumeFunc, asks the kernel-owned resident-session seam to switch only while idle/failed, replays ordered transcript history into the visible frame, clears stale picker state, and never submits the slash text as model prompt content. Bare `/resume` remains the local picker page from the previous child row.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A nil SessionResume adapter returns `resume: session switch unavailable`; active/streaming turns return interrupt-first guidance; missing, ambiguous, database, transcript, or kernel errors are consumed as visible `resume: <error>` evidence. Remote/plain TUI constructors leave the seam nil and never open local SQLite state.",
+      "fixture": "internal/tui/slash_sessions_test.go::TestResumeSlashWithSessionIDSwitchesVisibleSessionAndHistoryWithoutSubmitting + internal/kernel/resume_session_test.go::TestKernelResumeSessionSwitchesResidentSessionAndHistory + internal/transcript/markdown_test.go::TestLoadMessagesReturnsOrderedHermesMessages + cmd/gormes/tui_sessions_slash_test.go::TestTUIResumeSlashBindingLocalModelReceivesSessionResumeAdapter",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts",
+        "hermes-agent/ui-tui/src/app/createSlashHandler.ts",
+        "internal/tui/slash_sessions.go:resumeSlashWithArg",
+        "internal/tui/model.go:SessionResumeFunc",
+        "internal/kernel/kernel.go:ResumeSession",
+        "cmd/gormes/tui_sessions_slash.go:newTUIResumeSessionFunc",
+        "internal/session/directory.go:ResolveSessionIDPrefix",
+        "internal/transcript/markdown.go:LoadMessages"
+      ],
+      "ready_when": [
+        "The `/sessions` and bare `/resume` picker child row is already complete.",
+        "The kernel owns resident session mutation through the Run loop, preserving the single-owner invariant.",
+        "Session directory resolution and transcript export/load primitives already exist over the Goncho memory database."
+      ],
+      "not_ready_when": [
+        "The TUI opens SQLite/config paths directly instead of using an injected adapter.",
+        "A session switch can run during an active turn or mutate kernel history outside the Run loop.",
+        "Remote/plain TUI constructors gain local session database side effects.",
+        "The slash text can fall through to Submitter/kernel.Submit as prompt content."
+      ],
+      "acceptance": [
+        "`/resume <id-or-prefix>` is consumed locally without Submitter calls, resolves the id/prefix through cmd/gormes' Goncho memory-backed adapter, and calls the kernel resident-session switch seam.",
+        "The kernel rejects empty ids and active-turn resume attempts, switches k.sessionID and replayed history on its own goroutine, emits a `session resumed` idle frame, and clones replayed messages.",
+        "The TUI updates SessionID/frame history immediately from the adapter result, clears stale transient picker state, and reports `resumed <session> (<n> messages)`.",
+        "Transcript replay loads ordered user/assistant rows from the existing `turns` table without changing markdown export behavior.",
+        "Remote/plain TUI constructors leave SessionResume nil, while local TUI startup injects the production adapter."
+      ],
+      "note": "Builder 2026-05-23 iteration 38: shipped native `/resume <id-or-prefix>` resident-session switch. RED evidence: focused tests failed on undefined SessionResumeFunc/SessionResumeResult, missing Kernel.ResumeSession/ErrResumeSessionIDRequired, and missing transcript.LoadMessages. Green evidence: focused internal/tui, internal/kernel, internal/transcript, and cmd/gormes tests pass; full validation runs in delivery report.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_sessions.go",
+        "internal/tui/slash_sessions_test.go",
+        "internal/kernel/frame.go",
+        "internal/kernel/kernel.go",
+        "internal/kernel/resume_session_test.go",
+        "internal/transcript/markdown.go",
+        "internal/transcript/markdown_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_sessions_slash.go",
+        "cmd/gormes/tui_sessions_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestResumeSlash|TestSessionsSlash|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)|TestHermesSlashCompletion|TestHermesChrome|TestTUIPackageDoesNotAdvertiseCopyHotkey' -count=1",
+        "go test ./internal/kernel -run TestKernelResumeSession -count=1",
+        "go test ./internal/transcript -run TestLoadMessages -count=1",
+        "go test ./cmd/gormes -run 'TestTUIResumeSlashBinding|TestTUISessionsSlashBinding' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI `/resume <id-or-prefix>` switches the resident local TUI kernel session and replays transcript history through fakeable TUI, transcript, and kernel seams while preserving bare `/resume` picker behavior."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 72,
+    "item": {
+      "name": "Native TUI /usage local frame usage page binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port the Hermes ui-tui `/usage` entry point into the native Bubble Tea TUI as a local frame-usage page. `/usage` is consumed locally, reads the current `kernel.RenderFrame` telemetry/context evidence, opens a dismissible Usage transient page, and never falls through to model submission or generic unavailable evidence. This slice intentionally covers local session/runtime token evidence only; provider account limits/cost windows remain a future async adapter row so internal/tui stays free of HTTP, credentials, and provider account API policy.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When the current frame has no token telemetry, `/usage` consumes the command and returns `no API calls yet` without opening a page. Missing model/session fields render as `unknown`; negative counters clamp to zero. Provider account usage is omitted rather than fetched from internal/tui.",
+      "fixture": "internal/tui/slash_usage_test.go::TestUsageSlashOpensFrameUsagePageWithoutSubmitting",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts:/usage session usage command",
+        "internal/gateway/usage_command.go:renderUsageFrameLines",
+        "internal/kernel/frame.go:RenderFrame.Telemetry",
+        "internal/telemetry/telemetry.go:Snapshot",
+        "internal/tui/slash_usage.go:usageSlashHandler",
+        "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry"
+      ],
+      "ready_when": [
+        "The parent `Native TUI slash handler-port coverage` row remains a non-selectable umbrella.",
+        "Hermes source evidence confirms `/usage` is a local slash command that reports session usage and says `no API calls yet` when empty.",
+        "Gormes kernel render frames already carry local token, latency, speed, model, session, and context evidence."
+      ],
+      "not_ready_when": [
+        "The TUI performs provider account-usage HTTP calls synchronously from Bubble Tea Update.",
+        "The slice claims provider cost/account windows without redaction and timeout tests.",
+        "The handler lets `/usage` reach kernel.Submit or generic recognized-unavailable fallback evidence."
+      ],
+      "acceptance": [
+        "`/usage` is consumed locally without Submitter calls or recognized-unavailable fallback evidence.",
+        "When telemetry is present, the Usage page includes source, model, session, input/output/total tokens, latency, speed, context, and compression evidence from the current render frame.",
+        "When no telemetry is present, the handler returns `no API calls yet` and does not open a stale page.",
+        "Slash completions and busy-time availability expose `/usage` as available."
+      ],
+      "note": "Builder 2026-05-23 iteration 36: shipped native `/usage` over the current render frame. RED evidence: focused TUI tests failed with `/usage is recognized but unavailable in the native TUI` and missing busy availability. Green evidence: focused slash/TUI tests pass; full validation runs in delivery report.",
+      "write_scope": [
+        "internal/tui/slash_usage.go",
+        "internal/tui/slash_usage_test.go",
+        "internal/tui/slash_dispatch.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestUsageSlash|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)|TestHermesSlashCompletion|TestHermesChrome|TestTUIPackageDoesNotAdvertiseCopyHotkey' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI `/usage` opens local frame-backed session usage evidence, reports empty telemetry as `no API calls yet`, and remains separate from future provider account/cost usage."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui `/usage` reports session usage and returns `no API calls yet` when empty; Gormes preserves local-first consumption while using native kernel render-frame telemetry.",
+        "note": "Provider account cost/window parity is intentionally deferred to a future async adapter row to avoid credentials/network policy in internal/tui."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 73,
+    "item": {
+      "name": "Native TUI /usage provider account usage adapter binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Extend the native Bubble Tea TUI `/usage` command with a fakeable, asynchronous provider account-usage adapter. The command still opens local frame-backed session usage immediately, never submits slash text to the kernel, and appends provider account windows/details only through an injected `AccountUsageFunc` so internal/tui never owns config paths, credentials, HTTP clients, or provider-specific account policy.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When no local frame token telemetry exists, `/usage` keeps Hermes-style `no API calls yet` behavior and does not fetch provider account usage. When no account adapter is wired, `/usage` remains local-only. Adapter errors are rendered inside the Usage page as provider-unavailable evidence and update the status line without reopening a closed page.",
+      "fixture": "internal/tui/slash_usage_test.go::TestUsageSlashFetchesAccountUsageAsynchronously",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts:/usage session usage command",
+        "internal/hermes/account_usage.go:RenderAccountUsageLines",
+        "internal/app/gormescli/modules/providers/usage.go:UsageSeams",
+        "internal/gateway/usage_command.go:AccountUsageProvider",
+        "internal/tui/slash_usage.go:AccountUsageFunc and usageAccountMsg",
+        "cmd/gormes/tui_usage_slash.go:newTUIAccountUsageFunc"
+      ],
+      "ready_when": [
+        "The local-frame `/usage` page binding is shipped and validated.",
+        "Provider account-usage rendering exists in `internal/hermes/account_usage.go` and is already used by CLI/gateway surfaces.",
+        "The TUI update loop can schedule asynchronous tea.Cmd work and handle typed result messages without blocking Bubble Tea Update."
+      ],
+      "not_ready_when": [
+        "The TUI performs provider HTTP calls synchronously inside slash dispatch or Bubble Tea Update.",
+        "The account adapter exposes credentials, config paths, or provider-specific fetch policy inside internal/tui.",
+        "The command fetches provider account usage when local session telemetry is empty, weakening the Hermes-style `no API calls yet` session signal."
+      ],
+      "acceptance": [
+        "`/usage` with local telemetry and a wired account adapter opens the Usage page immediately with `Provider account usage: loading...` evidence and returns a tea.Cmd.",
+        "The returned command invokes `AccountUsageFunc` with a context and updates the existing Usage page with `hermes.RenderAccountUsageLines` provider/account details.",
+        "Adapter errors render provider-unavailable evidence and a status line without kernel Submitter calls.",
+        "Local cmd/gormes startup injects the provider-backed account usage adapter; plain/remote TUI construction leaves it nil."
+      ],
+      "note": "Builder 2026-05-23 iteration 37: shipped async native TUI provider account usage for `/usage`. RED evidence: focused TUI/cmd tests failed on missing `Options.AccountUsage` and undefined `tui.AccountUsageFunc`. Green evidence: focused TUI slash tests and cmd/gormes binding tests pass; full validation runs in delivery report.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_usage.go",
+        "internal/tui/slash_usage_test.go",
+        "internal/tui/update.go",
+        "cmd/gormes/tui_usage_slash.go",
+        "cmd/gormes/tui_usage_slash_test.go",
+        "cmd/gormes/main.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestUsageSlash|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback|LocalHandlersStillRun)|TestHermesSlashCompletion|TestHermesChrome|TestTUIPackageDoesNotAdvertiseCopyHotkey' -count=1",
+        "go test ./cmd/gormes -run 'TestTUIUsageSlashBinding|TestTUISessionsSlashBinding|TestTUITitleSlash|TestTUILogsSlash' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Native TUI `/usage` renders local session telemetry immediately and asynchronously appends provider account-usage evidence through a cmd/gormes-owned adapter."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui `/usage` owns the session usage command; Gormes extends its native local-first page with already-shipped provider account usage evidence from CLI/gateway surfaces through an edge-owned adapter.",
+        "note": "The adapter is asynchronous and fakeable to preserve Bubble Tea responsiveness and keep credentials/provider policy outside internal/tui."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 74,
     "item": {
       "name": "Native TUI /clear and /new reset-session binding",
       "priority": "P2",
@@ -3073,7 +4452,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 60,
+    "pos": 75,
     "item": {
       "name": "Native TUI /compact transcript toggle binding",
       "priority": "P2",
@@ -3152,6 +4531,292 @@
           "GREEN: go test ./internal/tui -run 'TestCompactSlash|TestSlashRegistry_Help|TestHermesSlashDispatchBehavior|TestHermesSlashCommandCompletions' -count=1 passed.",
           "First full gate failed on missing /compact module owner and gateway registry recognition; metadata was added and focused cmd/gormes/internal/gateway tests rerun before the final full gate."
         ]
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 76,
+    "item": {
+      "name": "Native TUI /skills read-only hub binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Record the native Bubble Tea TUI `/skills` binding that consumes `/skills` input locally through the shared gateway skill-hub read model, keeps it available while a turn is in flight, and prevents `/skills` text from reaching the model while preserving read-only degraded evidence for mutating skill actions.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Mutating `/skills install/remove/update` actions remain read-only/degraded with `skills_manage_unavailable` evidence until a dedicated skill-store mutation row lands; search/browse/list/inspect stay hermetic and never require provider or network credentials.",
+      "fixture": "internal/tui/slash_dispatch_behavior_test.go::TestHermesSlashDispatchBehavior_SkillsSlashRunsLocallyWhileBusy + internal/gateway/skills_command_test.go",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/ops.ts:opsCommands skills",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:/skills cases",
+        "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+        "internal/tui/slash_dispatch.go:skillsSlashHandler",
+        "internal/gateway/skills_command.go:HandleSkillsCommandWithOptions",
+        "internal/tui/slash_dispatch_behavior_test.go:TestHermesSlashDispatchBehavior_SkillsSlashRunsLocallyWhileBusy",
+        "internal/gateway/skills_command_test.go:TestHandleSkillsCommandSearchAndBrowseHubReadModel",
+        "internal/gateway/skills_command_test.go:TestHandleSkillsCommandMutatingActionsUnavailable"
+      ],
+      "ready_when": [
+        "Native TUI slash handler-port coverage parent remains fixture_ready and non-selectable.",
+        "The shared gateway skill-hub handler is available as a hermetic read-only adapter.",
+        "Fallback fixtures prove slash text is consumed rather than submitted to the model."
+      ],
+      "not_ready_when": [
+        "The row tries to implement mutating skill installation/removal instead of preserving read-only degraded evidence.",
+        "The row opens live network access or requires provider credentials in default tests."
+      ],
+      "acceptance": [
+        "`/skills search planner` is consumed by the native TUI while busy and returns skill-hub search evidence instead of recognized-unavailable fallback text.",
+        "The native TUI clears the editor and does not call Submitter for `/skills` input.",
+        "Gateway `/skills search` and `/skills browse` are read-only, plain-text channel replies and do not submit to the kernel.",
+        "Mutating `/skills` actions return explicit `skills_manage_unavailable` evidence and do not change a skill store."
+      ],
+      "note": "Complete/validated by existing repository evidence before iteration 46 runtime edits: `skillsSlashHandler` delegates native TUI `/skills` input to `gateway.HandleSkillsCommand`, and focused TUI/gateway tests prove read-only skill hub behavior plus no model submission. Iteration 46 records the child row so the slash umbrella's `/skills` unblock no longer remains implicit.",
+      "write_scope": [
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/gateway/skills_command.go",
+        "internal/gateway/skills_command_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run TestHermesSlashDispatchBehavior_SkillsSlashRunsLocallyWhileBusy -count=1",
+        "go test ./internal/gateway -run 'TestHandleSkillsCommand(SearchAndBrowseHubReadModel|TelegramUsesPlainTextReply|MutatingActionsUnavailable)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "The `/skills` child row is complete/validated, native TUI `/skills` input is consumed locally with read-only skill hub evidence, and the umbrella no longer lists `/skills` as an implicit future unblock."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui /skills local-first command plus Gormes read-only gateway skill hub",
+        "note": "Hermes owns the local-first `/skills` UX; Gormes preserves read-only degraded semantics for mutating actions until a skill-store mutation row exists."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 77,
+    "item": {
+      "name": "Native TUI /tools enable-disable binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port Hermes ui-tui's local `/tools enable|disable <name...>` command into the native Bubble Tea TUI through an injected, fakeable tools-configuration adapter that renders usage for missing names, changed/unknown/missing-server evidence from the adapter response, and visible session-reset evidence when tool configuration changes require a reset. Other `/tools` subcommands remain recognized/unavailable or gateway-delegated until separately row-backed.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When the tools adapter is nil, `/tools enable|disable` must be consumed with visible `tools: configuration unavailable` evidence and must not submit text to the model; default tests must use fakes and must not require live MCP servers, provider credentials, or network access.",
+      "fixture": "internal/tui/slash_tools_test.go::TestToolsSlashEnableDisableAdapter",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/ops.ts:opsCommands tools",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:shows tool enable usage when names are missing",
+        "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+        "internal/tui/slash_dispatch_behavior_test.go:TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit",
+        "internal/tui/slash_dispatch_behavior_test.go:TestHermesSlashDispatchBehavior_MutatingCommandsDoNotFallback",
+        "internal/cli/command_registry.go:CommandRegistry tools"
+      ],
+      "ready_when": [
+        "Native TUI slash handler-port coverage parent is fixture_ready and non-selectable.",
+        "`/tools` is already recognized by CommandRegistry and safely consumed by fallback tests.",
+        "Hermes ui-tui source defines a narrow local `/tools enable|disable` behavior with fakeable RPC response fields."
+      ],
+      "not_ready_when": [
+        "The implementation requires live MCP servers, model providers, or a real external gateway to pass tests.",
+        "The handler implements broad tool management beyond `enable` and `disable` without additional child rows.",
+        "Internal TUI code mutates config files directly instead of crossing an injected adapter seam owned by cmd/gormes or another runtime adapter."
+      ],
+      "unblocks": [
+        "Native TUI slash handler-port coverage"
+      ],
+      "acceptance": [
+        "`/tools enable` and `/tools disable` with no names render the three Hermes usage/help lines and do not submit to the model.",
+        "`/tools enable web terminal` and `/tools disable web` call one injected adapter with action, names, and session id.",
+        "Changed toolsets, unknown toolsets, missing MCP servers, and reset-required evidence are rendered as status/page lines matching the Hermes ui-tui output shape.",
+        "Nil adapter/degraded mode consumes the command with visible unavailable evidence and leaves the editor empty."
+      ],
+      "note": "Implemented and validated by development-goal iteration 47 on 2026-05-23. Native TUI now registers /tools with a ToolsConfigureFunc seam, renders Hermes-compatible usage, changed, unknown, missing MCP server, and reset evidence, consumes input without model submission, and preserves recognized fallback for unsupported /tools subcommands. cmd/gormes wires a local platform_toolsets-backed adapter for full local TUI startup while plain/remote TUI models keep the adapter nil. Validation: go test ./internal/tui -run 'TestToolsSlash|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback)' -count=1; go test ./cmd/gormes -run TestTUIToolsSlashBinding -count=1; go run ./cmd/progress validate; git diff --check.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_tools.go",
+        "internal/tui/slash_tools_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_tools_slash.go",
+        "cmd/gormes/tui_tools_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestToolsSlash|TestHermesSlashDispatchBehavior_(KnownUnhandledCommandsNeverSubmit|MutatingCommandsDoNotFallback)' -count=1",
+        "go test ./cmd/gormes -run TestTUIToolsSlashBinding -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI `/tools enable|disable` is a local, adapter-backed slash command with Hermes usage/degraded output, and fallback safety still covers unsupported `/tools` subcommands."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui opsCommands `/tools` local RPC behavior",
+        "note": "Hermes defines the TUI output and reset semantics; Gormes owns the injected adapter seam for native runtime config changes."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 78,
+    "item": {
+      "name": "Native TUI /voice status and toggle binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port Hermes ui-tui's `/voice [status|on|off|tts]` command into the native Bubble Tea TUI through an injected, fakeable voice-toggle adapter that renders mode/TTS/record-key requirements, updates the TUI voice record-key state when the adapter response includes `record_key`, and preserves fallback Ctrl+B display without clobbering a cached configured binding when the response omits it.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When the voice adapter is nil or returns unavailable requirements, `/voice` must render visible STT/TTS setup evidence and must not start live microphone capture, invoke Android/ADB, require provider credentials, or submit slash text to the model.",
+      "fixture": "internal/tui/slash_voice_test.go::TestVoiceSlashStatusUpdatesRecordKey",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts:sessionCommands voice",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:/voice status renders the gateway record_key",
+        "hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:/voice tts without record_key does not clobber cached frontend binding",
+        "internal/tui/model.go:Options.VoiceRecordKey",
+        "internal/tui/hermes_keybindings_test.go:TestVoiceRecordKey",
+        "internal/cli/command_registry.go:CommandRegistry voice"
+      ],
+      "ready_when": [
+        "Native TUI slash handler-port coverage parent is fixture_ready and non-selectable.",
+        "Voice record-key parsing/keybinding behavior is already fixture-backed in internal/tui.",
+        "The row can be implemented with a fake voice adapter and does not need live microphone/STT validation."
+      ],
+      "not_ready_when": [
+        "The implementation starts microphone capture, Android/ADB, live STT/TTS, or provider calls in default tests.",
+        "The handler hardcodes Ctrl+B as runtime state after receiving a configured record key.",
+        "The handler edits config files directly from internal/tui instead of using an injected adapter seam."
+      ],
+      "unblocks": [
+        "Native TUI slash handler-port coverage"
+      ],
+      "acceptance": [
+        "`/voice status` renders `Voice Mode Status`, mode, TTS, record key, and requirements lines from a fake adapter response.",
+        "`/voice on`, `/voice off`, and `/voice tts` render Hermes-compatible status lines without live audio dependencies.",
+        "Responses with `record_key` update the native TUI's configured record-key state; responses without `record_key` do not clobber an existing custom key.",
+        "Nil/unavailable adapter evidence is visible and slash text never reaches the model."
+      ],
+      "note": "Implemented and validated by development-goal iteration 48 on 2026-05-23. Native TUI now registers /voice with a VoiceToggleFunc seam, renders Hermes-compatible status/on/off/tts lines, surfaces STT/TTS/audio requirements without starting live capture, consumes slash text without model submission, and updates cached voice.record_key state only when adapter responses include record_key. cmd/gormes wires a local no-live-audio voice adapter seeded from config voice.record_key; plain/remote TUI models keep the adapter nil. Validation: go test ./internal/tui -run 'TestVoiceSlash|TestHermesKeybindings|TestConfiguredVoiceRecordKey' -count=1; go test ./cmd/gormes -run TestTUIVoiceSlashBinding -count=1; go run ./cmd/progress validate; git diff --check.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_voice.go",
+        "internal/tui/slash_voice_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_voice_slash.go",
+        "cmd/gormes/tui_voice_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestVoiceSlash|TestHermesKeybindings|TestConfiguredVoiceRecordKey' -count=1",
+        "go test ./cmd/gormes -run TestTUIVoiceSlashBinding -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI `/voice` is a local, adapter-backed slash command with Hermes-compatible status/toggle output and record-key state synchronization, with no live audio dependency in default tests."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui sessionCommands `/voice` status/toggle behavior",
+        "note": "Hermes owns output shape and record-key semantics; Gormes owns the native adapter seam and excludes live microphone smoke from this row."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 79,
+    "item": {
+      "name": "Native TUI /skin get-set binding",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Port Hermes ui-tui's `/skin [name]` command into the native Bubble Tea TUI through an injected, fakeable skin-config adapter that reads the current skin when no argument is provided, persists a requested skin when provided, and hot-swaps the native TUI skin state only after the adapter accepts the value.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When the skin adapter is nil or rejects a value, `/skin` must render visible unavailable/invalid evidence and must not mutate the current TUI skin, write config directly from internal/tui, or submit slash text to the model.",
+      "fixture": "internal/tui/slash_skin_test.go::TestSkinSlashGetSetAdapter",
+      "source_refs": [
+        "hermes-agent/ui-tui/src/app/slash/commands/session.ts:sessionCommands skin",
+        "hermes-agent/ui-tui/src/app/createGatewayEventHandler.ts:skin.changed",
+        "internal/tui/hermes_chrome.go:HermesSkin",
+        "internal/tui/hermes_chrome_test.go",
+        "internal/cli/command_registry.go:CommandRegistry skin"
+      ],
+      "ready_when": [
+        "Native TUI slash handler-port coverage parent is fixture_ready and non-selectable.",
+        "Native TUI skin rendering is already fixture-backed by Hermes chrome tests.",
+        "The row can be implemented with a fake skin adapter and does not require provider, gateway, or file-system credentials in internal/tui tests."
+      ],
+      "not_ready_when": [
+        "The implementation changes the global skin catalog or public theme names without a separate compatibility row.",
+        "The handler writes config files directly from internal/tui instead of using an injected adapter seam.",
+        "The handler mutates displayed skin before persistence/adapter acceptance is known."
+      ],
+      "unblocks": [
+        "Native TUI slash handler-port coverage"
+      ],
+      "acceptance": [
+        "Bare `/skin` renders `skin: <current-or-default>` from the injected adapter.",
+        "`/skin <name>` calls the injected adapter once and renders `skin → <value>` only on accepted values.",
+        "Accepted values update the native TUI skin state for subsequent renders; rejected/nil adapter paths leave state unchanged with visible evidence.",
+        "Slash input is consumed in all paths and never reaches the model."
+      ],
+      "note": "Implemented and validated by development-goal iteration 49 on 2026-05-23. Native TUI now registers /skin through a SkinConfigFunc seam; bare /skin renders adapter-backed current skin evidence; /skin <name> persists through the local cmd/gormes adapter and applies the native active skin only after adapter acceptance. Rejected or unavailable adapter paths consume slash input, render visible evidence, and leave active native skin state unchanged. cmd/gormes maps the Hermes /skin contract to the existing tui.theme config key and validates requested names against internal/tui built-in skins. Validation: go test ./internal/tui -run 'TestSkinSlash|TestHermesChrome' -count=1; go test ./cmd/gormes -run TestTUISkinSlashBinding -count=1; go run ./cmd/progress validate; git diff --check.",
+      "write_scope": [
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_skin.go",
+        "internal/tui/slash_skin_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/tui_skin_slash.go",
+        "cmd/gormes/tui_skin_slash_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestSkinSlash|TestHermesChrome' -count=1",
+        "go test ./cmd/gormes -run TestTUISkinSlashBinding -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Native TUI `/skin` is a local, adapter-backed get/set command with accepted-value hot-swap behavior and visible degraded evidence when unavailable."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Hermes ui-tui sessionCommands `/skin` and skin.changed event behavior",
+        "note": "Hermes owns the command output and live skin-change expectation; Gormes owns the native adapter seam for config persistence."
       }
     }
   },

@@ -188,6 +188,17 @@ func normalizePromptSymbol(symbol string) string {
 	return symbol + " "
 }
 
+// ResolveBuiltinSkin returns a built-in skin by name. Empty resolves to the
+// default skin; names are case-insensitive and trimmed.
+func ResolveBuiltinSkin(name string) (HermesSkin, bool) {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		name = "default"
+	}
+	skin, ok := BuiltinSkins()[name]
+	return skin, ok
+}
+
 // BuiltinSkins returns all built-in skin definitions keyed by name.
 func BuiltinSkins() map[string]HermesSkin {
 	return map[string]HermesSkin{

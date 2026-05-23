@@ -1193,7 +1193,7 @@
       "name": "Installer script serving and MIME validation",
       "priority": "P3",
       "status": "complete",
-      "contract": "Wire Windows install.ps1 and install.cmd into the Go renderer site server with correct Content-Type headers, cache-control, and static export while proving the Unix install.sh path is not served from the custom-domain site. Tests verify Windows scripts are embedded, served with the correct MIME, and static-exported.",
+      "contract": "Wire Unix install.sh plus Windows install.ps1 and install.cmd into the Go renderer site server with correct Content-Type headers, cache-control, and static export. Tests verify the Unix script is loaded from the repo root, Windows scripts are embedded, and every installer is served/static-exported with safe MIME and cache headers.",
       "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "docs",
@@ -1214,13 +1214,13 @@
         "www.gormes.ai Go renderer site server code is understood and the installer parity plan is reviewed."
       ],
       "acceptance": [
-        "TestServer_DoesNotServeUnixInstallScript proves /install.sh returns 404 from the custom-domain site.",
+        "TestServer_ServesUnixInstallScript proves /install.sh serves the repo-root Unix installer with text/x-shellscript MIME.",
         "TestServer_ServesPowerShellInstaller proves /install.ps1 serves with text/plain MIME.",
         "TestServer_ServesCmdWrapper proves /install.cmd serves with text/plain MIME.",
-        "TestServer_InstallerCacheControl proves Windows scripts have Cache-Control headers.",
-        "TestExportDir_WritesStaticSite proves Windows scripts appear in static_export output and /install.sh is absent."
+        "TestServer_InstallerCacheControl proves all installer scripts have Cache-Control headers.",
+        "TestExportDir_WritesStaticSite proves Unix and Windows scripts appear in static_export output."
       ],
-      "note": "Complete 2026-05-11; amended 2026-05-15: Windows installers (install.ps1, install.cmd) are embedded and served from the Go renderer site server with correct Content-Type headers, Cache-Control, and static export. The Unix installer is not served from the custom-domain site; TestServer_DoesNotServeUnixInstallScript, TestServer_ServesPowerShellInstaller, TestServer_ServesCmdWrapper, TestServer_InstallerCacheControl, and TestExportDir_WritesStaticSite cover the current acceptance criteria. Write_scope paths corrected from the old site module name to actual location in webpages/landing/legacy/go-renderer/. Active Astro + Tailwind landing site at webpages/landing/ handles Windows installer serving through static file generation via scripts/sync-assets.mjs — this Go renderer is legacy but still tested.",
+      "note": "Complete 2026-05-11; amended 2026-05-15 and 2026-05-22: Windows installers (install.ps1, install.cmd) are embedded and served from the Go renderer site server with correct Content-Type headers, Cache-Control, and static export. The Unix installer is now also served from https://gormes.ai/install.sh by loading the repo-root install.sh at runtime/static export, so public install copy can match the Hermes-style custom-domain command. TestServer_ServesUnixInstallScript, TestServer_ServesPowerShellInstaller, TestServer_ServesCmdWrapper, TestServer_InstallerCacheControl, and TestExportDir_WritesStaticSite cover the current acceptance criteria. Write_scope paths corrected from the old site module name to actual location in webpages/landing/legacy/go-renderer/. Active Astro + Tailwind landing site at webpages/landing/ handles installer serving through static file generation via scripts/sync-assets.mjs — this Go renderer is legacy but still tested.",
       "write_scope": [
         "webpages/landing/legacy/go-renderer/internal/site/assets.go",
         "webpages/landing/legacy/go-renderer/internal/site/assets_test.go"
@@ -1229,7 +1229,7 @@
         "cd webpages/landing/legacy/go-renderer && go test ./internal/site -count=1"
       ],
       "done_signal": [
-        "Windows installer scripts serve with correct MIME types, /install.sh is absent, and static export verification passes."
+        "Unix and Windows installer scripts serve with correct MIME/cache headers, /install.sh mirrors repo-root install.sh, and static export verification passes."
       ],
       "owner": "docs",
       "blocked_by": [],
@@ -1481,9 +1481,9 @@
         "TestInstall_DryRunVerboseDefault_SurfacesReleaseArchAndApi: verbose plan declares source_mode, release_arch, and release_api so operators can audit the network call.",
         "End-to-end real install on Linux x86_64: curl-based fetch + SHA-256 verify + tar extract + binary publish completes in ~2 seconds with no Go toolchain installed and no git clone.",
         "Candidate local install E2E publishes a usable binary, proves `gormes --version`, `gormes setup gateway --plan`, unconfigured `gormes gateway restart --json`, and `gormes gateway status --json` under isolated GORMES_HOME/PATH without touching the operator service manager.",
-        "Public install surfaces lead with `curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh`, keep source build as the fallback/developer path, and reject custom-domain Unix installer URLs, stale raw-GitHub, `go install`, and `make build` commands."
+        "Public install surfaces lead with `curl -fsSL https://gormes.ai/install.sh | bash`, keep source build as the fallback/developer path, serve the Unix installer from the gormes.ai custom domain, and reject stale GitHub-release/raw-GitHub, `go install`, and `make build` commands."
       ],
-      "note": "Source: 2026-05-07 fresh-Fedora install report from operator. install.sh had been source-clone-and-build by design since v0.1.06 (noted as a coverage gap in webpages/docs/development-skills/gormes-install/references/test-recipes.md). COMPLETE 2026-05-07: install.sh now defines release_platform_arch() (maps uname -s/-m → release-asset slug), decide_install_method() (5-rule precedence: --local > --from-source > non-main branch > unsupported platform > binary-fetch), and fetch_release_binary() (GitHub API → curl/wget → SHA-256 verify → tar extract → publish to managed_bin_dir). Plan emitters surface the decision and reason. Verified by 5 dry-run plan tests in internal/installtest/install_method_test.go plus an end-to-end real install (1.832s wall, no Go invoked, exit=0, gormes 0.1.06 binary working). 2026-05-15 candidate-install E2E hardening: internal/installtest now runs install.sh --local into a sandbox, executes the installed binary for version JSON, setup gateway --plan channel copy, unconfigured gateway restart, gateway status, config, and offline TUI paths, with PATH hiding systemctl so no live service manager is touched. gateway restart now reports safe startup evidence (`no channels configured`) instead of a bare timeout. 2026-05-15 public trust hardening: install docs, README, landing copy, docs deploy checks, and landing deploy checks now use the GitHub Releases `releases/latest/download/install.sh` URL, and the active plus legacy landing sites no longer publish a Unix installer path from the custom domain.",
+      "note": "Source: 2026-05-07 fresh-Fedora install report from operator. install.sh had been source-clone-and-build by design since v0.1.06 (noted as a coverage gap in webpages/docs/development-skills/gormes-install/references/test-recipes.md). COMPLETE 2026-05-07: install.sh now defines release_platform_arch() (maps uname -s/-m → release-asset slug), decide_install_method() (5-rule precedence: --local > --from-source > non-main branch > unsupported platform > binary-fetch), and fetch_release_binary() (GitHub API → curl/wget → SHA-256 verify → tar extract → publish to managed_bin_dir). Plan emitters surface the decision and reason. Verified by 5 dry-run plan tests in internal/installtest/install_method_test.go plus an end-to-end real install (1.832s wall, no Go invoked, exit=0, gormes 0.1.06 binary working). 2026-05-15 candidate-install E2E hardening: internal/installtest now runs install.sh --local into a sandbox, executes the installed binary for version JSON, setup gateway --plan channel copy, unconfigured gateway restart, gateway status, config, and offline TUI paths, with PATH hiding systemctl so no live service manager is touched. gateway restart now reports safe startup evidence (`no channels configured`) instead of a bare timeout. 2026-05-15 public trust hardening initially used the GitHub Releases installer URL. 2026-05-22 custom-domain polish switches active public install surfaces to `curl -fsSL https://gormes.ai/install.sh | bash`; the active Astro site mirrors repo-root install.sh into public/install.sh and legacy Go renderer loads repo-root install.sh for /install.sh while rejecting stale GitHub release/raw-GitHub commands.",
       "write_scope": [
         "install.sh",
         "cmd/gormes/gateway_restart.go",

@@ -930,7 +930,12 @@ func defaultReleaseUpdateLock() cli.UpdateLock {
 	return cli.NewFileUpdateLock(filepath.Join(home, "update.lock"), fmt.Sprintf("pid=%d", os.Getpid()))
 }
 
+const profileFleetUpdateManagedServiceName = "gormes-profile-fleet"
+
 func defaultReleaseManagedServices() []cli.UpdateManagedService {
+	if services := defaultReleaseProfileFleetManagedServices(); len(services) > 0 {
+		return services
+	}
 	if runtime.GOOS != "linux" {
 		return nil
 	}
@@ -944,6 +949,104 @@ func defaultReleaseManagedServices() []cli.UpdateManagedService {
 		name:    defaultGatewayServiceName,
 		manager: systemdUpdateServiceManager{},
 	}}
+}
+
+func defaultReleaseProfileFleetManagedServices() []cli.UpdateManagedService {
+	cfg, err := config.Load(nil)
+	if err != nil || !cfg.ProfileConfigV2Available() {
+		return nil
+	}
+	supervisor := newUpdateFleetSupervisor(cfg)
+	if supervisor == nil {
+		return nil
+	}
+	return []cli.UpdateManagedService{profileFleetUpdateManagedService{supervisor: supervisor}}
+}
+
+type profileFleetUpdateManagedService struct {
+	supervisor updateFleetSupervisor
+}
+
+func (s profileFleetUpdateManagedService) UpdateServiceName() string {
+	return profileFleetUpdateManagedServiceName
+}
+
+func (s profileFleetUpdateManagedService) UpdateServiceRunning(ctx context.Context) (bool, error) {
+	status, err := s.supervisor.Status(ctx)
+	if err != nil {
+		return false, fmt.Errorf("profile fleet status: %w", err)
+	}
+	return updateProfileFleetHasLiveGateway(status), nil
+}
+
+func (profileFleetUpdateManagedService) DrainUpdateService(context.Context, time.Duration) error {
+	return nil
+}
+
+func (s profileFleetUpdateManagedService) StopUpdateService(ctx context.Context) error {
+	report, err := s.supervisor.StopAll(ctx)
+	if err != nil {
+		return fmt.Errorf("profile fleet stop-all: %w", err)
+	}
+	return profileFleetOperationReportError(gateway.FleetOperationStopAll, report)
+}
+
+func (s profileFleetUpdateManagedService) StartUpdateService(ctx context.Context) error {
+	report, err := s.supervisor.StartAll(ctx)
+	if err != nil {
+		return fmt.Errorf("profile fleet start-all: %w", err)
+	}
+	return profileFleetOperationReportError(gateway.FleetOperationStartAll, report)
+}
+
+func (s profileFleetUpdateManagedService) HealthCheckUpdateService(ctx context.Context, timeout time.Duration) error {
+	started := time.Now()
+	for {
+		if err := profileFleetHealthCheck(ctx, s.supervisor); err == nil {
+			return nil
+		} else if timeout <= 0 || time.Since(started) >= timeout {
+			return err
+		}
+		wait := gatewayRestartPollInterval
+		if remaining := timeout - time.Since(started); remaining < wait {
+			wait = remaining
+		}
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func profileFleetHealthCheck(ctx context.Context, supervisor updateFleetSupervisor) error {
+	status, err := supervisor.Status(ctx)
+	if err != nil {
+		return fmt.Errorf("profile fleet health status: %w", err)
+	}
+	enabled := 0
+	for _, profile := range status.Profiles {
+		if !profile.Enabled {
+			continue
+		}
+		enabled++
+		if !profile.Runtime.Live {
+			return fmt.Errorf("profile fleet health: profile %s is not live", profile.ProfileID)
+		}
+	}
+	if enabled == 0 {
+		return fmt.Errorf("profile fleet health: no enabled profiles")
+	}
+	return nil
+}
+
+func profileFleetOperationReportError(action gateway.FleetOperation, report gateway.FleetOperationReport) error {
+	if report.Summary.Failed == 0 && report.Summary.Unavailable == 0 {
+		return nil
+	}
+	return fmt.Errorf("profile fleet %s incomplete: targeted=%d succeeded=%d unavailable=%d failed=%d", action, report.Summary.TargetedProfiles, report.Summary.Succeeded, report.Summary.Unavailable, report.Summary.Failed)
 }
 
 func defaultReleaseUnmanagedSessions(ctx context.Context) []cli.UpdateUnmanagedSession {
@@ -1493,10 +1596,39 @@ func defaultUpdateGatewayRestartFor() cli.UpdateGatewayRestartRunner {
 	}
 }
 
+type updateFleetSupervisor interface {
+	Status(context.Context) (gateway.FleetStatus, error)
+	StartAll(context.Context) (gateway.FleetOperationReport, error)
+	StopAll(context.Context) (gateway.FleetOperationReport, error)
+	RestartAll(context.Context) (gateway.FleetOperationReport, error)
+}
+
+var newUpdateFleetSupervisor = func(cfg config.Config) updateFleetSupervisor {
+	return gateway.NewFleetSupervisor(cfg, gateway.FleetSupervisorOptions{
+		HomeRoot: config.GormesHome(),
+		Worker:   gateway.NewCommandFleetWorker(gateway.CommandFleetWorkerOptions{}),
+	})
+}
+
 func runUpdateGatewayRestartForPolicy(ctx context.Context, policy string) cli.UpdateReport {
 	policy = strings.TrimSpace(policy)
 	if policy == "" {
 		policy = "auto"
+	}
+	switch policy {
+	case "never", "auto", "always":
+		if report, ok := updateGatewayRestartProfileFleet(ctx, policy); ok {
+			return report
+		}
+	case "":
+		policy = "auto"
+	default:
+		return cli.UpdateReport{
+			Failed: true,
+			Evidence: []cli.UpdateEvidence{
+				{Kind: cli.UpdateEvidenceGatewayRestartUnavailable, Detail: fmt.Sprintf("invalid restart policy %q", policy)},
+			},
+		}
 	}
 	switch policy {
 	case "never":
@@ -1506,13 +1638,63 @@ func runUpdateGatewayRestartForPolicy(ctx context.Context, policy string) cli.Up
 	case "always":
 		return updateGatewayRestartRecorded(ctx, true)
 	default:
-		return cli.UpdateReport{
-			Failed: true,
-			Evidence: []cli.UpdateEvidence{
-				{Kind: cli.UpdateEvidenceGatewayRestartUnavailable, Detail: fmt.Sprintf("invalid restart policy %q", policy)},
-			},
+		return cli.UpdateReport{}
+	}
+}
+
+func updateGatewayRestartProfileFleet(ctx context.Context, policy string) (cli.UpdateReport, bool) {
+	cfg, err := config.Load(nil)
+	if err != nil || !cfg.ProfileConfigV2Available() {
+		return cli.UpdateReport{}, false
+	}
+	supervisor := newUpdateFleetSupervisor(cfg)
+	if supervisor == nil {
+		return cli.UpdateReport{}, false
+	}
+	status, err := supervisor.Status(ctx)
+	if err != nil {
+		return updateProfileFleetRestartUnavailable(policy, fmt.Sprintf("profile fleet status unavailable: %v", err)), true
+	}
+	running := updateProfileFleetHasLiveGateway(status)
+	if policy == "never" {
+		if !running {
+			return cli.UpdateReport{}, true
+		}
+		return cli.UpdateReport{Evidence: []cli.UpdateEvidence{{Kind: cli.UpdateEvidenceGatewayRestartNeeded, Detail: "profile fleet restart skipped by policy=never; restart all profile gateways manually to load the updated binary"}}}, true
+	}
+	if policy == "auto" && !running {
+		return cli.UpdateReport{}, true
+	}
+	restart, err := supervisor.RestartAll(ctx)
+	if err != nil {
+		return updateProfileFleetRestartUnavailable(policy, "profile fleet restart-all failed"), true
+	}
+	return updateProfileFleetRestartReport(policy, restart), true
+}
+
+func updateProfileFleetHasLiveGateway(status gateway.FleetStatus) bool {
+	for _, profile := range status.Profiles {
+		if profile.Enabled && profile.Runtime.Live {
+			return true
 		}
 	}
+	return false
+}
+
+func updateProfileFleetRestartReport(policy string, report gateway.FleetOperationReport) cli.UpdateReport {
+	detail := fmt.Sprintf("profile fleet restart-all targeted=%d succeeded=%d unavailable=%d failed=%d", report.Summary.TargetedProfiles, report.Summary.Succeeded, report.Summary.Unavailable, report.Summary.Failed)
+	if report.Summary.TargetedProfiles > 0 && report.Summary.Failed == 0 && report.Summary.Unavailable == 0 {
+		return cli.UpdateReport{Evidence: []cli.UpdateEvidence{{Kind: cli.UpdateEvidenceGatewayRestarted, Detail: detail}}}
+	}
+	return updateProfileFleetRestartUnavailable(policy, detail)
+}
+
+func updateProfileFleetRestartUnavailable(policy, detail string) cli.UpdateReport {
+	report := cli.UpdateReport{Evidence: []cli.UpdateEvidence{{Kind: cli.UpdateEvidenceGatewayRestartUnavailable, Detail: detail}}}
+	if policy == "always" {
+		report.Failed = true
+	}
+	return report
 }
 
 func updateGatewayRestartNever(ctx context.Context) cli.UpdateReport {

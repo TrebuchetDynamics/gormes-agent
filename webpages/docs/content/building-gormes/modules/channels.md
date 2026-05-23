@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `channels`
 **Rows:** 134
-**Status counts:** `complete`: 130 · `in_progress`: 0 · `planned`: 4
+**Status counts:** `complete`: 134 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 7 · `P1`: 47 · `P2`: 27 · `P3`: 4 · `P4`: 2 · `unset`: 47
 
 ## Phase 2 — The Gateway
@@ -121,7 +121,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P1` | `channels` | MSGraph webhook platform manifest drift closeout |
-| `planned` | `P1` | `channels` | Hermes gateway platform strict-fidelity source-pair expansion |
+| `complete` | `P1` | `channels` | Hermes gateway platform strict-fidelity source-pair expansion |
 
 ### 2.H — Gormes-owned: Dynamic agents and per-thread spawn UX
 
@@ -170,7 +170,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `channels` | WhatsApp live Baileys QR pairing wizard |
 | `complete` | `P1` | `channels` | cmd/gormes channels capabilities command package extraction |
 | `complete` | `P1` | `channels` | cmd/gormes channel service command package extraction |
-| `planned` | `P1` | `channels` | Per-profile channel credential readiness and allow-lists |
+| `complete` | `P1` | `channels` | Per-profile channel credential readiness and allow-lists |
 
 ### 5.V — Unified Event Bus
 
@@ -190,7 +190,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 | Status | Priority | Module | Row |
 |---|---|---|---|
-| `planned` | `P2` | `channels` | TUI + Telegram browsing |
+| `complete` | `P2` | `channels` | TUI + Telegram browsing |
 
 ## Phase 7 — Paused Channel Backlog
 
@@ -255,7 +255,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `channels` | Google Chat relay sender-type self-filter |
 | `complete` | `P2` | `channels` | Google Chat standalone cron sender |
 | `complete` | `P2` | `channels` | Google Chat install dependency hint refresh |
-| `planned` | `P2` | `channels` | SimpleX Chat platform plugin parity |
+| `complete` | `P2` | `channels` | SimpleX Chat platform plugin parity |
 
 ## Phase 8 — Reputation & Publication
 

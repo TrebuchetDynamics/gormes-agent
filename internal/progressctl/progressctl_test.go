@@ -509,6 +509,167 @@ func TestListModuleIsSplitSafeReadOnlyAndScoped(t *testing.T) {
 	}
 }
 
+func TestNextWorkBuildDecisionUsesBuilderLoopCandidateSelectionAndIsSplitSafe(t *testing.T) {
+	p := &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"3": {Name: "P3", Deliverable: "d3", Subphases: map[string]progress.Subphase{
+				"3.E": {Name: "E", Items: []progress.Item{
+					{Name: "normal row", Status: progress.StatusPlanned, Contract: "normal contract", ContractStatus: progress.ContractStatusDraft, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", Module: progress.ModuleProgress},
+					{Name: "p0 row", Priority: "P0", Status: progress.StatusPlanned, Contract: "p0 contract", ContractStatus: progress.ContractStatusDraft, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", Module: progress.ModuleProgress},
+				}},
+			}},
+		},
+	}
+
+	monoRoot := t.TempDir()
+	seedMonolith(t, monoRoot, p)
+	before, err := os.ReadFile(progressPaths(monoRoot).progressJSON)
+	if err != nil {
+		t.Fatalf("read monolith before next-work: %v", err)
+	}
+
+	splitRoot := t.TempDir()
+	seedSplitModule(t, splitRoot, p)
+
+	var monoOut, splitOut bytes.Buffer
+	if err := NextWork(&monoOut, monoRoot); err != nil {
+		t.Fatalf("NextWork monolith: %v", err)
+	}
+	if err := NextWork(&splitOut, splitRoot); err != nil {
+		t.Fatalf("NextWork split: %v", err)
+	}
+	if !bytes.Equal(monoOut.Bytes(), splitOut.Bytes()) {
+		t.Fatalf("next-work output must be identical for monolith and module split:\nmono=%s\nsplit=%s", monoOut.String(), splitOut.String())
+	}
+
+	got := monoOut.String()
+	for _, want := range []string{
+		"progress: next-work builder-ready (2 candidates)\n",
+		"decision=build\n",
+		"phase=3\n",
+		"subphase=3.E\n",
+		"name=p0 row\n",
+		"reason=P0 handoff\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("next-work output missing %q:\n%s", want, got)
+		}
+	}
+
+	after, err := os.ReadFile(progressPaths(monoRoot).progressJSON)
+	if err != nil {
+		t.Fatalf("read monolith after next-work: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("next-work must be read-only and leave the canonical monolith untouched")
+	}
+}
+
+func TestNextWorkRepoOnlyFiltersCrossRootWriteScope(t *testing.T) {
+	p := &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"9": {Name: "P9", Deliverable: "d9", Subphases: map[string]progress.Subphase{
+				"9.F": {Name: "F", Items: []progress.Item{
+					{Name: "cross root row", Priority: "P0", Status: progress.StatusPlanned, Contract: "cross root contract", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", WriteScope: []string{"../navivox-app/app/lib/"}, Module: progress.ModuleNavivox},
+					{Name: "local row", Priority: "P1", Status: progress.StatusPlanned, Contract: "local contract", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", WriteScope: []string{"cmd/progress/main.go", "internal/progressctl/"}, Module: progress.ModuleProgress},
+				}},
+			}},
+		},
+	}
+	root := t.TempDir()
+	seedMonolith(t, root, p)
+
+	var defaultOut bytes.Buffer
+	if err := NextWork(&defaultOut, root); err != nil {
+		t.Fatalf("NextWork default: %v", err)
+	}
+	if !strings.Contains(defaultOut.String(), "name=cross root row\n") {
+		t.Fatalf("default next-work should preserve builder ranking before scope filtering:\n%s", defaultOut.String())
+	}
+
+	var scopedOut bytes.Buffer
+	if err := NextWorkWithOptions(&scopedOut, root, NextWorkOptions{RepoOnly: true}); err != nil {
+		t.Fatalf("NextWork repo-only: %v", err)
+	}
+	got := scopedOut.String()
+	for _, want := range []string{
+		"progress: next-work builder-ready (1 candidate)\n",
+		"decision=build\n",
+		"scope=repo\n",
+		"name=local row\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("repo-only next-work missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestNextWorkRepoOnlyPlansWhenAllCandidatesEscapeRepo(t *testing.T) {
+	p := &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"9": {Name: "P9", Deliverable: "d9", Subphases: map[string]progress.Subphase{
+				"9.F": {Name: "F", Items: []progress.Item{
+					{Name: "sibling row", Priority: "P1", Status: progress.StatusPlanned, Contract: "sibling contract", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", WriteScope: []string{"../navivox-app/app/lib/"}, Module: progress.ModuleNavivox},
+					{Name: "separate repo row", Priority: "P1", Status: progress.StatusPlanned, Contract: "separate repo contract", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", WriteScope: []string{"(separate repo) README.md"}, Module: progress.ModuleDocs},
+				}},
+			}},
+		},
+	}
+	root := t.TempDir()
+	seedMonolith(t, root, p)
+
+	var out bytes.Buffer
+	if err := NextWorkWithOptions(&out, root, NextWorkOptions{RepoOnly: true}); err != nil {
+		t.Fatalf("NextWork repo-only empty: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"progress: next-work no in-repo builder-ready rows\n",
+		"decision=plan\n",
+		"scope=repo\n",
+		"reason=no unblocked builder-ready rows within repo write scope\n",
+		"planner_action=split or repair one row whose write_scope stays under the repo root\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("repo-only plan output missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestNextWorkPlanDecisionWhenNoBuilderReadyRows(t *testing.T) {
+	p := &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"8": {Name: "P8", Deliverable: "d8", Subphases: map[string]progress.Subphase{
+				"8.F": {Name: "F", Items: []progress.Item{
+					{Name: "complete row", Status: progress.StatusComplete, Contract: "done", ContractStatus: progress.ContractStatusValidated, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", Module: progress.ModuleProgress},
+				}},
+			}},
+		},
+	}
+	root := t.TempDir()
+	seedMonolith(t, root, p)
+
+	var out bytes.Buffer
+	if err := NextWork(&out, root); err != nil {
+		t.Fatalf("NextWork empty: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"progress: next-work no builder-ready rows\n",
+		"decision=plan\n",
+		"reason=no unblocked builder-ready rows\n",
+		"planner_action=repair one planned/draft row until it satisfies the handoff contract\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("next-work plan output missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestListModuleRejectsUnknownAndMultiModuleFilters(t *testing.T) {
 	root := t.TempDir()
 	seedMonolith(t, root, c2Fixture())

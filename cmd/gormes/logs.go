@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -53,49 +54,31 @@ type logsEntryJSON struct {
 	Message string `json:"message"`
 }
 
+type logsContent struct {
+	Source  string
+	Entries []logsEntryJSON
+	Path    string
+	Content string
+}
+
 func runLogs(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
 	asJSON, _ := cmd.Flags().GetBool("json")
-	resp, err := logsHTTPClient.Get(logsEndpointURL)
+	content, err := readLogsContent()
 	if err != nil {
-		path := config.LogPath()
-		data, err := os.ReadFile(path)
-		if err != nil {
-			msg := fmt.Sprintf("no gateway running and no log file found: %v", err)
-			if asJSON {
-				return emitJSONInputError(cmd, "no_logs", msg)
-			}
-			return fmt.Errorf("%s", msg)
-		}
+		msg := fmt.Sprintf("no gateway running and no log file found: %v", err)
 		if asJSON {
-			body, marshalErr := json.MarshalIndent(logsReportJSON{
-				Build:   newBuildProvenance(),
-				Source:  "file",
-				Path:    path,
-				Content: string(data),
-			}, "", "  ")
-			if marshalErr != nil {
-				return marshalErr
-			}
-			fmt.Fprintln(out, string(body))
-			return nil
+			return emitJSONInputError(cmd, "no_logs", msg)
 		}
-		fmt.Fprint(out, string(data))
-		return nil
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Entries []logsEntryJSON `json:"entries"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fmt.Errorf("failed to read logs: %w", err)
+		return fmt.Errorf("%s", msg)
 	}
 	if asJSON {
 		body, marshalErr := json.MarshalIndent(logsReportJSON{
 			Build:   newBuildProvenance(),
-			Source:  "gateway",
-			Entries: result.Entries,
+			Source:  content.Source,
+			Entries: content.Entries,
+			Path:    content.Path,
+			Content: content.Content,
 		}, "", "  ")
 		if marshalErr != nil {
 			return marshalErr
@@ -103,12 +86,78 @@ func runLogs(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintln(out, string(body))
 		return nil
 	}
-	if len(result.Entries) == 0 {
+	if content.Source == "file" {
+		fmt.Fprint(out, content.Content)
+		return nil
+	}
+	if len(content.Entries) == 0 {
 		fmt.Fprintln(out, "No log entries.")
 		return nil
 	}
-	for _, e := range result.Entries {
-		fmt.Fprintf(out, "[%s] %s: %s\n", e.Time, e.Level, e.Message)
+	for _, line := range formatLogsEntries(content.Entries) {
+		fmt.Fprintln(out, line)
 	}
 	return nil
+}
+
+func readLogsContent() (logsContent, error) {
+	resp, err := logsHTTPClient.Get(logsEndpointURL)
+	if err != nil {
+		path := config.LogPath()
+		data, fileErr := os.ReadFile(path)
+		if fileErr != nil {
+			return logsContent{}, fileErr
+		}
+		return logsContent{Source: "file", Path: path, Content: string(data)}, nil
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Entries []logsEntryJSON `json:"entries"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return logsContent{}, fmt.Errorf("failed to read logs: %w", err)
+	}
+	return logsContent{Source: "gateway", Entries: result.Entries}, nil
+}
+
+func readLogsTail(limit int) (string, error) {
+	content, err := readLogsContent()
+	if err != nil {
+		return "", err
+	}
+	var lines []string
+	if content.Source == "gateway" {
+		lines = formatLogsEntries(content.Entries)
+	} else {
+		lines = splitLogLines(content.Content)
+	}
+	lines = tailLogLines(lines, limit)
+	return strings.Join(lines, "\n"), nil
+}
+
+func formatLogsEntries(entries []logsEntryJSON) []string {
+	lines := make([]string, 0, len(entries))
+	for _, e := range entries {
+		lines = append(lines, fmt.Sprintf("[%s] %s: %s", e.Time, e.Level, e.Message))
+	}
+	return lines
+}
+
+func splitLogLines(content string) []string {
+	content = strings.TrimRight(content, "\n")
+	if content == "" {
+		return nil
+	}
+	return strings.Split(content, "\n")
+}
+
+func tailLogLines(lines []string, limit int) []string {
+	if limit <= 0 {
+		limit = 20
+	}
+	if len(lines) <= limit {
+		return lines
+	}
+	return lines[len(lines)-limit:]
 }

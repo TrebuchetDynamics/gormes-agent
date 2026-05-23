@@ -15,7 +15,7 @@ func TestSlashCommandAliasAndPrefixDispatch(t *testing.T) {
 	}{
 		{name: "catalog alias", input: "/provider openrouter", wantStatus: "/provider -> /model"},
 		{name: "unique prefix", input: "/kanb --json", wantStatus: "/kanb -> /kanban"},
-		{name: "exact wins over prefix", input: "/status now", wantStatus: "/status is recognized"},
+		{name: "exact wins over prefix", input: "/status now", wantStatus: "no active session"},
 		{name: "ambiguous prefix", input: "/stat now", wantStatus: "ambiguous command: /status, /statusbar"},
 		{name: "platform prefix ambiguity", input: "/platf --json", wantStatus: "ambiguous command: /platform, /platforms"},
 		{name: "unknown command", input: "/no-such-command-xyzzy", wantStatus: "unknown command /no-such-command-xyzzy"},

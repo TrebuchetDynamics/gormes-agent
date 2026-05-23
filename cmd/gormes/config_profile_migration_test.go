@@ -65,6 +65,58 @@ func TestConfigMigrateProfilesV2DryRunJSONPreviewsWithoutMutation(t *testing.T) 
 	}
 }
 
+func TestConfigMigrateProfilesV2DryRunJSONReportsConflictsWithoutMutation(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	writeOneshotFlagConfig(t, []byte(`_config_version = 1
+
+[hermes]
+provider = "openrouter"
+model = "openrouter/auto"
+api_key = "sk-conflict-secret"
+
+[credentials.main-openrouter]
+kind = "channel"
+channel = "telegram"
+owner_profile = "main"
+secret_ref = { source = "env", id = "EXISTING_TOKEN" }
+`))
+	before := readConfigMigrationFile(t, config.ConfigPath())
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "migrate", "--profiles-v2", "--dry-run", "--json")
+	if err != nil {
+		t.Fatalf("config migrate --profiles-v2 conflict dry-run --json: %v\nstderr=%s", err, stderr)
+	}
+	if strings.Contains(stdout, "sk-conflict-secret") {
+		t.Fatalf("conflict dry-run JSON leaked raw secret:\n%s", stdout)
+	}
+	var got struct {
+		Mode      string   `json:"mode"`
+		DryRun    bool     `json:"dry_run"`
+		Wrote     bool     `json:"wrote"`
+		Conflicts []string `json:"conflicts"`
+		Preview   []string `json:"preview"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("conflict dry-run JSON must parse: %v\nstdout=%s", err, stdout)
+	}
+	if got.Mode != "profile_v2" || !got.DryRun || got.Wrote {
+		t.Fatalf("conflict dry-run JSON flags = %+v, want mode=profile_v2 dry_run=true wrote=false", got)
+	}
+	if want := []string{"credential_id:main-openrouter"}; !reflect.DeepEqual(got.Conflicts, want) {
+		t.Fatalf("conflicts = %#v, want %#v", got.Conflicts, want)
+	}
+	if !strings.Contains(strings.Join(got.Preview, "\n"), "conflict credential_id.main-openrouter requires rename_or_skip") {
+		t.Fatalf("preview missing conflict resolution guidance: %#v", got.Preview)
+	}
+	if after := readConfigMigrationFile(t, config.ConfigPath()); string(after) != string(before) {
+		t.Fatalf("conflict dry-run mutated config.toml:\nbefore=%s\nafter=%s", before, after)
+	}
+	if backups := globConfigMigrationBackups(t); len(backups) != 0 {
+		t.Fatalf("conflict dry-run created backups: %#v", backups)
+	}
+}
+
 func TestConfigMigrateProfilesV2ApplyJSONWritesBackupAndPreservesLegacyDirs(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	seedConfigProfileMigrationLegacyHome(t)

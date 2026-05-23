@@ -49,7 +49,7 @@ func TestProfileControlCenterTUIScreenUsesStableScreenReaderText(t *testing.T) {
 		"selected profile: main",
 		"main — Main desk — enabled",
 		"lanes: runtime=ready readiness=ready activity=unknown",
-		"actions: edit profile, add provider, add channel, disable profile, apply",
+		"actions: create profile, edit profile, add provider, add channel, disable profile, apply, discard",
 		"sleeping — Sleeping — disabled",
 	} {
 		if !strings.Contains(text, want) {
@@ -60,6 +60,166 @@ func TestProfileControlCenterTUIScreenUsesStableScreenReaderText(t *testing.T) {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("accessible text leaked secret-looking value %q:\n%s", forbidden, text)
 		}
+	}
+}
+
+func TestProfileControlCenterTUIScreenGroupsDetailsAndExcludesLiveOps(t *testing.T) {
+	cfg := config.Config{
+		ConfigVersion: config.CurrentConfigVersion,
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled:    true,
+				Name:       "Main desk",
+				Workspaces: []string{"/workspace/main"},
+				Providers: map[string]config.ProfileProviderCfg{
+					"openrouter": {Enabled: true, Credential: "main-openrouter"},
+				},
+				Channels: map[string]config.ProfileChannelCfg{
+					"telegram": {Enabled: true, Credential: "main-telegram"},
+				},
+			},
+			"sleeping": {Enabled: false, Name: "Sleeping"},
+		},
+		Credentials: map[string]config.CredentialCfg{
+			"main-openrouter": {Kind: "provider", Provider: "openrouter", OwnerProfile: "main", SecretRef: &config.SecretRef{Source: config.SecretRefSourceEnv, ID: "GORMES_MAIN_OPENROUTER_API_KEY"}},
+			"main-telegram":   {Kind: "channel", Channel: "telegram", OwnerProfile: "main", SecretRef: &config.SecretRef{Source: config.SecretRefSourceEnv, ID: "GORMES_MAIN_TELEGRAM_BOT_TOKEN"}},
+		},
+	}
+
+	model := BuildControlCenterModel(cfg, ControlCenterModelOptions{})
+	screen := BuildControlCenterTUIScreen(model, ControlCenterTUIScreenOptions{SelectedProfileID: "main"})
+	text := screen.AccessibleText
+	for _, want := range []string{
+		"enabled profiles:",
+		"main — Main desk — enabled selected",
+		"disabled profiles:",
+		"sleeping — Sleeping — disabled",
+		"details for profile: main",
+		"workspaces: /workspace/main",
+		"providers: openrouter credential=main-openrouter owner_profile=main readiness=ready",
+		"channels: telegram credential=main-telegram owner_profile=main readiness=ready",
+		"actions: create profile, edit profile, add provider, add channel, disable profile, apply, discard",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("accessible text missing %q:\n%s", want, text)
+		}
+	}
+	for _, forbidden := range []string{"GORMES_MAIN_OPENROUTER_API_KEY", "GORMES_MAIN_TELEGRAM_BOT_TOKEN", "start", "stop", "restart", "reset", "command"} {
+		if strings.Contains(strings.ToLower(text), strings.ToLower(forbidden)) {
+			t.Fatalf("accessible text contains forbidden %q:\n%s", forbidden, text)
+		}
+	}
+}
+
+func TestProfileControlCenterTUIScreenExposesMigrationStateAndGlobalActions(t *testing.T) {
+	model := BuildControlCenterModel(config.Config{LegacyConfigVersion: 1}, ControlCenterModelOptions{LegacyMigrationAvailable: true})
+	screen := BuildControlCenterTUIScreen(model, ControlCenterTUIScreenOptions{})
+	text := screen.AccessibleText
+	for _, want := range []string{
+		"migration: legacy_config_detected, migration_available",
+		"actions: create profile, migrate legacy profile config, apply, discard",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("accessible text missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestProfileDraftStagesCreateWorkspaceCredentialsApplyAndDiscard(t *testing.T) {
+	cfg := config.Config{
+		ConfigVersion: config.CurrentConfigVersion,
+		Profiles: map[string]config.ProfileCfg{
+			"main": {Enabled: true, Name: ""},
+		},
+	}
+
+	draft := NewControlCenterDraft(cfg)
+	if err := draft.SetProfileDisplayName("main", " Main desk "); err != nil {
+		t.Fatalf("SetProfileDisplayName: %v", err)
+	}
+	if err := draft.AddProfile("tulin", " Tulin "); err != nil {
+		t.Fatalf("AddProfile: %v", err)
+	}
+	if err := draft.SetProfileWorkspaces("tulin", []string{" /workspace/tulin ", "/workspace/tulin", ""}); err != nil {
+		t.Fatalf("SetProfileWorkspaces: %v", err)
+	}
+	if err := draft.SetCredential("tulin-openrouter", config.CredentialCfg{Kind: "provider", Provider: "openrouter", OwnerProfile: "tulin", SecretRef: &config.SecretRef{Source: config.SecretRefSourceEnv, ID: "GORMES_TULIN_OPENROUTER_API_KEY"}}); err != nil {
+		t.Fatalf("SetCredential: %v", err)
+	}
+	if err := draft.SetCredential("tulin-telegram", config.CredentialCfg{Kind: "channel", Channel: "telegram", OwnerProfile: "tulin", SecretRef: &config.SecretRef{Source: config.SecretRefSourceEnv, ID: "GORMES_TULIN_TELEGRAM_BOT_TOKEN"}}); err != nil {
+		t.Fatalf("SetCredential channel: %v", err)
+	}
+	if err := draft.AssignProviderCredential("tulin", "openrouter", "tulin-openrouter"); err != nil {
+		t.Fatalf("AssignProviderCredential: %v", err)
+	}
+	if err := draft.SetProfileProviderModels("tulin", "openrouter", " meta-llama/llama-4 ", []string{"openai/gpt-5.2", "meta-llama/llama-4", "openai/gpt-5.2"}); err != nil {
+		t.Fatalf("SetProfileProviderModels: %v", err)
+	}
+	if err := draft.AssignChannelCredential("tulin", "telegram", "tulin-telegram"); err != nil {
+		t.Fatalf("AssignChannelCredential: %v", err)
+	}
+	if err := draft.SetProfileChannelPolicy("tulin", "telegram", []string{" 222 ", "222", "333"}, []string{"6586915095", "6586915095"}, true, " compact "); err != nil {
+		t.Fatalf("SetProfileChannelPolicy: %v", err)
+	}
+
+	previewText := strings.Join(RenderControlCenterDraftPreview(draft.Preview()), "\n")
+	for _, want := range []string{
+		"profile main name: \"\" -> \"Main desk\"",
+		"profile tulin created: enabled=true name=\"Tulin\"",
+		"profile tulin workspaces: [] -> [/workspace/tulin]",
+		"profile tulin provider openrouter credential: \"\" -> \"tulin-openrouter\"",
+		"profile tulin provider openrouter default_model:  -> meta-llama/llama-4",
+		"profile tulin provider openrouter allowed_models: [] -> [openai/gpt-5.2 meta-llama/llama-4]",
+		"profile tulin channel telegram credential: \"\" -> \"tulin-telegram\"",
+		"profile tulin channel telegram allowed_chats: [] -> [222 333]",
+		"profile tulin channel telegram allowed_users: [] -> [6586915095]",
+		"profile tulin channel telegram require_mention: false -> true",
+		"profile tulin channel telegram tool_progress:  -> compact",
+		"credential tulin-openrouter secret_ref: none -> redacted_ref(env)",
+		"credential tulin-telegram secret_ref: none -> redacted_ref(env)",
+	} {
+		if !strings.Contains(previewText, want) {
+			t.Fatalf("preview missing %q:\n%s", want, previewText)
+		}
+	}
+	for _, forbidden := range []string{"GORMES_TULIN_OPENROUTER_API_KEY", "GORMES_TULIN_TELEGRAM_BOT_TOKEN"} {
+		if strings.Contains(previewText, forbidden) {
+			t.Fatalf("preview leaked secret ref id %q:\n%s", forbidden, previewText)
+		}
+	}
+
+	applied, _, err := draft.Apply()
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if cfg.Profiles["main"].Name != "" || len(cfg.Profiles) != 1 {
+		t.Fatalf("draft mutated base before apply: %+v", cfg.Profiles)
+	}
+	if got := applied.Profiles["tulin"].Workspaces; !reflect.DeepEqual(got, []string{"/workspace/tulin"}) {
+		t.Fatalf("applied tulin workspaces = %#v", got)
+	}
+	providerCfg := applied.Profiles["tulin"].Providers["openrouter"]
+	if got := providerCfg.Credential; got != "tulin-openrouter" {
+		t.Fatalf("applied provider credential = %q", got)
+	}
+	if providerCfg.DefaultModel != "meta-llama/llama-4" {
+		t.Fatalf("applied provider default model = %q", providerCfg.DefaultModel)
+	}
+	if got, want := providerCfg.AllowedModels, []string{"openai/gpt-5.2", "meta-llama/llama-4"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("applied provider allowed models = %#v, want %#v", got, want)
+	}
+	channelCfg := applied.Profiles["tulin"].Channels["telegram"]
+	if got, want := channelCfg.AllowedChats, []string{"222", "333"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("applied channel allowed chats = %#v, want %#v", got, want)
+	}
+	if got, want := channelCfg.AllowedUsers, []string{"6586915095"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("applied channel allowed users = %#v, want %#v", got, want)
+	}
+	if !channelCfg.RequireMention || channelCfg.ToolProgress != "compact" {
+		t.Fatalf("applied channel policy = %+v", channelCfg)
+	}
+	if discarded := draft.Discard(); !reflect.DeepEqual(discarded, cfg) {
+		t.Fatalf("discard = %+v, want original %+v", discarded, cfg)
 	}
 }
 

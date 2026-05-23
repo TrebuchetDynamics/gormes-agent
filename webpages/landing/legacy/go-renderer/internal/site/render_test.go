@@ -44,7 +44,7 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		"Install first. Build from source when needed.",
 		"Use install.sh for the release-first managed install.",
 		"1. INSTALL.SH",
-		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh",
+		"curl -fsSL https://gormes.ai/install.sh | bash",
 		"gormes --version",
 		"gormes doctor --offline",
 		"2. BUILD FROM SOURCE",

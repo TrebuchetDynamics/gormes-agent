@@ -22,6 +22,32 @@ func newConnectInfoTestCommand(t *testing.T) (*cobra.Command, *bytes.Buffer) {
 	return cmd, buf
 }
 
+func TestNavivoxCommandHelpUsesConnectNotConnectInfo(t *testing.T) {
+	cmd := newNavivoxCommand()
+	buf := &bytes.Buffer{}
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("navivox help: %v", err)
+	}
+	help := buf.String()
+	if !strings.Contains(help, "connect      Print Navivox connect URLs") {
+		t.Fatalf("navivox help must advertise connect command:\n%s", help)
+	}
+	if strings.Contains(help, "connect-info") {
+		t.Fatalf("navivox help must not advertise connect-info after rename:\n%s", help)
+	}
+
+	legacy, _, err := cmd.Find([]string{"connect-info"})
+	if err != nil {
+		t.Fatalf("legacy connect-info alias should still resolve: %v", err)
+	}
+	if !legacy.Hidden {
+		t.Fatalf("legacy connect-info alias should be hidden from help")
+	}
+}
+
 func TestNavivoxConnectInfo_Disabled_ReturnsTypedError(t *testing.T) {
 	cmd, _ := newConnectInfoTestCommand(t)
 	err := runNavivoxConnectInfo(cmd, config.NavivoxCfg{Enabled: false}, false)
@@ -72,6 +98,103 @@ func TestNavivoxConnectInfo_LocalMode_PrintsLoopbackOnly_JSON(t *testing.T) {
 	}
 	if !got.Entries[0].TokenRequired {
 		t.Error("token_required = false, want true for static_token auth")
+	}
+}
+
+func TestNavivoxConnectInfoJSONIncludesServerScopedRouting(t *testing.T) {
+	cmd, buf := newConnectInfoTestCommand(t)
+	cfg := config.Config{
+		Navivox: config.NavivoxCfg{
+			Enabled:      true,
+			BindHost:     "127.0.0.1",
+			Port:         8765,
+			ExposureMode: config.NavivoxExposureLocal,
+			AuthMode:     config.NavivoxAuthTailscaleIdentity,
+			Servers: map[string]config.NavivoxServerCfg{
+				"local": {
+					Enabled:      true,
+					Bind:         "127.0.0.1:8787",
+					Profiles:     []string{"main", "missing"},
+					Transports:   []string{"http", "ws"},
+					Capabilities: []string{"connect_and_talk"},
+				},
+			},
+		},
+		Profiles: map[string]config.ProfileCfg{
+			"main": {
+				Enabled: true,
+				Name:    "Main Desk",
+				Channels: map[string]config.ProfileChannelCfg{
+					"navivox": {Enabled: true, Servers: []string{"local"}, Credential: "main-navivox", VoiceProfile: "private-voice-main"},
+				},
+			},
+		},
+	}
+
+	if err := runNavivoxConnectInfoForConfig(cmd, cfg, true); err != nil {
+		t.Fatal(err)
+	}
+	var got navivoxConnectInfoReport
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if len(got.Entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1: %+v", len(got.Entries), got.Entries)
+	}
+	entry := got.Entries[0]
+	if entry.ServerID != "local" || entry.BaseURL != "http://127.0.0.1:8787" || entry.WebSocketURL != "ws://127.0.0.1:8787/v1/navivox/stream" {
+		t.Fatalf("entry = %+v, want local server URLs", entry)
+	}
+	if len(entry.Profiles) != 1 || entry.Profiles[0].ProfileID != "main" || entry.Profiles[0].DisplayName != "Main Desk" || !entry.Profiles[0].CredentialConfigured || !entry.Profiles[0].VoiceProfileConfigured {
+		t.Fatalf("entry profiles = %+v, want redacted main readiness", entry.Profiles)
+	}
+	if len(entry.Warnings) != 1 || entry.Warnings[0].ProfileID != "missing" || entry.Warnings[0].Code != "navivox_profile_unavailable" {
+		t.Fatalf("entry warnings = %+v, want missing profile warning", entry.Warnings)
+	}
+	for _, banned := range []string{"main-navivox", "private-voice-main", "default_profile"} {
+		if strings.Contains(buf.String(), banned) {
+			t.Fatalf("connect-info leaked or emitted banned value %q:\n%s", banned, buf.String())
+		}
+	}
+}
+
+func TestNavivoxConnectInfo_TextOutputIncludesTerminalQRAndKeepsTokenOpaque(t *testing.T) {
+	prev := vpnhostList
+	t.Cleanup(func() { vpnhostList = prev })
+	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{
+			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+		}, nil
+	}
+
+	const sensitiveToken = "super-secret-token-9871"
+	cmd, buf := newConnectInfoTestCommand(t)
+	cfg := config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "100.64.1.2",
+		Port:         8765,
+		ExposureMode: config.NavivoxExposureTailscale,
+		AuthMode:     config.NavivoxAuthStaticToken,
+		Token:        sensitiveToken,
+	}
+	if err := runNavivoxConnectInfo(cmd, cfg, false); err != nil {
+		t.Fatal(err)
+	}
+	s := buf.String()
+	for _, want := range []string{
+		"Scan this QR from Navivox:",
+		"QR payload includes the token when required; the raw token is not printed.",
+		"navivox://connect descriptor",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("text output missing %q\noutput: %s", want, s)
+		}
+	}
+	if !strings.ContainsAny(s, "█▀▄") {
+		t.Fatalf("text output missing terminal QR block characters\noutput: %s", s)
+	}
+	if strings.Contains(s, sensitiveToken) || strings.Contains(s, "rest_token=") {
+		t.Fatalf("text output leaks raw token material\noutput: %s", s)
 	}
 }
 
@@ -135,7 +258,7 @@ func TestNavivoxConnectInfo_LayeredAuthRequiresToken(t *testing.T) {
 		t.Error("token_required = false, want true for layered token+identity auth")
 	}
 	if strings.Contains(buf.String(), cfg.Token) {
-		t.Fatalf("connect-info leaked token: %s", buf.String())
+		t.Fatalf("connect leaked token: %s", buf.String())
 	}
 }
 

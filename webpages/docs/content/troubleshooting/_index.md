@@ -10,7 +10,7 @@ aliases:
 
 When something is wrong, start with concrete evidence — the running binary, its config, and its log. Three pages cover the common paths.
 
-Termux recovery note: `v0.2.21` carries the installer fix for the `v0.2.20` executable-argument failure that reported `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`. See [Common errors](./common-errors/) if an older Termux install is still on PATH.
+Termux recovery note: `v0.2.22` carries forward the installer fix for the `v0.2.20` executable-argument failure that reported `unknown command /data/data/com.termux/files/usr/bin/gormes for gormes`. See [Common errors](./common-errors/) if an older Termux install is still on PATH.
 
 | | |
 |---|---|

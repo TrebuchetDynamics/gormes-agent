@@ -16,7 +16,7 @@ evidence.
 Linux, macOS, WSL2, and Termux:
 
 ```bash
-curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh
+curl -fsSL https://gormes.ai/install.sh | bash
 gormes doctor --offline
 gormes setup
 gormes chat

@@ -1,23 +1,37 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "ae96437c2",
+    "commit": "6a7ed4e0c",
     "go_version": "1.26+",
-    "last_measured": "2026-05-20",
+    "last_measured": "2026-05-23",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 49987746,
-    "size_mb": "47.7",
+    "size_bytes": 50450594,
+    "size_mb": "48.1",
     "stripped": true
   },
   "code": {
-    "dependencies": 272,
-    "go_files": 941,
-    "go_lines": 244359,
-    "test_count": 6365
+    "dependencies": 274,
+    "go_files": 991,
+    "go_lines": 258611,
+    "test_count": 6632
   },
   "history": [
+    {
+      "commit": "ea31f844d",
+      "date": "2026-05-23",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 50450594,
+      "size_mb": 48.1
+    },
+    {
+      "commit": "c2a267dad",
+      "date": "2026-05-22",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 50450594,
+      "size_mb": 48.1
+    },
     {
       "commit": "f0d0851d2",
       "date": "2026-05-20",
@@ -185,14 +199,14 @@
   "runtime": {
     "offline_doctor": {
       "command": "bin/gormes doctor --offline --json",
-      "commit": "ae96437c2",
+      "commit": "6a7ed4e0c",
       "elapsed_ms": 8,
       "goarch": "amd64",
       "goos": "linux",
       "isolated_home": true,
-      "last_measured": "2026-05-20",
-      "peak_rss_kb": 27340,
-      "peak_rss_mb": 26.7,
+      "last_measured": "2026-05-23",
+      "peak_rss_kb": 25876,
+      "peak_rss_mb": 25.3,
       "status": "measured"
     }
   },
@@ -200,9 +214,9 @@
     "wasi_whisper": {
       "audio_fixture": "internal/wasi/whisper/testdata/jfk.wav",
       "benchmark": "BenchmarkWhisperWASI/tiny.en",
-      "binary_size_delta_mb_vs_pre_wasi_baseline": 19.7,
-      "current_binary_size_bytes": 49987746,
-      "current_binary_size_mb": 47.7,
+      "binary_size_delta_mb_vs_pre_wasi_baseline": 20.2,
+      "current_binary_size_bytes": 50450594,
+      "current_binary_size_mb": 48.1,
       "last_measured": "2026-05-10",
       "models": [
         {

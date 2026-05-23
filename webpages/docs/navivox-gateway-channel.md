@@ -40,7 +40,7 @@ the base URL, WebSocket URL, auth mode, and REST token when token auth is
 selected, so treat the PNG like a secret and avoid screenshots or support
 bundles that include it.
 
-`gormes navivox connect-info --json` also emits `base_url`, `healthz_url`, and
+`gormes navivox connect --json` also emits `base_url`, `healthz_url`, and
 `websocket_url` for each reachable interface; IPv6 addresses are bracketed in
 emitted URLs. It remains token-redacted and reports only `token_required`.
 

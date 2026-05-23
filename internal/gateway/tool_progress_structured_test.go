@@ -89,6 +89,25 @@ func TestManager_Outbound_NavivoxToolProgressUsesStructuredEvents(t *testing.T) 
 	}
 
 	frames <- kernel.RenderFrame{
+		Phase: kernel.PhaseStreaming,
+		SoulEvents: []kernel.SoulEntry{
+			{At: time.Now(), Text: "tool: browser_navigate: https://secret.example/dashboard?token=plain-secret-token"},
+		},
+	}
+	waitFor(t, 500*time.Millisecond, func() bool {
+		return len(nv.toolProgressSnapshot()) >= 2
+	})
+	progress = nv.toolProgressSnapshot()
+	if progress[1].ID != progress[0].ID || progress[1].Status != ToolProgressUpdated {
+		t.Fatalf("structured tool update event = %+v, first=%+v", progress[1], progress[0])
+	}
+	for _, forbidden := range []string{"secret.example", "plain-secret-token"} {
+		if strings.Contains(progress[1].Summary, forbidden) {
+			t.Fatalf("structured tool update leaked raw argument %q in %+v", forbidden, progress[1])
+		}
+	}
+
+	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
 		History: []hermes.Message{
 			{Role: "user", Content: "open the internal dashboard"},

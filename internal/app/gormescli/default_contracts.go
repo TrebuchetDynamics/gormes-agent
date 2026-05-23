@@ -40,8 +40,8 @@ func DefaultContracts() []ModuleContract {
 				"commands",
 				"debug",
 				"help",
+				"logs",
 				"quit",
-				"redraw",
 			),
 		},
 		{
@@ -109,8 +109,9 @@ func DefaultContracts() []ModuleContract {
 			Commands: commands("memory"),
 		},
 		{
-			Module:   progress.ModuleNavivox,
-			Commands: commands("navivox"),
+			Module:        progress.ModuleNavivox,
+			Commands:      commands("navivox"),
+			SetupSections: setupSections("navivox"),
 		},
 		{
 			Module: progress.ModuleProfiles,
@@ -228,7 +229,9 @@ func DefaultContracts() []ModuleContract {
 				"details",
 				"image",
 				"indicator",
+				"mouse",
 				"paste",
+				"redraw",
 				"skin",
 				"statusbar",
 			),

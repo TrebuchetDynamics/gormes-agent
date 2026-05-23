@@ -15,6 +15,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 )
 
@@ -32,6 +33,7 @@ type Seams struct {
 	ListKnownProfiles        func() ([]string, error)
 	ReadDistributionManifest func(root string) (cli.ProfileDistributionManifest, bool, error)
 	ProviderReadiness        func() ([]provider.ProfileProviderReadiness, error)
+	ChannelReadiness         func() (gateway.ProfileChannelReadinessReport, error)
 }
 
 // Options carries binary-owned process metadata into the importable profile
@@ -94,6 +96,7 @@ func NewCommandWithSeams(seams Seams, opts ...Options) *cobra.Command {
 	cmd.AddCommand(newProfileUseCommand(seams, options))
 	cmd.AddCommand(newProfileCreateCommand(seams, options))
 	cmd.AddCommand(newProfileProvidersCommand(seams, options))
+	cmd.AddCommand(newProfileChannelsCommand(seams, options))
 	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
 		Name:        "delete",
 		Use:         "delete <name>",
@@ -225,6 +228,84 @@ func runProfileProvidersCommand(cmd *cobra.Command, seams Seams, asJSON bool, op
 		}
 	}
 	return nil
+}
+
+func newProfileChannelsCommand(seams Seams, options Options) *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:          "channels",
+		Short:        "Show per-profile channel credential readiness",
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runProfileChannelsCommand(cmd, seams, asJSON, options)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit `{build, active, bindings, evidence}` JSON with redacted channel credential readiness")
+	return cmd
+}
+
+func runProfileChannelsCommand(cmd *cobra.Command, seams Seams, asJSON bool, options Options) error {
+	if seams.ChannelReadiness == nil {
+		return fmt.Errorf("gormes profile channels: %w", cli.ErrSelectorHelperUnavailable)
+	}
+	active := ""
+	if seams.ReadActiveProfileName != nil {
+		if value, err := seams.ReadActiveProfileName(); err == nil {
+			active = value
+		}
+	}
+	report, err := seams.ChannelReadiness()
+	if err != nil {
+		return fmt.Errorf("gormes profile channels: %w", err)
+	}
+	if asJSON {
+		body, err := json.MarshalIndent(profileChannelsReportJSON{Build: buildProvenance(options), Active: active, Bindings: report.Bindings, Evidence: report.Evidence}, "", "  ")
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
+	if active != "" {
+		fmt.Fprintf(cmd.OutOrStdout(), "active profile: %s\n", active)
+	}
+	if len(report.Bindings) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "channels: none configured")
+		return nil
+	}
+	for _, binding := range report.Bindings {
+		status := "degraded"
+		if binding.Ready {
+			status = "ready"
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "%s/%s: %s", binding.ProfileID, binding.Channel, status)
+		if binding.CredentialID != "" {
+			fmt.Fprintf(cmd.OutOrStdout(), " credential=%s", binding.CredentialID)
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), " chats=%d users=%d", binding.AllowedChatCount, binding.AllowedUserCount)
+		if binding.RequireMention {
+			fmt.Fprint(cmd.OutOrStdout(), " require_mention=true")
+		}
+		if binding.ToolProgress != "" {
+			fmt.Fprintf(cmd.OutOrStdout(), " tool_progress=%s", binding.ToolProgress)
+		}
+		fmt.Fprintln(cmd.OutOrStdout())
+		if len(binding.Evidence) > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "  evidence: %s\n", profileChannelEvidenceCodes(binding.Evidence))
+		}
+	}
+	return nil
+}
+
+func profileChannelEvidenceCodes(evidence []gateway.ProfileChannelReadinessEvidence) string {
+	codes := make([]string, 0, len(evidence))
+	for _, item := range evidence {
+		if strings.TrimSpace(item.Code) != "" {
+			codes = append(codes, item.Code)
+		}
+	}
+	return strings.Join(codes, ", ")
 }
 
 func newProfileUseCommand(seams Seams, options Options) *cobra.Command {
@@ -670,6 +751,13 @@ type profileProvidersReportJSON struct {
 	Providers []provider.ProfileProviderReadiness `json:"providers"`
 }
 
+type profileChannelsReportJSON struct {
+	Build    gormescli.BuildProvenance                 `json:"build"`
+	Active   string                                    `json:"active"`
+	Bindings []gateway.ProfileChannelBindingReadiness  `json:"bindings"`
+	Evidence []gateway.ProfileChannelReadinessEvidence `json:"evidence,omitempty"`
+}
+
 type profileInfoReportJSON struct {
 	Build        gormescli.BuildProvenance        `json:"build"`
 	Name         string                           `json:"name"`
@@ -856,6 +944,13 @@ func DefaultSeams() Seams {
 				return nil, err
 			}
 			return provider.BuildProfileProviderReadiness(cfg, provider.ProfileProviderReadinessOptions{}), nil
+		},
+		ChannelReadiness: func() (gateway.ProfileChannelReadinessReport, error) {
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return gateway.ProfileChannelReadinessReport{}, err
+			}
+			return gateway.BuildProfileChannelReadiness(cfg), nil
 		},
 	}
 }

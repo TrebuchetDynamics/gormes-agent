@@ -143,6 +143,8 @@ If item 1 takes longer than a weekend, that is the signal that **publication is 
 - Feed URL: <https://engineering.trebuchetdynamics.com/feed.xml>
 - Source path: `webpages/blog/`
 - Deploy path: `.github/workflows/deploy-td-blog.yml` builds the Astro site and deploys `webpages/blog/dist` to Cloudflare Pages on `main`.
+- Social dry-run automation: `node scripts/blog-feed-social/publish.mjs --dry-run --feed webpages/blog/dist/feed.xml --out /tmp/gormes-social-post.json` reads the built RSS feed and emits deterministic post JSON plus an idempotency key without network publication.
+- Secret boundary: dry-run mode reads no social tokens; live posting remains blocked until Juan selects the social platform/account and provides credentials outside the repository.
 - First post: "Autonomous Hermes-porting loop" at `/posts/autonomous-hermes-porting-loop/`.
 
 ## Mapping To `progress.json`

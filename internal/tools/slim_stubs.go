@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+func BuiltinTTSProviderNames() []string {
+	return []string{"piper"}
+}
+
+func BuiltinTranscriptionProviderNames() []string {
+	return []string{"device", "local"}
+}
+
 // slimTextToSpeechTool is a no-op TTS tool for slim builds.
 type slimTextToSpeechTool struct{}
 

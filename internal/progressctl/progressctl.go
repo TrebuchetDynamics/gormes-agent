@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
@@ -36,6 +37,12 @@ type countsJSON struct {
 // ListOptions controls the read-only progress inventory view.
 type ListOptions struct {
 	Module string
+}
+
+// NextWorkOptions controls the read-only next-work selector.
+type NextWorkOptions struct {
+	// RepoOnly filters candidates whose write_scope resolves outside root.
+	RepoOnly bool
 }
 
 type moduleListRow struct {
@@ -90,6 +97,155 @@ func List(stdout io.Writer, root string, opts ListOptions) error {
 		}
 	}
 	return nil
+}
+
+// NextWork emits the single next action over the canonical backlog without
+// mutating it. It reuses builderloop.NormalizeCandidates so command users and
+// autonomous agents see the same ranking as the builder loop instead of
+// reimplementing selection policy from generated markdown.
+func NextWork(stdout io.Writer, root string) error {
+	return NextWorkWithOptions(stdout, root, NextWorkOptions{})
+}
+
+// NextWorkWithOptions emits the single next action over the canonical backlog
+// without mutating it. It reuses builderloop.NormalizeCandidates for ranking
+// and applies command-level filters only after the canonical ordering exists.
+func NextWorkWithOptions(stdout io.Writer, root string, opts NextWorkOptions) error {
+	candidates, err := builderloop.NormalizeCandidates(canonicalSource(root), builderloop.CandidateOptions{ActiveFirst: true})
+	if err != nil {
+		return err
+	}
+	if opts.RepoOnly {
+		candidates, err = filterRepoScopedCandidates(root, candidates)
+		if err != nil {
+			return err
+		}
+	}
+	if len(candidates) == 0 {
+		return printNoNextWork(stdout, opts)
+	}
+
+	noun := "candidates"
+	if len(candidates) == 1 {
+		noun = "candidate"
+	}
+	top := candidates[0]
+	if _, err := fmt.Fprintf(stdout, "progress: next-work builder-ready (%d %s)\n", len(candidates), noun); err != nil {
+		return err
+	}
+	fields := []struct {
+		key   string
+		value string
+	}{
+		{key: "decision", value: "build"},
+	}
+	if opts.RepoOnly {
+		fields = append(fields, struct {
+			key   string
+			value string
+		}{key: "scope", value: "repo"})
+	}
+	fields = append(fields, []struct {
+		key   string
+		value string
+	}{
+		{key: "phase", value: top.PhaseID},
+		{key: "subphase", value: top.SubphaseID},
+		{key: "name", value: top.ItemName},
+		{key: "reason", value: top.SelectionReason()},
+		{key: "priority", value: top.Priority},
+		{key: "status", value: top.Status},
+		{key: "contract_status", value: top.ContractStatus},
+		{key: "slice_size", value: top.SliceSize},
+		{key: "owner", value: top.ExecutionOwner},
+	}...)
+	for _, field := range fields {
+		if _, err := fmt.Fprintf(stdout, "%s=%s\n", field.key, field.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printNoNextWork(stdout io.Writer, opts NextWorkOptions) error {
+	if opts.RepoOnly {
+		if _, err := fmt.Fprintln(stdout, "progress: next-work no in-repo builder-ready rows"); err != nil {
+			return err
+		}
+		for _, line := range []string{
+			"decision=plan",
+			"scope=repo",
+			"reason=no unblocked builder-ready rows within repo write scope",
+			"planner_action=split or repair one row whose write_scope stays under the repo root",
+		} {
+			if _, err := fmt.Fprintln(stdout, line); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if _, err := fmt.Fprintln(stdout, "progress: next-work no builder-ready rows"); err != nil {
+		return err
+	}
+	for _, line := range []string{
+		"decision=plan",
+		"reason=no unblocked builder-ready rows",
+		"planner_action=repair one planned/draft row until it satisfies the handoff contract",
+	} {
+		if _, err := fmt.Fprintln(stdout, line); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func filterRepoScopedCandidates(root string, candidates []builderloop.Candidate) ([]builderloop.Candidate, error) {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+	rootAbs = filepath.Clean(rootAbs)
+	out := make([]builderloop.Candidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidateWriteScopeWithinRoot(rootAbs, candidate.WriteScope) {
+			out = append(out, candidate)
+		}
+	}
+	return out, nil
+}
+
+func candidateWriteScopeWithinRoot(rootAbs string, scopes []string) bool {
+	if len(scopes) == 0 {
+		return false
+	}
+	for _, scope := range scopes {
+		if !writeScopePathWithinRoot(rootAbs, scope) {
+			return false
+		}
+	}
+	return true
+}
+
+func writeScopePathWithinRoot(rootAbs, scope string) bool {
+	scope = strings.TrimSpace(scope)
+	if scope == "" {
+		return false
+	}
+	lower := strings.ToLower(scope)
+	if strings.Contains(lower, "separate repo") || strings.Contains(lower, "external repo") || strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		return false
+	}
+	candidate := scope
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(rootAbs, candidate)
+	}
+	candidate = filepath.Clean(candidate)
+	rel, err := filepath.Rel(rootAbs, candidate)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != "" && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 func rowsForModule(p *progress.Progress, module string) []moduleListRow {

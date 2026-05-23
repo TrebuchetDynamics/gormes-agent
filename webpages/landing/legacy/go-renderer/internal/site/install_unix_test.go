@@ -58,13 +58,17 @@ func writeExecutable(t *testing.T, path string, body string) {
 	}
 }
 
-func TestInstallSH_SiteDoesNotServeUnixInstaller(t *testing.T) {
+func TestInstallSH_SiteServesUnixInstaller(t *testing.T) {
 	site, err := loadSite()
 	if err != nil {
 		t.Fatalf("loadSite: %v", err)
 	}
-	if got := site.InstallScript("install.sh"); got != nil {
-		t.Fatal("legacy site must not serve install.sh from gormes.ai")
+	got := site.InstallScript("install.sh")
+	if got == nil {
+		t.Fatal("legacy site must serve install.sh for gormes.ai")
+	}
+	if !strings.Contains(string(got), "Gormes Unix installer") {
+		t.Fatalf("legacy site install.sh missing installer header")
 	}
 }
 
@@ -77,24 +81,24 @@ func TestInstallSH_CanonicalScriptLivesAtRepoRoot(t *testing.T) {
 	}
 }
 
-func TestInstallSH_DeployWorkflowDoesNotWatchRepoRootScript(t *testing.T) {
+func TestInstallSH_DeployWorkflowWatchesRepoRootScript(t *testing.T) {
 	workflow, err := os.ReadFile("../../../../../../.github/workflows/deploy-gormes-www.yml")
 	if err != nil {
 		t.Fatalf("read deploy workflow: %v", err)
 	}
 	body := string(workflow)
-	if strings.Contains(body, "\n      - 'install.sh'\n") {
-		t.Fatalf("deploy workflow should not watch repository-root install.sh after /install.sh removal:\n%s", body)
+	if !strings.Contains(body, "\n      - 'install.sh'\n") {
+		t.Fatalf("deploy workflow should watch repository-root install.sh for /install.sh mirror:\n%s", body)
 	}
 	if strings.Contains(body, "scripts/install.sh") {
 		t.Fatalf("deploy workflow should not watch scripts/install.sh:\n%s", body)
 	}
 }
 
-func TestInstallSH_HasNoSiteCopy(t *testing.T) {
+func TestInstallSH_HasNoEmbeddedSiteCopy(t *testing.T) {
 	_, err := os.Stat("installers/install.sh")
 	if !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("site install.sh copy should not exist: err=%v", err)
+		t.Fatalf("embedded site install.sh copy should not exist; load repo-root install.sh instead: err=%v", err)
 	}
 }
 

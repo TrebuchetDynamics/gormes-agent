@@ -44,7 +44,7 @@ test('mobile operator install journey keeps code blocks and next links usable', 
   await page.goto('/install/linux-macos/');
 
   await expect(page.getByRole('heading', { name: 'Linux and macOS' }).first()).toBeVisible();
-  await expect(page.getByText('curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh | sh').first()).toBeVisible();
+  await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | bash').first()).toBeVisible();
   await expect(page.locator('main')).not.toContainText('raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh');
 
   const codeBlocks = page.locator('main pre, main .expressive-code');

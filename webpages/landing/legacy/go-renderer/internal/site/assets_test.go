@@ -70,7 +70,7 @@ func TestServer_UnknownRoutesReturn404(t *testing.T) {
 	}
 }
 
-func TestServer_DoesNotServeUnixInstallScript(t *testing.T) {
+func TestServer_ServesUnixInstallScript(t *testing.T) {
 	handler, err := NewServer()
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
@@ -80,8 +80,14 @@ func TestServer_DoesNotServeUnixInstallScript(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != 404 {
-		t.Fatalf("status = %d, want 404", rr.Code)
+	if rr.Code != 200 {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "text/x-shellscript") {
+		t.Fatalf("content-type = %q, want text/x-shellscript", ct)
+	}
+	if body := rr.Body.String(); !strings.Contains(body, "Gormes Unix installer") {
+		t.Fatalf("install.sh missing installer header\n%s", body)
 	}
 }
 
@@ -152,7 +158,7 @@ func TestServer_InstallerCacheControl(t *testing.T) {
 		t.Fatalf("NewServer: %v", err)
 	}
 
-	for _, name := range []string{"install.ps1", "install.cmd"} {
+	for _, name := range []string{"install.sh", "install.ps1", "install.cmd"} {
 		req := httptest.NewRequest("GET", "/"+name, nil)
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)

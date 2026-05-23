@@ -87,6 +87,7 @@ func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundE
 		sessionID = "navivox-" + c.newID()
 	}
 	serverID, profileID := profileScopeFromMetadata(turn.Metadata)
+	metadata := c.voiceProfileMetadataForTurn(turn.Metadata, profileID)
 	c.mu.Lock()
 	session := c.ensureSessionLocked(sessionID, requestID)
 	session.ProfileServer = serverID
@@ -107,6 +108,7 @@ func (c *Channel) enqueueTurn(ctx context.Context, inbox chan<- gateway.InboundE
 		return "", nil, err
 	}
 	c.mu.Lock()
+	c.recordRunStartLocked(sessionID, requestID, text, metadata)
 	contact := c.profileContactRuntimeUpdateLocked(serverID, profileID, text, "user", ProfileContactTurnActive)
 	c.mu.Unlock()
 	c.log.Info("navivox turn queued", "client_identity", identity, "request_id", requestID, "session_id", sessionID, "action", "start_turn", "status", "queued")

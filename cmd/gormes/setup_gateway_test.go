@@ -452,6 +452,37 @@ func TestSetupGatewayBubbleTeaNavivoxSelectionRunsNativeSetup(t *testing.T) {
 	}
 }
 
+func TestSetupNavivoxSectionRunsNativeGatewaySetup(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "n\n", "navivox")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Navivox",
+		"Navivox Gateway Channel",
+		"Navivox gateway channel disabled.",
+		"No firewall rules were changed.",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout+stderr, "setup_section_unsupported") {
+		t.Fatalf("direct navivox setup returned unsupported evidence:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Navivox.Enabled {
+		t.Fatalf("Navivox enabled = true, want disabled")
+	}
+}
+
 func TestSetupGatewayNavivoxCanRemainDisabled(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

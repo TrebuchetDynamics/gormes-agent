@@ -50,6 +50,149 @@ func TestSetupProfilesTUIRendersManagerSurface(t *testing.T) {
 	}
 }
 
+func TestSetupProfilesTUIBrowseAdvertisesAndSupportsEnterSave(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{
+			{Name: "default", Root: "/home/operator/.gormes", Active: true},
+			{Name: "work", Root: "/home/operator/.gormes/profiles/work"},
+		},
+	})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(setupProfilesModel)
+
+	view := m.View()
+	for _, want := range []string{
+		"Up/Down move profile",
+		"Enter save selected profile",
+	} {
+		if !strings.Contains(view, want) {
+			t.Errorf("profile TUI browse view missing %q:\n%s", want, view)
+		}
+	}
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(setupProfilesModel)
+	if m.result.Selected != "work" {
+		t.Errorf("Enter selected profile = %q, want work", m.result.Selected)
+	}
+	if m.result.Cancelled {
+		t.Error("Enter save marked result canceled")
+	}
+	if cmd == nil {
+		t.Fatal("Enter in browse mode returned nil command, want tea.Quit")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatalf("Enter in browse mode command = %T, want tea.QuitMsg", cmd())
+	}
+}
+
+func TestSetupProfilesTUIFramesPadRowsToClearStaleProfileCells(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{
+			{Name: "default", Root: "/home/operator/.gormes", Active: true},
+			{Name: "mineru", Root: "/home/operator/.gormes/profiles/mineru"},
+		},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 40})
+	m = updated.(setupProfilesModel)
+	if first := m.View(); !strings.Contains(first, "Name: default") {
+		t.Fatalf("initial frame missing default profile name:\n%s", first)
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(setupProfilesModel)
+	view := m.View()
+	if !strings.Contains(view, "Name: mineru") {
+		t.Fatalf("selected frame missing mineru profile name:\n%s", view)
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if got := lipgloss.Width(line); got != 30 {
+			t.Fatalf("profile TUI line width = %d, want full terminal width 30 to clear stale cells:\n%q\n\nfull output:\n%s", got, line, view)
+		}
+	}
+}
+
+func TestSetupProfilesTUIBrowseSupportsVimNavigation(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{
+			{Name: "default", Root: "/home/operator/.gormes", Active: true},
+			{Name: "work", Root: "/home/operator/.gormes/profiles/work"},
+			{Name: "ops", Root: "/home/operator/.gormes/profiles/ops"},
+		},
+	})
+
+	view := m.View()
+	if !strings.Contains(view, "j/k or Up/Down move profile") {
+		t.Fatalf("profile TUI browse view missing vim navigation hint:\n%s", view)
+	}
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = updated.(setupProfilesModel)
+	if got := m.currentProfile().Name; got != "work" {
+		t.Fatalf("j selected profile = %q, want work", got)
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = updated.(setupProfilesModel)
+	if got := m.currentProfile().Name; got != "ops" {
+		t.Fatalf("second j selected profile = %q, want ops", got)
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = updated.(setupProfilesModel)
+	if got := m.currentProfile().Name; got != "ops" {
+		t.Fatalf("j at bottom selected profile = %q, want ops", got)
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	m = updated.(setupProfilesModel)
+	if got := m.currentProfile().Name; got != "work" {
+		t.Fatalf("k selected profile = %q, want work", got)
+	}
+}
+
+func TestSetupProfilesTUIChannelModeAdvertisesExistingShortcuts(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		Active: "default",
+		Profiles: []setupProfileView{{
+			Name:     "default",
+			Root:     "/home/operator/.gormes",
+			Active:   true,
+			Channels: []string{"telegram"},
+		}},
+	})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m = updated.(setupProfilesModel)
+
+	view := m.View()
+	for _, want := range []string{
+		"j/k or Up/Down move",
+		"q back",
+	} {
+		if !strings.Contains(view, want) {
+			t.Errorf("profile TUI channel view missing %q:\n%s", want, view)
+		}
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = updated.(setupProfilesModel)
+	if got := setupProfilesChannelChoices[m.channelIndex]; got != "whatsapp" {
+		t.Fatalf("j selected channel = %q, want whatsapp", got)
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	m = updated.(setupProfilesModel)
+	if m.mode != setupProfilesModeBrowse {
+		t.Fatalf("q in channel mode = %q, want browse", m.mode)
+	}
+	if m.result.Cancelled {
+		t.Fatal("q back from channel mode should not cancel setup")
+	}
+}
+
 func TestSetupProfilesTUIHardeningBoundsLongOperatorContent(t *testing.T) {
 	long := strings.Repeat("x", 180)
 	m := newSetupProfilesModel(setupProfilesTUIState{

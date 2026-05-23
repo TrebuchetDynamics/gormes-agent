@@ -125,6 +125,28 @@ func TestHubSearchNoResults(t *testing.T) {
 	}
 }
 
+func TestHubSearchBrowsePagesReadOnlySnapshots(t *testing.T) {
+	provider := NewInMemoryRegistryProvider([]HubSearchResult{
+		{Name: "zeta", Description: "zeta skill", Source: "hermes-index", InstallID: "skills/zeta", Score: 0.20, TrustLevel: "community"},
+		{Name: "alpha", Description: "alpha skill", Source: "hermes-index", InstallID: "skills/alpha", Score: 0.90, TrustLevel: "trusted"},
+		{Name: "alpha duplicate", Description: "duplicate should lose", Source: "remote", InstallID: "skills/alpha", Score: 0.10, TrustLevel: "community"},
+	}, nil)
+
+	resp, err := Browse(context.Background(), []HubRegistryProvider{provider}, HubBrowseOptions{Page: 2, PageSize: 1})
+	if err != nil {
+		t.Fatalf("Browse returned unexpected error: %v", err)
+	}
+	if resp.Page != 2 || resp.PageSize != 1 || resp.Total != 2 || resp.TotalPages != 2 {
+		t.Fatalf("page metadata = page %d size %d total %d total_pages %d, want page 2 size 1 total 2 total_pages 2", resp.Page, resp.PageSize, resp.Total, resp.TotalPages)
+	}
+	if len(resp.Results) != 1 || resp.Results[0].Name != "zeta" {
+		t.Fatalf("Results = %+v, want second sorted/deduped result zeta", resp.Results)
+	}
+	if resp.Evidence != "" {
+		t.Fatalf("Evidence = %q, want empty for successful browse", resp.Evidence)
+	}
+}
+
 func TestHubSearchRegistryMalformed(t *testing.T) {
 	failed := NewInMemoryRegistryProvider(nil, ErrRegistryMalformed)
 	healthy := NewInMemoryRegistryProvider([]HubSearchResult{

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
 // branchForkTimeout caps how long /branch waits on the injected helper.
@@ -23,6 +25,10 @@ type BranchRequest struct {
 	ParentSessionID string
 	Title           string
 	HistoryCount    int
+	// History is the visible in-memory transcript at fork time. Production
+	// adapters use it to switch the resident kernel immediately, even when the
+	// durable transcript store is incomplete or behind the current frame.
+	History []hermes.Message
 }
 
 // BranchResult is the helper's response. SessionID is the freshly minted
@@ -68,12 +74,14 @@ func branchSlashHandler(input string, model *Model) SlashResult {
 		ParentSessionID: parent,
 		Title:           title,
 		HistoryCount:    len(model.frame.History),
+		History:         cloneResumeHistory(model.frame.History),
 	})
 	if err != nil {
 		return SlashResult{Handled: true, StatusMessage: fmt.Sprintf("branch: fork failed: %v", err)}
 	}
 
 	model.sessionID = res.SessionID
+	model.frame.SessionID = res.SessionID
 	model.inFlight = false
 	model.frame.DraftText = ""
 	return SlashResult{

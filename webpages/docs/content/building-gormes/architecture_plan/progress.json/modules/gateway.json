@@ -8328,7 +8328,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 16,
+    "pos": 18,
     "item": {
       "name": "TUI running-agent placeholder surfaces interrupt + queued slash actions",
       "priority": "P3",
@@ -8397,7 +8397,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 34,
+    "pos": 36,
     "item": {
       "name": "Channel/TUI iteration-limit finalization transcript fixture",
       "priority": "P0",
@@ -8480,7 +8480,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 36,
+    "pos": 38,
     "item": {
       "name": "TUI websocket attach transport",
       "priority": "P1",
@@ -8568,7 +8568,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 37,
+    "pos": 39,
     "item": {
       "name": "OpenAI-compatible chat-completions API server",
       "status": "complete",
@@ -8628,7 +8628,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 38,
+    "pos": 40,
     "item": {
       "name": "API server multimodal content preservation",
       "priority": "P1",
@@ -8708,7 +8708,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 39,
+    "pos": 41,
     "item": {
       "name": "Responses API store + run event stream",
       "status": "complete",
@@ -8769,7 +8769,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 40,
+    "pos": 42,
     "item": {
       "name": "API server disconnect snapshot persistence",
       "status": "complete",
@@ -8825,7 +8825,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 41,
+    "pos": 43,
     "item": {
       "name": "Gateway proxy mode forwarding contract",
       "status": "complete",
@@ -8881,7 +8881,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 42,
+    "pos": 44,
     "item": {
       "name": "Gateway proxy replay assistant metadata preservation",
       "priority": "P1",
@@ -8968,7 +8968,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 43,
+    "pos": 45,
     "item": {
       "name": "Dashboard API client contract",
       "status": "complete",
@@ -9025,7 +9025,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 44,
+    "pos": 46,
     "item": {
       "name": "Dashboard PTY chat sidecar contract",
       "status": "complete",
@@ -9077,7 +9077,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 45,
+    "pos": 47,
     "item": {
       "name": "API server detailed health snapshot contract",
       "priority": "P2",
@@ -9148,7 +9148,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 46,
+    "pos": 48,
     "item": {
       "name": "API server detailed health endpoint",
       "priority": "P2",
@@ -9229,7 +9229,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 47,
+    "pos": 49,
     "item": {
       "name": "API server cron admin read-only endpoints",
       "priority": "P2",
@@ -9305,7 +9305,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 48,
+    "pos": 50,
     "item": {
       "name": "API server cron admin mutating endpoints",
       "priority": "P2",
@@ -9378,7 +9378,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 49,
+    "pos": 51,
     "item": {
       "name": "API server legacy jobs routes + default toolset",
       "priority": "P0",
@@ -9464,7 +9464,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 50,
+    "pos": 52,
     "item": {
       "name": "Provider client lazy-init for TUI cold-start budget",
       "priority": "P2",
@@ -9528,7 +9528,7 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 53,
+    "pos": 55,
     "item": {
       "name": "Kernel cross-provider client swap for in-session model switch",
       "priority": "P2",
@@ -9596,13 +9596,13 @@
   {
     "phase": "5",
     "subphase": "5.Q",
-    "pos": 57,
+    "pos": 60,
     "item": {
       "name": "Hermes web dashboard strict-fidelity contract map",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Build a report-only Hermes web dashboard strict-fidelity classifier for `cmd/repoctl hermes-contract-inventory`: scan the current `hermes-agent/web/src` dashboard tree, group exact files into deterministic surface families (terminal chat/PTY, sessions, profiles, plugins and page-scoped slots, OAuth/provider panels, model picker, cron/admin/jobs, i18n, themes, and gateway client event shapes), and attach each family to an existing Gormes API/TUI gateway row, planned child row, source-pair entry, explicit exclusion, or owned-divergence note. The classifier is evidence-only: it must not import or execute React/TypeScript dashboard code, mutate `internal/apiserver` or `internal/tuigateway` behavior, or claim strict dashboard parity without row/source-pair/test proof.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "gateway",
@@ -9659,7 +9659,7 @@
         "Families with existing Gormes fixtures point at exact tests for native dashboard endpoints, plugin/slot metadata, cron admin/jobs, capabilities, and TUI gateway websocket/SSE behavior; missing or intentionally divergent React dashboard surfaces remain planned, excluded, or owned-divergence instead of covered.",
         "The report code never imports or executes Hermes React/TypeScript modules and preserves strict-mode semantics: covered requires validated row/source-pair evidence, while planned/excluded/owned-divergence remain explicit non-coverage classifications."
       ],
-      "note": "Planner 2026-05-22 development-loop iteration 6: converted the Hermes web dashboard strict-fidelity bucket from a broad draft into a fixture-ready report-classifier slice. Runtime dashboard/API/TUI gateway ports remain separate rows; this slice only classifies upstream `web/src` evidence for strict-fidelity reports.",
+      "note": "Complete 2026-05-23: report-only web dashboard classifier validated by internal/repoctl, internal/fidelity, internal/apiserver, internal/tuigateway, hermes-source-pairs, and progress gates; no dashboard runtime behavior changed.",
       "write_scope": [
         "internal/fidelity/report.go",
         "internal/fidelity/report_test.go",

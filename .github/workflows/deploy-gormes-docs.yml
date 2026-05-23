@@ -55,8 +55,8 @@ jobs:
         run: |
           grep -F "Go-native" dist/index.html >/dev/null
           grep -F "Quickstart" dist/index.html >/dev/null
-          grep -F "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/latest/download/install.sh" dist/index.html >/dev/null
-          ! grep -E 'https://gormes[.]ai/install[.]sh' dist/index.html >/dev/null
+          grep -F "curl -fsSL https://gormes.ai/install.sh" dist/index.html >/dev/null
+          ! grep -E 'github[.]com/TrebuchetDynamics/gormes-agent/releases/latest/download/install[.]sh' dist/index.html >/dev/null
           ! grep -F "https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh" dist/index.html >/dev/null
           ! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null
 

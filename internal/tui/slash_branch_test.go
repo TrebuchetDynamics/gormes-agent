@@ -14,11 +14,11 @@ import (
 // prove the slash handler builds the right request and applies the result
 // to the model without going through kernel.Submit.
 type recordingBranchFunc struct {
-	calls   int
-	gotReq  BranchRequest
-	gotCtx  context.Context
-	result  BranchResult
-	err     error
+	calls  int
+	gotReq BranchRequest
+	gotCtx context.Context
+	result BranchResult
+	err    error
 }
 
 func (r *recordingBranchFunc) call(ctx context.Context, req BranchRequest) (BranchResult, error) {
@@ -106,11 +106,21 @@ func TestSlashBranch_HappyPathSwitchesSessionIDAndDoesNotSubmit(t *testing.T) {
 	if rec.gotReq.HistoryCount != 2 {
 		t.Fatalf("BranchRequest.HistoryCount = %d, want 2", rec.gotReq.HistoryCount)
 	}
+	if len(rec.gotReq.History) != 2 || rec.gotReq.History[0].Content != "first" || rec.gotReq.History[1].Content != "ack" {
+		t.Fatalf("BranchRequest.History = %+v, want cloned visible history", rec.gotReq.History)
+	}
+	history[0].Content = "mutated after handler"
+	if rec.gotReq.History[0].Content != "first" {
+		t.Fatalf("BranchRequest.History was not cloned: %+v", rec.gotReq.History)
+	}
 	if rec.gotReq.Title != "" {
 		t.Fatalf("BranchRequest.Title = %q, want empty for /branch with no name", rec.gotReq.Title)
 	}
 	if got := m.SessionID(); got != "sess-child" {
 		t.Fatalf("model SessionID = %q, want sess-child after fork", got)
+	}
+	if got := m.frame.SessionID; got != "sess-child" {
+		t.Fatalf("frame.SessionID = %q, want sess-child after fork", got)
 	}
 	if sub.calls != 0 {
 		t.Fatalf("kernel.Submit called %d times, want 0 (slash must never reach the kernel)", sub.calls)

@@ -23,6 +23,14 @@ type turn struct {
 	MetaJSON  string
 }
 
+// Message is the role/content replay shape loaded from a saved transcript.
+// Runtime adapters map it to their own chat-message type at the edge so this
+// package remains independent of provider/runtime packages.
+type Message struct {
+	Role    string
+	Content string
+}
+
 type turnMeta struct {
 	ToolCalls []toolCall `json:"tool_calls"`
 }
@@ -76,6 +84,23 @@ func ExportMarkdown(ctx context.Context, db *sql.DB, sessionID string) (string, 
 	}
 
 	return b.String(), nil
+}
+
+// LoadMessages returns ordered transcript rows so runtime adapters can replay
+// a saved session into a resident kernel/TUI frame.
+func LoadMessages(ctx context.Context, db *sql.DB, sessionID string) ([]Message, error) {
+	turns, err := loadTurns(ctx, db, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if len(turns) == 0 {
+		return nil, ErrSessionNotFound
+	}
+	messages := make([]Message, 0, len(turns))
+	for _, turn := range turns {
+		messages = append(messages, Message{Role: turn.Role, Content: turn.Content})
+	}
+	return messages, nil
 }
 
 func loadTurns(ctx context.Context, db *sql.DB, sessionID string) ([]turn, error) {

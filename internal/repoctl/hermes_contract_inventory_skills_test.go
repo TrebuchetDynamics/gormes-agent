@@ -89,6 +89,12 @@ func TestHermesContractInventoryClassifiesSkillCatalogSurface(t *testing.T) {
 	if !containsSkillCatalogString(scripts.Examples, "optional-skills/research/darwinian-evolver/scripts/evolve.py") {
 		t.Fatalf("python/script examples = %v, want evolve.py", scripts.Examples)
 	}
+	if containsSkillCatalogSourcePair(scripts.SourcePairs, "tools/transcription_tools.py") {
+		t.Fatalf("python/script source pairs = %+v, want unrelated tool script source pair ignored", scripts.SourcePairs)
+	}
+	if containsSkillCatalogProgressRow(scripts.ProgressRows, "Voice transcription helper scripts") {
+		t.Fatalf("python/script progress rows = %+v, want unrelated non-skill progress row ignored", scripts.ProgressRows)
+	}
 
 	md, err := os.ReadFile(result.MarkdownPath)
 	if err != nil {
@@ -169,6 +175,15 @@ func writeSkillCatalogSourcePairs(t *testing.T, root string) {
       "status": "excluded",
       "contract": "Report Python-only helper scripts as explicit non-runtime evidence.",
       "last_checked_hermes_sha": "abc123"
+    },
+    {
+      "hermes_file": "tools/transcription_tools.py",
+      "gormes_targets": ["internal/tools/transcription.go"],
+      "status": "covered",
+      "contract": "Python helper script execution for voice transcription tools.",
+      "tests": ["go test ./internal/tools -run TestTranscriptionTool -count=1"],
+      "progress_rows": ["Voice transcription helper scripts"],
+      "last_checked_hermes_sha": "abc123"
     }
   ]
 }`
@@ -199,6 +214,7 @@ func writeSkillCatalogProgress(t *testing.T, root string) {
 							skillCatalogProgressItem("Skill hub source lockfile", progress.StatusComplete, progress.ContractStatusValidated, "skills", "hermes-agent/skills/index-cache/openai_skills_skills_.json", "go test ./internal/skills -run TestSyncBundledSkillsFromManifestUsesDigestThreeWayAndConflictCopies -count=1"),
 							skillCatalogProgressItem("Skill category description catalog", progress.StatusPlanned, progress.ContractStatusFixtureReady, "skills", "hermes-agent/skills/creative/DESCRIPTION.md", "go test ./internal/skills -run TestListInstalledSkills -count=1"),
 							skillCatalogProgressItem("Skill support asset inventory", progress.StatusPlanned, progress.ContractStatusFixtureReady, "skills", "hermes-agent/optional-skills/creative/concept-diagrams/references/dashboard-patterns.md", "go test ./internal/skills -run TestPreprocessSkillContent -count=1"),
+							skillCatalogProgressItem("Voice transcription helper scripts", progress.StatusComplete, progress.ContractStatusValidated, "tools", "hermes-agent/tools/transcription_tools.py", "go test ./internal/tools -run TestTranscriptionTool -count=1"),
 						},
 					},
 				},

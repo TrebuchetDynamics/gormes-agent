@@ -36,7 +36,7 @@ func TestGatewayCommandUsesInjectedRunAndSubcommands(t *testing.T) {
 	if !ran || !strings.Contains(stdout.String(), "gateway-run") {
 		t.Fatalf("gateway run seam not called; ran=%v stdout=%q", ran, stdout.String())
 	}
-	for _, want := range []string{"stop", "restart", "reload", "status", "discover", "probe", "usage-cost", "start", "install", "uninstall", "run", "setup", "migrate-legacy", "list"} {
+	for _, want := range []string{"stop", "restart", "reload", "status", "fleet", "discover", "probe", "usage-cost", "start", "install", "uninstall", "run", "setup", "migrate-legacy", "list"} {
 		if _, _, err := cmd.Find([]string{want}); err != nil {
 			t.Fatalf("gateway command missing child %q: %v", want, err)
 		}

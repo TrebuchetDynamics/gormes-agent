@@ -539,6 +539,27 @@ func TestRegisterTranscriptionProviders(t *testing.T) {
 // ValidateTranscriptionProviderConfig
 // ---------------------------------------------------------------------------
 
+func TestBuiltinTranscriptionProviderNamesIncludesLocalAndCloudMatrix(t *testing.T) {
+	names := BuiltinTranscriptionProviderNames()
+	for _, want := range []string{"device", "local", "openai", "groq", "mistral", "xai"} {
+		if !transcriptionProviderNamePresent(names, want) {
+			t.Fatalf("BuiltinTranscriptionProviderNames() = %#v, missing %q", names, want)
+		}
+	}
+	if err := ValidateTranscriptionProviderConfig("local", TranscriptionProviderConfig{}); err != nil {
+		t.Fatalf("ValidateTranscriptionProviderConfig(local): %v", err)
+	}
+}
+
+func transcriptionProviderNamePresent(names []string, want string) bool {
+	for _, name := range names {
+		if name == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestValidateTranscriptionProviderConfig(t *testing.T) {
 	// Save and restore env vars
 	origOpenAI := os.Getenv("GORMES_STT_OPENAI_KEY")

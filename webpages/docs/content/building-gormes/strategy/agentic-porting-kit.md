@@ -102,12 +102,64 @@ The scaffold is acceptable when:
 5. Gormes' README and success plan record the public repository URL after the
    external repo exists.
 
+## Local No-Auth Fixture
+
+Gormes keeps a copy-ready fixture for the public repo scaffold so builders can
+validate the example without creating a GitHub repository first:
+
+```text
+schemas/agentic-porting-kit-progress.schema.json
+scripts/agentic-porting-kit/validate-local-example.sh
+scripts/agentic-porting-kit/validate-public-layout.sh
+examples/agentic-porting-kit/README.md
+examples/agentic-porting-kit/LICENSE
+examples/agentic-porting-kit/scripts/validate-example.sh
+examples/agentic-porting-kit/python-greeter-to-go/
+examples/agentic-porting-kit/skills/porting-skill-manager/SKILL.md
+examples/agentic-porting-kit/skills/porting-planner/SKILL.md
+examples/agentic-porting-kit/skills/porting-builder/SKILL.md
+examples/agentic-porting-kit/skills/porting-tdd-slice/SKILL.md
+examples/agentic-porting-kit/skills/porting-parity-auditor/SKILL.md
+examples/agentic-porting-kit/skills/porting-references/SKILL.md
+```
+
+Run it from the Gormes checkout with:
+
+```sh
+./scripts/agentic-porting-kit/validate-local-example.sh
+```
+
+For an exact public-checkout shape without GitHub access, run:
+
+```sh
+./scripts/agentic-porting-kit/validate-public-layout.sh
+```
+
+The local script uses only Python's standard library plus `go test` in the
+example target module. It validates that the local README carries the operator
+promise, Codex and Claude Code loading instructions, public quick-start paths,
+schema adaptation guidance, Gormes proof language, and license section; that
+LICENSE is MIT-shaped; that the six local `porting-*` skill skeletons load by
+name, use generic source/target terminology, reference `PORTING_PROGRESS_PATH`,
+and avoid Gormes-only paths; and that the assembled public layout can run the
+copy-ready `scripts/validate-example.sh` from its own root. It must not call
+`cmd/progress`, import Gormes packages, require provider credentials, or touch
+the external `TrebuchetDynamics/agentic-porting-kit` repository. The public repo
+scaffold can later copy these artifacts and then deepen the generalized
+`porting-*` skills.
+
 ## Extraction Order
 
-1. Create the public repo scaffold with README, license, schema, example, and
-   validation script.
-2. Copy the six Gormes skill files into the mapped kit names.
-3. Generalize product terms and path assumptions in the copied files only.
-4. Run the standalone example validation.
-5. Return to Gormes and record the public repo URL in the README, success plan,
+1. Keep the local no-auth fixture green: README, LICENSE, schema, Python greeter
+   source, Go target, example `progress.json`, copy-ready public validation
+   script, public-layout assembly validation, and six loadable `porting-*` skill
+   skeletons.
+2. Create the public repo scaffold with copied README, license, schema, example,
+   validation script, and skill skeletons.
+3. Run the standalone public-layout validation before the first external push.
+4. Deepen the copied skill bodies only after the scaffold can validate.
+5. Generalize any remaining product terms and path assumptions in the copied
+   files only.
+6. Run the standalone example validation.
+7. Return to Gormes and record the public repo URL in the README, success plan,
    and Phase 8 progress row.

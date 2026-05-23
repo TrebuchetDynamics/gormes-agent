@@ -80,6 +80,7 @@ async function writeReleaseData() {
 }
 
 const copies = [
+  ['install.sh', resolve(repoRoot, 'install.sh'), resolve(siteRoot, 'public/install.sh')],
   ['install.ps1', resolve(repoRoot, 'scripts/install.ps1'), resolve(siteRoot, 'public/install.ps1')],
   ['install.cmd', resolve(repoRoot, 'scripts/install.cmd'), resolve(siteRoot, 'public/install.cmd')],
   [

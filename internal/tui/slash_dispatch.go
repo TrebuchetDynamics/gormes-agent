@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
 // SlashResult is the typed return value of a SlashHandler. It tells Update
@@ -135,17 +136,33 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("clear", sessionResetSlashHandler)
 	r.Register("new", sessionResetSlashHandler)
 	r.Register("compact", compactSlashHandler, WithBusyAvailable())
+	r.Register("details", detailsSlashHandler, WithBusyAvailable())
+	r.Register("indicator", indicatorSlashHandler, WithBusyAvailable())
+	r.Register("history", historySlashHandler, WithBusyAvailable())
+	r.Register("logs", logsSlashHandler, WithBusyAvailable())
+	r.Register("title", titleSlashHandler, WithBusyAvailable())
+	r.Register("sessions", sessionsSlashHandler)
+	r.Register("resume", sessionsSlashHandler)
+	r.Register("usage", usageSlashHandler, WithBusyAvailable())
 	r.Register("mouse", mouseSlashHandler)
 	r.Register("scroll", mouseSlashHandler)
 	r.Register("save", saveSlashHandler)
 	r.Register("branch", branchSlashHandler)
 	r.Register("copy", copySlashHandler)
+	r.Register("status", statusSlashHandler, WithBusyAvailable())
+	r.Register("statusbar", statusbarSlashHandler, WithBusyAvailable())
+	r.Register("sb", statusbarSlashHandler, WithBusyAvailable())
 	r.Register("browser", browserSlashHandler, WithBusyAvailable())
 	r.Register("kanban", kanbanSlashHandler, WithBusyAvailable())
+	r.Register("skills", skillsSlashHandler, WithBusyAvailable())
+	r.Register("tools", toolsSlashHandler, WithBusyAvailable())
+	r.Register("voice", voiceSlashHandler, WithBusyAvailable())
+	r.Register("skin", skinSlashHandler, WithBusyAvailable())
 	r.Register("model", modelSlashHandler)
 	r.Register("m", modelSlashHandler)
 	r.Register("quit", quitSlashHandler)
 	r.Register("exit", quitSlashHandler)
+	r.Register("redraw", redrawSlashHandler, WithBusyAvailable())
 	return r
 }
 
@@ -270,6 +287,15 @@ func copyStatusForEvidence(result ComposerCopyResult) string {
 	}
 }
 
+func skillsSlashHandler(input string, _ *Model) SlashResult {
+	return SlashResult{Handled: true, StatusMessage: strings.TrimSpace(gateway.HandleSkillsCommand(input))}
+}
+
 func quitSlashHandler(_ string, _ *Model) SlashResult {
 	return SlashResult{Handled: true, Cmd: tea.Quit}
+}
+
+func redrawSlashHandler(_ string, model *Model) SlashResult {
+	model.forceLocalRedraw()
+	return SlashResult{Handled: true, StatusMessage: "ui redrawn"}
 }

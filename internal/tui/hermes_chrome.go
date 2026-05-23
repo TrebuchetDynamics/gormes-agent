@@ -29,6 +29,9 @@ type HermesChromeInput struct {
 	// StatusBar is the single-line Hermes-compatible status rule rendered by
 	// RenderHermesStatusBar.
 	StatusBar string
+	// StatusBarMode controls whether StatusBar renders above or below the
+	// prompt. Empty defaults to top to preserve the historical call shape.
+	StatusBarMode StatusBarMode
 
 	// Prompt is the pre-rendered prompt symbol + input area block.
 	Prompt string
@@ -63,8 +66,9 @@ type HermesChromeInput struct {
 //	(optional) modal panel
 //	(optional) queued messages
 //	(optional) sticky prompt
-//	status bar
+//	status bar (top mode)
 //	prompt + input area
+//	status bar (bottom mode)
 //	(optional) voice status
 //	(optional) image bar
 //	(optional) completions menu
@@ -92,11 +96,15 @@ func RenderHermesChrome(in HermesChromeInput) string {
 	if in.StickyPrompt != "" {
 		parts = append(parts, in.StickyPrompt)
 	}
-	if in.StatusBar != "" {
+	statusBarMode := normalizeStatusBarMode(in.StatusBarMode)
+	if in.StatusBar != "" && statusBarMode == StatusBarModeTop {
 		parts = append(parts, in.StatusBar)
 	}
 	if in.Prompt != "" {
 		parts = append(parts, in.Prompt)
+	}
+	if in.StatusBar != "" && statusBarMode == StatusBarModeBottom {
+		parts = append(parts, in.StatusBar)
 	}
 	if in.VoiceStatus != "" {
 		parts = append(parts, in.VoiceStatus)
