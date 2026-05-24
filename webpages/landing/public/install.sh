@@ -67,6 +67,16 @@ PUBLISH_VERIFY_OUTPUT=""
 OS=""
 DISTRO=""
 
+# Hermes-style terminal chrome. Keep POSIX sh: no echo -e, no bashisms.
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+BOLD='\033[1m'
+
 # Detect non-interactive mode (e.g. curl | bash). Under `set -eu`, `read` on a
 # closed stdin can silently abort the entire script. prompt_yes_no falls back
 # to /dev/tty when stdin is a pipe so curl|bash users still get prompts.
@@ -83,12 +93,14 @@ log() {
   fi
   printf '%s\n' "$*" >&2
 }
-log_info() { printf '→ %s\n' "$*" >&2; }
-log_success() { printf '✓ %s\n' "$*" >&2; }
-log_warn() { printf '⚠ %s\n' "$*" >&2; }
-log_error() { printf '✗ %s\n' "$*" >&2; }
+log_color() { printf '%b%s%b\n' "$1" "$2" "$NC" >&2; }
+log_section() { log_color "${CYAN}${BOLD}" "$*"; }
+log_info() { printf '%b→%b %s\n' "$CYAN" "$NC" "$*" >&2; }
+log_success() { printf '%b✓%b %s\n' "$GREEN" "$NC" "$*" >&2; }
+log_warn() { printf '%b⚠%b %s\n' "$YELLOW" "$NC" "$*" >&2; }
+log_error() { printf '%b✗%b %s\n' "$RED" "$NC" "$*" >&2; }
 fail() { log_error "$*"; exit 1; }
-log_blue() { printf '\033[1;34m%s\033[0m\n' "$*" >&2; }
+log_blue() { log_color "${BLUE}${BOLD}" "$*"; }
 verbose() {
   [ "$VERBOSE" -eq 1 ] || return 0
   log "$@"
@@ -129,14 +141,12 @@ prompt_yes_no() {
 
 print_banner() {
   log ""
-  log_blue " ██████╗  ██████╗ ██████╗ ███╗   ███╗███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗"
-  log_blue "██╔════╝ ██╔═══██╗██╔══██╗████╗ ████║██╔════╝██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝"
-  log_blue "██║  ███╗██║   ██║██████╔╝██╔████╔██║█████╗  ███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║"
-  log_blue "██║   ██║██║   ██║██╔══██╗██║╚██╔╝██║██╔══╝  ╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║"
-  log_blue "╚██████╔╝╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║"
-  log_blue " ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝"
-  log_blue "Gormes Agent Installer"
-  log_blue "An open source AI agent for Hermes-compatible runtime."
+  log_color "${MAGENTA}${BOLD}" "┌─────────────────────────────────────────────────────────┐"
+  log_color "${MAGENTA}${BOLD}" "│              ◉ Gormes Agent Installer                   │"
+  log_color "${MAGENTA}${BOLD}" "├─────────────────────────────────────────────────────────┤"
+  log_color "${MAGENTA}${BOLD}" "│  Go-native Hermes-compatible agent runtime.             │"
+  log_color "${MAGENTA}${BOLD}" "│  Single binary. No Python, venv, Node, or Docker needed. │"
+  log_color "${MAGENTA}${BOLD}" "└─────────────────────────────────────────────────────────┘"
   log ""
 }
 
@@ -1791,14 +1801,14 @@ setup_already_configured() {
 
 print_setup_path_recommendation() {
   log ""
-  log "Gormes installed successfully"
-  log "Choose setup path:"
+  log_section "⚙ Setup"
   log "  1. Navivox (recommended)"
   log "     Pair your Android app and continue setup there."
   log "  2. CLI setup"
   log "     Continue fully in terminal."
-  log "Recommended next step: gormes navivox pair"
-  log "CLI setup command: gormes setup"
+  log ""
+  log_info "Recommended: gormes navivox pair"
+  log_info "CLI setup:   gormes setup"
 }
 
 run_setup_wizard() {
@@ -2148,28 +2158,36 @@ print_summary() {
   published_bin="${bin_dir}/gormes"
 
   log ""
-  log "═══ Gormes installed ═══"
-  log "  binary: ${published_bin}"
-  log "  source: $(install_source_description)"
-  log "  config: $(managed_home_dir)/config.toml"
+  log_color "${GREEN}${BOLD}" "┌─────────────────────────────────────────────────────────┐"
+  log_color "${GREEN}${BOLD}" "│              ✓ Installation Complete!                   │"
+  log_color "${GREEN}${BOLD}" "└─────────────────────────────────────────────────────────┘"
+  log ""
+
+  log_section "📁 Files"
+  log "  Binary:  ${published_bin}"
+  log "  Managed: $(managed_bin_dir)/gormes"
+  log "  Source:  $(install_source_description)"
+  log "  Config:  $(managed_home_dir)/config.toml"
+  log "  Ledger:  $(install_ledger_path)"
   active_bin=$(active_command_path)
   if [ -n "$active_bin" ] && [ "$active_bin" != "$published_bin" ] && ! same_binary "$active_bin" "$published_bin"; then
-    log "  active: ${active_bin} (older install; run 'hash -r' or restart shell)"
+    log_warn "Active command is older: ${active_bin} (run 'hash -r' or restart shell)"
   fi
 
+  log ""
+  log_section "⚡ PATH"
   if path_contains_dir "$bin_dir"; then
-    log "  PATH:   ${bin_dir} ✓"
+    log_success "${bin_dir} already on PATH"
   elif [ -n "${PATH_CONFIG_FILES:-}" ]; then
-    log "  PATH:   ${bin_dir} (added to ${PATH_CONFIG_FILES})"
-    log ""
+    log_success "Added ${bin_dir} to: ${PATH_CONFIG_FILES}"
     case "${SHELL##*/}" in
-      zsh)  log "Reload your shell to pick up the new PATH: source ~/.zshrc" ;;
-      bash) log "Reload your shell to pick up the new PATH: source ~/.bashrc" ;;
-      fish) log "Reload your shell to pick up the new PATH: source ~/.config/fish/config.fish" ;;
-      *)    log "Reload your shell or open a new terminal to pick up the new PATH." ;;
+      zsh)  log_info "Reload shell: source ~/.zshrc" ;;
+      bash) log_info "Reload shell: source ~/.bashrc" ;;
+      fish) log_info "Reload shell: source ~/.config/fish/config.fish" ;;
+      *)    log_info "Reload shell or open a new terminal" ;;
     esac
   else
-    log ""
+    log_warn "${bin_dir} not on PATH"
     log "Add to PATH (copy one):"
     case "${SHELL##*/}" in
       zsh)  log "  echo 'export PATH=\"${bin_dir}:\$PATH\"' >> ~/.zshrc" ;;
@@ -2184,17 +2202,23 @@ print_summary() {
   fi
 
   log ""
-  log "Quick start:"
+  log_section "🚀 Commands"
+  log "  gormes                  # start chatting"
   log "  gormes --offline        # smoke test TUI"
   log "  gormes doctor --offline # check everything"
+  log "  gormes setup            # configure providers/channels"
   log "  gormes dashboard        # web UI at http://127.0.0.1:43827/dashboard"
+  log "  gormes gateway status   # gateway health"
+
   log ""
-  log "Free web backends (no API keys needed):"
-  log "  Search: auto-enabled via DuckDuckGo"
+  log_section "🌐 Web backends"
+  log "  Search:  auto-enabled via DuckDuckGo (no API key)"
   log "  Extract: export CHROME_REMOTE_DEBUGGING_URL=http://localhost:9222"
-  log "           (Chrome needs --remote-debugging-port=9222)"
+  log "           Start Chrome with --remote-debugging-port=9222"
+  log "  Paid:    export FIRECRAWL_API_KEY=fc-xxx"
+
   log ""
-  log "Update: rerun this installer."
+  log_info "Update: rerun this installer."
 }
 
 print_service_instructions() {
