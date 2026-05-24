@@ -95,6 +95,7 @@ log() {
 }
 log_color() { printf '%b%s%b\n' "$1" "$2" "$NC" >&2; }
 log_section() { log_color "${CYAN}${BOLD}" "$*"; }
+log_rule() { log_color "$CYAN" "─────────────────────────────────────────────────────────"; }
 log_info() { printf '%b→%b %s\n' "$CYAN" "$NC" "$*" >&2; }
 log_success() { printf '%b✓%b %s\n' "$GREEN" "$NC" "$*" >&2; }
 log_warn() { printf '%b⚠%b %s\n' "$YELLOW" "$NC" "$*" >&2; }
@@ -2163,17 +2164,23 @@ print_summary() {
   log_color "${GREEN}${BOLD}" "└─────────────────────────────────────────────────────────┘"
   log ""
 
-  log_section "📁 Files"
-  log "  Binary:  ${published_bin}"
-  log "  Managed: $(managed_bin_dir)/gormes"
-  log "  Source:  $(install_source_description)"
-  log "  Config:  $(managed_home_dir)/config.toml"
-  log "  Ledger:  $(install_ledger_path)"
+  log_section "📁 Your files"
+  log ""
+  log "  Binary:      ${published_bin}"
+  log "  Managed:     $(managed_bin_dir)/gormes"
+  log "  Source:      $(install_source_description)"
+  log "  Config:      $(managed_home_dir)/config.toml"
+  log "  Auth:        $(managed_home_dir)/auth.json (created by setup/auth commands)"
+  log "  Env:         $(managed_home_dir)/.env (optional imported secrets)"
+  log "  Gateway log: $(managed_home_dir)/gateway.log"
+  log "  Ledger:      $(install_ledger_path)"
   active_bin=$(active_command_path)
   if [ -n "$active_bin" ] && [ "$active_bin" != "$published_bin" ] && ! same_binary "$active_bin" "$published_bin"; then
     log_warn "Active command is older: ${active_bin} (run 'hash -r' or restart shell)"
   fi
 
+  log ""
+  log_rule
   log ""
   log_section "⚡ PATH"
   if path_contains_dir "$bin_dir"; then
@@ -2202,16 +2209,38 @@ print_summary() {
   fi
 
   log ""
+  log_rule
+  log ""
   log_section "🚀 Commands"
+  log ""
   log "  gormes                  # start chatting"
   log "  gormes --offline        # smoke test TUI"
   log "  gormes doctor --offline # check everything"
   log "  gormes setup            # configure providers/channels"
+  log "  gormes navivox pair     # pair Android app setup flow"
   log "  gormes dashboard        # web UI at http://127.0.0.1:43827/dashboard"
   log "  gormes gateway status   # gateway health"
 
   log ""
+  log_rule
+  log ""
+  log_section "✅ Next steps"
+  log ""
+  log "  1. Run: gormes doctor --offline"
+  if setup_already_configured; then
+    log "  2. Chat: gormes"
+  else
+    log "  2. Configure: gormes setup"
+    log "     Or pair Android app: gormes navivox pair"
+  fi
+  log "  3. Messaging gateway: gormes gateway status"
+  log "     Start after setup if needed: gormes gateway start"
+
+  log ""
+  log_rule
+  log ""
   log_section "🌐 Web backends"
+  log ""
   log "  Search:  auto-enabled via DuckDuckGo (no API key)"
   log "  Extract: export CHROME_REMOTE_DEBUGGING_URL=http://localhost:9222"
   log "           Start Chrome with --remote-debugging-port=9222"
