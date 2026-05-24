@@ -19,10 +19,10 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gonchotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/goncho"
 )
 
 // newGonchoCommand returns a fresh goncho command tree. Constructor pattern

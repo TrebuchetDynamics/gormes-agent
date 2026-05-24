@@ -9,9 +9,9 @@ import (
 
 	"github.com/TrebuchetDynamics/goncho"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gonchotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/goncho"
 )
 
 // newChannelGonchoService constructs a goncho.Service wired for channel runtime

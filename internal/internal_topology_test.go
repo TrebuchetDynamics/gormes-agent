@@ -259,6 +259,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/tools/kanban/kanban_tools.go:ConfigFromEnv",
 			},
 		},
+		{
+			Name:        "gonchotools-rehome",
+			Active:      true,
+			OwnerModule: "tools",
+			OldRoots:    []string{"internal/gonchotools"},
+			NewRoots:    []string{"internal/tools/goncho"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"cmd/gormes/goncho.go:runGonchoDoctor",
+				"internal/tools/goncho/honcho_tools.go:RegisterHonchoTools",
+				"internal/tools/goncho/turn_integration.go:NewTurnIntegration",
+			},
+		},
 	}
 }
 

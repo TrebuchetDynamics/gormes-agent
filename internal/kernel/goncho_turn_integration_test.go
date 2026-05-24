@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/goncho"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/gonchotools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/goncho"
 )
 
 func TestAgentTurnUsesGonchoMemory(t *testing.T) {
