@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-import { visitDocsPage } from './helpers.mjs';
+import { visitPage } from '../../../testing/playwright-helpers.mjs';
 
 test('Starlight mobile navigation exposes core docs links', async ({ page }) => {
-  await visitDocsPage(page, '/install/', { width: 360, height: 760 });
+  await visitPage(page, '/install/', { width: 360, height: 760 });
 
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Main' });
@@ -18,7 +18,7 @@ test('Starlight mobile navigation exposes core docs links', async ({ page }) => 
 });
 
 test('desktop navigation keeps the active page visible', async ({ page }) => {
-  await visitDocsPage(page, '/install/linux-macos/', { width: 1280, height: 800 });
+  await visitPage(page, '/install/linux-macos/', { width: 1280, height: 800 });
 
   const nav = page.getByRole('navigation', { name: 'Main' });
   await expect(page.getByRole('button', { name: 'Menu' })).toBeHidden();

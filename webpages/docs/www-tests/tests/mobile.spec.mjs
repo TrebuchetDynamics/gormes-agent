@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { expectMainHeading, expectNoHorizontalOverflow, visitDocsPage } from './helpers.mjs';
+import { expectMainHeading, expectNoHorizontalOverflow, visitPage } from '../../../testing/playwright-helpers.mjs';
 
 const VIEWPORTS = [
   { label: 'iPhone SE', width: 320, height: 568 },
@@ -13,13 +13,13 @@ const VIEWPORTS = [
 
 for (const vp of VIEWPORTS) {
   test(`docs home (${vp.label} ${vp.width}x${vp.height}) has no horizontal overflow`, async ({ page }) => {
-    await visitDocsPage(page, '/', vp);
+    await visitPage(page, '/', vp);
 
     await expectNoHorizontalOverflow(page, `page overflows at ${vp.width}px`);
   });
 
   test(`docs article page (${vp.label}) has no overflow and renders Starlight TOC`, async ({ page }) => {
-    await visitDocsPage(page, '/building-gormes/architecture_plan/phase-6-learning-loop/', vp);
+    await visitPage(page, '/building-gormes/architecture_plan/phase-6-learning-loop/', vp);
 
     await expectNoHorizontalOverflow(page, `article overflows at ${vp.width}px`);
 
@@ -34,7 +34,7 @@ for (const vp of VIEWPORTS) {
 }
 
 test('mobile operator install journey keeps code blocks and next links usable', async ({ page }) => {
-  await visitDocsPage(page, '/install/linux-macos/', { width: 320, height: 568 });
+  await visitPage(page, '/install/linux-macos/', { width: 320, height: 568 });
 
   await expectMainHeading(page, 'Linux and macOS');
   await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | bash').first()).toBeVisible();
@@ -57,7 +57,7 @@ test('mobile operator install journey keeps code blocks and next links usable', 
 });
 
 test('mobile menu button is accessible and desktop hides it', async ({ page }) => {
-  await visitDocsPage(page, '/getting-started/first-run/', { width: 360, height: 760 });
+  await visitPage(page, '/getting-started/first-run/', { width: 360, height: 760 });
 
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(1);

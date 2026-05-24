@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-import { expectMainHeading, visitDocsPage } from './helpers.mjs';
+import { expectMainHeading, visitPage } from '../../../testing/playwright-helpers.mjs';
 
 test('docs home renders through Starlight with operator-first content', async ({ page }) => {
-  await visitDocsPage(page, '/');
+  await visitPage(page, '/');
 
   await expect(page).toHaveTitle(/Gormes Documentation \| Gormes Docs/);
   await expectMainHeading(page, 'Gormes Documentation');
@@ -39,32 +39,32 @@ test('docs home renders through Starlight with operator-first content', async ({
 });
 
 test('operator docs journey keeps install commands and runtime checks consistent', async ({ page }) => {
-  await visitDocsPage(page, '/install/linux-macos/');
+  await visitPage(page, '/install/linux-macos/');
 
   await expectMainHeading(page, 'Linux and macOS');
   await expect(page.locator('main')).toContainText('https://gormes.ai/install.sh');
   await expect(page.locator('main')).not.toContainText('raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh');
   await expect(page.getByRole('link', { name: 'Providers', exact: true })).toHaveAttribute('href', /\/configure\/providers\//);
 
-  await visitDocsPage(page, '/configure/providers/');
+  await visitPage(page, '/configure/providers/');
   await expectMainHeading(page, 'Providers');
   await expect(page.locator('main')).toContainText('gormes doctor --offline');
   await expect(page.locator('main')).toContainText('gormes chat -q "smoke test"');
 
-  await visitDocsPage(page, '/operate/first-chat/');
+  await visitPage(page, '/operate/first-chat/');
   await expectMainHeading(page, 'Connect a provider and open chat');
   await expect(page.locator('main')).toContainText('gormes auth list');
   await expect(page.locator('main')).toContainText('gormes chat');
   await expect(page.locator('main')).not.toContainText('hermes chat');
 
-  await visitDocsPage(page, '/troubleshooting/doctor/');
+  await visitPage(page, '/troubleshooting/doctor/');
   await expectMainHeading(page, 'Doctor');
   await expect(page.locator('main')).toContainText('gormes doctor --offline');
   await expect(page.locator('main')).not.toContainText('python -m');
 });
 
 test('roadmap alias resolves to public status page', async ({ page }) => {
-  await visitDocsPage(page, '/roadmap/');
+  await visitPage(page, '/roadmap/');
 
   await expect(page).toHaveTitle(/Status & Roadmap \| Gormes Docs/);
   await expectMainHeading(page, 'Status & Roadmap');

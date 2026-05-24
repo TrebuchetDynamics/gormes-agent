@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
+import { expectMainHeading, expectNoHorizontalOverflow, visitPage } from '../../testing/playwright-helpers.mjs';
+
 const landingBenchmarks = JSON.parse(readFileSync(new URL('../src/data/benchmarks.json', import.meta.url), 'utf8'));
 const rootBenchmarks = JSON.parse(readFileSync(new URL('../../../benchmarks.json', import.meta.url), 'utf8'));
 const logoSvg = readFileSync(new URL('../public/static/gormes-agent-logo-blue.svg', import.meta.url), 'utf8');
@@ -15,7 +17,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   expect(logoSvg).not.toContain('<tspan');
   expect(logoSvg).not.toContain('font-family');
 
-  await page.goto('/');
+  await visitPage(page, '/');
 
   await expect(page).toHaveTitle('Gormes — Go-Native AI Agent Runtime Without Python or Docker');
   await expect(page.locator('html[data-site-runtime="astro-tailwind"]')).toHaveCount(1);
@@ -44,7 +46,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(primaryNav.getByRole('link', { name: 'Roadmap' })).toHaveAttribute('href', '/roadmap');
   await expect(page.getByRole('img', { name: 'Gormes Go-native AI agent runtime mascot' })).toHaveAttribute('src', '/static/go-gopher-bear-lowpoly.png');
 
-  await expect(page.getByRole('heading', { name: 'Go-native AI agent runtime without Python or Docker.' })).toBeVisible();
+  await expectMainHeading(page, 'Go-native AI agent runtime without Python or Docker.');
   await expect(page.getByText('Run local and server-side AI agents from one static binary')).toBeVisible();
   await expect(page.getByText('with Hermes-style skills, offline diagnostics, SQLite memory')).toBeVisible();
   await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Install Gormes');
@@ -128,7 +130,7 @@ test('install copy interaction copies the exact release-first command', async ({
     });
   });
 
-  await page.goto('/');
+  await visitPage(page, '/');
   const install = page.locator('#install');
   const command = await install.locator('pre code').innerText();
   expect(command).toContain('https://gormes.ai/install.sh');
@@ -167,7 +169,7 @@ test('static SEO helper files are shipped', async ({ page }) => {
 });
 
 test('primary landing CTAs navigate without leaving stale sections visible', async ({ page }) => {
-  await page.goto('/');
+  await visitPage(page, '/');
 
   await page.locator('.hero-ctas .btn-primary').click();
   await expect(page).toHaveURL(/#install$/);
@@ -184,13 +186,13 @@ test('primary landing CTAs navigate without leaving stale sections visible', asy
 });
 
 test('built-with page lists truthful deployments and submission template', async ({ page }) => {
-  await page.goto('/built-with');
+  await visitPage(page, '/built-with');
 
   await expect(page).toHaveTitle('Built with Gormes — Real Deployments and Self-Hosted Uses');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://gormes.ai/built-with');
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', 'https://gormes.ai/built-with');
   await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
-  await expect(page.getByRole('heading', { name: 'Built with Gormes' })).toBeVisible();
+  await expectMainHeading(page, 'Built with Gormes');
   await expect(page.getByText('Real deployments only. No fabricated customer logos, no placeholder companies.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'TrebuchetDynamics operator loop' })).toBeVisible();
   await expect(page.getByText('TrebuchetDynamics', { exact: true })).toBeVisible();
@@ -213,10 +215,9 @@ const MOBILE_VIEWPORTS = [
 
 for (const vp of MOBILE_VIEWPORTS) {
   test(`mobile (${vp.label} ${vp.width}x${vp.height}) has no horizontal overflow`, async ({ page }) => {
-    await page.setViewportSize({ width: vp.width, height: vp.height });
-    await page.goto('/');
+    await visitPage(page, '/', vp);
 
-    await expect(page.getByRole('heading', { name: 'Go-native AI agent runtime without Python or Docker.' })).toBeVisible();
+    await expectMainHeading(page, 'Go-native AI agent runtime without Python or Docker.');
     await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh')).toBeVisible();
 
     const heroLayout = await page.evaluate(() => {
@@ -230,10 +231,7 @@ for (const vp of MOBILE_VIEWPORTS) {
     expect(heroLayout.contentWidth, `hero content collapsed at ${vp.width}px`).toBeGreaterThan(vp.width * 0.6);
     expect(heroLayout.titleWidth, `hero title too wide at ${vp.width}px`).toBeLessThanOrEqual(vp.width);
 
-    const pageOverflow = await page.evaluate(() =>
-      document.documentElement.scrollWidth > window.innerWidth,
-    );
-    expect(pageOverflow, `page body overflows at ${vp.width}px`).toBeFalsy();
+    await expectNoHorizontalOverflow(page, `page body overflows at ${vp.width}px`);
 
     const copyButtons = page.locator('button.copy-btn');
     await expect(copyButtons).toHaveCount(1);

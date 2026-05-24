@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-import { visitDocsPage } from './helpers.mjs';
+import { visitPage } from '../../../testing/playwright-helpers.mjs';
 
 test('Starlight TOC scrollspy highlights the currently visible heading', async ({ page }) => {
-  await visitDocsPage(
+  await visitPage(
     page,
     '/building-gormes/architecture_plan/phase-6-learning-loop/',
     { width: 1280, height: 800 },
