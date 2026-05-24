@@ -11,7 +11,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
 type registryOptions struct {
@@ -43,7 +42,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(&tools.EchoTool{})
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
-	outputCompaction := compact.Config{Mode: compact.ModeAuto}
+	outputCompaction := tools.AutoOutputCompaction()
 	reg.MustRegister(tools.NewExecuteCodeTool(tools.ExecuteCodeToolConfig{
 		ConfigSet:        cfg.CodeExecution.Mode != "",
 		ConfigValue:      cfg.CodeExecution.Mode,
