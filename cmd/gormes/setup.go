@@ -405,7 +405,8 @@ func defaultSetupHasExistingInstall() (bool, error) {
 	}
 	return strings.TrimSpace(cfg.Hermes.Provider) != "" ||
 		strings.TrimSpace(cfg.Hermes.Endpoint) != "" ||
-		strings.TrimSpace(os.Getenv("GORMES_API_KEY")) != "", nil
+		strings.TrimSpace(os.Getenv("GORMES_API_KEY")) != "" ||
+		setupProviderAutoDetectEnvProvider() != "", nil
 }
 
 func resetSetupDefaultConfig() (string, error) {
@@ -582,8 +583,9 @@ func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInt
 // `│ Gormes Setup — <Label> │` header (the shared 59-wide box, reused from
 // internal/doctor.RenderDoctorHeader — not a third chrome variant) before
 // the section runs, and a uniform `<Label> configuration complete!` footer
-// only on success. An unknown section keeps the existing unsupported
-// behavior with no box. Section prompts/logic are unchanged.
+// only on success for sections that do not render their own success receipt.
+// An unknown section keeps the existing unsupported behavior with no box.
+// Section prompts/logic are unchanged.
 func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string, nonInteractive bool) error {
 	section = setupCanonicalSection(section)
 	if _, known := setupSectionLabels[section]; !known {
@@ -602,7 +604,7 @@ func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string
 	err := dispatchSetupSection(cmd, seams, section, nonInteractive)
 	cmd.SetOut(out)
 
-	if err == nil && !setupSectionOutputCancelled(captured.String()) {
+	if err == nil && !setupSectionSuppressSuccessFooter(section, captured.String()) {
 		fmt.Fprintf(out, "\n%s configuration complete!\n", label)
 	}
 	return err
@@ -613,6 +615,13 @@ func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string
 // be suppressed). It matches the distinctive terminal cancel sentinels the
 // sections print — not loose "cancel" prompt text — so interactive menus
 // like "3. Cancel" / "q to cancel" do not produce false negatives.
+func setupSectionSuppressSuccessFooter(section, out string) bool {
+	if setupSectionOutputCancelled(out) {
+		return true
+	}
+	return section == "provider" && setupProviderReceiptRendered(out)
+}
+
 func setupSectionOutputCancelled(out string) bool {
 	for _, sentinel := range []string{
 		"Setup cancelled.",
@@ -624,6 +633,12 @@ func setupSectionOutputCancelled(out string) bool {
 		}
 	}
 	return false
+}
+
+func setupProviderReceiptRendered(out string) bool {
+	return strings.Contains(out, "\nConnection\n") &&
+		strings.Contains(out, "\nAuthentication\n") &&
+		strings.Contains(out, "\nNext steps\n")
 }
 
 func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string, nonInteractive bool) error {
@@ -1333,21 +1348,183 @@ func runSetupProviderSection(cmd *cobra.Command, seams setupCommandSeams, nonInt
 		return setupProviderNonInteractive(cmd)
 	}
 	if !seams.IsTTY() {
-		fmt.Fprintln(cmd.ErrOrStderr(), "setup_requires_tty: run `gormes setup provider --non-interactive` to use GORMES_ENDPOINT + GORMES_API_KEY env vars")
+		fmt.Fprintln(cmd.ErrOrStderr(), setupProviderRequiresTTYGuidance(setupProviderRequestedOrAutoDetectedID()))
 		return errSetupRequiresTTY
 	}
 	return setupProviderInteractive(cmd, seams)
 }
 
-func setupProviderNonInteractive(cmd *cobra.Command) error {
-	endpoint := strings.TrimSpace(os.Getenv("GORMES_ENDPOINT"))
-	apiKey := strings.TrimSpace(os.Getenv("GORMES_API_KEY"))
-	if endpoint == "" || apiKey == "" {
-		return fmt.Errorf("setup provider --non-interactive: GORMES_ENDPOINT and GORMES_API_KEY must be set")
+func setupProviderRequiresTTYGuidance(provider string) string {
+	provider = setupCanonicalProviderID(provider)
+	apiKey, apiKeyEnvNames := setupProviderAPIKeyDefault(provider)
+	if setupProviderShouldUseOAuth(provider, apiKey) {
+		label := setupProviderReceiptLabel(provider, provider)
+		return fmt.Sprintf("setup_requires_tty: %s uses OAuth; run `gormes setup provider --non-interactive` to write provider defaults, then `gormes auth add %s --type oauth` to sign in", label, provider)
 	}
-	provider := strings.TrimSpace(os.Getenv("GORMES_INFERENCE_PROVIDER"))
+	endpointEnvNames := setupProviderEndpointEnvNames(provider)
+	return fmt.Sprintf("setup_requires_tty: run `gormes setup provider --non-interactive` to use %s plus %s env vars", setupEnvOptions(endpointEnvNames, "or"), setupEnvOptions(apiKeyEnvNames, "or"))
+}
+
+func setupProviderNonInteractive(cmd *cobra.Command) error {
+	provider := setupProviderRequestedOrAutoDetectedID()
 	model := firstNonEmptySetup(os.Getenv("GORMES_MODEL"), os.Getenv("GORMES_INFERENCE_MODEL"))
+	endpoint := cleanSetupProviderEndpoint(os.Getenv("GORMES_ENDPOINT"))
+	if endpoint == "" && provider != "" {
+		endpoint = setupProviderEndpointDefault(provider)
+	}
+	if model == "" && provider != "" {
+		model = setupProviderModelDefault(cli.ProviderModel{}, provider)
+	}
+
+	apiKey, apiKeyEnvNames := setupProviderAPIKeyDefault(provider)
+	if setupProviderShouldUseOAuth(provider, apiKey) {
+		if endpoint == "" {
+			return fmt.Errorf("setup provider --non-interactive: GORMES_ENDPOINT must be set for %s", provider)
+		}
+		return writeOAuthProviderConfig(cmd, provider, endpoint, model)
+	}
+
+	endpointEnvNames := setupProviderEndpointEnvNames(provider)
+	if endpoint == "" && apiKey == "" {
+		return fmt.Errorf("setup provider --non-interactive: endpoint must be set via %s; API key must be set via %s", setupEnvOptions(endpointEnvNames, "or"), setupEnvOptions(apiKeyEnvNames, "or"))
+	}
+	if endpoint == "" {
+		return fmt.Errorf("setup provider --non-interactive: endpoint must be set via %s", setupEnvOptions(endpointEnvNames, "or"))
+	}
+	if apiKey == "" {
+		return fmt.Errorf("setup provider --non-interactive: API key must be set via %s", setupEnvOptions(apiKeyEnvNames, "or"))
+	}
 	return writeProviderConfig(cmd, provider, endpoint, apiKey, model)
+}
+
+func setupProviderRequestedOrAutoDetectedID() string {
+	provider := setupCanonicalProviderID(os.Getenv("GORMES_INFERENCE_PROVIDER"))
+	if provider != "" {
+		return provider
+	}
+	if strings.TrimSpace(os.Getenv("GORMES_API_KEY")) != "" {
+		return ""
+	}
+	return setupProviderAutoDetectEnvProvider()
+}
+
+func setupProviderAutoDetectEnvProvider() string {
+	// Match Hermes' no-provider fallback first: generic OpenRouter-compatible
+	// OPENROUTER_API_KEY / OPENAI_API_KEY values route through OpenRouter.
+	if strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")) != "" || strings.TrimSpace(os.Getenv("OPENAI_API_KEY")) != "" {
+		return "openrouter"
+	}
+	for _, entry := range hermes.HermesProviderRegistryManifest() {
+		if entry.ID == "github-copilot" {
+			// GH_TOKEN/GITHUB_TOKEN are often present for git tooling and Hermes
+			// intentionally avoids treating them as provider setup by default.
+			continue
+		}
+		for _, envName := range entry.EnvVars {
+			if setupProviderImplicitAPIKeyEnv(envName) {
+				// Set by tools such as Claude Code themselves; Hermes does not treat
+				// them as an operator provider setup signal.
+				continue
+			}
+			if strings.TrimSpace(os.Getenv(envName)) != "" {
+				return setupCanonicalProviderID(entry.ID)
+			}
+		}
+	}
+	return ""
+}
+
+func setupProviderShouldUseOAuth(provider, apiKey string) bool {
+	provider = setupCanonicalProviderID(provider)
+	if !authProviderDefaultsToOAuth(provider) {
+		return false
+	}
+	if strings.TrimSpace(apiKey) != "" && setupProviderSupportsAPIKey(provider) {
+		return false
+	}
+	return true
+}
+
+func setupProviderSupportsAPIKey(provider string) bool {
+	provider = setupCanonicalProviderID(provider)
+	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+		return strings.EqualFold(strings.TrimSpace(entry.AuthType), "api_key")
+	}
+	return !authProviderDefaultsToOAuth(provider)
+}
+
+func setupProviderImplicitAPIKeyEnv(envName string) bool {
+	return strings.EqualFold(strings.TrimSpace(envName), "CLAUDE_CODE_OAUTH_TOKEN")
+}
+
+func setupProviderAPIKeyDefault(provider string) (string, []string) {
+	envNames := setupProviderAPIKeyEnvNames(provider)
+	for _, envName := range envNames {
+		if value := strings.TrimSpace(os.Getenv(envName)); value != "" {
+			return value, envNames
+		}
+	}
+	return "", envNames
+}
+
+func setupProviderAPIKeyEnvNames(provider string) []string {
+	envNames := make([]string, 0, 4)
+	addSetupEnvName(&envNames, "GORMES_API_KEY")
+	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+		for _, envName := range entry.EnvVars {
+			if setupProviderImplicitAPIKeyEnv(envName) {
+				continue
+			}
+			addSetupEnvName(&envNames, envName)
+		}
+	}
+	return envNames
+}
+
+func setupProviderEndpointEnvNames(provider string) []string {
+	envNames := make([]string, 0, 2)
+	addSetupEnvName(&envNames, "GORMES_ENDPOINT")
+	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+		addSetupEnvName(&envNames, entry.BaseURLEnvVar)
+	}
+	return envNames
+}
+
+func addSetupEnvName(envNames *[]string, name string) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return
+	}
+	for _, existing := range *envNames {
+		if existing == name {
+			return
+		}
+	}
+	*envNames = append(*envNames, name)
+}
+
+func setupEnvOptions(names []string, conjunction string) string {
+	cleaned := make([]string, 0, len(names))
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			cleaned = append(cleaned, name)
+		}
+	}
+	if len(cleaned) == 0 {
+		return "the required environment variable"
+	}
+	if len(cleaned) == 1 {
+		return cleaned[0]
+	}
+	conjunction = strings.TrimSpace(conjunction)
+	if conjunction == "" {
+		conjunction = "or"
+	}
+	if len(cleaned) == 2 {
+		return cleaned[0] + " " + conjunction + " " + cleaned[1]
+	}
+	return strings.Join(cleaned[:len(cleaned)-1], ", ") + ", " + conjunction + " " + cleaned[len(cleaned)-1]
 }
 
 func setupProviderInteractive(cmd *cobra.Command, seams setupCommandSeams) error {
@@ -1459,24 +1636,43 @@ func setupCanonicalProviderID(provider string) string {
 
 func setupProviderEndpointDefault(provider string) string {
 	provider = setupCanonicalProviderID(provider)
+	if endpoint := setupProviderEndpointEnvDefault(provider); endpoint != "" {
+		return endpoint
+	}
 	if endpoint := providerBaseURL(provider, ""); strings.TrimSpace(endpoint) != "" {
-		return strings.TrimRight(strings.TrimSpace(endpoint), "/")
+		return cleanSetupProviderEndpoint(endpoint)
 	}
 	if endpoint := knownProviderEndpoints[provider]; strings.TrimSpace(endpoint) != "" {
-		return strings.TrimRight(strings.TrimSpace(endpoint), "/")
+		return cleanSetupProviderEndpoint(endpoint)
 	}
 	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+		if endpoint := setupProviderEndpointEnvDefault(entry.ID); endpoint != "" {
+			return endpoint
+		}
 		if endpoint := providerBaseURL(entry.ID, ""); strings.TrimSpace(endpoint) != "" {
-			return strings.TrimRight(strings.TrimSpace(endpoint), "/")
+			return cleanSetupProviderEndpoint(endpoint)
 		}
 		if endpoint := knownProviderEndpoints[entry.ID]; strings.TrimSpace(endpoint) != "" {
-			return strings.TrimRight(strings.TrimSpace(endpoint), "/")
+			return cleanSetupProviderEndpoint(endpoint)
 		}
 		if endpoint := strings.TrimSpace(entry.BaseURLOverride); endpoint != "" {
-			return strings.TrimRight(endpoint, "/")
+			return cleanSetupProviderEndpoint(endpoint)
 		}
 	}
 	return ""
+}
+
+func setupProviderEndpointEnvDefault(provider string) string {
+	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+		if endpoint := cleanSetupProviderEndpoint(os.Getenv(entry.BaseURLEnvVar)); endpoint != "" {
+			return endpoint
+		}
+	}
+	return ""
+}
+
+func cleanSetupProviderEndpoint(endpoint string) string {
+	return strings.TrimRight(strings.TrimSpace(endpoint), "/")
 }
 
 func setupProviderModelDefault(current cli.ProviderModel, provider string) string {
@@ -1491,6 +1687,53 @@ func setupProviderModelDefault(current cli.ProviderModel, provider string) strin
 		return strings.TrimSpace(model)
 	}
 	return ""
+}
+
+type setupProviderReceipt struct {
+	Title         string
+	ProviderLabel string
+	Endpoint      string
+	Model         string
+	ConfigPath    string
+	SecretsPath   string
+	AuthMethod    string
+	AuthEvidence  string
+	NextSteps     []string
+}
+
+func writeOAuthProviderConfig(cmd *cobra.Command, provider, endpoint, model string) error {
+	configPath := config.ConfigPath()
+
+	if provider != "" {
+		if err := config.WriteTOMLValue(configPath, "hermes.provider", provider); err != nil {
+			return fmt.Errorf("write provider: %w", err)
+		}
+	}
+	if err := config.WriteTOMLValue(configPath, "hermes.endpoint", endpoint); err != nil {
+		return fmt.Errorf("write endpoint: %w", err)
+	}
+	if model != "" {
+		if err := config.WriteTOMLValue(configPath, "hermes.model", model); err != nil {
+			return fmt.Errorf("write model: %w", err)
+		}
+	}
+
+	label := setupProviderReceiptLabel(provider, provider)
+	writeSetupProviderReceipt(cmd, setupProviderReceipt{
+		Title:         fmt.Sprintf("%s configured.", label),
+		ProviderLabel: label,
+		Endpoint:      endpoint,
+		Model:         model,
+		ConfigPath:    configPath,
+		AuthMethod:    "OAuth credential pool",
+		AuthEvidence:  "API key: not required or stored",
+		NextSteps: []string{
+			fmt.Sprintf("Sign in: gormes auth add %s --type oauth", provider),
+			fmt.Sprintf("Verify:  gormes auth status %s", provider),
+			"Check:   gormes doctor --offline",
+		},
+	})
+	return nil
 }
 
 func writeProviderConfig(cmd *cobra.Command, provider, endpoint, apiKey, model string) error {
@@ -1517,22 +1760,72 @@ func writeProviderConfig(cmd *cobra.Command, provider, endpoint, apiKey, model s
 		}
 	}
 
+	writeSetupProviderReceipt(cmd, setupProviderReceipt{
+		Title:         "Provider configured.",
+		ProviderLabel: setupProviderReceiptLabel(provider, "custom endpoint"),
+		Endpoint:      endpoint,
+		Model:         model,
+		ConfigPath:    configPath,
+		SecretsPath:   envPath,
+		AuthMethod:    "API key",
+		AuthEvidence:  "API key:  stored (redacted)",
+		NextSteps: []string{
+			"Verify: gormes config check",
+			"Check:  gormes doctor --offline",
+			"Test it:  gormes chat",
+		},
+	})
+	return nil
+}
+
+func setupProviderReceiptLabel(provider, fallback string) string {
+	if label := setupProviderDisplayLabel(provider); label != "" {
+		return label
+	}
+	if fallback = strings.TrimSpace(fallback); fallback != "" {
+		return fallback
+	}
+	return "provider"
+}
+
+func writeSetupProviderReceipt(cmd *cobra.Command, receipt setupProviderReceipt) {
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out)
-	fmt.Fprintf(out, "Provider configured.\n\n")
-	fmt.Fprintf(out, "Config:  %s\n", configPath)
-	fmt.Fprintf(out, "Secrets: %s\n", envPath)
-	if provider != "" {
-		fmt.Fprintf(out, "Provider: %s\n", provider)
+	if strings.TrimSpace(receipt.Title) != "" {
+		fmt.Fprintln(out, receipt.Title)
+		fmt.Fprintln(out)
 	}
-	fmt.Fprintf(out, "Endpoint: %s\n", endpoint)
-	fmt.Fprintln(out, "API key:  stored (redacted)")
-	if model != "" {
-		fmt.Fprintf(out, "Model:    %s\n", model)
+	fmt.Fprintln(out, "Connection")
+	if strings.TrimSpace(receipt.ProviderLabel) != "" {
+		fmt.Fprintf(out, "  Provider: %s\n", receipt.ProviderLabel)
+	}
+	fmt.Fprintf(out, "  Endpoint: %s\n", receipt.Endpoint)
+	if strings.TrimSpace(receipt.Model) != "" {
+		fmt.Fprintf(out, "  Model:    %s\n", receipt.Model)
+	}
+	if strings.TrimSpace(receipt.ConfigPath) != "" {
+		fmt.Fprintln(out, "  Config:")
+		fmt.Fprintf(out, "  %s\n", receipt.ConfigPath)
+	}
+	if strings.TrimSpace(receipt.SecretsPath) != "" {
+		fmt.Fprintln(out, "  Secrets:")
+		fmt.Fprintf(out, "  %s\n", receipt.SecretsPath)
 	}
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Test it:  gormes chat")
-	return nil
+	fmt.Fprintln(out, "Authentication")
+	if strings.TrimSpace(receipt.AuthMethod) != "" {
+		fmt.Fprintf(out, "  Method: %s\n", receipt.AuthMethod)
+	}
+	if strings.TrimSpace(receipt.AuthEvidence) != "" {
+		fmt.Fprintf(out, "  %s\n", receipt.AuthEvidence)
+	}
+	if len(receipt.NextSteps) > 0 {
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Next steps")
+		for i, step := range receipt.NextSteps {
+			fmt.Fprintf(out, "  %d. %s\n", i+1, step)
+		}
+	}
 }
 
 func promptString(cmd *cobra.Command, prompt, defaultVal string) (string, error) {
