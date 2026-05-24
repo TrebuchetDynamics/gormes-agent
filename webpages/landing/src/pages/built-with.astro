@@ -1,6 +1,7 @@
 ---
 import BaseDocument from '../components/BaseDocument.astro';
 import { builtWithPage } from '../data/builtWith.js';
+import { absoluteSiteUrl, site } from '../data/site.js';
 
 const sectionShell = 'mx-auto max-w-5xl px-5 sm:px-7';
 const sectionPad = 'py-14 sm:py-16';
@@ -13,7 +14,7 @@ const buttonSecondary = `${buttonBase} border border-white/15 bg-white/[0.035] t
 <BaseDocument
   title={builtWithPage.title}
   description={builtWithPage.description}
-  canonicalUrl="https://gormes.ai/built-with"
+  canonicalUrl={absoluteSiteUrl('/built-with')}
 >
     <header class="topbar border-b border-white/10">
       <div class={`${sectionShell} flex items-center justify-between gap-5 py-4`}>
@@ -28,7 +29,7 @@ const buttonSecondary = `${buttonBase} border border-white/15 bg-white/[0.035] t
         <nav class="flex flex-wrap justify-end gap-4 text-xs font-bold uppercase text-[#eeece5]/65" aria-label="Built with page">
           <a class="border-0 hover:text-[#eeece5]" href="/">Home</a>
           <a class="border-0 hover:text-[#eeece5]" href="/#install">Install</a>
-          <a class="border-0 hover:text-[#eeece5]" href="https://github.com/TrebuchetDynamics/gormes-agent">GitHub</a>
+          <a class="border-0 hover:text-[#eeece5]" href={site.githubUrl}>GitHub</a>
         </nav>
       </div>
     </header>

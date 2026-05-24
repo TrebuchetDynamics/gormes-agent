@@ -1,5 +1,6 @@
 import benchmarks from './benchmarks.json';
 import release from './release.json';
+import { absoluteDocsUrl, site } from './site.js';
 
 const binarySizeMB = benchmarks?.binary?.size_mb || '';
 const testCount = benchmarks?.code?.test_count || '';
@@ -12,7 +13,7 @@ const releaseLabel = releaseDateAlias
 const formattedTests = testCount ? testCount.toLocaleString() : '6,000+';
 
 export const page = {
-  siteUrl: 'https://gormes.ai/',
+  siteUrl: site.url,
   title: 'Gormes — Go-Native AI Agent Runtime Without Python or Docker',
   description:
     'Gormes runs AI agents from one static Go binary with offline diagnostics, SQLite memory, provider chat, skills, dashboard, and Telegram/Discord/Slack gateways.',
@@ -20,7 +21,7 @@ export const page = {
     { label: 'Install', href: '/install' },
     { label: 'Docs', href: '/docs' },
     { label: 'Roadmap', href: '/roadmap' },
-    { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
+    { label: 'GitHub', href: site.githubUrl },
   ],
   heroKicker: 'SINGLE BINARY AI AGENT RUNTIME',
   heroHeadline: 'Go-native AI agent runtime without Python or Docker.',
@@ -30,7 +31,7 @@ export const page = {
   primaryCta: { label: 'Install Gormes', href: '#install' },
   secondaryCta: {
     label: 'View GitHub',
-    href: 'https://github.com/TrebuchetDynamics/gormes-agent',
+    href: site.githubUrl,
   },
   proofStrip: [
     { label: 'Static Go binary', kind: 'pop' },
@@ -67,7 +68,7 @@ export const page = {
       title: 'Comparison matrix',
       body: 'Gormes is local software, not hosted zero-infrastructure SaaS; compare it with Hermes, OpenClaw, and hosted services on the operator axes buyers use.',
       linkLabel: 'Compare Gormes with Hermes, OpenClaw, and hosted services',
-      href: 'https://docs.gormes.ai/why-gormes/#public-comparison-matrix',
+      href: absoluteDocsUrl('/why-gormes/#public-comparison-matrix'),
     },
   ],
   worksHeadline: 'What works today',
@@ -84,7 +85,7 @@ export const page = {
   installIntro:
     'Use the release installer, verify the binary, prove the machine offline before credentials, then add a provider and start chat. No pip, no venv, no Docker daemon.',
   installCommand:
-    'curl -fsSL https://gormes.ai/install.sh | bash\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat',
+    `curl -fsSL ${site.installScriptUrl} | bash\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat`,
   installFootnote:
     'Termux/Android status: v0.2.22 carries forward the installer recovery for the v0.2.20 executable-argument bug; Windows, source builds, and advanced installer flags are covered in the install docs.',
   installFootnoteLink: {
@@ -140,13 +141,13 @@ export const page = {
   finalPrimaryCta: { label: 'Run offline doctor', href: '#install' },
   finalSecondaryCta: {
     label: 'Star on GitHub',
-    href: 'https://github.com/TrebuchetDynamics/gormes-agent',
+    href: site.githubUrl,
   },
   footerNav: [
     { label: 'Docs', href: '/docs' },
     { label: 'Install', href: '/install' },
     { label: 'Roadmap', href: '/roadmap' },
-    { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
+    { label: 'GitHub', href: site.githubUrl },
   ],
   releaseTag,
   footerRelease: releaseLabel,
