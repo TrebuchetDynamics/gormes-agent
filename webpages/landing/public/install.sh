@@ -1325,6 +1325,28 @@ install_source_description() {
   build_root_dir 2>/dev/null || printf 'managed-checkout\n'
 }
 
+install_branch_label() {
+  if [ -z "$LOCAL_SOURCE_DIR" ]; then
+    printf '%s\n' "$BRANCH"
+    return
+  fi
+
+  if has git && { [ -d "$LOCAL_SOURCE_DIR/.git" ] || [ -f "$LOCAL_SOURCE_DIR/.git" ]; }; then
+    ibl_branch=$(git -C "$LOCAL_SOURCE_DIR" branch --show-current 2>/dev/null || true)
+    if [ -n "$ibl_branch" ]; then
+      printf '%s\n' "$ibl_branch"
+      return
+    fi
+    ibl_commit=$(git -C "$LOCAL_SOURCE_DIR" rev-parse --short HEAD 2>/dev/null || true)
+    if [ -n "$ibl_commit" ]; then
+      printf 'detached:%s\n' "$ibl_commit"
+      return
+    fi
+  fi
+
+  printf 'local checkout\n'
+}
+
 build_gormes() {
   build_bin="$(managed_bin_dir)/gormes"
   build_root=$(build_root_dir) || fail "could not find a Gormes Go module to build"
@@ -1834,7 +1856,7 @@ append_install_ledger() {
     printf '"event":"install"'
     [ -n "$timestamp" ] && printf ',"timestamp":"%s"' "$(json_escape "$timestamp")"
     printf ',"source":"%s"' "$(json_escape "$source")"
-    printf ',"branch":"%s"' "$(json_escape "$BRANCH")"
+    printf ',"branch":"%s"' "$(json_escape "$(install_branch_label)")"
     printf ',"old_commit":"%s"' "$(json_escape "$OLD_BUILD_TAG")"
     printf ',"new_commit":"%s"' "$(json_escape "$BUILD_TAG")"
     printf ',"binary_sha256":"%s"' "$(json_escape "$hash")"
@@ -2433,7 +2455,7 @@ print_setup_wizard_plan() {
 
 print_install_plan_body() {
   decide_install_method
-  log "  branch: ${BRANCH}"
+  log "  branch: $(install_branch_label)"
   log "  install_method: ${INSTALL_METHOD} (${INSTALL_METHOD_DETAIL})"
   if [ "$INSTALL_METHOD" = "binary-fetch" ]; then
     log "  source: github releases (no git clone, no Go toolchain)"
@@ -2484,7 +2506,7 @@ print_verbose_plan() {
   log "  termux: $(yes_no is_termux)"
   log "  root_linux_install: $(yes_no is_root_linux_install)"
   log "  effective_uid: $(effective_uid)"
-  log "  branch: ${BRANCH}"
+  log "  branch: $(install_branch_label)"
   log "  install_method: ${INSTALL_METHOD}"
   log "  install_method_reason: ${INSTALL_METHOD_DETAIL}"
   if [ "$INSTALL_METHOD" = "binary-fetch" ]; then

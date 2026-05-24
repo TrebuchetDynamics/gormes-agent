@@ -9,6 +9,7 @@
 package installtest
 
 import (
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -99,6 +100,31 @@ func TestInstall_DryRunNonDefaultBranch_FallsBackToSourceBuild(t *testing.T) {
 	}
 	if !strings.Contains(out, "release binaries are only published from main") {
 		t.Fatalf("dry-run plan should explain the branch-safety reason; got:\n%s", out)
+	}
+}
+
+// TestInstall_DryRunLocal_ReportsCheckedOutBranch proves --local reports the
+// source checkout's actual branch instead of the default managed-install branch.
+func TestInstall_DryRunLocal_ReportsCheckedOutBranch(t *testing.T) {
+	root := repoRoot(t)
+	branchOut, err := exec.Command("git", "-C", root, "branch", "--show-current").Output()
+	if err != nil {
+		t.Skipf("git branch unavailable: %v", err)
+	}
+	branch := strings.TrimSpace(string(branchOut))
+	if branch == "" {
+		t.Skip("checkout is detached; branch-name assertion does not apply")
+	}
+
+	sb := t.TempDir()
+	out := runInstallDryRun(t, map[string]string{
+		"GORMES_INSTALL_HOME":    filepath.Join(sb, "home"),
+		"GORMES_SKIP_SETUP":      "1",
+		"GORMES_RESTART_GATEWAY": "never",
+	}, "--local")
+
+	if !strings.Contains(out, "branch: "+branch) {
+		t.Fatalf("--local dry-run plan should report checked-out branch %q; got:\n%s", branch, out)
 	}
 }
 
