@@ -907,6 +907,72 @@ model = "gpt-4o-mini"
 	}
 }
 
+func TestSetupQuickTelegramTargetStartsChannelSetupBeforeProviderOnFreshInstall(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
+	t.Setenv("GORMES_API_KEY", "")
+
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: " ", Model: " "},
+	}
+	seams := fake.seams()
+	seams.RunGatewayPlatform = func(_ *cobra.Command, platform string) error {
+		events = append(events, "channel:"+platform)
+		if platform != string(cli.SetupTargetTelegram) {
+			t.Fatalf("RunGatewayPlatform platform = %q, want telegram", platform)
+		}
+		return nil
+	}
+	seams.RunSetupProvider = func(*cobra.Command, bool) error {
+		t.Fatal("quick Telegram target sent operator to provider before channel setup")
+		return nil
+	}
+	seams.RunModelPicker = func(*cobra.Command) error {
+		t.Fatal("quick Telegram target sent operator to model before channel setup")
+		return nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		t.Fatal("quick Telegram target ran provider live test before provider setup")
+		return nil
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		t.Fatal("quick Telegram target launched chat/TUI")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick", "--target", "telegram")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got, want := strings.Join(events, ","), "channel:telegram"; got != want {
+		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+	for _, want := range []string{
+		"Telegram channel setup checked.",
+		"Provider/model setup is still required before `gormes gateway` can answer Telegram.",
+		"Next setup command: gormes setup provider",
+		"After that, start gateway: gormes gateway",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{
+		"Quick Setup - configure missing items only",
+		"Provider endpoint or auth is missing.",
+		"Model/provider defaults are missing.",
+		"Provider live test failed",
+		"Terminal chat ready",
+	} {
+		if strings.Contains(stdout, forbidden) || strings.Contains(stderr, forbidden) {
+			t.Fatalf("fresh Telegram quick setup printed forbidden %q\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+		}
+	}
+}
+
 func TestSetupQuickNonInteractiveTelegramTargetPrintsCommandWithoutPrompting(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

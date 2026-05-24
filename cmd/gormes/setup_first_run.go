@@ -139,6 +139,12 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 		}
 		return runSetupQuickHandoff(cmd, seams, target, nonInteractive)
 	}
+	if setupQuickChannelBeforeMissingCore(target, plan, nonInteractive) {
+		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
+			return err
+		}
+		return runSetupQuickHandoff(cmd, seams, target, nonInteractive)
+	}
 
 	channelRanBeforeCore := false
 	if setupQuickChannelBeforeCore(target, plan, nonInteractive) {
@@ -211,14 +217,48 @@ func setupQuickNavivoxChannelOnly(target cli.SetupTargetID, nonInteractive bool)
 	return !nonInteractive && normalizeSetupQuickTarget(target) == cli.SetupTargetNavivox
 }
 
-// Navivox pairing is channel-only above. Other quick targets keep the legacy
-// provider/model/channel order covered by existing setup tests.
+// Navivox pairing is channel-only above. Other interactive channel targets
+// should still honor the first-run target picker: if core provider/model setup
+// is missing, open the selected channel setup first and hand off to the next
+// core setup step instead of surprising the operator with provider setup.
+func setupQuickChannelBeforeMissingCore(target cli.SetupTargetID, plan cli.FirstRunPlan, nonInteractive bool) bool {
+	if nonInteractive || normalizeSetupQuickTarget(target) == cli.SetupTargetNavivox || !isSetupQuickChannelTarget(target) {
+		return false
+	}
+	if _, missingChannel := plan.Step(cli.FirstRunStepChannel); !missingChannel {
+		return false
+	}
+	return setupQuickMissingCore(plan)
+}
+
 func setupQuickChannelBeforeCore(target cli.SetupTargetID, plan cli.FirstRunPlan, nonInteractive bool) bool {
-	if nonInteractive || normalizeSetupQuickTarget(target) != cli.SetupTargetNavivox {
+	if nonInteractive || !isSetupQuickChannelTarget(target) {
 		return false
 	}
 	_, missingChannel := plan.Step(cli.FirstRunStepChannel)
 	return missingChannel
+}
+
+func setupQuickMissingCore(plan cli.FirstRunPlan) bool {
+	for _, id := range []cli.FirstRunStepID{cli.FirstRunStepProvider, cli.FirstRunStepAuth, cli.FirstRunStepModel} {
+		if _, ok := plan.Step(id); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func setupQuickNextCoreSetupCommand(plan cli.FirstRunPlan) string {
+	if _, ok := plan.Step(cli.FirstRunStepProvider); ok {
+		return "gormes setup provider"
+	}
+	if step, ok := plan.Step(cli.FirstRunStepAuth); ok && strings.TrimSpace(step.Command) != "" {
+		return step.Command
+	}
+	if step, ok := plan.Step(cli.FirstRunStepModel); ok && strings.TrimSpace(step.Command) != "" {
+		return step.Command
+	}
+	return "gormes setup provider"
 }
 
 func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID, nonInteractive bool) error {
@@ -252,7 +292,22 @@ func runSetupQuickHandoff(cmd *cobra.Command, seams setupCommandSeams, target cl
 		return nil
 	}
 	if isSetupQuickChannelTarget(target) {
-		fmt.Fprintln(cmd.OutOrStdout(), "Channel setup checked. Start messaging with: gormes gateway")
+		out := cmd.OutOrStdout()
+		if cfg, err := config.Load(nil); err == nil {
+			plan := buildFirstRunPlanFromConfig(cfg, normalizeSetupQuickTarget(target), !nonInteractive)
+			if !nonInteractive && setupQuickMissingCore(plan) {
+				label := strings.TrimSpace(plan.TargetLabel)
+				if label == "" {
+					label = string(normalizeSetupQuickTarget(target))
+				}
+				fmt.Fprintf(out, "%s channel setup checked.\n", label)
+				fmt.Fprintf(out, "Provider/model setup is still required before `gormes gateway` can answer %s.\n", label)
+				fmt.Fprintf(out, "Next setup command: %s\n", setupQuickNextCoreSetupCommand(plan))
+				fmt.Fprintln(out, "After that, start gateway: gormes gateway")
+				return nil
+			}
+		}
+		fmt.Fprintln(out, "Channel setup checked. Start messaging with: gormes gateway")
 		return nil
 	}
 	if nonInteractive {
