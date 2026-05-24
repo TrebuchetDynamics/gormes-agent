@@ -384,6 +384,19 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/transcript/contextrefs/refs.go:NewStore",
 			},
 		},
+		{
+			Name:        "loopcost-progress-rehome",
+			Active:      true,
+			OwnerModule: "progress",
+			OldRoots:    []string{"internal/loopcost"},
+			NewRoots:    []string{"internal/progress/loopcost"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Second-pass leaf triage",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/progress/loopcost/cost.go:ParseRunCost",
+				"internal/progress/loopcost/cost.go:DailyRollup",
+			},
+		},
 	}
 }
 
