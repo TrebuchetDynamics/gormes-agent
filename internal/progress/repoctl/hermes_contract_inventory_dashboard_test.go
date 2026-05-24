@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/fidelity"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/fidelity"
 )
 
 func TestHermesContractInventoryClassifiesWebDashboardSurface(t *testing.T) {

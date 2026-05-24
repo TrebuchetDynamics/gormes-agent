@@ -231,6 +231,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/progress/repoctl/hermes_contract_inventory.go:WriteHermesContractInventory",
 			},
 		},
+		{
+			Name:        "fidelity-rehome",
+			Active:      true,
+			OwnerModule: "progress",
+			OldRoots:    []string{"internal/fidelity"},
+			NewRoots:    []string{"internal/progress/fidelity"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Progress Delivery Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"cmd/gormes/fidelity.go:runFidelityHermesCommand",
+				"internal/progress/fidelity/report.go:GenerateHermesReport",
+				"internal/progress/repoctl/hermes_contract_inventory.go:BuildHermesContractInventory",
+			},
+		},
 	}
 }
 

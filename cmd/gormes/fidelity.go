@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/fidelity"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/fidelity"
 )
 
 type fidelityHermesCommandOptions struct {

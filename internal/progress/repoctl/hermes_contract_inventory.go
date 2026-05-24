@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/fidelity"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/fidelity"
 )
 
 const (

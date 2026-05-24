@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/fidelity"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/fidelity"
 )
 
 func TestWriteHermesContractInventoryWritesJSONAndMarkdown(t *testing.T) {
