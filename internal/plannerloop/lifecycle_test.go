@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/triggers"
 )
 
 // TestLifecycle_PlannerSelfHealingFullLoop walks one row through the full

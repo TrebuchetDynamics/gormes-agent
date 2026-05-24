@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/triggers"
 )
 
 // healthPreservationClause is appended to every planner prompt as a HARD

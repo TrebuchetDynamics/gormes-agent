@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/triggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 )
 

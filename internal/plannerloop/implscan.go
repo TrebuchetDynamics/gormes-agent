@@ -30,7 +30,7 @@ var DefaultGormesOriginalPaths = []string{
 	"cmd/repoctl/",
 	"internal/builderloop/",
 	"internal/plannerloop/",
-	"internal/plannertriggers/",
+	"internal/progress/triggers/",
 	"internal/progress/health.go",
 	"www.gormes.ai/internal/site/installers/",
 }

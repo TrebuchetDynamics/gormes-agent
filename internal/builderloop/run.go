@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plannertriggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/triggers"
 )
 
 // ErrPostPromotionVerifyFailed marks a RunOnce error as caused by the

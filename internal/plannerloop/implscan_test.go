@@ -15,7 +15,7 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 	for _, p := range []string{
 		"cmd/progress/main.go",
 		"internal/plannerloop/run.go",
-		"internal/plannertriggers/triggers.go",
+		"internal/progress/triggers/triggers.go",
 		"cmd/gormes/main.go",         // NOT original (not in deny list)
 		"internal/gateway/server.go", // NOT original
 	} {
@@ -31,7 +31,7 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 	denyList := []string{
 		"cmd/progress/",
 		"internal/plannerloop/",
-		"internal/plannertriggers/",
+		"internal/progress/triggers/",
 	}
 	inv, err := ScanImplementation(dir, denyList, 24*time.Hour, time.Now())
 	if err != nil {
@@ -40,9 +40,9 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 
 	// All deny-listed prefixes should appear in GormesOriginalPaths inventory.
 	wantGormes := map[string]bool{
-		"cmd/progress/main.go":                 true,
-		"internal/plannerloop/run.go":          true,
-		"internal/plannertriggers/triggers.go": true,
+		"cmd/progress/main.go":                   true,
+		"internal/plannerloop/run.go":            true,
+		"internal/progress/triggers/triggers.go": true,
 	}
 	gotGormes := map[string]bool{}
 	for _, p := range inv.GormesOriginalPaths {

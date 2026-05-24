@@ -175,6 +175,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/progress/ctl/progressctl.go:Write",
 			},
 		},
+		{
+			Name:        "plannertriggers-rehome",
+			Active:      true,
+			OwnerModule: "progress",
+			OldRoots:    []string{"internal/plannertriggers"},
+			NewRoots:    []string{"internal/progress/triggers"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Progress Delivery Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/progress/triggers/triggers.go:TriggerEvent",
+				"internal/builderloop/run.go:emitPlannerTriggers",
+				"internal/plannerloop/run.go:Run",
+			},
+		},
 	}
 }
 
