@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper/audio"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio"
 )
 
 // AudioDecodeConfig controls audio decode behavior.

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper"
 )
 
 func TestLocalSTTProvider_Available(t *testing.T) {
@@ -108,7 +108,7 @@ func TestLocalSTTProvider_Transcribe_JFKFixture(t *testing.T) {
 	modelPath := filepath.Join(cacheDir, whisper.TinyEnModelArtifact.Filename)
 	if _, err := os.Stat(modelPath); err != nil {
 		if os.IsNotExist(err) {
-			t.Skipf("WASI Whisper tiny.en model is not cached at %s; run internal/wasi/whisper integration tests or set GORMES_WASI_WHISPER_MODEL_CACHE", modelPath)
+			t.Skipf("WASI Whisper tiny.en model is not cached at %s; run internal/tools/whisper integration tests or set GORMES_WASI_WHISPER_MODEL_CACHE", modelPath)
 		}
 		t.Fatalf("stat cached model: %v", err)
 	}

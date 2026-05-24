@@ -315,6 +315,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/tools/file_lsp_diagnostics_test.go:TestExecuteCodeIncludesLSPDiagnostics",
 			},
 		},
+		{
+			Name:        "whisper-tools-rehome",
+			Active:      true,
+			OwnerModule: "tools",
+			OldRoots:    []string{"internal/wasi/whisper"},
+			NewRoots:    []string{"internal/tools/whisper"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"cmd/gormes/telegram_transcriber.go:buildTelegramTranscriberFactory",
+				"internal/tools/transcription_providers_local.go:NewLocalTranscriptionProvider",
+				"internal/tools/whisper/transcriber.go:NewTranscriber",
+			},
+		},
 	}
 }
 

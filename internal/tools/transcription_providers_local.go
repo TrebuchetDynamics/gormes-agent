@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper"
-	whisperaudio "github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper/audio"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper"
+	whisperaudio "github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio"
 )
 
 const localSTTMaxChunkDuration = 30 * time.Second

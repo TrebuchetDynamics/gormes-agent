@@ -14,8 +14,8 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
-	wasiwhisper "github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper"
-	whisperaudio "github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper/audio"
+	wasiwhisper "github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper"
+	whisperaudio "github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio"
 )
 
 const (
