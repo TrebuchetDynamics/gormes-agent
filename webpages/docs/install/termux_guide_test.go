@@ -1,15 +1,13 @@
 package install_test
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestLinuxMacInstallGuideDocumentsTermuxReleaseFirstPath(t *testing.T) {
-	guide := readRepoFileTermuxGuide(t, "webpages/docs/content/install/linux-macos.md")
-	installer := readRepoFileTermuxGuide(t, "install.sh")
+	guide := readRepoFile(t, "webpages/docs/content/install/linux-macos.md")
+	installer := readRepoFile(t, "install.sh")
 
 	for _, want := range []string{
 		"## Termux on Android",
@@ -52,13 +50,13 @@ func TestInstallDocsWarnTermuxV020LatestReleaseCaveat(t *testing.T) {
 		"webpages/docs/content/install/linux-macos.md",
 		"webpages/docs/content/install/termux.md",
 	} {
-		assertContainsTermuxV022Recovery(t, rel, readRepoFileTermuxGuide(t, rel))
+		assertContainsTermuxV022Recovery(t, rel, readRepoFile(t, rel))
 	}
 }
 
 func TestLinuxMacInstallGuideDocumentsTermuxRemoteExecutionBoundary(t *testing.T) {
-	guide := readRepoFileTermuxGuide(t, "webpages/docs/content/install/linux-macos.md")
-	readme := readRepoFileTermuxGuide(t, "README.md")
+	guide := readRepoFile(t, "webpages/docs/content/install/linux-macos.md")
+	readme := readRepoFile(t, "README.md")
 
 	for _, want := range []string{
 		"phone is the Gormes controller",
@@ -99,13 +97,4 @@ func assertContainsTermuxV022Recovery(t *testing.T, rel string, doc string) {
 			t.Fatalf("%s missing Termux v0.2.22 recovery %q", rel, want)
 		}
 	}
-}
-
-func readRepoFileTermuxGuide(t *testing.T, rel string) string {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(raw)
 }

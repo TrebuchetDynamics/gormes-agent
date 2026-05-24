@@ -89,8 +89,3 @@ func TestInstallSh_UninstallDefaultsToApply(t *testing.T) {
 		})
 	}
 }
-
-func repoFile(t *testing.T, rel string) string {
-	t.Helper()
-	return filepath.Join(repoRoot(t), rel)
-}
