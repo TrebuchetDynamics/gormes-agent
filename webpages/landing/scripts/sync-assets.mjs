@@ -3,7 +3,7 @@ import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createLandingAssetCopyPlan, parseReleaseData } from './asset-sync.mjs';
+import { createLandingAssetCopyPlan, parseReleaseData, planBenchmarkRefresh } from './asset-sync.mjs';
 
 const siteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(siteRoot, '../..');
@@ -18,21 +18,18 @@ async function pathExists(path) {
 }
 
 async function refreshBenchmarks() {
-  const binary = resolve(repoRoot, 'bin/gormes');
-  if (!(await pathExists(binary))) {
-    console.log('benchmark refresh skipped: bin/gormes is not built');
+  const binaryExists = await pathExists(resolve(repoRoot, 'bin/gormes'));
+  const forceRefresh = process.env.GORMES_WWW_REFRESH_BENCHMARKS === '1';
+  const gitStatus = binaryExists && !forceRefresh
+    ? spawnSync('git', ['status', '--porcelain'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+    : undefined;
+  const plan = planBenchmarkRefresh({ binaryExists, forceRefresh, gitStatus });
+  if (plan.action === 'skip') {
+    console.log(plan.message);
     return;
-  }
-
-  if (process.env.GORMES_WWW_REFRESH_BENCHMARKS !== '1') {
-    const status = spawnSync('git', ['status', '--porcelain'], {
-      cwd: repoRoot,
-      encoding: 'utf8',
-    });
-    if (status.status === 0 && status.stdout.trim() !== '') {
-      console.log('benchmark refresh skipped: worktree has local changes');
-      return;
-    }
   }
 
   const result = spawnSync('go', ['run', './cmd/repoctl', 'benchmark', 'record'], {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { createLandingAssetCopyPlan, parseReleaseData } from './asset-sync.mjs';
+import { createLandingAssetCopyPlan, parseReleaseData, planBenchmarkRefresh } from './asset-sync.mjs';
 
 const repoRoot = '/repo/gormes-agent';
 const siteRoot = join(repoRoot, 'webpages/landing');
@@ -50,6 +50,40 @@ test('createLandingAssetCopyPlan keeps the public installer and static mirror co
     assert.ok(copy.source.startsWith(join(siteRoot, 'legacy/go-renderer/internal/site/static')));
     assert.ok(copy.target.startsWith(join(siteRoot, 'public/static')));
   }
+});
+
+test('planBenchmarkRefresh preserves benchmark refresh guardrails', () => {
+  assert.deepEqual(planBenchmarkRefresh({ binaryExists: false }), {
+    action: 'skip',
+    message: 'benchmark refresh skipped: bin/gormes is not built',
+  });
+  assert.deepEqual(
+    planBenchmarkRefresh({
+      binaryExists: true,
+      forceRefresh: false,
+      gitStatus: { status: 0, stdout: ' M README.md\n' },
+    }),
+    {
+      action: 'skip',
+      message: 'benchmark refresh skipped: worktree has local changes',
+    },
+  );
+  assert.deepEqual(
+    planBenchmarkRefresh({
+      binaryExists: true,
+      forceRefresh: true,
+      gitStatus: { status: 0, stdout: ' M README.md\n' },
+    }),
+    { action: 'record' },
+  );
+  assert.deepEqual(
+    planBenchmarkRefresh({
+      binaryExists: true,
+      forceRefresh: false,
+      gitStatus: { status: 128, stdout: ' M README.md\n' },
+    }),
+    { action: 'record' },
+  );
 });
 
 test('parseReleaseData mirrors cmd/gormes version metadata for the landing page', () => {

@@ -73,6 +73,22 @@ export function createLandingAssetCopyPlan({ repoRoot, siteRoot } = {}) {
   };
 }
 
+export function planBenchmarkRefresh({ binaryExists, forceRefresh = false, gitStatus } = {}) {
+  if (!binaryExists) {
+    return {
+      action: 'skip',
+      message: 'benchmark refresh skipped: bin/gormes is not built',
+    };
+  }
+  if (!forceRefresh && gitStatus?.status === 0 && gitStatus.stdout.trim() !== '') {
+    return {
+      action: 'skip',
+      message: 'benchmark refresh skipped: worktree has local changes',
+    };
+  }
+  return { action: 'record' };
+}
+
 export function parseReleaseData(raw, { source = 'cmd/gormes/version.go', errorSource = source } = {}) {
   const match = raw.match(/var\s+Version\s*=\s*"([^"]+)"/);
   if (!match) {
