@@ -10,8 +10,8 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/profileseed"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/profileseed"
 )
 
 type profileSeedSeams struct {

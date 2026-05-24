@@ -342,6 +342,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/runtime/bridge/runtimebridge.go:NoRuntime",
 			},
 		},
+		{
+			Name:        "profileseed-cli-rehome",
+			Active:      true,
+			OwnerModule: "cli",
+			OldRoots:    []string{"internal/profileseed"},
+			NewRoots:    []string{"internal/cli/profileseed"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:CLI Surface Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"cmd/gormes/profile_seed.go:runProfileSeedDraft",
+				"internal/channels/navivox/channel.go:handleProfileSeed",
+				"internal/cli/profileseed/seed.go:NewDraft",
+			},
+		},
 	}
 }
 

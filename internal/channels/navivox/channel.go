@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/profileseed"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/profileseed"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
