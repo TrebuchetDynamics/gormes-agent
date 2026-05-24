@@ -51,13 +51,13 @@
     {
       "hermes_file": "agent/lsp/manager.py",
       "gormes_targets": [
-        "internal/lsp/diagnostics.go",
+        "internal/tools/lsp/diagnostics.go",
         "internal/tools/file_task_tools.go"
       ],
       "status": "partial",
       "contract": "Hermes LSP manager diagnostics, workspace/service lifecycle, diagnostic delta projection, and file-tool write-time semantic feedback.",
       "tests": [
-        "go test ./internal/lsp ./internal/tools -run 'Test.*LSP|Test.*Diagnostic' -count=1"
+        "go test ./internal/tools/lsp ./internal/tools -run 'Test.*LSP|Test.*Diagnostic' -count=1"
       ],
       "progress_rows": [
         "Hermes agent runtime strict-fidelity source-pair expansion",

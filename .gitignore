@@ -61,6 +61,8 @@ scripts/.swarm/
 
 # ── Local third-party reference clones ───────────────
 deer-flow/
+/@pi2many-hermes
+/@py2many-hermes
 
 # ── Docs/site generated artifacts ────────────────────
 docs/www-tests/node_modules/

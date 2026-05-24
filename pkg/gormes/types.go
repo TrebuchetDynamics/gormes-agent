@@ -7,7 +7,7 @@ package gormes
 import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/runtimebridge"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/bridge"
 )
 
 // Hermes wire surface — everything Gormes needs to speak HTTP+SSE to a
