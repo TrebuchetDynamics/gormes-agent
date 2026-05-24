@@ -2,10 +2,10 @@
 
 Date: 2026-05-23
 
-Status: **active architecture plan, implementation not started.** This plan
-supersedes the closed `cmd/gormes` command-construction completion note and the
-first internal folder-sprawl draft. It plans the next topology shape only; it is
-not a side backlog and it does not authorize runtime behavior changes.
+Status: **primary consolidation implemented on `development`.** The first-pass
+topology budgets are met and guarded by `internal/internal_topology_test.go`.
+Stretch targets remain optional follow-up work; this file is not a side backlog
+and does not authorize runtime behavior changes.
 
 Branch rule: work only on `development`. Do not create feature branches or
 worktrees.
@@ -244,6 +244,17 @@ Primary targets after the first consolidation pass:
   `internal/cli/surface`, `internal/config`, `internal/runtime`, and the few
   modules needed to build production factories until command modules absorb
   them.
+
+Implementation evidence from `/home/xel/git/gormes/gormes-agent` on 2026-05-24:
+
+```sh
+find internal -mindepth 1 -maxdepth 1 -type d ! -name '.*' | wc -l
+# 45
+
+go list -f '{{join .Imports "\n"}}' ./cmd/gormes \
+  | rg '^github.com/TrebuchetDynamics/gormes-agent/internal' | wc -l
+# 35
+```
 
 Stretch targets after the second pass:
 
