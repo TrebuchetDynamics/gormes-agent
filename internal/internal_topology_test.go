@@ -245,6 +245,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/progress/repoctl/hermes_contract_inventory.go:BuildHermesContractInventory",
 			},
 		},
+		{
+			Name:        "kanbantools-rehome",
+			Active:      true,
+			OwnerModule: "tools",
+			OldRoots:    []string{"internal/kanbantools"},
+			NewRoots:    []string{"internal/tools/kanban"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"cmd/gormes/registry.go:buildDefaultRegistry",
+				"internal/tools/kanban/kanban_tools.go:NewTools",
+				"internal/tools/kanban/kanban_tools.go:ConfigFromEnv",
+			},
+		},
 	}
 }
 

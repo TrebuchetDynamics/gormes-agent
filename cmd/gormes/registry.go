@@ -9,11 +9,11 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/kanbantools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/kanban"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/sessionsearch"
 )
 
