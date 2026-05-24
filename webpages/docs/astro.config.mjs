@@ -1,32 +1,19 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 
-import { aliasesFor, frontmatterFor, routeForContentFile, walkMarkdownFiles } from './scripts/starlight-content.mjs';
+import { redirectsForContentDir } from './scripts/starlight-content.mjs';
 
 const docsDir = path.dirname(fileURLToPath(import.meta.url));
 const canonicalContentDir = path.join(docsDir, 'content');
-
-function collectRedirects() {
-  const redirects = {};
-  for (const file of walkMarkdownFiles(canonicalContentDir)) {
-    const raw = fs.readFileSync(file, 'utf8');
-    const destination = routeForContentFile(canonicalContentDir, file);
-    for (const alias of aliasesFor(frontmatterFor(raw))) {
-      redirects[alias] = destination;
-    }
-  }
-  return redirects;
-}
 
 export default defineConfig({
   site: 'https://docs.gormes.ai',
   outDir: process.env.ASTRO_OUT_DIR || './dist',
   publicDir: './static',
-  redirects: collectRedirects(),
+  redirects: redirectsForContentDir(canonicalContentDir),
   integrations: [
     starlight({
       title: 'Gormes Docs',

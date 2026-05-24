@@ -73,6 +73,18 @@ export function aliasesFor(frontmatter) {
     .map((alias) => alias.replace(/^['"]|['"]$/g, ''));
 }
 
+export function redirectsForContentDir(contentDir) {
+  const redirects = {};
+  for (const file of walkMarkdownFiles(contentDir)) {
+    const raw = fs.readFileSync(file, 'utf8');
+    const destination = routeForContentFile(contentDir, file);
+    for (const alias of aliasesFor(frontmatterFor(raw))) {
+      redirects[alias] = destination;
+    }
+  }
+  return redirects;
+}
+
 function editUrlForSourceRel(sourceRel) {
   return `${editBaseUrl}${toPosixPath(sourceRel)}`;
 }

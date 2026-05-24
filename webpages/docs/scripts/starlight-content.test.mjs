@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
 import {
   aliasesFor,
   frontmatterFor,
+  redirectsForContentDir,
   routeForContentFile,
   targetPathForContentFile,
   transformMarkdown,
@@ -41,6 +44,21 @@ test('frontmatter aliases feed redirects without quotes', () => {
 
   assert.equal(frontmatterFor(raw).includes('aliases:'), true);
   assert.deepEqual(aliasesFor(frontmatterFor(raw)), ['/diagnose/', '/doctor/', '/logs/']);
+});
+
+test('content aliases produce Starlight redirect map', async () => {
+  const contentDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gormes-doc-content-'));
+  await fs.mkdir(path.join(contentDir, 'install'), { recursive: true });
+  await fs.writeFile(
+    path.join(contentDir, 'install', 'linux-macos.md'),
+    `---\ntitle: Linux and macOS\naliases:\n  - /setup/\n  - '/install.sh/'\n---\n\n# Linux and macOS\n`,
+  );
+  await fs.writeFile(path.join(contentDir, '_index.md'), `---\ntitle: Home\n---\n\n# Home\n`);
+
+  assert.deepEqual(redirectsForContentDir(contentDir), {
+    '/setup/': '/install/linux-macos/',
+    '/install.sh/': '/install/linux-macos/',
+  });
 });
 
 test('markdown transform adds Starlight edit URLs and sidebar order', () => {
