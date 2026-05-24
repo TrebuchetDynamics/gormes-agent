@@ -227,9 +227,6 @@ func setupQuickChannelBeforeMissingCore(target cli.SetupTargetID, plan cli.First
 	if nonInteractive || normalizeSetupQuickTarget(target) == cli.SetupTargetNavivox || !isSetupQuickChannelTarget(target) {
 		return false
 	}
-	if _, missingChannel := plan.Step(cli.FirstRunStepChannel); !missingChannel {
-		return false
-	}
 	return setupQuickMissingCore(plan)
 }
 
