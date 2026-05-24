@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 105/111 subphases shipped · 6 in progress · 0 planned
+**Overall:** 106/111 subphases shipped · 5 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -102,7 +102,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -1499,10 +1499,10 @@ classification and row-backed implementation queue.
 - [x] `docs` Hermes contract inventory gate
 - [x] `docs` Strict-fidelity upstream test-suite classifier
 
-### 8.D — Sharp v1.0 🔨
+### 8.D — Sharp v1.0 ✅
 
 - [x] `release` Sharp v1.0 differentiator decision
-- [ ] `release` Single-binary cross-platform release pipeline
+- [x] `release` Single-binary cross-platform release pipeline
 - [x] `release` Release binary version/provenance smoke guard
 - [x] `install` CI and installer Go toolchain floor sync
 - [x] `release` Release prep guide target matrix sync

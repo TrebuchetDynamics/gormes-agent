@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `release`
 **Rows:** 13
-**Status counts:** `complete`: 12 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 13 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 3 · `P1`: 10
 
 ## Phase 8 — Reputation & Publication
@@ -18,7 +18,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P0` | `release` | Sharp v1.0 differentiator decision |
-| `planned` | `P1` | `release` | Single-binary cross-platform release pipeline |
+| `complete` | `P1` | `release` | Single-binary cross-platform release pipeline |
 | `complete` | `P1` | `release` | Release binary version/provenance smoke guard |
 | `complete` | `P1` | `release` | Release prep guide target matrix sync |
 | `complete` | `P1` | `release` | Release build-date provenance injection |
