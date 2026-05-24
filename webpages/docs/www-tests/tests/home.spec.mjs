@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+import { expectMainHeading, visitDocsPage } from './helpers.mjs';
+
 test('docs home renders through Starlight with operator-first content', async ({ page }) => {
-  await page.goto('/');
+  await visitDocsPage(page, '/');
 
   await expect(page).toHaveTitle(/Gormes Documentation \| Gormes Docs/);
-  await expect(page.getByRole('heading', { name: 'Gormes Documentation' })).toBeVisible();
+  await expectMainHeading(page, 'Gormes Documentation');
   await expect(page.getByText('Install, configure, and operate Gormes from one Go-native runtime.')).toBeVisible();
 
   await expect(page.getByText('curl -fsSL https://gormes.ai/install.sh | bash')).toBeVisible();
@@ -37,35 +39,35 @@ test('docs home renders through Starlight with operator-first content', async ({
 });
 
 test('operator docs journey keeps install commands and runtime checks consistent', async ({ page }) => {
-  await page.goto('/install/linux-macos/');
+  await visitDocsPage(page, '/install/linux-macos/');
 
-  await expect(page.getByRole('heading', { name: 'Linux and macOS' }).first()).toBeVisible();
+  await expectMainHeading(page, 'Linux and macOS');
   await expect(page.locator('main')).toContainText('https://gormes.ai/install.sh');
   await expect(page.locator('main')).not.toContainText('raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh');
   await expect(page.getByRole('link', { name: 'Providers', exact: true })).toHaveAttribute('href', /\/configure\/providers\//);
 
-  await page.goto('/configure/providers/');
-  await expect(page.getByRole('heading', { name: 'Providers' }).first()).toBeVisible();
+  await visitDocsPage(page, '/configure/providers/');
+  await expectMainHeading(page, 'Providers');
   await expect(page.locator('main')).toContainText('gormes doctor --offline');
   await expect(page.locator('main')).toContainText('gormes chat -q "smoke test"');
 
-  await page.goto('/operate/first-chat/');
-  await expect(page.getByRole('heading', { name: 'Connect a provider and open chat' }).first()).toBeVisible();
+  await visitDocsPage(page, '/operate/first-chat/');
+  await expectMainHeading(page, 'Connect a provider and open chat');
   await expect(page.locator('main')).toContainText('gormes auth list');
   await expect(page.locator('main')).toContainText('gormes chat');
   await expect(page.locator('main')).not.toContainText('hermes chat');
 
-  await page.goto('/troubleshooting/doctor/');
-  await expect(page.getByRole('heading', { name: 'Doctor' }).first()).toBeVisible();
+  await visitDocsPage(page, '/troubleshooting/doctor/');
+  await expectMainHeading(page, 'Doctor');
   await expect(page.locator('main')).toContainText('gormes doctor --offline');
   await expect(page.locator('main')).not.toContainText('python -m');
 });
 
 test('roadmap alias resolves to public status page', async ({ page }) => {
-  await page.goto('/roadmap/');
+  await visitDocsPage(page, '/roadmap/');
 
   await expect(page).toHaveTitle(/Status & Roadmap \| Gormes Docs/);
-  await expect(page.getByRole('heading', { name: 'Status & Roadmap' })).toBeVisible();
+  await expectMainHeading(page, 'Status & Roadmap');
   await expect(page.getByText('This page is the public readiness view')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Implementation evidence' })).toBeVisible();
 });
