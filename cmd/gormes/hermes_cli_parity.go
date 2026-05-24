@@ -319,12 +319,13 @@ func hermesGatewayNestedCommands() []hermesCLIParityEntry {
 func hermesKanbanCommands() []hermesCLIParityEntry {
 	const row = "Hermes Kanban durable board core"
 	const source = "hermes_cli/kanban.py:build_parser"
-	core := []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "link"}
+	core := []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "promote", "link"}
 	out := make([]hermesCLIParityEntry, 0, 32)
 	for _, command := range core {
 		entry := hermesRowPath([]string{"kanban", command}, hermesCLICommand, source+":"+command, row, "kanban "+command+" is implemented for the default local Gormes board")
 		entry.Status = hermesCLIImplemented
 		entry.Target = "cmd/gormes kanban " + command
+		markHermesCLIEntryFlags(&entry)
 		out = append(out, entry)
 	}
 
@@ -406,7 +407,7 @@ func markHermesCLIEntryFlags(entry *hermesCLIParityEntry) {
 		entry.RedactsSecrets = true
 	}
 	switch key {
-	case "claw migrate", "config migrate", "curator prune":
+	case "claw migrate", "config migrate", "curator prune", "kanban promote":
 		entry.DryRun = true
 	}
 }

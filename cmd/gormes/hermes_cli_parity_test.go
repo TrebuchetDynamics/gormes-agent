@@ -276,6 +276,7 @@ func TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals(t *testing.T) {
 		{"kanban", "complete"},
 		{"kanban", "block"},
 		{"kanban", "unblock"},
+		{"kanban", "promote"},
 		{"kanban", "link"},
 		{"kanban", "log"},
 		{"kanban", "tail"},
@@ -284,6 +285,11 @@ func TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals(t *testing.T) {
 		if entry.Status != hermesCLIImplemented || !strings.Contains(entry.Target, "cmd/gormes kanban") {
 			t.Fatalf("kanban core entry %v = %+v, want implemented cmd/gormes target", path, entry)
 		}
+	}
+
+	promote := requireHermesCLIEntry(t, []string{"kanban", "promote"})
+	if !promote.DryRun || !strings.Contains(promote.SourceRef, "promote") {
+		t.Fatalf("kanban promote entry = %+v, want implemented dry-run Hermes source classification", promote)
 	}
 
 	for _, path := range [][]string{

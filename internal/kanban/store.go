@@ -97,6 +97,22 @@ type BlockTaskInput struct {
 	Reason string
 }
 
+type PromoteTaskInput struct {
+	Actor  string
+	Reason string
+	Force  bool
+	DryRun bool
+}
+
+type PromoteTaskResult struct {
+	TaskID   string
+	Promoted bool
+	DryRun   bool
+	Forced   bool
+	Reason   string
+	Error    string
+}
+
 type RunOutcome string
 
 const (
@@ -437,6 +453,94 @@ WHERE id = ? AND status = ?`,
 		return Task{}, false, err
 	}
 	return task, changed == 1, nil
+}
+
+func (s *Store) PromoteTask(ctx context.Context, id string, input PromoteTaskInput) (PromoteTaskResult, error) {
+	id = strings.TrimSpace(id)
+	result := PromoteTaskResult{
+		TaskID: id,
+		DryRun: input.DryRun,
+		Forced: input.Force,
+		Reason: strings.TrimSpace(input.Reason),
+	}
+	if id == "" {
+		result.Error = "task id is required"
+		return result, nil
+	}
+	actor := strings.TrimSpace(input.Actor)
+	if actor == "" {
+		actor = "gormes"
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return result, fmt.Errorf("begin kanban promote: %w", err)
+	}
+	defer tx.Rollback()
+
+	var status string
+	err = tx.QueryRowContext(ctx, `SELECT status FROM tasks WHERE id = ?`, id).Scan(&status)
+	if errors.Is(err, sql.ErrNoRows) {
+		result.Error = fmt.Sprintf("task %s not found", id)
+		return result, nil
+	}
+	if err != nil {
+		return result, fmt.Errorf("read kanban task %q for promotion: %w", id, err)
+	}
+	current := Status(status)
+	if current != StatusTodo && current != StatusBlocked {
+		result.Error = fmt.Sprintf("task %s is '%s'; promote only applies to 'todo' or 'blocked'", id, current)
+		return result, nil
+	}
+
+	if !input.Force {
+		unsatisfied, err := unsatisfiedParentIDs(ctx, tx, id)
+		if err != nil {
+			return result, err
+		}
+		if len(unsatisfied) > 0 {
+			result.Error = fmt.Sprintf("unsatisfied parent dependencies: %s (use --force to override)", strings.Join(unsatisfied, ", "))
+			return result, nil
+		}
+	}
+
+	result.Promoted = true
+	if input.DryRun {
+		return result, nil
+	}
+
+	updated, err := tx.ExecContext(ctx, `UPDATE tasks SET status = ? WHERE id = ? AND status IN (?, ?)`, string(StatusReady), id, string(StatusTodo), string(StatusBlocked))
+	if err != nil {
+		return result, fmt.Errorf("promote kanban task %q: %w", id, err)
+	}
+	changed, err := updated.RowsAffected()
+	if err != nil {
+		return result, fmt.Errorf("promote kanban task rows: %w", err)
+	}
+	if changed != 1 {
+		result.Promoted = false
+		result.Error = fmt.Sprintf("task %s status changed during promotion", id)
+		return result, nil
+	}
+	payload, err := json.Marshal(struct {
+		Actor  string `json:"actor"`
+		Reason string `json:"reason"`
+		Forced bool   `json:"forced"`
+	}{
+		Actor:  actor,
+		Reason: result.Reason,
+		Forced: input.Force,
+	})
+	if err != nil {
+		return result, fmt.Errorf("marshal kanban promote event: %w", err)
+	}
+	if err := insertEvent(ctx, tx, id, "promoted_manual", string(payload)); err != nil {
+		return result, err
+	}
+	if err := tx.Commit(); err != nil {
+		return result, fmt.Errorf("commit kanban promote: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Store) LinkTasks(ctx context.Context, parentID, childID string) error {
@@ -1080,11 +1184,38 @@ func taskParentsDone(ctx context.Context, q interface {
 		if err != nil {
 			return false, fmt.Errorf("read parent task %q: %w", parentID, err)
 		}
-		if Status(status) != StatusDone {
+		if Status(status) != StatusDone && Status(status) != StatusArchived {
 			allDone = false
 		}
 	}
 	return allDone, nil
+}
+
+func unsatisfiedParentIDs(ctx context.Context, q interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, childID string) ([]string, error) {
+	rows, err := q.QueryContext(ctx, `
+SELECT t.id
+FROM tasks t
+JOIN task_links l ON l.parent_id = t.id
+WHERE l.child_id = ? AND t.status NOT IN (?, ?)
+ORDER BY t.id`, childID, string(StatusDone), string(StatusArchived))
+	if err != nil {
+		return nil, fmt.Errorf("list unsatisfied kanban parents for %q: %w", childID, err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan unsatisfied kanban parent: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("scan unsatisfied kanban parents: %w", err)
+	}
+	return ids, nil
 }
 
 func promoteReadyChildren(ctx context.Context, tx *sql.Tx, parentID string) error {

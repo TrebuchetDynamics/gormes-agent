@@ -2,6 +2,7 @@ package kanban
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,6 +52,188 @@ func TestKanbanStorePromotesChildAfterParentCompletes(t *testing.T) {
 	}
 	if got.Status != StatusReady {
 		t.Fatalf("child after parent complete Status = %q, want %q", got.Status, StatusReady)
+	}
+}
+
+func TestKanbanStoreManualPromoteRecovery(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	parent, err := store.CreateTask(ctx, CreateTaskInput{Title: "parent", Assignee: "setup"})
+	if err != nil {
+		t.Fatalf("CreateTask(parent) error = %v", err)
+	}
+	child, err := store.CreateTask(ctx, CreateTaskInput{Title: "child", Assignee: "worker", ParentIDs: []string{parent.ID}})
+	if err != nil {
+		t.Fatalf("CreateTask(child) error = %v", err)
+	}
+	if child.Status != StatusTodo {
+		t.Fatalf("child status = %q, want todo", child.Status)
+	}
+	if _, err := store.db.ExecContext(ctx, `UPDATE tasks SET status = ? WHERE id = ?`, string(StatusDone), parent.ID); err != nil {
+		t.Fatalf("mark parent done fixture: %v", err)
+	}
+
+	result, err := store.PromoteTask(ctx, child.ID, PromoteTaskInput{Actor: "tester", Reason: "manual recovery"})
+	if err != nil {
+		t.Fatalf("PromoteTask() error = %v", err)
+	}
+	if !result.Promoted || result.Error != "" || result.Forced {
+		t.Fatalf("PromoteTask() = %+v, want promoted without error/force", result)
+	}
+	got, err := store.GetTask(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("GetTask(child) error = %v", err)
+	}
+	if got.Status != StatusReady || got.Assignee != "worker" {
+		t.Fatalf("promoted child = %+v, want ready with unchanged assignee", got)
+	}
+	events, err := store.ListEvents(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("ListEvents(child) error = %v", err)
+	}
+	var payload struct {
+		Actor  string `json:"actor"`
+		Reason string `json:"reason"`
+		Forced bool   `json:"forced"`
+	}
+	found := false
+	for _, event := range events {
+		if event.Kind != "promoted_manual" {
+			continue
+		}
+		found = true
+		if err := json.Unmarshal([]byte(event.Payload), &payload); err != nil {
+			t.Fatalf("promoted_manual payload JSON: %v payload=%q", err, event.Payload)
+		}
+	}
+	if !found || payload.Actor != "tester" || payload.Reason != "manual recovery" || payload.Forced {
+		t.Fatalf("promoted_manual payload = %+v found=%v, want actor/reason/forced=false", payload, found)
+	}
+}
+
+func TestKanbanStoreManualPromoteRefusesUntilParentsDoneUnlessForced(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	parent, err := store.CreateTask(ctx, CreateTaskInput{Title: "parent"})
+	if err != nil {
+		t.Fatalf("CreateTask(parent) error = %v", err)
+	}
+	child, err := store.CreateTask(ctx, CreateTaskInput{Title: "child", ParentIDs: []string{parent.ID}})
+	if err != nil {
+		t.Fatalf("CreateTask(child) error = %v", err)
+	}
+
+	result, err := store.PromoteTask(ctx, child.ID, PromoteTaskInput{Actor: "tester"})
+	if err != nil {
+		t.Fatalf("PromoteTask(unforced) error = %v", err)
+	}
+	if result.Promoted || !strings.Contains(result.Error, "unsatisfied parent dependencies") || !strings.Contains(result.Error, parent.ID) {
+		t.Fatalf("unforced PromoteTask() = %+v, want unsatisfied parent refusal", result)
+	}
+	stillTodo, err := store.GetTask(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("GetTask(child) error = %v", err)
+	}
+	if stillTodo.Status != StatusTodo {
+		t.Fatalf("refused child status = %q, want todo", stillTodo.Status)
+	}
+
+	forced, err := store.PromoteTask(ctx, child.ID, PromoteTaskInput{Actor: "tester", Force: true, Reason: "operator override"})
+	if err != nil {
+		t.Fatalf("PromoteTask(force) error = %v", err)
+	}
+	if !forced.Promoted || !forced.Forced {
+		t.Fatalf("forced PromoteTask() = %+v, want promoted forced result", forced)
+	}
+	got, err := store.GetTask(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("GetTask(child after force) error = %v", err)
+	}
+	if got.Status != StatusReady {
+		t.Fatalf("forced child status = %q, want ready", got.Status)
+	}
+}
+
+func TestKanbanStoreManualPromoteDryRunDoesNotMutate(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	parent, err := store.CreateTask(ctx, CreateTaskInput{Title: "parent"})
+	if err != nil {
+		t.Fatalf("CreateTask(parent) error = %v", err)
+	}
+	child, err := store.CreateTask(ctx, CreateTaskInput{Title: "child", ParentIDs: []string{parent.ID}})
+	if err != nil {
+		t.Fatalf("CreateTask(child) error = %v", err)
+	}
+	if _, err := store.db.ExecContext(ctx, `UPDATE tasks SET status = ? WHERE id = ?`, string(StatusDone), parent.ID); err != nil {
+		t.Fatalf("mark parent done fixture: %v", err)
+	}
+
+	result, err := store.PromoteTask(ctx, child.ID, PromoteTaskInput{Actor: "tester", DryRun: true})
+	if err != nil {
+		t.Fatalf("PromoteTask(dry-run) error = %v", err)
+	}
+	if !result.Promoted || !result.DryRun {
+		t.Fatalf("dry-run PromoteTask() = %+v, want promoted dry-run result", result)
+	}
+	got, err := store.GetTask(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("GetTask(child) error = %v", err)
+	}
+	if got.Status != StatusTodo {
+		t.Fatalf("dry-run child status = %q, want todo", got.Status)
+	}
+	events, err := store.ListEvents(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("ListEvents(child) error = %v", err)
+	}
+	for _, event := range events {
+		if event.Kind == "promoted_manual" {
+			t.Fatalf("dry-run wrote promoted_manual event: %+v", event)
+		}
+	}
+}
+
+func TestKanbanStoreManualPromoteRejectsNonTodoOrBlocked(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	task, err := store.CreateTask(ctx, CreateTaskInput{Title: "ready"})
+	if err != nil {
+		t.Fatalf("CreateTask() error = %v", err)
+	}
+	result, err := store.PromoteTask(ctx, task.ID, PromoteTaskInput{Actor: "tester"})
+	if err != nil {
+		t.Fatalf("PromoteTask(ready) error = %v", err)
+	}
+	if result.Promoted || !strings.Contains(result.Error, "'ready'") || !strings.Contains(result.Error, "promote only applies") {
+		t.Fatalf("ready PromoteTask() = %+v, want Hermes-compatible non-todo refusal", result)
+	}
+	got, err := store.GetTask(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetTask() error = %v", err)
+	}
+	if got.Status != StatusReady {
+		t.Fatalf("ready task status after refused promote = %q, want ready", got.Status)
 	}
 }
 

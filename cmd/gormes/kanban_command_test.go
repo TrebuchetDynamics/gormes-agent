@@ -117,6 +117,110 @@ func TestKanbanSpecifyCommandUnavailableIsTypedEvidence(t *testing.T) {
 	}
 }
 
+func TestKanbanCommandPromoteManualRecovery(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+
+	parent := runKanbanJSONTask(t, "create", "parent", "--json")
+	child := runKanbanJSONTask(t, "create", "child", "--assignee", "worker", "--parent", parent.ID, "--json")
+	if child.Status != kanban.StatusTodo {
+		t.Fatalf("child status = %q, want todo", child.Status)
+	}
+	setKanbanCommandTaskStatus(t, config.KanbanDBPath(), parent.ID, kanban.StatusDone)
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "block", child.ID, "manual hold"); err != nil {
+		t.Fatalf("kanban block child: %v\nstderr=%s", err, stderr)
+	}
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "promote", child.ID, "manual", "recovery", "--json")
+	if err != nil {
+		t.Fatalf("kanban promote --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var report struct {
+		TaskID   string  `json:"task_id"`
+		Promoted bool    `json:"promoted"`
+		DryRun   bool    `json:"dry_run"`
+		Forced   bool    `json:"forced"`
+		Reason   *string `json:"reason"`
+		Error    *string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("promote JSON decode: %v\nstdout=%s", err, stdout)
+	}
+	if report.TaskID != child.ID || !report.Promoted || report.DryRun || report.Forced || report.Reason == nil || *report.Reason != "manual recovery" || report.Error != nil {
+		t.Fatalf("promote report = %+v, want flat successful result with reason", report)
+	}
+	got := runKanbanJSONTask(t, "show", child.ID, "--json")
+	if got.Status != kanban.StatusReady || got.Assignee != "worker" {
+		t.Fatalf("promoted task = %+v, want ready with unchanged assignee", got)
+	}
+	if count := countKanbanTaskEvents(t, config.KanbanDBPath(), child.ID, "promoted_manual"); count != 1 {
+		t.Fatalf("promoted_manual event count = %d, want 1", count)
+	}
+}
+
+func TestKanbanCommandPromoteBulkJSONPartialFailureAndDedupes(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+
+	parent := runKanbanJSONTask(t, "create", "parent", "--json")
+	first := runKanbanJSONTask(t, "create", "first", "--parent", parent.ID, "--json")
+	second := runKanbanJSONTask(t, "create", "second", "--parent", parent.ID, "--json")
+	setKanbanCommandTaskStatus(t, config.KanbanDBPath(), parent.ID, kanban.StatusDone)
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "promote", first.ID, "--ids", first.ID, second.ID, "t_nope", "--json")
+	if err == nil {
+		t.Fatalf("kanban promote bulk with bad id succeeded unexpectedly\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if code := exitCodeFromError(err); code != 1 {
+		t.Fatalf("kanban promote bulk exit code = %d, want 1; err=%v", code, err)
+	}
+	var reports []struct {
+		TaskID   string  `json:"task_id"`
+		Promoted bool    `json:"promoted"`
+		Error    *string `json:"error"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &reports); jsonErr != nil {
+		t.Fatalf("bulk promote JSON decode: %v\nstdout=%s\nstderr=%s", jsonErr, stdout, stderr)
+	}
+	if len(reports) != 3 {
+		t.Fatalf("bulk reports len = %d, want deduped positional+--ids result length 3: %+v", len(reports), reports)
+	}
+	promoted := map[string]bool{}
+	for _, report := range reports {
+		promoted[report.TaskID] = report.Promoted
+		if report.TaskID == "t_nope" && (report.Error == nil || !strings.Contains(*report.Error, "not found")) {
+			t.Fatalf("bad-id report = %+v, want not-found error", report)
+		}
+	}
+	if !promoted[first.ID] || !promoted[second.ID] || promoted["t_nope"] {
+		t.Fatalf("bulk promoted map = %+v, want two successes and one failure", promoted)
+	}
+	if count := countKanbanTaskEvents(t, config.KanbanDBPath(), first.ID, "promoted_manual"); count != 1 {
+		t.Fatalf("deduped first promoted_manual count = %d, want 1", count)
+	}
+}
+
+func TestKanbanCommandPromoteDryRunDoesNotMutate(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+
+	parent := runKanbanJSONTask(t, "create", "parent", "--json")
+	child := runKanbanJSONTask(t, "create", "child", "--parent", parent.ID, "--json")
+	setKanbanCommandTaskStatus(t, config.KanbanDBPath(), parent.ID, kanban.StatusDone)
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "promote", child.ID, "manual", "check", "--dry-run")
+	if err != nil {
+		t.Fatalf("kanban promote --dry-run: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Would promote "+child.ID+" -> ready (dry): manual check") {
+		t.Fatalf("dry-run stdout = %q, want Hermes-compatible would-promote text", stdout)
+	}
+	got := runKanbanJSONTask(t, "show", child.ID, "--json")
+	if got.Status != kanban.StatusTodo {
+		t.Fatalf("dry-run task status = %q, want todo", got.Status)
+	}
+	if count := countKanbanTaskEvents(t, config.KanbanDBPath(), child.ID, "promoted_manual"); count != 0 {
+		t.Fatalf("dry-run promoted_manual count = %d, want 0", count)
+	}
+}
+
 func TestKanbanCommandListJSONFiltersByStatus(t *testing.T) {
 	t.Setenv("GORMES_HOME", t.TempDir())
 
@@ -681,6 +785,23 @@ func countKanbanTaskEvents(t *testing.T, dbPath, taskID, kind string) int {
 		t.Fatalf("count kanban task events: %v", err)
 	}
 	return count
+}
+
+func setKanbanCommandTaskStatus(t *testing.T, dbPath, taskID string, status kanban.Status) {
+	t.Helper()
+	db := openKanbanCommandTestDB(t, dbPath)
+	defer db.Close()
+	result, err := db.Exec(`UPDATE tasks SET status = ? WHERE id = ?`, string(status), taskID)
+	if err != nil {
+		t.Fatalf("set kanban task status: %v", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		t.Fatalf("read kanban task status update count: %v", err)
+	}
+	if changed != 1 {
+		t.Fatalf("set kanban task status changed %d rows for %s, want 1", changed, taskID)
+	}
 }
 
 func openKanbanCommandTestDB(t *testing.T, dbPath string) *sql.DB {

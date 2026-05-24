@@ -57,6 +57,7 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanClaimCommand(),
 		newKanbanBlockCommand(),
 		newKanbanUnblockCommand(),
+		newKanbanPromoteCommand(),
 		newKanbanLinkCommand(),
 		newKanbanBoardsCommand(),
 	)
@@ -859,6 +860,206 @@ func newKanbanUnblockCommand() *cobra.Command {
 	return cmd
 }
 
+func newKanbanPromoteCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:                "promote <task-id> [reason...] [--ids <task-id>...] [--force] [--dry-run] [--json]",
+		Short:              "Manually promote todo or blocked Kanban tasks to ready",
+		DisableFlagParsing: true,
+		DisableSuggestions: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if kanbanPromoteHelpRequested(args) {
+				return cmd.Help()
+			}
+			parsed, err := parseKanbanPromoteArgs(args)
+			if err != nil {
+				return err
+			}
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+
+			reason := strings.TrimSpace(strings.Join(parsed.reason, " "))
+			ids := dedupeKanbanPromoteIDs(append([]string{parsed.taskID}, parsed.ids...))
+			results := make([]kanbanPromoteResultJSON, 0, len(ids))
+			failed := false
+			for _, id := range ids {
+				result, err := store.PromoteTask(cmd.Context(), id, kanban.PromoteTaskInput{
+					Actor:  kanbanPromoteActor(),
+					Reason: reason,
+					Force:  parsed.force,
+					DryRun: parsed.dryRun,
+				})
+				if err != nil {
+					return err
+				}
+				if !result.Promoted {
+					failed = true
+				}
+				results = append(results, kanbanPromoteResultFromStore(result))
+			}
+
+			if parsed.jsonOut {
+				if len(results) == 1 {
+					if err := writeKanbanJSON(cmd, results[0]); err != nil {
+						return err
+					}
+				} else if err := writeKanbanJSON(cmd, results); err != nil {
+					return err
+				}
+				if failed {
+					return newExitCodeError(1, errors.New("kanban promote failed"))
+				}
+				return nil
+			}
+
+			label := "Promoted"
+			tag := ""
+			if parsed.dryRun {
+				label = "Would promote"
+				tag = " (dry)"
+			}
+			for _, result := range results {
+				if result.Promoted {
+					suffix := ""
+					if result.Reason != nil && *result.Reason != "" {
+						suffix = ": " + *result.Reason
+					}
+					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s -> ready%s%s\n", label, result.TaskID, tag, suffix); err != nil {
+						return err
+					}
+					continue
+				}
+				msg := "unknown error"
+				if result.Error != nil && *result.Error != "" {
+					msg = *result.Error
+				}
+				if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "cannot promote %s: %s\n", result.TaskID, msg); err != nil {
+					return err
+				}
+			}
+			if failed {
+				return newExitCodeError(1, errors.New("kanban promote failed"))
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringArray("ids", nil, "Additional task ids to promote with the same reason")
+	cmd.Flags().Bool("force", false, "Promote even if parent dependencies are not yet done/archived")
+	cmd.Flags().Bool("dry-run", false, "Validate the promotion without mutating state")
+	cmd.Flags().Bool("json", false, "Emit machine-readable JSON result")
+	return cmd
+}
+
+type kanbanPromoteArgs struct {
+	taskID  string
+	reason  []string
+	ids     []string
+	force   bool
+	dryRun  bool
+	jsonOut bool
+}
+
+func kanbanPromoteHelpRequested(args []string) bool {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			return true
+		}
+	}
+	return false
+}
+
+func parseKanbanPromoteArgs(args []string) (kanbanPromoteArgs, error) {
+	var parsed kanbanPromoteArgs
+	var positional []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--force":
+			parsed.force = true
+		case arg == "--dry-run":
+			parsed.dryRun = true
+		case arg == "--json":
+			parsed.jsonOut = true
+		case arg == "--ids":
+			start := len(parsed.ids)
+			for i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+				i++
+				parsed.ids = append(parsed.ids, args[i])
+			}
+			if len(parsed.ids) == start {
+				return parsed, errors.New("kanban promote: --ids requires at least one task id")
+			}
+		case strings.HasPrefix(arg, "--ids="):
+			value := strings.TrimSpace(strings.TrimPrefix(arg, "--ids="))
+			if value == "" {
+				return parsed, errors.New("kanban promote: --ids requires at least one task id")
+			}
+			for _, id := range strings.Split(value, ",") {
+				if id = strings.TrimSpace(id); id != "" {
+					parsed.ids = append(parsed.ids, id)
+				}
+			}
+		case strings.HasPrefix(arg, "--"):
+			return parsed, fmt.Errorf("unknown flag: %s", arg)
+		default:
+			positional = append(positional, arg)
+		}
+	}
+	if len(positional) == 0 || strings.TrimSpace(positional[0]) == "" {
+		return parsed, errors.New("kanban promote: task_id is required")
+	}
+	parsed.taskID = positional[0]
+	parsed.reason = positional[1:]
+	return parsed, nil
+}
+
+func dedupeKanbanPromoteIDs(ids []string) []string {
+	seen := make(map[string]struct{}, len(ids))
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
+}
+
+func kanbanPromoteActor() string {
+	for _, value := range []string{os.Getenv("GORMES_PROFILE"), os.Getenv("USER"), os.Getenv("USERNAME")} {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
+	}
+	return "gormes"
+}
+
+func kanbanPromoteResultFromStore(result kanban.PromoteTaskResult) kanbanPromoteResultJSON {
+	out := kanbanPromoteResultJSON{
+		TaskID:   result.TaskID,
+		Promoted: result.Promoted,
+		DryRun:   result.DryRun,
+		Forced:   result.Forced,
+		Reason:   kanbanPromoteStringPtr(result.Reason),
+		Error:    kanbanPromoteStringPtr(result.Error),
+	}
+	return out
+}
+
+func kanbanPromoteStringPtr(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return &value
+}
+
 func newKanbanLinkCommand() *cobra.Command {
 	var jsonOut bool
 	cmd := &cobra.Command{
@@ -953,6 +1154,15 @@ type kanbanSpecifyReportJSON struct {
 	Action  string                `json:"action"`
 	Outcome kanban.SpecifyOutcome `json:"outcome"`
 	Task    kanban.Task           `json:"task,omitempty"`
+}
+
+type kanbanPromoteResultJSON struct {
+	TaskID   string  `json:"task_id"`
+	Promoted bool    `json:"promoted"`
+	DryRun   bool    `json:"dry_run"`
+	Forced   bool    `json:"forced"`
+	Reason   *string `json:"reason"`
+	Error    *string `json:"error"`
 }
 
 // kanbanLifecycleReportJSON is the wire shape for `kanban
