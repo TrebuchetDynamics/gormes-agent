@@ -19,12 +19,12 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/security"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
@@ -454,41 +454,7 @@ func doctorTargetReadinessFromPlan(plan cli.FirstRunPlan) *doctorTargetReadiness
 // ~/.gormes ack store before the section renders, and a Gormes-owned
 // confirmation item is appended.
 func doctorSecurityAdvisoriesStatus(ackID string) doctor.CheckResult {
-	store := security.NewAckStore(config.GormesHome())
-
-	var ackConfirm string
-	if id := strings.TrimSpace(ackID); id != "" {
-		if err := store.Ack(id); err != nil {
-			ackConfirm = fmt.Sprintf("could not record ack for %q: %v", id, err)
-		} else {
-			ackConfirm = fmt.Sprintf("acknowledged %s (recorded under ~/.gormes)", id)
-		}
-	}
-
-	acked, _ := store.AckedIDs()
-	hits := security.DetectCompromised(security.DefaultCatalog(), security.NoInstalledPackages)
-	views := make([]doctor.DoctorAdvisoryView, 0, len(hits))
-	for _, h := range hits {
-		_, isAcked := acked[h.Advisory.ID]
-		views = append(views, doctor.DoctorAdvisoryView{
-			ID:          h.Advisory.ID,
-			Title:       h.Advisory.Title,
-			Package:     h.Package,
-			Version:     h.InstalledVersion,
-			Remediation: security.FullRemediationText(h),
-			Acked:       isAcked,
-		})
-	}
-
-	res := doctor.CheckSecurityAdvisories(doctor.DoctorSecurityAdvisoryInventory{Hits: views})
-	if ackConfirm != "" {
-		res.Items = append(res.Items, doctor.ItemInfo{
-			Name:   "ack",
-			Status: doctor.StatusPass,
-			Note:   ackConfirm,
-		})
-	}
-	return res
+	return gormescli.DoctorSecurityAdvisoriesStatus(ackID, config.GormesHome())
 }
 
 // doctorProfilesStatus renders the ◆ Profiles section content from the real
