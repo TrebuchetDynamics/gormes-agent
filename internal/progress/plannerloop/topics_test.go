@@ -101,13 +101,13 @@ func TestFilterContextByKeywords_NarrowsBundleSelectively(t *testing.T) {
 			{ItemName: "other-row", Contract: "y"},
 		},
 		ImplInventory: ImplInventory{
-			GormesOriginalPaths: []string{"internal/plannerloop/run.go", "internal/gateway/server.go"},
+			GormesOriginalPaths: []string{"internal/progress/plannerloop/run.go", "internal/gateway/server.go"},
 			RecentlyChanged:     []string{"cmd/progress/main.go", "cmd/gormes/main.go"},
 			OwnedSubphases:      []string{"5.O", "2.B"},
 		},
 		AutoloopAudit: AutoloopAudit{}, // would be aggregate-only
 	}
-	narrowed := FilterContextByKeywords(bundle, []string{"honcho", "progress", "5.O"})
+	narrowed := FilterContextByKeywords(bundle, []string{"honcho", "cmd/progress", "5.O"})
 	if len(narrowed.QuarantinedRows) != 1 || narrowed.QuarantinedRows[0].ItemName != "honcho-row" {
 		t.Fatalf("QuarantinedRows narrowing failed: %+v", narrowed.QuarantinedRows)
 	}

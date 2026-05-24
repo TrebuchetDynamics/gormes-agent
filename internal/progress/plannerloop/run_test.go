@@ -987,7 +987,7 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)
 	cfg.GitRepairEnabled = false
-	runtimePath := filepath.Join(repoRoot, "internal", "plannerloop", "topics_test.go")
+	runtimePath := filepath.Join(repoRoot, "internal", "progress", "plannerloop", "topics_test.go")
 	writeFile(t, runtimePath, "package plannerloop\n")
 	initPlannerGitRepo(t, repoRoot)
 	writeFile(t, runtimePath, "package plannerloop\n\nfunc dirtyRuntimeFixture() {}\n")
@@ -1012,7 +1012,7 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	if !strings.Contains(err.Error(), "runtime source preflight") {
 		t.Fatalf("RunOnce() error = %q, want preflight rejection", err)
 	}
-	if !strings.Contains(err.Error(), "internal/plannerloop/topics_test.go") {
+	if !strings.Contains(err.Error(), "internal/progress/plannerloop/topics_test.go") {
 		t.Fatalf("RunOnce() error = %q, want dirty runtime path", err)
 	}
 	if got := len(runner.Commands); got != 2 {
@@ -1030,7 +1030,7 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	if rejected.Status != "validation_rejected" {
 		t.Fatalf("ledger missing validation_rejected: %#v", events)
 	}
-	if !strings.Contains(rejected.Detail, "internal/plannerloop/topics_test.go") {
+	if !strings.Contains(rejected.Detail, "internal/progress/plannerloop/topics_test.go") {
 		t.Fatalf("Detail = %q, want dirty runtime path", rejected.Detail)
 	}
 }
@@ -1039,7 +1039,7 @@ func TestRunOnce_RepairsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)
 	cfg.MergeOpenPullRequests = false
-	runtimePath := filepath.Join(repoRoot, "internal", "plannerloop", "topics_test.go")
+	runtimePath := filepath.Join(repoRoot, "internal", "progress", "plannerloop", "topics_test.go")
 	writeFile(t, runtimePath, "package plannerloop\n")
 	initPlannerGitRepo(t, repoRoot)
 	writeFile(t, runtimePath, "package plannerloop\n\nfunc dirtyRuntimeFixture() {}\n")
@@ -1085,7 +1085,7 @@ func TestRunOnce_RepairsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	for _, want := range []string{
 		"runtime_source_preflight_dirty",
 		"runtime source preflight",
-		"internal/plannerloop/topics_test.go",
+		"internal/progress/plannerloop/topics_test.go",
 		"resolve the repository git state",
 	} {
 		if !strings.Contains(runner.repairPrompt, want) {

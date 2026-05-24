@@ -158,7 +158,7 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
 				"internal/runtime/cmdrunner/runner.go:Runner",
 				"internal/acp/browser_bootstrap.go:BootstrapBrowserHarness",
-				"internal/plannerloop/run.go:Run",
+				"internal/progress/plannerloop/run.go:Run",
 			},
 		},
 		{
@@ -186,7 +186,7 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
 				"internal/progress/triggers/triggers.go:TriggerEvent",
 				"internal/progress/builderloop/run.go:emitPlannerTriggers",
-				"internal/plannerloop/run.go:Run",
+				"internal/progress/plannerloop/run.go:Run",
 			},
 		},
 		{
@@ -200,7 +200,21 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
 				"internal/progress/builderloop/run.go:RunOnce",
 				"internal/progress/ctl/progressctl.go:NextWorkWithOptions",
-				"internal/plannerloop/run.go:Run",
+				"internal/progress/plannerloop/run.go:Run",
+			},
+		},
+		{
+			Name:        "plannerloop-rehome",
+			Active:      true,
+			OwnerModule: "progress",
+			OldRoots:    []string{"internal/plannerloop"},
+			NewRoots:    []string{"internal/progress/plannerloop"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Progress Delivery Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/progress/plannerloop/run.go:Run",
+				"internal/progress/plannerloop/implscan.go:ScanImplementation",
+				"internal/progress/builderloop/candidates.go:NormalizeCandidates",
 			},
 		},
 	}

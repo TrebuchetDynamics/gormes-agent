@@ -196,7 +196,7 @@ func TestLifecycle_DivergenceFullCycle(t *testing.T) {
 			Status:         progress.StatusComplete,
 			Contract:       "Gormes-original extension with no upstream analog",
 			ContractStatus: progress.ContractStatusDraft,
-			WriteScope:     []string{"internal/plannerloop/"},
+			WriteScope:     []string{"internal/progress/plannerloop/"},
 			Provenance: &progress.Provenance{
 				OriginType: "gormes",
 				OwnedSince: r4Time.UTC().Format(time.RFC3339),
@@ -255,7 +255,7 @@ func TestLifecycle_DivergenceFullCycle(t *testing.T) {
 	// the row in Run 4 declared. The ScanImplementation walk hits cmd/ and
 	// internal/, so we mkdir + create one file matching the prefix.
 	repoRoot := filepath.Join(dir, "repo")
-	implPath := filepath.Join(repoRoot, "internal", "plannerloop", "lifecycle_marker.go")
+	implPath := filepath.Join(repoRoot, "internal", "progress", "plannerloop", "lifecycle_marker.go")
 	if err := os.MkdirAll(filepath.Dir(implPath), 0o755); err != nil {
 		t.Fatalf("Run 5: mkdir impl tree: %v", err)
 	}
@@ -267,12 +267,12 @@ func TestLifecycle_DivergenceFullCycle(t *testing.T) {
 		t.Fatalf("Run 5: chtimes: %v", err)
 	}
 
-	prefixes := []string{"internal/plannerloop/"}
+	prefixes := []string{"internal/progress/plannerloop/"}
 	inv, err := ScanImplementation(repoRoot, prefixes, 7*24*time.Hour, r5Time)
 	if err != nil {
 		t.Fatalf("Run 5: ScanImplementation: %v", err)
 	}
-	wantPath := "internal/plannerloop/lifecycle_marker.go"
+	wantPath := "internal/progress/plannerloop/lifecycle_marker.go"
 	if !contains(inv.GormesOriginalPaths, wantPath) {
 		t.Fatalf("Run 5: GormesOriginalPaths=%v missing %q", inv.GormesOriginalPaths, wantPath)
 	}

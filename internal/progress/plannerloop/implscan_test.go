@@ -14,7 +14,7 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 	// Synth an impl tree.
 	for _, p := range []string{
 		"cmd/progress/main.go",
-		"internal/plannerloop/run.go",
+		"internal/progress/plannerloop/run.go",
 		"internal/progress/triggers/triggers.go",
 		"cmd/gormes/main.go",         // NOT original (not in deny list)
 		"internal/gateway/server.go", // NOT original
@@ -30,7 +30,7 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 
 	denyList := []string{
 		"cmd/progress/",
-		"internal/plannerloop/",
+		"internal/progress/plannerloop/",
 		"internal/progress/triggers/",
 	}
 	inv, err := ScanImplementation(dir, denyList, 24*time.Hour, time.Now())
@@ -41,7 +41,7 @@ func TestScanImplementation_DenyListPathsAreOriginal(t *testing.T) {
 	// All deny-listed prefixes should appear in GormesOriginalPaths inventory.
 	wantGormes := map[string]bool{
 		"cmd/progress/main.go":                   true,
-		"internal/plannerloop/run.go":            true,
+		"internal/progress/plannerloop/run.go":   true,
 		"internal/progress/triggers/triggers.go": true,
 	}
 	gotGormes := map[string]bool{}
@@ -115,13 +115,13 @@ func TestComputeOwnedSubphases_AllWriteScopesUnderOriginalPrefixes(t *testing.T)
 				Subphases: map[string]progress.Subphase{
 					"5.O": {
 						Items: []progress.Item{
-							{Name: "planner", WriteScope: []string{"internal/plannerloop/run.go"}},
+							{Name: "planner", WriteScope: []string{"internal/progress/plannerloop/run.go"}},
 							{Name: "autoloop", WriteScope: []string{"cmd/progress/main.go"}},
 						},
 					},
 					"5.P": {
 						Items: []progress.Item{
-							{Name: "mixed", WriteScope: []string{"internal/plannerloop/run.go", "internal/gateway/server.go"}},
+							{Name: "mixed", WriteScope: []string{"internal/progress/plannerloop/run.go", "internal/gateway/server.go"}},
 						},
 					},
 					"5.Q": {
@@ -132,7 +132,7 @@ func TestComputeOwnedSubphases_AllWriteScopesUnderOriginalPrefixes(t *testing.T)
 		},
 	}
 
-	got := computeOwnedSubphases(prog, []string{"internal/plannerloop/", "cmd/progress/"})
+	got := computeOwnedSubphases(prog, []string{"internal/progress/plannerloop/", "cmd/progress/"})
 	if len(got) != 1 || got[0] != "5.O" {
 		t.Fatalf("computeOwnedSubphases() = %v, want [5.O]", got)
 	}
