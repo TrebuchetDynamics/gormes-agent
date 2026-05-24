@@ -5,6 +5,7 @@
   "scripts": {
     "sync:content": "node ./scripts/sync-starlight-content.mjs",
     "test:content": "node --test ./scripts/starlight-content.test.mjs",
+    "test:progress-artifact": "node --test ./scripts/progress-artifact.test.mjs",
     "predev": "npm run sync:content",
     "dev": "node ../scripts/with-compatible-node.mjs astro dev",
     "prebuild": "npm run sync:content",
