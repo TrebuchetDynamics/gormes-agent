@@ -64,12 +64,20 @@ func TestValidateJSON_EmitsStatsAndCounts(t *testing.T) {
 
 func repoRootForTest(t *testing.T) string {
 	t.Helper()
-	wd := filepath.Join("..", "..")
-	abs, err := filepath.Abs(wd)
+	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("filepath.Abs: %v", err)
+		t.Fatalf("os.Getwd: %v", err)
 	}
-	return abs
+	for {
+		if _, err := os.Stat(filepath.Join(wd, "go.mod")); err == nil {
+			return wd
+		}
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			t.Fatalf("repo root not found from %s", wd)
+		}
+		wd = parent
+	}
 }
 
 // Backlog-efficiency #1 (2026-05-16): the dead webpages/landing/src/data
@@ -573,7 +581,7 @@ func TestNextWorkRepoOnlyFiltersCrossRootWriteScope(t *testing.T) {
 			"9": {Name: "P9", Deliverable: "d9", Subphases: map[string]progress.Subphase{
 				"9.F": {Name: "F", Items: []progress.Item{
 					{Name: "cross root row", Priority: "P0", Status: progress.StatusPlanned, Contract: "cross root contract", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", WriteScope: []string{"../navivox-app/app/lib/"}, Module: progress.ModuleNavivox},
-					{Name: "local row", Priority: "P1", Status: progress.StatusPlanned, Contract: "local contract", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", WriteScope: []string{"cmd/progress/main.go", "internal/progressctl/"}, Module: progress.ModuleProgress},
+					{Name: "local row", Priority: "P1", Status: progress.StatusPlanned, Contract: "local contract", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", WriteScope: []string{"cmd/progress/main.go", "internal/progress/ctl/"}, Module: progress.ModuleProgress},
 				}},
 			}},
 		},

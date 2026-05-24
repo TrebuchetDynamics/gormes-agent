@@ -1,4 +1,4 @@
-// Command progress is a thin wrapper around internal/progressctl: it
+// Command progress is a thin wrapper around internal/progress/ctl: it
 // validates the canonical progress.json and regenerates the markered docs
 // the skill-driven planning/building workflow reads from.
 package main
@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progressctl"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/ctl"
 )
 
 const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact|split <dir>|emit|list --module <module>|next-work [--repo-only]}"

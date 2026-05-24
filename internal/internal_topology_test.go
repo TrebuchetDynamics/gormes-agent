@@ -161,6 +161,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/plannerloop/run.go:Run",
 			},
 		},
+		{
+			Name:        "progressctl-rehome",
+			Active:      true,
+			OwnerModule: "progress",
+			OldRoots:    []string{"internal/progressctl"},
+			NewRoots:    []string{"internal/progress/ctl"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Progress Delivery Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"cmd/progress/main.go:main",
+				"internal/progress/ctl/progressctl.go:Validate",
+				"internal/progress/ctl/progressctl.go:Write",
+			},
+		},
 	}
 }
 
