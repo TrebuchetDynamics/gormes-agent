@@ -13,9 +13,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tuigateway"
 )
 
 // runRemoteTUIWithRuntime is the --remote <url> startup path. It does not
@@ -36,7 +36,7 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 	defer cancel()
 
 	type dialResult struct {
-		client *tuigateway.RemoteClient
+		client gormescli.RemoteTUIClient
 		err    error
 	}
 	dialDone := make(chan dialResult, 1)
@@ -44,13 +44,13 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 		client, err := dialRemoteTUI(rootCtx, invocation.RemoteURL)
 		dialDone <- dialResult{client: client, err: err}
 	}()
-	var client *tuigateway.RemoteClient
+	var client gormescli.RemoteTUIClient
 	select {
 	case result := <-dialDone:
 		if result.err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(),
 				"remote streaming unavailable at %s: %v\n\nLocal Bubble Tea mode still works: re-run gormes without --remote.\n",
-				tuigateway.RedactRemoteURL(invocation.RemoteURL), result.err,
+				gormescli.RedactRemoteTUIURL(invocation.RemoteURL), result.err,
 			)
 			return result.err
 		}
@@ -59,7 +59,7 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 		err := fmt.Errorf("remote streaming startup timed out")
 		fmt.Fprintf(cmd.ErrOrStderr(),
 			"remote streaming unavailable at %s: %v\n\nLocal Bubble Tea mode still works: re-run gormes without --remote.\n",
-			tuigateway.RedactRemoteURL(invocation.RemoteURL), err,
+			gormescli.RedactRemoteTUIURL(invocation.RemoteURL), err,
 		)
 		return err
 	}
@@ -104,11 +104,8 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 	return err
 }
 
-func dialRemoteTUI(ctx context.Context, remoteURL string) (*tuigateway.RemoteClient, error) {
-	if isWebSocketRemoteURL(remoteURL) {
-		return tuigateway.DialWebSocketAttach(ctx, remoteURL, tuigateway.WithSidecarURL(resolveRemoteTUISidecarURL()))
-	}
-	return tuigateway.DialSSE(ctx, remoteURL)
+func dialRemoteTUI(ctx context.Context, remoteURL string) (gormescli.RemoteTUIClient, error) {
+	return gormescli.DialRemoteTUI(ctx, remoteURL, resolveRemoteTUISidecarURL())
 }
 
 func resolveRemoteTUIURL(flagValue string) string {
@@ -133,6 +130,5 @@ func resolveRemoteTUISidecarURL() string {
 }
 
 func isWebSocketRemoteURL(raw string) bool {
-	raw = strings.ToLower(strings.TrimSpace(raw))
-	return strings.HasPrefix(raw, "ws://") || strings.HasPrefix(raw, "wss://")
+	return gormescli.IsWebSocketRemoteURL(raw)
 }
