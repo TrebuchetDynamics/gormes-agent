@@ -370,6 +370,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/cli/modelcatalog/catalog.go:HermesProviderCatalog",
 			},
 		},
+		{
+			Name:        "contextrefs-transcript-rehome",
+			Active:      true,
+			OwnerModule: "transcript",
+			OldRoots:    []string{"internal/contextrefs"},
+			NewRoots:    []string{"internal/transcript/contextrefs"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Second-pass leaf triage",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/hermes/context_references.go:AttachContextReferenceHandles",
+				"internal/transcript/refs.go:NewContextReferenceStore",
+				"internal/transcript/contextrefs/refs.go:NewStore",
+			},
+		},
 	}
 }
 

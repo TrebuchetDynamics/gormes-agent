@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/contextrefs"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript/contextrefs"
 )
 
 const (

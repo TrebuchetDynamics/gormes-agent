@@ -1,6 +1,6 @@
 package transcript
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/contextrefs"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/transcript/contextrefs"
 
 const ContextReferenceStatusPending = contextrefs.StatusPending
 
