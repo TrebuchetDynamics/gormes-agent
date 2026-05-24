@@ -94,15 +94,6 @@ func TestDevelopmentSkillLoaderViewsResolveToCanonicalSource(t *testing.T) {
 	}
 }
 
-func readRepoText(t *testing.T, rel string) string {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(findRepoRoot(t), rel))
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(raw)
-}
-
 func canonicalDevelopmentSkills(t *testing.T, root string) []string {
 	t.Helper()
 	entries, err := os.ReadDir(root)
