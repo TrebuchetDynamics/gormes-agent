@@ -638,6 +638,31 @@ func TestSetupGatewaySelectedPlatformDelegatesOrReportsRowBacked(t *testing.T) {
 		}
 	})
 
+	t.Run("navivox uses native setup", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("GORMES_HOME", home)
+
+		cmd := &cobra.Command{}
+		var stdout strings.Builder
+		cmd.SetOut(&stdout)
+		cmd.SetIn(strings.NewReader("n\n"))
+		err := runSetupGatewayPlatform(cmd, "navivox", func(*cobra.Command) error {
+			t.Fatal("navivox platform called WhatsApp setup")
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("runSetupGatewayPlatform error = %v stdout=%s", err, stdout.String())
+		}
+		for _, want := range []string{"Navivox Gateway Channel", "Navivox gateway channel disabled."} {
+			if !strings.Contains(stdout.String(), want) {
+				t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+			}
+		}
+		if strings.Contains(stdout.String(), "setup_gateway_platform_row_backed") {
+			t.Fatalf("navivox fell through to row-backed fallback:\n%s", stdout.String())
+		}
+	})
+
 	t.Run("injected platform handlers", func(t *testing.T) {
 		home := t.TempDir()
 		t.Setenv("GORMES_HOME", home)

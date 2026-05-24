@@ -2772,6 +2772,12 @@ func runSetupGatewayPlatform(cmd *cobra.Command, platform string, runWhatsAppSet
 		return runSetupSlackGatewayPlatform(cmd)
 	case "whatsapp":
 		return runWhatsAppSetup(cmd)
+	case "navivox":
+		cfg, err := config.Load(nil)
+		if err != nil {
+			return fmt.Errorf("setup navivox: load config: %w", err)
+		}
+		return runSetupNavivoxGateway(cmd, cfg)
 	default:
 		return runSetupGatewayPlatformRowBacked(cmd, platform)
 	}

@@ -221,6 +221,60 @@ func TestSetupQuickPromptsTargetBeforeProviderWork(t *testing.T) {
 	}
 }
 
+func TestSetupQuickNavivoxTargetRunsNavivoxBeforeProviderWork(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: " ", Model: " "},
+	}
+	seams := fake.seams()
+	seams.ChooseSetupTarget = func(_ *cobra.Command, targets []cli.SetupTargetOption, defaultOption int) (cli.SetupTargetID, error) {
+		events = append(events, "target")
+		if defaultOption != 0 || len(targets) < 6 || targets[5].ID != cli.SetupTargetNavivox {
+			t.Fatalf("targets=%#v default=%d, want navivox available after terminal/default", targets, defaultOption)
+		}
+		return cli.SetupTargetNavivox, nil
+	}
+	seams.RunGatewayPlatform = func(_ *cobra.Command, platform string) error {
+		events = append(events, "channel:"+platform)
+		if platform != string(cli.SetupTargetNavivox) {
+			t.Fatalf("RunGatewayPlatform platform = %q, want navivox", platform)
+		}
+		return nil
+	}
+	seams.RunSetupProvider = func(*cobra.Command, bool) error {
+		events = append(events, "provider")
+		fake.current = cli.ProviderModel{Provider: "openai-codex", Model: " "}
+		return nil
+	}
+	seams.RunModelPicker = func(*cobra.Command) error {
+		events = append(events, "model")
+		fake.current = cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"}
+		return nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		events = append(events, "live-test")
+		return nil
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		t.Fatal("navivox quick setup launched terminal chat")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got, want := strings.Join(events, ","), "target,channel:navivox,provider,model,live-test"; got != want {
+		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+	if !strings.Contains(stdout, "Channel setup checked. Start messaging with: gormes gateway") {
+		t.Fatalf("stdout missing navivox channel handoff:\n%s", stdout)
+	}
+}
+
 func TestSetupQuickNonInteractivePrintsTargetCommands(t *testing.T) {
 	prompted := false
 	fake := &setupCommandFakeSeams{

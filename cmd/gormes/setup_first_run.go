@@ -130,6 +130,15 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 		if !ok {
 			return newExitCodeError(2, fmt.Errorf("setup_target_invalid_selection: %s", selected))
 		}
+		plan = buildFirstRunPlanFromConfig(cfg, target, !nonInteractive)
+	}
+
+	channelRanBeforeCore := false
+	if setupQuickChannelBeforeCore(target, plan, nonInteractive) {
+		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
+			return err
+		}
+		channelRanBeforeCore = true
 	}
 
 	if err := runSetupQuickCore(cmd, seams, nonInteractive); err != nil {
@@ -139,7 +148,7 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 	if err != nil {
 		return err
 	}
-	if _, missingChannel := plan.Step(cli.FirstRunStepChannel); missingChannel && isSetupQuickChannelTarget(target) {
+	if _, missingChannel := plan.Step(cli.FirstRunStepChannel); missingChannel && isSetupQuickChannelTarget(target) && !channelRanBeforeCore {
 		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
 			return err
 		}
@@ -185,6 +194,17 @@ func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteracti
 	fmt.Fprintf(out, "Current model/provider: %s via %s\n", current.Model, current.Provider)
 	fmt.Fprintln(out, "No missing core setup items detected.")
 	return nil
+}
+
+// Navivox pairing is the selected destination, so put its native channel
+// setup before provider repair. Other quick targets keep the legacy
+// provider/model/channel order covered by existing setup tests.
+func setupQuickChannelBeforeCore(target cli.SetupTargetID, plan cli.FirstRunPlan, nonInteractive bool) bool {
+	if nonInteractive || normalizeSetupQuickTarget(target) != cli.SetupTargetNavivox {
+		return false
+	}
+	_, missingChannel := plan.Step(cli.FirstRunStepChannel)
+	return missingChannel
 }
 
 func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID, nonInteractive bool) error {
