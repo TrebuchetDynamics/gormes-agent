@@ -10,9 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	migratehermes "github.com/TrebuchetDynamics/gormes-agent/internal/migrate/hermes"
-	openclawmigrate "github.com/TrebuchetDynamics/gormes-agent/internal/migrate/openclaw"
 )
 
 // newMigrateCommand wires the `gormes migrate` subtree. Current slices
@@ -128,14 +127,14 @@ func newMigrateHermesCommand() *cobra.Command {
 // because Go's JSON decoder ignores the unknown `build` field.
 type migrateHermesDryRunReportJSON struct {
 	Build buildProvenanceJSON `json:"build"`
-	*migratehermes.Manifest
+	*gormescli.MigrateHermesManifest
 }
 
 // runMigrateHermesDryRun preserves the existing JSON manifest output for
 // `gormes migrate hermes --dry-run` so dry-run callers see the same
 // fixture-validated payload after the writer slice lands.
 func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
-	m, err := migratehermes.BuildManifest(migratehermes.Options{
+	m, err := gormescli.BuildMigrateHermesManifest(gormescli.MigrateHermesOptions{
 		Source:            strings.TrimSpace(source),
 		ExistingGormesEnv: collectGormesEnvSnapshot(),
 	})
@@ -145,8 +144,8 @@ func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(migrateHermesDryRunReportJSON{
-		Build:    newBuildProvenance(),
-		Manifest: m,
+		Build:                 newBuildProvenance(),
+		MigrateHermesManifest: m,
 	}); err != nil {
 		return fmt.Errorf("gormes migrate hermes: encode manifest: %w", err)
 	}
@@ -160,7 +159,7 @@ func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
 // use the same explicit --source > $HERMES_HOME > ~/.hermes chain.
 func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bool) error {
 	existingEnv := collectGormesEnvSnapshot()
-	manifest, err := migratehermes.BuildManifest(migratehermes.Options{
+	manifest, err := gormescli.BuildMigrateHermesManifest(gormescli.MigrateHermesOptions{
 		Source:            strings.TrimSpace(source),
 		ExistingGormesEnv: existingEnv,
 	})
@@ -180,7 +179,7 @@ func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bo
 	}
 	destEnv := filepath.Join(destDir, ".env")
 
-	out, err := migratehermes.ApplyManifest(migratehermes.WriteRequest{
+	out, err := gormescli.ApplyMigrateHermesManifest(gormescli.MigrateHermesWriteRequest{
 		Manifest:          *manifest,
 		DestConfigDir:     destDir,
 		DestEnvFile:       destEnv,
@@ -198,21 +197,21 @@ func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bo
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(migrateHermesApplyReportJSON{
-		Build:        newBuildProvenance(),
-		WriteOutcome: out,
+		Build:                     newBuildProvenance(),
+		MigrateHermesWriteOutcome: out,
 	}); err != nil {
 		return fmt.Errorf("gormes migrate hermes: encode outcome: %w", err)
 	}
 	return nil
 }
 
-// migrateHermesApplyReportJSON wraps migratehermes.WriteOutcome with
+// migrateHermesApplyReportJSON wraps gormescli.MigrateHermesWriteOutcome with
 // build provenance so fleet automation orchestrating
 // Hermes-to-Gormes migration across machines can attribute each apply
 // outcome to the binary version that emitted it.
 type migrateHermesApplyReportJSON struct {
 	Build buildProvenanceJSON `json:"build"`
-	migratehermes.WriteOutcome
+	gormescli.MigrateHermesWriteOutcome
 }
 
 // gormesConfigPath returns the destination config.toml path used when
@@ -264,11 +263,11 @@ func newMigrateOpenClawCommand() *cobra.Command {
 // fields stay top-level via struct embedding.
 type migrateOpenClawDryRunReportJSON struct {
 	Build buildProvenanceJSON `json:"build"`
-	*openclawmigrate.Manifest
+	*gormescli.MigrateOpenClawManifest
 }
 
 func runMigrateOpenClawDryRun(cmd *cobra.Command, source string) error {
-	m, err := openclawmigrate.BuildManifest(openclawmigrate.Options{
+	m, err := gormescli.BuildMigrateOpenClawManifest(gormescli.MigrateOpenClawOptions{
 		Source:            strings.TrimSpace(source),
 		ExistingGormesEnv: collectMigrationEnvSnapshot(),
 	})
@@ -278,8 +277,8 @@ func runMigrateOpenClawDryRun(cmd *cobra.Command, source string) error {
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(migrateOpenClawDryRunReportJSON{
-		Build:    newBuildProvenance(),
-		Manifest: m,
+		Build:                   newBuildProvenance(),
+		MigrateOpenClawManifest: m,
 	}); err != nil {
 		return fmt.Errorf("gormes migrate openclaw: encode manifest: %w", err)
 	}
@@ -292,7 +291,7 @@ func runMigrateOpenClawApply(cmd *cobra.Command, source, dest string, overwrite,
 		return newExitCodeError(2, errors.New("gormes migrate openclaw --yes: --source is required"))
 	}
 	existingEnv := collectMigrationEnvSnapshot()
-	manifest, err := openclawmigrate.BuildManifest(openclawmigrate.Options{
+	manifest, err := gormescli.BuildMigrateOpenClawManifest(gormescli.MigrateOpenClawOptions{
 		Source:            source,
 		ExistingGormesEnv: existingEnv,
 	})
@@ -311,7 +310,7 @@ func runMigrateOpenClawApply(cmd *cobra.Command, source, dest string, overwrite,
 	memoryDir := gormesMemoryDir()
 	reportRoot := gormesMigrationReportRoot()
 
-	out, err := openclawmigrate.ApplyManifest(openclawmigrate.ApplyRequest{
+	out, err := gormescli.ApplyMigrateOpenClawManifest(gormescli.MigrateOpenClawApplyRequest{
 		Manifest:          *manifest,
 		DestConfigDir:     destDir,
 		DestEnvFile:       destEnv,
@@ -334,26 +333,26 @@ func runMigrateOpenClawApply(cmd *cobra.Command, source, dest string, overwrite,
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(migrateOpenClawApplyReportJSON{
-		Build:        newBuildProvenance(),
-		ApplyOutcome: out,
+		Build:                       newBuildProvenance(),
+		MigrateOpenClawApplyOutcome: out,
 	}); err != nil {
 		return fmt.Errorf("gormes migrate openclaw: encode outcome: %w", err)
 	}
 	return nil
 }
 
-// migrateOpenClawApplyReportJSON wraps openclawmigrate.ApplyOutcome
+// migrateOpenClawApplyReportJSON wraps gormescli.MigrateOpenClawApplyOutcome
 // with build provenance.
 type migrateOpenClawApplyReportJSON struct {
 	Build buildProvenanceJSON `json:"build"`
-	openclawmigrate.ApplyOutcome
+	gormescli.MigrateOpenClawApplyOutcome
 }
 
-// migrateOpenClawCleanupReportJSON wraps openclawmigrate.CleanupOutcome
+// migrateOpenClawCleanupReportJSON wraps gormescli.MigrateOpenClawCleanupOutcome
 // with build provenance.
 type migrateOpenClawCleanupReportJSON struct {
 	Build buildProvenanceJSON `json:"build"`
-	openclawmigrate.CleanupOutcome
+	gormescli.MigrateOpenClawCleanupOutcome
 }
 
 func newMigrateOpenClawCleanupCommand() *cobra.Command {
@@ -378,7 +377,7 @@ func newOpenClawCleanupCommand(commandLabel string, aliases []string) *cobra.Com
 				return newExitCodeError(2, fmt.Errorf("%s: use --yes to apply or --dry-run to inspect", commandLabel))
 			}
 			home, _ := os.UserHomeDir()
-			out, err := openclawmigrate.PerformCleanup(openclawmigrate.CleanupRequest{
+			out, err := gormescli.PerformMigrateOpenClawCleanup(gormescli.MigrateOpenClawCleanupRequest{
 				HomeDir: home,
 				DryRun:  dryRun,
 			})
@@ -388,8 +387,8 @@ func newOpenClawCleanupCommand(commandLabel string, aliases []string) *cobra.Com
 			enc := json.NewEncoder(cmd.OutOrStdout())
 			enc.SetIndent("", "  ")
 			if err := enc.Encode(migrateOpenClawCleanupReportJSON{
-				Build:          newBuildProvenance(),
-				CleanupOutcome: out,
+				Build:                         newBuildProvenance(),
+				MigrateOpenClawCleanupOutcome: out,
 			}); err != nil {
 				return fmt.Errorf("%s: encode outcome: %w", commandLabel, err)
 			}
