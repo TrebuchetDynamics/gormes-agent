@@ -9,7 +9,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 )
 
 const (
@@ -65,7 +65,7 @@ func FormatToolProgressEvents(f kernel.RenderFrame, mode, requestID string) []To
 		if !strings.HasPrefix(raw, "tool") {
 			continue
 		}
-		if tooltrace.FormatPlain(raw) == "" {
+		if trace.FormatPlain(raw) == "" {
 			continue
 		}
 		name := toolTraceName(raw)
@@ -733,7 +733,7 @@ func streamPreviewCursorActive(f kernel.RenderFrame) bool {
 }
 
 func formatToolTracePlain(text string) string {
-	return tooltrace.FormatPlain(text)
+	return trace.FormatPlain(text)
 }
 
 func formatToolTraceBlockPlain(events []kernel.SoulEntry) string {
@@ -745,7 +745,7 @@ func formatToolTraceBlockPlainMode(events []kernel.SoulEntry, mode string) strin
 	for _, event := range events {
 		texts = append(texts, event.Text)
 	}
-	return tooltrace.FormatBlockMode(texts, mode)
+	return trace.FormatBlockMode(texts, mode)
 }
 
 func toolTraceName(text string) string {

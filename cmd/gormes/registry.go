@@ -13,8 +13,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/sessionsearchtool"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
 type registryOptions struct {
@@ -46,7 +46,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(&tools.EchoTool{})
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
-	outputCompaction := toolcompact.Config{Mode: toolcompact.ModeAuto}
+	outputCompaction := compact.Config{Mode: compact.ModeAuto}
 	reg.MustRegister(tools.NewExecuteCodeTool(tools.ExecuteCodeToolConfig{
 		ConfigSet:        cfg.CodeExecution.Mode != "",
 		ConfigValue:      cfg.CodeExecution.Mode,

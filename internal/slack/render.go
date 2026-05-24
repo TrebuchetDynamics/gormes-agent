@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 )
 
 const maxSlackText = 40000
@@ -35,7 +35,7 @@ func formatToolTrace(events []kernel.SoulEntry) string {
 	for _, event := range events {
 		texts = append(texts, event.Text)
 	}
-	return tooltrace.FormatBlock(texts)
+	return trace.FormatBlock(texts)
 }
 
 func formatFinal(f kernel.RenderFrame) string {

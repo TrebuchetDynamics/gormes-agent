@@ -1,4 +1,4 @@
-package tooltrace
+package trace
 
 import (
 	"fmt"

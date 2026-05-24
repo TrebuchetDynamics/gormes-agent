@@ -1,4 +1,4 @@
-package toolcompact
+package compact
 
 import (
 	"fmt"

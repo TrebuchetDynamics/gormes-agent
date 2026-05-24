@@ -10,7 +10,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tooltrace"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 )
 
 // Transcript chrome renders through the Gormes-owned semantic style system
@@ -366,7 +366,7 @@ func conversationToolProgressBlockWithMode(f kernel.RenderFrame, wrapWidth int, 
 	for _, event := range f.SoulEvents {
 		texts = append(texts, event.Text)
 	}
-	progress := tooltrace.FormatBlock(texts)
+	progress := trace.FormatBlock(texts)
 	if progress == "" {
 		return ""
 	}

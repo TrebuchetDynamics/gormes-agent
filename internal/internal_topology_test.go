@@ -101,6 +101,35 @@ func defaultTopologyMigrations() []topologyMigration {
 				"hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY",
 			},
 		},
+		{
+			Name:        "toolcompact-rehome",
+			Active:      true,
+			OwnerModule: "tools",
+			OldRoots:    []string{"internal/toolcompact"},
+			NewRoots:    []string{"internal/tools/compact"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"hermes-agent/tools/registry.py",
+				"hermes-agent/tools/terminal_tool.py",
+				"hermes-agent/tools/tool_output_limits.py",
+				"internal/tools/compact/compact.go:Compact",
+			},
+		},
+		{
+			Name:        "tooltrace-rehome",
+			Active:      true,
+			OwnerModule: "tools",
+			OldRoots:    []string{"internal/tooltrace"},
+			NewRoots:    []string{"internal/tools/trace"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"hermes-agent/gateway/run.py",
+				"hermes-agent/agent/display.py",
+				"internal/tools/trace/tooltrace.go:FormatPlain",
+			},
+		},
 	}
 }
 

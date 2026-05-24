@@ -1,4 +1,4 @@
-package toolcompact
+package compact
 
 import (
 	"strings"
@@ -191,8 +191,8 @@ func TestCompact_GitStatusSummarizesFileStates(t *testing.T) {
 	text := strings.Join([]string{
 		"## development...origin/development [ahead 1]",
 		" M internal/tools/execute_code.go",
-		"M  internal/toolcompact/compact.go",
-		"A  internal/toolcompact/compact_test.go",
+		"M  internal/tools/compact/compact.go",
+		"A  internal/tools/compact/compact_test.go",
 		" D old/file.go",
 		"R  old/name.go -> new/name.go",
 		"UU conflicted/file.go",

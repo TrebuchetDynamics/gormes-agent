@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
 type fakeCodeSandbox struct {
@@ -113,8 +113,8 @@ func TestExecuteCodeTool_CompactsLargeStdoutWhenOptedIn(t *testing.T) {
 	}
 	tool := &ExecuteCodeTool{
 		Sandbox: sandbox,
-		OutputCompaction: toolcompact.Config{
-			Mode:           toolcompact.ModeAuto,
+		OutputCompaction: compact.Config{
+			Mode:           compact.ModeAuto,
 			ThresholdBytes: 128,
 			HeadLines:      2,
 			TailLines:      2,
@@ -138,7 +138,7 @@ func TestExecuteCodeTool_CompactsLargeStdoutWhenOptedIn(t *testing.T) {
 	if out.Compaction == nil || out.Compaction.Stdout == nil {
 		t.Fatalf("compaction evidence missing: %#v", out.Compaction)
 	}
-	if !out.Compaction.Stdout.Applied || out.Compaction.Stdout.Reducer != toolcompact.ReducerGoTest {
+	if !out.Compaction.Stdout.Applied || out.Compaction.Stdout.Reducer != compact.ReducerGoTest {
 		t.Fatalf("stdout compaction = %#v, want applied go_test", out.Compaction.Stdout)
 	}
 	if out.Compaction.Stdout.OriginalBytes <= out.Compaction.Stdout.CompactedBytes {
@@ -153,8 +153,8 @@ func TestExecuteCodeTool_FullOutputBypassesCompaction(t *testing.T) {
 	}
 	tool := &ExecuteCodeTool{
 		Sandbox: sandbox,
-		OutputCompaction: toolcompact.Config{
-			Mode:           toolcompact.ModeAuto,
+		OutputCompaction: compact.Config{
+			Mode:           compact.ModeAuto,
 			ThresholdBytes: 128,
 		},
 	}

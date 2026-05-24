@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
 const (
@@ -32,7 +32,7 @@ type TerminalToolConfig struct {
 	MaxOutputBytes   int
 	SubprocessHome   SubprocessHomeResolver
 	WorkspaceScope   *ProfileWorkspaceScope
-	OutputCompaction toolcompact.Config
+	OutputCompaction compact.Config
 }
 
 type TerminalTool struct {
@@ -215,14 +215,14 @@ func (t *TerminalTool) applyOutputCompaction(result *terminalResult, fullOutput 
 	if result == nil || fullOutput {
 		return
 	}
-	stdout := toolcompact.Compact(toolcompact.Request{
+	stdout := compact.Compact(compact.Request{
 		ToolName: "terminal",
 		Command:  result.Command,
 		Stream:   "stdout",
 		Text:     result.Stdout,
 		ExitCode: result.ExitCode,
 	}, t.cfg.OutputCompaction)
-	stderr := toolcompact.Compact(toolcompact.Request{
+	stderr := compact.Compact(compact.Request{
 		ToolName: "terminal",
 		Command:  result.Command,
 		Stream:   "stderr",

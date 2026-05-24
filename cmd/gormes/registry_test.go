@@ -14,8 +14,8 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/toolcompact"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
 
 func TestBuildDefaultRegistryIncludesSessionSearch(t *testing.T) {
@@ -182,7 +182,7 @@ func TestBuildDefaultRegistryEnablesTerminalOutputCompaction(t *testing.T) {
 		t.Fatalf("compaction = %#v, want object: %s", out["compaction"], raw)
 	}
 	stdoutEvidence, ok := compaction["stdout"].(map[string]any)
-	if !ok || stdoutEvidence["reducer"] != toolcompact.ReducerGoTest {
+	if !ok || stdoutEvidence["reducer"] != compact.ReducerGoTest {
 		t.Fatalf("stdout compaction = %#v, want go_test reducer", compaction["stdout"])
 	}
 }
@@ -202,8 +202,8 @@ func TestBuildDefaultRegistryPassesExecuteCodeMode(t *testing.T) {
 	if execTool.Mode != tools.ExecuteCodeModeProject {
 		t.Fatalf("execute_code mode = %q, want %q", execTool.Mode, tools.ExecuteCodeModeProject)
 	}
-	if execTool.OutputCompaction.Mode != toolcompact.ModeAuto {
-		t.Fatalf("execute_code output compaction mode = %q, want %q", execTool.OutputCompaction.Mode, toolcompact.ModeAuto)
+	if execTool.OutputCompaction.Mode != compact.ModeAuto {
+		t.Fatalf("execute_code output compaction mode = %q, want %q", execTool.OutputCompaction.Mode, compact.ModeAuto)
 	}
 
 	reg = buildDefaultRegistry(context.Background(), config.Config{
