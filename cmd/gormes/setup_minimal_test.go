@@ -194,7 +194,22 @@ func TestSetupNoSectionNonTTYPrintsSectionList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Available setup sections:", "provider", "model", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "tools", "gormes setup provider"} {
+	for _, want := range []string{
+		"Available setup sections:",
+		"provider", "Provider",
+		"model", "Model",
+		"workspace", "Workspace",
+		"profiles", "Profiles",
+		"bindings", "Channel Bindings",
+		"tts", "Text-to-Speech",
+		"terminal", "Terminal Backend",
+		"gateway", "Messaging Gateway",
+		"navivox", "Navivox",
+		"tools", "Tools",
+		"Interactive menu: gormes setup",
+		"Terminal/TUI quick setup: gormes setup --quick --target tui",
+		"Provider setup: gormes setup provider",
+	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -246,6 +261,19 @@ func TestSetupNoSectionFreshInstallShowsQuickFullChoice(t *testing.T) {
 	}
 	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
 		t.Fatalf("exit-only setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupReconfigureTipListsEverySection(t *testing.T) {
+	cmd := newSetupCommandWithSeams((&setupCommandFakeSeams{isTTY: true}).seams())
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	printSetupReconfigureBlock(cmd)
+	out := stdout.String()
+	for _, want := range []string{"provider", "model", "fallback", "profiles", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "navivox", "tools"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("reconfigure tip missing setup section %q:\n%s", want, out)
+		}
 	}
 }
 
@@ -343,7 +371,9 @@ func TestSetupFullWizardPrintsReconfigureAndProviderPrelude(t *testing.T) {
 		"◆ Reconfigure",
 		"✓ You already have Gormes configured.",
 		"Running the full wizard - each prompt shows your current value.",
-		"Tip: jump straight to a section with 'gormes setup model|fallback|",
+		"Tip: jump straight to any focused setup section:",
+		"gormes setup provider|model|fallback|agent|workspace|profiles",
+		"bindings|tts|terminal|gateway|navivox|tools",
 		"◆ Configuration Location",
 		"Config file:  " + config.ConfigPath(),
 		"Secrets file: " + config.EnvPath(),

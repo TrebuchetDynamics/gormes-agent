@@ -2,10 +2,12 @@
 
 Date: 2026-05-23
 
-Status: **primary consolidation implemented on `development`.** The first-pass
-topology budgets are met and guarded by `internal/internal_topology_test.go`.
-Stretch targets remain optional follow-up work; this file is not a side backlog
-and does not authorize runtime behavior changes.
+Status: **primary consolidation closed on `development`.** The first-pass
+topology budgets are met and guarded by `internal/internal_topology_test.go`;
+the closeout guard now also keeps `cmd/gormes` at or below 34 direct
+`internal/...` imports after moving setup module ownership constants behind the
+`internal/cli/gormescli` surface. Stretch targets remain optional follow-up work;
+this file is not a side backlog and does not authorize runtime behavior changes.
 
 Branch rule: work only on `development`. Do not create feature branches or
 worktrees.
@@ -40,6 +42,11 @@ The long-term refactor is successful when all of these are true:
 5. Every move is protected by a red characterization/topology test before the
    import-path move and by focused package tests plus `go run ./cmd/progress
    validate` and `git diff --check` after the move.
+6. Future stretch rows preserve Hermes' source-family contracts, not only
+   Gormes folder-count budgets: plugin discovery, provider registration,
+   ACP metadata/server boundaries, cron delivery, gateway platform plugins,
+   tool registration, and TUI gateway transport each keep an explicit owner
+   seam in Go.
 
 ## Why The Old Plan Is Closed
 
@@ -127,6 +134,67 @@ Hermes reference facts from the in-repo checkout `./hermes-agent`:
   moving Gormes `toolcompact`, `tooltrace`, `lsp`, `gonchotools`,
   `kanbantools`, and `sessionsearchtool` under `internal/tools/*`.
 
+## Hermes Source-Family Parity Addendum
+
+Refresh evidence from `./hermes-agent` at `43e566f77` on 2026-05-24 sharpened
+this plan beyond the original folder-count pass. These facts are source-family
+contracts for future rows; they are not standalone implementation tasks.
+
+- `hermes_cli/plugins.py` is a first-class plugin runtime, not a thin import
+  helper. It discovers bundled, user, project, and pip entry-point plugins;
+  requires `plugin.yaml` plus `register(ctx)` for directory plugins; exposes
+  `PluginContext.register_tool`, `register_cli_command`, `register_hook`,
+  `register_browser_provider`, and `register_platform`; and invokes lifecycle
+  hooks such as `pre_tool_call`, `post_tool_call`, `pre_llm_call`, and
+  `post_llm_call`. Gormes stretch rows must keep plugin mechanics under
+  `internal/plugins` (plus domain-specific registries) instead of hiding them
+  inside `cmd/gormes` or `internal/tools`.
+- `providers/__init__.py` is a lazy provider-profile registry with bundled
+  `plugins/model-providers/<name>`, user `$HERMES_HOME/plugins/model-providers`,
+  alias lookup, user-overrides-bundled precedence, and legacy single-file
+  provider fallback. Gormes provider topology should preserve the split between
+  provider profile discovery (`internal/provider` / plugin registry) and wire
+  inference transports (`internal/hermes`).
+- `tools/registry.py` is a self-registering tool registry with dynamic module
+  discovery, toolset aliases, toolset availability checks, TTL-cached external
+  probes, registry generation counters, and MCP refresh support. Gormes
+  `internal/tools` is the correct owner for tool descriptors and adapters;
+  plugin-defined tools should enter through the registry seam, not through
+  package-path shortcuts.
+- `gateway/platforms/*.py` plus `plugins/platforms/*` show that Hermes' channel
+  surface is both built-in and plugin-extensible. Gormes should keep
+  `internal/gateway` as lifecycle/session/coalescing owner and
+  `internal/channels/<platform>` as built-in adapters, while plugin platforms
+  route through `internal/plugins`/gateway registration rather than becoming
+  new shallow top-level folders.
+- `acp_adapter/server.py` and `acp_registry/agent.json` make ACP a separate
+  editor/protocol surface: server implementation, session/resource conversion,
+  auth methods, tool progress events, and package metadata are not generic CLI
+  glue. Gormes' `internal/acp` should remain a domain owner, with only command
+  presentation in `cmd/gormes`/`internal/cli`.
+- `cron/scheduler.py` owns unattended job execution, file locking, per-job and
+  per-platform toolset resolution, delivery targets, prompt-injection blocking,
+  and plugin platform delivery env-var lookup. Gormes `internal/cron` remains a
+  domain owner; do not bury cron mechanics under gateway or generic runtime just
+  to reduce top-level directories.
+- `ui-tui/src/app.tsx` composes a Gateway-backed TUI (`GatewayProvider`,
+  app actions/composer/progress/status/transcript). Gormes' split between
+  `internal/tui`, `internal/tuigateway`, and dashboard/API surfaces should be
+  evaluated against that transport boundary, not only against terminal widgets.
+- `skills/` and `optional-skills/` are both user-facing skill supply surfaces in
+  Hermes. Gormes `internal/skills` owns runtime skill loading/usage, while
+  bundled skill distribution, sync, and optional catalogs should stay explicit
+  package or docs assets rather than being folded into generic plugin code.
+
+Parity implication: future architecture rows should cite the specific Hermes
+source family above and the matching Gormes owner seam. A move that only lowers
+`internal/` directory count but obscures one of these contracts fails the
+parity test and needs planner redesign before builder/TDD work. This implication
+is executable: `internal/internal_topology_test.go` includes
+`TestInternalTopologyProtectsHermesSourceFamilyOwners`, which keeps the mapped
+Gormes owner roots present for plugin, provider, tool, channel, ACP, cron,
+TUI-gateway, skills, and Gormes-owned progress families.
+
 ## Hermes Resemblance Rules
 
 Resemble Hermes at the **module-family** level, not at the file-count or
@@ -140,9 +208,13 @@ monolith level.
 | `hermes_cli/claw.py` | `internal/migrate/openclaw` and `cmd/gormes migrate/openclaw` adapters | Migration is its own domain, not generic CLI glue. |
 | `gateway/run.py`, `gateway/platforms/*` | `internal/gateway` + `internal/channels/<platform>` | Gateway owns lifecycle/session/coalescing; channel adapters own platform transport and rendering. |
 | `agent/*` | `internal/kernel`, `internal/hermes`, `internal/agent`, `internal/memory`, `internal/store` | Preserve Gormes' deeper Go seams; do not merge into one `agent` package just to match Python. |
-| `tools/*` | `internal/tools/*` | Tool adapters/helpers live behind the tool registry seam. |
-| `providers/*` and provider adapters in `agent/*` | `internal/hermes` + `internal/provider` | Provider wire/model behavior stays out of CLI and gateway modules. |
-| `skills/*` | `internal/skills` | Skills remain a deep runtime module, with command presentation via CLI modules only. |
+| `tools/*` | `internal/tools/*` | Tool adapters/helpers live behind the tool registry seam; plugin-defined tools enter through the same registry, not through top-level helper packages. |
+| `providers/*` and `plugins/model-providers/*` | `internal/hermes` + `internal/provider` + `internal/plugins` | Provider wire/model behavior stays out of CLI and gateway modules; profile discovery/override semantics stay separate from HTTP transports. |
+| `hermes_cli/plugins.py`, `plugins/*`, `agent/*_registry.py` | `internal/plugins` plus domain registries under `internal/provider`, `internal/tools`, `internal/channels`, `internal/memory`, and media/browser modules | Plugin discovery, manifests, hooks, CLI command registration, platform registration, provider registration, and tool registration are runtime extension contracts, not command-package cleanup targets. |
+| `acp_adapter/*`, `acp_registry/agent.json` | `internal/acp` + thin `cmd/gormes`/`internal/cli` presentation | ACP is an editor/protocol surface with its own auth/session/resource/tool-progress contracts; keep it out of generic CLI/runtime buckets. |
+| `cron/*` | `internal/cron` | Cron owns unattended job scheduling, locks, toolset resolution, delivery, and prompt-injection safety; gateway may trigger ticks but should not own cron policy. |
+| `ui-tui/*`, dashboard/web gateway clients | `internal/tui` + `internal/tuigateway` + `internal/apiserver` | Preserve the transport/UI boundary: TUI widgets, gateway event transport, and dashboard/API surfaces are related but not one package. |
+| `skills/*`, `optional-skills/*`, skill tools in `tools/*` | `internal/skills` plus bundled skill assets/sync surfaces | Skills remain a deep runtime module; distribution/sync/catalog surfaces stay explicit and command presentation routes through CLI modules only. |
 | Gormes-only progress delivery | `internal/progress/*` | This has no Hermes analog; keep it explicitly Gormes-owned and away from runtime agent modules. |
 
 Anti-rule: do not move code just because a path name differs from Hermes. Move
@@ -253,8 +325,14 @@ find internal -mindepth 1 -maxdepth 1 -type d ! -name '.*' | wc -l
 
 go list -f '{{join .Imports "\n"}}' ./cmd/gormes \
   | rg '^github.com/TrebuchetDynamics/gormes-agent/internal' | wc -l
-# 35
+# 34
 ```
+
+Closeout increment: `cmd/gormes/setup.go` no longer imports
+`internal/progress` only to spell static setup-section module ownership.
+`internal/cli/gormescli` now owns the setup module constants beside
+`SetupRegistry`, keeping progress taxonomy validation hidden behind the CLI
+surface.
 
 Stretch targets after the second pass:
 
@@ -1005,10 +1083,27 @@ implementation to builders:
   implementation rows.
 
 If any item is missing, keep iterating on this plan. If all items are satisfied,
-the next safe action is a planner pass that inserts the topology guard row into
-`progress.json`, followed by a TDD builder row.
+treat this plan as closed and use `progress.json` for any future stretch row.
 
-## Top Recommendation
+## Closeout Addendum
+
+The primary topology plan is closed on `development`:
+
+- `internal/internal_topology_test.go` guards the primary 45-directory budget,
+  active forbidden legacy roots, the closeout 34-import `cmd/gormes` direct
+  internal-import budget, and the Hermes source-family owner seams that must
+  not be collapsed by stretch refactors.
+- The first-pass rehomes named in this plan are represented as active topology
+  migrations and pass with no stale old roots outside the intentional migration
+  table.
+- The final TDD closeout slice removed the direct `cmd/gormes` dependency on
+  `internal/progress` for setup-section module constants; progress module
+  validation remains hidden inside `internal/cli/gormescli.SetupRegistry`.
+- Future stretch targets (38 top-level directories, 20 direct `cmd/gormes`
+  imports, and deeper command-family packages) require new progress rows and
+  should not be inferred from this historical plan.
+
+## Historical Top Recommendation
 
 Start with **CLI Surface Enclave** plus a topology guard, then **Tool Adapter
 Enclave**. This order best satisfies the user goal of a long-term structure that

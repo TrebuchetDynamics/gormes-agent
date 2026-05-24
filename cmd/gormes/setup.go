@@ -24,7 +24,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/pelletier/go-toml/v2"
@@ -49,18 +48,18 @@ var setupSectionLabels = setupRegistry.Labels()
 
 func defaultSetupSections() []gormescli.SetupSection {
 	sections := []gormescli.SetupSection{
-		{Name: "agent", Label: "Agent Settings", Module: progress.ModuleGateway},
-		{Name: "workspace", Label: "Workspace", Module: progress.ModuleGateway},
+		{Name: "agent", Label: "Agent Settings", Module: gormescli.SetupModuleGateway},
+		{Name: "workspace", Label: "Workspace", Module: gormescli.SetupModuleGateway},
 	}
 	sections = append(providermodule.SetupSections(), sections...)
 	sections = append(sections, profilemodule.SetupSections()...)
 	sections = append(sections,
-		gormescli.SetupSection{Name: "bindings", Label: "Channel Bindings", Module: progress.ModuleGateway},
-		gormescli.SetupSection{Name: "tts", Label: "Text-to-Speech", Module: progress.ModuleTTS},
-		gormescli.SetupSection{Name: "terminal", Label: "Terminal Backend", Module: progress.ModuleTUI},
-		gormescli.SetupSection{Name: "gateway", Label: "Messaging Gateway", Module: progress.ModuleGateway},
-		gormescli.SetupSection{Name: "navivox", Label: "Navivox", Module: progress.ModuleNavivox},
-		gormescli.SetupSection{Name: "tools", Label: "Tools", Module: progress.ModuleTools},
+		gormescli.SetupSection{Name: "bindings", Label: "Channel Bindings", Module: gormescli.SetupModuleGateway},
+		gormescli.SetupSection{Name: "tts", Label: "Text-to-Speech", Module: gormescli.SetupModuleTTS},
+		gormescli.SetupSection{Name: "terminal", Label: "Terminal Backend", Module: gormescli.SetupModuleTUI},
+		gormescli.SetupSection{Name: "gateway", Label: "Messaging Gateway", Module: gormescli.SetupModuleGateway},
+		gormescli.SetupSection{Name: "navivox", Label: "Navivox", Module: gormescli.SetupModuleNavivox},
+		gormescli.SetupSection{Name: "tools", Label: "Tools", Module: gormescli.SetupModuleTools},
 	)
 	return sections
 }
@@ -459,11 +458,16 @@ func resetSetupDefaultConfig() (string, error) {
 }
 
 func printSetupSections(cmd *cobra.Command) {
-	fmt.Fprintln(cmd.OutOrStdout(), "Available setup sections:")
-	for _, section := range setupSections {
-		fmt.Fprintf(cmd.OutOrStdout(), "  - %s\n", section)
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Available setup sections:")
+	for _, section := range setupRegistry.Sections() {
+		fmt.Fprintf(out, "  - %-10s %s\n", section.Name, section.Label)
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "\nQuick start: run `gormes setup provider` to configure your LLM provider.")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Quick starts:")
+	fmt.Fprintln(out, "  Interactive menu: gormes setup")
+	fmt.Fprintln(out, "  Terminal/TUI quick setup: gormes setup --quick --target tui")
+	fmt.Fprintln(out, "  Provider setup: gormes setup provider")
 }
 
 func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
@@ -950,9 +954,24 @@ func printSetupReconfigureBlock(cmd *cobra.Command) {
 	fmt.Fprintln(out, "  Running the full wizard - each prompt shows your current value.")
 	fmt.Fprintln(out, "  Press Enter to keep it, or type a new value to change it.")
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "  Tip: jump straight to a section with 'gormes setup model|fallback|")
-	fmt.Fprintln(out, "       terminal|gateway|tools|agent', or fill only missing items with --quick.")
+	fmt.Fprintln(out, "  Tip: jump straight to any focused setup section:")
+	fmt.Fprintf(out, "       gormes setup %s\n", setupSectionPipeList(0, 6))
+	fmt.Fprintf(out, "                    %s\n", setupSectionPipeList(6, len(setupSections)))
+	fmt.Fprintln(out, "       Or fill only missing items with: gormes setup --quick")
 	fmt.Fprintln(out)
+}
+
+func setupSectionPipeList(start, end int) string {
+	if start < 0 {
+		start = 0
+	}
+	if end > len(setupSections) {
+		end = len(setupSections)
+	}
+	if start >= end {
+		return ""
+	}
+	return strings.Join(setupSections[start:end], "|")
 }
 
 func printSetupConfigurationLocation(cmd *cobra.Command) {

@@ -16,6 +16,17 @@ type SetupSection struct {
 	Module string
 }
 
+// Setup module constants keep command-surface metadata in the CLI layer so
+// cmd/gormes does not need to import progress schema details for static setup
+// section ownership.
+const (
+	SetupModuleGateway = progress.ModuleGateway
+	SetupModuleNavivox = progress.ModuleNavivox
+	SetupModuleTools   = progress.ModuleTools
+	SetupModuleTTS     = progress.ModuleTTS
+	SetupModuleTUI     = progress.ModuleTUI
+)
+
 // SetupRegistry preserves ordered setup sections and exposes compatibility
 // views for the existing cmd/gormes setup code.
 type SetupRegistry struct {

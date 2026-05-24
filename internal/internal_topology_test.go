@@ -31,6 +31,12 @@ type topologyMigration struct {
 	SourceRefs  []string
 }
 
+type hermesOwnerSeam struct {
+	OwnerModule string
+	HermesRefs  []string
+	GormesRoots []string
+}
+
 type topologyViolation struct {
 	Migration   string
 	OwnerModule string
@@ -62,6 +68,14 @@ func TestInternalTopologyPrimaryDirectoryBudget(t *testing.T) {
 	}
 }
 
+func TestInternalTopologyPrimaryImportBudget(t *testing.T) {
+	report := loadInternalTopologyReport(t)
+	const primaryTarget = 34
+	if report.CmdGormesDirectInternalImports > primaryTarget {
+		t.Fatalf("cmd/gormes direct internal imports = %d, want <= %d per internal/REFACTOR-CMD-PLAN.md closeout target\n%s", report.CmdGormesDirectInternalImports, primaryTarget, strings.Join(report.DirectInternalImports, "\n"))
+	}
+}
+
 func TestInternalTopologyMigrationEntryShape(t *testing.T) {
 	entry := findTopologyMigration(t, defaultTopologyMigrations(), "cli-surface-rehome")
 	if entry.OwnerModule == "" || len(entry.OldRoots) == 0 || len(entry.NewRoots) == 0 || len(entry.SourceRefs) == 0 {
@@ -89,6 +103,70 @@ func TestInternalTopologyDetectsForbiddenLegacyRoot(t *testing.T) {
 	}
 	if !topologyViolationsMention(violations, "internal/cli/gormescli") {
 		t.Fatalf("expected synthetic red signal to mention internal/cli/gormescli, got:\n%s", formatTopologyViolations(violations))
+	}
+}
+
+func TestInternalTopologyProtectsHermesSourceFamilyOwners(t *testing.T) {
+	repoRoot := topologyRepoRoot(t)
+	for _, seam := range protectedHermesOwnerSeams() {
+		for _, root := range seam.GormesRoots {
+			if !pathExists(filepath.Join(repoRoot, filepath.FromSlash(root))) {
+				t.Fatalf("Hermes source-family owner seam %q for %s is missing Gormes root %s", seam.OwnerModule, strings.Join(seam.HermesRefs, ", "), root)
+			}
+		}
+		if len(seam.HermesRefs) == 0 {
+			t.Fatalf("Hermes source-family owner seam %q must carry source refs", seam.OwnerModule)
+		}
+	}
+}
+
+func protectedHermesOwnerSeams() []hermesOwnerSeam {
+	return []hermesOwnerSeam{
+		{
+			OwnerModule: "plugins",
+			HermesRefs:  []string{"hermes-agent/hermes_cli/plugins.py", "hermes-agent/plugins/*", "hermes-agent/agent/*_registry.py"},
+			GormesRoots: []string{"internal/plugins"},
+		},
+		{
+			OwnerModule: "providers",
+			HermesRefs:  []string{"hermes-agent/providers/__init__.py", "hermes-agent/plugins/model-providers/*"},
+			GormesRoots: []string{"internal/provider", "internal/hermes", "internal/plugins"},
+		},
+		{
+			OwnerModule: "tools",
+			HermesRefs:  []string{"hermes-agent/tools/registry.py", "hermes-agent/tools/*"},
+			GormesRoots: []string{"internal/tools"},
+		},
+		{
+			OwnerModule: "channels",
+			HermesRefs:  []string{"hermes-agent/gateway/run.py", "hermes-agent/gateway/platforms/*", "hermes-agent/plugins/platforms/*"},
+			GormesRoots: []string{"internal/gateway", "internal/channels", "internal/plugins"},
+		},
+		{
+			OwnerModule: "acp",
+			HermesRefs:  []string{"hermes-agent/acp_adapter/*", "hermes-agent/acp_registry/agent.json"},
+			GormesRoots: []string{"internal/acp"},
+		},
+		{
+			OwnerModule: "cron",
+			HermesRefs:  []string{"hermes-agent/cron/scheduler.py", "hermes-agent/cron/jobs.py"},
+			GormesRoots: []string{"internal/cron"},
+		},
+		{
+			OwnerModule: "tui-gateway",
+			HermesRefs:  []string{"hermes-agent/ui-tui/src/app.tsx", "hermes-agent/ui-tui/src/lib/gatewayClient.ts"},
+			GormesRoots: []string{"internal/tui", "internal/tuigateway", "internal/apiserver"},
+		},
+		{
+			OwnerModule: "skills",
+			HermesRefs:  []string{"hermes-agent/skills/*", "hermes-agent/optional-skills/*", "hermes-agent/tools/skills_tool.py"},
+			GormesRoots: []string{"internal/skills"},
+		},
+		{
+			OwnerModule: "progress",
+			HermesRefs:  []string{"Gormes-owned: no Hermes source-family analogue"},
+			GormesRoots: []string{"internal/progress"},
+		},
 	}
 }
 
