@@ -76,7 +76,7 @@ Use this order when several skills could apply:
 
 | User words or artifact | Usually means | First skill |
 |---|---|---|
-| `/goal`, keep going, finish Gormes | persistent objective | `gormes-goal` |
+| `/goal`, development-goal iteration, DEV_GOAL markers, keep going, finish Gormes | persistent objective or runner contract | `gormes-goal` |
 | `PR`, mergeable, checks, comments | PR readiness | `gormes-pr-check` |
 | Greptile, 5/5, unresolved review | automated review loop | `gormes-greptile-loop` |
 | score this, production-ready, no Greptile | local quality score | `gormes-review-scorecard` |
@@ -111,7 +111,7 @@ Use this order when several skills could apply:
 Pick the primary intent:
 
 - **Decide direction**: use the global `grill-me` skill and optionally `gormes-planner`; do not create a repo-local `grill-me` shadow skill.
-- **Persistent long-running objective or `/goal` command**: use `gormes-goal` first to set, inspect, pause, resume, clear, or complete the active goal. Route the goal's concrete work through the smallest applicable Gormes skill chain.
+- **Persistent long-running objective, `/goal` command, or development-goal runner prompt**: use `gormes-goal` first to set, inspect, pause, resume, clear, complete, or preserve the runner's final marker contract. Route concrete work through the smallest applicable Gormes skill chain, but keep development-goal `DEV_GOAL_*` markers as the final response tail.
 - **Run recurring or periodic Hermes/Gormes parity progress sweeps**:
   use `gormes-hermes-parity` as the orchestrator. It loads only the needed
   parity reference and manages follow-up subskills such as
@@ -197,9 +197,11 @@ Pick the primary intent:
   It may route dirty-worktree commit/push work through `gormes-git`, but it
   owns release intent, version/tag checks, artifact verification, and recovery
   stop conditions.
-- **Create or improve skills**: use system `skill-creator` plus this manager.
-  Fold repeated mistakes into existing class-level skills before creating a
-  new one, and keep the update as process guidance rather than a session diary.
+- **Create or improve skills**: use global `writing-skills` for the skill-doc
+  red/green loop, use system `skill-creator` validation when available, plus
+  this manager for Gormes routing. Fold repeated mistakes into existing
+  class-level skills before creating a new one, and keep the update as
+  process guidance rather than a session diary.
 - **Learn from past Gormes tasks**: improve the existing skill that should have
   prevented the mistake. Installer, PATH, `go run`, `bin/gormes`,
   `GORMES_HOME`, `workspace-gormes`, or `sessions.db` lessons belong in

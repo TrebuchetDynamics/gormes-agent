@@ -1,11 +1,11 @@
 ---
 name: gormes-goal
-description: Use when working on Gormes with a persistent long-running objective, when the user says /goal, gormes goal, keep going, finish Gormes, prove it works, or asks to pause, resume, clear, status, or complete a goal.
+description: Use when working on Gormes with a persistent long-running objective, a development-goal runner iteration, /goal, gormes goal, keep going, finish Gormes, prove it works, or goal status, pause, resume, clear, or completion requests.
 ---
 
 # Gormes Goal
 
-Persistent local goal state for long-running Gormes work. Use this before responding to `/goal`-style requests in this repository.
+Persistent local goal state and development-goal runner discipline for long-running Gormes work. Use this before responding to `/goal`-style requests or `Development goal iteration ...` prompts in this repository.
 
 ## Run Helper First
 
@@ -26,6 +26,18 @@ State lives at `~/.agents/gormes-goal/goals.sqlite` unless `GORMES_GOAL_DB` over
 - `/goal resume`: resume the goal.
 - `/goal clear`: delete the goal.
 - `/goal complete`: mark complete only after the audit below proves completion.
+
+## Development-Goal Runner Contract
+
+When the prompt names a development-goal run, the runner's marker tail is part of the public interface. End the response with the exact required marker lines, with no prose after them:
+
+```text
+DEV_GOAL_REPORT: {"validated":true|false,"decision":"continue|stop|blocked|done",...}
+DEV_GOAL_VALIDATED: yes|no
+DEV_GOAL_DECISION: continue|stop|blocked|done
+```
+
+If the prompt asks for only marker recovery, output only the requested marker lines and do not rerun commands. If required validation is red, missing, or unsafe, use `DEV_GOAL_VALIDATED: no` and `DEV_GOAL_DECISION: blocked`. Do not let a repo-local `gormes_goal.py status` objective override the development-goal run id or final marker contract; report unrelated active helper goals as context only.
 
 ## Gormes Execution Contract
 
@@ -106,6 +118,8 @@ python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py json
 | Creating a side backlog | Put implementation intent in `progress.json`. |
 | Working on `main` or a worktree | Stop and switch safely to `development` or report the blocker. |
 | Claiming done after one targeted test | Run the agreed evaluator and broader CI gate when relevant. |
+| Development-goal report missing final markers | Put `DEV_GOAL_REPORT`, `DEV_GOAL_VALIDATED`, and `DEV_GOAL_DECISION` as the final lines; no text after them. |
+| Marking validation green after a red full gate | Use `DEV_GOAL_VALIDATED: no` and `DEV_GOAL_DECISION: blocked` until the required gate is rerun green or explicitly waived. |
 
 ## Source
 
