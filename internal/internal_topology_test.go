@@ -273,6 +273,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/tools/goncho/turn_integration.go:NewTurnIntegration",
 			},
 		},
+		{
+			Name:        "slack-channel-rehome",
+			Active:      true,
+			OwnerModule: "channels",
+			OldRoots:    []string{"internal/slack"},
+			NewRoots:    []string{"internal/channels/slack"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Channel Gateway Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"cmd/gormes/gateway.go:runGateway",
+				"internal/channels/slack/channel.go:NewChannel",
+				"internal/channels/slack/bus_adapter.go:NewBusAdapter",
+			},
+		},
 	}
 }
 

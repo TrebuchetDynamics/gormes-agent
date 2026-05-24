@@ -25,6 +25,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/simplex"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/slack"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -36,7 +37,6 @@ import (
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/slack"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
