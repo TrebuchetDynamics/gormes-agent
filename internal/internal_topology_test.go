@@ -217,6 +217,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/progress/builderloop/candidates.go:NormalizeCandidates",
 			},
 		},
+		{
+			Name:        "repoctl-rehome",
+			Active:      true,
+			OwnerModule: "progress",
+			OldRoots:    []string{"internal/repoctl"},
+			NewRoots:    []string{"internal/progress/repoctl"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Progress Delivery Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"cmd/repoctl/main.go:run",
+				"internal/progress/repoctl/bench.go:RecordBenchmark",
+				"internal/progress/repoctl/hermes_contract_inventory.go:WriteHermesContractInventory",
+			},
+		},
 	}
 }
 

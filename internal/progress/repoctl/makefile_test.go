@@ -2,12 +2,13 @@ package repoctl
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestMakefileUsesFocusedProgressAndRepoHelpers(t *testing.T) {
-	raw, err := os.ReadFile("../../Makefile")
+	raw, err := os.ReadFile(filepath.Join(repoRootForTest(t), "Makefile"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +39,7 @@ func TestMakefileUsesFocusedProgressAndRepoHelpers(t *testing.T) {
 }
 
 func TestMakefileVersionExtractorMatchesGoVarDeclaration(t *testing.T) {
-	raw, err := os.ReadFile("../../Makefile")
+	raw, err := os.ReadFile(filepath.Join(repoRootForTest(t), "Makefile"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +50,7 @@ func TestMakefileVersionExtractorMatchesGoVarDeclaration(t *testing.T) {
 }
 
 func TestLegacyGoRendererMakefileUsesSplitSafeProgressGeneration(t *testing.T) {
-	raw, err := os.ReadFile("../../webpages/landing/legacy/go-renderer/Makefile")
+	raw, err := os.ReadFile(filepath.Join(repoRootForTest(t), "webpages", "landing", "legacy", "go-renderer", "Makefile"))
 	if err != nil {
 		t.Fatal(err)
 	}
