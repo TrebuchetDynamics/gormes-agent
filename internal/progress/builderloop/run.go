@@ -1787,7 +1787,7 @@ func candidateTouchesLoopControlPlane(candidate Candidate) bool {
 		switch {
 		case strings.Contains(value, "cmd/progress"),
 			strings.Contains(value, "cmd/repoctl"),
-			strings.Contains(value, "internal/builderloop"),
+			strings.Contains(value, "internal/progress/builderloop"),
 			strings.Contains(value, "internal/plannerloop"),
 			strings.Contains(value, "scripts/orchestrator"),
 			strings.Contains(value, "docs/content/building-gormes/builder-loop"),

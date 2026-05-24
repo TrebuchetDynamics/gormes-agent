@@ -17,8 +17,8 @@ func TestParseFinalReportRequiresAcceptanceAndCommit(t *testing.T) {
 		"Acceptance:",
 		"- claim cleanup removes stale locks",
 		"- failures are recorded",
-		"- RED: go test ./internal/builderloop -run TestThing exited with exit 1",
-		"- GREEN: go test ./internal/builderloop exited with exit 0",
+		"- RED: go test ./internal/progress/builderloop -run TestThing exited with exit 1",
+		"- GREEN: go test ./internal/progress/builderloop exited with exit 0",
 		"",
 	}, "\n")
 
@@ -32,8 +32,8 @@ func TestParseFinalReportRequiresAcceptanceAndCommit(t *testing.T) {
 		Acceptance: []string{
 			"claim cleanup removes stale locks",
 			"failures are recorded",
-			"RED: go test ./internal/builderloop -run TestThing exited with exit 1",
-			"GREEN: go test ./internal/builderloop exited with exit 0",
+			"RED: go test ./internal/progress/builderloop -run TestThing exited with exit 1",
+			"GREEN: go test ./internal/progress/builderloop exited with exit 0",
 		},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -259,7 +259,7 @@ func legacyReportFixtureWithOptions(options legacyReportOptions) string {
 func readReportFixture(t *testing.T, name string) string {
 	t.Helper()
 
-	path := filepath.Join("..", "..", "testdata", "legacy-shell", "scripts", "orchestrator", "tests", "fixtures", "reports", name)
+	path := filepath.Join("..", "..", "..", "testdata", "legacy-shell", "scripts", "orchestrator", "tests", "fixtures", "reports", name)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(%s) error = %v", path, err)

@@ -232,7 +232,7 @@ func TestBuildPrompt_ProvenanceClauseAlwaysPresent(t *testing.T) {
 func TestBuildPrompt_ImplInventorySectionRendersWhenPresent(t *testing.T) {
 	bundle := ContextBundle{
 		ImplInventory: ImplInventory{
-			GormesOriginalPaths: []string{"cmd/progress/main.go", "internal/builderloop/run.go"},
+			GormesOriginalPaths: []string{"cmd/progress/main.go", "internal/progress/builderloop/run.go"},
 			RecentlyChanged:     []string{"cmd/progress/main.go"},
 			OwnedSubphases:      []string{"5.O", "5.P"},
 		},
@@ -259,7 +259,7 @@ func TestBuildPrompt_OmitsImplInventorySectionWhenEmpty(t *testing.T) {
 func TestBuildPrompt_ImplInventorySectionCapsLongLists(t *testing.T) {
 	paths := make([]string, 0, 42)
 	for i := 0; i < 42; i++ {
-		paths = append(paths, "internal/builderloop/path.go")
+		paths = append(paths, "internal/progress/builderloop/path.go")
 	}
 	prompt := BuildPrompt(ContextBundle{ImplInventory: ImplInventory{GormesOriginalPaths: paths}}, nil)
 	if !strings.Contains(prompt, "... (2 more; see context.json)") {

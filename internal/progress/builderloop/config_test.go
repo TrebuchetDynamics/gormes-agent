@@ -253,7 +253,7 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 		"PR_INTAKE_CONFLICT_ACTION":       "skip",
 		"PR_INTAKE_EMPTY_BACKOFF":         "2m30s",
 		"AUTO_COMMIT_DIRTY_WORKTREE":      "false",
-		"POST_PROMOTION_VERIFY_COMMANDS":  "go test ./internal/builderloop -count=1;;go run ./cmd/progress validate",
+		"POST_PROMOTION_VERIFY_COMMANDS":  "go test ./internal/progress/builderloop -count=1;;go run ./cmd/progress validate",
 		"POST_PROMOTION_REPAIR":           "off",
 		"POST_PROMOTION_REPAIR_ATTEMPTS":  "2",
 	}))
@@ -294,7 +294,7 @@ func TestConfigFromEnvReactiveOverrides(t *testing.T) {
 	if cfg.AutoCommitDirtyWorktree != false {
 		t.Fatalf("AutoCommitDirtyWorktree = %v, want false", cfg.AutoCommitDirtyWorktree)
 	}
-	verifyWant := []string{"go test ./internal/builderloop -count=1", "go run ./cmd/progress validate"}
+	verifyWant := []string{"go test ./internal/progress/builderloop -count=1", "go run ./cmd/progress validate"}
 	if !reflect.DeepEqual(cfg.PostPromotionVerifyCommands, verifyWant) {
 		t.Fatalf("PostPromotionVerifyCommands = %#v, want %#v", cfg.PostPromotionVerifyCommands, verifyWant)
 	}

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/builderloop"
 )
 
 // ControlPlaneSubphaseID is the sentinel subphase_id used by the autoloop audit

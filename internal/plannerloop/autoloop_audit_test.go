@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/builderloop"
 )
 
 func TestSummarizeAutoloopAuditAggregatesRecentLedger(t *testing.T) {

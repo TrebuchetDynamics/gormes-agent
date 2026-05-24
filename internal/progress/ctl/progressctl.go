@@ -16,8 +16,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/builderloop"
 )
 
 type validateReport struct {

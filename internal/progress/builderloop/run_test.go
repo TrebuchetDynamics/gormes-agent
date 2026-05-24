@@ -878,7 +878,7 @@ func TestRunOnceRecordsSelfImprovementUserFeatureMix(t *testing.T) {
 				"subphases": {
 					"5.A": {
 						"items": [
-							{"name": "builder loop checkpoint coalescing", "status": "planned", "contract": "loop contract", "contract_status": "draft", "execution_owner": "orchestrator", "write_scope": ["internal/builderloop/run.go"], "no_test_required": "health mix fixture"}
+							{"name": "builder loop checkpoint coalescing", "status": "planned", "contract": "loop contract", "contract_status": "draft", "execution_owner": "orchestrator", "write_scope": ["internal/progress/builderloop/run.go"], "no_test_required": "health mix fixture"}
 						]
 					},
 					"5.B": {

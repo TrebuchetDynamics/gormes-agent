@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/triggers"
 )
 
@@ -596,7 +596,7 @@ func findOutcome(t *testing.T, outcomes []ReshapeOutcome, name string) ReshapeOu
 // autoloop runs.jsonl. Each event is timestamped one second apart starting
 // at `base` so Evaluate's after-reshape filter sees them in append order.
 // Uses the same json shape autoloop's appendRunLedgerEvent writes (see
-// internal/builderloop/ledger.go).
+// internal/progress/builderloop/ledger.go).
 func writeAutoloopFailures(t *testing.T, path, runID string, base time.Time, itemName string, n int, status string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

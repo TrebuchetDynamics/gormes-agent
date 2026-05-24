@@ -94,8 +94,8 @@ func TestNormalizeCandidatesPreservesNameFallbackMetadataAndSkipsBlockedUmbrella
 								"ready_when": [" tests pass ", " "],
 								"not_ready_when": [" schema unsettled "],
 								"acceptance": [" metadata retained "],
-								"write_scope": [" internal/builderloop "],
-								"test_commands": [" go test ./internal/builderloop "],
+								"write_scope": [" internal/progress/builderloop "],
+								"test_commands": [" go test ./internal/progress/builderloop "],
 									"done_signal": ["provider transcript replay passes"],
 									"note": " Keep human note casing. "
 								},
@@ -145,8 +145,8 @@ func TestNormalizeCandidatesPreservesNameFallbackMetadataAndSkipsBlockedUmbrella
 			ReadyWhen:      []string{"tests pass"},
 			NotReadyWhen:   []string{"schema unsettled"},
 			Acceptance:     []string{"metadata retained"},
-			WriteScope:     []string{"internal/builderloop"},
-			TestCommands:   []string{"go test ./internal/builderloop"},
+			WriteScope:     []string{"internal/progress/builderloop"},
+			TestCommands:   []string{"go test ./internal/progress/builderloop"},
 			DoneSignal:     []string{"provider transcript replay passes"},
 			Note:           "Keep human note casing.",
 		},
@@ -490,7 +490,7 @@ func TestNormalizeCandidatesDeduplicatesByPhaseSubphaseAndItemName(t *testing.T)
 }
 
 func TestNormalizeCandidatesRealProgressSkipsCompletedBacklogSplitC5(t *testing.T) {
-	path := filepath.Join("..", "..", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	path := filepath.Join("..", "..", "..", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	const c5Name = "Backlog split C5: single atomic operator-gated flip to the module-keyed split directory"
 
 	got, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true})

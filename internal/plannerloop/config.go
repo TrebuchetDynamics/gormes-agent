@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/builderloop"
 )
 
 // defaultPlannerLoopRunRoot returns .codex/planner-loop/ unless only the

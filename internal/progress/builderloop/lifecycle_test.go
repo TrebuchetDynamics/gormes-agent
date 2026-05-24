@@ -19,7 +19,7 @@ import (
 //	Run 5: selection surfaces row-1 with StaleQuarantine=true; accumulator records both
 //	       a stale-clear AND a success → quarantine cleared, CF=0, LastSuccess set.
 //
-// This test uses the real internal/progress and internal/builderloop APIs.
+// This test uses the real internal/progress and internal/progress/builderloop APIs.
 // It does NOT spawn workers or use a fake runner — instead it drives the
 // healthAccumulator directly (which is the same API run.go uses), proving
 // the per-layer pieces compose correctly.

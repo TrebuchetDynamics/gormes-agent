@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/builderloop"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/triggers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 )
@@ -939,7 +939,7 @@ func TestRunOnce_AppendsLedgerEventOnValidationReject(t *testing.T) {
 func TestRunOnce_RejectsRuntimeSourceEdits(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)
-	runtimePath := filepath.Join(repoRoot, "internal", "builderloop", "run.go")
+	runtimePath := filepath.Join(repoRoot, "internal", "progress", "builderloop", "run.go")
 	writeFile(t, runtimePath, "package builderloop\n")
 
 	runner := &mutatingRunner{
@@ -975,7 +975,7 @@ func TestRunOnce_RejectsRuntimeSourceEdits(t *testing.T) {
 	if events[0].Status != "validation_rejected" {
 		t.Fatalf("Status = %q, want validation_rejected", events[0].Status)
 	}
-	if !strings.Contains(events[0].Detail, "internal/builderloop/run.go") {
+	if !strings.Contains(events[0].Detail, "internal/progress/builderloop/run.go") {
 		t.Fatalf("Detail = %q, want runtime path", events[0].Detail)
 	}
 	if len(events[0].Attempts) != 1 || events[0].Attempts[0].Status != "validation_rejected" {

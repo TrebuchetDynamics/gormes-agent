@@ -99,10 +99,10 @@ func fillContractFixtureDefaults(item map[string]any) {
 			item["degraded_mode"] = "test fixture degraded mode"
 		}
 		if _, ok := item["fixture"]; !ok {
-			item["fixture"] = "internal/builderloop/test_fixture.go"
+			item["fixture"] = "internal/progress/builderloop/test_fixture.go"
 		}
 		if _, ok := item["source_refs"]; !ok {
-			item["source_refs"] = []any{"internal/builderloop/run_test.go"}
+			item["source_refs"] = []any{"internal/progress/builderloop/run_test.go"}
 		}
 		if _, ok := item["acceptance"]; !ok {
 			item["acceptance"] = []any{"test fixture acceptance"}

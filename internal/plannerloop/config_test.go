@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/builderloop"
 )
 
 func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {

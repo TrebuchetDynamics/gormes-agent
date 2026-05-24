@@ -13,7 +13,7 @@ func TestLegacyShellMarkedVendored(t *testing.T) {
 	if !ok {
 		t.Fatal("runtime.Caller(0) failed")
 	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
 
 	data, err := os.ReadFile(filepath.Join(repoRoot, ".gitattributes"))
 	if err != nil {
