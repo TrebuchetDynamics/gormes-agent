@@ -12,13 +12,13 @@ type profileCommandSeams = profilemodule.Seams
 func newProfileCommand() *cobra.Command {
 	seams := defaultProfileCommandSeams()
 	cmd := profilemodule.NewCommandWithSeams(seams, profileCommandOptions())
-	cmd.AddCommand(newProfileSeedCommand(profileSeedSeamsFromProfileSeams(seams)))
+	cmd.AddCommand(gormescli.NewProfileSeedCommand(profileSeedSeamsFromProfileSeams(seams)))
 	return cmd
 }
 
 func newProfileCommandWithSeams(seams profileCommandSeams) *cobra.Command {
 	cmd := profilemodule.NewCommandWithSeams(seams, profileCommandOptions())
-	cmd.AddCommand(newProfileSeedCommand(profileSeedSeamsFromProfileSeams(seams)))
+	cmd.AddCommand(gormescli.NewProfileSeedCommand(profileSeedSeamsFromProfileSeams(seams)))
 	return cmd
 }
 
