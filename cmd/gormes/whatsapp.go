@@ -13,7 +13,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	wa "github.com/TrebuchetDynamics/gormes-agent/internal/channels/whatsapp"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
@@ -61,7 +60,7 @@ type whatsappCommandSeams struct {
 }
 
 type whatsappPairingPlan struct {
-	Runtime       wa.RuntimePlan
+	Runtime       channelsmodule.WhatsAppRuntimePlan
 	ConfigPath    string
 	EnvPath       string
 	HomePath      string
@@ -146,10 +145,10 @@ func buildWhatsAppPairingPlan(opts whatsappCommandOptions) (whatsappPairingPlan,
 	if err != nil {
 		return whatsappPairingPlan{}, err
 	}
-	plan, err := wa.DecideRuntime(wa.RuntimeConfig{
+	plan, err := channelsmodule.DecideWhatsAppRuntime(channelsmodule.WhatsAppRuntimeConfig{
 		StateRoot:   config.GormesHome(),
 		AccountMode: mode,
-		Bridge: wa.BridgeRuntimeConfig{
+		Bridge: channelsmodule.WhatsAppBridgeRuntimeConfig{
 			ScriptPath: opts.BridgeScript,
 		},
 	})
@@ -275,7 +274,7 @@ func renderWhatsAppPairingWizardIntro(cmd *cobra.Command, out io.Writer, plan *w
 		return nil
 	}
 
-	if plan.Runtime.Account.Mode == wa.AccountModeBot {
+	if plan.Runtime.Account.Mode == channelsmodule.WhatsAppAccountModeBot {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "  Who should be allowed to message the bot?")
 		fmt.Fprintln(out, "  Phone numbers must include country code and no +, spaces, or dashes.")
@@ -324,7 +323,7 @@ func cobraCommandInputIsTTY(cmd *cobra.Command) bool {
 func renderWhatsAppPairingScanInstructions(out io.Writer, plan whatsappPairingPlan) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, strings.Repeat("─", 50))
-	if plan.Runtime.Account.Mode == wa.AccountModeBot {
+	if plan.Runtime.Account.Mode == channelsmodule.WhatsAppAccountModeBot {
 		fmt.Fprintln(out, "📱 Open WhatsApp (or WhatsApp Business) on the")
 		fmt.Fprintln(out, "   phone with the BOT's number, then scan:")
 	} else {
@@ -344,7 +343,7 @@ func renderWhatsAppPairingSuccess(out io.Writer, plan whatsappPairingPlan) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "  Next steps:")
 	fmt.Fprintln(out, "    1. Start the gateway:  gormes gateway")
-	if plan.Runtime.Account.Mode == wa.AccountModeBot {
+	if plan.Runtime.Account.Mode == channelsmodule.WhatsAppAccountModeBot {
 		fmt.Fprintln(out, "    2. Send a message to the bot's WhatsApp number")
 		fmt.Fprintln(out, "    3. The agent will reply automatically")
 	} else {
@@ -353,7 +352,7 @@ func renderWhatsAppPairingSuccess(out io.Writer, plan whatsappPairingPlan) {
 	}
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "  Tip: Agent responses are prefixed with '⚕ Gormes Agent'")
-	if plan.Runtime.Account.Mode == wa.AccountModeSelfChat {
+	if plan.Runtime.Account.Mode == channelsmodule.WhatsAppAccountModeSelfChat {
 		fmt.Fprintln(out, "  so you can tell them apart from your own messages.")
 	}
 	fmt.Fprintln(out)
@@ -509,11 +508,11 @@ func writeDotenvValues(path string, updates map[string]string) error {
 	return os.WriteFile(path, []byte(strings.Join(out, "\n")+"\n"), 0o600)
 }
 
-func whatsappModeLabel(mode wa.AccountMode) string {
+func whatsappModeLabel(mode channelsmodule.WhatsAppAccountMode) string {
 	switch mode {
-	case wa.AccountModeBot:
+	case channelsmodule.WhatsAppAccountModeBot:
 		return "separate bot number"
-	case wa.AccountModeSelfChat:
+	case channelsmodule.WhatsAppAccountModeSelfChat:
 		return "personal number (self-chat)"
 	default:
 		return string(mode)
@@ -528,14 +527,14 @@ func tailLines(text string, maxLines int) string {
 	return strings.Join(lines[len(lines)-maxLines:], "\n")
 }
 
-func normalizeWhatsAppCommandMode(mode string) (wa.AccountMode, error) {
+func normalizeWhatsAppCommandMode(mode string) (channelsmodule.WhatsAppAccountMode, error) {
 	normalized := strings.TrimSpace(strings.ToLower(mode))
 	normalized = strings.ReplaceAll(normalized, "_", "-")
-	switch wa.AccountMode(normalized) {
-	case wa.AccountModeBot:
-		return wa.AccountModeBot, nil
-	case wa.AccountModeSelfChat:
-		return wa.AccountModeSelfChat, nil
+	switch channelsmodule.WhatsAppAccountMode(normalized) {
+	case channelsmodule.WhatsAppAccountModeBot:
+		return channelsmodule.WhatsAppAccountModeBot, nil
+	case channelsmodule.WhatsAppAccountModeSelfChat:
+		return channelsmodule.WhatsAppAccountModeSelfChat, nil
 	default:
 		return "", fmt.Errorf("whatsapp: unsupported account mode %q", mode)
 	}
