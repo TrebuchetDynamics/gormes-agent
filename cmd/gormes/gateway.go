@@ -25,8 +25,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/simplex"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/slack"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
@@ -627,16 +627,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				FirstRunDiscovery:      cfg.Discord.FirstRunDiscovery,
 			}, ds, log), nil
 		},
-		Slack: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			return slack.NewChannel(slack.NewRealClient(cfg.Slack.BotToken, cfg.Slack.AppToken), log, slack.ChannelConfig{
-				RequireMention:       cfg.Slack.RequireMention,
-				StrictMention:        cfg.Slack.StrictMention,
-				FreeResponseChannels: cfg.Slack.FreeResponseChannels,
-				ChannelSkillBindings: cfg.Slack.ChannelSkillBindings,
-				ChannelPrompts:       cfg.Slack.ChannelPrompts,
-				AccountID:            cfg.Slack.AccountID,
-			}), nil
-		},
+		Slack: gormescli.NewSlackGatewayChannel,
 		Teams: func(config.Config, *slog.Logger) (gateway.Channel, error) {
 			return nil, errors.New("teams_live_transport_unavailable: live Bot Framework binding is not implemented; Teams is fakeable only in this slice")
 		},
