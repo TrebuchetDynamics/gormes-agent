@@ -7,9 +7,9 @@ title: "Tools Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `tools`
-**Rows:** 143
-**Status counts:** `complete`: 143 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 23 · `P1`: 49 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
+**Rows:** 145
+**Status counts:** `complete`: 145 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 23 · `P1`: 51 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -255,6 +255,15 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | Status | Priority | Module | Row |
 |---|---|---|---|
 | `complete` | `P1` | `tools` | Memory operations as agent-callable tools |
+
+## Phase 8 — Reputation & Publication
+
+### 8.F — Cost Discipline & Loop Economics
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `complete` | `P1` | `tools` | Internal tool compact helper package rehome |
+| `complete` | `P1` | `tools` | Internal tool trace helper package rehome |
 
 ## Phase 9 — Design & Security Hardening
 

@@ -7,9 +7,9 @@ title: "CLI Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `cli`
-**Rows:** 33
-**Status counts:** `complete`: 33 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 12 · `P2`: 8 · `P3`: 3 · `unset`: 10
+**Rows:** 34
+**Status counts:** `complete`: 34 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P1`: 13 · `P2`: 8 · `P3`: 3 · `unset`: 10
 
 ## Phase 5 — The Final Purge
 
@@ -50,3 +50,11 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `cli` | cmd/gormes profile command package extraction |
 | `complete` | `P1` | `cli` | cmd/gormes setup section registry extraction |
 | `complete` | `P1` | `cli` | cmd/gormes root command assembly extraction |
+
+## Phase 8 — Reputation & Publication
+
+### 8.F — Cost Discipline & Loop Economics
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `complete` | `P1` | `cli` | Internal CLI surface package rehome |

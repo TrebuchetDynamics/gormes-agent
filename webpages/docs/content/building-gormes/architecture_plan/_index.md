@@ -1559,6 +1559,9 @@ classification and row-backed implementation queue.
 - [x] `progress` Progress next-work read-only selector
 - [x] `progress` Progress next-work repo-scope filter
 - [x] `progress` Internal topology guard for package consolidation
+- [x] `cli` Internal CLI surface package rehome
+- [x] `tools` Internal tool compact helper package rehome
+- [x] `tools` Internal tool trace helper package rehome
 
 ### 8.G — Community & External Contributions ✅
 
