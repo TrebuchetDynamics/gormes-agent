@@ -130,6 +130,22 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/tools/trace/tooltrace.go:FormatPlain",
 			},
 		},
+		{
+			Name:        "sessionsearchtool-rehome",
+			Active:      true,
+			OwnerModule: "tools",
+			OldRoots:    []string{"internal/sessionsearchtool"},
+			NewRoots:    []string{"internal/tools/sessionsearch"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
+				"hermes-agent/tools/session_search_tool.py",
+				"hermes-agent/tests/tools/test_session_search.py",
+				"internal/tools/sessionsearch/session_search_tool.go:NewSessionSearchTool",
+				"cmd/gormes/registry.go:buildDefaultRegistry",
+			},
+		},
 	}
 }
 

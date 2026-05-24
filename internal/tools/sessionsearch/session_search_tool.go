@@ -1,4 +1,4 @@
-package sessionsearchtool
+package sessionsearch
 
 import (
 	"bytes"

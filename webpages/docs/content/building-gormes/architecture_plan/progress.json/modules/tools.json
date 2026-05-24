@@ -10141,9 +10141,9 @@
     "item": {
       "name": "Internal session search tool package rehome",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Move the model-facing session_search adapter from internal/sessionsearchtool to internal/tools/sessionsearch while preserving descriptor text, JSON schema, argument normalization, memory/session catalog execution, degraded evidence, and cmd/gormes registry wiring. This is the next behavior-preserving Tool Adapter Enclave package move after compact and trace.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
       "module": "tools",
@@ -10155,9 +10155,9 @@
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tool registry and toolsets",
         "hermes-agent/tools/session_search_tool.py",
         "hermes-agent/tests/tools/test_session_search.py",
-        "internal/sessionsearchtool/session_search_tool.go:NewSessionSearchTool",
-        "internal/sessionsearchtool/session_search_tool_schema_test.go",
-        "internal/sessionsearchtool/session_search_tool_execution_test.go",
+        "internal/tools/sessionsearch/session_search_tool.go:NewSessionSearchTool",
+        "internal/tools/sessionsearch/session_search_tool_schema_test.go",
+        "internal/tools/sessionsearch/session_search_tool_execution_test.go",
         "cmd/gormes/registry.go:buildDefaultRegistry"
       ],
       "ready_when": [
@@ -10177,6 +10177,7 @@
         "cmd/gormes default registry imports internal/tools/sessionsearch and still registers session_search with the configured SQLite memory DB and SessionSearchDirectory",
         "no active Go import or path literal under cmd/ or internal/ points at internal/sessionsearchtool after the move, except the intentional topology migration OldRoots entry"
       ],
+      "note": "TDD landed: activated the sessionsearchtool topology migration, moved internal/sessionsearchtool to internal/tools/sessionsearch without a compatibility shim, renamed the Go package to sessionsearch, updated cmd/gormes default-registry imports, and preserved the session_search descriptor, argument validation, memory/session-catalog execution, degraded evidence, same-chat/user scope behavior, lineage filtering, and hidden tool-source isolation through focused tests.",
       "write_scope": [
         "internal/internal_topology_test.go",
         "internal/sessionsearchtool/",

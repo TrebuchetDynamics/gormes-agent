@@ -10,21 +10,21 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kanbantools"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/sessionsearchtool"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/sessionsearch"
 )
 
 type registryOptions struct {
 	searchDB       *sql.DB
-	searchSessions sessionsearchtool.SessionSearchDirectory
+	searchSessions sessionsearch.SessionSearchDirectory
 }
 
 type registryOpt func(*registryOptions)
 
-func withSessionSearch(db *sql.DB, sessions sessionsearchtool.SessionSearchDirectory) registryOpt {
+func withSessionSearch(db *sql.DB, sessions sessionsearch.SessionSearchDirectory) registryOpt {
 	return func(o *registryOptions) {
 		o.searchDB = db
 		o.searchSessions = sessions
@@ -112,7 +112,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
 		MemoryDir: defaultMemoryToolDir(),
 	}))
-	reg.MustRegister(sessionsearchtool.NewSessionSearchTool(sessionsearchtool.SessionSearchToolConfig{
+	reg.MustRegister(sessionsearch.NewSessionSearchTool(sessionsearch.SessionSearchToolConfig{
 		DB:       o.searchDB,
 		Sessions: o.searchSessions,
 	}))

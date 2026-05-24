@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 104/111 subphases shipped · 7 in progress · 0 planned
+**Overall:** 105/111 subphases shipped · 6 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -102,7 +102,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -1535,7 +1535,7 @@ classification and row-backed implementation queue.
 - [x] `docs` Agentic-porting-kit local public layout assembly gate
 - [ ] `docs` Agentic-porting-kit public repo scaffold
 
-### 8.F — Cost Discipline & Loop Economics 🔨
+### 8.F — Cost Discipline & Loop Economics ✅
 
 - [x] `progress` Loop $/iteration cost metric in status file
 - [x] `landing` Stop git-tracking duplicate landing progress mirrors (build-time generate)
@@ -1562,7 +1562,7 @@ classification and row-backed implementation queue.
 - [x] `cli` Internal CLI surface package rehome
 - [x] `tools` Internal tool compact helper package rehome
 - [x] `tools` Internal tool trace helper package rehome
-- [ ] `tools` Internal session search tool package rehome
+- [x] `tools` Internal session search tool package rehome
 
 ### 8.G — Community & External Contributions ✅
 

@@ -27,7 +27,5 @@ for it to appear here. Do not infer that an empty generated list means the
 roadmap is complete.
 
 <!-- PROGRESS:START kind=next-slices -->
-| Phase | Slice | Contract | Trust class | Fixture | Why now |
-|---|---|---|---|---|---|
-| 8 / 8.F | Internal session search tool package rehome | Move the model-facing session_search adapter from internal/sessionsearchtool to internal/tools/sessionsearch while preserving descriptor text, JSON schema, argument normalization, memory/session catalog execution, degraded evidence, and cmd/gormes registry wiring. This is the next behavior-preserving Tool Adapter Enclave package move after compact and trace. | - | `internal/tools/sessionsearch/session_search_tool_schema_test.go and internal/tools/sessionsearch/session_search_tool_execution_test.go after the move, plus cmd/gormes registry tests.` | Contract metadata is present; ready for a focused spec or fixture slice. |
+_No contract-ready progress rows are available._
 <!-- PROGRESS:END -->
