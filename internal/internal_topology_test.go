@@ -301,6 +301,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/channels/discord/legacy/render.go:formatStream",
 			},
 		},
+		{
+			Name:        "lsp-tools-rehome",
+			Active:      true,
+			OwnerModule: "tools",
+			OldRoots:    []string{"internal/lsp"},
+			NewRoots:    []string{"internal/tools/lsp"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Tool Adapter Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/tools/file_task_tools.go:executeCode",
+				"internal/tools/lsp/diagnostics.go:ReadDiagnostics",
+				"internal/tools/file_lsp_diagnostics_test.go:TestExecuteCodeIncludesLSPDiagnostics",
+			},
+		},
 	}
 }
 

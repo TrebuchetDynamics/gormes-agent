@@ -18,8 +18,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/lsp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/lsp"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )

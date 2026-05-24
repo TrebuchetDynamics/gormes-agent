@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/lsp"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/lsp"
 )
 
 func TestWriteFileToolIncludesLSPDiagnosticDelta(t *testing.T) {
