@@ -9,6 +9,7 @@
     "build": "node ../scripts/with-compatible-node.mjs astro build",
     "preview": "node ../scripts/with-compatible-node.mjs astro preview --host 127.0.0.1 --port 8080",
     "test:data": "node --test ./src/data/site.test.mjs",
+    "test:sync-assets": "node --test ./scripts/asset-sync.test.mjs",
     "test:e2e": "playwright test --project=chromium"
   },
   "devDependencies": {
