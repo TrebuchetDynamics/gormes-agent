@@ -287,6 +287,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/channels/slack/bus_adapter.go:NewBusAdapter",
 			},
 		},
+		{
+			Name:        "discord-legacy-rehome",
+			Active:      true,
+			OwnerModule: "channels",
+			OldRoots:    []string{"internal/discord"},
+			NewRoots:    []string{"internal/channels/discord/legacy"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Channel Gateway Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/channels/discord/bot.go:New",
+				"internal/channels/discord/legacy/bot.go:New",
+				"internal/channels/discord/legacy/render.go:formatStream",
+			},
+		},
 	}
 }
 

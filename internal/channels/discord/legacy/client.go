@@ -1,4 +1,4 @@
-package discord
+package legacy
 
 type InboundMessage struct {
 	ID           string

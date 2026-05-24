@@ -1,4 +1,4 @@
-package discord
+package legacy
 
 import (
 	"errors"
