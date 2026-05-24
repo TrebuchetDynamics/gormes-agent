@@ -1564,9 +1564,14 @@
         "operator",
         "system"
       ],
+      "source_refs": [
+        "docs/content/building-gormes/strategy/tts-decision.md",
+        "docs/content/building-gormes/strategy/go-native-speech-options.md"
+      ],
       "ready_when": [
         "All TTS provider backends (edge, OpenAI, MiniMax, Piper, etc.) are mapped and their Go shell-out or API paths are understood."
       ],
+      "note": "Update 2026-05-24: superseded the command-provider-only local TTS decision after owner direction changed to a Go-owned speech path. Command/cloud providers remain compatibility fallbacks, but `docs/content/building-gormes/strategy/go-native-speech-options.md` now defines the target architecture and the planned `Go-owned WASM TTS backend` row owns implementation.",
       "write_scope": [
         "docs/content/building-gormes/strategy/tts-decision.md"
       ],
@@ -1578,8 +1583,98 @@
       "acceptance": [],
       "blocked_by": [],
       "not_ready_when": [],
-      "source_refs": [],
       "unblocks": []
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.E",
+    "pos": 22,
+    "item": {
+      "name": "Go-owned WASM TTS backend",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Implement a Go-owned local TTS backend behind the existing text_to_speech/TTSProvider contract, preferably through a wazero/WASI neural engine with checksum-verified voice/model artifacts. The new provider must require no Python, Node, shell command, live cloud provider, or CGO dependency for synthesis; cloud and command providers remain compatibility fallbacks.",
+      "contract_status": "draft",
+      "slice_size": "large",
+      "execution_owner": "tools",
+      "module": "tts",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Missing voice/model artifacts, unsupported platform/build tags, runtime load failures, synthesis errors, and benchmark budget overruns return typed tts_provider_unavailable or tts_api_error evidence without changing gateway delivery, leaking temp paths, or silently shelling out to Python/Node commands.",
+      "fixture": "internal/tools/tts_go_native_provider_test.go; future internal/wasi/piper or internal/speech testdata fixtures",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "docs/content/building-gormes/strategy/tts-decision.md",
+        "internal/tools/tts_tool.go:TTSProvider/TTSRunner",
+        "internal/tools/tts_providers.go:LazyLocalTTSProvider",
+        "internal/tools/tts_command_provider.go:TTSCommandProvider",
+        "internal/wasi/whisper/model_cache.go:EnsureModel",
+        "internal/wasi/whisper/transcriber.go:NewTranscriber",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Voice, TTS, transcription"
+      ],
+      "ready_when": [
+        "A context-sourcing pass chooses the concrete Go-owned TTS engine/artifact, license, model/voice cache layout, and package path (`internal/wasi/piper` or `internal/speech`) without relying on a local unpublished checkout.",
+        "The first builder slice can use small fixture artifacts or fakeable runtime seams; it must not require live cloud credentials, microphone/speaker devices, Python, Node, or shell TTS binaries in tests.",
+        "The existing TTSRunner/text_to_speech schema and gateway MEDIA delivery behavior remain the public contract; the new backend is one provider adapter behind that seam."
+      ],
+      "not_ready_when": [
+        "The plan would embed large voice/model artifacts directly in git or the default binary instead of using checksum-verified cache/discovery helpers.",
+        "The proposed provider shells out to piper, edge-tts, Python, Node, or platform TTS and calls that a Go-owned backend.",
+        "The change rewrites gateway/channel media delivery or the model-facing text_to_speech schema before a provider adapter works behind the existing seam.",
+        "No benchmark budget exists for model load time, synthesis latency, memory, output format, and binary-size delta."
+      ],
+      "blocked_by": [
+        "Go-owned TTS engine source selection"
+      ],
+      "unblocks": [
+        "Go-native continuous voice mode defaults",
+        "Profile-scoped voice profiles with local TTS fallback",
+        "Navivox BYO STT/TTS profile implementation"
+      ],
+      "acceptance": [
+        "A Go-owned provider such as `piper_wasm` or `local_wasm` registers in the existing TTS provider matrix and can be selected by `TTSConfig.Provider` / profile voice settings without changing the tool schema.",
+        "Unit tests prove the provider succeeds through fakeable Go runtime/model seams and writes a supported audio file without invoking shell commands, Python, Node, CGO, or live cloud APIs.",
+        "Missing model/voice/runtime cases return typed redacted evidence and do not fall through to command providers unless provider selection is `auto` and a compatibility fallback is explicitly available.",
+        "Model/voice cache helpers verify size and checksum, use atomic partial-file cleanup, and never place artifacts under git-tracked testdata.",
+        "Benchmark metadata captures load time, synthesis time, memory, output format, and binary-size delta before the provider can become the default local TTS choice."
+      ],
+      "note": "Owner direction 2026-05-24 supersedes the previous command-provider-only local TTS decision. This row is intentionally blocked until context sourcing selects a concrete engine/artifact and license; builders must not fake the provider with a shell-out wrapper.",
+      "write_scope": [
+        "internal/tools/tts_tool.go",
+        "internal/tools/tts_providers.go",
+        "internal/tools/tts_provider_matrix_test.go",
+        "internal/tools/tts_go_native_provider_test.go",
+        "internal/wasi/piper/",
+        "internal/speech/",
+        "cmd/gormes/registry_audio.go",
+        "internal/config/profile_config_v2.go",
+        "internal/config/profile_voice_profile_test.go",
+        "docs/content/building-gormes/strategy/tts-decision.md",
+        "docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'Test(TTSGoNative|TTSProviderMatrix|TextToSpeech)' -count=1",
+        "go test ./internal/config -run TestProfileVoiceProfile -count=1",
+        "CGO_ENABLED=0 go test ./internal/tools ./cmd/gormes -run 'Test(TTS|TextToSpeech|RegistryAudio)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "A user can configure a Go-owned local TTS provider, run text_to_speech, and receive an audio file synthesized without Python, Node, shell commands, CGO, or cloud credentials; missing artifacts degrade with typed evidence and benchmarks record the local provider cost."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_refs": [
+          "hermes:tools/tts_tool.py text_to_speech contract",
+          "hermes:tools/voice_mode.py voice-mode state and local audio expectations"
+        ],
+        "note": "Hermes defines the user-visible TTS tool and voice-mode behavior; Gormes owns the Go-native local backend architecture."
+      }
     }
   },
   {

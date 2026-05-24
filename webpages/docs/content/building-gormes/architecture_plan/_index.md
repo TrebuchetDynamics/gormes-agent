@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 106/111 subphases shipped · 5 in progress · 0 planned
+**Overall:** 105/111 subphases shipped · 6 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
@@ -809,7 +809,7 @@ classification and row-backed implementation queue.
 - [x] `tools` FAL image generation queue REST binding
 - [x] `tools` Native video_analyze tool contract
 
-### 5.E — TTS / Voice / Transcription ✅
+### 5.E — TTS / Voice / Transcription 🔨
 
 - [x] `tts` Voice mode port
 - [x] `tts` Voice mode environment detector + audio provider seam
@@ -833,6 +833,7 @@ classification and row-backed implementation queue.
 - [x] `tts` Go-native OGG/Opus decoder decision
 - [x] `tts` Go-native OGG/Opus decoder implementation
 - [x] `tts` Pure-Go TTS decision research
+- [ ] `tts` Go-owned WASM TTS backend
 
 ### 5.F — Skills System (Remaining) ✅
 

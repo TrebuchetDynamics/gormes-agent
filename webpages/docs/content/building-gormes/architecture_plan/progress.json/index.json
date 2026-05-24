@@ -542,7 +542,7 @@
             "last_upstream_check": "2026-05-06T00:00:00Z",
             "origin_decision": "Hermes b816fd4e2 remains the TTS/STT/voice-mode source of truth. The 2026-05-06 all-topic weakness sweep found the current unblocked small Hermes-sourced weakness in voice.record_key config/status/TUI binding after checking CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Gormes has the transcription helper, Telegram STT ingress, TTS tool/media delivery seam, and voice environment detector complete; keep provider-specific synthesis/config and platform delivery separated so voice work does not reopen completed STT rows."
           },
-          "item_count": 22
+          "item_count": 23
         },
         {
           "id": "5.F",

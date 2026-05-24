@@ -7,9 +7,9 @@ title: "TTS Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `tts`
-**Rows:** 23
-**Status counts:** `complete`: 23 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 2 · `P1`: 10 · `P2`: 4 · `P3`: 6 · `unset`: 1
+**Rows:** 24
+**Status counts:** `complete`: 23 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 2 · `P1`: 11 · `P2`: 4 · `P3`: 6 · `unset`: 1
 
 ## Phase 5 — The Final Purge
 
@@ -39,6 +39,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P3` | `tts` | Go-native OGG/Opus decoder decision |
 | `complete` | `P3` | `tts` | Go-native OGG/Opus decoder implementation |
 | `complete` | `P3` | `tts` | Pure-Go TTS decision research |
+| `planned` | `P1` | `tts` | Go-owned WASM TTS backend |
 
 ### 5.O — Hermes CLI Parity
 
