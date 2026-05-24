@@ -1,8 +1,8 @@
 package builderloop
 
-import "github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
+import "github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 
-// The runner plumbing now lives in internal/cmdrunner so plannerloop does not
+// The runner plumbing now lives in internal/runtime/cmdrunner so plannerloop does not
 // have to import builderloop purely for it. These aliases keep existing
 // builderloop call sites compiling against the unqualified names.
 

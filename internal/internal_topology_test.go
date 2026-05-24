@@ -146,6 +146,21 @@ func defaultTopologyMigrations() []topologyMigration {
 				"cmd/gormes/registry.go:buildDefaultRegistry",
 			},
 		},
+		{
+			Name:        "cmdrunner-runtime-rehome",
+			Active:      true,
+			OwnerModule: "runtime",
+			OldRoots:    []string{"internal/cmdrunner"},
+			NewRoots:    []string{"internal/runtime/cmdrunner"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Progress Delivery Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Runtime Mechanics Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/runtime/cmdrunner/runner.go:Runner",
+				"internal/acp/browser_bootstrap.go:BootstrapBrowserHarness",
+				"internal/plannerloop/run.go:Run",
+			},
+		},
 	}
 }
 

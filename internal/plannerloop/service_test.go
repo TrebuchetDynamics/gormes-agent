@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 )
 
 func TestRenderPlannerServiceUnitQuotesPaths(t *testing.T) {

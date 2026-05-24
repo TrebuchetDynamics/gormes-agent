@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cmdrunner"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 )
 
 func TestConfigFromEnvDefaultsExternalRepoURLs(t *testing.T) {
