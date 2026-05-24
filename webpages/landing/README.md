@@ -15,8 +15,11 @@ The former Go-rendered site is deprecated and preserved under
 
 ## Layout
 
-- `src/pages/index.astro` - homepage route, structure, metadata, and inline
-  copy-button behavior.
+- `src/pages/index.astro` - homepage route, structure, and inline copy-button
+  behavior.
+- `src/pages/built-with.astro` - real-deployments proof page.
+- `src/components/BaseDocument.astro` - shared document metadata, icons,
+  font preconnects, global CSS import, and Astro runtime marker.
 - `src/data/landing.js` - landing-page copy, benchmark/progress helpers, and
   roadmap derivation.
 - `src/data/benchmarks.json` - generated mirror of `../../benchmarks.json`.

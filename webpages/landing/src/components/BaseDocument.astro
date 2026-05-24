@@ -1,0 +1,59 @@
+---
+import '../styles/global.css';
+
+const siteName = 'Gormes';
+const defaultSocialImage = 'https://gormes.ai/static/social-card.png';
+const defaultRuntime = 'astro-tailwind';
+
+const {
+  title,
+  description,
+  canonicalUrl,
+  keywords,
+  socialUrl = canonicalUrl,
+  socialImage = defaultSocialImage,
+  socialImageAlt,
+  structuredData,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-site-runtime={defaultRuntime}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {keywords && <meta name="keywords" content={keywords} />}
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <slot name="head" />
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    {socialUrl && <meta property="og:url" content={socialUrl} />}
+    <meta property="og:image" content={socialImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    {socialImageAlt && <meta property="og:image:alt" content={socialImageAlt} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImage} />
+    {socialImageAlt && <meta name="twitter:image:alt" content={socialImageAlt} />}
+    {structuredData && <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    />
+  </head>
+  <body class="min-h-screen overflow-x-hidden bg-[#090b0f] text-[#eeece5]">
+    <slot />
+  </body>
+</html>

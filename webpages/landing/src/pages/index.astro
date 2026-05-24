@@ -1,5 +1,5 @@
 ---
-import '../styles/global.css';
+import BaseDocument from '../components/BaseDocument.astro';
 import { page } from '../data/landing.js';
 
 const sectionShell = 'mx-auto max-w-5xl px-5 sm:px-7';
@@ -8,7 +8,6 @@ const cardShell = 'rounded-lg border border-white/10 bg-white/[0.035] p-5 shadow
 const buttonBase = 'btn inline-flex min-h-11 items-center justify-center rounded-md px-4 py-2 text-sm font-bold transition hover:border-transparent focus-visible:rounded-md';
 const buttonPrimary = `${buttonBase} btn-primary bg-[#f0c84b] text-[#171000] hover:bg-[#ffd968]`;
 const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-white/[0.035] text-[#eeece5] hover:border-[#f0c84b]/70 hover:text-[#f0c84b]`;
-const canonicalUrl = page.siteUrl;
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -41,46 +40,16 @@ const organizationSchema = {
 };
 ---
 
-<!doctype html>
-<html lang="en" data-site-runtime="astro-tailwind">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{page.title}</title>
-    <meta name="description" content={page.description} />
-    <meta
-      name="keywords"
-      content="Go AI agent runtime, Hermes agent alternative, single binary AI agent, offline AI agent runtime, AI agent gateway, Termux AI agent"
-    />
-    <link rel="canonical" href={canonicalUrl} />
-    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Gormes" />
-    <meta property="og:title" content={page.title} />
-    <meta property="og:description" content={page.description} />
-    <meta property="og:url" content={page.siteUrl} />
-    <meta property="og:image" content="https://gormes.ai/static/social-card.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Gormes Go-native AI agent runtime without Python or Docker" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={page.title} />
-    <meta name="twitter:description" content={page.description} />
-    <meta name="twitter:image" content="https://gormes.ai/static/social-card.png" />
-    <meta name="twitter:image:alt" content="Gormes Go-native AI agent runtime without Python or Docker" />
-    <script type="application/ld+json" set:html={JSON.stringify([softwareSchema, organizationSchema])}></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap"
-    />
-  </head>
-  <body class="min-h-screen overflow-x-hidden bg-[#090b0f] text-[#eeece5]">
+<BaseDocument
+  title={page.title}
+  description={page.description}
+  canonicalUrl={page.siteUrl}
+  keywords="Go AI agent runtime, Hermes agent alternative, single binary AI agent, offline AI agent runtime, AI agent gateway, Termux AI agent"
+  socialUrl={page.siteUrl}
+  socialImageAlt="Gormes Go-native AI agent runtime without Python or Docker"
+  structuredData={[softwareSchema, organizationSchema]}
+>
+  <link slot="head" rel="sitemap" type="application/xml" href="/sitemap.xml" />
     <header class="topbar border-b border-white/10">
       <div class={`${sectionShell} topbar-inner flex items-center justify-between gap-5 py-4`}>
         <a class="brand inline-flex min-w-0 items-center border-0 hover:opacity-90" href="#top" aria-label="Gormes">
@@ -307,5 +276,4 @@ const organizationSchema = {
         }
       });
     </script>
-  </body>
-</html>
+</BaseDocument>

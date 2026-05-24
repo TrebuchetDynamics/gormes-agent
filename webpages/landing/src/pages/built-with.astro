@@ -1,5 +1,5 @@
 ---
-import '../styles/global.css';
+import BaseDocument from '../components/BaseDocument.astro';
 import { builtWithPage } from '../data/builtWith.js';
 
 const sectionShell = 'mx-auto max-w-5xl px-5 sm:px-7';
@@ -10,35 +10,11 @@ const buttonPrimary = `${buttonBase} bg-[#f0c84b] text-[#171000] hover:bg-[#ffd9
 const buttonSecondary = `${buttonBase} border border-white/15 bg-white/[0.035] text-[#eeece5] hover:border-[#f0c84b]/70 hover:text-[#f0c84b]`;
 ---
 
-<!doctype html>
-<html lang="en" data-site-runtime="astro-tailwind">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{builtWithPage.title}</title>
-    <meta name="description" content={builtWithPage.description} />
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Gormes" />
-    <meta property="og:title" content={builtWithPage.title} />
-    <meta property="og:description" content={builtWithPage.description} />
-    <meta property="og:url" content="https://gormes.ai/built-with" />
-    <meta property="og:image" content="https://gormes.ai/static/social-card.png" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={builtWithPage.title} />
-    <meta name="twitter:description" content={builtWithPage.description} />
-    <meta name="twitter:image" content="https://gormes.ai/static/social-card.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap"
-    />
-  </head>
-  <body class="min-h-screen overflow-x-hidden bg-[#090b0f] text-[#eeece5]">
+<BaseDocument
+  title={builtWithPage.title}
+  description={builtWithPage.description}
+  canonicalUrl="https://gormes.ai/built-with"
+>
     <header class="topbar border-b border-white/10">
       <div class={`${sectionShell} flex items-center justify-between gap-5 py-4`}>
         <a class="inline-flex min-w-0 items-center border-0 hover:opacity-90" href="/" aria-label="GORMES-AGENT home">
@@ -133,5 +109,4 @@ const buttonSecondary = `${buttonBase} border border-white/15 bg-white/[0.035] t
         <a class="font-bold text-[#f0c84b] hover:text-[#ffd968]" href="/">Back to gormes.ai</a>
       </div>
     </footer>
-  </body>
-</html>
+</BaseDocument>

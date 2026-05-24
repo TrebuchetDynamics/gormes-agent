@@ -187,6 +187,9 @@ test('built-with page lists truthful deployments and submission template', async
   await page.goto('/built-with');
 
   await expect(page).toHaveTitle('Built with Gormes — Real Deployments and Self-Hosted Uses');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://gormes.ai/built-with');
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', 'https://gormes.ai/built-with');
+  await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
   await expect(page.getByRole('heading', { name: 'Built with Gormes' })).toBeVisible();
   await expect(page.getByText('Real deployments only. No fabricated customer logos, no placeholder companies.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'TrebuchetDynamics operator loop' })).toBeVisible();
