@@ -23,9 +23,9 @@ import (
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
-	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
@@ -633,9 +633,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 		Yuanbao: func(config.Config, *slog.Logger) (gateway.Channel, error) {
 			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")
 		},
-		Navivox: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			return navivoxchannel.NewChannel(cfg.Navivox, log, navivoxchannel.WithProfileRouting(cfg.NavivoxProfileRouting()))
-		},
+		Navivox: channelsmodule.NewNavivoxGatewayChannel,
 		SimpleX: gormescli.NewSimpleXGatewayChannel,
 	}
 }
@@ -758,7 +756,7 @@ func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
 		out["teams"] = users
 	}
 	if cfg.Navivox.Enabled {
-		out[navivoxchannel.PlatformName] = map[string]bool{"navivox": true}
+		out[channelsmodule.NavivoxPlatformName] = map[string]bool{"navivox": true}
 	}
 	if simplexInfo := gormescli.SimpleXEnv(os.LookupEnv); simplexInfo.Enabled {
 		if len(simplexInfo.AllowedUsers) > 0 {
@@ -811,7 +809,7 @@ func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool, m
 		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
 	}
 	if cfg.Navivox.Enabled {
-		allowDiscovery[navivoxchannel.PlatformName] = false
+		allowDiscovery[channelsmodule.NavivoxPlatformName] = false
 	}
 	if simplexInfo := gormescli.SimpleXEnv(os.LookupEnv); simplexInfo.Enabled {
 		if simplexInfo.HomeChannel != "" {
@@ -1078,7 +1076,7 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 		}
 		ch, err := factories.Navivox(cfg, log)
 		if err != nil {
-			writeGatewayChannelDegraded(status, navivoxchannel.PlatformName, "navivox: startup failed: "+err.Error())
+			writeGatewayChannelDegraded(status, channelsmodule.NavivoxPlatformName, "navivox: startup failed: "+err.Error())
 			return registered, fmt.Errorf("register navivox: %w", err)
 		}
 		if err := mgr.Register(ch); err != nil {

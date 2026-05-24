@@ -17,7 +17,7 @@ import (
 	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
-	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
@@ -187,10 +187,6 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 }
 
 func startNavivoxPairBridge(ctx context.Context, cfg config.NavivoxCfg) (context.CancelFunc, <-chan error, error) {
-	ch, err := navivoxchannel.NewChannel(cfg, nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("navivox pair: create local bridge: %w", err)
-	}
 	ln, err := net.Listen("tcp", net.JoinHostPort(strings.Trim(cfg.BindHost, "[]"), strconv.Itoa(cfg.Port)))
 	if err != nil {
 		return nil, nil, fmt.Errorf("navivox pair: start local bridge: %w", err)
@@ -198,7 +194,12 @@ func startNavivoxPairBridge(ctx context.Context, cfg config.NavivoxCfg) (context
 	bridgeCtx, stop := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	inbox := make(chan gateway.InboundEvent, 16)
-	server := &http.Server{Handler: ch.Handler(inbox)}
+	handler, err := channelsmodule.NewNavivoxPairBridgeHandler(cfg, inbox)
+	if err != nil {
+		_ = ln.Close()
+		return nil, nil, err
+	}
+	server := &http.Server{Handler: handler}
 	go func() {
 		<-bridgeCtx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
