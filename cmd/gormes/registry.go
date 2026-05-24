@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/kanban"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/sessionsearch"
 )
 
@@ -125,9 +125,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewSkillManagerTool(tools.SkillManagerToolConfig{
 		Root: cfg.SkillsRoot(),
 	}))
-	for _, tool := range kanbantools.NewTools(kanbantools.ConfigFromEnv()) {
-		reg.MustRegister(tool)
-	}
+	gormescli.RegisterKanbanTools(reg)
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
 		Env: browserCDPEnv(cfg),
 		Budget: tools.ToolResultBudgetConfig{
