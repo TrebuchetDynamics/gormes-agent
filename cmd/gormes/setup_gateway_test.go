@@ -515,23 +515,36 @@ func TestSetupGatewayNavivoxLocalModeWritesSafeConfig(t *testing.T) {
 	t.Setenv("GORMES_HOME", home)
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "navivox\ny\n\n\n\n\n\n", "gateway")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "navivox\ny\n\n\n\n\ny\n", "gateway")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
+	qrPath := filepath.Join(home, "navivox", "pairing.png")
 	for _, want := range []string{
+		"Record manual firewall-open intent? [n]:",
 		"Navivox gateway channel configured.",
-		"HTTP base URL: http://127.0.0.1:8765",
-		"WebSocket URL: ws://127.0.0.1:8765/v1/navivox/stream",
-		"Pairing token: generated and stored",
-		"Pairing QR image: ",
-		"REST/WebSocket auth rules:",
-		"Authorization: Bearer <Navivox token>",
-		"Firewall: no rules were changed.",
+		"Connection",
+		"  HTTP: http://127.0.0.1:8765",
+		"  WebSocket: ws://127.0.0.1:8765/v1/navivox/stream",
+		"  Config:",
+		"Pairing",
+		"  Token: generated and stored as GORMES_NAVIVOX_TOKEN in:",
+		"  Pairing QR image:\n  " + qrPath,
+		"Auth rules",
+		"  REST: Authorization: Bearer <Navivox token>",
+		"Firewall",
+		"  Status: no rules were changed by Gormes.",
+		"  Operator request: recorded only; open 127.0.0.1:8765 manually if needed.",
+		"Next steps",
+		"  1. Start gateway: gormes gateway",
+		"  2. Open Navivox on Android and scan the QR image.",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
+	}
+	if strings.Contains(stdout, "Pairing QR image: "+qrPath) {
+		t.Fatalf("QR path should be on its own line for narrow terminals:\n%s", stdout)
 	}
 	cfg, err := config.Load(nil)
 	if err != nil {
@@ -549,7 +562,6 @@ func TestSetupGatewayNavivoxLocalModeWritesSafeConfig(t *testing.T) {
 	if strings.Contains(stdout, cfg.Navivox.Token) {
 		t.Fatal("setup output leaked generated Navivox token")
 	}
-	qrPath := filepath.Join(home, "navivox", "pairing.png")
 	info, err := os.Stat(qrPath)
 	if err != nil {
 		t.Fatalf("stat pairing QR image: %v", err)

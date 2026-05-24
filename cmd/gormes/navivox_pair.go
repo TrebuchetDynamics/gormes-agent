@@ -122,16 +122,30 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "Navivox pairing ready.")
-	fmt.Fprintf(out, "Local bridge URL: %s\n", baseURL)
-	fmt.Fprintf(out, "WebSocket URL: %s\n", wsURL)
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Connection")
+	fmt.Fprintf(out, "  HTTP: %s\n", baseURL)
+	fmt.Fprintf(out, "  WebSocket: %s\n", wsURL)
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Pairing")
 	if generatedToken {
-		fmt.Fprintf(out, "Pairing token: generated and stored in %s as GORMES_NAVIVOX_TOKEN.\n", config.EnvPath())
+		fmt.Fprintln(out, "  Token: generated and stored as GORMES_NAVIVOX_TOKEN in:")
 	} else {
-		fmt.Fprintf(out, "Pairing token: reused from %s as GORMES_NAVIVOX_TOKEN.\n", config.EnvPath())
+		fmt.Fprintln(out, "  Token: reused from GORMES_NAVIVOX_TOKEN in:")
 	}
-	fmt.Fprintf(out, "Pairing QR image: %s\n", qrPath)
-	fmt.Fprintln(out, "Open Navivox on Android and scan the QR.")
-	fmt.Fprintf(out, "Local bridge listening: %s\n", baseURL)
+	fmt.Fprintf(out, "  %s\n", config.EnvPath())
+	fmt.Fprintln(out, "  Pairing QR image:")
+	fmt.Fprintf(out, "  %s\n", qrPath)
+	fmt.Fprintln(out, "  Secret: the QR image embeds the local bridge URL and Navivox token.")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Bridge")
+	fmt.Fprintf(out, "  Local bridge URL: %s\n", baseURL)
+	fmt.Fprintf(out, "  Local bridge listening: %s\n", baseURL)
+	fmt.Fprintln(out, "  Lifecycle: keep this terminal open after Navivox connects.")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Next steps")
+	fmt.Fprintln(out, "  1. Open Navivox on Android and scan the QR image.")
+	fmt.Fprintln(out, "  2. Finish provider, model, workspace, and channel setup in Navivox.")
 	if opts.noWait {
 		if err := stopNavivoxPairBridge(bridgeStop, bridgeDone); err != nil {
 			return err

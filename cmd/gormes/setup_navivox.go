@@ -136,7 +136,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 		allowedIdentities = allowedInput
 	}
 
-	firewallInput, err := promptString(cmd, "Open firewall rule for this port now? [n]: ", "no")
+	firewallInput, err := promptString(cmd, "Record manual firewall-open intent? [n]: ", "no")
 	if err != nil {
 		return err
 	}
@@ -195,26 +195,44 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	}
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Navivox gateway channel configured.")
-	fmt.Fprintf(out, "HTTP base URL: %s\n", baseURL)
-	fmt.Fprintf(out, "WebSocket URL: %s\n", wsURL)
-	fmt.Fprintf(out, "Config: %s\n", config.ConfigPath())
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Connection")
+	fmt.Fprintf(out, "  HTTP: %s\n", baseURL)
+	fmt.Fprintf(out, "  WebSocket: %s\n", wsURL)
+	fmt.Fprintln(out, "  Config:")
+	fmt.Fprintf(out, "  %s\n", config.ConfigPath())
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Pairing")
 	if token != "" {
-		fmt.Fprintf(out, "Pairing token: generated and stored in %s as GORMES_NAVIVOX_TOKEN.\n", config.EnvPath())
+		fmt.Fprintln(out, "  Token: generated and stored as GORMES_NAVIVOX_TOKEN in:")
+		fmt.Fprintf(out, "  %s\n", config.EnvPath())
 	}
-	fmt.Fprintf(out, "Pairing QR image: %s\n", qrPath)
-	fmt.Fprintln(out, "REST/WebSocket auth rules:")
+	fmt.Fprintln(out, "  Pairing QR image:")
+	fmt.Fprintf(out, "  %s\n", qrPath)
 	if token != "" {
-		fmt.Fprintln(out, "  - REST: send Authorization: Bearer <Navivox token> on /v1/navivox/* requests.")
-		fmt.Fprintln(out, "  - WebSocket: use the Navivox token subprotocol, or an Authorization header when the client supports headers.")
-		fmt.Fprintln(out, "  - Treat the QR image as secret; it embeds the base URL and Navivox token.")
+		fmt.Fprintln(out, "  Secret: the QR image embeds the base URL and Navivox token.")
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Auth rules")
+	if token != "" {
+		fmt.Fprintln(out, "  REST: Authorization: Bearer <Navivox token>")
+		fmt.Fprintln(out, "  WebSocket: Navivox token subprotocol, or Authorization header if supported.")
 	} else {
-		fmt.Fprintln(out, "  - Token auth is disabled for this mode; Tailscale identity headers authorize requests.")
+		fmt.Fprintln(out, "  Token auth is disabled for this mode; Tailscale identity headers authorize requests.")
 	}
-	fmt.Fprintln(out, "Firewall: no rules were changed.")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Firewall")
+	fmt.Fprintln(out, "  Status: no rules were changed by Gormes.")
 	if firewallRequested {
-		fmt.Fprintf(out, "Firewall request recorded as operator intent only; open %s:%d manually and keep rollback documented.\n", runtimeCfg.BindHost, runtimeCfg.Port)
+		fmt.Fprintf(out, "  Operator request: recorded only; open %s:%d manually if needed.\n", runtimeCfg.BindHost, runtimeCfg.Port)
+		fmt.Fprintln(out, "  Rollback: close that manual rule after testing.")
+	} else {
+		fmt.Fprintln(out, "  Operator request: none.")
 	}
-	fmt.Fprintln(out, "Start gateway: gormes gateway")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Next steps")
+	fmt.Fprintln(out, "  1. Start gateway: gormes gateway")
+	fmt.Fprintln(out, "  2. Open Navivox on Android and scan the QR image.")
 	return nil
 }
 

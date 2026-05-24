@@ -96,18 +96,30 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	if err != nil {
 		t.Fatalf("navivox pair --no-wait: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
+	qrPath := filepath.Join(home, "navivox", "pairing.png")
 	for _, want := range []string{
 		"Navivox pairing ready.",
-		fmt.Sprintf("Local bridge URL: http://127.0.0.1:%d", port),
-		fmt.Sprintf("WebSocket URL: ws://127.0.0.1:%d/v1/navivox/stream", port),
-		"Pairing token: generated and stored",
-		"Pairing QR image: ",
-		"Open Navivox on Android and scan the QR.",
+		"Connection",
+		fmt.Sprintf("  HTTP: http://127.0.0.1:%d", port),
+		fmt.Sprintf("  WebSocket: ws://127.0.0.1:%d/v1/navivox/stream", port),
+		"Pairing",
+		"  Token: generated and stored as GORMES_NAVIVOX_TOKEN in:",
+		"  Pairing QR image:\n  " + qrPath,
+		"  Secret: the QR image embeds the local bridge URL and Navivox token.",
+		"Bridge",
+		fmt.Sprintf("  Local bridge URL: http://127.0.0.1:%d", port),
+		"  Lifecycle: keep this terminal open after Navivox connects.",
+		"Next steps",
+		"  1. Open Navivox on Android and scan the QR image.",
+		"  2. Finish provider, model, workspace, and channel setup in Navivox.",
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
+	}
+	if strings.Contains(stdout, "Pairing QR image: "+qrPath) {
+		t.Fatalf("QR path should be on its own line for narrow terminals:\n%s", stdout)
 	}
 
 	cfg, err := config.Load(nil)
@@ -124,7 +136,6 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 		t.Fatalf("navivox pair leaked generated token:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 
-	qrPath := filepath.Join(home, "navivox", "pairing.png")
 	info, err := os.Stat(qrPath)
 	if err != nil {
 		t.Fatalf("stat pairing QR image: %v", err)

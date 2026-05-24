@@ -77,7 +77,7 @@ func runNavivoxConnectInfo(cmd *cobra.Command, cfg config.NavivoxCfg, jsonOut bo
 
 func runNavivoxConnectInfoForConfig(cmd *cobra.Command, cfg config.Config, jsonOut bool) error {
 	if !cfg.Navivox.Enabled {
-		return fmt.Errorf("navivox connect: [navivox].enabled=false; set [navivox].enabled=true in config.toml")
+		return fmt.Errorf("navivox connect: [navivox].enabled=false; for first-time Android/Termux setup run `gormes navivox pair`; for a persistent gateway run `gormes setup navivox` or set [navivox].enabled=true with a token")
 	}
 	entries := buildNavivoxConnectInfoEntriesForConfig(cmd, cfg)
 	out := cmd.OutOrStdout()

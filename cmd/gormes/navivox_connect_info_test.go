@@ -54,8 +54,14 @@ func TestNavivoxConnectInfo_Disabled_ReturnsTypedError(t *testing.T) {
 	if err == nil {
 		t.Fatal("err = nil, want disabled error")
 	}
-	if !strings.Contains(err.Error(), "[navivox].enabled") {
-		t.Errorf("err = %q, want hint about [navivox].enabled", err)
+	for _, want := range []string{
+		"[navivox].enabled",
+		"gormes navivox pair",
+		"gormes setup navivox",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("err = %q, want hint %q", err, want)
+		}
 	}
 }
 
