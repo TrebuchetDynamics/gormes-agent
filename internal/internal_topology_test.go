@@ -329,6 +329,19 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/tools/whisper/transcriber.go:NewTranscriber",
 			},
 		},
+		{
+			Name:        "runtimebridge-rehome",
+			Active:      true,
+			OwnerModule: "runtime",
+			OldRoots:    []string{"internal/runtimebridge"},
+			NewRoots:    []string{"internal/runtime/bridge"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Runtime Mechanics Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/runtime/bridge/runtimebridge.go:Runtime",
+				"internal/runtime/bridge/runtimebridge.go:NoRuntime",
+			},
+		},
 	}
 }
 
