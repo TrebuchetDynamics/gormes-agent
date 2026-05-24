@@ -1712,6 +1712,61 @@ setup_tty_available() {
   (: < /dev/tty) >/dev/null 2>&1
 }
 
+setup_file_has_config_value() {
+  sfh_file="$1"
+  [ -s "$sfh_file" ] || return 1
+  while IFS= read -r sfh_line || [ -n "$sfh_line" ]; do
+    sfh_line=${sfh_line#"${sfh_line%%[!	 ]*}"}
+    case "$sfh_line" in
+      ""|\#*) continue ;;
+      *=*) ;;
+      *) continue ;;
+    esac
+    sfh_key=${sfh_line%%=*}
+    sfh_value=${sfh_line#*=}
+    sfh_value=${sfh_value%%#*}
+    case "$sfh_key" in
+      *enabled*)
+        case "$sfh_value" in *true*) return 0 ;; esac
+        ;;
+      *provider*|*endpoint*|*api_key*|*model*|*telegram_token*|*discord_token*|*slack_token*|*slack_bot_token*|*bot_token*|*token*|*allowed_user_ids*)
+        case "$sfh_value" in *[A-Za-z0-9]*) return 0 ;; esac
+        ;;
+    esac
+  done < "$sfh_file"
+  return 1
+}
+
+setup_env_file_has_config_value() {
+  sfh_file="$1"
+  [ -s "$sfh_file" ] || return 1
+  while IFS= read -r sfh_line || [ -n "$sfh_line" ]; do
+    sfh_line=${sfh_line#"${sfh_line%%[!	 ]*}"}
+    case "$sfh_line" in
+      ""|\#*) continue ;;
+      *=*) ;;
+      *) continue ;;
+    esac
+    sfh_key=${sfh_line%%=*}
+    sfh_value=${sfh_line#*=}
+    sfh_value=${sfh_value%%#*}
+    case "$sfh_key" in
+      GORMES_API_KEY|GORMES_ENDPOINT|GORMES_MODEL|GORMES_INFERENCE_PROVIDER|GORMES_INFERENCE_MODEL|GORMES_NAVIVOX_TOKEN|OPENROUTER_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|DEEPSEEK_API_KEY|GROQ_API_KEY)
+        case "$sfh_value" in *[A-Za-z0-9]*) return 0 ;; esac
+        ;;
+    esac
+  done < "$sfh_file"
+  return 1
+}
+
+setup_already_configured() {
+  home=$(managed_home_dir)
+  [ -s "${home}/auth.json" ] && return 0
+  setup_file_has_config_value "${home}/config.toml" && return 0
+  setup_env_file_has_config_value "${home}/.env" && return 0
+  return 1
+}
+
 print_setup_path_recommendation() {
   log ""
   log "Gormes installed successfully"
@@ -1727,6 +1782,13 @@ print_setup_path_recommendation() {
 run_setup_wizard() {
   if [ "$RUN_SETUP" = "false" ]; then
     log_info "Skipping setup wizard (--skip-setup)"
+    return 0
+  fi
+
+  if setup_already_configured; then
+    log_info "Existing Gormes setup detected; skipping setup recommendation."
+    log "  config: $(managed_home_dir)/config.toml"
+    log "  Run \`gormes setup\` to change providers, channels, or Navivox pairing."
     return 0
   fi
 
@@ -2362,6 +2424,8 @@ print_restart_plan() {
 print_setup_wizard_plan() {
   if [ "$RUN_SETUP" = "false" ]; then
     log "  setup_wizard: skipped"
+  elif setup_already_configured; then
+    log "  setup_wizard: skipped (existing setup detected)"
   else
     log "  setup_wizard: navivox-recommended"
   fi

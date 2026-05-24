@@ -853,6 +853,51 @@ func TestInstallSH_DefaultInstallRecommendsNavivoxFirstSetupPath(t *testing.T) {
 	}
 }
 
+func TestInstallSH_LocalInstallSkipsSetupRecommendationWhenConfigAlreadyExists(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	local := filepath.Join(root, "local-source")
+	writeMinimalGoModule(t, local)
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+	configPath := filepath.Join(home, ".gormes", "config.toml")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(configPath, []byte("[hermes]\nprovider = 'openrouter'\nendpoint = 'https://openrouter.ai/api/v1'\n"), 0o644); err != nil {
+		t.Fatalf("write existing config: %v", err)
+	}
+
+	out, err := runInstallScriptWithArgsInDir(t, local,
+		[]string{"--local"},
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_TEST_HAS_TTY=1",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("install.sh --local failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
+	}
+	for _, want := range []string{
+		"setup_wizard: skipped (existing setup detected)",
+		"using local source checkout " + local,
+		"→ Existing Gormes setup detected; skipping setup recommendation.",
+		"Run `gormes setup` to change providers, channels, or Navivox pairing.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("local install output missing %q:\n%s", want, out)
+		}
+	}
+	for _, reject := range []string{"Choose setup path:", "Recommended next step: gormes navivox pair", "CLI setup command: gormes setup"} {
+		if strings.Contains(out, reject) {
+			t.Fatalf("local install with existing setup should not show setup recommendation %q:\n%s", reject, out)
+		}
+	}
+	if log := readTextFile(t, logPath); strings.Contains(log, "built-gormes setup") {
+		t.Fatalf("local install invoked setup despite existing config:\n%s", log)
+	}
+}
+
 func TestInstallSH_SkipSetupFlagAvoidsWizardEvenWithTerminal(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
