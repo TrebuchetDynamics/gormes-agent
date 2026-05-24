@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -45,6 +47,9 @@ func configuredChannelCapabilityDetails(cfg config.Config) map[string]string {
 		}
 		details["discord"] = detail
 	}
+	if detail := configuredWhatsAppGatewayStatusDetail(); detail != "" {
+		details["whatsapp"] = detail
+	}
 	if cfg.Slack.Enabled {
 		details["slack"] = configuredSlackGatewayStatusDetail(cfg.Slack)
 	}
@@ -55,4 +60,15 @@ func configuredChannelCapabilityDetails(cfg config.Config) map[string]string {
 		details["yuanbao"] = cfg.Yuanbao.RedactedStatus()
 	}
 	return details
+}
+
+func configuredWhatsAppGatewayStatusDetail() string {
+	if !strings.EqualFold(strings.TrimSpace(os.Getenv("WHATSAPP_ENABLED")), "true") {
+		return ""
+	}
+	mode := strings.TrimSpace(os.Getenv("WHATSAPP_MODE"))
+	if mode == "" {
+		return "enabled=true"
+	}
+	return "mode=" + mode
 }

@@ -41,6 +41,7 @@ func TestWhatsAppTopLevelCommandRendersPairingPreflight(t *testing.T) {
 		"node scripts/whatsapp-bridge/bridge.js --port 3000 --session " + filepath.Join(home, "whatsapp", "session") + " --mode bot",
 		"Run without --plan to start the live QR pairing wizard.",
 		"gormes gateway status",
+		"gormes channels --channel whatsapp",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)

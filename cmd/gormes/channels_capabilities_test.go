@@ -10,6 +10,49 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
+func TestChannelsCommandDefaultsToCapabilitySummaryAndAcceptsSingularAlias(t *testing.T) {
+	setupChannelsCapabilitiesTestEnv(t)
+
+	for _, invocation := range [][]string{{"channels"}, {"channel"}, {"channel", "--channel", "whatsapp"}} {
+		stdout, stderr, err := executeOneshotFlagCommand(newRootCommand(), invocation...)
+		if err != nil {
+			t.Fatalf("gormes %s: %v\nstderr=%s\nstdout=%s", strings.Join(invocation, " "), err, stderr, stdout)
+		}
+		wants := []string{"WhatsApp (whatsapp)", "Status: not configured", "Support:"}
+		if len(invocation) == 1 {
+			wants = append(wants, "Telegram (telegram)")
+		}
+		for _, want := range wants {
+			if !strings.Contains(stdout, want) {
+				t.Fatalf("gormes %s stdout missing %q:\n%s", strings.Join(invocation, " "), want, stdout)
+			}
+		}
+		if strings.Contains(stdout, "Usage:") {
+			t.Fatalf("gormes %s printed help instead of the useful capability summary:\n%s", strings.Join(invocation, " "), stdout)
+		}
+	}
+}
+
+func TestChannelsCapabilitiesCommandRendersConfiguredWhatsAppFromPairingEnv(t *testing.T) {
+	setupChannelsCapabilitiesTestEnv(t)
+	t.Setenv("WHATSAPP_ENABLED", "true")
+	t.Setenv("WHATSAPP_MODE", "bot")
+
+	stdout, stderr, err := executeChannelsCapabilitiesCommand(t, "--channel", "whatsapp")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	for _, want := range []string{
+		"WhatsApp (whatsapp)",
+		"Status: configured (mode=bot)",
+		"pairing=partial",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q\n%s", want, stdout)
+		}
+	}
+}
+
 func TestChannelsCapabilitiesCommandRendersConfiguredTelegram(t *testing.T) {
 	setupChannelsCapabilitiesTestEnv(t)
 	writeChannelsCapabilitiesConfig(t, []byte(`
@@ -194,6 +237,9 @@ func setupChannelsCapabilitiesTestEnv(t *testing.T) {
 	t.Setenv("TEAMS_PORT", "")
 	t.Setenv("TEAMS_ALLOWED_USERS", "")
 	t.Setenv("TEAMS_ALLOW_ALL_USERS", "")
+	t.Setenv("WHATSAPP_ENABLED", "")
+	t.Setenv("WHATSAPP_MODE", "")
+	t.Setenv("WHATSAPP_ALLOWED_USERS", "")
 }
 
 func writeChannelsCapabilitiesConfig(t *testing.T, data []byte) {

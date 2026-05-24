@@ -3,12 +3,39 @@ package channels
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	channelcaps "github.com/TrebuchetDynamics/gormes-agent/internal/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
+
+func TestChannelsCommandDefaultRendersCapabilities(t *testing.T) {
+	cmd := NewCommandWithSeams(Seams{
+		LoadConfig: func() (config.Config, error) { return config.Config{}, nil },
+		ConfiguredDetails: func(config.Config) map[string]string {
+			return map[string]string{"whatsapp": "mode=bot"}
+		},
+	}, Options{})
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"--channel", "whatsapp"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("channels: %v\nstdout=%s", err, stdout.String())
+	}
+	for _, want := range []string{"WhatsApp (whatsapp)", "Status: configured (mode=bot)", "Support:"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+		}
+	}
+	if strings.Contains(stdout.String(), "Usage:") {
+		t.Fatalf("channels printed help instead of capability summary:\n%s", stdout.String())
+	}
+}
 
 func TestCapabilitiesCommandUsesInjectedConfigAndBuildProvenance(t *testing.T) {
 	cmd := NewCommandWithSeams(Seams{
