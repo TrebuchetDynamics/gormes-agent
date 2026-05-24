@@ -54,6 +54,14 @@ func TestInternalTopologyReportsCurrentMetrics(t *testing.T) {
 	t.Logf("internal_top_level_dirs=%d cmd_gormes_direct_internal_imports=%d", report.InternalTopLevelDirs, report.CmdGormesDirectInternalImports)
 }
 
+func TestInternalTopologyPrimaryDirectoryBudget(t *testing.T) {
+	report := loadInternalTopologyReport(t)
+	const primaryTarget = 45
+	if report.InternalTopLevelDirs > primaryTarget {
+		t.Fatalf("internal top-level dirs = %d, want <= %d per internal/REFACTOR-CMD-PLAN.md primary target", report.InternalTopLevelDirs, primaryTarget)
+	}
+}
+
 func TestInternalTopologyMigrationEntryShape(t *testing.T) {
 	entry := findTopologyMigration(t, defaultTopologyMigrations(), "cli-surface-rehome")
 	if entry.OwnerModule == "" || len(entry.OldRoots) == 0 || len(entry.NewRoots) == 0 || len(entry.SourceRefs) == 0 {
