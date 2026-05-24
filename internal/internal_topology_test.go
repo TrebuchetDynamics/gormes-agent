@@ -397,6 +397,19 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/progress/loopcost/cost.go:DailyRollup",
 			},
 		},
+		{
+			Name:        "i18n-tui-rehome",
+			Active:      true,
+			OwnerModule: "tui",
+			OldRoots:    []string{"internal/i18n"},
+			NewRoots:    []string{"internal/tui/i18n"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Second-pass leaf triage",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/tui/i18n/i18n.go:SupportedLanguages",
+				"internal/tui/i18n/i18n.go:T",
+			},
+		},
 	}
 }
 

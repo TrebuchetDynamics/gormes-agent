@@ -219,10 +219,10 @@ func writeDashboardSourcePairs(t *testing.T, root string) {
     },
     {
       "hermes_file": "web/src/i18n/context.tsx",
-      "gormes_targets": ["internal/i18n/catalog.go"],
+      "gormes_targets": ["internal/tui/i18n/catalog.go"],
       "status": "covered",
       "contract": "Hermes dashboard i18n catalog is represented by Gormes static-message locale fixtures.",
-      "tests": ["go test ./internal/i18n -count=1"],
+      "tests": ["go test ./internal/tui/i18n -count=1"],
       "progress_rows": ["Dashboard i18n locale catalog"],
       "last_checked_hermes_sha": "abc123"
     },
@@ -270,7 +270,7 @@ func writeDashboardProgress(t *testing.T, root string) {
 							dashboardProgressItem("Dashboard sessions endpoint contract", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/pages/SessionsPage.tsx", "go test ./internal/apiserver -run TestDashboardContract_CoversNativeDashboardEndpoints -count=1"),
 							dashboardProgressItem("Dashboard page-scoped plugin slots", progress.StatusComplete, progress.ContractStatusValidated, "plugins", "hermes-agent/web/src/plugins/slots.ts", "go test ./internal/apiserver -run TestDashboardPluginsEndpointPreservesPageScopedSlotMetadata -count=1"),
 							dashboardProgressItem("Dashboard cron admin endpoints", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/pages/CronPage.tsx", "go test ./internal/apiserver -run TestAPIServerCronAdmin -count=1"),
-							dashboardProgressItem("Dashboard i18n locale catalog", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/i18n/context.tsx", "go test ./internal/i18n -count=1"),
+							dashboardProgressItem("Dashboard i18n locale catalog", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/i18n/context.tsx", "go test ./internal/tui/i18n -count=1"),
 							dashboardProgressItem("Gormes dashboard theme extension status", progress.StatusComplete, progress.ContractStatusValidated, "gateway", "hermes-agent/web/src/themes/context.tsx", "go test ./internal/apiserver -run TestDashboardExtensionStatusDistinguishesThemesPluginsAndBackendRoutes -count=1"),
 							dashboardProgressItem("Dashboard OAuth provider panels", progress.StatusPlanned, progress.ContractStatusFixtureReady, "providers", "hermes-agent/web/src/components/OAuthProvidersCard.tsx", "go test ./internal/apiserver -run TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract -count=1"),
 							dashboardProgressItem("Dashboard terminal chat PTY parity", progress.StatusPlanned, progress.ContractStatusFixtureReady, "gateway", "hermes-agent/web/src/pages/ChatPage.tsx", "go test ./internal/apiserver -run TestDashboardContract_CoversNativeDashboardEndpoints -count=1"),

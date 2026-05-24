@@ -219,7 +219,7 @@ func TestSupportedLanguagesCount(t *testing.T) {
 }
 
 func TestBundledSupportedCatalogsHaveMatchingKeys(t *testing.T) {
-	t.Setenv("GORMES_LOCALES_DIR", filepath.Join("..", "..", "locales"))
+	t.Setenv("GORMES_LOCALES_DIR", filepath.Join("..", "..", "..", "locales"))
 	ResetLanguageCache()
 
 	enCat := loadCatalog("en")
@@ -296,7 +296,7 @@ func TestConfigLanguageOverriddenByEnv(t *testing.T) {
 
 func TestBrokenYAML(t *testing.T) {
 	setupLocalesDir(t, map[string]string{
-		"en.yaml":      "test:\n  hello: \"Hello\"\n",
+		"en.yaml":     "test:\n  hello: \"Hello\"\n",
 		"broken.yaml": "this: is: not: valid: [[[yaml",
 	})
 
