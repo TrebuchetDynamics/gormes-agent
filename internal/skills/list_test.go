@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -82,6 +83,43 @@ func TestListInstalledSkills_SourceFilterRespected(t *testing.T) {
 	}
 }
 
+func TestListInstalledSkills_BundledRootSymlinkTracksHermesSkills(t *testing.T) {
+	activeRoot := t.TempDir()
+	bundledReal := t.TempDir()
+	writeBundledListSkillDoc(t, bundledReal, "productivity", "hermes-skill")
+
+	bundledLink := filepath.Join(t.TempDir(), "skills")
+	if err := os.Symlink(bundledReal, bundledLink); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	t.Setenv("GORMES_SKILLS_ROOT", activeRoot)
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", bundledLink)
+
+	rows := ListInstalledSkills(ListOptions{Source: "builtin"}, nil)
+	row, ok := findListRow(rows, "hermes-skill")
+	if !ok {
+		t.Fatalf("bundled symlink skill missing from rows: %#v", rows)
+	}
+	if row.Category != "productivity" || row.Source != "builtin" || row.Trust != "system" {
+		t.Fatalf("row metadata = category=%q source=%q trust=%q", row.Category, row.Source, row.Trust)
+	}
+	if !strings.HasPrefix(filepath.ToSlash(row.Path), filepath.ToSlash(bundledLink)+"/") {
+		t.Fatalf("row.Path = %q, want logical symlink root %q", row.Path, bundledLink)
+	}
+}
+
+func writeBundledListSkillDoc(t *testing.T, root, category, name string) {
+	t.Helper()
+	dir := filepath.Join(root, category, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", dir, err)
+	}
+	raw := "---\nname: " + name + "\ndescription: " + name + " description\n---\n\nUse " + name + "."
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(raw), 0o644); err != nil {
+		t.Fatalf("WriteFile(SKILL.md): %v", err)
+	}
+}
+
 func writeListSkillDoc(t *testing.T, root, category, name, source, trust string) {
 	t.Helper()
 	dir := filepath.Join(root, "active", category, name)
@@ -96,6 +134,15 @@ func writeListSkillDoc(t *testing.T, root, category, name, source, trust string)
 	if err := os.WriteFile(filepath.Join(dir, "meta.json"), []byte(meta), 0o644); err != nil {
 		t.Fatalf("WriteFile(meta.json): %v", err)
 	}
+}
+
+func findListRow(rows []SkillRow, name string) (SkillRow, bool) {
+	for _, row := range rows {
+		if row.Name == name {
+			return row, true
+		}
+	}
+	return SkillRow{}, false
 }
 
 func rowNames(rows []SkillRow) []string {

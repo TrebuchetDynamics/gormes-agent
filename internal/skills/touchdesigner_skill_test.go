@@ -24,21 +24,14 @@ func TestTouchDesignerSkill_ParsesBundledMetadata(t *testing.T) {
 	if skill.Description != wantDesc {
 		t.Fatalf("Description = %q\nwant: %q", skill.Description, wantDesc)
 	}
-	if got := stringField(t, skill, "ReviewState"); got != "reviewed" {
-		t.Fatalf("ReviewState = %q, want reviewed", got)
+	if got := stringSliceField(t, skill, "RequiredEnvVars"); len(got) != 0 {
+		t.Fatalf("RequiredEnvVars = %#v, want no environment prerequisite for exact Hermes skill", got)
 	}
 
 	tags := stringSliceField(t, skill, "HermesTags")
 	for _, want := range []string{"TouchDesigner", "MCP", "twozero"} {
 		if !containsString(tags, want) {
 			t.Fatalf("HermesTags = %#v, missing %q", tags, want)
-		}
-	}
-
-	creds := credentialGroupsString(t, skill)
-	for _, want := range []string{"TOUCHDESIGNER_MCP_URL", "TWOZERO_MCP_URL"} {
-		if !strings.Contains(creds, want) {
-			t.Fatalf("CredentialGroups = %s, want %s any-of group", creds, want)
 		}
 	}
 
@@ -91,7 +84,7 @@ func TestTouchDesignerSkill_MovedFromOptionalCatalog(t *testing.T) {
 	}
 }
 
-func TestTouchDesignerSkill_MissingPrerequisitesUnavailable(t *testing.T) {
+func TestTouchDesignerSkill_NoCredentialPrerequisitesEnableCatalogAndPrompt(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GORMES_SKILLS_ROOT", root)
 	clearEnvVars(t, "TOUCHDESIGNER_MCP_URL", "TWOZERO_MCP_URL")
@@ -102,61 +95,26 @@ func TestTouchDesignerSkill_MissingPrerequisitesUnavailable(t *testing.T) {
 	if !ok {
 		t.Fatalf("TouchDesigner catalog row missing from rows: %#v", rows)
 	}
-	if row.Status != skills.SkillStatusMissingPrerequisite {
-		t.Fatalf("Status = %q, want %q (catalog row stays visible)", row.Status, skills.SkillStatusMissingPrerequisite)
+	if row.Status != skills.SkillStatusEnabled {
+		t.Fatalf("Status = %q, want %q for exact Hermes skill with no env prerequisite", row.Status, skills.SkillStatusEnabled)
 	}
 
 	runtime := skills.NewRuntime(root, 64*1024, 3, "")
-	_, _, statuses, err := runtime.BuildSkillBlockWithOptions(context.Background(), "touchdesigner mcp build network", skills.RuntimeOptions{
+	block, names, statuses, err := runtime.BuildSkillBlockWithOptions(context.Background(), "touchdesigner mcp twozero generative visuals", skills.RuntimeOptions{
 		Env: map[string]string{},
 	})
 	if err != nil {
 		t.Fatalf("BuildSkillBlockWithOptions() error = %v", err)
 	}
-
+	if !containsString(names, "touchdesigner-mcp") {
+		t.Fatalf("names = %#v, want touchdesigner-mcp without local metadata patches", names)
+	}
 	status := findSkillStatus(t, statuses, "touchdesigner-mcp")
-	if status.Status != skills.SkillStatusMissingPrerequisite {
-		t.Fatalf("status = %q, want %q", status.Status, skills.SkillStatusMissingPrerequisite)
+	if status.Status != skills.SkillStatusAvailable {
+		t.Fatalf("status = %q, want %q", status.Status, skills.SkillStatusAvailable)
 	}
-	if !strings.Contains(status.Reason, "TOUCHDESIGNER_MCP_URL") || !strings.Contains(status.Reason, "TWOZERO_MCP_URL") {
-		t.Fatalf("missing prerequisite reason = %q, want both TOUCHDESIGNER_MCP_URL and TWOZERO_MCP_URL evidence", status.Reason)
-	}
-}
-
-func TestTouchDesignerSkill_PromptExcludedWhenUnavailable(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("GORMES_SKILLS_ROOT", root)
-	clearEnvVars(t, "TOUCHDESIGNER_MCP_URL", "TWOZERO_MCP_URL")
-	installTouchDesignerSkillFixture(t, root)
-
-	runtime := skills.NewRuntime(root, 64*1024, 3, "")
-	block, names, _, err := runtime.BuildSkillBlockWithOptions(context.Background(), "touchdesigner mcp twozero generative visuals", skills.RuntimeOptions{
-		Env: map[string]string{},
-	})
-	if err != nil {
-		t.Fatalf("BuildSkillBlockWithOptions() error = %v", err)
-	}
-	for _, name := range names {
-		if name == "touchdesigner-mcp" {
-			t.Fatalf("names = %#v, must not include touchdesigner-mcp while unavailable", names)
-		}
-	}
-	if strings.Contains(block, "## touchdesigner-mcp") || strings.Contains(block, "td_execute_python") {
-		t.Fatalf("block injected unavailable TouchDesigner instructions:\n%s", block)
-	}
-
-	available := map[string]string{"TOUCHDESIGNER_MCP_URL": "http://localhost:40404/mcp"}
-	block2, names2, _, err := runtime.BuildSkillBlockWithOptions(context.Background(), "touchdesigner mcp twozero generative visuals", skills.RuntimeOptions{
-		Env: available,
-	})
-	if err != nil {
-		t.Fatalf("BuildSkillBlockWithOptions(available) error = %v", err)
-	}
-	if !containsString(names2, "touchdesigner-mcp") {
-		t.Fatalf("names = %#v, want touchdesigner-mcp once prerequisite present", names2)
-	}
-	if !strings.Contains(block2, "## touchdesigner-mcp") {
-		t.Fatalf("block missing TouchDesigner section once available:\n%s", block2)
+	if !strings.Contains(block, "## touchdesigner-mcp") || !strings.Contains(block, "td_execute_python") {
+		t.Fatalf("block missing exact Hermes TouchDesigner instructions:\n%s", block)
 	}
 }
 
@@ -179,10 +137,16 @@ func TestTouchDesignerSkill_ReferenceFilesAreInertSkillAssets(t *testing.T) {
 		t.Fatalf("references/mcp-tools.md must not parse as a SKILL.md descriptor; got success")
 	}
 
-	for _, forbidden := range []string{"setup.sh", ".tox", "scripts/setup"} {
-		if _, err := os.Stat(filepath.Join(skillDir, forbidden)); !os.IsNotExist(err) {
-			t.Fatalf("bundled TouchDesigner skill must not ship %q (live MCP/TouchDesigner setup): err=%v", forbidden, err)
-		}
+	setupPath := filepath.Join(skillDir, "scripts", "setup.sh")
+	setupRaw, err := os.ReadFile(setupPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", setupPath, err)
+	}
+	if !strings.Contains(string(setupRaw), "twozero.tox") {
+		t.Fatalf("setup.sh should remain an inert exact-Hermes asset with twozero.tox setup guidance")
+	}
+	if _, err := os.Stat(filepath.Join(skillDir, ".tox")); !os.IsNotExist(err) {
+		t.Fatalf("bundled TouchDesigner skill must not ship a live .tox binary: err=%v", err)
 	}
 
 	t.Setenv("GORMES_SKILLS_ROOT", t.TempDir())

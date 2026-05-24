@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	DefaultMaxDocumentBytes = 64 * 1024
+	DefaultMaxDocumentBytes = 128 * 1024
 	DefaultSelectionCap     = 3
 )
 

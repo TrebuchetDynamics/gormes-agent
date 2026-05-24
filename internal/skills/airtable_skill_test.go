@@ -13,7 +13,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
-func TestAirtableSkillBundledDocumentParsesReviewedMetadataAndCookbook(t *testing.T) {
+func TestAirtableSkillBundledDocumentParsesHermesMetadataAndCookbook(t *testing.T) {
 	raw := readBundledAirtableSkill(t)
 
 	skill, err := skills.Parse(raw, 64*1024)
@@ -27,25 +27,22 @@ func TestAirtableSkillBundledDocumentParsesReviewedMetadataAndCookbook(t *testin
 		t.Fatalf("Description = %q", skill.Description)
 	}
 
-	if got := stringSliceField(t, skill, "Triggers"); !containsString(got, "Airtable base/table/record work") {
-		t.Fatalf("Triggers = %#v, want Airtable trigger", got)
+	tags := stringSliceField(t, skill, "HermesTags")
+	for _, want := range []string{"Airtable", "Productivity", "Database", "API"} {
+		if !containsString(tags, want) {
+			t.Fatalf("HermesTags = %#v, missing %q", tags, want)
+		}
 	}
-	if got := stringSliceField(t, skill, "Exclusions"); !containsString(got, "Live OAuth, sync daemons, or workspace-wide base discovery") {
-		t.Fatalf("Exclusions = %#v, want prompt-safe exclusion", got)
-	}
-	if got := stringField(t, skill, "ReviewState"); got != "reviewed" {
-		t.Fatalf("ReviewState = %q, want reviewed", got)
-	}
-	if got := credentialGroupsString(t, skill); !strings.Contains(got, "AIRTABLE_API_KEY") || !strings.Contains(got, "AIRTABLE_PAT") {
-		t.Fatalf("CredentialGroups = %s, want AIRTABLE_API_KEY/AIRTABLE_PAT any-of group", got)
+	if got := stringSliceField(t, skill, "RequiredEnvVars"); !containsString(got, "AIRTABLE_API_KEY") {
+		t.Fatalf("RequiredEnvVars = %#v, want AIRTABLE_API_KEY", got)
 	}
 
 	for _, want := range []string{
-		"# Airtable - Bases, Tables & Records",
-		"## Cookbook",
+		"# Airtable — Bases, Tables & Records",
+		"## Common Queries",
 		"### List bases the token can see",
-		"### Upsert by a merge field",
-		"## Safety Boundaries",
+		"### Upsert by a merge field (no ID needed)",
+		"## Important Notes for Hermes",
 	} {
 		if !strings.Contains(skill.Body, want) {
 			t.Fatalf("Airtable body missing %q", want)
@@ -57,7 +54,6 @@ func TestAirtableSkillMissingCredentialsVisibleAsUnavailableCatalogRowAndExclude
 	root := t.TempDir()
 	t.Setenv("GORMES_SKILLS_ROOT", root)
 	t.Setenv("AIRTABLE_API_KEY", "")
-	t.Setenv("AIRTABLE_PAT", "")
 	installAirtableSkillFixture(t, root)
 
 	rows := skills.ListInstalledSkills(skills.ListOptions{Source: "builtin"}, nil)
@@ -87,8 +83,8 @@ func TestAirtableSkillMissingCredentialsVisibleAsUnavailableCatalogRowAndExclude
 	if status.Status != skills.SkillStatusMissingPrerequisite {
 		t.Fatalf("status = %q, want %q", status.Status, skills.SkillStatusMissingPrerequisite)
 	}
-	if !strings.Contains(status.Reason, "AIRTABLE_API_KEY or AIRTABLE_PAT") {
-		t.Fatalf("missing credential reason = %q, want redacted AIRTABLE_API_KEY/AIRTABLE_PAT evidence", status.Reason)
+	if !strings.Contains(status.Reason, "AIRTABLE_API_KEY") {
+		t.Fatalf("missing credential reason = %q, want redacted AIRTABLE_API_KEY evidence", status.Reason)
 	}
 	if strings.Contains(status.Reason, "pat_secret") || strings.Contains(status.Reason, "key_secret") {
 		t.Fatalf("credential reason leaked a secret: %q", status.Reason)
@@ -104,7 +100,6 @@ func TestAirtableSkillBundledCatalogRowVisibleWhenCredentialsMissing(t *testing.
 	t.Setenv("GORMES_SKILLS_ROOT", activeRoot)
 	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", bundledRoot)
 	t.Setenv("AIRTABLE_API_KEY", "")
-	t.Setenv("AIRTABLE_PAT", "")
 
 	rows := skills.ListInstalledSkills(skills.ListOptions{Source: "builtin"}, nil)
 	row, ok := findSkillRow(rows, "airtable")
@@ -131,18 +126,18 @@ func TestAirtableSkillDotenvCredentialEnablesPromptWithoutSecretLeak(t *testing.
 	installAirtableSkillFixture(t, root)
 
 	secret := "pat_secret_from_dotenv"
-	if err := os.WriteFile(filepath.Join(gormesHome, ".env"), []byte("AIRTABLE_PAT="+secret+"\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(gormesHome, ".env"), []byte("AIRTABLE_API_KEY="+secret+"\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile(.env): %v", err)
 	}
 
-	evidence := config.CheckOptionalEnvAny("AIRTABLE_API_KEY", "AIRTABLE_PAT")
+	evidence := config.CheckOptionalEnvAny("AIRTABLE_API_KEY")
 	if !evidence.Available {
 		t.Fatalf("optional env evidence = %+v, want available", evidence)
 	}
-	if evidence.PresentName != "AIRTABLE_PAT" {
-		t.Fatalf("PresentName = %q, want AIRTABLE_PAT", evidence.PresentName)
+	if evidence.PresentName != "AIRTABLE_API_KEY" {
+		t.Fatalf("PresentName = %q, want AIRTABLE_API_KEY", evidence.PresentName)
 	}
-	if !strings.Contains(evidence.Evidence, "AIRTABLE_PAT=[redacted]") {
+	if !strings.Contains(evidence.Evidence, "AIRTABLE_API_KEY=[redacted]") {
 		t.Fatalf("Evidence = %q, want redacted present credential", evidence.Evidence)
 	}
 	if strings.Contains(evidence.Evidence, secret) {
@@ -176,7 +171,7 @@ func TestAirtableSkillDisabledExcludesPromptEvenWhenCredentialsPresent(t *testin
 	runtime := skills.NewRuntime(root, 64*1024, 3, "")
 	block, names, statuses, err := runtime.BuildSkillBlockWithOptions(context.Background(), "airtable records", skills.RuntimeOptions{
 		DisabledSkillNames: map[string]bool{"airtable": true},
-		Env:                map[string]string{"AIRTABLE_PAT": "pat_secret"},
+		Env:                map[string]string{"AIRTABLE_API_KEY": "pat_secret"},
 	})
 	if err != nil {
 		t.Fatalf("BuildSkillBlockWithOptions() error = %v", err)

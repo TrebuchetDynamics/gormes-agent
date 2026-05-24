@@ -139,8 +139,13 @@ func loadSkillDocsFromDir(root string, maxBytes int) ([]Skill, error) {
 		return nil, nil
 	}
 
+	walkRoot := root
+	if resolved, err := filepath.EvalSymlinks(root); err == nil && resolved != "" {
+		walkRoot = resolved
+	}
+
 	var paths []string
-	if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	if err := filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -148,7 +153,7 @@ func loadSkillDocsFromDir(root string, maxBytes int) ([]Skill, error) {
 			return nil
 		}
 		if filepath.Base(path) == "SKILL.md" {
-			paths = append(paths, path)
+			paths = append(paths, logicalSkillPath(root, walkRoot, path))
 		}
 		return nil
 	}); err != nil {
@@ -170,6 +175,17 @@ func loadSkillDocsFromDir(root string, maxBytes int) ([]Skill, error) {
 		out = append(out, skill)
 	}
 	return out, nil
+}
+
+func logicalSkillPath(root, walkRoot, path string) string {
+	if root == walkRoot {
+		return path
+	}
+	rel, err := filepath.Rel(walkRoot, path)
+	if err != nil {
+		return path
+	}
+	return filepath.Join(root, rel)
 }
 
 func bundledSkillsRoot() string {
