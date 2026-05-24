@@ -3,7 +3,7 @@ package gateway
 import (
 	"encoding/json"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/events"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
 )
 
 const (

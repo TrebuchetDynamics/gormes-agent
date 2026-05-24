@@ -410,6 +410,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/tui/i18n/i18n.go:T",
 			},
 		},
+		{
+			Name:        "events-gateway-rehome",
+			Active:      true,
+			OwnerModule: "gateway",
+			OldRoots:    []string{"internal/events"},
+			NewRoots:    []string{"internal/gateway/events"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:Second-pass leaf triage",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/gateway/event_dispatch.go:EventDispatcher",
+				"internal/gateway/events/bus.go:NewInProcessEventBus",
+				"internal/gateway/events/types.go:NewEvent",
+			},
+		},
 	}
 }
 

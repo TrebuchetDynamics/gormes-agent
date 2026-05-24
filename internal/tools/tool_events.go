@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/events"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
 )
 
 const (

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/events"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
 )
 
 func TestBusAdapter_PublishInboundMessageReceived(t *testing.T) {

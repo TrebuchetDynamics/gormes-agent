@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/events"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
 )
 
 func TestGatewayMessageSentEvent_PublishesAfterSuccessfulManagerSend(t *testing.T) {
