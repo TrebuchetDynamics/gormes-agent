@@ -96,8 +96,11 @@ a speech runtime package with the same locality that `internal/wasi/whisper`
 now gives STT:
 
 ```text
-internal/speech/ or internal/wasi/piper/
-  model artifact metadata + cache verification
+internal/speech/artifact
+  checksum-verified model/voice artifact cache shared by STT and TTS
+
+internal/speech/tts or internal/wasi/piper/
+  TTS engine manifest + model/voice artifact selection
   wazero runtime construction
   text normalization limits
   synthesize-to-audio implementation
@@ -112,16 +115,20 @@ internal/gateway / channels
 ```
 
 The first implementation slice should not change the model-facing
-`text_to_speech` schema or Telegram delivery behavior. It should add one
-provider adapter and prove it through fakeable model/runtime seams.
+`text_to_speech` schema or Telegram delivery behavior. The shared artifact
+cache is the first common STT/TTS building block; the first provider slice
+should then add one provider adapter and prove it through fakeable
+model/runtime seams. See `go-native-tts-source-study.md` for the current
+engine-source evidence.
 
 ## Proof Gates
 
 A builder-ready Go-owned TTS slice must prove:
 
 1. no Python, Node, shell, or CGO dependency is required for the new provider;
-2. model/voice artifacts are fetched or discovered through checksum-verified
-   cache helpers and never committed to git;
+2. model/voice artifacts are fetched or discovered through the shared
+   `internal/speech/artifact` checksum-verified cache helpers and never
+   committed to git;
 3. the provider returns typed unavailable evidence when the artifact/runtime is
    missing;
 4. a fixture synthesis path writes a supported audio file through Go code;

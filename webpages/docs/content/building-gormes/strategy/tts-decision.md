@@ -70,6 +70,10 @@ Rationale:
   operator-visible, and excluded from git.
 - The new provider can be opt-in until benchmarks prove load time, synthesis
   latency, memory, and binary-size impact are acceptable.
+- `go-native-tts-source-study.md` records the current engine-source evidence:
+  native Piper/sherpa bindings are not the default path because they bring
+  GPL/CGO/native-library/Python concerns; the shared speech artifact cache is
+  the safe first Go-owned building block.
 
 ## Consequences
 

@@ -1591,6 +1591,78 @@
     "subphase": "5.E",
     "pos": 22,
     "item": {
+      "name": "Shared speech artifact cache for Go-owned TTS",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Create a shared Go speech artifact cache used by current STT and future Go-owned TTS backends. The cache verifies filename safety, byte size, SHA-256, existing cache hits, HTTP downloads, and atomic partial-file cleanup without requiring Python, Node, shell commands, CGO, live providers, or committed model artifacts.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tts",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Invalid metadata, empty cache dir, HTTP failures, status errors, size mismatch, checksum mismatch, write failures, and non-regular files return typed cache errors with redacted paths/URLs; failed downloads leave no final artifact and no .partial residue.",
+      "fixture": "internal/speech/artifact/cache_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
+        "internal/speech/artifact/cache.go:Ensure",
+        "internal/speech/artifact/cache_test.go:TestEnsureDownloadsAndVerifiesArtifact",
+        "internal/wasi/whisper/model_cache.go:EnsureModel",
+        "internal/wasi/whisper/model_cache_test.go:TestEnsureModelDownloadsAndVerifies"
+      ],
+      "ready_when": [
+        "The cache helper is generic to speech artifacts and is not tied to Whisper-only model filenames.",
+        "Existing WASI Whisper model cache behavior and error codes stay compatible through an adapter.",
+        "Tests use local httptest fixtures and do not download live models or voice artifacts."
+      ],
+      "not_ready_when": [
+        "The helper shells out to provider CLIs, Python, Node, or CGO libraries.",
+        "The helper embeds or commits model/voice artifacts instead of verifying cache files.",
+        "Whisper STT cache error codes or cache-hit behavior regress."
+      ],
+      "unblocks": [
+        "Go-owned WASM TTS backend",
+        "Profile-scoped voice profiles with local TTS fallback"
+      ],
+      "acceptance": [
+        "`internal/speech/artifact` exposes a small artifact cache API with typed errors for invalid metadata, cache-dir failure, HTTP status, download, size, checksum, and write failures.",
+        "The cache verifies existing files before network access and removes stale or corrupt final artifacts before redownloading.",
+        "Downloads write to a .partial file, verify size and SHA-256, atomically rename on success, and remove partial files on checksum/size/download/write failures.",
+        "`internal/wasi/whisper` delegates to the shared cache while preserving `ModelCacheError` codes and the pinned tiny.en artifact contract."
+      ],
+      "note": "Implemented after source study showed the engine-runtime choice remains blocked but artifact lifecycle is common, safe, and required for every Go-owned TTS path.",
+      "write_scope": [
+        "internal/speech/artifact/",
+        "internal/wasi/whisper/model_cache.go",
+        "internal/wasi/whisper/model_cache_test.go",
+        "internal/codemap.md",
+        "docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/speech/artifact -count=1",
+        "go test ./internal/wasi/whisper -run TestModel -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "STT and future TTS local backends have a shared Go artifact lifecycle module with verified cache hits, verified downloads, atomic partial cleanup, and stable Whisper adapter behavior."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned architecture deepening for local speech artifact lifecycle; Hermes supplies TTS/STT user contracts but not this Go cache module."
+      }
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.E",
+    "pos": 23,
+    "item": {
       "name": "Go-owned WASM TTS backend",
       "priority": "P1",
       "status": "planned",
@@ -1614,7 +1686,9 @@
         "internal/tools/tts_command_provider.go:TTSCommandProvider",
         "internal/wasi/whisper/model_cache.go:EnsureModel",
         "internal/wasi/whisper/transcriber.go:NewTranscriber",
-        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Voice, TTS, transcription"
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Voice, TTS, transcription",
+        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
+        "internal/speech/artifact/cache.go:Ensure"
       ],
       "ready_when": [
         "A context-sourcing pass chooses the concrete Go-owned TTS engine/artifact, license, model/voice cache layout, and package path (`internal/wasi/piper` or `internal/speech`) without relying on a local unpublished checkout.",
@@ -1628,7 +1702,7 @@
         "No benchmark budget exists for model load time, synthesis latency, memory, output format, and binary-size delta."
       ],
       "blocked_by": [
-        "Go-owned TTS engine source selection"
+        "WASI TTS engine runtime source selection"
       ],
       "unblocks": [
         "Go-native continuous voice mode defaults",
@@ -1642,7 +1716,7 @@
         "Model/voice cache helpers verify size and checksum, use atomic partial-file cleanup, and never place artifacts under git-tracked testdata.",
         "Benchmark metadata captures load time, synthesis time, memory, output format, and binary-size delta before the provider can become the default local TTS choice."
       ],
-      "note": "Owner direction 2026-05-24 supersedes the previous command-provider-only local TTS decision. This row is intentionally blocked until context sourcing selects a concrete engine/artifact and license; builders must not fake the provider with a shell-out wrapper.",
+      "note": "Owner direction 2026-05-24 supersedes the previous command-provider-only local TTS decision. This row is intentionally blocked until context sourcing selects a concrete engine/artifact and license; builders must not fake the provider with a shell-out wrapper.\n\n2026-05-24 source study: native Piper/sherpa Go bindings currently fail the default no-CGO/no-Python/static-binary gate, so the shared speech artifact cache shipped first. Remaining blocker is runtime execution source selection for a wazero/WASI-friendly or otherwise explicit optional engine.",
       "write_scope": [
         "internal/tools/tts_tool.go",
         "internal/tools/tts_providers.go",
