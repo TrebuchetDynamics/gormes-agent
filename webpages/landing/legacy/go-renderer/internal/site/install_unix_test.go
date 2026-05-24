@@ -1496,6 +1496,80 @@ func TestInstallSH_VerboseDryRunShowsResolvedPlan(t *testing.T) {
 	}
 }
 
+func TestInstallSH_VerboseDryRunReportsLinuxPreflightIssues(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	binDir := filepath.Join(root, "bin")
+	emptyPath := filepath.Join(root, "empty-path")
+	if err := os.MkdirAll(emptyPath, 0o755); err != nil {
+		t.Fatalf("mkdir empty PATH: %v", err)
+	}
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--dry-run", "--verbose", "--home", home, "--bin-dir", binDir},
+		"HOME="+home,
+		"PATH="+emptyPath,
+		"UNAME=Linux",
+		"GORMES_INSTALL_TEST_UNAME_M=x86_64",
+		"GORMES_INSTALL_EFFECTIVE_UID=1000",
+	)
+	if err != nil {
+		t.Fatalf("verbose dry-run failed: %v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"preflight:",
+		"platform_focus: linux",
+		"package_manager: none",
+		"download_tool: missing",
+		"archive_tool: missing",
+		"checksum_tool: missing",
+		"git: missing",
+		"go: missing",
+		"issue: binary-fetch prerequisites missing; installer will fall back to source build",
+		"issue: git missing and no supported package manager detected",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("verbose preflight output missing %q\n%s", want, out)
+		}
+	}
+}
+
+func TestInstallSH_VerboseDryRunReportsTermuxPreflightIssues(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	prefix := filepath.Join(root, "data", "data", "com.termux", "files", "usr")
+	emptyPath := filepath.Join(root, "empty-path")
+	if err := os.MkdirAll(emptyPath, 0o755); err != nil {
+		t.Fatalf("mkdir empty PATH: %v", err)
+	}
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--dry-run", "--verbose", "--home", home, "--restart-gateway", "never"},
+		"HOME="+home,
+		"PATH="+emptyPath,
+		"UNAME=Linux",
+		"GORMES_INSTALL_TEST_UNAME_M=aarch64",
+		"GORMES_INSTALL_EFFECTIVE_UID=1000",
+		"PREFIX="+prefix,
+		"TERMUX_VERSION=0.118.0",
+	)
+	if err != nil {
+		t.Fatalf("verbose Termux dry-run failed: %v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"platform_focus: termux",
+		"published_binary: " + filepath.Join(prefix, "bin", "gormes"),
+		"termux_prefix: " + prefix,
+		"termux_pkg: missing",
+		"issue: Termux pkg missing; source builds cannot install git/golang automatically",
+		"restart_gateway: never",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("verbose Termux preflight output missing %q\n%s", want, out)
+		}
+	}
+}
+
 func TestInstallSH_UninstallDelegatesToPublishedGormesWithoutBuild(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")

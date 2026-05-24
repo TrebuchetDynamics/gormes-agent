@@ -172,7 +172,8 @@ Options:
   --skip-setup   Skip the post-install setup recommendation
   --skip-browser Skip browser setup. Accepted for Hermes compatibility; Gormes
                  has no Playwright/Chromium install step.
-  -v, --verbose  Print resolved paths, platform details, and step diagnostics
+  -v, --verbose  Print resolved paths, platform details, preflight checks,
+                 and step diagnostics
   --uninstall    Delegate to an existing "gormes uninstall" command and exit.
                  Flags after --uninstall are passed through, for example:
                  install.sh --uninstall --dry-run
@@ -2247,6 +2248,125 @@ PLISTUNIT
   log "  (auto-starts on login; survives reboots)"
 }
 
+tool_status() {
+  ts_found=""
+  for ts_tool in "$@"; do
+    if has "$ts_tool"; then
+      ts_found="${ts_found}${ts_found:+/}${ts_tool}"
+    fi
+  done
+  if [ -n "$ts_found" ]; then
+    printf 'found (%s)\n' "$ts_found"
+  else
+    printf 'missing\n'
+  fi
+}
+
+any_tool_available() {
+  for ata_tool in "$@"; do
+    if has "$ata_tool"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+installer_package_manager() {
+  if is_termux; then
+    if has pkg; then
+      printf 'pkg\n'
+    else
+      printf 'none\n'
+    fi
+    return
+  fi
+  if has brew; then
+    printf 'brew\n'
+  elif has apt-get; then
+    printf 'apt-get\n'
+  elif has dnf; then
+    printf 'dnf\n'
+  elif has pacman; then
+    printf 'pacman\n'
+  else
+    printf 'none\n'
+  fi
+}
+
+preflight_platform_focus() {
+  if is_termux; then
+    printf 'termux\n'
+    return
+  fi
+  case "$(platform_name)" in
+    Linux*) printf 'linux\n' ;;
+    Darwin*) printf 'macos\n' ;;
+    *) printf 'unknown\n' ;;
+  esac
+}
+
+print_preflight_diagnostics() {
+  pfd_package_manager=$(installer_package_manager)
+  log "  preflight:"
+  log "    platform_focus: $(preflight_platform_focus)"
+  log "    package_manager: ${pfd_package_manager}"
+  log "    download_tool: $(tool_status curl wget)"
+  log "    archive_tool: $(tool_status tar)"
+  log "    checksum_tool: $(tool_status sha256sum shasum)"
+  if is_termux; then
+    log "    termux_prefix: ${PREFIX:-<missing>}"
+    log "    termux_pkg: $(tool_status pkg)"
+  fi
+  log "    git: $(tool_status git)"
+  log "    go: $(tool_status go)"
+
+  if [ "$INSTALL_METHOD" = "binary-fetch" ] && \
+    { ! any_tool_available curl wget || ! any_tool_available tar || ! any_tool_available sha256sum shasum; }; then
+    log "    issue: binary-fetch prerequisites missing; installer will fall back to source build"
+  fi
+  if is_termux; then
+    if [ -z "${PREFIX:-}" ]; then
+      log "    issue: Termux PREFIX is not set; published command may miss the Termux prefix"
+    fi
+    if ! has pkg; then
+      log "    issue: Termux pkg missing; source builds cannot install git/golang automatically"
+    fi
+  elif ! has git && [ "$pfd_package_manager" = "none" ]; then
+    log "    issue: git missing and no supported package manager detected"
+  fi
+}
+
+print_side_effect_plan() {
+  if sandbox_bin_dir_set; then
+    log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+    log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
+    log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
+  elif is_termux; then
+    log "  update_active_path_command: skipped (Termux runtime; respecting $PREFIX/bin boundary)"
+    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
+    log "  install_system_service: skipped (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
+  else
+    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
+    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled until setup completes — run \`systemctl --user enable --now gormes-gateway\` after configuring Gormes)"
+  fi
+}
+
+print_restart_plan() {
+  log "  restart_gateway: ${RESTART_GATEWAY}"
+  if ! sandbox_bin_dir_set && ! is_termux; then
+    log "  profile_gateways: active gormes-gateway-*.service units follow restart_gateway policy"
+  fi
+}
+
+print_setup_wizard_plan() {
+  if [ "$RUN_SETUP" = "false" ]; then
+    log "  setup_wizard: skipped"
+  else
+    log "  setup_wizard: navivox-recommended"
+  fi
+}
+
 print_install_plan_body() {
   decide_install_method
   log "  branch: ${BRANCH}"
@@ -2265,28 +2385,9 @@ print_install_plan_body() {
   if [ "$SKIP_BROWSER" = "true" ]; then
     log "  browser_setup: skipped (--skip-browser accepted for Hermes compatibility; Gormes installs as a single Go binary with no Playwright setup step)"
   fi
-  if sandbox_bin_dir_set; then
-    log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
-    log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
-    log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
-  elif is_termux; then
-    log "  update_active_path_command: skipped (Termux runtime; respecting $PREFIX/bin boundary)"
-    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    log "  install_system_service: skipped (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
-  else
-    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
-    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled until setup completes — run \`systemctl --user enable --now gormes-gateway\` after configuring Gormes)"
-  fi
-  log "  restart_gateway: ${RESTART_GATEWAY}"
-  if ! sandbox_bin_dir_set && ! is_termux; then
-    log "  profile_gateways: active gormes-gateway-*.service units follow restart_gateway policy"
-  fi
-  if [ "$RUN_SETUP" = "false" ]; then
-    log "  setup_wizard: skipped"
-  else
-    log "  setup_wizard: navivox-recommended"
-  fi
+  print_side_effect_plan
+  print_restart_plan
+  print_setup_wizard_plan
 }
 
 print_dry_run() {
@@ -2340,28 +2441,10 @@ print_verbose_plan() {
   if [ "$SKIP_BROWSER" = "true" ]; then
     log "  browser_setup: skipped (--skip-browser accepted for Hermes compatibility; Gormes installs as a single Go binary with no Playwright setup step)"
   fi
-  if sandbox_bin_dir_set; then
-    log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
-    log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
-    log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
-  elif is_termux; then
-    log "  update_active_path_command: skipped (Termux runtime; respecting $PREFIX/bin boundary)"
-    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    log "  install_system_service: skipped (Termux runtime; use tmux plus termux-wake-lock for long gateway sessions)"
-  else
-    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
-    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled until setup completes — run \`systemctl --user enable --now gormes-gateway\` after configuring Gormes)"
-  fi
-  log "  restart_gateway: ${RESTART_GATEWAY}"
-  if ! sandbox_bin_dir_set && ! is_termux; then
-    log "  profile_gateways: active gormes-gateway-*.service units follow restart_gateway policy"
-  fi
-  if [ "$RUN_SETUP" = "false" ]; then
-    log "  setup_wizard: skipped"
-  else
-    log "  setup_wizard: navivox-recommended"
-  fi
+  print_preflight_diagnostics
+  print_side_effect_plan
+  print_restart_plan
+  print_setup_wizard_plan
 }
 
 acquire_install_lock() {
