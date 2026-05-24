@@ -54,6 +54,9 @@ func TestSetupProviderTTYE2EConsumesArrowKeys(t *testing.T) {
 	events := readPTY(tty)
 	var transcript bytes.Buffer
 	waitForSetupProviderTTYOutput(t, tty, events, &transcript, "Up/Down or j/k navigate")
+	if !strings.Contains(transcript.String(), "→") {
+		t.Fatalf("setup provider Bubble Tea picker missing polished selected-row cursor:\n%s", transcript.String())
+	}
 	if strings.Contains(transcript.String(), "Choice [1-40]") {
 		t.Fatalf("setup provider prompt fell back to line input instead of the TTY picker:\n%s", transcript.String())
 	}
@@ -109,6 +112,9 @@ func TestSetupToolsTTYE2EConsumesChecklistKeys(t *testing.T) {
 	events := readPTY(tty)
 	var transcript bytes.Buffer
 	waitForSetupTTYOutput(t, tty, events, &transcript, "SPACE toggle", "Toolsets (comma-separated")
+	if !strings.Contains(transcript.String(), "→") {
+		t.Fatalf("setup tools Bubble Tea checklist missing polished selected-row cursor:\n%s", transcript.String())
+	}
 
 	if _, err := tty.Write([]byte(" \r")); err != nil {
 		t.Fatalf("toggle and confirm setup tools checklist: %v", err)

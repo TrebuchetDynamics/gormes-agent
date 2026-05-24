@@ -162,7 +162,7 @@ func TestWizardChassis_CrampedMultiStepProviderChannelSetupKeepsProgressAndHelp(
 		}
 	}
 	collapsed := strings.Join(strings.Fields(got), " ")
-	for _, want := range []string{"Gormes setup 1/6", "Telegram bot token", "omitted", "resize", "Enter submit"} {
+	for _, want := range []string{"Gormes Setup", "step 1 of 6", "Telegram bot token", "omitted", "resize", "Enter submit"} {
 		if !strings.Contains(collapsed, want) {
 			t.Fatalf("multi-step setup wizard missing %q:\n%s", want, got)
 		}
@@ -219,7 +219,7 @@ func TestWizardChassis_PickerStepSupportsTmuxFriendlyKeys(t *testing.T) {
 	})
 
 	view := m.View()
-	for _, want := range []string{"1. Quick setup", "> 2. Full setup", "Up/Down", "j/k", "1-9 select", "Esc/q abort"} {
+	for _, want := range []string{"1. Quick setup", "→ 2. Full setup", "Up/Down", "j/k", "1-9 select", "Esc/q abort"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("picker view missing %q:\n%s", want, view)
 		}
@@ -267,8 +267,11 @@ func TestWizardChassis_SingleStepPickerOmitsProgressLine(t *testing.T) {
 	m := newModel([]Step{
 		Pick("provider", "Provider", []Choice{{ID: "openai", Label: "OpenAI"}}),
 	})
-	if view := m.View(); strings.Contains(view, "Gormes setup 1/1") {
-		t.Fatalf("single-step picker should omit progress line:\n%s", view)
+	view := m.View()
+	for _, forbidden := range []string{"Gormes setup 1/1", "Gormes Setup — step 1 of 1"} {
+		if strings.Contains(view, forbidden) {
+			t.Fatalf("single-step picker should omit progress line %q:\n%s", forbidden, view)
+		}
 	}
 }
 

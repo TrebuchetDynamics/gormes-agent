@@ -195,7 +195,9 @@ func (m model) View() string {
 
 	var b strings.Builder
 	if len(m.steps) > 1 {
-		fmt.Fprintf(&b, "Gormes setup %d/%d\n\n", m.index+1, len(m.steps))
+		progress := fmt.Sprintf("Gormes Setup — step %d of %d", m.index+1, len(m.steps))
+		b.WriteString(setupTrimToWidth(progress, m.viewWidth()))
+		b.WriteString("\n\n")
 	}
 	if step.Prompt != "" {
 		b.WriteString(wrapSetupText(step.Prompt, m.viewWidth()))
@@ -490,7 +492,7 @@ func (m model) renderPick(step Step) string {
 	for i, choice := range step.Choices {
 		prefix := "  "
 		if i == m.pickCursor {
-			prefix = "> "
+			prefix = "→ "
 		}
 		label := choice.Label
 		if label == "" {
@@ -529,7 +531,7 @@ func (m model) renderChecklist(step Step) string {
 	for i, choice := range step.Choices {
 		prefix := "  "
 		if i == m.pickCursor {
-			prefix = "> "
+			prefix = "→ "
 		}
 		marker := "[ ]"
 		if _, ok := m.checklistSelected[choice.ID]; ok {
@@ -570,9 +572,9 @@ func (m model) renderConfirm() string {
 	noPrefix := "  "
 	yesPrefix := "  "
 	if m.confirmYes {
-		yesPrefix = "> "
+		yesPrefix = "→ "
 	} else {
-		noPrefix = "> "
+		noPrefix = "→ "
 	}
 	return noPrefix + "No\n" + yesPrefix + "Yes"
 }
