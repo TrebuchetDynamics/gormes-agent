@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 )
 
 // Stable evidence codes returned by FormatToolResult so callers (gateway,
@@ -21,9 +23,11 @@ const (
 	ToolResultEvidencePersistenceFailed = "tool_output_persistence_failed"
 )
 
-// Default fallback bounds applied when callers leave config zero-valued. The
-// values are conservative so a misconfigured caller still cannot flood a
-// downstream channel.
+// Default fallback bounds applied when callers leave config zero-valued.
+// Owned divergence from Hermes: Hermes defaults are 100_000 result chars,
+// 200_000 turn chars, and 1_500 preview chars. Gormes keeps smaller fallback
+// bytes here because gateway/channel safety wins when caller config is absent;
+// callers that need Hermes-sized budgets must pass explicit config.
 const (
 	defaultToolTextBudgetBytes = 4 * 1024
 	defaultToolPreviewBytes    = 512
@@ -69,6 +73,9 @@ type ToolResultEvidence struct {
 // performs network I/O.
 func FormatToolResult(cfg ToolResultBudgetConfig, raw []byte, mediaType string) (string, ToolResultEvidence, error) {
 	cfg = cfg.withDefaults()
+	if isTextMedia(mediaType) {
+		raw = []byte(redaction.StripANSI(string(raw)))
+	}
 
 	bytes := len(raw)
 	preview := safePreview(raw, cfg.PreviewBytes)

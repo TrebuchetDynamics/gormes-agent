@@ -44,6 +44,59 @@ func TestRedactSecretsCoversCommonCredentialShapes(t *testing.T) {
 	}
 }
 
+func TestRedactSecretsCoversHermesProviderTokensAndQuerySecrets(t *testing.T) {
+	input := strings.Join([]string{
+		"NPM_TOKEN=npm_abcdefghijklmnopqrstuvwxyz",
+		"PYPI_TOKEN=pypi-abcdefghijklmnopqrstuvwxyz_123456",
+		"HF_TOKEN=hf_abcdefghijklmnopqrstuvwxyz",
+		"GROQ_API_KEY=gsk_abcdefghijklmnopqrstuvwxyz",
+		"TAVILY_API_KEY=tvly-abcdefghijklmnopqrstuvwxyz",
+		"EXA_API_KEY=exa_abcdefghijklmnopqrstuvwxyz",
+		"MEM0_API_KEY=mem0_abcdefghijklmnopqrstuvwxyz",
+		"BRAVE_API_KEY=brv_abcdefghijklmnopqrstuvwxyz",
+		"callback=https://example.test/cb?access_token=plain-access-token&x=1&signature=plain-signature",
+		"amqp://user:plain-password@example.test/vhost",
+	}, "\n")
+
+	redacted, count := RedactSecretsWithCount(input, "[REDACTED]")
+	if count < 10 {
+		t.Fatalf("redaction count = %d, want at least 10 in:\n%s", count, redacted)
+	}
+	for _, leaked := range []string{
+		"npm_abcdefghijklmnopqrstuvwxyz",
+		"pypi-abcdefghijklmnopqrstuvwxyz_123456",
+		"hf_abcdefghijklmnopqrstuvwxyz",
+		"gsk_abcdefghijklmnopqrstuvwxyz",
+		"tvly-abcdefghijklmnopqrstuvwxyz",
+		"exa_abcdefghijklmnopqrstuvwxyz",
+		"mem0_abcdefghijklmnopqrstuvwxyz",
+		"brv_abcdefghijklmnopqrstuvwxyz",
+		"plain-access-token",
+		"plain-signature",
+		"plain-password",
+	} {
+		if strings.Contains(redacted, leaked) {
+			t.Fatalf("redacted text leaked %q in:\n%s", leaked, redacted)
+		}
+	}
+	for _, want := range []string{"NPM_TOKEN=[REDACTED]", "access_token=[REDACTED]", "signature=[REDACTED]"} {
+		if !strings.Contains(redacted, want) {
+			t.Fatalf("redacted text missing %q:\n%s", want, redacted)
+		}
+	}
+}
+
+func TestStripANSIUsesHermesECMA48Coverage(t *testing.T) {
+	input := "plain\x1b[31mred\x1b[0m \x1b]0;title\x07done \u009b32mgreen\x1b[0m"
+	got := StripANSI(input)
+	if got != "plainred done green" {
+		t.Fatalf("StripANSI() = %q", got)
+	}
+	if clean := StripANSI("already clean"); clean != "already clean" {
+		t.Fatalf("clean fast path = %q", clean)
+	}
+}
+
 func TestSensitivePathDenylistBlocksCredentialFiles(t *testing.T) {
 	cases := []string{
 		"/repo/.env",

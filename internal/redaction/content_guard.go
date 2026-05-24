@@ -41,13 +41,22 @@ type secretPrefixPattern struct {
 var (
 	secretPrefixPatterns = []secretPrefixPattern{
 		{regexp.MustCompile(`(?i)\b((?:OPENAI_API_KEY|ANTHROPIC_API_KEY|GITHUB_TOKEN|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|GOOGLE_API_KEY|DATABASE_URL|PRIVATE_KEY|API[_-]?KEY|X-API-KEY|ACCESS[_-]?TOKEN|REFRESH[_-]?TOKEN|ID[_-]?TOKEN|TOKEN|SECRET|PASSWORD|CLIENT[_-]?SECRET|COOKIE|BEARER_TOKEN|AWS_SESSION_TOKEN)(?:[A-Z0-9_-]*)?\s*[:=]\s*)(?:"[^"\n]*"|'[^'\n]*'|[^\s,;&]+)`)},
+		{regexp.MustCompile(`(?i)\b((?:auth|jwt|session|code|signature|x-amz-signature)\s*=\s*)([^&\s,;"']+)`)},
 		{regexp.MustCompile(`(?i)\b((?:Authorization\s*:\s*Bearer|Bearer)\s+)([^\s,;"']{3,})`)},
 	}
 	secretWholePatterns = []secretWholePattern{
 		{regexp.MustCompile(`(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----`)},
-		{regexp.MustCompile(`(?i)\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[^\s,;"']+`)},
+		{regexp.MustCompile(`(?i)\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp)://[^\s,;"']+`)},
 		{regexp.MustCompile(`\bsk-[A-Za-z0-9_-]{14,}\b`)},
 		{regexp.MustCompile(`\bgh[pousr]_[A-Za-z0-9_]{8,}\b`)},
+		{regexp.MustCompile(`\bnpm_[A-Za-z0-9]{10,}\b`)},
+		{regexp.MustCompile(`\bpypi-[A-Za-z0-9_-]{10,}\b`)},
+		{regexp.MustCompile(`\bhf_[A-Za-z0-9]{10,}\b`)},
+		{regexp.MustCompile(`\bgsk_[A-Za-z0-9]{10,}\b`)},
+		{regexp.MustCompile(`\btvly-[A-Za-z0-9]{10,}\b`)},
+		{regexp.MustCompile(`\bexa_[A-Za-z0-9]{10,}\b`)},
+		{regexp.MustCompile(`\bmem0_[A-Za-z0-9]{10,}\b`)},
+		{regexp.MustCompile(`\bbrv_[A-Za-z0-9]{10,}\b`)},
 		{regexp.MustCompile(`\bAKIA[0-9A-Z]{12,}\b`)},
 		{regexp.MustCompile(`\bASIA[0-9A-Z]{12,}\b`)},
 		{regexp.MustCompile(`\bAIza[0-9A-Za-z_-]{20,}\b`)},

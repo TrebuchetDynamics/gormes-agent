@@ -63,6 +63,34 @@ func TestToolResultBudget_TruncatesTextAndPersistsArtifact(t *testing.T) {
 	}
 }
 
+func TestToolResultBudget_StripsANSIFromTextBeforeModelOrArtifact(t *testing.T) {
+	dir := t.TempDir()
+	raw := []byte("ok\x1b[31mred\x1b[0m" + strings.Repeat("x", 512))
+	cfg := ToolResultBudgetConfig{
+		OutputDir:       dir,
+		TextBudgetBytes: 32,
+		PreviewBytes:    16,
+	}
+
+	pointer, evidence, err := FormatToolResult(cfg, raw, "text/plain")
+	if err != nil {
+		t.Fatalf("FormatToolResult: %v", err)
+	}
+	if strings.Contains(pointer, "\x1b") || strings.Contains(evidence.Preview, "\x1b") {
+		t.Fatalf("ANSI escaped into model-facing output: pointer=%q preview=%q", pointer, evidence.Preview)
+	}
+	full, err := os.ReadFile(filepath.Join(dir, evidence.Artifact))
+	if err != nil {
+		t.Fatalf("read artifact: %v", err)
+	}
+	if strings.Contains(string(full), "\x1b") {
+		t.Fatalf("ANSI escaped into persisted artifact: %q", string(full[:min(len(full), 32)]))
+	}
+	if !strings.Contains(string(full), "okred") {
+		t.Fatalf("stripped artifact lost visible text: %q", string(full[:min(len(full), 32)]))
+	}
+}
+
 // TestToolResultBudget_PersistsJSONNonText proves non-text/JSON output is
 // persisted as a JSON file and the pointer is short (no embedded JSON body).
 func TestToolResultBudget_PersistsJSONNonText(t *testing.T) {
