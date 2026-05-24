@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/bridge"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 )
 
 func newBridgeCommand() *cobra.Command {
@@ -42,7 +42,7 @@ at 127.0.0.1:8766. This is the control plane for the Navivox Flutter app.`,
 }
 
 func runBridgeCommand(cmd *cobra.Command, bindHost string, bindPort int, gatewayHost string, gatewayPort int) error {
-	cfg := bridge.Config{
+	cfg := gormescli.BridgeConfig{
 		BindHost:    bindHost,
 		BindPort:    bindPort,
 		GatewayHost: gatewayHost,
@@ -50,7 +50,7 @@ func runBridgeCommand(cmd *cobra.Command, bindHost string, bindPort int, gateway
 		GormesBin:   resolveGormesBinPath(),
 	}
 
-	srv := bridge.New(cfg)
+	srv := gormescli.NewBridgeServer(cfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

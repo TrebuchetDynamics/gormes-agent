@@ -22,7 +22,6 @@ import (
 	"github.com/TrebuchetDynamics/goncho"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
@@ -604,29 +603,8 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				ModelPickerResolver: gateway.NewModelPickerResolver(&gateway.SessionModelOverride{}),
 			}, tc, log), nil
 		},
-		Discord: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			ds, err := discord.NewRealSession(cfg.Discord.Token)
-			if err != nil {
-				return nil, err
-			}
-			return discord.New(discord.Config{
-				AllowedChannelID:       cfg.Discord.AllowedChannelID,
-				AllowedChannelIDs:      cfg.Discord.AllowedChannelIDs(),
-				IgnoredChannelIDs:      cfg.Discord.IgnoredChannelIDs(),
-				FreeResponseChannelIDs: cfg.Discord.FreeResponseChannelIDs(),
-				NoThreadChannelIDs:     cfg.Discord.NoThreadChannelIDs(),
-				ChannelSkillBindings:   cfg.Discord.ChannelSkillBindings,
-				ChannelPrompts:         cfg.Discord.ChannelPrompts,
-				RequireMention:         cfg.Discord.RequireMentionValue(true),
-				RequireMentionSet:      true,
-				AutoThread:             cfg.Discord.AutoThreadValue(true),
-				AutoThreadSet:          true,
-				AllowBots:              cfg.Discord.AllowBotsValue(),
-				ReplyToMode:            cfg.Discord.ReplyToModeValue(),
-				FirstRunDiscovery:      cfg.Discord.FirstRunDiscovery,
-			}, ds, log), nil
-		},
-		Slack: gormescli.NewSlackGatewayChannel,
+		Discord: gormescli.NewDiscordGatewayChannel,
+		Slack:   gormescli.NewSlackGatewayChannel,
 		Teams: func(config.Config, *slog.Logger) (gateway.Channel, error) {
 			return nil, errors.New("teams_live_transport_unavailable: live Bot Framework binding is not implemented; Teams is fakeable only in this slice")
 		},

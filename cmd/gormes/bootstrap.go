@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/bridge"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 )
 
 func newBootstrapCommand() *cobra.Command {
@@ -66,7 +66,7 @@ Use --stream for SSE event output.`,
 }
 
 func runBootstrapTermuxCommand(cmd *cobra.Command, dryRun bool, stream bool, gatewayPort int) error {
-	cfg := bridge.DefaultConfig()
+	cfg := gormescli.DefaultBridgeConfig()
 	cfg.GatewayPort = gatewayPort
 	cfg.GormesBin = resolveGormesBinPath()
 
@@ -77,14 +77,14 @@ func runBootstrapTermuxCommand(cmd *cobra.Command, dryRun bool, stream bool, gat
 	ctx, cancel := context.WithTimeout(cmd.Context(), 60*time.Second)
 	defer cancel()
 
-	result := bridge.RunBootstrapTermux(ctx, cfg, dryRun)
+	result := gormescli.RunBootstrapTermux(ctx, cfg, dryRun)
 
 	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(result)
 }
 
-func runBootstrapTermuxStream(cmd *cobra.Command, cfg bridge.Config, dryRun bool) error {
+func runBootstrapTermuxStream(cmd *cobra.Command, cfg gormescli.BridgeConfig, dryRun bool) error {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 60*time.Second)
 	defer cancel()
 
@@ -120,11 +120,11 @@ func runBootstrapTermuxStream(cmd *cobra.Command, cfg bridge.Config, dryRun bool
 	return nil
 }
 
-func runBootstrapTermuxDirect(cmd *cobra.Command, cfg bridge.Config, dryRun bool) error {
+func runBootstrapTermuxDirect(cmd *cobra.Command, cfg gormescli.BridgeConfig, dryRun bool) error {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 60*time.Second)
 	defer cancel()
 
-	result := bridge.RunBootstrapTermux(ctx, cfg, dryRun)
+	result := gormescli.RunBootstrapTermux(ctx, cfg, dryRun)
 
 	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")

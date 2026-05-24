@@ -14,8 +14,6 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
-	wasiwhisper "github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper"
-	whisperaudio "github.com/TrebuchetDynamics/gormes-agent/internal/tools/whisper/audio"
 )
 
 const (
@@ -101,7 +99,7 @@ type wasiWhisperAudioTranscriber struct {
 	mu             sync.Mutex
 	transcriber    wasiWhisperTranscriber
 	newTranscriber func(context.Context, string) (wasiWhisperTranscriber, error)
-	convertToWAV   whisperaudio.Converter
+	convertToWAV   tools.WhisperAudioConverter
 }
 
 func newWASIWhisperTranscriberFromEnv() telegram.AudioTranscriber {
@@ -120,7 +118,7 @@ func newWASIWhisperTranscriberFromEnv() telegram.AudioTranscriber {
 }
 
 func newWASIWhisperTranscriber(ctx context.Context, modelPath string) (wasiWhisperTranscriber, error) {
-	return wasiwhisper.NewTranscriber(ctx, modelPath)
+	return tools.NewWASIWhisperTranscriber(ctx, modelPath)
 }
 
 func (a *wasiWhisperAudioTranscriber) Transcribe(ctx context.Context, audio telegram.AudioInput) (string, error) {
@@ -133,14 +131,14 @@ func (a *wasiWhisperAudioTranscriber) Transcribe(ctx context.Context, audio tele
 	ctx, cancel := context.WithTimeout(ctx, wasiWhisperTranscriptionTimeout)
 	defer cancel()
 
-	pcm, err := whisperaudio.Preprocess(ctx, audio.Data, audio.MediaType, whisperaudio.PreprocessOptions{
+	pcm, err := tools.PreprocessWhisperAudio(ctx, audio.Data, audio.MediaType, tools.WhisperPreprocessOptions{
 		FileName:  audio.FileName,
 		Converter: a.convertToWAV,
 	})
 	if err != nil {
 		return "", fmt.Errorf("wasi whisper audio preprocess: %w", err)
 	}
-	chunks := whisperaudio.ChunkPCM(pcm.Samples, pcm.SampleRate, wasiWhisperMaxChunkDuration)
+	chunks := tools.ChunkWhisperPCM(pcm.Samples, pcm.SampleRate, wasiWhisperMaxChunkDuration)
 	if len(chunks) == 0 {
 		return "", errors.New("wasi whisper audio preprocess produced no chunks")
 	}
@@ -158,7 +156,7 @@ func (a *wasiWhisperAudioTranscriber) Transcribe(ctx context.Context, audio tele
 
 	transcripts := make([]string, 0, len(chunks))
 	for i, samples := range chunks {
-		raw, err := whisperaudio.EncodePCM16MonoWAV(whisperaudio.PCM{
+		raw, err := tools.EncodeWhisperPCM16MonoWAV(tools.WhisperPCM{
 			SampleRate: pcm.SampleRate,
 			Samples:    samples,
 		})

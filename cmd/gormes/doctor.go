@@ -16,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/acp"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
@@ -127,8 +126,7 @@ var doctorNewTelegramClient = func(token string) error {
 	return err
 }
 var doctorNewDiscordSession = func(token string) error {
-	_, err := discord.NewRealSession(token)
-	return err
+	return gormescli.CheckDiscordSession(token)
 }
 
 // doctorApplyFix performs the real, source-backed remediation for one
