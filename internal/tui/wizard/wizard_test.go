@@ -51,6 +51,11 @@ func TestWizardChassis_ViewHardeningBoundsSetupUX(t *testing.T) {
 			steps: []Step{Confirm("apply", "Apply these setup changes after reviewing this long warning "+long)},
 			want:  []string{"Apply these", "No", "Yes"},
 		},
+		{
+			name:  "search pick with long labels",
+			steps: []Step{Pick("model", "Select model "+long, []Choice{{ID: "anthropic/claude-opus-4", Label: "Claude Opus 4 " + long}, {ID: "openai/gpt-5", Label: "GPT-5 " + long}}, WithSearchChoices())},
+			want:  []string{"Select model", "Filter", "Claude Opus", "GPT-5"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -102,6 +107,11 @@ func TestWizardChassis_ViewHardeningBoundsShortSetupTerminal(t *testing.T) {
 			name:  "checklist keeps selected option and help visible",
 			steps: []Step{Checklist("tools", "Tool setup "+long, []Choice{{ID: "browser", Label: "Browser automation toolset " + long}, {ID: "shell", Label: "Shell command toolset " + long}})},
 			want:  []string{"Tool setup", "omitted", "resize", "Browser", "ENTER confirm"},
+		},
+		{
+			name:  "search pick keeps filter and help visible",
+			steps: []Step{Pick("model", "Select model "+long, []Choice{{ID: "anthropic/claude-opus-4", Label: "Claude Opus 4 " + long}, {ID: "openai/gpt-5", Label: "GPT-5 " + long}}, WithSearchChoices())},
+			want:  []string{"Select model", "Filter", "Enter select"},
 		},
 	}
 

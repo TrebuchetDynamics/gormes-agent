@@ -49,9 +49,10 @@ func TestModelChoiceUsesBubbleTeaPickerForTTY(t *testing.T) {
 	}
 	text := string(raw)
 	for _, want := range []string{
-		"runBubbleTeaPick(ctx, stdin, out, \"Select model for \"+provider",
-		"modelPickerChoices(models)",
-		"defaultModelChoiceID(models, current)",
+		"runBubbleTeaPickWithOptions(ctx, stdin, out, \"Select model for \"+provider",
+		"modelPickerChoices(allModels)",
+		"defaultModelChoiceID(allModels, current)",
+		"setupwizard.WithSearchChoices()",
 		"promptModelChoiceText(in, out, provider, current, models)",
 	} {
 		if !strings.Contains(text, want) {

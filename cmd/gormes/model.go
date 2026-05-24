@@ -20,6 +20,7 @@ import (
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 )
 
 type modelCommandSeams struct {
@@ -243,13 +244,22 @@ func promptModelChoice(in io.Reader, out io.Writer, provider string, current str
 }
 
 func promptModelChoiceWithOptions(in io.Reader, out io.Writer, provider string, current string, suggestions []string, opts modelChoicePromptOptions) (string, error) {
-	models := modelCatalogSuggestionsForPrompt(suggestions, opts.SuggestionLimit)
-	if stdin, ok := in.(*os.File); ok && term.IsTerminal(int(stdin.Fd())) && len(models) > 0 {
+	// For the Bubble Tea TUI path, show all available models (search UI
+	// handles large lists naturally). Fall back to the capped suggestion
+	// list only for the text-mode prompt.
+	allModels := modelCatalogSuggestionsForPrompt(suggestions, modelChoiceSuggestionLimitUnlimited)
+	if stdin, ok := in.(*os.File); ok && term.IsTerminal(int(stdin.Fd())) && len(allModels) > 0 {
 		ctx := opts.Context
 		if ctx == nil {
 			ctx = context.Background()
 		}
-		selected, err := runBubbleTeaPick(ctx, stdin, out, "Select model for "+provider, modelPickerChoices(models), defaultModelChoiceID(models, current))
+		// Use the searchable picker for lists larger than the old 5-model
+		// default. Small lists still work fine with search.
+		var stepOpts []setupwizard.StepOption
+		if len(allModels) > modelChoiceSuggestionLimitDefault {
+			stepOpts = append(stepOpts, setupwizard.WithSearchChoices())
+		}
+		selected, err := runBubbleTeaPickWithOptions(ctx, stdin, out, "Select model for "+provider, modelPickerChoices(allModels), defaultModelChoiceID(allModels, current), stepOpts...)
 		if err == nil {
 			if selected == "" {
 				return "", cli.ErrModelPickerCancelled
@@ -260,6 +270,7 @@ func promptModelChoiceWithOptions(in io.Reader, out io.Writer, provider string, 
 			return "", err
 		}
 	}
+	models := modelCatalogSuggestionsForPrompt(suggestions, opts.SuggestionLimit)
 	return promptModelChoiceText(in, out, provider, current, models)
 }
 
