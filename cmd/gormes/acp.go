@@ -11,7 +11,6 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/acp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/runtime/cmdrunner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
@@ -32,8 +31,6 @@ type acpBrowserBootstrapReportJSON struct {
 	acp.BrowserBootstrapReport
 }
 
-var acpBrowserBootstrapRunner cmdrunner.Runner = cmdrunner.ExecRunner{}
-
 func newACPCommand() *cobra.Command {
 	var (
 		setupBrowser bool
@@ -47,7 +44,6 @@ func newACPCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if setupBrowser {
 				opts.HomeDir = config.GormesHome()
-				opts.Runner = acpBrowserBootstrapRunner
 				return runACPSetupBrowserCommand(cmd, opts, jsonOut)
 			}
 			return cmd.Help()
