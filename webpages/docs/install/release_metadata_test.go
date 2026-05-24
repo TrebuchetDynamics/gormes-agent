@@ -37,8 +37,12 @@ func TestLandingReleaseMetadataCarriesDateAlias(t *testing.T) {
 	}
 
 	syncAssets := readRepoFileRelease(t, "webpages/landing/scripts/sync-assets.mjs")
-	if !strings.Contains(syncAssets, "VersionDateAlias") || !strings.Contains(syncAssets, "date_alias") {
-		t.Fatalf("sync-assets.mjs must parse VersionDateAlias and write date_alias")
+	if !strings.Contains(syncAssets, "parseReleaseData") {
+		t.Fatalf("sync-assets.mjs must call parseReleaseData before writing release.json")
+	}
+	assetSync := readRepoFileRelease(t, "webpages/landing/scripts/asset-sync.mjs")
+	if !strings.Contains(assetSync, "VersionDateAlias") || !strings.Contains(assetSync, "date_alias") {
+		t.Fatalf("asset-sync.mjs must parse VersionDateAlias and write date_alias")
 	}
 
 	landingData := readRepoFileRelease(t, "webpages/landing/src/data/landing.js")

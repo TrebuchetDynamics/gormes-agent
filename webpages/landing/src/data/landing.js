@@ -85,7 +85,7 @@ export const page = {
   installIntro:
     'Use the release installer, verify the binary, prove the machine offline before credentials, then add a provider and start chat. No pip, no venv, no Docker daemon.',
   installCommand:
-    `curl -fsSL ${site.installScriptUrl} | bash\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat`,
+    'curl -fsSL https://gormes.ai/install.sh | bash\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat',
   installFootnote:
     'Termux/Android status: v0.2.22 carries forward the installer recovery for the v0.2.20 executable-argument bug; Windows, source builds, and advanced installer flags are covered in the install docs.',
   installFootnoteLink: {
