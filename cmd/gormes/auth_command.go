@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/providers"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/providers"
 )
 
 func newAuthCommand() *cobra.Command {

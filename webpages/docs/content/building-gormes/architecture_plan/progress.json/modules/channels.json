@@ -5410,10 +5410,10 @@
         "gateway"
       ],
       "degraded_mode": "Unknown channels still return exit code 1 with typed `unknown_channel` evidence; configured details are supplied through cmd/gormes seams until channel runtime modules own each platform's config summary.",
-      "fixture": "internal/app/gormescli/modules/channels/capabilities_test.go plus cmd/gormes/channels_capabilities_test.go",
+      "fixture": "internal/cli/gormescli/modules/channels/capabilities_test.go plus cmd/gormes/channels_capabilities_test.go",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
-        "internal/app/gormescli/modules/channels/capabilities.go",
+        "internal/cli/gormescli/modules/channels/capabilities.go",
         "cmd/gormes/channels_capabilities.go",
         "internal/channels/capabilities.go"
       ],
@@ -5434,17 +5434,17 @@
         "cmd/gormes only injects config loading, configured channel details, and build provenance.",
         "Existing channel capability command fixtures continue to pass through the root command."
       ],
-      "note": "Complete 2026-05-17: moved `gormes channels capabilities` construction and renderers to internal/app/gormescli/modules/channels with config/detail/build seams. cmd/gormes/channels_capabilities.go now adapts configured platform details. Telegram, Slack, and WhatsApp service command runtimes remain separate future channel slices.",
+      "note": "Complete 2026-05-17: moved `gormes channels capabilities` construction and renderers to internal/cli/gormescli/modules/channels with config/detail/build seams. cmd/gormes/channels_capabilities.go now adapts configured platform details. Telegram, Slack, and WhatsApp service command runtimes remain separate future channel slices.",
       "write_scope": [
         "cmd/gormes/channels_capabilities.go",
-        "internal/app/gormescli/modules/channels/capabilities.go",
-        "internal/app/gormescli/modules/channels/capabilities_test.go",
+        "internal/cli/gormescli/modules/channels/capabilities.go",
+        "internal/cli/gormescli/modules/channels/capabilities_test.go",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli/modules/channels -run TestCapabilitiesCommandUsesInjectedConfigAndBuildProvenance -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli/modules/channels -run 'ChannelsCapabilities|CLIContract' -count=1",
+        "go test ./internal/cli/gormescli/modules/channels -run TestCapabilitiesCommandUsesInjectedConfigAndBuildProvenance -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli/modules/channels -run 'ChannelsCapabilities|CLIContract' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -5476,12 +5476,12 @@
         "gateway"
       ],
       "degraded_mode": "Slack manifest generation, WhatsApp pairing runtime, and Telegram long-poll runtime remain in cmd/gormes seams; only command construction and typed option parsing moved.",
-      "fixture": "internal/app/gormescli/modules/channels slack/whatsapp/telegram tests plus cmd/gormes Slack/WhatsApp/Telegram focused tests",
+      "fixture": "internal/cli/gormescli/modules/channels slack/whatsapp/telegram tests plus cmd/gormes Slack/WhatsApp/Telegram focused tests",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Finish Line Decisions",
-        "internal/app/gormescli/modules/channels/slack.go",
-        "internal/app/gormescli/modules/channels/whatsapp.go",
-        "internal/app/gormescli/modules/channels/telegram.go",
+        "internal/cli/gormescli/modules/channels/slack.go",
+        "internal/cli/gormescli/modules/channels/whatsapp.go",
+        "internal/cli/gormescli/modules/channels/telegram.go",
         "cmd/gormes/slack.go",
         "cmd/gormes/whatsapp.go",
         "cmd/gormes/telegram.go"
@@ -5503,20 +5503,20 @@
         "channels.NewTelegramCommandWithSeams owns the Telegram service command shell.",
         "cmd/gormes only adapts runtime seams for manifest generation, WhatsApp pairing, and Telegram long-poll runtime."
       ],
-      "note": "Complete 2026-05-17: moved Slack, WhatsApp, and Telegram service command construction into internal/app/gormescli/modules/channels. cmd/gormes now injects runtime seams for Slack manifest rendering/writes, WhatsApp pairing/install behavior, and Telegram long-poll startup.",
+      "note": "Complete 2026-05-17: moved Slack, WhatsApp, and Telegram service command construction into internal/cli/gormescli/modules/channels. cmd/gormes now injects runtime seams for Slack manifest rendering/writes, WhatsApp pairing/install behavior, and Telegram long-poll startup.",
       "write_scope": [
         "cmd/gormes/slack.go",
         "cmd/gormes/whatsapp.go",
         "cmd/gormes/telegram.go",
-        "internal/app/gormescli/modules/channels/slack.go",
-        "internal/app/gormescli/modules/channels/whatsapp.go",
-        "internal/app/gormescli/modules/channels/telegram.go",
+        "internal/cli/gormescli/modules/channels/slack.go",
+        "internal/cli/gormescli/modules/channels/whatsapp.go",
+        "internal/cli/gormescli/modules/channels/telegram.go",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli/modules/channels -run 'TestSlack|TestWhatsApp|TestTelegram' -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli/modules/channels -run 'TestSlack|TestWhatsApp|TestTelegram|CLIContract' -count=1",
+        "go test ./internal/cli/gormescli/modules/channels -run 'TestSlack|TestWhatsApp|TestTelegram' -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli/modules/channels -run 'TestSlack|TestWhatsApp|TestTelegram|CLIContract' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -5560,8 +5560,8 @@
         "/home/xel/.cache/tmp/architecture-review-gormes-20260523T094518Z.html",
         "internal/gateway/profile_channel_config.go:BuildProfileChannelReadinessWithOptions",
         "internal/gateway/fleet_supervisor.go:FleetSupervisor.Status",
-        "internal/app/gormescli/modules/profiles/profile.go:newProfileChannelsCommand",
-        "internal/app/gormescli/modules/profiles/control_center_tui.go:ControlCenterDraft.SetProfileChannelPolicy",
+        "internal/cli/gormescli/modules/profiles/profile.go:newProfileChannelsCommand",
+        "internal/cli/gormescli/modules/profiles/control_center_tui.go:ControlCenterDraft.SetProfileChannelPolicy",
         "cmd/gormes/setup_profiles_tui.go:parseSetupProfilesChannelAssignment"
       ],
       "ready_when": [
@@ -5593,11 +5593,11 @@
         "internal/channels/whatsapp/",
         "internal/slack/",
         "cmd/gormes/setup_gateway.go",
-        "internal/app/gormescli/modules/profiles/",
+        "internal/cli/gormescli/modules/profiles/",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
-        "internal/app/gormescli/modules/profiles/profile.go",
-        "internal/app/gormescli/modules/profiles/profile_command_test.go",
+        "internal/cli/gormescli/modules/profiles/profile.go",
+        "internal/cli/gormescli/modules/profiles/profile_command_test.go",
         "cmd/gormes/setup_profiles_tui.go",
         "cmd/gormes/setup_profiles_test.go"
       ],
@@ -5606,7 +5606,7 @@
         "go test ./cmd/gormes -run 'TestSetupGateway|TestSetupProfiles' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check",
-        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileModuleChannelsCommandRendersReadiness|TestProfileDraftStagesCreateWorkspaceCredentialsApplyAndDiscard|TestProfileControlCenter' -count=1",
+        "go test ./internal/cli/gormescli/modules/profiles -run 'TestProfileModuleChannelsCommandRendersReadiness|TestProfileDraftStagesCreateWorkspaceCredentialsApplyAndDiscard|TestProfileControlCenter' -count=1",
         "go test ./cmd/gormes -run 'TestSetupProfilesControlCenterTUIShowsChannelReadinessAndStagesAllowLists|TestSetupProfilesV2TUIAppliesOneRootConfigTransaction|TestSetupProfiles' -count=1"
       ],
       "done_signal": [

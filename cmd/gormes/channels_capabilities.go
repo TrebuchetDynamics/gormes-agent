@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
-	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/channels"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 

@@ -1558,6 +1558,7 @@ classification and row-backed implementation queue.
 - [x] `progress` OpenCode part-cost telemetry adapter for builder loop
 - [x] `progress` Progress next-work read-only selector
 - [x] `progress` Progress next-work repo-scope filter
+- [x] `progress` Internal topology guard for package consolidation
 
 ### 8.G — Community & External Contributions ✅
 

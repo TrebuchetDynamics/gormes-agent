@@ -21,12 +21,12 @@ import (
 
 	"github.com/TrebuchetDynamics/goncho"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
-	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	navivoxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/simplex"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"

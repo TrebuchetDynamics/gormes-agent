@@ -105,7 +105,7 @@ func BuildFirstRunPlan(input FirstRunPlanInput) FirstRunPlan {
 		PromptAllowed: input.Interactive,
 		Target:        target,
 		TargetLabel:   selected.Label,
-		DefaultTarget: SetupTargetTerminal,
+		DefaultTarget: SetupTargetNavivox,
 		Targets:       targets,
 		Actions:       buildFirstRunActions(input, target),
 		DefaultAction: FirstRunActionQuick,

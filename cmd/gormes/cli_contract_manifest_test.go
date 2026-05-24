@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/spf13/cobra"
 )
 

@@ -2950,7 +2950,7 @@
         "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
         "internal/cli/command_registry.go:CommandRegistry",
         "internal/tui/slash_completion.go:HermesSlashCommandCompletions",
-        "internal/app/gormescli/default_contracts.go:DefaultContracts",
+        "internal/cli/gormescli/default_contracts.go:DefaultContracts",
         "internal/gateway/commands.go:CommandRegistry",
         "internal/tui/slash_completion_test.go:TestHermesSlashCompletion_LocalNativeHandlersAreAvailable",
         "cmd/gormes/cli_contract_manifest_test.go:TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces",
@@ -2974,7 +2974,7 @@
       "write_scope": [
         "internal/cli/command_registry.go",
         "internal/tui/slash_completion_test.go",
-        "internal/app/gormescli/default_contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
         "internal/gateway/commands.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
@@ -3546,7 +3546,7 @@
         "internal/tui/slash_dispatch_behavior_test.go",
         "internal/tui/slash_completion_test.go",
         "internal/cli/command_registry.go",
-        "internal/app/gormescli/default_contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],
       "test_commands": [
@@ -3986,7 +3986,7 @@
         "internal/tui/slash_logs_test.go",
         "internal/tui/slash_dispatch.go",
         "internal/cli/command_registry.go",
-        "internal/app/gormescli/default_contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
         "internal/gateway/commands.go",
         "cmd/gormes/logs.go",
         "cmd/gormes/main.go",
@@ -4314,7 +4314,7 @@
       "source_refs": [
         "hermes-agent/ui-tui/src/app/slash/commands/session.ts:/usage session usage command",
         "internal/hermes/account_usage.go:RenderAccountUsageLines",
-        "internal/app/gormescli/modules/providers/usage.go:UsageSeams",
+        "internal/cli/gormescli/modules/providers/usage.go:UsageSeams",
         "internal/gateway/usage_command.go:AccountUsageProvider",
         "internal/tui/slash_usage.go:AccountUsageFunc and usageAccountMsg",
         "cmd/gormes/tui_usage_slash.go:newTUIAccountUsageFunc"
@@ -4500,7 +4500,7 @@
         "internal/tui/slash_dispatch_behavior_test.go",
         "internal/cli/command_registry.go",
         "internal/gateway/commands.go",
-        "internal/app/gormescli/default_contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
         "docs/content/building-gormes/architecture_plan/progress.json/index.json",
         "docs/content/building-gormes/architecture_plan/progress.json/modules/tui.json"
       ],

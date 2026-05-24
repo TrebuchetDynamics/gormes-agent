@@ -1256,5 +1256,71 @@
         "origin_type": "gormes"
       }
     }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 21,
+    "item": {
+      "name": "Internal topology guard for package consolidation",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add a small topology guard that reports non-hidden internal top-level directory count, cmd/gormes direct internal import count, and active-row forbidden legacy roots without changing runtime behavior. The guard must support row-scoped old_roots/new_roots/owner_module/source_refs entries so each later package move can start with a meaningful RED proof instead of a brittle whole-repo directory allowlist.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "progress",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "metrics-only guard with no package move or runtime behavior change",
+      "fixture": "internal/internal_topology_test.go",
+      "source_refs": [
+        "internal/REFACTOR-CMD-PLAN.md:Topology Guard Contract",
+        "internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+        "cmd/gormes/main.go:rootCommandFactories",
+        "internal/cli/gormescli/root.go:NewRootCommand",
+        "internal/gateway/platform_manifest.go",
+        "hermes-agent/hermes_cli/_parser.py:build_top_level_parser",
+        "hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY"
+      ],
+      "ready_when": [
+        "internal/REFACTOR-CMD-PLAN.md defines the topology guard contract and package move playbook",
+        "no package move is attempted in the same slice",
+        "the initial guard can pass with no active migration enabled"
+      ],
+      "not_ready_when": [
+        "the guard hard-codes a global allowed-directory set before any migration has landed",
+        "the implementation changes command, gateway, channel, tool, provider, or persistence behavior",
+        "the row tries to move internal/cli/gormescli, tool helpers, channels, or progress packages in the guard slice"
+      ],
+      "acceptance": [
+        "topology test reports the non-hidden internal top-level directory count and cmd/gormes direct internal import count without failing the unchanged repository",
+        "topology test has an active migration table shape with owner_module, old_roots, new_roots, and source_refs",
+        "the CLI-surface migration row can activate internal/app/gormescli -> internal/cli/gormescli and fail while the old root exists, proving the guard can supply RED signal for package moves",
+        "no runtime package imports or public behavior are moved in this row"
+      ],
+      "note": "TDD landed: internal/internal_topology_test.go reports internal top-level directory and cmd/gormes direct-internal-import metrics, provided an inactive cli-surface-rehome migration entry for internal/app/gormescli -> internal/cli/gormescli, and proved the future RED signal before the package move row activated it.",
+      "write_scope": [
+        "internal/internal_topology_test.go",
+        "internal/REFACTOR-CMD-PLAN.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal -run TestInternalTopology -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "go test ./internal -run TestInternalTopology -count=1 passes with no active migration entry enabled",
+        "go run ./cmd/progress validate passes after row evidence is updated",
+        "builder handoff names the first migration entry to enable for CLI surface rehome"
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-24T00:00:00Z",
+        "note": "No Hermes runtime feature analog; Hermes CLI/gateway/tool source families are shape evidence only."
+      }
+    }
   }
 ]

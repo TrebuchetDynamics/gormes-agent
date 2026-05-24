@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/profiles"
+	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/profiles"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )

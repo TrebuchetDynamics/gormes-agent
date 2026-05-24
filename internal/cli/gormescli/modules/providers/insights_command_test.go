@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 )
 
 func TestInsightsCommandUsesInjectedRowBackedBuildProvenance(t *testing.T) {

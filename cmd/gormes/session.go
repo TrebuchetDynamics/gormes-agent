@@ -16,7 +16,7 @@ import (
 	_ "github.com/ncruces/go-sqlite3/driver"
 	"github.com/spf13/cobra"
 
-	sessionsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/sessions"
+	sessionsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/sessions"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"

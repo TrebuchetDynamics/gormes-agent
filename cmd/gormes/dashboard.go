@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/apiserver"
-	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/gateway"
 )
 
 func newDashboardCommand() *cobra.Command {

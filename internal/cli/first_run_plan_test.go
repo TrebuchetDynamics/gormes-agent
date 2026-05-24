@@ -25,8 +25,8 @@ func TestBuildFirstRunPlan_FreshInstallRouterOptions(t *testing.T) {
 	if plan.TargetLabel != "Terminal" {
 		t.Fatalf("TargetLabel = %q, want Terminal", plan.TargetLabel)
 	}
-	if plan.DefaultTarget != SetupTargetTerminal {
-		t.Fatalf("DefaultTarget = %q, want terminal", plan.DefaultTarget)
+	if plan.DefaultTarget != SetupTargetNavivox {
+		t.Fatalf("DefaultTarget = %q, want navivox", plan.DefaultTarget)
 	}
 	assertActionIDs(t, plan.Actions, []FirstRunActionID{FirstRunActionQuick, FirstRunActionFull})
 	if plan.DefaultAction != FirstRunActionQuick {

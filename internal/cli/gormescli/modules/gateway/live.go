@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 )
 
 var MutatingUnavailableSubcommands = []string{

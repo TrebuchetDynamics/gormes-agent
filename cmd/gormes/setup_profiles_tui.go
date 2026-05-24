@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/profiles"
+	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/profiles"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/provider"

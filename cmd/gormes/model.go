@@ -16,8 +16,8 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )

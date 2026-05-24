@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
-	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/providers"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 

@@ -28,6 +28,7 @@ gormes.log
 crash-*.log
 .pi/gormes-loop/*.jsonl
 .pi/development-goal/
+**/.pi/development-goal/
 
 # ── Local environment backups (may contain credentials) ──
 .env.backup.*

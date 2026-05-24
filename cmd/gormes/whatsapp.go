@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/channels"
 	wa "github.com/TrebuchetDynamics/gormes-agent/internal/channels/whatsapp"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 

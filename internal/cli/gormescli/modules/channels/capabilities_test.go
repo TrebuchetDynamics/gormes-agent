@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
 	channelcaps "github.com/TrebuchetDynamics/gormes-agent/internal/channels"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 

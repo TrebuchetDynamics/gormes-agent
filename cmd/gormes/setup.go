@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/profiles"
-	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
+	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/profiles"
+	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/providers"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -1153,7 +1153,11 @@ func promptSetupProviderCredentialAction(cmd *cobra.Command, _ setupProviderCred
 	signal.Notify(interrupts, os.Interrupt)
 	defer signal.Stop(interrupts)
 
-	answer, err := promptString(cmd, "  Choice [1/2/3]: ", "1")
+	answer, err := promptSetupOptionChoice(cmd, "Provider credentials", "  Choice [1/2/3]: ", string(setupProviderCredentialUseExisting), []setupOptionChoice{
+		{ID: string(setupProviderCredentialUseExisting), Label: "Use existing credentials", Aliases: []string{"1", "use", "use-existing", "existing"}},
+		{ID: string(setupProviderCredentialReauthenticate), Label: "Reauthenticate (new OAuth login)", Aliases: []string{"2", "reauth", "reauthenticate", "login"}},
+		{ID: string(setupProviderCredentialCancel), Label: "Cancel", Aliases: []string{"3", "cancel", "q", "quit", "exit"}},
+	})
 	select {
 	case <-interrupts:
 		fmt.Fprintln(cmd.OutOrStdout())
@@ -1163,13 +1167,12 @@ func promptSetupProviderCredentialAction(cmd *cobra.Command, _ setupProviderCred
 	if err != nil {
 		return setupProviderCredentialUseExisting, nil
 	}
-	answer = strings.ToLower(strings.TrimSpace(cli.StripANSI(answer)))
-	switch answer {
-	case "", "1", "use", "use-existing", "existing":
+	switch setupProviderCredentialAction(answer) {
+	case setupProviderCredentialUseExisting:
 		return setupProviderCredentialUseExisting, nil
-	case "2", "reauth", "reauthenticate", "login":
+	case setupProviderCredentialReauthenticate:
 		return setupProviderCredentialReauthenticate, nil
-	case "3", "cancel", "q", "quit", "exit":
+	case setupProviderCredentialCancel:
 		return setupProviderCredentialCancel, nil
 	default:
 		return "", newExitCodeError(2, fmt.Errorf("setup_provider_credentials_invalid_selection: %s", answer))
@@ -1318,18 +1321,17 @@ func printSetupSummary(cmd *cobra.Command) {
 }
 
 func offerSetupLaunchChat(cmd *cobra.Command, seams setupCommandSeams) error {
-	answer, err := promptString(cmd, "Launch gormes chat now? [Y/n]: ", "y")
+	launch, ok, err := promptSetupYesNoOption(cmd, "Launch gormes chat now?", "Launch gormes chat now? [Y/n]: ", true)
 	if err != nil {
 		return err
 	}
-	switch strings.ToLower(strings.TrimSpace(answer)) {
-	case "", "y", "yes":
-		return seams.LaunchChat(cmd)
-	case "n", "no":
-		return nil
-	default:
-		return newExitCodeError(2, fmt.Errorf("setup_launch_invalid_selection: %s", answer))
+	if !ok {
+		return newExitCodeError(2, fmt.Errorf("setup_launch_invalid_selection"))
 	}
+	if launch {
+		return seams.LaunchChat(cmd)
+	}
+	return nil
 }
 
 func launchSetupChat(cmd *cobra.Command) error {
@@ -2105,7 +2107,11 @@ func runSetupBindingsSection(cmd *cobra.Command, seams setupCommandSeams, nonInt
 	fmt.Fprintln(out, "Route messages from specific channels to specific agents.")
 	fmt.Fprintln(out)
 
-	channel, err := promptString(cmd, "Channel (telegram/discord/slack): ", "telegram")
+	channel, err := promptSetupOptionChoice(cmd, "Channel", "Channel (telegram/discord/slack): ", "telegram", []setupOptionChoice{
+		{ID: "telegram", Label: "Telegram"},
+		{ID: "discord", Label: "Discord"},
+		{ID: "slack", Label: "Slack"},
+	})
 	if err != nil {
 		return err
 	}
@@ -2199,23 +2205,27 @@ func runSetupFallbackSection(cmd *cobra.Command, seams setupCommandSeams, nonInt
 	fmt.Fprintln(out, "  3. Clear fallback chain")
 	fmt.Fprintln(out)
 
-	choice, err := promptString(cmd, "Select action [2]: ", "2")
+	choice, err := promptSetupOptionChoice(cmd, "Fallback action", "Select action [2]: ", "keep", []setupOptionChoice{
+		{ID: "add", Label: "Add a fallback provider", Aliases: []string{"1"}},
+		{ID: "keep", Label: "Keep current configuration", Aliases: []string{"2"}},
+		{ID: "clear", Label: "Clear fallback chain", Aliases: []string{"3"}},
+	})
 	if err != nil {
 		return err
 	}
 	choice = strings.TrimSpace(strings.ToLower(choice))
 
 	switch choice {
-	case "", "2", "keep":
+	case "", "keep":
 		fmt.Fprintln(out, "Keeping current fallback configuration.")
 		return nil
-	case "3", "clear":
+	case "clear":
 		if err := providermodule.WriteFallbackChain(config.ConfigPath(), nil); err != nil {
 			return err
 		}
 		fmt.Fprintln(out, "Fallback chain cleared.")
 		return nil
-	case "1", "add":
+	case "add":
 		return runSetupFallbackAdd(cmd, seams)
 	default:
 		fmt.Fprintf(out, "Unknown action: %s — keeping current configuration.\n", choice)
@@ -2295,7 +2305,7 @@ func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
 		return nil
 	}
 
-	choice, err := promptString(cmd, "Select TTS provider [keep]: ", "keep")
+	choice, err := promptSetupChoice(cmd, "Select TTS provider", "Select TTS provider [keep]: ", "keep", ttsProviderOptions())
 	if err != nil {
 		return err
 	}
@@ -2337,7 +2347,7 @@ func runSetupTerminalSection(cmd *cobra.Command, nonInteractive bool) error {
 		return nil
 	}
 
-	choice, err := promptString(cmd, "Select terminal backend [keep]: ", "keep")
+	choice, err := promptSetupChoice(cmd, "Select terminal backend", "Select terminal backend [keep]: ", "keep", terminalBackendOptions())
 	if err != nil {
 		return err
 	}
@@ -3205,7 +3215,12 @@ func runSetupAgentSettingsSection(cmd *cobra.Command, nonInteractive bool) error
 		fmt.Fprintf(out, "setup_agent_value_ignored: compression_threshold=%q\n", thresholdText)
 	}
 
-	policy, err := promptString(cmd, fmt.Sprintf("Session reset policy [%s]: ", sessionPolicy), sessionPolicy)
+	policy, err := promptSetupOptionChoice(cmd, "Session reset policy", fmt.Sprintf("Session reset policy [%s]: ", sessionPolicy), sessionPolicy, []setupOptionChoice{
+		{ID: "inactivity", Label: "Inactivity"},
+		{ID: "daily", Label: "Daily"},
+		{ID: "manual", Label: "Manual"},
+		{ID: "off", Label: "Off", Aliases: []string{"none"}},
+	})
 	if err != nil {
 		return err
 	}

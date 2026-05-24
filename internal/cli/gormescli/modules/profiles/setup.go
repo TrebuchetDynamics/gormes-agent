@@ -1,7 +1,7 @@
 package profiles
 
 import (
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 

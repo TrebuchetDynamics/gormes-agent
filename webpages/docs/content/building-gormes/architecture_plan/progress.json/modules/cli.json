@@ -2174,7 +2174,7 @@
         "system"
       ],
       "degraded_mode": "Unknown or unowned command/setup/slash surfaces fail closed in tests with bounded ownership errors instead of drifting inside cmd/gormes without a module contract.",
-      "fixture": "internal/app/gormescli/contract_test.go and cmd/gormes/cli_contract_manifest_test.go",
+      "fixture": "internal/cli/gormescli/contract_test.go and cmd/gormes/cli_contract_manifest_test.go",
       "source_refs": [
         "cmd/gormes/main.go:newRootCommandWithRuntime",
         "cmd/gormes/setup.go:setupSections",
@@ -2197,23 +2197,23 @@
         "Feature-package migration of cmd/gormes profile/provider/channel/setup surfaces"
       ],
       "acceptance": [
-        "internal/app/gormescli exposes NewRegistry, DefaultContracts, and a CommandManifest read model without importing cmd/gormes.",
+        "internal/cli/gormescli exposes NewRegistry, DefaultContracts, and a CommandManifest read model without importing cmd/gormes.",
         "Invalid modules, overlapping command ownership, unowned Cobra paths, unowned setup sections, and unowned slash commands fail with deterministic errors.",
         "cmd/gormes tests derive visible command paths from newRootCommandWithRuntime and validate them against DefaultContracts.",
         "setupSections and internal/cli.CommandRegistry are validated against feature-module owners, including profiles, providers, gateway, tools, tts, and tui.",
         "Existing cmd/gormes runtime behavior is unchanged; the slice only adds contracts and drift tests."
       ],
-      "note": "Complete 2026-05-17: added internal/app/gormescli as the importable command/control-plane contract registry and pinned DefaultContracts to the approved progress module taxonomy. The registry normalizes command/setup/slash names, rejects invalid modules and overlapping command owners, derives a live Cobra command manifest, and fails closed for unowned Cobra paths, setup sections, or slash commands. cmd/gormes now has a drift test that derives visible paths from newRootCommandWithRuntime(rootRuntime{}), validates setupSections, and validates every internal/cli.CommandRegistry slash name. This intentionally does not move feature command implementations yet; it creates the guard for the next profiles/provider/channel package migration.",
+      "note": "Complete 2026-05-17: added internal/cli/gormescli as the importable command/control-plane contract registry and pinned DefaultContracts to the approved progress module taxonomy. The registry normalizes command/setup/slash names, rejects invalid modules and overlapping command owners, derives a live Cobra command manifest, and fails closed for unowned Cobra paths, setup sections, or slash commands. cmd/gormes now has a drift test that derives visible paths from newRootCommandWithRuntime(rootRuntime{}), validates setupSections, and validates every internal/cli.CommandRegistry slash name. This intentionally does not move feature command implementations yet; it creates the guard for the next profiles/provider/channel package migration.",
       "write_scope": [
-        "internal/app/gormescli/contracts.go",
-        "internal/app/gormescli/default_contracts.go",
-        "internal/app/gormescli/contract_test.go",
+        "internal/cli/gormescli/contracts.go",
+        "internal/cli/gormescli/default_contracts.go",
+        "internal/cli/gormescli/contract_test.go",
         "cmd/gormes/cli_contract_manifest_test.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli ./cmd/gormes -run 'TestDefaultContractsValidate|TestRegistryRejects|TestCommandManifestRejects|TestSetupAndSlashValidationReject|TestCLIContractRegistryOwns' -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli ./internal/cli ./internal/progress -count=1",
+        "go test ./internal/cli/gormescli ./cmd/gormes -run 'TestDefaultContractsValidate|TestRegistryRejects|TestCommandManifestRejects|TestSetupAndSlashValidationReject|TestCLIContractRegistryOwns' -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli ./internal/cli ./internal/progress -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -2245,11 +2245,11 @@
         "system"
       ],
       "degraded_mode": "If the extracted module cannot receive binary build provenance, cmd/gormes injects it through module options; row-backed lifecycle commands still return an ExitCode-capable error without importing cmd/gormes.",
-      "fixture": "internal/app/gormescli/modules/profiles/profile_command_test.go plus existing cmd/gormes profile command tests",
+      "fixture": "internal/cli/gormescli/modules/profiles/profile_command_test.go plus existing cmd/gormes profile command tests",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
         "cmd/gormes/profile.go",
-        "internal/app/gormescli/modules/profiles/profile.go",
+        "internal/cli/gormescli/modules/profiles/profile.go",
         "cmd/gormes/profile_command_test.go",
         "cmd/gormes/setup.go:runSetupProfilesInteractive",
         "cmd/gormes/doctor.go:doctorProfilesStatus"
@@ -2270,25 +2270,25 @@
         "provider-owned command package extraction"
       ],
       "acceptance": [
-        "internal/app/gormescli/modules/profiles exposes NewCommandWithSeams, Seams, and Options so profile command behavior can be tested without importing cmd/gormes.",
+        "internal/cli/gormescli/modules/profiles exposes NewCommandWithSeams, Seams, and Options so profile command behavior can be tested without importing cmd/gormes.",
         "cmd/gormes/profile.go becomes a thin adapter that injects build provenance and keeps existing unexported shim names for setup, doctor, skills, and profile tests.",
         "Profile JSON reports still include the cmd/gormes Version and resolved git commit through injected gormescli.BuildProvenance.",
         "Row-backed profile lifecycle commands still emit status row_backed and return an error implementing ExitCode.",
         "Existing cmd/gormes profile tests and the new module-level seam/provenance test pass without live GORMES_HOME state."
       ],
-      "note": "Complete 2026-05-17: extracted the `gormes profile` command implementation to internal/app/gormescli/modules/profiles while leaving cmd/gormes/profile.go as a compatibility shim for root registration and existing setup/doctor/skills tests. Added gormescli.BuildProvenance and gormescli.ExitCodeError so importable modules can emit JSON provenance and exit-code intent without importing cmd/gormes. The new module test proves seams and build provenance are injected; existing cmd/gormes profile tests continue to validate public behavior through the shim.",
+      "note": "Complete 2026-05-17: extracted the `gormes profile` command implementation to internal/cli/gormescli/modules/profiles while leaving cmd/gormes/profile.go as a compatibility shim for root registration and existing setup/doctor/skills tests. Added gormescli.BuildProvenance and gormescli.ExitCodeError so importable modules can emit JSON provenance and exit-code intent without importing cmd/gormes. The new module test proves seams and build provenance are injected; existing cmd/gormes profile tests continue to validate public behavior through the shim.",
       "write_scope": [
         "cmd/gormes/profile.go",
-        "internal/app/gormescli/runtime.go",
-        "internal/app/gormescli/modules/profiles/profile.go",
-        "internal/app/gormescli/modules/profiles/profile_command_test.go",
+        "internal/cli/gormescli/runtime.go",
+        "internal/cli/gormescli/modules/profiles/profile.go",
+        "internal/cli/gormescli/modules/profiles/profile_command_test.go",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli/modules/profiles -run TestProfileModuleCommandUsesInjectedSeamsAndBuildProvenance -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/cli -run 'Profile|CLIContract' -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/cli ./internal/progress -count=1",
+        "go test ./internal/cli/gormescli/modules/profiles -run TestProfileModuleCommandUsesInjectedSeamsAndBuildProvenance -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli ./internal/cli/gormescli/modules/profiles ./internal/cli -run 'Profile|CLIContract' -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli ./internal/cli/gormescli/modules/profiles ./internal/cli ./internal/progress -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -2320,13 +2320,13 @@
         "system"
       ],
       "degraded_mode": "Setup sections without a valid feature-module owner fail the contract test before they can drift inside cmd/gormes.",
-      "fixture": "internal/app/gormescli/setup_registry_test.go and cmd/gormes/cli_contract_manifest_test.go",
+      "fixture": "internal/cli/gormescli/setup_registry_test.go and cmd/gormes/cli_contract_manifest_test.go",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
         "cmd/gormes/setup.go:setupRegistry",
-        "internal/app/gormescli/setup_registry.go",
-        "internal/app/gormescli/modules/profiles/setup.go",
-        "internal/app/gormescli/default_contracts.go"
+        "internal/cli/gormescli/setup_registry.go",
+        "internal/cli/gormescli/modules/profiles/setup.go",
+        "internal/cli/gormescli/default_contracts.go"
       ],
       "ready_when": [
         "CLI module contract registry and manifest gate is complete.",
@@ -2349,19 +2349,19 @@
         "profiles exports its setup section from the profile module instead of cmd/gormes owning the literal alone.",
         "cmd/gormes CLI contract tests validate setup section names and their module owners against DefaultContracts."
       ],
-      "note": "Complete 2026-05-17: added gormescli.SetupRegistry and moved the profiles setup-section declaration into internal/app/gormescli/modules/profiles. cmd/gormes/setup.go now derives setupSections and setupSectionLabels from the registry while preserving the existing order and labels. The CLI contract manifest test validates both setup section ownership and matching module owners, so new setup sections fail closed unless DefaultContracts assigns a valid progress module.",
+      "note": "Complete 2026-05-17: added gormescli.SetupRegistry and moved the profiles setup-section declaration into internal/cli/gormescli/modules/profiles. cmd/gormes/setup.go now derives setupSections and setupSectionLabels from the registry while preserving the existing order and labels. The CLI contract manifest test validates both setup section ownership and matching module owners, so new setup sections fail closed unless DefaultContracts assigns a valid progress module.",
       "write_scope": [
         "cmd/gormes/setup.go",
         "cmd/gormes/cli_contract_manifest_test.go",
-        "internal/app/gormescli/setup_registry.go",
-        "internal/app/gormescli/setup_registry_test.go",
-        "internal/app/gormescli/modules/profiles/setup.go",
+        "internal/cli/gormescli/setup_registry.go",
+        "internal/cli/gormescli/setup_registry_test.go",
+        "internal/cli/gormescli/modules/profiles/setup.go",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./cmd/gormes -run 'SetupRegistry|Setup|Profile|CLIContract' -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/cli -count=1",
+        "go test ./internal/cli/gormescli ./internal/cli/gormescli/modules/profiles ./cmd/gormes -run 'SetupRegistry|Setup|Profile|CLIContract' -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli ./internal/cli/gormescli/modules/profiles ./internal/cli -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -2383,7 +2383,7 @@
       "name": "cmd/gormes root command assembly extraction",
       "priority": "P1",
       "status": "complete",
-      "contract": "Move Cobra root command assembly, root flags, root help text, and canonical top-level command ordering into internal/app/gormescli while leaving cmd/gormes/main.go responsible for process entry, panic dump, exit-code mapping, ldflags/build values, and runtime seam factories.",
+      "contract": "Move Cobra root command assembly, root flags, root help text, and canonical top-level command ordering into internal/cli/gormescli while leaving cmd/gormes/main.go responsible for process entry, panic dump, exit-code mapping, ldflags/build values, and runtime seam factories.",
       "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
@@ -2392,10 +2392,10 @@
         "operator"
       ],
       "degraded_mode": "cmd/gormes still owns runtime-specific rootRuntime defaults and command factory injection until deeper runtime modules exist.",
-      "fixture": "internal/app/gormescli/root_test.go plus cmd/gormes root/help/parity tests",
+      "fixture": "internal/cli/gormescli/root_test.go plus cmd/gormes root/help/parity tests",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Finish Line Decisions",
-        "internal/app/gormescli/root.go",
+        "internal/cli/gormescli/root.go",
         "cmd/gormes/main.go"
       ],
       "ready_when": [
@@ -2411,16 +2411,16 @@
         "cmd/gormes/main.go supplies command factories and runtime callbacks without rebuilding the root Cobra shell inline.",
         "Existing root help, CLI parity, fresh install, and unknown-subcommand tests continue to pass."
       ],
-      "note": "Complete 2026-05-17: added internal/app/gormescli/root.go for root Cobra assembly and command order. cmd/gormes/main.go now defaults runtime seams, passes root callbacks/finalizers, and supplies command factories while preserving process-entry ownership.",
+      "note": "Complete 2026-05-17: added internal/cli/gormescli/root.go for root Cobra assembly and command order. cmd/gormes/main.go now defaults runtime seams, passes root callbacks/finalizers, and supplies command factories while preserving process-entry ownership.",
       "write_scope": [
         "cmd/gormes/main.go",
-        "internal/app/gormescli/root.go",
-        "internal/app/gormescli/root_test.go",
+        "internal/cli/gormescli/root.go",
+        "internal/cli/gormescli/root_test.go",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli -run TestNewRootCommandOwnsRootFlagsAndFactories -count=1",
+        "go test ./internal/cli/gormescli -run TestNewRootCommandOwnsRootFlagsAndFactories -count=1",
         "go test ./cmd/gormes -run 'TestRootCommand|TestHermesCLIParity|TestRootHelp|TestFreshInstall|TestParentUnknown|TestProviderFlagResolution' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
@@ -2432,6 +2432,86 @@
         "origin_type": "gormes",
         "owned_since": "2026-05-17T00:00:00Z",
         "note": "Gormes-owned command architecture refactor from REFACTOR-CMD-PLAN.md."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 22,
+    "item": {
+      "name": "Internal CLI surface package rehome",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Move the completed command-surface assembly from internal/cli/gormescli to internal/cli/gormescli while preserving the live Cobra command manifest, setup registry, slash-command ownership, root command ordering, and feature command constructors. This is the first Hermes-aligned step toward internal/cli/surface and internal/cli/commands/*.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "cli",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "behavior-preserving import-path move only; no command spelling, flag, JSON, gateway, channel, tool, provider, or persistence behavior changes",
+      "fixture": "internal/internal_topology_test.go plus cmd/gormes/cli_contract_manifest_test.go",
+      "source_refs": [
+        "internal/REFACTOR-CMD-PLAN.md:CLI Surface Enclave",
+        "internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+        "hermes-agent/hermes_cli/_parser.py:build_top_level_parser",
+        "hermes-agent/hermes_cli/main.py:main",
+        "hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY",
+        "internal/cli/gormescli/root.go:NewRootCommand",
+        "internal/cli/gormescli/contracts.go:ModuleContract",
+        "internal/cli/command_registry.go:CommandRegistry"
+      ],
+      "ready_when": [
+        "Internal topology guard for package consolidation is validated",
+        "the move is limited to internal/cli/gormescli -> internal/cli/gormescli and import/path-literal updates",
+        "focused CLI contract tests can run without live providers, gateways, or credentials"
+      ],
+      "not_ready_when": [
+        "the slice changes public command spelling, flags, JSON output, exit codes, gateway behavior, channel transcripts, tool descriptors, provider behavior, or persistence formats",
+        "the slice combines CLI rehome with tool, channel, progress, or runtime package consolidation",
+        "the implementation adds compatibility shim packages that preserve the stale internal/app seam"
+      ],
+      "blocked_by": [
+        "Internal topology guard for package consolidation"
+      ],
+      "unblocks": [
+        "internal CLI surface long-term rename to internal/cli/surface",
+        "internal CLI commands package-family split",
+        "tool adapter package consolidation"
+      ],
+      "acceptance": [
+        "internal/cli/gormescli no longer exists as a top-level internal/app package family",
+        "internal/cli/gormescli contains the prior gormescli package and modules without package-name or runtime behavior changes",
+        "all Go imports and active Go path literals use internal/cli/gormescli instead of internal/cli/gormescli",
+        "the topology guard activates the cli-surface-rehome migration and passes only after the old root is gone and the new root exists",
+        "CLI contract/root/setup/profile/provider/gateway/channel/session/Navivox command tests pass through the same public Cobra surfaces"
+      ],
+      "note": "TDD landed: moved internal/app/gormescli to internal/cli/gormescli, updated Go imports/path literals, activated the cli-surface-rehome topology migration, and preserved CLI/root/setup/profile/provider/gateway/channel/session/Navivox command behavior through focused tests.",
+      "write_scope": [
+        "internal/cli/gormescli/",
+        "internal/internal_topology_test.go",
+        "cmd/gormes/",
+        "internal/channels/navivox/profile_contacts.go",
+        "internal/progress/progress_test.go",
+        "internal/cli/codemap.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal -run TestInternalTopology -count=1",
+        "go test ./cmd/gormes ./internal/cli/... -run 'CLIContract|Root|Setup|Profile|Provider|Gateway|Channels|Session|Navivox|CommandRegistry' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "go test ./internal -run TestInternalTopology -count=1 passes with cli-surface-rehome active",
+        "go test ./cmd/gormes ./internal/cli/... -run 'CLIContract|Root|Setup|Profile|Provider|Gateway|Channels|Session|Navivox|CommandRegistry' -count=1 passes",
+        "rg 'internal/cli/gormescli|github.com/.*/internal/cli/gormescli' cmd internal --glob '*.go' finds no active Go references outside intentional topology history"
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Hermes CLI source family is shape evidence; this row is a Gormes-owned topology move."
       }
     }
   }

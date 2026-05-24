@@ -272,7 +272,7 @@ func TestLoad_RealFile_ProfileControlCenterV2Umbrella(t *testing.T) {
 		"internal/config/profile_config_v2.go:ProfileCfg",
 		"internal/config/profile_config_v2.go:DefaultConfigDocumentV2",
 		"cmd/gormes/setup_profiles_tui.go:setupProfilesTUIState",
-		"internal/app/gormescli/modules/profiles/setup.go:SetupSections",
+		"internal/cli/gormescli/modules/profiles/setup.go:SetupSections",
 	} {
 		if !containsString(umbrella.SourceRefs, want) {
 			t.Fatalf("Profile Control Center umbrella source_refs = %v, want %q", umbrella.SourceRefs, want)

@@ -7,9 +7,9 @@ title: "Progress Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `progress`
-**Rows:** 20
-**Status counts:** `complete`: 20 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 5 · `P2`: 15
+**Rows:** 21
+**Status counts:** `complete`: 21 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P1`: 6 · `P2`: 15
 
 ## Phase 1 — The Dashboard
 
@@ -44,3 +44,4 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `progress` | OpenCode part-cost telemetry adapter for builder loop |
 | `complete` | `P1` | `progress` | Progress next-work read-only selector |
 | `complete` | `P1` | `progress` | Progress next-work repo-scope filter |
+| `complete` | `P1` | `progress` | Internal topology guard for package consolidation |

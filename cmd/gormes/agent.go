@@ -10,10 +10,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
-	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
+	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
 func newAgentCommand() *cobra.Command {

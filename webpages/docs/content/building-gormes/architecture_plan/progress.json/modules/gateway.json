@@ -7686,10 +7686,10 @@
         "gateway"
       ],
       "degraded_mode": "Commands remain row-backed with structured unavailable JSON and exit code 2 until the underlying gateway management rows ship.",
-      "fixture": "internal/app/gormescli/modules/gateway/rowbacked_test.go plus cmd/gormes Hermes row-backed parity tests",
+      "fixture": "internal/cli/gormescli/modules/gateway/rowbacked_test.go plus cmd/gormes Hermes row-backed parity tests",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
-        "internal/app/gormescli/modules/gateway/rowbacked.go",
+        "internal/cli/gormescli/modules/gateway/rowbacked.go",
         "cmd/gormes/gateway_rowbacked.go",
         "cmd/gormes/hermes_rowbacked_commands.go"
       ],
@@ -7711,18 +7711,18 @@
         "gateway.NewPairingCommand owns list, approve, revoke, and clear-pending row-backed command construction.",
         "cmd/gormes only injects build provenance through gatewayCommandOptions."
       ],
-      "note": "Complete 2026-05-17: moved webhook, hooks, and pairing row-backed command construction to internal/app/gormescli/modules/gateway using the shared gormescli row-backed helper. cmd/gormes/gateway_rowbacked.go now only injects build provenance. This does not move live gateway manager/runtime behavior yet.",
+      "note": "Complete 2026-05-17: moved webhook, hooks, and pairing row-backed command construction to internal/cli/gormescli/modules/gateway using the shared gormescli row-backed helper. cmd/gormes/gateway_rowbacked.go now only injects build provenance. This does not move live gateway manager/runtime behavior yet.",
       "write_scope": [
         "cmd/gormes/gateway_rowbacked.go",
         "cmd/gormes/hermes_rowbacked_commands.go",
-        "internal/app/gormescli/modules/gateway/rowbacked.go",
-        "internal/app/gormescli/modules/gateway/rowbacked_test.go",
+        "internal/cli/gormescli/modules/gateway/rowbacked.go",
+        "internal/cli/gormescli/modules/gateway/rowbacked_test.go",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli/modules/gateway -run TestGatewayRowBacked -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli/modules/gateway -run 'HermesCLIParityRowBacked|CLIContract|Webhook|Hooks|Pairing' -count=1",
+        "go test ./internal/cli/gormescli/modules/gateway -run TestGatewayRowBacked -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli/modules/gateway -run 'HermesCLIParityRowBacked|CLIContract|Webhook|Hooks|Pairing' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -7754,12 +7754,12 @@
         "gateway"
       ],
       "degraded_mode": "Live gateway manager, dashboard HTTP server, and dynamic-agent registry runtimes remain in cmd/gormes seams; only command construction and typed option parsing moved.",
-      "fixture": "internal/app/gormescli/modules/gateway live/dashboard/agent tests plus cmd/gormes gateway/dashboard/agent focused tests",
+      "fixture": "internal/cli/gormescli/modules/gateway live/dashboard/agent tests plus cmd/gormes gateway/dashboard/agent focused tests",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Finish Line Decisions",
-        "internal/app/gormescli/modules/gateway/live.go",
-        "internal/app/gormescli/modules/gateway/dashboard.go",
-        "internal/app/gormescli/modules/gateway/agent.go",
+        "internal/cli/gormescli/modules/gateway/live.go",
+        "internal/cli/gormescli/modules/gateway/dashboard.go",
+        "internal/cli/gormescli/modules/gateway/agent.go",
         "cmd/gormes/gateway.go",
         "cmd/gormes/dashboard.go",
         "cmd/gormes/agent.go"
@@ -7781,20 +7781,20 @@
         "gateway.NewAgentCommandWithSeams owns agent subcommands, flags, and typed binding/reset/spawn options.",
         "cmd/gormes only adapts runtime seams and build/runtime behavior."
       ],
-      "note": "Complete 2026-05-17: moved live gateway, dashboard, and agent command construction into internal/app/gormescli/modules/gateway. cmd/gormes now injects runtime seams for gateway lifecycle, dashboard serving, and dynamic-agent registry behavior.",
+      "note": "Complete 2026-05-17: moved live gateway, dashboard, and agent command construction into internal/cli/gormescli/modules/gateway. cmd/gormes now injects runtime seams for gateway lifecycle, dashboard serving, and dynamic-agent registry behavior.",
       "write_scope": [
         "cmd/gormes/gateway.go",
         "cmd/gormes/dashboard.go",
         "cmd/gormes/agent.go",
-        "internal/app/gormescli/modules/gateway/live.go",
-        "internal/app/gormescli/modules/gateway/dashboard.go",
-        "internal/app/gormescli/modules/gateway/agent.go",
+        "internal/cli/gormescli/modules/gateway/live.go",
+        "internal/cli/gormescli/modules/gateway/dashboard.go",
+        "internal/cli/gormescli/modules/gateway/agent.go",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli/modules/gateway -run 'TestGatewayCommand|TestDashboardCommand|TestAgentCommand' -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli/modules/gateway -run 'Gateway|Dashboard|TestAgent|CLIContract' -count=1",
+        "go test ./internal/cli/gormescli/modules/gateway -run 'TestGatewayCommand|TestDashboardCommand|TestAgentCommand' -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli/modules/gateway -run 'Gateway|Dashboard|TestAgent|CLIContract' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],

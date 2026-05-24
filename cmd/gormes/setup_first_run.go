@@ -133,6 +133,13 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 		plan = buildFirstRunPlanFromConfig(cfg, target, !nonInteractive)
 	}
 
+	if setupQuickNavivoxChannelOnly(target, nonInteractive) {
+		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
+			return err
+		}
+		return runSetupQuickHandoff(cmd, seams, target, nonInteractive)
+	}
+
 	channelRanBeforeCore := false
 	if setupQuickChannelBeforeCore(target, plan, nonInteractive) {
 		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
@@ -196,8 +203,15 @@ func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteracti
 	return nil
 }
 
-// Navivox pairing is the selected destination, so put its native channel
-// setup before provider repair. Other quick targets keep the legacy
+// Navivox pairing is the selected destination, so always open the Navivox
+// channel setup from this quick-target path instead of falling through to the
+// provider/model picker or a generic handoff. Provider/model setup can be
+// completed later from Navivox or the normal setup provider/model sections.
+func setupQuickNavivoxChannelOnly(target cli.SetupTargetID, nonInteractive bool) bool {
+	return !nonInteractive && normalizeSetupQuickTarget(target) == cli.SetupTargetNavivox
+}
+
+// Navivox pairing is channel-only above. Other quick targets keep the legacy
 // provider/model/channel order covered by existing setup tests.
 func setupQuickChannelBeforeCore(target cli.SetupTargetID, plan cli.FirstRunPlan, nonInteractive bool) bool {
 	if nonInteractive || normalizeSetupQuickTarget(target) != cli.SetupTargetNavivox {
@@ -223,6 +237,20 @@ func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cl
 }
 
 func runSetupQuickHandoff(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID, nonInteractive bool) error {
+	if normalizeSetupQuickTarget(target) == cli.SetupTargetNavivox {
+		out := cmd.OutOrStdout()
+		if cfg, err := config.Load(nil); err == nil {
+			if command := navivoxProviderSetupCommand(cfg); command != "" {
+				fmt.Fprintln(out, "Navivox channel setup checked.")
+				fmt.Fprintln(out, "Provider/model setup is still required before `gormes gateway` can answer Navivox.")
+				fmt.Fprintf(out, "Next setup command: %s\n", command)
+				fmt.Fprintln(out, "After that, start gateway: gormes gateway")
+				return nil
+			}
+		}
+		fmt.Fprintln(out, "Navivox channel setup checked. Start gateway after scanning the QR: gormes gateway")
+		return nil
+	}
 	if isSetupQuickChannelTarget(target) {
 		fmt.Fprintln(cmd.OutOrStdout(), "Channel setup checked. Start messaging with: gormes gateway")
 		return nil

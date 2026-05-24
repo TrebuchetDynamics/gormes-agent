@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-23",
+    "last_updated": "2026-05-24",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -915,7 +915,7 @@
         {
           "id": "8.F",
           "name": "Cost Discipline & Loop Economics",
-          "item_count": 21
+          "item_count": 23
         },
         {
           "id": "8.G",

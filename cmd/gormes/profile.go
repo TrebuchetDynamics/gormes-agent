@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli"
-	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/profiles"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
+	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/profiles"
 )
 
 type profileCommandSeams = profilemodule.Seams

@@ -363,7 +363,7 @@
         "internal/channels/navivox/",
         "cmd/gormes/navivox.go",
         "cmd/gormes/navivox_connect_info.go",
-        "internal/app/gormescli/modules/profiles/",
+        "internal/cli/gormescli/modules/profiles/",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],

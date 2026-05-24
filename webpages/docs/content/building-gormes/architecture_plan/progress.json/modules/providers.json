@@ -7978,12 +7978,12 @@
         "system"
       ],
       "degraded_mode": "If account usage is unsupported or credentials are absent, the provider module returns the existing unavailable snapshot without live TUI startup or credential leakage.",
-      "fixture": "internal/app/gormescli/modules/providers/usage_command_test.go plus cmd/gormes/usage_command_test.go",
+      "fixture": "internal/cli/gormescli/modules/providers/usage_command_test.go plus cmd/gormes/usage_command_test.go",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
         "cmd/gormes/usage.go",
         "cmd/gormes/gateway.go:AccountUsage",
-        "internal/app/gormescli/modules/providers/usage.go",
+        "internal/cli/gormescli/modules/providers/usage.go",
         "internal/hermes/account_usage.go"
       ],
       "ready_when": [
@@ -8002,24 +8002,24 @@
         "root command assembly extraction"
       ],
       "acceptance": [
-        "internal/app/gormescli/modules/providers exposes NewUsageCommandWithSeams and Options so usage behavior can be tested without importing cmd/gormes.",
+        "internal/cli/gormescli/modules/providers exposes NewUsageCommandWithSeams and Options so usage behavior can be tested without importing cmd/gormes.",
         "cmd/gormes/usage.go becomes a thin adapter that injects build provenance and preserves current helper names used by gateway and tests.",
         "`gormes usage --json` still emits `{build, provider, account_id, plan, source, fetched_at, windows, details, unavailable}` without leaking API keys.",
         "Provider account-usage HTTP requests remain bounded by the existing timeout.",
         "Existing root command usage fixtures and the new provider module seam/provenance fixture pass without live provider credentials."
       ],
-      "note": "Complete 2026-05-17: extracted `gormes usage` into internal/app/gormescli/modules/providers with injectable config and account-usage fetch seams plus injected build provenance. cmd/gormes/usage.go is now a compatibility adapter preserving helper names used by gateway account-usage wiring and existing tests. Existing usage fixtures still cover bounded timeout, unsupported providers, inferred OpenAI Codex and Anthropic providers, and JSON redaction; the provider module fixture proves hermetic seam/provenance injection.",
+      "note": "Complete 2026-05-17: extracted `gormes usage` into internal/cli/gormescli/modules/providers with injectable config and account-usage fetch seams plus injected build provenance. cmd/gormes/usage.go is now a compatibility adapter preserving helper names used by gateway account-usage wiring and existing tests. Existing usage fixtures still cover bounded timeout, unsupported providers, inferred OpenAI Codex and Anthropic providers, and JSON redaction; the provider module fixture proves hermetic seam/provenance injection.",
       "write_scope": [
         "cmd/gormes/usage.go",
-        "internal/app/gormescli/modules/providers/usage.go",
-        "internal/app/gormescli/modules/providers/usage_command_test.go",
+        "internal/cli/gormescli/modules/providers/usage.go",
+        "internal/cli/gormescli/modules/providers/usage_command_test.go",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli/modules/providers -run TestUsageCommandUsesInjectedSeamsAndBuildProvenance -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli/modules/providers -run 'UsageCommand|CLIContract' -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/app/gormescli/modules/providers ./internal/cli -run 'SetupRegistry|Setup|Profile|UsageCommand|CLIContract' -count=1",
+        "go test ./internal/cli/gormescli/modules/providers -run TestUsageCommandUsesInjectedSeamsAndBuildProvenance -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli/modules/providers -run 'UsageCommand|CLIContract' -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli ./internal/cli/gormescli/modules/profiles ./internal/cli/gormescli/modules/providers ./internal/cli -run 'SetupRegistry|Setup|Profile|UsageCommand|CLIContract' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -8052,15 +8052,15 @@
         "system"
       ],
       "degraded_mode": "Provider command construction is module-owned; deeper auth/OAuth runtime and shared model prompt helpers remain explicit cmd/gormes seams until separate runtime/TUI rows move them.",
-      "fixture": "internal/app/gormescli/modules/providers/*_command_test.go plus existing cmd/gormes auth/logout/model/fallback/usage fixtures",
+      "fixture": "internal/cli/gormescli/modules/providers/*_command_test.go plus existing cmd/gormes auth/logout/model/fallback/usage fixtures",
       "source_refs": [
         "REFACTOR-CMD-PLAN.md: Recommended Next Slices",
-        "internal/app/gormescli/modules/providers/auth.go",
-        "internal/app/gormescli/modules/providers/logout.go",
-        "internal/app/gormescli/modules/providers/model.go",
-        "internal/app/gormescli/modules/providers/fallback.go",
-        "internal/app/gormescli/modules/providers/usage.go",
-        "internal/app/gormescli/modules/providers/insights.go",
+        "internal/cli/gormescli/modules/providers/auth.go",
+        "internal/cli/gormescli/modules/providers/logout.go",
+        "internal/cli/gormescli/modules/providers/model.go",
+        "internal/cli/gormescli/modules/providers/fallback.go",
+        "internal/cli/gormescli/modules/providers/usage.go",
+        "internal/cli/gormescli/modules/providers/insights.go",
         "cmd/gormes/auth_command.go",
         "cmd/gormes/logout.go",
         "cmd/gormes/model.go",
@@ -8093,7 +8093,7 @@
         "providers.NewInsightsCommand owns the provider row-backed insights command through the shared gormescli row-backed report helper.",
         "cmd/gormes provider files are thin adapters that inject build provenance, auth runtime seams, model prompt seams, and compatibility helper names for existing tests."
       ],
-      "note": "Complete 2026-05-17: provider command construction for auth, logout, model, fallback, usage, and insights now lives under internal/app/gormescli/modules/providers. Added module-level seam tests for auth routing, logout defaulting/JSON, model selection normalization, fallback config writes, usage account snapshots, and insights row-backed JSON. cmd/gormes now adapts build provenance and deeper runtime seams: auth/OAuth storage remains in cmd/gormes auth runtime for a later extraction, and shared model prompt helpers remain in cmd/gormes because setup and Bubble Tea source-pinned tests still depend on that boundary.",
+      "note": "Complete 2026-05-17: provider command construction for auth, logout, model, fallback, usage, and insights now lives under internal/cli/gormescli/modules/providers. Added module-level seam tests for auth routing, logout defaulting/JSON, model selection normalization, fallback config writes, usage account snapshots, and insights row-backed JSON. cmd/gormes now adapts build provenance and deeper runtime seams: auth/OAuth storage remains in cmd/gormes auth runtime for a later extraction, and shared model prompt helpers remain in cmd/gormes because setup and Bubble Tea source-pinned tests still depend on that boundary.",
       "write_scope": [
         "cmd/gormes/auth.go",
         "cmd/gormes/auth_command.go",
@@ -8104,16 +8104,16 @@
         "cmd/gormes/insights.go",
         "cmd/gormes/hermes_rowbacked_commands.go",
         "cmd/gormes/setup.go",
-        "internal/app/gormescli/rowbacked.go",
-        "internal/app/gormescli/rowbacked_test.go",
-        "internal/app/gormescli/modules/providers",
+        "internal/cli/gormescli/rowbacked.go",
+        "internal/cli/gormescli/rowbacked_test.go",
+        "internal/cli/gormescli/modules/providers",
         "REFACTOR-CMD-PLAN.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/app/gormescli ./internal/app/gormescli/modules/providers -run 'RowBacked|AuthCommand|LogoutCommand|ModelCommand|FallbackCommand|UsageCommand|InsightsCommand|SetupSections' -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli/modules/providers -run 'Auth|LogoutTopLevel|ModelPicker|ModelCatalog|Fallback|UsageCommand|Insights|CLIContract' -count=1",
-        "go test ./cmd/gormes ./internal/app/gormescli ./internal/app/gormescli/modules/profiles ./internal/app/gormescli/modules/providers ./internal/cli -count=1",
+        "go test ./internal/cli/gormescli ./internal/cli/gormescli/modules/providers -run 'RowBacked|AuthCommand|LogoutCommand|ModelCommand|FallbackCommand|UsageCommand|InsightsCommand|SetupSections' -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli/modules/providers -run 'Auth|LogoutTopLevel|ModelPicker|ModelCatalog|Fallback|UsageCommand|Insights|CLIContract' -count=1",
+        "go test ./cmd/gormes ./internal/cli/gormescli ./internal/cli/gormescli/modules/profiles ./internal/cli/gormescli/modules/providers ./internal/cli -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -8156,14 +8156,14 @@
         "internal/config/config.go",
         "internal/provider/profile_provider_config.go",
         "internal/provider/profile_provider_config_test.go",
-        "internal/app/gormescli/modules/profiles/profile.go",
-        "internal/app/gormescli/modules/profiles/profile_command_test.go",
+        "internal/cli/gormescli/modules/profiles/profile.go",
+        "internal/cli/gormescli/modules/profiles/profile_command_test.go",
         "cmd/gormes/setup.go",
         "cmd/gormes/setup_minimal_test.go",
         "/home/xel/.cache/tmp/architecture-review-gormes-20260523T0931Z.html",
         "cmd/gormes/setup_profiles_tui.go:buildSetupProfilesControlCenterTUIState",
         "cmd/gormes/setup_profiles_tui.go:parseSetupProfilesProviderAssignment",
-        "internal/app/gormescli/modules/profiles/control_center_tui.go:ControlCenterDraft.SetProfileProviderModels",
+        "internal/cli/gormescli/modules/profiles/control_center_tui.go:ControlCenterDraft.SetProfileProviderModels",
         "cmd/gormes/setup_profiles_test.go:TestSetupProfilesControlCenterTUIShowsProviderCatalogAndStagesModelConfig"
       ],
       "ready_when": [
@@ -8191,7 +8191,7 @@
         "internal/provider/",
         "internal/hermes/provider_registry_manifest.go",
         "cmd/gormes/auth.go",
-        "internal/app/gormescli/modules/profiles/",
+        "internal/cli/gormescli/modules/profiles/",
         "docs/content/building-gormes/architecture_plan/progress.json",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json",
         "cmd/gormes/model.go",
@@ -8201,11 +8201,11 @@
       "test_commands": [
         "go test ./internal/provider ./internal/hermes ./internal/config -run 'TestProfileProvider|TestOpenRouter|TestProviderRegistry' -count=1",
         "go test ./cmd/gormes -run 'TestSetupModel|TestAuth|TestSetupProfiles|TestSetupProvider(Anthropic|OpenAICodex)UsesOAuthFlow' -count=1",
-        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileModule.*Provider' -count=1",
+        "go test ./internal/cli/gormescli/modules/profiles -run 'TestProfileModule.*Provider' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check",
         "go test ./cmd/gormes -run 'TestSetupProfilesControlCenterTUIShowsProviderCatalogAndStagesModelConfig|TestSetupProfilesV2TUIAppliesOneRootConfigTransaction|TestSetupProvider(Anthropic|OpenAICodex)UsesOAuthFlow|TestSetupModel' -count=1",
-        "go test ./internal/app/gormescli/modules/profiles -run 'TestProfileDraftStagesCreateWorkspaceCredentialsApplyAndDiscard|TestProfileModule.*Provider|TestProfileControlCenterTUI' -count=1"
+        "go test ./internal/cli/gormescli/modules/profiles -run 'TestProfileDraftStagesCreateWorkspaceCredentialsApplyAndDiscard|TestProfileModule.*Provider|TestProfileControlCenterTUI' -count=1"
       ],
       "done_signal": [
         "Provider fixtures prove per-profile credential ownership, explicit sharing warnings, redacted readiness, OAuth/API-key prompt correctness, and full OpenRouter model catalog display."

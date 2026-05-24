@@ -12,9 +12,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
