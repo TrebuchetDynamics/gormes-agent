@@ -356,6 +356,20 @@ func defaultTopologyMigrations() []topologyMigration {
 				"internal/cli/profileseed/seed.go:NewDraft",
 			},
 		},
+		{
+			Name:        "modelcatalog-cli-rehome",
+			Active:      true,
+			OwnerModule: "cli",
+			OldRoots:    []string{"internal/modelcatalog"},
+			NewRoots:    []string{"internal/cli/modelcatalog"},
+			SourceRefs: []string{
+				"internal/REFACTOR-CMD-PLAN.md:CLI Surface Enclave",
+				"internal/REFACTOR-CMD-PLAN.md:Package Move Playbook",
+				"internal/cli/provider_catalog.go:ProviderCatalogEntries",
+				"internal/tui/model_picker_catalog.go:ModelProviderCatalogEntries",
+				"internal/cli/modelcatalog/catalog.go:HermesProviderCatalog",
+			},
+		},
 	}
 }
 

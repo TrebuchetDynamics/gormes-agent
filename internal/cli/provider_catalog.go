@@ -3,7 +3,7 @@ package cli
 import (
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/modelcatalog"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/modelcatalog"
 )
 
 const (
