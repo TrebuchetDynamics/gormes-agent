@@ -135,6 +135,7 @@ type setupCommandSeams struct {
 	RunSetupGateway                func(*cobra.Command, bool) error
 	RunSetupTools                  func(*cobra.Command, bool) error
 	RunGatewaySetupWizard          func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
+	RunTelegramGatewayWizard       func(*cobra.Command, config.TelegramCfg) (setupTelegramGatewayAnswers, error)
 	RunGatewayPlatform             func(*cobra.Command, string) error
 	RunWhatsAppSetup               func(*cobra.Command) error
 	LaunchChat                     func(*cobra.Command) error
@@ -264,6 +265,9 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	}
 	if seams.RunGatewaySetupWizard == nil {
 		seams.RunGatewaySetupWizard = runSetupGatewayBubbleTeaWizard
+	}
+	if seams.RunTelegramGatewayWizard == nil {
+		seams.RunTelegramGatewayWizard = runSetupTelegramBubbleTeaWizard
 	}
 	if seams.RunGatewayPlatform == nil {
 		seams.RunGatewayPlatform = func(cmd *cobra.Command, platform string) error {

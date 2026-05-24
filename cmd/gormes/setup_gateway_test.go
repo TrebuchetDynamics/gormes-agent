@@ -919,11 +919,16 @@ func TestSetupQuickTelegramTargetStartsChannelSetupBeforeProviderOnFreshInstall(
 		current: cli.ProviderModel{Provider: " ", Model: " "},
 	}
 	seams := fake.seams()
+	seams.RunTelegramGatewayWizard = func(_ *cobra.Command, _ config.TelegramCfg) (setupTelegramGatewayAnswers, error) {
+		events = append(events, "telegram-bubbletea")
+		return setupTelegramGatewayAnswers{
+			Token:        "123456:abcdefghijklmnopqrstuvwxyzABCDE",
+			AccessPolicy: "pairing",
+			Apply:        true,
+		}, nil
+	}
 	seams.RunGatewayPlatform = func(_ *cobra.Command, platform string) error {
-		events = append(events, "channel:"+platform)
-		if platform != string(cli.SetupTargetTelegram) {
-			t.Fatalf("RunGatewayPlatform platform = %q, want telegram", platform)
-		}
+		t.Fatalf("quick Telegram target used legacy gateway platform setup for %q", platform)
 		return nil
 	}
 	seams.RunSetupProvider = func(*cobra.Command, bool) error {
@@ -947,10 +952,13 @@ func TestSetupQuickTelegramTargetStartsChannelSetupBeforeProviderOnFreshInstall(
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	if got, want := strings.Join(events, ","), "channel:telegram"; got != want {
+	if got, want := strings.Join(events, ","), "telegram-bubbletea"; got != want {
 		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
 	}
 	for _, want := range []string{
+		"Review Telegram gateway changes",
+		"GORMES_TELEGRAM_BOT_TOKEN=[REDACTED]",
+		"Telegram gateway channel configured.",
 		"Telegram channel setup checked.",
 		"Provider/model setup is still required before `gormes gateway` can answer Telegram.",
 		"Next setup command: gormes setup provider",

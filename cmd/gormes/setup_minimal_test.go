@@ -35,6 +35,7 @@ type setupCommandFakeSeams struct {
 	runFullWizard                  func(*cobra.Command, bool) error
 	runSetupGateway                func(*cobra.Command, bool) error
 	runGatewaySetupWizard          func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
+	runTelegramGatewayWizard       func(*cobra.Command, config.TelegramCfg) (setupTelegramGatewayAnswers, error)
 	runGatewayPlatform             func(*cobra.Command, string) error
 	runWhatsAppSetup               func(*cobra.Command) error
 	providerAuthStatus             cli.ProviderAuthStatus
@@ -89,6 +90,7 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 		RunFullWizard:                  f.runFullWizard,
 		RunSetupGateway:                f.runSetupGateway,
 		RunGatewaySetupWizard:          firstSetupGatewayWizardSeam(f.runGatewaySetupWizard),
+		RunTelegramGatewayWizard:       f.runTelegramGatewayWizard,
 		RunGatewayPlatform:             f.runGatewayPlatform,
 		RunWhatsAppSetup:               f.runWhatsAppSetup,
 		LoadProviderAuthStatus: func(_ string) (cli.ProviderAuthStatus, error) {

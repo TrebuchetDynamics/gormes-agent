@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 )
 
 func firstRunSetupOptions(seams setupCommandSeams) []setupMenuOption {
@@ -272,6 +274,20 @@ func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cl
 	}
 	if target == cli.SetupTargetWhatsApp {
 		return seams.RunWhatsAppSetup(cmd)
+	}
+	if target == cli.SetupTargetTelegram {
+		cfg, err := config.Load(nil)
+		if err != nil {
+			return fmt.Errorf("setup telegram: load config: %w", err)
+		}
+		answers, err := seams.RunTelegramGatewayWizard(cmd, cfg.Telegram)
+		if err != nil {
+			if errors.Is(err, setupwizard.ErrRequiresTTY) {
+				return newExitCodeError(2, fmt.Errorf("setup_telegram_requires_tty: run `gormes setup gateway --plan` for offline guidance, or run `gormes setup --quick --target telegram` in a terminal"))
+			}
+			return err
+		}
+		return applySetupTelegramGatewayAnswers(cmd, cfg.Telegram, answers)
 	}
 	return seams.RunGatewayPlatform(cmd, string(target))
 }
