@@ -6,12 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
@@ -132,34 +130,13 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	}) {
 		reg.MustRegister(tool)
 	}
-	if cfg.Delegation.Enabled {
-		var drafter subagent.CandidateDrafter
-		skillsRoot := cfg.SkillsRoot()
-		if skillsRoot != "" {
-			drafter = skillsCandidateDrafter{store: skills.NewStore(skillsRoot, 0)}
-		}
-		opts := subagent.ManagerOpts{
-			ParentCtx:            parentCtx,
-			ParentID:             "root",
-			Depth:                0,
-			Registry:             subagent.NewRegistry(),
-			ToolExecutor:         tools.NewInProcessToolExecutor(reg),
-			MaxDepth:             cfg.Delegation.MaxDepth,
-			DefaultMaxIterations: cfg.Delegation.DefaultMaxIterations,
-			DefaultMaxConcurrent: cfg.Delegation.MaxConcurrentChildren,
-			DefaultTimeout:       cfg.Delegation.DefaultTimeout,
-			RunLogPath:           cfg.Delegation.ResolvedRunLogPath(),
-			ToolAudit:            audit.NewJSONLWriter(config.ToolAuditLogPath()),
-		}
-		if childClient != nil {
-			descs := registryDescriptors(reg)
-			opts.NewRunner = func() subagent.Runner {
-				runner := subagent.NewHermesRunner(childClient, childModel, descs)
-				return runner
-			}
-		}
-		reg.MustRegister(subagent.NewDelegateTool(subagent.NewManager(opts), drafter))
-	}
+	gormescli.RegisterDelegationTool(gormescli.DelegationToolOptions{
+		ParentCtx:   parentCtx,
+		Config:      cfg,
+		Registry:    reg,
+		ChildClient: childClient,
+		ChildModel:  childModel,
+	})
 	return reg
 }
 
@@ -201,24 +178,4 @@ func registryDescriptors(reg *tools.Registry) []hermes.ToolDescriptor {
 		out[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
 	}
 	return out
-}
-
-type skillsCandidateDrafter struct {
-	store *skills.Store
-}
-
-func (d skillsCandidateDrafter) DraftCandidate(_ context.Context, req subagent.CandidateDraftRequest) (string, error) {
-	meta, err := d.store.DraftCandidate(skills.CandidateDraft{
-		Slug:            req.Slug,
-		Goal:            req.Goal,
-		Summary:         req.Summary,
-		SourceRunID:     req.SourceRunID,
-		ParentSessionID: req.ParentSessionID,
-		ChildAgentID:    req.ChildAgentID,
-		ToolNames:       append([]string(nil), req.ToolNames...),
-	})
-	if err != nil {
-		return "", err
-	}
-	return meta.CandidateID, nil
 }
