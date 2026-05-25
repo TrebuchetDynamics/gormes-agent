@@ -1538,7 +1538,7 @@ classification and row-backed implementation queue.
 - [x] `release` Termux latest-installer follow-up release publication
 - [x] `release` Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs
 - [ ] `tui` Gormes-owned TUI queued-message widget and busy delivery modes
-- [ ] `tui` Gormes-owned TUI extension status widget and footer seam
+- [x] `tui` Gormes-owned TUI extension status widget and footer seam
 
 ### 8.E — Toolkit Extraction 🔨
 

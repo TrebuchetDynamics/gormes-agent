@@ -5252,9 +5252,9 @@
     "item": {
       "name": "Gormes-owned TUI extension status widget and footer seam",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Introduce a small Go-native TUI extension context that lets trusted in-process Gormes extensions add or clear footer status entries, widgets above or below the editor, and working-indicator text/frames. The seam should be typed, width-safe, scoped to the active session, and degrade to no-op evidence in non-interactive modes; it must not execute TypeScript or import Pi packages.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tui",
       "module": "tui",
@@ -5286,7 +5286,7 @@
         "Working-indicator customization applies during active-turn frames and restores the default when cleared.",
         "Non-interactive or nil-extension contexts return typed unavailable/no-op evidence instead of panicking."
       ],
-      "note": "Planner 2026-05-25: Pi donor sweep found ctx.ui status/widget/footer APIs as useful Gormes-owned harness seams. Keep this slice Go-native and TUI-scoped; broader extension middleware belongs in later skills/plugin rows.",
+      "note": "Planner 2026-05-25: Pi donor sweep found ctx.ui status/widget/footer APIs as useful Gormes-owned harness seams. Keep this slice Go-native and TUI-scoped; broader extension middleware belongs in later skills/plugin rows. COMPLETE 2026-05-25: internal/kernel now exposes a typed ExtensionUI interface plus no-op unavailable evidence; internal/tui adds a session-scoped ExtensionUIContext for status entries, custom footer rows, above/below editor widgets, and working indicator text/frames. RenderHermesChrome composes extension widgets with todo/panel/status/prompt ordering, View applies width-bounded status/footer rendering, and active-turn hints use custom frames/text until cleared. Evidence: go test ./internal/tui -run 'Test.*Extension.*(Status|Widget|Footer|Working)|TestHermesChrome' -count=1 ok; go test ./internal/kernel -run TestExtension -count=1 ok; go test ./internal/tui ./internal/kernel -count=1 ok.",
       "write_scope": [
         "internal/tui/",
         "internal/kernel/extensions.go",

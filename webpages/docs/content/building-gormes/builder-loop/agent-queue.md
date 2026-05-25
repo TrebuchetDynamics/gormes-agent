@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Gormes-owned TUI extension status widget and footer seam
-
-- Phase: 8 / 8.D
-- Owner: `tui`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Introduce a small Go-native TUI extension context that lets trusted in-process Gormes extensions add or clear footer status entries, widgets above or below the editor, and working-indicator text/frames. The seam should be typed, width-safe, scoped to the active session, and degrade to no-op evidence in non-interactive modes; it must not execute TypeScript or import Pi packages.
-- Trust class: operator, system
-- Ready when: The builder defines a Go interface or small adapter layer rather than a script runtime; extension callbacks are fakeable in tests., The first slice only covers TUI status/widget/footer/working indicator rendering, not general tool registration or package installation.
-- Not ready when: The slice loads third-party executable extension code, adds npm/TypeScript dependencies, or changes Hermes plugin CLI behavior., The extension seam can write files, mutate provider requests, or bypass existing tool safety in this TUI-only slice.
-- Degraded mode: -
-- Fixture: `internal/tui/status_bar_ext_test.go`
-- Write scope: `internal/tui/`, `internal/kernel/extensions.go`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tui -run 'Test.*Extension.*(Status\|Widget\|Footer\|Working)\|TestHermesChrome' -count=1`, `go test ./internal/kernel -run TestExtension -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Report fake-extension render tests, non-interactive degraded evidence, and progress validation.
-- Acceptance: A fake extension can set, replace, and clear a status entry that renders in the Hermes status/footer area without corrupting width-bounded output., A fake extension can set a widget above or below the editor and the widget composes with todo/panel/status chrome ordering., Working-indicator customization applies during active-turn frames and restores the default when cleared., Non-interactive or nil-extension contexts return typed unavailable/no-op evidence instead of panicking.
-- Source refs: pi@fc8a155 packages/coding-agent/docs/extensions.md:ctx.ui.setStatus/setWidget/setFooter/setWorkingIndicator, pi@fc8a155 packages/coding-agent/docs/tui.md:Patterns 4-6, pi@fc8a155 packages/coding-agent/examples/extensions/custom-footer.ts, pi@fc8a155 packages/coding-agent/examples/extensions/status-line.ts, internal/tui/status_bar_ext.go:RenderFaceTicker and RenderContextBar, internal/tui/hermes_chrome.go:HermesChromeInput, internal/kernel/extensions.go:ExtensionChain
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Gormes-owned TUI queued-message widget and busy delivery modes
+## 1. Gormes-owned TUI queued-message widget and busy delivery modes
 
 - Phase: 8 / 8.D
 - Owner: `tui`
@@ -67,7 +47,7 @@ selection.
 - Source refs: pi@fc8a155 packages/coding-agent/README.md:Message Queue, pi@fc8a155 packages/coding-agent/docs/settings.md:Message Delivery, pi@fc8a155 packages/coding-agent/docs/rpc.md:queue_update events, internal/tui/queued_messages.go:QueuedMessages, internal/tui/update.go:HermesBusyInputMode and ResolveHermesKey, internal/tui/hermes_chrome.go:HermesChromeInput.QueuedMessages, internal/tui/view.go:RenderHermesChrome call site
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Navivox Telegram-inspired chat polish
+## 2. Navivox Telegram-inspired chat polish
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -87,7 +67,7 @@ selection.
 - Source refs: ../navivox-app/navivox-chat-ui-research.md:2, ../navivox-app/navivox-ui-design.md:2.1, https://pub.dev/packages/v_chat_bubbles, https://docs.flutter.dev/ui/design/material, https://api.flutter.dev/flutter/widgets/DraggableScrollableSheet-class.html, https://github.com/tdlib/td, https://github.com/babakcode/flutter_chat
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Navivox natural-language profile seed Flutter UI
+## 3. Navivox natural-language profile seed Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -108,7 +88,7 @@ selection.
 - Unblocks: Navivox per-profile BYO voice profiles
 - Why now: Unblocks Navivox per-profile BYO voice profiles.
 
-## 5. Navivox per-profile BYO voice profiles Flutter UI
+## 4. Navivox per-profile BYO voice profiles Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -128,7 +108,7 @@ selection.
 - Source refs: ../navivox-app/navivox-ui-design.md:2.8, ../navivox-app/lib/features/profiles/, ../navivox-app/lib/features/config/, docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles backend API
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Navivox safe config admin Flutter UI
+## 5. Navivox safe config admin Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -149,7 +129,7 @@ selection.
 - Unblocks: Navivox per-profile BYO voice profiles
 - Why now: Unblocks Navivox per-profile BYO voice profiles.
 
-## 7. Navivox structured tool event cards Flutter UI
+## 6. Navivox structured tool event cards Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -169,7 +149,7 @@ selection.
 - Source refs: docs/content/building-gormes/architecture_plan/progress.json:Navivox structured tool event cards backend API, ../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxToolCall, ../navivox-app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall, ../navivox-app/lib/features/chat/widgets/simple_chat_adapter.dart:_ToolCallBody
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Navivox voice run records Flutter inspection UI
+## 7. Navivox voice run records Flutter inspection UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -189,7 +169,7 @@ selection.
 - Source refs: internal/apiserver/runs.go:runRecord, internal/channels/navivox/channel.go:sessionState, ../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxVoiceMessage, ../navivox-app/lib/core/channel/gateway_navivox_channel.dart, ../navivox-app/lib/features/chat/, https://docs.dograh.com/core-concepts/how-dograh-works
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Hermes integrations claim audit + source-backed plugin/skill parity map
+## 8. Hermes integrations claim audit + source-backed plugin/skill parity map
 
 - Phase: 8 / 8.C
 - Owner: `docs`
@@ -209,7 +189,7 @@ selection.
 - Source refs: sanitized user-provided Reddit/WebAfterAI transcript 2026-05-24: '12 Hermes Integrations That Actually Matter', hermes-agent/hermes_cli/plugins_cmd.py@43e566f77: `hermes plugins install` clones Git plugins into ~/.hermes/plugins and does not imply a built-in short-name registry for every social-post claim, hermes-agent/hermes_cli/plugins.py@43e566f77: bundled/user/project/pip plugin discovery and opt-in semantics, hermes-agent/skills/productivity/google-workspace/SKILL.md@43e566f77: first-party Gmail/Calendar/Drive/Docs/Sheets skill, hermes-agent/skills/note-taking/obsidian/SKILL.md@43e566f77: filesystem-first Obsidian vault skill, hermes-agent/plugins/web/firecrawl/plugin.yaml@43e566f77 and provider.py: bundled Firecrawl web backend with direct/gateway/self-hosted config, hermes-agent/tools/web_tools.py@43e566f77: generic web_search/web_extract/web_crawl dispatch; supports web-scraping/extraction workflows without naming them as native integrations, hermes-agent/skills/github/DESCRIPTION.md@43e566f77 and skills/github/*/SKILL.md: GitHub auth/repo/issues/PR/code-review skills, hermes-agent/skills/media/youtube-content/SKILL.md@43e566f77: YouTube transcript helper skill, hermes-agent/gateway/platforms/discord.py@43e566f77 and hermes-agent/tools/discord_tool.py@43e566f77: Discord gateway and Discord admin/core tools, hermes-agent/optional-skills/productivity/telephony/SKILL.md@43e566f77 and scripts/telephony.py: Twilio, Bland.ai, and Vapi optional telephony skill, hermes-agent/gateway/platforms/sms.py@43e566f77: Twilio-backed SMS gateway contract, repository search 2026-05-24: no first-party Hermes refs found for reddit, stripe API plugin, insforge, graphiti/zep, or fireflies beyond incidental text
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. CLIProxyAPI-compatible upstream route adapter
+## 9. CLIProxyAPI-compatible upstream route adapter
 
 - Phase: 4 / 4.A
 - Owner: `provider`

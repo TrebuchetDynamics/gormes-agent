@@ -37,4 +37,4 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [STT](stt/) | 4 | 4 | 0 | 0 | `P0`: 1 · `P1`: 3 |
 | [Tools](tools/) | 147 | 147 | 0 | 0 | `P0`: 23 · `P1`: 53 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
 | [TTS](tts/) | 25 | 24 | 0 | 1 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `P3`: 6 · `unset`: 1 |
-| [TUI](tui/) | 71 | 69 | 0 | 2 | `P0`: 3 · `P1`: 14 · `P2`: 43 · `P3`: 1 · `unset`: 10 |
+| [TUI](tui/) | 71 | 70 | 0 | 1 | `P0`: 3 · `P1`: 14 · `P2`: 43 · `P3`: 1 · `unset`: 10 |
