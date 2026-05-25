@@ -8,6 +8,28 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.23] - 2026-05-25
+
+Date alias: `v2026.5.25`.
+
+> **Local Router, embeddable RPC mode, safer native file tools, and Navivox capability hardening.**
+
+### Added
+- Local OpenAI-compatible Router setup, status, health, model listing, non-streaming and SSE chat-completions surfaces with redacted recursion diagnostics and safe fallback behavior.
+- Gormes-owned stdin/stdout JSONL RPC mode for embedders, including LF-only framing, correlated responses, fake-runtime fixtures, structured errors, and deterministic lifecycle event streaming.
+- Native session tree navigation with labels/bookmarks, lineage rendering, branch/resume adapters, and safe prompt restore support.
+- Progress projection read models and write dry-run support for safer generated-roadmap maintenance.
+
+### Changed
+- Native write/edit/patch tools now serialize mutations per canonical file path while preserving independent-file concurrency and symlink alias safety.
+- Navivox capability documents now describe only callable/current client gates; setup handoff stays on status/connect surfaces and unavailable upload behavior is expressed as an explicit exclusion rather than a reserved endpoint.
+- Progress, README, docs, and landing mirrors were refreshed from the current validated backlog evidence.
+
+### Fixed
+- Installed `SOUL.md` stays lean by keeping project workflow rules in repository guidance instead of user-facing agent templates.
+- Blocked progress rendering and generated artifact planning now use shared workitem/projection helpers instead of duplicated row selection logic.
+- Navivox profile capability wording now avoids stale compatibility promises, raw local path hints, and secret-bearing capability output.
+
 ## [0.2.22] - 2026-05-23
 
 Date alias: `v2026.5.23`.
@@ -1185,7 +1207,13 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.17...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.23...HEAD
+[0.2.23]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.22...v0.2.23
+[0.2.22]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.21...v0.2.22
+[0.2.21]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.20...v0.2.21
+[0.2.20]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.19...v0.2.20
+[0.2.19]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.18...v0.2.19
+[0.2.18]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.17...v0.2.18
 [0.2.17]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.16...v0.2.17
 [0.2.16]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.15...v0.2.16
 [0.2.15]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.14...v0.2.15
