@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
@@ -39,8 +40,9 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 	}
 
 	var got struct {
-		Object          string `json:"object"`
-		ProtocolVersion string `json:"protocol_version"`
+		Object          string   `json:"object"`
+		ProtocolVersion string   `json:"protocol_version"`
+		Capabilities    []string `json:"capabilities"`
 		Auth            struct {
 			Mode               string   `json:"mode"`
 			Headers            []string `json:"headers"`
@@ -56,7 +58,6 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 			Stability   string `json:"stability"`
 			Description string `json:"description"`
 		} `json:"endpoints"`
-		Events            []string `json:"events"`
 		ProfileManagement struct {
 			ContactsEndpoint       string   `json:"contacts_endpoint"`
 			RoutingEndpoint        string   `json:"routing_endpoint"`
@@ -83,6 +84,8 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 		Streams struct {
 			CanonicalEndpoint string   `json:"canonical_endpoint"`
 			EventKinds        []string `json:"event_kinds"`
+			OpenAIRunsBridge  *bool    `json:"openai_runs_bridge"`
+			RunsBridge        *string  `json:"runs_bridge"`
 		} `json:"streams"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
@@ -95,6 +98,14 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 	if got.Auth.Mode != "pairing_token" || !containsNavivoxCapabilityString(got.Auth.Headers, "Authorization: Bearer <token>") {
 		t.Fatalf("auth = %+v, want pairing token bearer contract", got.Auth)
 	}
+	if !containsNavivoxCapabilityString(got.Capabilities, "profile_contacts") {
+		t.Fatalf("capabilities = %v, want API feature areas", got.Capabilities)
+	}
+	for _, forbidden := range []string{"setup_handoff", "capability_document"} {
+		if containsNavivoxCapabilityString(got.Capabilities, forbidden) {
+			t.Fatalf("capabilities = %v, %s is not a feature affordance", got.Capabilities, forbidden)
+		}
+	}
 	removedProtocol := "gormes." + navivoxWebSocketProtocol
 	if !containsNavivoxCapabilityString(got.Auth.WebSocketProtocols, navivoxWebSocketProtocol) || containsNavivoxCapabilityString(got.Auth.WebSocketProtocols, removedProtocol) {
 		t.Fatalf("websocket protocols = %v, want current protocol without removed fallback", got.Auth.WebSocketProtocols)
@@ -103,8 +114,8 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 		t.Fatalf("endpoints/health missing stable status/capabilities/stream contract: health=%+v endpoints=%+v", got.Health, got.Endpoints)
 	}
 	for _, event := range []string{"session_started", "assistant_delta", "assistant_message", "tool_call_started", "tool_call_updated", "tool_call_finished", "profile_contact_update", "error", "done"} {
-		if !containsNavivoxCapabilityString(got.Events, event) || !containsNavivoxCapabilityString(got.Streams.EventKinds, event) {
-			t.Fatalf("event %q missing from capabilities events=%v streams=%v", event, got.Events, got.Streams.EventKinds)
+		if !containsNavivoxCapabilityString(got.Streams.EventKinds, event) {
+			t.Fatalf("event %q missing from stream event kinds=%v", event, got.Streams.EventKinds)
 		}
 	}
 	if got.ProfileManagement.ContactsEndpoint != "/v1/navivox/profile-contacts" || got.ProfileManagement.RoutingEndpoint != "/v1/navivox/profile-routing" || got.ProfileManagement.CreateFromSeedEndpoint != "/v1/navivox/profile-seed" {
@@ -126,6 +137,75 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 	}
 	if got.Streams.CanonicalEndpoint != "/v1/navivox/stream" {
 		t.Fatalf("canonical stream endpoint = %q", got.Streams.CanonicalEndpoint)
+	}
+	if got.Streams.OpenAIRunsBridge == nil || *got.Streams.OpenAIRunsBridge || got.Streams.RunsBridge != nil {
+		t.Fatalf("streams bridge = openai %v legacy %v, want explicit false OpenAI runs bridge only", got.Streams.OpenAIRunsBridge, got.Streams.RunsBridge)
+	}
+}
+
+func TestNavivoxCapabilitiesAuthContractFollowsActiveMode(t *testing.T) {
+	tokenHeaders := []string{"Authorization: Bearer <token>", "X-Gormes-Navivox-Token"}
+	tailscaleHeaders := []string{"Tailscale-User-Login", "X-Tailscale-User-Login", "Tailscale-Device-Name", "X-Tailscale-Device-Name"}
+	cases := []struct {
+		mode              string
+		wantHeaders       []string
+		forbiddenHeaders  []string
+		wantTokenProtocol bool
+	}{
+		{
+			mode:              config.NavivoxAuthPairingToken,
+			wantHeaders:       tokenHeaders,
+			forbiddenHeaders:  tailscaleHeaders,
+			wantTokenProtocol: true,
+		},
+		{
+			mode:              config.NavivoxAuthStaticToken,
+			wantHeaders:       tokenHeaders,
+			forbiddenHeaders:  tailscaleHeaders,
+			wantTokenProtocol: true,
+		},
+		{
+			mode:              config.NavivoxAuthTailscaleIdentity,
+			wantHeaders:       tailscaleHeaders,
+			forbiddenHeaders:  tokenHeaders,
+			wantTokenProtocol: false,
+		},
+		{
+			mode:              config.NavivoxAuthTokenAndTailscaleIdentity,
+			wantHeaders:       append(append([]string{}, tokenHeaders...), tailscaleHeaders...),
+			wantTokenProtocol: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.mode, func(t *testing.T) {
+			ch, err := NewChannel(config.NavivoxCfg{
+				Enabled:      true,
+				BindHost:     config.NavivoxDefaultBindHost,
+				Port:         config.NavivoxDefaultPort,
+				ExposureMode: config.NavivoxExposureLocal,
+				AuthMode:     tc.mode,
+				Token:        "nvbx_test_token",
+				AllowOrigins: []string{"*"},
+			}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc := ch.capabilityDocument()
+			for _, want := range tc.wantHeaders {
+				if !containsNavivoxCapabilityString(doc.Auth.Headers, want) {
+					t.Fatalf("auth headers for %s = %v, want %q", tc.mode, doc.Auth.Headers, want)
+				}
+			}
+			for _, forbidden := range tc.forbiddenHeaders {
+				if containsNavivoxCapabilityString(doc.Auth.Headers, forbidden) {
+					t.Fatalf("auth headers for %s = %v, must not include inactive credential %q", tc.mode, doc.Auth.Headers, forbidden)
+				}
+			}
+			tokenProtocol := navivoxWebSocketTokenProtocolPrefix + "<base64url-token>"
+			if got := containsNavivoxCapabilityString(doc.Auth.WebSocketProtocols, tokenProtocol); got != tc.wantTokenProtocol {
+				t.Fatalf("token websocket protocol for %s = %v, want %v in %v", tc.mode, got, tc.wantTokenProtocol, doc.Auth.WebSocketProtocols)
+			}
+		})
 	}
 }
 
@@ -154,8 +234,8 @@ func TestNavivoxStatusLinksCapabilitiesDocument(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.CapabilitiesURL != "/v1/navivox/capabilities" || !containsNavivoxCapabilityString(payload.Capabilities, "capability_document") {
-		t.Fatalf("status capabilities = url %q list %v, want linked capability document", payload.CapabilitiesURL, payload.Capabilities)
+	if payload.CapabilitiesURL != "/v1/navivox/capabilities" || !containsNavivoxCapabilityString(payload.Capabilities, "profile_contacts") || containsNavivoxCapabilityString(payload.Capabilities, "capability_document") || containsNavivoxCapabilityString(payload.Capabilities, "setup_handoff") {
+		t.Fatalf("status capabilities = url %q list %v, want capability link plus feature summary", payload.CapabilitiesURL, payload.Capabilities)
 	}
 }
 
@@ -185,7 +265,10 @@ func TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths(t *testing.T) {
 	removedAttachmentEndpoint := "/v1/navivox/" + "uploads"
 	removedAttachmentField := "unsupported" + "_until_endpoint"
 	removedNotesField := "compatibility" + "_notes"
-	for _, forbidden := range []string{"nvbx_test_token", "GORMES_NAVIVOX_TOKEN=", "/home/", "\\\\Users\\\\", "api_key", "password", "secret", "payload_safety", removedAttachmentField, removedAttachmentEndpoint, removedNotesField, "gormes." + navivoxWebSocketProtocol} {
+	removedAuthModesField := "accepted" + "_modes"
+	removedBridgeNote := "navivox_stream_is_canonical_for_navivox_clients"
+	removedTopLevelEventsField := "\"events\""
+	for _, forbidden := range []string{"nvbx_test_token", "GORMES_NAVIVOX_TOKEN=", "/home/", "\\\\Users\\\\", "api_key", "password", "secret", "payload_safety", removedAttachmentField, removedAttachmentEndpoint, removedNotesField, removedAuthModesField, removedBridgeNote, removedTopLevelEventsField, "setup_handoff", "capability_document", "gormes." + navivoxWebSocketProtocol} {
 		if strings.Contains(string(raw), forbidden) {
 			t.Fatalf("capabilities leaked forbidden %q:\n%s", forbidden, raw)
 		}

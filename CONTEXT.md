@@ -88,29 +88,33 @@ _Avoid_: unavailable feature as endpoint, hidden endpoint, optimistic API
 A structured, machine-readable action name that a Navivox client must not enable under the current capability document. Unsupported actions may explain disabled UI affordances, but they are not endpoint names or future promises.
 _Avoid_: free-form note, fake endpoint, roadmap hint
 
+**Navivox Setup Handoff**:
+A pairing, connect, or status descriptor that helps an operator continue mobile setup in Navivox. It is not a feature capability and must not appear in capability lists.
+_Avoid_: capability flag, setup feature endpoint
+
 **Navivox Auth Mode**:
-The exact server-configured authentication requirement for a Navivox client, such as token-only, tailnet-identity-only, or layered token plus tailnet identity. It may name accepted credential headers or protocol slots with placeholders, but never token values, secret references, environment variables, or private identity allowlists.
-_Avoid_: broad auth bucket, token disclosure, secret source disclosure
+The exact active server-configured authentication requirement for a Navivox client, such as token-only, tailnet-identity-only, or layered token plus tailnet identity. It may name accepted credential headers or protocol slots with placeholders, but never token values, all possible server modes, secret references, environment variables, or private identity allowlists.
+_Avoid_: broad auth bucket, token disclosure, secret source disclosure, possible-mode list
 
 **Navivox Public Probe**:
 A minimal unauthenticated liveness surface that proves the local bridge is reachable without revealing feature, profile, config, voice, or stream capabilities. Navivox capability and feature surfaces are authenticated.
 _Avoid_: public capability discovery, unauthenticated status
 
 **Navivox Capability**:
-A feature affordance or API area that a Navivox client may use when advertised by the Navivox Capability Gate. It is separate from the stream message types used to render that feature and excludes live runtime counts.
-_Avoid_: event kind, status summary item, runtime state
+A feature affordance or API area that a Navivox client may use when advertised by the Navivox Capability Gate. It is separate from document identity, setup handoff, the stream message types used to render that feature, and live runtime counts.
+_Avoid_: event kind, status summary item, runtime state, self-referential document flag
 
 **Navivox Runtime State**:
 Live, changing Navivox server information such as session counts, WebSocket connection counts, profile snapshots, and session records. Runtime state belongs in status or feature endpoints, not in the Navivox Capability Gate.
 _Avoid_: capability state, contract metadata
 
 **Navivox Event Kind**:
-A concrete stream message type a Navivox client must parse and render. Event kinds describe transport messages; they are not feature flags by themselves.
-_Avoid_: capability, UI affordance
+A concrete stream message type a Navivox client must parse and render. Event kinds describe transport messages, live under `streams.event_kinds`, and are not feature flags by themselves.
+_Avoid_: capability, UI affordance, duplicate top-level event list
 
 **Navivox Canonical Stream**:
-The `/v1/navivox/stream` WebSocket stream used by Navivox clients for turns, contact updates, tool events, safety events, approvals, and completion. OpenAI-style run event streams are separate API-server surfaces unless the Navivox Capability Gate advertises an explicit bridge.
-_Avoid_: mixed run stream, OpenAI run events as Navivox transport
+The `/v1/navivox/stream` WebSocket stream used by Navivox clients for turns, contact updates, tool events, safety events, approvals, and completion. OpenAI-style run event streams are separate API-server surfaces unless the Navivox Capability Gate advertises a structured `openai_runs_bridge` capability.
+_Avoid_: mixed run stream, OpenAI run events as Navivox transport, free-form bridge note
 
 **Removed Navivox Surface**:
 A previously supported Navivox protocol, endpoint, or contract shape that is no longer advertised or accepted after owner confirmation that no clients rely on it. Removal is explicit and scoped to Navivox surfaces, not a blanket cleanup of unrelated Gormes compatibility behavior.

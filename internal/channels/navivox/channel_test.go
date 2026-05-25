@@ -348,8 +348,8 @@ func TestNavivoxStatusIncludesSetupHandoffForAppContinuation(t *testing.T) {
 		t.Fatal(err)
 	}
 	capabilities, ok := payload["capabilities"].([]any)
-	if !ok || !containsAny(capabilities, "setup_handoff") {
-		t.Fatalf("capabilities = %#v, want setup_handoff", payload["capabilities"])
+	if !ok || !containsAny(capabilities, "profile_contacts") || containsAny(capabilities, "setup_handoff") {
+		t.Fatalf("capabilities = %#v, want feature summary without setup_handoff", payload["capabilities"])
 	}
 	handoff, ok := payload["setup_handoff"].(map[string]any)
 	if !ok {

@@ -3,6 +3,8 @@ package navivox
 import (
 	"net/http"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
 const navivoxMaxTurnRequestBytes = 1 << 20
@@ -17,7 +19,6 @@ type capabilityEndpoint struct {
 
 type capabilityAuth struct {
 	Mode               string   `json:"mode"`
-	AcceptedModes      []string `json:"accepted_modes"`
 	Headers            []string `json:"headers"`
 	WebSocketProtocols []string `json:"websocket_protocols"`
 }
@@ -60,7 +61,7 @@ type capabilityStreams struct {
 	CanonicalEndpoint string   `json:"canonical_endpoint"`
 	Transport         string   `json:"transport"`
 	EventKinds        []string `json:"event_kinds"`
-	RunsBridge        string   `json:"runs_bridge"`
+	OpenAIRunsBridge  bool     `json:"openai_runs_bridge"`
 }
 
 type capabilityDocument struct {
@@ -70,7 +71,6 @@ type capabilityDocument struct {
 	Auth              capabilityAuth              `json:"auth"`
 	Health            capabilityHealth            `json:"health"`
 	Endpoints         []capabilityEndpoint        `json:"endpoints"`
-	Events            []string                    `json:"events"`
 	ProfileManagement capabilityProfileManagement `json:"profile_management"`
 	Attachments       capabilityAttachments       `json:"attachments"`
 	Voice             capabilityVoice             `json:"voice"`
@@ -88,15 +88,15 @@ func (c *Channel) handleCapabilities(w http.ResponseWriter, r *http.Request, _ s
 func (c *Channel) capabilityDocument() capabilityDocument {
 	matrix := navivoxVoiceProviderMatrix()
 	events := navivoxEventKinds()
+	authMode := strings.TrimSpace(c.cfg.AuthMode)
 	return capabilityDocument{
 		Object:          "gormes.navivox.capabilities",
 		ProtocolVersion: navivoxWebSocketProtocol,
 		Capabilities:    navivoxCapabilityNames(),
 		Auth: capabilityAuth{
-			Mode:               strings.TrimSpace(c.cfg.AuthMode),
-			AcceptedModes:      []string{"pairing_token", "static_token", "tailscale_identity", "token_and_tailscale_identity"},
-			Headers:            []string{"Authorization: Bearer <token>", "X-Gormes-Navivox-Token", "Tailscale-User-Login", "Tailscale-Device-Name"},
-			WebSocketProtocols: []string{navivoxWebSocketProtocol, navivoxWebSocketTokenProtocolPrefix + "<base64url-token>"},
+			Mode:               authMode,
+			Headers:            navivoxCapabilityAuthHeaders(authMode),
+			WebSocketProtocols: navivoxCapabilityWebSocketProtocols(authMode),
 		},
 		Health: capabilityHealth{
 			Canonical: "/healthz",
@@ -104,7 +104,6 @@ func (c *Channel) capabilityDocument() capabilityDocument {
 			Auth:      "none",
 		},
 		Endpoints: navivoxCapabilityEndpoints(),
-		Events:    events,
 		ProfileManagement: capabilityProfileManagement{
 			ContactsEndpoint:       "/v1/navivox/profile-contacts",
 			RoutingEndpoint:        "/v1/navivox/profile-routing",
@@ -134,14 +133,50 @@ func (c *Channel) capabilityDocument() capabilityDocument {
 			CanonicalEndpoint: "/v1/navivox/stream",
 			Transport:         "websocket",
 			EventKinds:        events,
-			RunsBridge:        "navivox_stream_is_canonical_for_navivox_clients",
+			OpenAIRunsBridge:  false,
 		},
+	}
+}
+
+func navivoxCapabilityAuthHeaders(mode string) []string {
+	var headers []string
+	if navivoxAuthModeUsesToken(mode) {
+		headers = append(headers, "Authorization: Bearer <token>", "X-Gormes-Navivox-Token")
+	}
+	if navivoxAuthModeUsesTailscale(mode) {
+		headers = append(headers, "Tailscale-User-Login", "X-Tailscale-User-Login", "Tailscale-Device-Name", "X-Tailscale-Device-Name")
+	}
+	return headers
+}
+
+func navivoxCapabilityWebSocketProtocols(mode string) []string {
+	protocols := []string{navivoxWebSocketProtocol}
+	if navivoxAuthModeUsesToken(mode) {
+		protocols = append(protocols, navivoxWebSocketTokenProtocolPrefix+"<base64url-token>")
+	}
+	return protocols
+}
+
+func navivoxAuthModeUsesToken(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case config.NavivoxAuthPairingToken, config.NavivoxAuthStaticToken, config.NavivoxAuthTokenAndTailscaleIdentity:
+		return true
+	default:
+		return false
+	}
+}
+
+func navivoxAuthModeUsesTailscale(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case config.NavivoxAuthTailscaleIdentity, config.NavivoxAuthTokenAndTailscaleIdentity:
+		return true
+	default:
+		return false
 	}
 }
 
 func navivoxCapabilityNames() []string {
 	return []string{
-		"capability_document",
 		"profile_contacts",
 		"profile_routing",
 		"profile_seed",
@@ -154,7 +189,6 @@ func navivoxCapabilityNames() []string {
 		"safety_warnings",
 		"approval_required",
 		"turn_control",
-		"setup_handoff",
 	}
 }
 
