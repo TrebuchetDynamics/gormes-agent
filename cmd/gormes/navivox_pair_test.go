@@ -62,6 +62,7 @@ func TestNavivoxPairDescriptorIncludesSetupContinuationHints(t *testing.T) {
 		"base_url":                  "http://127.0.0.1:8765",
 		"websocket_url":             "ws://127.0.0.1:8765/v1/navivox/stream",
 		"status_url":                "http://127.0.0.1:8765/v1/navivox/status",
+		"capabilities_url":          "http://127.0.0.1:8765/v1/navivox/capabilities",
 		"setup_handoff":             "true",
 		"setup_mutation_policy":     "read_only_handoff",
 		"setup_sections":            "provider,model,workspace,channels",

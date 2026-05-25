@@ -94,7 +94,16 @@ GORMES_NAVIVOX_TOKEN=...
 
 - `GET /healthz`
 - `GET /v1/navivox/status`
+- `GET /v1/navivox/capabilities`
 - `GET /v1/navivox/profile-contacts`
+- `GET /v1/navivox/profile-routing`
+- `POST /v1/navivox/profile-seed`
+- `GET /v1/navivox/config-admin[/schema]`
+- `POST /v1/navivox/config-admin/{diff,validate,apply}`
+- `GET /v1/navivox/voice-profiles`
+- `POST /v1/navivox/voice-profiles/validate`
+- `GET /v1/navivox/run-records/{run_id_or_session_id}`
+- `GET /v1/navivox/memory/overview`
 - `GET /v1/navivox/sessions`
 - `GET /v1/navivox/sessions/{session_id}`
 - `POST /v1/navivox/turn`
@@ -106,6 +115,15 @@ HTTP and WebSocket requests use bearer auth for `pairing_token`,
 `tailscale_identity` uses Tailnet identity headers.
 `token_and_tailscale_identity` requires both layers. Browser WebSocket clients
 may pass the bearer token through the supported Navivox token subprotocol.
+
+`GET /v1/navivox/capabilities` is the first-class app contract. It advertises
+supported endpoints, event kinds, active auth mode, profile-management actions,
+attachment limits, voice/STT/TTS state, and deprecation rules. Navivox clients
+should capability-gate UI affordances from this document. In particular,
+profile contacts and seed/apply actions are wrapped by `/v1/navivox/*`; clients
+must not call dashboard `/api/profiles` routes directly. Attachments are not
+accepted until an opaque-upload endpoint is advertised; raw local paths are not
+a durable contract.
 
 ## WebSocket Messages
 
@@ -124,6 +142,7 @@ Server events:
 - `assistant_delta`
 - `assistant_message`
 - `tool_call_started`
+- `tool_call_updated`
 - `tool_call_finished`
 - `safety_warning`
 - `approval_required`
@@ -184,6 +203,8 @@ gormes gateway
 curl http://127.0.0.1:8765/healthz
 curl -H "Authorization: Bearer $GORMES_NAVIVOX_TOKEN" \
   http://127.0.0.1:8765/v1/navivox/status
+curl -H "Authorization: Bearer $GORMES_NAVIVOX_TOKEN" \
+  http://127.0.0.1:8765/v1/navivox/capabilities
 ```
 
 WebSocket ping:

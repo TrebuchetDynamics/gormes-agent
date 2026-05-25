@@ -135,6 +135,7 @@ func (c *Channel) Handler(inbox chan<- gateway.InboundEvent) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", c.handleHealthz)
 	mux.HandleFunc("/v1/navivox/status", c.withAuth(c.handleStatus))
+	mux.HandleFunc("/v1/navivox/capabilities", c.withAuth(c.handleCapabilities))
 	mux.HandleFunc("/v1/navivox/profile-contacts", c.withAuth(c.handleProfileContacts))
 	mux.HandleFunc("/v1/navivox/profile-routing", c.withAuth(c.handleProfileRouting))
 	mux.HandleFunc("/v1/navivox/profile-seed", c.withAuth(c.handleProfileSeed))
@@ -379,20 +380,8 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 		"profile_routing":     c.profileRouting,
 		"protocol_version":    navivoxWebSocketProtocol,
 		"websocket_protocols": []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol},
-		"capabilities": []string{
-			"profile_contacts",
-			"profile_routing",
-			"profile_seed",
-			"config_admin",
-			"voice_profiles",
-			"memory_overview",
-			"stream_turns",
-			"tool_progress",
-			"safety_warnings",
-			"approval_required",
-			"turn_control",
-			"setup_handoff",
-		},
+		"capabilities_url":    "/v1/navivox/capabilities",
+		"capabilities":        navivoxCapabilityNames(),
 		"setup_handoff": map[string]any{
 			"recommended_path":          "navivox",
 			"title":                     "Continue setup in Navivox",

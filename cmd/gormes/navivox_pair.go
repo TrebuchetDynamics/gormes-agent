@@ -270,6 +270,7 @@ func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string 
 	values.Set("base_url", baseURL)
 	values.Set("websocket_url", wsURL)
 	values.Set("status_url", strings.TrimRight(baseURL, "/")+"/v1/navivox/status")
+	values.Set("capabilities_url", strings.TrimRight(baseURL, "/")+"/v1/navivox/capabilities")
 	values.Set("setup_handoff", "true")
 	values.Set("setup_mutation_policy", "read_only_handoff")
 	values.Set("setup_sections", "provider,model,workspace,channels")

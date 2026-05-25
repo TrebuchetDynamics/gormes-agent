@@ -21,18 +21,19 @@ import (
 // from a specific interface (loopback for local mode, VPN interfaces for
 // tailscale/wireguard/vpn modes).
 type navivoxConnectInfoEntry struct {
-	ServerID      string                              `json:"server_id,omitempty"`
-	Host          string                              `json:"host"`
-	HostSource    string                              `json:"host_source"`
-	Port          int                                 `json:"port"`
-	BaseURL       string                              `json:"base_url"`
-	HealthzURL    string                              `json:"healthz_url"`
-	WebSocketURL  string                              `json:"websocket_url"`
-	TokenRequired bool                                `json:"token_required"`
-	Transports    []string                            `json:"transports,omitempty"`
-	Capabilities  []string                            `json:"capabilities,omitempty"`
-	Profiles      []config.NavivoxProfileRoute        `json:"profiles,omitempty"`
-	Warnings      []config.NavivoxProfileRouteWarning `json:"warnings,omitempty"`
+	ServerID        string                              `json:"server_id,omitempty"`
+	Host            string                              `json:"host"`
+	HostSource      string                              `json:"host_source"`
+	Port            int                                 `json:"port"`
+	BaseURL         string                              `json:"base_url"`
+	HealthzURL      string                              `json:"healthz_url"`
+	CapabilitiesURL string                              `json:"capabilities_url"`
+	WebSocketURL    string                              `json:"websocket_url"`
+	TokenRequired   bool                                `json:"token_required"`
+	Transports      []string                            `json:"transports,omitempty"`
+	Capabilities    []string                            `json:"capabilities,omitempty"`
+	Profiles        []config.NavivoxProfileRoute        `json:"profiles,omitempty"`
+	Warnings        []config.NavivoxProfileRouteWarning `json:"warnings,omitempty"`
 }
 
 type navivoxConnectInfoReport struct {
@@ -99,13 +100,14 @@ func buildNavivoxConnectInfoEntriesForConfig(cmd *cobra.Command, cfg config.Conf
 	makeEntry := func(host, source string, port int) navivoxConnectInfoEntry {
 		base, stream := navivoxConnectInfoURLs(host, port)
 		return navivoxConnectInfoEntry{
-			Host:          host,
-			HostSource:    source,
-			Port:          port,
-			BaseURL:       base,
-			HealthzURL:    base + "/healthz",
-			WebSocketURL:  stream,
-			TokenRequired: tokenRequired,
+			Host:            host,
+			HostSource:      source,
+			Port:            port,
+			BaseURL:         base,
+			HealthzURL:      base + "/healthz",
+			CapabilitiesURL: base + "/v1/navivox/capabilities",
+			WebSocketURL:    stream,
+			TokenRequired:   tokenRequired,
 		}
 	}
 
@@ -208,6 +210,7 @@ func writeNavivoxConnectInfoText(out io.Writer, cfg config.NavivoxCfg, entries [
 		}
 		fmt.Fprintf(out, "  - %s  (%s)%s\n", e.BaseURL, e.HostSource, tokenNote)
 		fmt.Fprintf(out, "    healthz: %s\n", e.HealthzURL)
+		fmt.Fprintf(out, "    capabilities: %s\n", e.CapabilitiesURL)
 		fmt.Fprintf(out, "    websocket: %s\n", e.WebSocketURL)
 		if e.ServerID != "" {
 			fmt.Fprintf(out, "    server: %s\n", e.ServerID)
@@ -261,6 +264,7 @@ func navivoxConnectInfoDescriptor(cfg config.NavivoxCfg, entry navivoxConnectInf
 	values := url.Values{}
 	values.Set("base_url", entry.BaseURL)
 	values.Set("websocket_url", entry.WebSocketURL)
+	values.Set("capabilities_url", entry.CapabilitiesURL)
 	values.Set("auth_mode", strings.TrimSpace(cfg.AuthMode))
 	values.Set("exposure_mode", strings.TrimSpace(cfg.ExposureMode))
 	values.Set("token_required", strconv.FormatBool(entry.TokenRequired))

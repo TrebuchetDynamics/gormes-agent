@@ -325,6 +325,7 @@ func navivoxSetupPairingURI(cfg config.NavivoxCfg) (string, error) {
 	values := url.Values{}
 	values.Set("base_url", baseURL)
 	values.Set("websocket_url", webSocketURL)
+	values.Set("capabilities_url", baseURL+"/v1/navivox/capabilities")
 	values.Set("auth_mode", strings.TrimSpace(cfg.AuthMode))
 	values.Set("exposure_mode", strings.TrimSpace(cfg.ExposureMode))
 	tokenRequired := cfg.AuthMode == config.NavivoxAuthPairingToken ||

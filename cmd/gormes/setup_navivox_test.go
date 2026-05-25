@@ -32,11 +32,12 @@ func TestNavivoxSetupPairingURIIncludesRESTTokenAndURLs(t *testing.T) {
 	}
 	q := u.Query()
 	checks := map[string]string{
-		"base_url":      "http://127.0.0.1:8765",
-		"websocket_url": "ws://127.0.0.1:8765/v1/navivox/stream",
-		"auth_mode":     config.NavivoxAuthPairingToken,
-		"rest_token":    cfg.Token,
-		"token_required": "true",
+		"base_url":         "http://127.0.0.1:8765",
+		"websocket_url":    "ws://127.0.0.1:8765/v1/navivox/stream",
+		"capabilities_url": "http://127.0.0.1:8765/v1/navivox/capabilities",
+		"auth_mode":        config.NavivoxAuthPairingToken,
+		"rest_token":       cfg.Token,
+		"token_required":   "true",
 	}
 	for key, want := range checks {
 		if got := q.Get(key); got != want {

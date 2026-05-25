@@ -102,6 +102,9 @@ func TestNavivoxConnectInfo_LocalMode_PrintsLoopbackOnly_JSON(t *testing.T) {
 	if got.Entries[0].HealthzURL != "http://127.0.0.1:8765/healthz" {
 		t.Errorf("healthz_url = %q", got.Entries[0].HealthzURL)
 	}
+	if got.Entries[0].CapabilitiesURL != "http://127.0.0.1:8765/v1/navivox/capabilities" {
+		t.Errorf("capabilities_url = %q", got.Entries[0].CapabilitiesURL)
+	}
 	if !got.Entries[0].TokenRequired {
 		t.Error("token_required = false, want true for static_token auth")
 	}
@@ -304,6 +307,9 @@ func TestNavivoxConnectInfo_JSONIncludesWebSocketURLAndBracketsIPv6(t *testing.T
 	}
 	if entry["websocket_url"] != "ws://[fd7a:115c:a1e0::1]:8765/v1/navivox/stream" {
 		t.Fatalf("websocket_url = %v, want stream URL", entry["websocket_url"])
+	}
+	if entry["capabilities_url"] != "http://[fd7a:115c:a1e0::1]:8765/v1/navivox/capabilities" {
+		t.Fatalf("capabilities_url = %v, want capabilities URL", entry["capabilities_url"])
 	}
 }
 
