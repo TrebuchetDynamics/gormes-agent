@@ -80,9 +80,13 @@ _Avoid_: profile import, automatic profile creation
 The full Navivox profile shape assembled from profile contacts, profile routing, and voice-profile state. It is not a promise that every profile field appears in one JSON payload.
 _Avoid_: single profile payload, contact-only contract
 
-**Navivox Reserved Surface**:
-A future Navivox API shape named only as unavailable product direction. Reserved surfaces must not appear in callable endpoint lists and must not enable client affordances.
-_Avoid_: planned endpoint, hidden endpoint, optimistic API
+**Navivox Explicit Exclusion**:
+A current Navivox contract statement that a behavior is unavailable without naming an endpoint that does not exist. Exclusions must not appear in endpoint lists and must not enable client affordances.
+_Avoid_: unavailable feature as endpoint, hidden endpoint, optimistic API
+
+**Navivox Unsupported Action**:
+A structured, machine-readable action name that a Navivox client must not enable under the current capability document. Unsupported actions may explain disabled UI affordances, but they are not endpoint names or future promises.
+_Avoid_: free-form note, fake endpoint, roadmap hint
 
 **Navivox Auth Mode**:
 The exact server-configured authentication requirement for a Navivox client, such as token-only, tailnet-identity-only, or layered token plus tailnet identity. It may name accepted credential headers or protocol slots with placeholders, but never token values, secret references, environment variables, or private identity allowlists.

@@ -67,12 +67,11 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 			ProfileContractParts   []string `json:"profile_contract_parts"`
 		} `json:"profile_management"`
 		Attachments struct {
-			MaxRequestBytes          int      `json:"max_request_bytes"`
-			OpaqueUploadIDs          bool     `json:"opaque_upload_ids"`
-			RawLocalPathsAccepted    bool     `json:"raw_local_paths_accepted"`
-			WorkspaceFileAttach      bool     `json:"workspace_file_attach"`
-			MIMEAllowlist            []string `json:"mime_allowlist"`
-			UnsupportedUntilEndpoint string   `json:"unsupported_until_endpoint"`
+			MaxRequestBytes       int      `json:"max_request_bytes"`
+			OpaqueUploadIDs       bool     `json:"opaque_upload_ids"`
+			RawLocalPathsAccepted bool     `json:"raw_local_paths_accepted"`
+			WorkspaceFileAttach   bool     `json:"workspace_file_attach"`
+			MIMEAllowlist         []string `json:"mime_allowlist"`
 		} `json:"attachments"`
 		Voice struct {
 			DeviceTranscribedTextTurns bool     `json:"device_transcribed_text_turns"`
@@ -119,8 +118,8 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 			t.Fatalf("profile contract parts = %v, want %q", got.ProfileManagement.ProfileContractParts, part)
 		}
 	}
-	if got.Attachments.MaxRequestBytes != 1<<20 || got.Attachments.RawLocalPathsAccepted || got.Attachments.WorkspaceFileAttach || got.Attachments.OpaqueUploadIDs || got.Attachments.UnsupportedUntilEndpoint == "" || len(got.Attachments.MIMEAllowlist) != 0 {
-		t.Fatalf("attachments = %+v, want explicit unavailable durable-upload contract", got.Attachments)
+	if got.Attachments.MaxRequestBytes != 1<<20 || got.Attachments.RawLocalPathsAccepted || got.Attachments.WorkspaceFileAttach || got.Attachments.OpaqueUploadIDs || len(got.Attachments.MIMEAllowlist) != 0 {
+		t.Fatalf("attachments = %+v, want explicit current no-upload contract", got.Attachments)
 	}
 	if !got.Voice.DeviceTranscribedTextTurns || got.Voice.RawAudioUpload || got.Voice.VoiceProfilesEndpoint != "/v1/navivox/voice-profiles" || len(got.Voice.TTSProviders) == 0 {
 		t.Fatalf("voice = %+v, want truthful text-turn + voice-profile capabilities", got.Voice)
@@ -183,7 +182,10 @@ func TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, forbidden := range []string{"nvbx_test_token", "GORMES_NAVIVOX_TOKEN=", "/home/", "\\\\Users\\\\", "api_key", "password", "secret", "payload_safety", "gormes." + navivoxWebSocketProtocol} {
+	removedAttachmentEndpoint := "/v1/navivox/" + "uploads"
+	removedAttachmentField := "unsupported" + "_until_endpoint"
+	removedNotesField := "compatibility" + "_notes"
+	for _, forbidden := range []string{"nvbx_test_token", "GORMES_NAVIVOX_TOKEN=", "/home/", "\\\\Users\\\\", "api_key", "password", "secret", "payload_safety", removedAttachmentField, removedAttachmentEndpoint, removedNotesField, "gormes." + navivoxWebSocketProtocol} {
 		if strings.Contains(string(raw), forbidden) {
 			t.Fatalf("capabilities leaked forbidden %q:\n%s", forbidden, raw)
 		}

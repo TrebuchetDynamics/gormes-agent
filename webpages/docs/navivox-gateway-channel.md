@@ -122,8 +122,8 @@ attachment limits, voice/STT/TTS state, and exclusion rules. Navivox clients
 should capability-gate UI affordances from this document. In particular,
 profile contacts and seed/apply actions are wrapped by `/v1/navivox/*`; clients
 must not call dashboard `/api/profiles` routes directly. Attachments are not
-accepted until an opaque-upload endpoint is advertised; raw local paths are not
-a durable contract.
+accepted by the current Navivox contract; raw local paths are not a durable
+contract.
 
 ## WebSocket Messages
 

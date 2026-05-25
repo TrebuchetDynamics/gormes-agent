@@ -39,13 +39,12 @@ type capabilityProfileManagement struct {
 }
 
 type capabilityAttachments struct {
-	MaxRequestBytes          int      `json:"max_request_bytes"`
-	OpaqueUploadIDs          bool     `json:"opaque_upload_ids"`
-	RawLocalPathsAccepted    bool     `json:"raw_local_paths_accepted"`
-	WorkspaceFileAttach      bool     `json:"workspace_file_attach"`
-	MIMEAllowlist            []string `json:"mime_allowlist"`
-	Retention                string   `json:"retention"`
-	UnsupportedUntilEndpoint string   `json:"unsupported_until_endpoint"`
+	MaxRequestBytes       int      `json:"max_request_bytes"`
+	OpaqueUploadIDs       bool     `json:"opaque_upload_ids"`
+	RawLocalPathsAccepted bool     `json:"raw_local_paths_accepted"`
+	WorkspaceFileAttach   bool     `json:"workspace_file_attach"`
+	MIMEAllowlist         []string `json:"mime_allowlist"`
+	Retention             string   `json:"retention"`
 }
 
 type capabilityVoice struct {
@@ -65,18 +64,17 @@ type capabilityStreams struct {
 }
 
 type capabilityDocument struct {
-	Object             string                      `json:"object"`
-	ProtocolVersion    string                      `json:"protocol_version"`
-	Capabilities       []string                    `json:"capabilities"`
-	Auth               capabilityAuth              `json:"auth"`
-	Health             capabilityHealth            `json:"health"`
-	Endpoints          []capabilityEndpoint        `json:"endpoints"`
-	Events             []string                    `json:"events"`
-	ProfileManagement  capabilityProfileManagement `json:"profile_management"`
-	Attachments        capabilityAttachments       `json:"attachments"`
-	Voice              capabilityVoice             `json:"voice"`
-	Streams            capabilityStreams           `json:"streams"`
-	CompatibilityNotes []string                    `json:"compatibility_notes"`
+	Object            string                      `json:"object"`
+	ProtocolVersion   string                      `json:"protocol_version"`
+	Capabilities      []string                    `json:"capabilities"`
+	Auth              capabilityAuth              `json:"auth"`
+	Health            capabilityHealth            `json:"health"`
+	Endpoints         []capabilityEndpoint        `json:"endpoints"`
+	Events            []string                    `json:"events"`
+	ProfileManagement capabilityProfileManagement `json:"profile_management"`
+	Attachments       capabilityAttachments       `json:"attachments"`
+	Voice             capabilityVoice             `json:"voice"`
+	Streams           capabilityStreams           `json:"streams"`
 }
 
 func (c *Channel) handleCapabilities(w http.ResponseWriter, r *http.Request, _ string) {
@@ -117,13 +115,12 @@ func (c *Channel) capabilityDocument() capabilityDocument {
 			ProfileContractParts:   []string{"profile_contacts", "profile_routing", "voice_profiles"},
 		},
 		Attachments: capabilityAttachments{
-			MaxRequestBytes:          navivoxMaxTurnRequestBytes,
-			OpaqueUploadIDs:          false,
-			RawLocalPathsAccepted:    false,
-			WorkspaceFileAttach:      false,
-			MIMEAllowlist:            []string{},
-			Retention:                "not_accepted",
-			UnsupportedUntilEndpoint: "/v1/navivox/uploads",
+			MaxRequestBytes:       navivoxMaxTurnRequestBytes,
+			OpaqueUploadIDs:       false,
+			RawLocalPathsAccepted: false,
+			WorkspaceFileAttach:   false,
+			MIMEAllowlist:         []string{},
+			Retention:             "not_accepted",
 		},
 		Voice: capabilityVoice{
 			DeviceTranscribedTextTurns: true,
@@ -138,10 +135,6 @@ func (c *Channel) capabilityDocument() capabilityDocument {
 			Transport:         "websocket",
 			EventKinds:        events,
 			RunsBridge:        "navivox_stream_is_canonical_for_navivox_clients",
-		},
-		CompatibilityNotes: []string{
-			"Navivox clients should enable UI affordances only when this document advertises the required endpoint and action.",
-			"/v1/navivox/stream is the canonical Navivox event stream; /v1/runs remains the OpenAI-style API server surface.",
 		},
 	}
 }
