@@ -987,9 +987,9 @@
     "item": {
       "name": "Gormes-owned session tree navigator over lineage and labels",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add a native `/tree` session navigator that projects Gormes' existing session lineage, fork, compression, and title metadata into an in-place tree view with search/filter modes and operator labels. Selecting a prior user turn should restore that prompt for editing when safe; selecting non-user entries should switch the visible leaf or report why the stored transcript cannot be replayed. The implementation must use Gormes session stores and lineage tables, not Pi JSONL files.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tui",
       "module": "sessions",
@@ -1019,16 +1019,24 @@
         "A seeded lineage fixture renders a tree with forks, compressed/continued sessions, titles, timestamps, and active leaf marker.",
         "Filter modes can show default, no-tools, user-only, labeled-only, and all-equivalent projections over Gormes transcript metadata where data exists.",
         "Labels/bookmarks can be set and cleared through a session metadata seam and appear in the tree selector.",
-        "Selecting a prior user turn restores editable text or returns typed replay-unavailable evidence without corrupting the active session."
+        "Selecting a prior user turn restores editable text or returns typed replay-unavailable evidence without corrupting the active session.",
+        "TestSessionTreeBuildsLineageLabelsAndFilterProjections proves seeded lineage renders forks, compression children, titles, timestamps, labels, active leaf, and default/no-tools/user-only/labeled-only/all-equivalent projections.",
+        "TestSessionLabelsSetAndClearThroughMetadataStore proves labels/bookmarks are persisted and cleared through the session metadata store without losing existing metadata.",
+        "TestTreeSlashLabelSetClearAndRestoreEditablePrompt and TestTreeSlashReplayUnavailableDoesNotCorruptActiveSession prove /tree label/unlabel plus restore behavior, including typed non-user replay evidence and no active-session mutation.",
+        "TestTUISessionTreeBindingLocalModelReceivesSessionTreeAdapters proves cmd/gormes wires local TUI /tree adapters to Gormes session metadata and transcript stores."
       ],
-      "note": "Planner 2026-05-25: Pi donor sweep identified tree navigation/labels as a high-value Gormes-owned session UX. Adapt to Gormes lineage stores; do not adopt Pi JSONL as a product contract.",
+      "note": "Planner 2026-05-25: Pi donor sweep identified tree navigation/labels as a high-value Gormes-owned session UX. Adapt to Gormes lineage stores; do not adopt Pi JSONL as a product contract. The 2026-05-25 builder pass added a Gormes-owned /tree slash surface backed by internal/session metadata and transcript ledgers, with lineage-aware tree rendering, active-leaf markers, filter projections, metadata labels/bookmarks, and typed replay-unavailable evidence for non-user or missing turns. The implementation does not read or write Pi JSONL sessions.",
       "write_scope": [
         "internal/session/",
         "internal/tui/tree_selector.go",
         "internal/tui/slash_tree.go",
         "internal/tui/slash_dispatch.go",
         "cmd/gormes/",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/tui/model.go",
+        "internal/tui/update.go",
+        "internal/tui/tree_selector_test.go",
+        "cmd/gormes/tui_tree_slash.go"
       ],
       "test_commands": [
         "go test ./internal/session ./internal/tui -run 'Test.*(Tree|Label|Lineage|Resume|Branch)' -count=1",
@@ -1039,6 +1047,11 @@
       "done_signal": [
         "Report seeded tree fixture output, label persistence evidence, replay/degraded cases, and progress validation."
       ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T13:20:00Z",
+        "last_success": "2026-05-25T13:20:00Z"
+      },
       "provenance": {
         "origin_type": "gormes",
         "upstream_ref": "Pi coding-agent fc8a155 session tree docs as donor evidence",

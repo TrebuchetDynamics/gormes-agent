@@ -1857,7 +1857,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -3087,7 +3087,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -4455,7 +4455,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -5350,10 +5350,6 @@
             },
             {
               "name": "",
-              "status": "planned"
-            },
-            {
-              "name": "",
               "status": "complete"
             },
             {
@@ -5366,7 +5362,11 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
             }
           ]
         },

@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `sessions`
 **Rows:** 29
-**Status counts:** `complete`: 28 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 29 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P1`: 9 · `P2`: 5 · `P3`: 1 · `unset`: 14
 
 ## Phase 3 — The Black Box (Memory)
@@ -64,7 +64,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `sessions` | ContextEngine compression-boundary callback vocabulary |
 | `complete` | `P2` | `sessions` | Kernel compression-boundary callback binding |
 | `complete` | `P1` | `sessions` | ContextEngine session-end hook on reset |
-| `planned` | `P1` | `sessions` | Gormes-owned session tree navigator over lineage and labels |
+| `complete` | `P1` | `sessions` | Gormes-owned session tree navigator over lineage and labels |
 
 ### 4.F — Title Generation
 

@@ -9694,9 +9694,9 @@
     "item": {
       "name": "Gormes JSONL RPC mode over agent runtime events",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Expose a local `gormes` JSONL RPC run mode for language-agnostic embedding. The protocol should accept prompt, steer, follow_up, abort, get_state, get_messages, session stats, model/thinking controls where existing runtime seams support them, and stream agent/tool/queue/compaction events as newline-delimited JSON with strict LF framing. It should reuse Gormes kernel/API-server event models and must not require a web server, Pi subprocess, or live provider in tests.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "gateway",
@@ -9726,9 +9726,12 @@
         "`gormes --mode rpc --no-session` or the chosen subcommand starts a stdin/stdout JSONL loop with a session/header response and no startup chatter on stdout.",
         "A fake prompt command emits accepted response, agent/message/tool lifecycle events, and a final agent_end event in deterministic order.",
         "Steer/follow_up/abort commands update queue or cancellation state and emit structured responses with request ids.",
-        "Malformed JSON, unknown commands, and unsupported model/session controls return structured errors without terminating the process unless stdin closes."
+        "Malformed JSON, unknown commands, and unsupported model/session controls return structured errors without terminating the process unless stdin closes.",
+        "TestRPCModePromptEmitsHeaderAcceptedResponseAndLifecycleEvents proves --mode rpc bypasses TUI startup, emits a session header, preserves U+2028 inside a JSON string under LF-only framing, correlates the prompt response id, and streams deterministic agent/message/tool lifecycle events through a fake runtime.",
+        "TestRPCModeStructuredStateQueueAbortAndErrors proves get_state, steer, follow_up, abort, unknown commands, unsupported controls, and malformed JSON all return structured JSONL records without stderr chatter or process termination.",
+        "Manual smoke `printf '' | go run ./cmd/gormes --mode rpc --no-session` emitted exactly one session header and exited successfully without provider credentials."
       ],
-      "note": "Planner 2026-05-25: Pi donor sweep identified RPC/JSONL as a high-value embedding surface for a multifaceted Gormes agent. This is a Gormes-owned protocol inspired by Pi, not Pi protocol parity.",
+      "note": "Planner 2026-05-25: Pi donor sweep identified RPC/JSONL as a high-value embedding surface for a multifaceted Gormes agent. This is a Gormes-owned protocol inspired by Pi, not Pi protocol parity. The 2026-05-25 builder pass added a Gormes-owned stdio JSONL RPC loop, root --mode rpc/--no-session dispatch, LF-only framing, correlated responses, fake-runtime lifecycle fixtures, typed queue/abort handling, and structured unavailable/error responses without stdout/stderr contamination.",
       "write_scope": [
         "cmd/gormes/",
         "internal/kernel/",
@@ -9745,6 +9748,11 @@
       "done_signal": [
         "Report RPC fixture transcript, stdout-cleanliness proof, malformed-command evidence, and progress validation."
       ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T14:25:00Z",
+        "last_success": "2026-05-25T14:25:00Z"
+      },
       "provenance": {
         "origin_type": "gormes",
         "upstream_ref": "Pi coding-agent fc8a155 RPC and JSON mode docs as donor evidence",

@@ -18,7 +18,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Doctor](doctor/) | 16 | 16 | 0 | 0 | `P1`: 5 · `P2`: 7 · `P3`: 2 · `unset`: 2 |
 | [Docs](docs/) | 22 | 18 | 0 | 4 | `P1`: 13 · `P2`: 7 · `P3`: 2 |
 | [Fleet](fleet/) | 23 | 23 | 0 | 0 | `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
-| [Gateway](gateway/) | 159 | 158 | 0 | 1 | `P0`: 14 · `P1`: 50 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
+| [Gateway](gateway/) | 159 | 159 | 0 | 0 | `P0`: 14 · `P1`: 50 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
 | [Goncho](goncho/) | 45 | 45 | 0 | 0 | `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
 | [Install](install/) | 30 | 30 | 0 | 0 | `P0`: 2 · `P1`: 17 · `P2`: 4 · `P3`: 3 · `unset`: 4 |
 | [Kanban](kanban/) | 33 | 33 | 0 | 0 | `P1`: 14 · `P2`: 19 |
@@ -28,13 +28,13 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Navivox](navivox/) | 28 | 22 | 0 | 6 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
 | [Planner](planner/) | 10 | 10 | 0 | 0 | `P0`: 1 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Profiles](profiles/) | 24 | 24 | 0 | 0 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `unset`: 6 |
-| [Progress](progress/) | 26 | 24 | 0 | 2 | `P1`: 11 · `P2`: 15 |
+| [Progress](progress/) | 26 | 26 | 0 | 0 | `P1`: 11 · `P2`: 15 |
 | [Providers](providers/) | 126 | 125 | 0 | 1 | `P0`: 9 · `P1`: 55 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
 | [Release](release/) | 13 | 13 | 0 | 0 | `P0`: 3 · `P1`: 10 |
 | [Runtime](runtime/) | 18 | 18 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
-| [Sessions](sessions/) | 29 | 28 | 0 | 1 | `P1`: 9 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
+| [Sessions](sessions/) | 29 | 29 | 0 | 0 | `P1`: 9 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
 | [Skills](skills/) | 46 | 46 | 0 | 0 | `P0`: 6 · `P1`: 8 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9 |
 | [STT](stt/) | 4 | 4 | 0 | 0 | `P0`: 1 · `P1`: 3 |
-| [Tools](tools/) | 147 | 146 | 0 | 1 | `P0`: 23 · `P1`: 53 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
+| [Tools](tools/) | 147 | 147 | 0 | 0 | `P0`: 23 · `P1`: 53 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
 | [TTS](tts/) | 25 | 24 | 0 | 1 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `P3`: 6 · `unset`: 1 |
 | [TUI](tui/) | 71 | 69 | 0 | 2 | `P0`: 3 · `P1`: 14 · `P2`: 43 · `P3`: 1 · `unset`: 10 |

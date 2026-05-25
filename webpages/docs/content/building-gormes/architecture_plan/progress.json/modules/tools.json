@@ -6522,9 +6522,9 @@
     "item": {
       "name": "Per-file mutation queue for native write edit and patch tools",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Serialize concurrent file mutations that target the same canonical path across native write, edit, patch, and custom file-task tools while preserving parallel execution for independent files. The queue must resolve symlink aliases for existing files, use cleaned absolute paths for new files, cover the full read-modify-write window, and compose with the existing file staleness registry and atomic writer helpers.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
       "module": "tools",
@@ -6553,9 +6553,13 @@
         "Two concurrent mutations to the same existing file run in deterministic serial order and preserve both changes when each operation is valid.",
         "Concurrent mutations to different files overlap or are not forced through a global lock.",
         "Existing-file symlink aliases share one queue key; missing/new files use the resolved absolute path key.",
-        "Staleness registry and atomic replace behavior remain covered by existing tests."
+        "Staleness registry and atomic replace behavior remain covered by existing tests.",
+        "TestFileMutationQueueSerializesSameExistingFileFullWindow proves same-file concurrent mutations enter deterministically and preserve both changes.",
+        "TestFileMutationQueueAllowsDifferentFilesToOverlap proves independent files are not forced through a global lock.",
+        "TestFileMutationQueueCanonicalizesSymlinkAliasesAndNewFiles proves existing-file symlink aliases share a queue key and missing/new files use cleaned absolute paths.",
+        "TestPatchToolUsesMutationQueueForFullReadModifyWriteWindow proves the native patch tool holds the queue across read-modify-write and post-write verification while preserving both queued edits."
       ],
-      "note": "Planner 2026-05-25: Pi donor sweep identified per-file mutation queues as a compact safety improvement for Gormes' native parallel tool executor.",
+      "note": "Planner 2026-05-25: Pi donor sweep identified per-file mutation queues as a compact safety improvement for Gormes' native parallel tool executor. The 2026-05-25 builder pass added FileMutationQueue and wired it into native write_file, replace-mode patch, and V4A patch mutation windows. Queue keys evaluate existing symlinks to canonical targets, use cleaned absolute paths for new files, acquire multiple file locks in sorted order, and preserve independent-file concurrency.",
       "write_scope": [
         "internal/tools/",
         "internal/kernel/toolexec.go",
@@ -6569,6 +6573,11 @@
       "done_signal": [
         "Report same-file concurrency, different-file concurrency, symlink alias evidence, and progress validation."
       ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T13:55:00Z",
+        "last_success": "2026-05-25T13:55:00Z"
+      },
       "provenance": {
         "origin_type": "gormes",
         "upstream_ref": "Pi coding-agent fc8a155 file-mutation-queue utility as donor evidence",

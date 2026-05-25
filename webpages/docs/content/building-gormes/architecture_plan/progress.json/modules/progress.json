@@ -1330,9 +1330,9 @@
     "item": {
       "name": "Progress Control Plane staged deepening program",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Track the staged architecture program that deepens the Progress Control Plane while preserving progress.json as the single Logical Backlog: workitem classification first, Progress Workspace layout/path seam second, Generated Artifact Plan third, and Progress Projections fourth.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "umbrella",
       "execution_owner": "tools",
       "module": "progress",
@@ -1368,7 +1368,7 @@
         "Each child row preserves progress.json as the single Logical Backlog and has focused tests.",
         "No physical split of shipped evidence or row health is introduced before the projections slice proves smaller interfaces are useful."
       ],
-      "note": "Grilled with Juan on 2026-05-25: choose a hybrid/all-options staged program, not a big-bang refactor. Candidate order is workitem classification, workspace layout seam, generated artifact plan, then projections.",
+      "note": "SHIPPED 2026-05-25 (umbrella closure). Completed the accepted staged deepening program without creating a side backlog: workitem classification seam, Progress Workspace layout/path seam, Generated Artifact Plan, and Progress Projections are all complete/validated child rows. The Logical Backlog still loads, validates, emits, and regenerates docs from the canonical progress.json split directory. Validation: go test ./internal/progress/... -run 'Test.*(Projection|Handoff|Shipped|Health|Render)' -count=1; go test ./internal/progress/... -count=1; go test ./cmd/progress -count=1; go test ./webpages/docs -count=1; go test ./... -count=1; go run ./cmd/progress validate; git diff --check.",
       "write_scope": [
         "internal/progress/",
         "cmd/progress/",
@@ -1598,9 +1598,9 @@
     "item": {
       "name": "Progress projections for active handoff shipped evidence and health",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add typed Progress Projections over the same Logical Backlog so callers can request active handoff, shipped evidence, and row health views without understanding every progress.Item field. This slice must not physically move shipped evidence, notes, provenance, health, or blockers into separate stores.",
-      "contract_status": "draft",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tools",
       "module": "progress",
@@ -1626,16 +1626,13 @@
         "The slice removes historical row fields before generated docs and builder-loop health writers are projection-safe.",
         "The projections expose the same wide interface as progress.Item under new names."
       ],
-      "blocked_by": [
-        "Progress write generated artifact plan"
-      ],
       "acceptance": [
         "Active handoff projection exposes only row identity, classification/order, contract, fixture, readiness, write scope, test commands/no-test reason, acceptance, and done signal.",
         "Shipped evidence projection exposes completed-row identity, provenance, note/evidence summary, source refs, and validation signal without requiring consumers to know active handoff fields.",
         "Health projection exposes row health, quarantine, planner verdict, and blocker state without requiring consumers to parse unrelated item fields.",
         "Existing renderers or tests consume at least one projection and preserve generated output."
       ],
-      "note": "Fourth slice of the staged program. Projection only: no physical split of the Logical Backlog in this row.",
+      "note": "SHIPPED 2026-05-25 (gormes-tdd-slice). Added typed Progress Projections over the Logical Backlog for active handoff, shipped evidence, and row health. Render next-slice ordering now consumes the active handoff projection while preserving generated output semantics; projections clone health/provenance pointers so callers cannot mutate progress.json through read models. Validation: go test ./internal/progress/... -run 'Test.*(Projection|Handoff|Shipped|Health|Render)' -count=1; go run ./cmd/progress validate; git diff --check.",
       "write_scope": [
         "internal/progress/",
         "internal/progress/builderloop/",

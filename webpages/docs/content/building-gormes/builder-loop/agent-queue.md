@@ -27,67 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Gormes-owned session tree navigator over lineage and labels
-
-- Phase: 4 / 4.B
-- Owner: `tui`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Add a native `/tree` session navigator that projects Gormes' existing session lineage, fork, compression, and title metadata into an in-place tree view with search/filter modes and operator labels. Selecting a prior user turn should restore that prompt for editing when safe; selecting non-user entries should switch the visible leaf or report why the stored transcript cannot be replayed. The implementation must use Gormes session stores and lineage tables, not Pi JSONL files.
-- Trust class: operator, system
-- Ready when: The builder reuses existing session directory, lineage, fork, resume, and TUI panel seams with fake stores in tests., The first slice may omit LLM-generated branch summaries if it records typed not-yet-supported evidence and keeps labels/navigation functional.
-- Not ready when: The implementation introduces a second session file format, writes Pi JSONL sessions, or bypasses internal/session and store abstractions., The navigator silently mutates live session state while the kernel is active or loses fork/compression lineage evidence.
-- Degraded mode: -
-- Fixture: `internal/tui/tree_selector_test.go`
-- Write scope: `internal/session/`, `internal/tui/tree_selector.go`, `internal/tui/slash_tree.go`, `internal/tui/slash_dispatch.go`, `cmd/gormes/`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/session ./internal/tui -run 'Test.*(Tree\|Label\|Lineage\|Resume\|Branch)' -count=1`, `go test ./cmd/gormes -run 'Test.*Session.*(Tree\|Resume\|Branch)' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Report seeded tree fixture output, label persistence evidence, replay/degraded cases, and progress validation.
-- Acceptance: A seeded lineage fixture renders a tree with forks, compressed/continued sessions, titles, timestamps, and active leaf marker., Filter modes can show default, no-tools, user-only, labeled-only, and all-equivalent projections over Gormes transcript metadata where data exists., Labels/bookmarks can be set and cleared through a session metadata seam and appear in the tree selector., Selecting a prior user turn restores editable text or returns typed replay-unavailable evidence without corrupting the active session.
-- Source refs: pi@fc8a155 packages/coding-agent/docs/sessions.md:/tree navigation, pi@fc8a155 packages/coding-agent/docs/session-format.md:labels, branch summaries, tree entries, pi@fc8a155 packages/coding-agent/src/modes/interactive/components/tree-selector.ts, internal/session/lineage.go:LineageKindFork and ResolveLineageTip, internal/session/directory.go:SessionDirectoryEntry, internal/tui/slash_sessions.go:/sessions and /resume picker, internal/tui/slash_branch.go:/branch fork seam
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Per-file mutation queue for native write edit and patch tools
-
-- Phase: 5 / 5.L
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Serialize concurrent file mutations that target the same canonical path across native write, edit, patch, and custom file-task tools while preserving parallel execution for independent files. The queue must resolve symlink aliases for existing files, use cleaned absolute paths for new files, cover the full read-modify-write window, and compose with the existing file staleness registry and atomic writer helpers.
-- Trust class: operator, system
-- Ready when: The builder can prove behavior with in-memory/fake concurrent tools and temp files; no provider call is needed., The queue is scoped to file mutation paths only and does not serialise unrelated tool calls globally.
-- Not ready when: The slice disables concurrent tool execution entirely, relies only on stale-read rejection, or queues only the final write rather than the full mutation window., Symlink aliases for an existing file can still run in parallel and clobber one another.
-- Degraded mode: -
-- Fixture: `internal/tools/file_mutation_queue_test.go`
-- Write scope: `internal/tools/`, `internal/kernel/toolexec.go`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools ./internal/kernel -run 'Test.*(MutationQueue\|FileState\|Atomic\|ToolExec)' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Report same-file concurrency, different-file concurrency, symlink alias evidence, and progress validation.
-- Acceptance: Two concurrent mutations to the same existing file run in deterministic serial order and preserve both changes when each operation is valid., Concurrent mutations to different files overlap or are not forced through a global lock., Existing-file symlink aliases share one queue key; missing/new files use the resolved absolute path key., Staleness registry and atomic replace behavior remain covered by existing tests.
-- Source refs: pi@fc8a155 packages/coding-agent/docs/extensions.md:withFileMutationQueue guidance, pi@fc8a155 packages/coding-agent/src/core/tools/file-mutation-queue.ts, internal/tools/file_state_registry.go:FileStateRegistry, internal/tools/atomic_replace.go:atomic file replace helper, internal/tools/file_task_tools.go:native file task tools, internal/kernel/toolexec.go:tool execution concurrency boundary
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Gormes JSONL RPC mode over agent runtime events
-
-- Phase: 5 / 5.Q
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Expose a local `gormes` JSONL RPC run mode for language-agnostic embedding. The protocol should accept prompt, steer, follow_up, abort, get_state, get_messages, session stats, model/thinking controls where existing runtime seams support them, and stream agent/tool/queue/compaction events as newline-delimited JSON with strict LF framing. It should reuse Gormes kernel/API-server event models and must not require a web server, Pi subprocess, or live provider in tests.
-- Trust class: operator, system
-- Ready when: The builder starts with stdio JSONL and fake provider/kernel fixtures; no HTTP listener or live credentials are required., The protocol names Gormes-owned events and documents any unsupported Pi command as typed unavailable evidence rather than pretending parity.
-- Not ready when: The slice starts a gateway server, opens network ports, depends on Pi RPC clients, or blocks on subscription/OAuth provider credentials., JSON records are split by anything other than LF, raw stderr contaminates stdout, or command responses cannot be correlated by id.
-- Degraded mode: -
-- Fixture: `cmd/gormes/rpc_mode_test.go`
-- Write scope: `cmd/gormes/`, `internal/kernel/`, `internal/gateway/`, `internal/apiserver/`, `pkg/gormes/`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes ./internal/kernel ./internal/gateway ./internal/apiserver -run 'Test.*(RPC\|JSONL\|EventStream\|Queue\|Abort)' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Report RPC fixture transcript, stdout-cleanliness proof, malformed-command evidence, and progress validation.
-- Acceptance: `gormes --mode rpc --no-session` or the chosen subcommand starts a stdin/stdout JSONL loop with a session/header response and no startup chatter on stdout., A fake prompt command emits accepted response, agent/message/tool lifecycle events, and a final agent_end event in deterministic order., Steer/follow_up/abort commands update queue or cancellation state and emit structured responses with request ids., Malformed JSON, unknown commands, and unsupported model/session controls return structured errors without terminating the process unless stdin closes.
-- Source refs: pi@fc8a155 packages/coding-agent/docs/rpc.md:Protocol Overview and Commands, pi@fc8a155 packages/coding-agent/docs/json.md:JSON Event Stream Mode, pi@fc8a155 packages/coding-agent/src/modes/rpc/rpc-types.ts, internal/kernel/frame.go:RenderFrame, internal/hermes/events.go:turn/run event types, internal/apiserver/runs.go:run inspection/event surfaces, cmd/gormes/main.go:root command mode selection
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Gormes-owned TUI extension status widget and footer seam
+## 1. Gormes-owned TUI extension status widget and footer seam
 
 - Phase: 8 / 8.D
 - Owner: `tui`
@@ -107,7 +47,7 @@ selection.
 - Source refs: pi@fc8a155 packages/coding-agent/docs/extensions.md:ctx.ui.setStatus/setWidget/setFooter/setWorkingIndicator, pi@fc8a155 packages/coding-agent/docs/tui.md:Patterns 4-6, pi@fc8a155 packages/coding-agent/examples/extensions/custom-footer.ts, pi@fc8a155 packages/coding-agent/examples/extensions/status-line.ts, internal/tui/status_bar_ext.go:RenderFaceTicker and RenderContextBar, internal/tui/hermes_chrome.go:HermesChromeInput, internal/kernel/extensions.go:ExtensionChain
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Gormes-owned TUI queued-message widget and busy delivery modes
+## 2. Gormes-owned TUI queued-message widget and busy delivery modes
 
 - Phase: 8 / 8.D
 - Owner: `tui`
@@ -127,7 +67,7 @@ selection.
 - Source refs: pi@fc8a155 packages/coding-agent/README.md:Message Queue, pi@fc8a155 packages/coding-agent/docs/settings.md:Message Delivery, pi@fc8a155 packages/coding-agent/docs/rpc.md:queue_update events, internal/tui/queued_messages.go:QueuedMessages, internal/tui/update.go:HermesBusyInputMode and ResolveHermesKey, internal/tui/hermes_chrome.go:HermesChromeInput.QueuedMessages, internal/tui/view.go:RenderHermesChrome call site
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Navivox Telegram-inspired chat polish
+## 3. Navivox Telegram-inspired chat polish
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -147,7 +87,7 @@ selection.
 - Source refs: ../navivox-app/navivox-chat-ui-research.md:2, ../navivox-app/navivox-ui-design.md:2.1, https://pub.dev/packages/v_chat_bubbles, https://docs.flutter.dev/ui/design/material, https://api.flutter.dev/flutter/widgets/DraggableScrollableSheet-class.html, https://github.com/tdlib/td, https://github.com/babakcode/flutter_chat
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Navivox natural-language profile seed Flutter UI
+## 4. Navivox natural-language profile seed Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -168,7 +108,7 @@ selection.
 - Unblocks: Navivox per-profile BYO voice profiles
 - Why now: Unblocks Navivox per-profile BYO voice profiles.
 
-## 8. Navivox per-profile BYO voice profiles Flutter UI
+## 5. Navivox per-profile BYO voice profiles Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -188,7 +128,7 @@ selection.
 - Source refs: ../navivox-app/navivox-ui-design.md:2.8, ../navivox-app/lib/features/profiles/, ../navivox-app/lib/features/config/, docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles backend API
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Navivox safe config admin Flutter UI
+## 6. Navivox safe config admin Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -209,7 +149,7 @@ selection.
 - Unblocks: Navivox per-profile BYO voice profiles
 - Why now: Unblocks Navivox per-profile BYO voice profiles.
 
-## 10. Navivox structured tool event cards Flutter UI
+## 7. Navivox structured tool event cards Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -227,6 +167,66 @@ selection.
 - Done signal: Navivox Flutter renders backend tool-progress lifecycle events as durable cards with redacted status/artifact evidence and no assistant-prose leakage.
 - Acceptance: GatewayNavivoxChannel upserts a single ToolCall message per tool_call_id for started, updated, and finished backend events., ToolCallCard renders status, summary, approval state when present, and bounded artifact rows with id/kind/title/summary/ref., Malformed or oversized event metadata is truncated/redacted in UI fixtures and never becomes assistant prose., Existing chat fixtures remain green for normal assistant streaming and final messages.
 - Source refs: docs/content/building-gormes/architecture_plan/progress.json:Navivox structured tool event cards backend API, ../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxToolCall, ../navivox-app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall, ../navivox-app/lib/features/chat/widgets/simple_chat_adapter.dart:_ToolCallBody
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 8. Navivox voice run records Flutter inspection UI
+
+- Phase: 9 / 9.F
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Render the sibling Flutter Navivox inspection surface for backend run records after the Gormes run-record API lands. The app should fetch or receive redacted run records, show text and voice transcript evidence, STT/TTS metadata, tool timeline cards, attachment/artifact refs, terminal status, and provider usage/cost with explicit unknown states. This row is intentionally cross-root and must not be selected during repo-only Gormes iterations.
+- Trust class: operator, gateway, system
+- Ready when: `Navivox voice run records backend API` has landed and exposes a redacted JSON read model for text and voice turns., The sibling Navivox app already has the connect-and-talk chat fixture and can identify the active session/run after a turn ends., The UI keeps raw audio, provider secrets, and direct Gormes store access out of Flutter state.
+- Not ready when: The backend run-record API is still missing or returns only mock data., The slice stores raw audio by default or hides retention status., The slice reports fake token cost when provider usage is absent., The slice edits Gormes backend persistence instead of consuming the backend contract from the app side.
+- Degraded mode: If audio bytes, STT, TTS, or usage data are unavailable, the run record stores explicit unavailable evidence and preserves the text transcript/tool timeline instead of dropping the run or faking costs.
+- Fixture: `../navivox-app/test/features/chat/navivox_run_records_test.dart`
+- Write scope: `../navivox-app/lib/core/protocol/navivox_event.dart`, `../navivox-app/lib/core/channel/gateway_navivox_channel.dart`, `../navivox-app/lib/features/chat/`, `../navivox-app/test/core/channel/gateway_navivox_channel_test.dart`, `../navivox-app/test/features/chat/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `sh -c 'cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Navivox Flutter can inspect backend-produced text and voice run records with transcript, tool timeline, STT/TTS metadata, artifacts, terminal status, and explicit usage/cost unknown states.
+- Acceptance: After a text turn ends, the app can open a run detail or transcript panel showing redacted transcript, status, timestamps, session/run ids, and provider usage when available., After a voice turn ends, the app renders device transcript, optional server STT evidence, audio duration/codec metadata, TTS metadata, and explicit raw-audio retention status., Typed tool timeline entries render as tool cards or bounded timeline rows instead of assistant prose., Provider usage/cost fields render as `unknown` or unavailable when absent; the UI never fabricates zero cost.
+- Source refs: internal/apiserver/runs.go:runRecord, internal/channels/navivox/channel.go:sessionState, ../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxVoiceMessage, ../navivox-app/lib/core/channel/gateway_navivox_channel.dart, ../navivox-app/lib/features/chat/, https://docs.dograh.com/core-concepts/how-dograh-works
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 9. Hermes integrations claim audit + source-backed plugin/skill parity map
+
+- Phase: 8 / 8.C
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Turn the sanitized Reddit/WebAfterAI Hermes integrations post into a source-backed parity map without accepting marketing shorthand as fact: classify each named integration as first-party bundled skill, bundled plugin/backend, gateway/platform/tool, optional skill, indirect web/browser/MCP/scraping workflow, Gormes-owned candidate, or unsupported/excluded claim. The audit must explicitly handle cases where a workflow is achievable through generic web scraping, browser automation, MCP, or Firecrawl-style extraction without being a direct Hermes plugin or tool, and it must not create implementation rows for Reddit, Stripe, InsForge, Graphiti/Zep, or Fireflies unless exact current Hermes source appears.
+- Trust class: operator, system
+- Ready when: The audit uses only sanitized transcript text plus checked-in Hermes/Gormes source refs; no live private ~/.hermes, credentials, browser sessions, or external API accounts are read., Each of the 12 post items is classified with source refs or explicit unsupported/excluded evidence., Indirect capabilities are allowed as a separate class: generic web scraping, browser automation, Firecrawl extraction, MCP, or skill workflows may satisfy a use case without proving a direct Hermes plugin/tool exists.
+- Not ready when: The row is used to implement all integrations in one pass instead of producing a bounded source-backed audit/map., Unsupported claims are copied into README/docs as if they were Hermes-native integrations., The audit treats `hermes plugins install reddit\|stripe\|insforge\|graphiti\|fireflies` as valid without exact current Hermes source or an external plugin repository URL., The audit reads live user config, token stores, memory databases, or private home directories as evidence.
+- Degraded mode: Until the claims are source-classified, public roadmap and parity work can overstate Hermes/Gormes integration breadth by treating scraped workflows, optional skills, and unsupported social-post claims as native plugins.
+- Fixture: `webpages/docs/content/building-gormes/architecture_plan/hermes-integrations-claim-audit.md`
+- Write scope: `webpages/docs/content/building-gormes/architecture_plan/hermes-integrations-claim-audit.md`, `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`, `webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`, `README.md`
+- Test commands: `go run ./cmd/progress validate`, `go test ./webpages/docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses\|TestProgressCanonical' -count=1`, `git diff --check`
+- Done signal: Report the 12-row classification table, exact Hermes source refs, unsupported/excluded claims, indirect scraping/browser/MCP classifications, and any newly-created follow-up progress row names.
+- Acceptance: A checked-in audit document or architecture-plan section lists all 12 post items and classifies each as direct first-party skill/plugin/tool/gateway, optional skill, indirect scraping/browser/MCP workflow, Gormes-owned candidate, or unsupported/excluded., The audit explicitly notes that some user-visible workflows are not direct tools: e.g. competitor/site/reddit-style research may be covered by generic web search/extract/crawl, browser automation, or future MCP/web-scraping rows rather than a named Hermes Reddit plugin., Unsupported/excluded claims for Reddit, Stripe, InsForge, Graphiti/Zep, and Fireflies remain excluded or row-backed as discovery-only until source refs are found., Any follow-up implementation intent is routed into separate small progress rows by source class; this audit row does not broaden into a 12-integration implementation batch., Public messaging/docs are updated only with evidence-backed wording and avoid inflated integration counts.
+- Source refs: sanitized user-provided Reddit/WebAfterAI transcript 2026-05-24: '12 Hermes Integrations That Actually Matter', hermes-agent/hermes_cli/plugins_cmd.py@43e566f77: `hermes plugins install` clones Git plugins into ~/.hermes/plugins and does not imply a built-in short-name registry for every social-post claim, hermes-agent/hermes_cli/plugins.py@43e566f77: bundled/user/project/pip plugin discovery and opt-in semantics, hermes-agent/skills/productivity/google-workspace/SKILL.md@43e566f77: first-party Gmail/Calendar/Drive/Docs/Sheets skill, hermes-agent/skills/note-taking/obsidian/SKILL.md@43e566f77: filesystem-first Obsidian vault skill, hermes-agent/plugins/web/firecrawl/plugin.yaml@43e566f77 and provider.py: bundled Firecrawl web backend with direct/gateway/self-hosted config, hermes-agent/tools/web_tools.py@43e566f77: generic web_search/web_extract/web_crawl dispatch; supports web-scraping/extraction workflows without naming them as native integrations, hermes-agent/skills/github/DESCRIPTION.md@43e566f77 and skills/github/*/SKILL.md: GitHub auth/repo/issues/PR/code-review skills, hermes-agent/skills/media/youtube-content/SKILL.md@43e566f77: YouTube transcript helper skill, hermes-agent/gateway/platforms/discord.py@43e566f77 and hermes-agent/tools/discord_tool.py@43e566f77: Discord gateway and Discord admin/core tools, hermes-agent/optional-skills/productivity/telephony/SKILL.md@43e566f77 and scripts/telephony.py: Twilio, Bland.ai, and Vapi optional telephony skill, hermes-agent/gateway/platforms/sms.py@43e566f77: Twilio-backed SMS gateway contract, repository search 2026-05-24: no first-party Hermes refs found for reddit, stripe API plugin, insforge, graphiti/zep, or fireflies beyond incidental text
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. CLIProxyAPI-compatible upstream route adapter
+
+- Phase: 4 / 4.A
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P3`
+- Contract: After the Gormes Router MVP exists, optionally allow a CLIProxyAPI server to be configured as a normal OpenAI-compatible upstream base URL. This must not import CLIProxyAPI runtime code, management APIs, OAuth automation, or multi-account pooling; it only treats CLIProxyAPI as a user-configured upstream endpoint.
+- Trust class: operator, system
+- Ready when: The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio., The implementation preserves the user-owned credential boundary from the router plan.
+- Not ready when: The slice claims free/unlimited LLM access, requires Ollama/LM Studio, automates OAuth/browser token capture, or copies CLIProxyAPI runtime code., Secrets appear in logs, status JSON, docs, progress evidence, or tests.
+- Degraded mode: -
+- Fixture: `internal/provider/router/cliproxy_upstream_test.go`
+- Write scope: `internal/provider/router/`, `internal/config/`, `cmd/gormes/`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/provider/router -run 'TestRouterCLIProxyAPIUpstream' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Report focused fake-provider test output, redaction evidence, and progress validation.
+- Acceptance: A CLIProxyAPI-style upstream can be represented as a custom OpenAI-compatible route with base_url and api_key_env., The adapter only relies on /v1/models and /v1/chat/completions-compatible behavior., No OAuth, management API, WebSocket, token scraping, or account-pool semantics are added., Tests use httptest fake CLIProxyAPI-compatible responses and redaction assertions.
+- Source refs: docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Config schema, CLIProxyAPI@50d19e2 README.md: /v1/chat/completions and provider route aliases, CLIProxyAPI@50d19e2 docs/sdk-advanced.md: /v1/models exposure, internal/hermes/provider_transport.go:chat_completions transport
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
