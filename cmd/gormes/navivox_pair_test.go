@@ -30,7 +30,7 @@ func TestNavivoxPairHelpExplainsOneTerminalFlow(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Start a local Navivox bridge, generate a pairing token, write a QR image,",
-		"print the localhost URL, then wait for the Android app to connect.",
+		"open Navivox directly on Android when available, then wait for the app to connect.",
 		"Use this after the installer recommends Navivox setup:",
 		"gormes navivox pair",
 		"Keep the Termux session open after Navivox connects; it owns the local bridge.",

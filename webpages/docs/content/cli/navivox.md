@@ -19,16 +19,22 @@ gormes navivox [command]
 | Command | Purpose |
 |---|---|
 | `gormes navivox connect` | Print Navivox connect URLs for active VPN/local interfaces |
+| `gormes navivox pair` | Start a local pairing bridge and hand Navivox a QR or Android deep link |
 
 ## Current Channel Contract
 
 `connect` is the supported token-redacted host-facing setup command for
 the Flutter Navivox app. It prints base URLs the app can paste, plus the
-matching health, capability-document, and WebSocket stream URLs. For first-run
-setup, `gormes setup gateway` also writes `$GORMES_HOME/navivox/pairing.png`:
-a scannable QR image containing a `navivox://connect` descriptor with the base
+matching health, capability-document, and WebSocket stream URLs. On
+Android/Termux, `--open-navivox` hands the `navivox://connect` descriptor to
+the Navivox Android app directly through `am start` without printing the REST
+token, falling back to an Android text-share payload when the VIEW intent fails;
+QR output remains the fallback. For first-run setup, `gormes navivox
+pair` starts a local bridge and writes `$GORMES_HOME/navivox/pairing.png`: a
+scannable QR image containing a `navivox://connect` descriptor with the base
 URL, WebSocket URL, capability-document URL, auth mode, and REST token when
-token auth is selected. Treat that PNG as secret material.
+token auth is selected. Treat that PNG as secret material. `--print-deeplink`
+prints the secret descriptor only when explicitly requested.
 
 Supported runtime endpoints:
 
@@ -59,8 +65,9 @@ Supported runtime endpoints:
   WireGuard, and generic tun-class VPN interfaces.
 - Public exposure is validated by server config and requires explicit
   confirmation.
-- Token values are never printed by `connect`; output only reports
-  whether a token is required.
+- Token values are never printed by `connect` or `pair` by default; output only
+  reports whether a token is required. `--print-deeplink` is an explicit secret
+  disclosure escape hatch.
 - Setup QR images may embed token values and are written with owner-only file
   permissions under `$GORMES_HOME/navivox/`.
 - REST clients send `Authorization: Bearer <Navivox token>` for

@@ -38,11 +38,17 @@ It also writes a scannable QR PNG to `$GORMES_HOME/navivox/pairing.png` with
 owner-only permissions. That QR embeds a `navivox://connect` descriptor with
 the base URL, WebSocket URL, auth mode, and REST token when token auth is
 selected, so treat the PNG like a secret and avoid screenshots or support
-bundles that include it.
+bundles that include it. On Android/Termux, `gormes navivox pair` opens the
+Navivox app directly through `am start` when available; if the deep-link VIEW
+intent fails, it retries with an Android text-share payload. It does not print
+the secret descriptor unless `--print-deeplink` is explicitly provided.
 
 `gormes navivox connect --json` also emits `base_url`, `healthz_url`, and
 `websocket_url` for each reachable interface; IPv6 addresses are bracketed in
 emitted URLs. It remains token-redacted and reports only `token_required`.
+`gormes navivox connect --open-navivox` opens the first reachable descriptor
+through the same deep-link/share Android handoff while keeping QR output as
+fallback.
 
 In the Flutter Navivox app setup screen, scan the QR image when available. If
 QR scanning is unavailable, enter the gateway base URL, for example

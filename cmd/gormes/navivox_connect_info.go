@@ -49,8 +49,19 @@ func newNavivoxCommand() *cobra.Command {
 	return cmd
 }
 
+type navivoxConnectInfoOptions struct {
+	jsonOut        bool
+	openNavivox    bool
+	noOpenNavivox  bool
+	printDeeplink  bool
+	androidPackage string
+}
+
 func newNavivoxConnectCommand(use string, hidden bool) *cobra.Command {
-	var jsonOut bool
+	opts := navivoxConnectInfoOptions{
+		openNavivox:    defaultOpenNavivoxAndroid(),
+		androidPackage: navivoxAndroidPackage,
+	}
 	cmd := &cobra.Command{
 		Use:    use,
 		Short:  "Print Navivox connect URLs for active VPN/local interfaces",
@@ -59,16 +70,21 @@ func newNavivoxConnectCommand(use string, hidden bool) *cobra.Command {
 should be reachable. Loopback is shown only for exposure_mode=local; VPN-class
 modes (tailscale, wireguard, vpn) list every active VPN interface detected by
 internal/network/vpnhost. The static_token value is never printed; only a
-token_required flag.`,
+token_required flag. On Android/Termux, --open-navivox can hand the secret
+navivox://connect descriptor directly to Navivox without printing it.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := config.Load(nil)
 			if err != nil {
 				return err
 			}
-			return runNavivoxConnectInfoForConfig(cmd, cfg, jsonOut)
+			return runNavivoxConnectInfoForConfigWithOptions(cmd, cfg, opts)
 		},
 	}
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit machine-readable JSON")
+	cmd.Flags().BoolVar(&opts.jsonOut, "json", false, "emit machine-readable JSON")
+	cmd.Flags().BoolVar(&opts.openNavivox, "open-navivox", opts.openNavivox, "try Android deep-link handoff using the first reachable entry")
+	cmd.Flags().BoolVar(&opts.noOpenNavivox, "no-open-navivox", false, "do not launch Navivox; keep QR/manual fallback only")
+	cmd.Flags().StringVar(&opts.androidPackage, "android-package", opts.androidPackage, "Android package to target for Navivox deep links")
+	cmd.Flags().BoolVar(&opts.printDeeplink, "print-deeplink", false, "print navivox://connect descriptor; warning: contains a secret")
 	return cmd
 }
 
@@ -77,15 +93,29 @@ func runNavivoxConnectInfo(cmd *cobra.Command, cfg config.NavivoxCfg, jsonOut bo
 }
 
 func runNavivoxConnectInfoForConfig(cmd *cobra.Command, cfg config.Config, jsonOut bool) error {
+	return runNavivoxConnectInfoForConfigWithOptions(cmd, cfg, navivoxConnectInfoOptions{jsonOut: jsonOut, androidPackage: navivoxAndroidPackage})
+}
+
+func runNavivoxConnectInfoForConfigWithOptions(cmd *cobra.Command, cfg config.Config, opts navivoxConnectInfoOptions) error {
 	if !cfg.Navivox.Enabled {
 		return fmt.Errorf("navivox connect: [navivox].enabled=false; for first-time Android/Termux setup run `gormes navivox pair`; for a persistent gateway run `gormes setup navivox` or set [navivox].enabled=true with a token")
 	}
+	if opts.jsonOut && opts.printDeeplink {
+		return fmt.Errorf("navivox connect: --print-deeplink cannot be combined with --json")
+	}
 	entries := buildNavivoxConnectInfoEntriesForConfig(cmd, cfg)
 	out := cmd.OutOrStdout()
-	if jsonOut {
+	if shouldOpenNavivoxAndroid(opts.openNavivox, opts.noOpenNavivox) {
+		messageOut := out
+		if opts.jsonOut {
+			messageOut = cmd.ErrOrStderr()
+		}
+		writeNavivoxConnectOpenStatus(cmd, messageOut, cfg.Navivox, entries, opts.androidPackage)
+	}
+	if opts.jsonOut {
 		return writeNavivoxConnectInfoJSON(out, entries)
 	}
-	return writeNavivoxConnectInfoText(out, cfg.Navivox, entries)
+	return writeNavivoxConnectInfoTextWithOptions(out, cfg.Navivox, entries, opts)
 }
 
 func buildNavivoxConnectInfoEntries(cmd *cobra.Command, cfg config.NavivoxCfg) []navivoxConnectInfoEntry {
@@ -198,6 +228,10 @@ func writeNavivoxConnectInfoJSON(out io.Writer, entries []navivoxConnectInfoEntr
 }
 
 func writeNavivoxConnectInfoText(out io.Writer, cfg config.NavivoxCfg, entries []navivoxConnectInfoEntry) error {
+	return writeNavivoxConnectInfoTextWithOptions(out, cfg, entries, navivoxConnectInfoOptions{})
+}
+
+func writeNavivoxConnectInfoTextWithOptions(out io.Writer, cfg config.NavivoxCfg, entries []navivoxConnectInfoEntry, opts navivoxConnectInfoOptions) error {
 	if len(entries) == 0 {
 		fmt.Fprintln(out, "No reachable Navivox interfaces detected. If exposure_mode requires VPN, ensure Tailscale or WireGuard is up.")
 		return nil
@@ -229,10 +263,39 @@ func writeNavivoxConnectInfoText(out io.Writer, cfg config.NavivoxCfg, entries [
 		for _, line := range strings.Split(strings.TrimRight(qr, "\n"), "\n") {
 			fmt.Fprintf(out, "    %s\n", line)
 		}
+		descriptor, err := navivoxConnectInfoDescriptor(cfg, e)
+		if err != nil {
+			return err
+		}
 		fmt.Fprintln(out, "    navivox://connect descriptor is encoded in the QR.")
 		fmt.Fprintln(out, "    QR payload includes the token when required; the raw token is not printed.")
+		if opts.printDeeplink {
+			fmt.Fprintln(out, "    Warning: navivox://connect descriptor contains a secret; do not share it.")
+			fmt.Fprintf(out, "    %s\n", descriptor)
+		}
 	}
 	return nil
+}
+
+func writeNavivoxConnectOpenStatus(cmd *cobra.Command, out io.Writer, cfg config.NavivoxCfg, entries []navivoxConnectInfoEntry, androidPackage string) {
+	fmt.Fprintln(out, "Opening Navivox directly...")
+	if len(entries) == 0 {
+		fmt.Fprintln(out, "Could not open Navivox directly: no reachable Navivox interfaces detected")
+		fmt.Fprintln(out, "Use the QR image fallback or manual connect-info import.")
+		return
+	}
+	descriptor, err := navivoxConnectInfoDescriptor(cfg, entries[0])
+	if err != nil {
+		fmt.Fprintf(out, "Could not open Navivox directly: %s\n", redactNavivoxDescriptor(err.Error()))
+		fmt.Fprintln(out, "Use the QR image fallback or manual connect-info import.")
+		return
+	}
+	if err := openNavivoxAndroid(cmd.Context(), descriptor, androidPackage); err != nil {
+		fmt.Fprintf(out, "Could not open Navivox directly: %s\n", redactNavivoxDescriptor(err.Error()))
+		fmt.Fprintln(out, "Use the QR image fallback or manual connect-info import.")
+		return
+	}
+	fmt.Fprintln(out, "If Navivox did not open, use the QR/image fallback or run with --print-deeplink.")
 }
 
 func navivoxConnectInfoProfileSummary(profiles []config.NavivoxProfileRoute) string {

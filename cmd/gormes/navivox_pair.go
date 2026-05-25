@@ -23,27 +23,34 @@ import (
 )
 
 type navivoxPairOptions struct {
-	host   string
-	port   int
-	noWait bool
+	host           string
+	port           int
+	noWait         bool
+	openNavivox    bool
+	noOpenNavivox  bool
+	androidPackage string
+	printDeeplink  bool
 }
 
 func newNavivoxPairCommand() *cobra.Command {
 	opts := navivoxPairOptions{
-		host: config.NavivoxDefaultBindHost,
-		port: config.NavivoxDefaultPort,
+		host:           config.NavivoxDefaultBindHost,
+		port:           config.NavivoxDefaultPort,
+		openNavivox:    defaultOpenNavivoxAndroid(),
+		androidPackage: navivoxAndroidPackage,
 	}
 	cmd := &cobra.Command{
 		Use:   "pair",
 		Short: "Create a local Navivox pairing handoff",
 		Long: `Start a local Navivox bridge, generate a pairing token, write a QR image,
-print the localhost URL, then wait for the Android app to connect.
+open Navivox directly on Android when available, then wait for the app to connect.
 
 Use this after the installer recommends Navivox setup:
 
 Keep the Termux session open after Navivox connects; it owns the local bridge.`,
 		Example: `  gormes navivox pair
   gormes navivox pair --port 8765
+  gormes navivox pair --open-navivox
   gormes navivox pair --no-wait`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -53,6 +60,10 @@ Keep the Termux session open after Navivox connects; it owns the local bridge.`,
 	cmd.Flags().StringVar(&opts.host, "host", opts.host, "local Navivox bridge host")
 	cmd.Flags().IntVar(&opts.port, "port", opts.port, "local Navivox bridge port")
 	cmd.Flags().BoolVar(&opts.noWait, "no-wait", false, "print the pairing handoff and exit without waiting")
+	cmd.Flags().BoolVar(&opts.openNavivox, "open-navivox", opts.openNavivox, "try Android deep-link handoff after the bridge starts")
+	cmd.Flags().BoolVar(&opts.noOpenNavivox, "no-open-navivox", false, "do not launch Navivox; keep QR/manual fallback only")
+	cmd.Flags().StringVar(&opts.androidPackage, "android-package", opts.androidPackage, "Android package to target for Navivox deep links")
+	cmd.Flags().BoolVar(&opts.printDeeplink, "print-deeplink", false, "print navivox://connect descriptor; warning: contains a secret")
 	return cmd
 }
 
@@ -121,6 +132,16 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	}
 
 	out := cmd.OutOrStdout()
+	if shouldOpenNavivoxAndroid(opts.openNavivox, opts.noOpenNavivox) {
+		fmt.Fprintln(out, "Opening Navivox directly...")
+		if err := openNavivoxAndroid(cmd.Context(), descriptor, opts.androidPackage); err != nil {
+			fmt.Fprintf(out, "Could not open Navivox directly: %s\n", err)
+			fmt.Fprintln(out, "Use the QR image fallback or manual connect-info import.")
+		} else {
+			fmt.Fprintln(out, "If Navivox did not open, use the QR/image fallback or run with --print-deeplink.")
+		}
+		fmt.Fprintln(out)
+	}
 	fmt.Fprintln(out, "Navivox pairing ready.")
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Connection")
@@ -146,6 +167,12 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	fmt.Fprintln(out, "Next steps")
 	fmt.Fprintln(out, "  1. Open Navivox on Android and scan the QR image.")
 	fmt.Fprintln(out, "  2. Finish provider, model, workspace, and channel setup in Navivox.")
+	if opts.printDeeplink {
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Deeplink")
+		fmt.Fprintln(out, "  Warning: navivox://connect descriptor contains a secret; do not share it.")
+		fmt.Fprintf(out, "  %s\n", descriptor)
+	}
 	if opts.noWait {
 		if err := stopNavivoxPairBridge(bridgeStop, bridgeDone); err != nil {
 			return err
