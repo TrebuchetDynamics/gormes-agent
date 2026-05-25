@@ -19,8 +19,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.etcd.io/bbolt"
 
-	"github.com/TrebuchetDynamics/goncho"
+	dynamicagents "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
+	"github.com/TrebuchetDynamics/goncho/service"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
@@ -277,7 +278,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 			slog.Warn("memory store close", "err", err)
 		}
 	}()
-	dynamicAgentRegistry, err := goncho.NewDynamicAgentRegistry(mstore.DB())
+	dynamicAgentRegistry, err := dynamicagents.NewDynamicAgentRegistry(mstore.DB())
 	if err != nil {
 		return fmt.Errorf("dynamic agent registry: %w", err)
 	}
@@ -1342,12 +1343,24 @@ func sqlOpenGoncho(path string) (*sql.DB, error) {
 	return sqlOpenGonchoRaw(path)
 }
 
-func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
+func sqlOpenGonchoUnmigrated(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}
 	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	return db, nil
+}
+
+func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
+	db, err := sqlOpenGonchoUnmigrated(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := memory.EnsureSchema(db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}

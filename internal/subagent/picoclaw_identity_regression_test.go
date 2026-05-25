@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
-	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 

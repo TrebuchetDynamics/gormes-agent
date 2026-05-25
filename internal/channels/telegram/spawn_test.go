@@ -11,8 +11,8 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 

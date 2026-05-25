@@ -5,7 +5,7 @@ go 1.26
 toolchain go1.26.0
 
 require (
-	github.com/TrebuchetDynamics/goncho v0.1.0
+	github.com/TrebuchetDynamics/goncho v0.2.0
 	github.com/a-h/templ v0.3.1001
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10

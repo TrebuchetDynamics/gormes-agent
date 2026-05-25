@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/goncho/service"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )

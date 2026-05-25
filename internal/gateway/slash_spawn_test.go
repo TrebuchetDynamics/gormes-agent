@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/goncho"
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 )
 
 func TestSlashSpawn_ParseNameAndPersona(t *testing.T) {

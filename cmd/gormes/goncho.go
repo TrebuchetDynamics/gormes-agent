@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/goncho/service"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
@@ -186,14 +186,24 @@ func runGonchoDoctor(cmd *cobra.Command, _ []string) error {
 	}
 
 	memoryPath := config.MemoryDBPath()
-	if _, err := os.Stat(memoryPath); err != nil {
+	memoryInfo, err := os.Stat(memoryPath)
+	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return newExitCodeError(1, fmt.Errorf("memory database not found at %s", memoryPath))
 		}
 		return newExitCodeError(1, err)
 	}
 
-	db, err := sqlOpenGoncho(memoryPath)
+	var db *sql.DB
+	if memoryInfo.Size() == 0 {
+		// Preserve the operator diagnostic contract for an explicitly touched
+		// zero-byte DB: inspect it as-is so buildGonchoDoctorReport can return
+		// structured runtime_storage_error evidence instead of silently
+		// initializing a fresh schema.
+		db, err = sqlOpenGonchoUnmigrated(memoryPath)
+	} else {
+		db, err = sqlOpenGoncho(memoryPath)
+	}
 	if err != nil {
 		return newExitCodeError(2, fmt.Errorf("open memory db: %w", err))
 	}

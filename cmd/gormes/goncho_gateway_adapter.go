@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"sort"
 
-	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/goncho/service"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 

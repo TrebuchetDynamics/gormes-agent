@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/charmbracelet/bubbles/textinput"

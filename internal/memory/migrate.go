@@ -12,6 +12,13 @@ import (
 // binary.
 var ErrSchemaUnknown = errors.New("memory: schema version unknown to this binary")
 
+// EnsureSchema installs or upgrades the Gormes memory schema on an already-open
+// SQLite connection. It is used by secondary Goncho openers that must share the
+// same memory.db without starting the SqliteStore worker.
+func EnsureSchema(db *sql.DB) error {
+	return migrate(db)
+}
+
 // migrate installs or upgrades the DB schema to schemaVersion. Safe to
 // call on a fresh DB (installs v3a then migrates to current) or on any
 // previously-migrated DB (runs only the needed steps). Single transaction
@@ -89,6 +96,11 @@ func migrate(db *sql.DB) error {
 		}
 		return migrate(db)
 	case "3m":
+		if err := runMigrationTx(db, migration3mTo3n); err != nil {
+			return fmt.Errorf("memory: migrate 3m->3n: %w", err)
+		}
+		return migrate(db)
+	case "3n":
 		return nil
 	default:
 		return fmt.Errorf("%w: got %q, want %q", ErrSchemaUnknown, v, schemaVersion)

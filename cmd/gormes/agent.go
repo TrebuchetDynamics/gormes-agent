@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/goncho"
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"

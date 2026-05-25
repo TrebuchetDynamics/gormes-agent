@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/goncho/service"
 )
 
 func TestGonchoRecallReplayCommandTextShowsTimeline(t *testing.T) {

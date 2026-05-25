@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/TrebuchetDynamics/goncho"
+	"github.com/TrebuchetDynamics/goncho/service"
 )
 
 func TestMemoryV1MCPTranscriptUsesOnlyContractedTools(t *testing.T) {

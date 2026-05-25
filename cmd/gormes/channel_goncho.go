@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/TrebuchetDynamics/goncho"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
+	"github.com/TrebuchetDynamics/goncho/service"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/goncho"

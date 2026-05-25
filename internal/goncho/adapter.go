@@ -9,7 +9,7 @@ package goncho
 import (
 	"context"
 
-	extgoncho "github.com/TrebuchetDynamics/goncho"
+	extgoncho "github.com/TrebuchetDynamics/goncho/service"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 

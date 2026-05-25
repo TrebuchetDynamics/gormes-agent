@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/TrebuchetDynamics/goncho"
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 )
 
 type AgentSpawnEvidence string

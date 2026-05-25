@@ -10,8 +10,8 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 

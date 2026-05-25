@@ -12,8 +12,8 @@ import (
 	_ "github.com/ncruces/go-sqlite3/driver"
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/goncho/service"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 

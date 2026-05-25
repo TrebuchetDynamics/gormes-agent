@@ -2,8 +2,8 @@ github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ
 github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
 github.com/PuerkitoBio/goquery v1.10.3 h1:pFYcNSqHxBD06Fpj/KsbStFRsgRATgnf3LeXiUkhzPo=
 github.com/PuerkitoBio/goquery v1.10.3/go.mod h1:tMUX0zDMHXYlAQk6p35XxQMqMweEKB7iK7iLNd4RH4Y=
-github.com/TrebuchetDynamics/goncho v0.1.0 h1:tFYdhBLazvuyr0kei1UtkoGqDMpxcp2b13DDH21irNM=
-github.com/TrebuchetDynamics/goncho v0.1.0/go.mod h1:EbJ5IR5zy8qexidIDROXOvr7EFx++WSO8TxX+BY+IB8=
+github.com/TrebuchetDynamics/goncho v0.2.0 h1:U1J1rnng0vhxFmRh5Z03qKAiaEmzOjS9qIXZeQcACfk=
+github.com/TrebuchetDynamics/goncho v0.2.0/go.mod h1:EbJ5IR5zy8qexidIDROXOvr7EFx++WSO8TxX+BY+IB8=
 github.com/TrebuchetDynamics/goscrapling v0.1.0 h1:7XFets9FRqiKAwEdQ/FFPi7V8XeypHK/o5DVesh7JGI=
 github.com/TrebuchetDynamics/goscrapling v0.1.0/go.mod h1:OP0ROWM/ALMcgVjkZa4pzlLY2AmB1iEvmccm/BjbQNs=
 github.com/a-h/templ v0.3.1001 h1:yHDTgexACdJttyiyamcTHXr2QkIeVF1MukLy44EAhMY=
