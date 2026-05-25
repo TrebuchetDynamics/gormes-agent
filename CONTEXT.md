@@ -61,8 +61,8 @@ The authoritative server advertisement that determines which Navivox client affo
 _Avoid_: endpoint probing, optimistic UI enablement, dashboard API discovery
 
 **Closed Capability Mode**:
-The safe Navivox state when a server is reachable but its Navivox Capability Gate is unavailable. Basic connection diagnostics may remain visible, but feature affordances that require advertised capabilities remain disabled.
-_Avoid_: fail-open mode, status-derived feature enablement
+The safe Navivox state when a server is reachable but its Navivox Capability Gate is unavailable. Basic connection diagnostics may remain visible, but clients must not call feature endpoints or enable affordances that require advertised capabilities.
+_Avoid_: fail-open mode, status-derived feature enablement, endpoint probing after gate failure
 
 **Navivox Status Summary**:
 A lightweight, non-authoritative server readout that may include rough capability names and current protocol names for humans or diagnostics. It is not a Navivox Capability Gate and must not enable client feature affordances by itself.
