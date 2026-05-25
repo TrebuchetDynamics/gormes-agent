@@ -47,6 +47,7 @@ type FileTaskToolConfig struct {
 	WorkspaceScope *ProfileWorkspaceScope
 	ReadGuard      *FileReadGuard
 	StateRegistry  *FileStateRegistry
+	MutationQueue  *FileMutationQueue
 	TaskID         string
 	CWDResolver    func() string
 	MaxReadChars   int
@@ -574,11 +575,24 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
+	var out json.RawMessage
+	queueErr := fileTaskMutationQueue(t.cfg).Run(ctx, resolved, func(ctx context.Context) error {
+		var err error
+		out, err = t.executeResolvedWrite(ctx, resolved, rel, root, cwd, in.Content)
+		return err
+	})
+	if queueErr != nil {
+		return marshalToolPayload(map[string]any{"path": rel, "error": "file mutation queue: " + queueErr.Error()})
+	}
+	return out, nil
+}
+
+func (t *WriteFileTool) executeResolvedWrite(ctx context.Context, resolved, rel, root, cwd, content string) (json.RawMessage, error) {
 	registry := fileTaskStateRegistry(t.cfg)
 	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
-	if isFileReadGuardStatusText([]byte(in.Content)) {
+	if isFileReadGuardStatusText([]byte(content)) {
 		return marshalToolPayload(map[string]any{"path": rel, "error": ErrFileReadGuardStatusContent.Error()})
 	}
 	var preContent *string
@@ -591,19 +605,19 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err := os.MkdirAll(filepath.Dir(resolved), 0o755); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "create parent directories: " + err.Error()})
 	}
-	if err := AtomicWrite(resolved, []byte(in.Content)); err != nil {
+	if err := AtomicWrite(resolved, []byte(content)); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write file: " + err.Error()})
 	}
 	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
 	payload := map[string]any{
 		"path":          rel,
-		"bytes_written": len([]byte(in.Content)),
+		"bytes_written": len([]byte(content)),
 		"status":        "ok",
 	}
-	if lint, ok := postEditLintDelta(resolved, rel, in.Content, preContent); ok {
+	if lint, ok := postEditLintDelta(resolved, rel, content, preContent); ok {
 		payload["lint"] = lint
 	}
-	if lspResult, ok := postEditLSPDiagnostics(ctx, t.cfg.LSPDiagnostics, resolved, rel, in.Content, preContent); ok {
+	if lspResult, ok := postEditLSPDiagnostics(ctx, t.cfg.LSPDiagnostics, resolved, rel, content, preContent); ok {
 		payload["lsp"] = lspResult
 	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
@@ -650,7 +664,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		mode = "replace"
 	}
 	if mode == "patch" {
-		return t.executeV4APatch(in.Patch)
+		return t.executeV4APatch(ctx, in.Patch)
 	}
 	if mode != "replace" {
 		return marshalToolPayload(map[string]any{"error": "patch currently supports replace mode only"})
@@ -665,6 +679,19 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
+	var out json.RawMessage
+	queueErr := fileTaskMutationQueue(t.cfg).Run(ctx, resolved, func(ctx context.Context) error {
+		var err error
+		out, err = t.executeResolvedReplace(ctx, resolved, rel, root, cwd, in.OldString, in.NewString, in.ReplaceAll)
+		return err
+	})
+	if queueErr != nil {
+		return marshalToolPayload(map[string]any{"path": rel, "error": "file mutation queue: " + queueErr.Error()})
+	}
+	return out, nil
+}
+
+func (t *PatchTool) executeResolvedReplace(ctx context.Context, resolved, rel, root, cwd, oldString, newString string, replaceAll bool) (json.RawMessage, error) {
 	registry := fileTaskStateRegistry(t.cfg)
 	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 		return marshalToolPayload(fileStateErrorPayload(rel, check))
@@ -677,12 +704,12 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		return marshalToolPayload(map[string]any{"path": rel, "error": "patch cannot edit binary files"})
 	}
 	content := string(raw)
-	updated, replacements, replaceErr := fuzzyPatchReplace(content, in.OldString, in.NewString, in.ReplaceAll)
+	updated, replacements, replaceErr := fuzzyPatchReplace(content, oldString, newString, replaceAll)
 	if replaceErr != nil {
 		payload := map[string]any{"path": rel, "error": replaceErr.Error()}
 		if errors.Is(replaceErr, errPatchNoMatch) {
 			payload["error"] = "old_string not found"
-			if hint := patchNoMatchHint(in.OldString, content); hint != "" {
+			if hint := patchNoMatchHint(oldString, content); hint != "" {
 				payload["hint"] = hint
 			}
 		}
@@ -1212,7 +1239,7 @@ func boundPatchHint(hint string) string {
 	return hint[:maxPatchHintChars] + "\n[hint truncated]"
 }
 
-func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
+func (t *PatchTool) executeV4APatch(ctx context.Context, patchText string) (json.RawMessage, error) {
 	ops, err := parseV4APatch(patchText)
 	if err != nil {
 		return marshalPatchValidationError(err.Error())
@@ -1220,6 +1247,23 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 	if len(ops) == 0 {
 		return marshalPatchValidationError("patch contains no operations")
 	}
+	lockPaths, err := t.v4aMutationLockPaths(ops)
+	if err != nil {
+		return marshalPatchValidationError(err.Error())
+	}
+	var out json.RawMessage
+	queueErr := fileTaskMutationQueue(t.cfg).RunMany(ctx, lockPaths, func(context.Context) error {
+		var err error
+		out, err = t.executeV4APatchLocked(ops)
+		return err
+	})
+	if queueErr != nil {
+		return marshalPatchApplyError("", "file mutation queue: "+queueErr.Error(), nil, nil, nil)
+	}
+	return out, nil
+}
+
+func (t *PatchTool) executeV4APatchLocked(ops []v4aPatchOperation) (json.RawMessage, error) {
 	actions := make([]v4aPatchAction, 0, len(ops))
 	for _, op := range ops {
 		action, check, err := t.validateV4AOperation(op)
@@ -1300,6 +1344,28 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 		payload["lint"] = lintResults
 	}
 	return marshalToolPayload(payload)
+}
+
+func (t *PatchTool) v4aMutationLockPaths(ops []v4aPatchOperation) ([]string, error) {
+	paths := make([]string, 0, len(ops)*2)
+	for _, op := range ops {
+		resolved, _, _, _, err := resolveFileTaskWritePath(t.cfg, op.path)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, resolved)
+		if op.kind == v4aOperationMove {
+			if strings.TrimSpace(op.newPath) == "" {
+				continue
+			}
+			newResolved, _, _, _, err := resolveFileTaskWritePath(t.cfg, op.newPath)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, newResolved)
+		}
+	}
+	return paths, nil
 }
 
 func v4aPatchSnapshotRoot(actions []v4aPatchAction) (string, error) {
