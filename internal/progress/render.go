@@ -559,28 +559,24 @@ func allItemRows(p *Progress) []contractRow {
 
 func nextSliceRows(rows []contractRow, limit int) []contractRow {
 	byKey := map[string]contractRow{}
-	inputs := make([]workitem.RowInput, 0, len(rows))
 	for _, row := range rows {
-		key := contractRowKey(row.PhaseKey, row.SubphaseKey, row.Item.Name)
-		byKey[key] = row
-		inputs = append(inputs, workitemInputFromContractRow(row))
+		byKey[contractRowKey(row.PhaseKey, row.SubphaseKey, row.Item.Name)] = row
 	}
 
-	assignable := workitem.Assignable(inputs, workitem.Options{ActiveFirst: true})
-	out := make([]contractRow, 0, min(limit, len(assignable)))
-	for _, row := range assignable {
-		if len(out) == limit {
-			break
+	handoffs := projectActiveHandoffsFromRows(rows, limit)
+	out := make([]contractRow, 0, len(handoffs))
+	for _, handoff := range handoffs {
+		original, ok := byKey[contractRowKey(handoff.Identity.PhaseID, handoff.Identity.SubphaseID, handoff.Identity.ItemName)]
+		if !ok {
+			continue
 		}
-		if original, ok := byKey[contractRowKey(row.PhaseID, row.SubphaseID, row.ItemName)]; ok {
-			if len(row.BlockedBy) > 0 && len(row.BlockedByPending) == 0 {
-				// In this generated assignable-work view, completed dependencies are
-				// no longer blockers. Keep the canonical row untouched; only avoid
-				// rendering misleading "Blocked by ..." why-now text.
-				original.Item.BlockedBy = nil
-			}
-			out = append(out, original)
+		if len(original.Item.BlockedBy) > 0 {
+			// In this generated assignable-work view, completed dependencies are
+			// no longer blockers. Keep the canonical row untouched; only avoid
+			// rendering misleading "Blocked by ..." why-now text.
+			original.Item.BlockedBy = nil
 		}
+		out = append(out, original)
 	}
 	return out
 }
