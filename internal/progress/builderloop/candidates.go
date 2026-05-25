@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/workitem"
 )
 
 type CandidateOptions struct {
@@ -151,129 +151,129 @@ func NormalizeCandidates(path string, opts CandidateOptions) ([]Candidate, error
 		return nil, err
 	}
 
-	completed := completedItemSet(progressDoc)
-	var candidates []Candidate
-	seen := make(map[string]struct{})
+	sources := candidateSources(progressDoc)
+	inputs := make([]workitem.RowInput, 0, len(sources))
+	byKey := make(map[string]candidateSource, len(sources))
+	for _, source := range sources {
+		inputs = append(inputs, source.Input)
+		byKey[workitemKey(source.Input.PhaseID, source.Input.SubphaseID, source.Input.ItemName)] = source
+	}
+
+	assignable := workitem.Assignable(inputs, workitem.Options{
+		ActiveFirst:        opts.ActiveFirst,
+		PriorityBoost:      opts.PriorityBoost,
+		MaxPhase:           opts.MaxPhase,
+		IncludeBlocked:     opts.IncludeBlocked,
+		IncludeUmbrella:    opts.IncludeUmbrella,
+		IncludePaused:      opts.IncludePaused,
+		IncludeQuarantined: opts.IncludeQuarantined,
+		IncludeNeedsHuman:  opts.IncludeNeedsHuman,
+	})
+
+	candidates := make([]Candidate, 0, len(assignable))
+	for _, row := range assignable {
+		source, ok := byKey[workitemKey(row.PhaseID, row.SubphaseID, row.ItemName)]
+		if !ok {
+			continue
+		}
+		candidates = append(candidates, candidateFromWorkitem(row, source.Item))
+	}
+	return candidates, nil
+}
+
+type candidateSource struct {
+	Input workitem.RowInput
+	Item  progressItem
+}
+
+func candidateSources(progressDoc progressJSON) []candidateSource {
+	var sources []candidateSource
 	for _, phase := range progressDoc.Phases {
-		if phaseAboveMax(phase.ID, opts.MaxPhase) {
-			continue
-		}
-		if phasePaused(phase.ID) && !opts.IncludePaused {
-			continue
-		}
 		for _, subphase := range phase.allSubphases() {
 			for _, item := range subphase.Items {
 				name := firstNonEmpty(item.ItemName, item.Name, item.Title, item.ID)
 				if name == "" {
 					continue
 				}
-
-				status := lowerTrim(item.Status)
-				if status == "" {
-					status = "unknown"
-				}
-				if status == "complete" {
-					continue
-				}
-
-				blockedBy := trimStringSlice(item.BlockedBy)
-				sliceSize := lowerTrim(item.SliceSize)
-				if len(blockedBy) > 0 && !opts.IncludeBlocked && !blockersComplete(blockedBy, completed) {
-					continue
-				}
-				if item.Blocker != nil && !opts.IncludeBlocked {
-					continue
-				}
-				if !opts.IncludeUmbrella && sliceSize == "umbrella" {
-					continue
-				}
-
-				candidate := Candidate{
-					PhaseID:        strings.TrimSpace(phase.ID),
-					SubphaseID:     strings.TrimSpace(subphase.ID),
+				input := workitem.RowInput{
+					PhaseID:        phase.ID,
+					SubphaseID:     subphase.ID,
 					ItemName:       name,
-					Status:         status,
-					Priority:       strings.TrimSpace(firstNonEmpty(item.Priority, subphase.Priority)),
-					Contract:       strings.TrimSpace(item.Contract),
-					ContractStatus: lowerTrim(item.ContractStatus),
-					SliceSize:      sliceSize,
-					ExecutionOwner: lowerTrim(item.ExecutionOwner),
-					TrustClass:     trimStringSlice(item.TrustClass),
-					DegradedMode:   strings.TrimSpace(item.DegradedMode),
-					Fixture:        strings.TrimSpace(item.Fixture),
-					SourceRefs:     trimStringSlice(item.SourceRefs),
-					BlockedBy:      blockedBy,
-					Unblocks:       trimStringSlice(item.Unblocks),
-					ReadyWhen:      trimStringSlice(item.ReadyWhen),
-					NotReadyWhen:   trimStringSlice(item.NotReadyWhen),
-					Acceptance:     trimStringSlice(item.Acceptance),
-					WriteScope:     trimStringSlice(item.WriteScope),
-					TestCommands:   trimStringSlice(item.TestCommands),
-					NoTestRequired: strings.TrimSpace(item.NoTestRequired),
-					DoneSignal:     trimStringSlice(item.DoneSignal),
-					Note:           strings.TrimSpace(item.Note),
-					Blocker:        cloneBlockerMetadata(item.Blocker),
+					Status:         item.Status,
+					Priority:       firstNonEmpty(item.Priority, subphase.Priority),
+					Contract:       item.Contract,
+					ContractStatus: item.ContractStatus,
+					SliceSize:      item.SliceSize,
+					ExecutionOwner: item.ExecutionOwner,
+					TrustClass:     item.TrustClass,
+					DegradedMode:   item.DegradedMode,
+					Fixture:        item.Fixture,
+					SourceRefs:     item.SourceRefs,
+					BlockedBy:      item.BlockedBy,
+					Unblocks:       item.Unblocks,
+					ReadyWhen:      item.ReadyWhen,
+					NotReadyWhen:   item.NotReadyWhen,
+					Acceptance:     item.Acceptance,
+					WriteScope:     item.WriteScope,
+					TestCommands:   item.TestCommands,
+					NoTestRequired: item.NoTestRequired,
+					DoneSignal:     item.DoneSignal,
+					Note:           item.Note,
+					HasBlocker:     item.Blocker != nil,
 				}
-				if !agentQueueCandidate(candidate) {
-					continue
-				}
-
-				// Honor row health (Task 5):
-				//   - Active quarantine (spec hash matches current spec) is
-				//     filtered out unless IncludeQuarantined is set.
-				//   - Stale quarantine (spec hash mismatch) surfaces the row
-				//     with StaleQuarantine=true so the run loop can clear the
-				//     block atomically with this run's health updates.
-				//   - Consecutive-failure / backends-tried penalty is recorded
-				//     on the candidate so the sort below can demote it.
-				candidate.Health = item.Health
-				if item.Health != nil && item.Health.Quarantine != nil {
-					currentHash := progress.ItemSpecHash(itemPtr(item))
-					if currentHash != item.Health.Quarantine.SpecHash {
-						candidate.StaleQuarantine = true
-					} else if !opts.IncludeQuarantined {
-						continue
-					}
-				}
-				// L5 PlannerVerdict skip: rows the planner has escalated to
-				// "needs human" are removed from selection by default. Mirror
-				// of the quarantine-skip pattern above. IncludeNeedsHuman
-				// surfaces the row (flagged) for status / debug paths.
 				if item.PlannerVerdict != nil && item.PlannerVerdict.NeedsHuman {
-					if !opts.IncludeNeedsHuman {
-						continue
-					}
-					candidate.NeedsHumanFlag = true
+					input.NeedsHuman = true
 				}
 				if item.Health != nil {
-					pen := failurePenalty(item.Health.ConsecutiveFailures)
-					pen += 2 * len(item.Health.BackendsTried)
-					candidate.PenaltyApplied = pen
+					input.PenaltyApplied = failurePenalty(item.Health.ConsecutiveFailures) + 2*len(item.Health.BackendsTried)
+					if item.Health.Quarantine != nil {
+						input.Quarantined = true
+						currentHash := progress.ItemSpecHash(itemPtr(item))
+						input.StaleQuarantine = currentHash != item.Health.Quarantine.SpecHash
+					}
 				}
-
-				seenKey := candidateSortKey(candidate)
-				if _, ok := seen[seenKey]; ok {
-					continue
-				}
-				seen[seenKey] = struct{}{}
-
-				candidates = append(candidates, candidate)
+				sources = append(sources, candidateSource{Input: input, Item: item})
 			}
 		}
 	}
+	return sources
+}
 
-	boosts := priorityBoostSet(opts.PriorityBoost)
-	sort.Slice(candidates, func(i, j int) bool {
-		left := candidateRank(candidates[i], opts.ActiveFirst, boosts) + candidates[i].PenaltyApplied
-		right := candidateRank(candidates[j], opts.ActiveFirst, boosts) + candidates[j].PenaltyApplied
-		if left != right {
-			return left < right
-		}
+func candidateFromWorkitem(row workitem.Row, item progressItem) Candidate {
+	return Candidate{
+		PhaseID:         row.PhaseID,
+		SubphaseID:      row.SubphaseID,
+		ItemName:        row.ItemName,
+		Status:          row.Status,
+		Priority:        row.Priority,
+		Contract:        row.Contract,
+		ContractStatus:  row.ContractStatus,
+		SliceSize:       row.SliceSize,
+		ExecutionOwner:  row.ExecutionOwner,
+		TrustClass:      append([]string(nil), row.TrustClass...),
+		DegradedMode:    row.DegradedMode,
+		Fixture:         row.Fixture,
+		SourceRefs:      append([]string(nil), row.SourceRefs...),
+		BlockedBy:       append([]string(nil), row.BlockedBy...),
+		Unblocks:        append([]string(nil), row.Unblocks...),
+		ReadyWhen:       append([]string(nil), row.ReadyWhen...),
+		NotReadyWhen:    append([]string(nil), row.NotReadyWhen...),
+		Acceptance:      append([]string(nil), row.Acceptance...),
+		WriteScope:      append([]string(nil), row.WriteScope...),
+		TestCommands:    append([]string(nil), row.TestCommands...),
+		NoTestRequired:  row.NoTestRequired,
+		DoneSignal:      append([]string(nil), row.DoneSignal...),
+		Note:            row.Note,
+		Blocker:         cloneBlockerMetadata(item.Blocker),
+		Health:          item.Health,
+		StaleQuarantine: row.StaleQuarantine,
+		PenaltyApplied:  row.PenaltyApplied,
+		NeedsHumanFlag:  row.NeedsHumanVisible,
+	}
+}
 
-		return candidateSortKey(candidates[i]) < candidateSortKey(candidates[j])
-	})
-
-	return candidates, nil
+func workitemKey(phaseID, subphaseID, itemName string) string {
+	return strings.TrimSpace(phaseID) + "\x00" + strings.TrimSpace(subphaseID) + "\x00" + strings.TrimSpace(itemName)
 }
 
 func readProgressCandidateBytes(path string) ([]byte, error) {
@@ -477,34 +477,6 @@ func cloneBlockerMetadata(blocker *progress.BlockerMetadata) *progress.BlockerMe
 	return &clone
 }
 
-func priorityBoostSet(boosts []string) map[string]struct{} {
-	set := make(map[string]struct{}, len(boosts))
-	for _, boost := range boosts {
-		key := strings.ToLower(strings.TrimSpace(boost))
-		if key != "" {
-			set[key] = struct{}{}
-		}
-	}
-
-	return set
-}
-
-func lowerTrim(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
-func trimStringSlice(values []string) []string {
-	var trimmed []string
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value != "" {
-			trimmed = append(trimmed, value)
-		}
-	}
-
-	return trimmed
-}
-
 const (
 	candidateBucketP0 = iota
 	candidateBucketInProgress
@@ -514,19 +486,6 @@ const (
 	candidateBucketPlanned
 	candidateBucketOther
 )
-
-func candidateRank(candidate Candidate, activeFirst bool, boosts map[string]struct{}) int {
-	rank := 0
-	if _, ok := boosts[strings.ToLower(strings.TrimSpace(candidate.SubphaseID))]; !ok {
-		rank += 1000
-	}
-	if activeFirst {
-		rank += candidateBucket(candidate) * 10
-	}
-	rank += candidatePriorityTie(candidate.Priority)
-
-	return rank
-}
 
 func candidateBucket(candidate Candidate) int {
 	switch {
@@ -545,63 +504,6 @@ func candidateBucket(candidate Candidate) int {
 	default:
 		return candidateBucketOther
 	}
-}
-
-func agentQueueCandidate(candidate Candidate) bool {
-	return strings.TrimSpace(candidate.Contract) != "" &&
-		candidateBucket(candidate) <= candidateBucketDraft &&
-		candidateHasTestProof(candidate)
-}
-
-func candidateHasTestProof(candidate Candidate) bool {
-	return len(candidate.TestCommands) > 0 || strings.TrimSpace(candidate.NoTestRequired) != ""
-}
-
-func candidateSortKey(candidate Candidate) string {
-	return candidate.PhaseID + "/" + candidate.SubphaseID + "/" + candidate.ItemName
-}
-
-func candidatePriorityTie(priority string) int {
-	normalized := strings.ToUpper(strings.TrimSpace(priority))
-	if len(normalized) < 2 || normalized[0] != 'P' {
-		return 9
-	}
-	value, err := strconv.Atoi(normalized[1:])
-	if err != nil || value < 0 || value > 9 {
-		return 9
-	}
-	return value
-}
-
-func completedItemSet(progress progressJSON) map[string]struct{} {
-	completed := make(map[string]struct{})
-	for _, phase := range progress.Phases {
-		for _, subphase := range phase.allSubphases() {
-			for _, item := range subphase.Items {
-				if !strings.EqualFold(strings.TrimSpace(item.Status), "complete") {
-					continue
-				}
-				name := firstNonEmpty(item.ItemName, item.Name, item.Title, item.ID)
-				for _, key := range blockerKeys(phase.ID, subphase.ID, name) {
-					completed[key] = struct{}{}
-				}
-			}
-		}
-	}
-	return completed
-}
-
-func blockersComplete(blockers []string, completed map[string]struct{}) bool {
-	for _, blocker := range blockers {
-		key := strings.ToLower(strings.TrimSpace(blocker))
-		if key == "" {
-			continue
-		}
-		if _, ok := completed[key]; !ok {
-			return false
-		}
-	}
-	return true
 }
 
 func blockerKeys(phaseID, subphaseID, itemName string) []string {

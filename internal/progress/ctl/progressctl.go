@@ -18,6 +18,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/builderloop"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/workspace"
 )
 
 type validateReport struct {
@@ -417,15 +418,8 @@ func Compact(stdout io.Writer, root string) error {
 		_, err = fmt.Fprintln(stdout, "progress: notes already compact (no changes)")
 		return err
 	}
-	// Compact reads layout-agnostically (C2) but its write-back targets the
-	// monolithic file. Collapsing an active split layout into the monolith is
-	// the split-aware write path owned by C3; refuse rather than silently
-	// diverging the two layouts.
-	if canonicalSource(root) != progressPaths(root).progressJSON {
-		return fmt.Errorf("progress: compact on a split layout is deferred to backlog-split C3 (split-aware write path); not collapsing the split into the monolith")
-	}
-	path := progressPaths(root).progressJSON
-	if err := progress.SaveProgress(path, p); err != nil {
+	ws := workspace.New(root)
+	if err := ws.Save(p); err != nil {
 		return err
 	}
 	if err := progress.Validate(p); err != nil {
@@ -469,20 +463,7 @@ func Split(stdout io.Writer, root, destDir string) error {
 // split directory. Bytes are produced by the shipped stable encoder
 // (progress.SaveProgress) so emit stays faithful to the on-disk monolith.
 func Emit(stdout io.Writer, root string) error {
-	p, err := loadValidProgress(root)
-	if err != nil {
-		return err
-	}
-	tmpDir, err := os.MkdirTemp("", "progress-emit-")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir)
-	tmp := filepath.Join(tmpDir, "progress.json")
-	if err := progress.SaveProgress(tmp, p); err != nil {
-		return err
-	}
-	raw, err := os.ReadFile(tmp)
+	raw, err := workspace.New(root).EmitBytes()
 	if err != nil {
 		return err
 	}
@@ -499,7 +480,6 @@ type marker struct {
 
 type pathSet struct {
 	progressJSON       string
-	progressSplitDir   string
 	readme             string
 	docsIndex          string
 	contractReadiness  string
@@ -515,60 +495,33 @@ type pathSet struct {
 }
 
 func progressPaths(root string) pathSet {
-	buildingGormes := filepath.Join(root, "webpages", "docs", "content", "building-gormes")
-	builderLoopDir := filepath.Join(buildingGormes, "builder-loop")
+	paths := workspace.New(root).Paths
 	return pathSet{
-		progressJSON:       filepath.Join(buildingGormes, "architecture_plan", "progress.json"),
-		progressSplitDir:   filepath.Join(buildingGormes, "architecture_plan", "progress.split"),
-		readme:             filepath.Join(root, "README.md"),
-		docsIndex:          filepath.Join(buildingGormes, "architecture_plan", "_index.md"),
-		contractReadiness:  filepath.Join(buildingGormes, "contract-readiness.md"),
-		builderLoopHandoff: filepath.Join(builderLoopDir, "builder-loop-handoff.md"),
-		agentQueue:         filepath.Join(builderLoopDir, "agent-queue.md"),
-		nextSlices:         filepath.Join(builderLoopDir, "next-slices.md"),
-		blockedSlices:      filepath.Join(builderLoopDir, "blocked-slices.md"),
-		umbrellaCleanup:    filepath.Join(builderLoopDir, "umbrella-cleanup.md"),
-		progressSchema:     filepath.Join(builderLoopDir, "progress-schema.md"),
-		moduleRoadmapsDir:  filepath.Join(buildingGormes, "modules"),
-		// Verbatim site mirrors: now empty. The dead
-		// webpages/landing/src/data/progress.json mirror had no consumer
-		// (nothing in the Astro site imports it) and is no longer
-		// generated or tracked. Backlog-efficiency #1, 2026-05-16.
-		siteProgress: nil,
-		// The legacy go-renderer go:embed mirror MUST exist at build time
-		// (//go:embed data/progress.json). It is regenerated SLIM
-		// (phase/subphase names + statuses only — everything the renderer
-		// reads, none of the per-item prose) so it stays a valid embed
-		// without duplicating the 5.2 MB archive on every progress edit.
-		siteProgressSlim: filepath.Join(root, "webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
+		progressJSON:       paths.ProgressJSON,
+		readme:             paths.Readme,
+		docsIndex:          paths.DocsIndex,
+		contractReadiness:  paths.ContractReadiness,
+		builderLoopHandoff: paths.BuilderLoopHandoff,
+		agentQueue:         paths.AgentQueue,
+		nextSlices:         paths.NextSlices,
+		blockedSlices:      paths.BlockedSlices,
+		umbrellaCleanup:    paths.UmbrellaCleanup,
+		progressSchema:     paths.ProgressSchema,
+		moduleRoadmapsDir:  paths.ModuleRoadmapsDir,
+		siteProgress:       paths.SiteProgress,
+		siteProgressSlim:   paths.SiteProgressSlim,
 	}
 }
 
-// canonicalSource resolves which on-disk layout backs the canonical backlog:
-// the split directory when it is present (opt-in, auto-detected), otherwise
-// the monolithic progress.json. Because the split directory does not exist by
-// default, the monolithic path — and therefore every generator's behavior —
-// is byte-for-byte unchanged until an operator materializes the split layout.
-// internal/progress.Load already accepts either a file or a directory (C1),
-// so callers stay layout-agnostic and a malformed split surfaces
-// progress.ErrMalformedSplit instead of a half-generated doc set.
+// canonicalSource returns the single logical backlog path. The path may be a
+// monolithic file or a split directory; the historical progress.split staging
+// directory is no longer part of canonical resolution.
 func canonicalSource(root string) string {
-	paths := progressPaths(root)
-	if fi, err := os.Stat(paths.progressSplitDir); err == nil && fi.IsDir() {
-		return paths.progressSplitDir
-	}
-	return paths.progressJSON
+	return workspace.New(root).CanonicalSource()
 }
 
 func loadValidProgress(root string) (*progress.Progress, error) {
-	p, err := progress.Load(canonicalSource(root))
-	if err != nil {
-		return nil, err
-	}
-	if err := progress.Validate(p); err != nil {
-		return nil, err
-	}
-	return p, nil
+	return workspace.New(root).LoadValid()
 }
 
 func rewriteMarker(path, kind, body string) error {

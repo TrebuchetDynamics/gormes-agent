@@ -337,7 +337,7 @@ func seedMonolith(t *testing.T, root string, p *progress.Progress) {
 
 func seedSplitOnly(t *testing.T, root string, p *progress.Progress) {
 	t.Helper()
-	splitDir := progressPaths(root).progressSplitDir
+	splitDir := progressPaths(root).progressJSON
 	if err := os.MkdirAll(filepath.Dir(splitDir), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -357,7 +357,7 @@ func validateJSON(t *testing.T, root string) []byte {
 
 func seedSplitModule(t *testing.T, root string, p *progress.Progress) {
 	t.Helper()
-	splitDir := progressPaths(root).progressSplitDir
+	splitDir := progressPaths(root).progressJSON
 	if err := os.MkdirAll(filepath.Dir(splitDir), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -574,6 +574,55 @@ func TestNextWorkBuildDecisionUsesBuilderLoopCandidateSelectionAndIsSplitSafe(t 
 	}
 }
 
+func TestNextWorkAndGeneratedNextSlicesAgreeOnCompletedBlocker(t *testing.T) {
+	p := &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"1": {Name: "P1", Deliverable: "d1", Subphases: map[string]progress.Subphase{
+				"1.A": {Name: "A", Items: []progress.Item{
+					{Name: "Foundation", Status: progress.StatusComplete, Module: progress.ModuleProgress},
+					{
+						Name:           "Dependent",
+						Status:         progress.StatusPlanned,
+						Contract:       "dependent contract",
+						ContractStatus: progress.ContractStatusFixtureReady,
+						SliceSize:      progress.SliceSizeSmall,
+						ExecutionOwner: progress.ExecutionOwnerTools,
+						TrustClass:     []string{"system"},
+						Fixture:        "internal/progress/ctl/progressctl_test.go",
+						BlockedBy:      []string{"Foundation"},
+						ReadyWhen:      []string{"Foundation is complete"},
+						Acceptance:     []string{"Dependent is selected"},
+						WriteScope:     []string{"internal/progress/ctl/"},
+						TestCommands:   []string{"go test ./dependent"},
+						DoneSignal:     []string{"dependent selected"},
+						Module:         progress.ModuleProgress,
+					},
+				}},
+			}},
+		},
+	}
+	root := t.TempDir()
+	seedMonolith(t, root, p)
+	seedWriteMarkerFiles(t, root)
+
+	var nextOut bytes.Buffer
+	if err := NextWork(&nextOut, root); err != nil {
+		t.Fatalf("NextWork: %v", err)
+	}
+	if !strings.Contains(nextOut.String(), "name=Dependent\n") {
+		t.Fatalf("next-work should select completed-blocker dependent row:\n%s", nextOut.String())
+	}
+
+	if err := Write(io.Discard, root); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	nextSlices := mustReadFile(t, progressPaths(root).nextSlices)
+	if !strings.Contains(nextSlices, "Dependent") || !strings.Contains(nextSlices, "dependent contract") {
+		t.Fatalf("generated next-slices should include the same dependent row:\n%s", nextSlices)
+	}
+}
+
 func TestNextWorkRepoOnlyFiltersCrossRootWriteScope(t *testing.T) {
 	p := &progress.Progress{
 		Meta: progress.Meta{Version: "2.0"},
@@ -785,23 +834,27 @@ func TestProgressctlResolvesSplitLayoutForGenerators(t *testing.T) {
 	}
 }
 
-// (2) The monolith remains the default; the split layout is opt-in
-// auto-detected only when its directory is present.
-func TestProgressctlMonolithRemainsDefault(t *testing.T) {
+// (2) The canonical path remains architecture_plan/progress.json. That path
+// may be a monolithic file or a split directory; the old progress.split staging
+// directory is ignored so it cannot become a second backlog.
+func TestProgressctlCanonicalSourceRetiresProgressSplit(t *testing.T) {
 	p := c2Fixture()
 	root := t.TempDir()
 	seedMonolith(t, root, p)
 
-	if got := canonicalSource(root); got != progressPaths(root).progressJSON {
-		t.Fatalf("with no split dir, canonicalSource must be the monolith file, got %q", got)
+	paths := progressPaths(root)
+	if got := canonicalSource(root); got != paths.progressJSON {
+		t.Fatalf("canonicalSource must be progress.json path, got %q want %q", got, paths.progressJSON)
 	}
-	// Introduce a split layout → it now wins (opt-in auto-detect).
-	seedSplitOnly(t, root, p)
-	if got := canonicalSource(root); got != progressPaths(root).progressSplitDir {
-		t.Fatalf("with a split dir present, canonicalSource must be the split dir, got %q", got)
+	staleSplit := filepath.Join(filepath.Dir(paths.progressJSON), "progress.split")
+	if err := progress.WriteSplit(staleSplit, p); err != nil {
+		t.Fatalf("seed stale progress.split: %v", err)
+	}
+	if got := canonicalSource(root); got != paths.progressJSON {
+		t.Fatalf("stale progress.split must not win canonical resolution, got %q want %q", got, paths.progressJSON)
 	}
 	if _, err := loadValidProgress(root); err != nil {
-		t.Fatalf("loadValidProgress with split present must still succeed: %v", err)
+		t.Fatalf("loadValidProgress with ignored stale progress.split must still use progress.json: %v", err)
 	}
 }
 
@@ -812,7 +865,7 @@ func TestProgressctlMalformedSplitSurfacesTypedError(t *testing.T) {
 
 	badRoot := t.TempDir()
 	seedSplitOnly(t, badRoot, p)
-	if err := os.Remove(filepath.Join(progressPaths(badRoot).progressSplitDir, "index.json")); err != nil {
+	if err := os.Remove(filepath.Join(progressPaths(badRoot).progressJSON, "index.json")); err != nil {
 		t.Fatalf("corrupt split: %v", err)
 	}
 	var buf bytes.Buffer

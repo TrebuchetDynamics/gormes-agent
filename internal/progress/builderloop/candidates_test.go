@@ -198,6 +198,32 @@ func TestNormalizeCandidatesUsesAgentQueueEligibility(t *testing.T) {
 	}
 }
 
+func TestNormalizeCandidatesIncludesRowsWhoseBlockersAreComplete(t *testing.T) {
+	path := writeProgressJSON(t, `{
+		"phases": {
+			"1": {
+				"subphases": {
+					"1.A": {
+						"items": [
+							{"name": "Foundation", "status": "complete"},
+							{"name": "Dependent", "status": "planned", "contract": "dependent handoff", "contract_status": "fixture_ready", "slice_size": "small", "blocked_by": ["Foundation"], "test_commands": ["go test ./dependent"]},
+							{"name": "Still blocked", "status": "planned", "contract": "blocked handoff", "contract_status": "fixture_ready", "slice_size": "small", "blocked_by": ["missing"], "test_commands": ["go test ./blocked"]}
+						]
+					}
+				}
+			}
+		}
+	}`)
+
+	got, err := NormalizeCandidates(path, CandidateOptions{ActiveFirst: true})
+	if err != nil {
+		t.Fatalf("NormalizeCandidates() error = %v", err)
+	}
+	if gotNames := candidateNames(got); !reflect.DeepEqual(gotNames, []string{"Dependent"}) {
+		t.Fatalf("candidate names = %#v, want Dependent", gotNames)
+	}
+}
+
 func TestNormalizeCandidatesRequiresTestCommandsOrNoTestReason(t *testing.T) {
 	path := writeProgressJSON(t, `{
 		"phases": {

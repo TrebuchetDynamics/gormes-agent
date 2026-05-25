@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/workspace"
 )
 
 func TestInstallersRequireCurrentGoToolchain(t *testing.T) {
@@ -89,17 +89,10 @@ func readFileFromRoot(t *testing.T, root, rel string) string {
 
 func readLogicalProgressFromRoot(t *testing.T, path string) string {
 	t.Helper()
-	p, err := progress.Load(path)
+	ws := workspace.New(filepath.Clean(filepath.Join(path, "..", "..", "..", "..", "..", "..")))
+	raw, err := ws.EmitBytes()
 	if err != nil {
-		t.Fatalf("progress.Load(%s): %v", path, err)
-	}
-	tmp := filepath.Join(t.TempDir(), "progress.json")
-	if err := progress.SaveProgress(tmp, p); err != nil {
-		t.Fatalf("progress.SaveProgress(%s): %v", path, err)
-	}
-	raw, err := os.ReadFile(tmp)
-	if err != nil {
-		t.Fatalf("read emitted progress text: %v", err)
+		t.Fatalf("workspace.EmitBytes(%s): %v", path, err)
 	}
 	return string(raw)
 }

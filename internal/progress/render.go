@@ -3,6 +3,8 @@ package progress
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/workitem"
 )
 
 // statusIcon maps derived status to the glyph shown in markdown tables.
@@ -116,7 +118,7 @@ func RenderNextSlices(p *Progress, limit int) string {
 	if limit <= 0 {
 		limit = 10
 	}
-	rows := nextSliceRows(contractRows(p), limit)
+	rows := nextSliceRows(allItemRows(p), limit)
 	if len(rows) == 0 {
 		return "_No contract-ready progress rows are available._\n"
 	}
@@ -144,7 +146,7 @@ func RenderAgentQueue(p *Progress, limit int) string {
 	if limit <= 0 {
 		limit = 10
 	}
-	rows := nextSliceRows(contractRows(p), limit)
+	rows := nextSliceRows(allItemRows(p), limit)
 	if len(rows) == 0 {
 		return "_No unblocked contract rows are ready for autonomous execution._\n"
 	}
@@ -523,14 +525,25 @@ func moduleRoadmapRows(p *Progress, module string) []contractRow {
 
 func contractRows(p *Progress) []contractRow {
 	var rows []contractRow
+	for _, row := range allItemRows(p) {
+		if row.Item.Contract == "" {
+			continue
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+func allItemRows(p *Progress) []contractRow {
+	if p == nil {
+		return nil
+	}
+	var rows []contractRow
 	for _, phKey := range sortedMapKeys(p.Phases) {
 		ph := p.Phases[phKey]
 		for _, spKey := range sortedMapKeys(ph.Subphases) {
 			sp := ph.Subphases[spKey]
 			for _, it := range sp.Items {
-				if it.Contract == "" {
-					continue
-				}
 				rows = append(rows, contractRow{
 					PhaseKey:    phKey,
 					PhaseName:   ph.Name,
@@ -545,49 +558,78 @@ func contractRows(p *Progress) []contractRow {
 }
 
 func nextSliceRows(rows []contractRow, limit int) []contractRow {
-	var out []contractRow
-	seen := map[string]struct{}{}
-	for bucket := 0; bucket <= 4 && len(out) < limit; bucket++ {
-		for _, row := range rows {
-			if row.Item.Status == StatusComplete || len(row.Item.BlockedBy) > 0 || row.Item.SliceSize == SliceSizeUmbrella || !rowHasTestProof(row.Item) {
-				continue
+	byKey := map[string]contractRow{}
+	inputs := make([]workitem.RowInput, 0, len(rows))
+	for _, row := range rows {
+		key := contractRowKey(row.PhaseKey, row.SubphaseKey, row.Item.Name)
+		byKey[key] = row
+		inputs = append(inputs, workitemInputFromContractRow(row))
+	}
+
+	assignable := workitem.Assignable(inputs, workitem.Options{ActiveFirst: true})
+	out := make([]contractRow, 0, min(limit, len(assignable)))
+	for _, row := range assignable {
+		if len(out) == limit {
+			break
+		}
+		if original, ok := byKey[contractRowKey(row.PhaseID, row.SubphaseID, row.ItemName)]; ok {
+			if len(row.BlockedBy) > 0 && len(row.BlockedByPending) == 0 {
+				// In this generated assignable-work view, completed dependencies are
+				// no longer blockers. Keep the canonical row untouched; only avoid
+				// rendering misleading "Blocked by ..." why-now text.
+				original.Item.BlockedBy = nil
 			}
-			if nextSliceBucket(row.Item) != bucket {
-				continue
-			}
-			key := row.PhaseKey + "\x00" + row.SubphaseKey + "\x00" + row.Item.Name
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			out = append(out, row)
-			if len(out) == limit {
-				break
-			}
+			out = append(out, original)
 		}
 	}
 	return out
 }
 
-func nextSliceBucket(it Item) int {
-	switch {
-	case it.Priority == "P0":
-		return 0
-	case it.Status == StatusInProgress:
-		return 1
-	case it.ContractStatus == ContractStatusFixtureReady:
-		return 2
-	case len(it.Unblocks) > 0:
-		return 3
-	case it.ContractStatus == ContractStatusDraft:
-		return 4
-	default:
-		return 5
-	}
+func contractRowKey(phaseKey, subphaseKey, itemName string) string {
+	return phaseKey + "\x00" + subphaseKey + "\x00" + itemName
 }
 
-func rowHasTestProof(it Item) bool {
-	return len(it.TestCommands) > 0 || strings.TrimSpace(it.NoTestRequiredReason) != ""
+func workitemInputFromContractRow(row contractRow) workitem.RowInput {
+	it := row.Item
+	input := workitem.RowInput{
+		PhaseID:        row.PhaseKey,
+		PhaseName:      row.PhaseName,
+		SubphaseID:     row.SubphaseKey,
+		SubphaseName:   row.Subphase,
+		ItemName:       it.Name,
+		Status:         string(it.Status),
+		Priority:       it.Priority,
+		Contract:       it.Contract,
+		ContractStatus: string(it.ContractStatus),
+		SliceSize:      string(it.SliceSize),
+		ExecutionOwner: string(it.ExecutionOwner),
+		TrustClass:     it.TrustClass,
+		DegradedMode:   it.DegradedMode,
+		Fixture:        it.Fixture,
+		SourceRefs:     it.SourceRefs,
+		BlockedBy:      it.BlockedBy,
+		Unblocks:       it.Unblocks,
+		ReadyWhen:      it.ReadyWhen,
+		NotReadyWhen:   it.NotReadyWhen,
+		Acceptance:     it.Acceptance,
+		WriteScope:     it.WriteScope,
+		TestCommands:   it.TestCommands,
+		NoTestRequired: it.NoTestRequiredReason,
+		DoneSignal:     it.DoneSignal,
+		Note:           it.Note,
+		HasBlocker:     it.Blocker != nil,
+	}
+	if it.PlannerVerdict != nil && it.PlannerVerdict.NeedsHuman {
+		input.NeedsHuman = true
+	}
+	if it.Health != nil {
+		input.PenaltyApplied = workitem.FailurePenalty(it.Health.ConsecutiveFailures) + 2*len(it.Health.BackendsTried)
+		if it.Health.Quarantine != nil {
+			input.Quarantined = true
+			input.StaleQuarantine = it.Health.Quarantine.SpecHash != ItemSpecHash(&it)
+		}
+	}
+	return input
 }
 
 func whyNow(it Item) string {

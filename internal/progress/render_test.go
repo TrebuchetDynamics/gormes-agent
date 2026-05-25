@@ -197,6 +197,30 @@ func TestRenderNextSlicesOrdersUnblockedP0ThenActiveAndSkipsBlockedUmbrella(t *t
 	}
 }
 
+func TestRenderNextSlicesIncludesCompletedBlockerDependents(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"1": {Name: "Phase 1", Subphases: map[string]Subphase{
+			"1.A": {Name: "Alpha", Items: []Item{
+				{Name: "Foundation", Status: StatusComplete, Contract: "foundation contract", ContractStatus: ContractStatusValidated, SliceSize: SliceSizeSmall, TestCommands: []string{"go test ./foundation"}},
+				{Name: "Dependent", Status: StatusPlanned, Contract: "dependent contract", ContractStatus: ContractStatusFixtureReady, SliceSize: SliceSizeSmall, BlockedBy: []string{"Foundation"}, TestCommands: []string{"go test ./dependent"}},
+			}},
+		}},
+	}}
+
+	next := RenderNextSlices(p, 10)
+	if !strings.Contains(next, "Dependent") || !strings.Contains(next, "dependent contract") {
+		t.Fatalf("next slices must include row whose blocker is complete:\n%s", next)
+	}
+	if strings.Contains(next, "Blocked by Foundation") {
+		t.Fatalf("next slices must not describe completed dependencies as active blockers:\n%s", next)
+	}
+
+	queue := RenderAgentQueue(p, 10)
+	if !strings.Contains(queue, "## 1. Dependent") || !strings.Contains(queue, "- Contract: dependent contract") {
+		t.Fatalf("agent queue must include row whose blocker is complete:\n%s", queue)
+	}
+}
+
 func TestRenderNextSlicesAllowsExplicitNoTestRequiredReason(t *testing.T) {
 	p := &Progress{Phases: map[string]Phase{
 		"1": {Name: "Phase 1", Subphases: map[string]Subphase{
