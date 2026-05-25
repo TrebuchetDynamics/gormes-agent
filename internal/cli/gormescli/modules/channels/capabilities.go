@@ -61,13 +61,17 @@ func NewCommandWithSeams(seams Seams, opts Options) *cobra.Command {
 	var channel string
 	var jsonOutput bool
 	cmd := &cobra.Command{
-		Use:          "channels",
+		Use:          "channels [channel]",
 		Aliases:      []string{"channel"},
 		Short:        "Inspect channel capability metadata",
 		SilenceUsage: true,
-		Args:         rejectUnknownChannelSubcommands,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runCapabilitiesCommand(cmd, seams, opts, channel, jsonOutput)
+		Args:         validateChannelCapabilityArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			selected, err := resolveChannelSelection(channel, args)
+			if err != nil {
+				return err
+			}
+			return runCapabilitiesCommand(cmd, seams, opts, selected, jsonOutput)
 		},
 	}
 	if cmd.SuggestionsMinimumDistance <= 0 {
@@ -76,32 +80,80 @@ func NewCommandWithSeams(seams Seams, opts Options) *cobra.Command {
 	cmd.Flags().StringVar(&channel, "channel", "", "channel to inspect")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "print capabilities as JSON")
 	cmd.AddCommand(newCapabilitiesCommand(seams, opts))
+	cmd.AddCommand(newChannelSetupGuidanceCommand())
 	return cmd
 }
 
-func rejectUnknownChannelSubcommands(cmd *cobra.Command, args []string) error {
+func validateChannelCapabilityArgs(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return nil
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("too many arguments for %q: pass one channel or use --channel", cmd.CommandPath())
 	}
 	if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
 		return fmt.Errorf("unknown command %q for %q; did you mean %q?", args[0], cmd.CommandPath(), suggestions[0])
 	}
-	return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+	return nil
+}
+
+func resolveChannelSelection(flag string, args []string) (string, error) {
+	flag = strings.TrimSpace(flag)
+	if len(args) == 0 {
+		return flag, nil
+	}
+	arg := strings.TrimSpace(args[0])
+	if flag != "" && !strings.EqualFold(flag, arg) {
+		return "", fmt.Errorf("channel_selection_conflict: positional channel %q conflicts with --channel %q", arg, flag)
+	}
+	if flag != "" {
+		return flag, nil
+	}
+	return arg, nil
 }
 
 func newCapabilitiesCommand(seams Seams, opts Options) *cobra.Command {
 	var channel string
 	var jsonOutput bool
 	cmd := &cobra.Command{
-		Use:          "capabilities",
+		Use:          "capabilities [channel]",
 		Short:        "Show channel capabilities",
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runCapabilitiesCommand(cmd, seams, opts, channel, jsonOutput)
+		Args:         cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			selected, err := resolveChannelSelection(channel, args)
+			if err != nil {
+				return err
+			}
+			return runCapabilitiesCommand(cmd, seams, opts, selected, jsonOutput)
 		},
 	}
 	cmd.Flags().StringVar(&channel, "channel", "", "channel to inspect")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "print capabilities as JSON")
+	return cmd
+}
+
+func newChannelSetupGuidanceCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "setup [channel]",
+		Short:        "Show channel setup commands",
+		SilenceUsage: true,
+		Args:         cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := cmd.OutOrStdout()
+			if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
+				channel := strings.ToLower(strings.TrimSpace(args[0]))
+				fmt.Fprintln(out, "Channel setup command:")
+				fmt.Fprintf(out, "  gormes setup --quick --target %s\n", channel)
+				fmt.Fprintln(out, "  gormes setup gateway")
+				return nil
+			}
+			fmt.Fprintln(out, "Channel setup command:")
+			fmt.Fprintln(out, "  gormes setup gateway")
+			fmt.Fprintln(out, "  gormes setup --quick --target telegram")
+			return nil
+		},
+	}
 	return cmd
 }
 

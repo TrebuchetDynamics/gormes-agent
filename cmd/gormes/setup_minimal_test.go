@@ -1214,7 +1214,7 @@ func TestSetupProvidersAliasRunsProviderSection(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, forbidden := range []string{secret, "sk-p", "123", "Provider configuration complete!"} {
+	for _, forbidden := range []string{secret, "sk-p", "provider-alias-secret", "Provider configuration complete!"} {
 		if strings.Contains(stdout+stderr, forbidden) {
 			t.Fatalf("setup providers output leaked or duplicated forbidden material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
@@ -1602,6 +1602,40 @@ func TestSetupProviderRequiresTTYUsesOAuthGuidance(t *testing.T) {
 	}
 	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
 		t.Fatalf("non-tty setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupChannelAliasesRouteToGatewaySection(t *testing.T) {
+	for _, section := range []string{"channel", "channels", "telegram"} {
+		t.Run(section, func(t *testing.T) {
+			calledGateway := false
+			fake := &setupCommandFakeSeams{
+				isTTY: false,
+				runSetupGateway: func(cmd *cobra.Command, nonInteractive bool) error {
+					calledGateway = true
+					if !nonInteractive {
+						t.Fatalf("gateway alias should be non-interactive when --non-interactive is set")
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), "gateway alias ran")
+					return nil
+				},
+			}
+			stdout, stderr, err := runSetupTestCommand(t, fake.seams(), section, "--non-interactive")
+			if err != nil {
+				t.Fatalf("gormes setup %s: %v stdout=%s stderr=%s", section, err, stdout, stderr)
+			}
+			if !calledGateway {
+				t.Fatalf("gormes setup %s did not route to gateway", section)
+			}
+			for _, want := range []string{"Gormes Setup — Messaging Gateway", "gateway alias ran"} {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("stdout missing %q:\n%s", want, stdout)
+				}
+			}
+			if strings.Contains(stdout+stderr, "setup_section_unsupported") {
+				t.Fatalf("channel alias returned unsupported evidence:\nstdout=%s\nstderr=%s", stdout, stderr)
+			}
+		})
 	}
 }
 

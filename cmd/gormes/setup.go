@@ -66,10 +66,12 @@ func defaultSetupSections() []gormescli.SetupSection {
 }
 
 func setupCanonicalSection(section string) string {
-	section = strings.ToLower(strings.TrimSpace(section))
+	section = normalizeSetupChoice(section)
 	switch section {
 	case "providers":
 		return "provider"
+	case "channel", "channels", "messaging", "messaging_platform", "messaging_platforms", "telegram", "discord", "slack", "whatsapp":
+		return "gateway"
 	default:
 		return section
 	}
@@ -2317,23 +2319,20 @@ func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
 	out := cmd.OutOrStdout()
 	cfg, _ := config.Load(nil)
 	current := firstNonEmptySetup(cfg.Runtime.TTSProvider, "edge")
+	options := ttsProviderOptions()
 
 	fmt.Fprintln(out, "Text-to-Speech Provider")
 	fmt.Fprintf(out, "Current: %s\n", ttsProviderLabel(current))
 	fmt.Fprintln(out)
-	for _, option := range ttsProviderOptions() {
-		selected := "○"
-		if option.value == "keep" {
-			selected = "●"
-		}
-		fmt.Fprintf(out, "  (%s) %s\n", selected, option.label)
+	if setupShouldPrintStaticChoiceMenu(cmd, nonInteractive) {
+		printSetupChoiceList(out, options, "keep")
 	}
 	if nonInteractive {
 		fmt.Fprintln(out, "\nSkipped (keeping current)")
 		return nil
 	}
 
-	choice, err := promptSetupChoice(cmd, "Select TTS provider", "Select TTS provider [keep]: ", "keep", ttsProviderOptions())
+	choice, err := promptSetupChoice(cmd, "Select TTS provider", "Select TTS provider [keep]: ", "keep", options)
 	if err != nil {
 		return err
 	}
@@ -2355,27 +2354,43 @@ func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
 	}
 }
 
+func setupShouldPrintStaticChoiceMenu(cmd *cobra.Command, nonInteractive bool) bool {
+	if nonInteractive {
+		return true
+	}
+	stdin, ok := cmd.InOrStdin().(*os.File)
+	return !ok || !setupInputIsTerminal(stdin)
+}
+
+func printSetupChoiceList(out io.Writer, options []setupChoice, selectedValue string) {
+	selectedValue = normalizeSetupChoice(selectedValue)
+	for _, option := range options {
+		selected := "○"
+		if normalizeSetupChoice(option.value) == selectedValue {
+			selected = "●"
+		}
+		fmt.Fprintf(out, "  (%s) %s\n", selected, option.label)
+	}
+}
+
 func runSetupTerminalSection(cmd *cobra.Command, nonInteractive bool) error {
 	out := cmd.OutOrStdout()
 	cfg, _ := config.Load(nil)
 	current := firstNonEmptySetup(cfg.Runtime.TerminalBackend, "local")
+	options := terminalBackendOptions()
 
 	fmt.Fprintln(out, "Terminal Backend")
 	fmt.Fprintf(out, "Current: %s\n", terminalBackendLabel(current))
 	fmt.Fprintln(out)
-	for _, option := range terminalBackendOptions() {
-		selected := "○"
-		if option.value == "keep" {
-			selected = "●"
-		}
-		fmt.Fprintf(out, "  (%s) %s\n", selected, option.label)
+	if setupShouldPrintStaticChoiceMenu(cmd, nonInteractive) {
+		printSetupChoiceList(out, options, "keep")
 	}
 	if nonInteractive {
 		fmt.Fprintf(out, "\nKeeping current backend: %s\n", current)
 		return nil
 	}
 
-	choice, err := promptSetupChoice(cmd, "Select terminal backend", "Select terminal backend [keep]: ", "keep", terminalBackendOptions())
+	choice, err := promptSetupChoice(cmd, "Select terminal backend", "Select terminal backend [keep]: ", "keep", options)
 	if err != nil {
 		return err
 	}

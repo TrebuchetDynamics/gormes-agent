@@ -37,6 +37,68 @@ func TestChannelsCommandDefaultRendersCapabilities(t *testing.T) {
 	}
 }
 
+func TestChannelsCommandAcceptsPositionalChannel(t *testing.T) {
+	cmd := NewCommandWithSeams(Seams{
+		LoadConfig: func() (config.Config, error) { return config.Config{}, nil },
+		ConfiguredDetails: func(config.Config) map[string]string {
+			return map[string]string{"telegram": "allowed_chat_id=42"}
+		},
+	}, Options{})
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"telegram"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("channels telegram: %v\nstdout=%s", err, stdout.String())
+	}
+	for _, want := range []string{"Telegram (telegram)", "Status: configured (allowed_chat_id=42)"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+		}
+	}
+	if strings.Contains(stdout.String(), "WhatsApp (whatsapp)") {
+		t.Fatalf("positional channel should filter to telegram only:\n%s", stdout.String())
+	}
+}
+
+func TestChannelsSetupSubcommandPrintsSetupGuidance(t *testing.T) {
+	cmd := NewCommandWithSeams(Seams{}, Options{})
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"setup", "telegram"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("channels setup telegram: %v\nstdout=%s", err, stdout.String())
+	}
+	for _, want := range []string{"Channel setup command:", "gormes setup --quick --target telegram", "gormes setup gateway"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
+func TestChannelsCommandTypoStillSuggestsCapabilities(t *testing.T) {
+	cmd := NewCommandWithSeams(Seams{}, Options{})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"capabilites"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("channels capabilites returned nil error, want typo suggestion")
+	}
+	combined := strings.ToLower(err.Error())
+	for _, want := range []string{"did you mean", "capabilities"} {
+		if !strings.Contains(combined, want) {
+			t.Fatalf("error missing %q: %v", want, err)
+		}
+	}
+}
+
 func TestCapabilitiesCommandUsesInjectedConfigAndBuildProvenance(t *testing.T) {
 	cmd := NewCommandWithSeams(Seams{
 		LoadConfig: func() (config.Config, error) {

@@ -250,10 +250,26 @@ func TestSetupFiniteOptionSectionsTTYE2EConsumeArrowKeys(t *testing.T) {
 		name      string
 		mode      string
 		want      string
-		forbidden string
+		forbidden []string
 	}{
-		{name: "tts", mode: "tts", want: "Select TTS provider", forbidden: "Select TTS provider [keep]:"},
-		{name: "terminal", mode: "terminal", want: "Select terminal backend", forbidden: "Select terminal backend [keep]:"},
+		{
+			name: "tts",
+			mode: "tts",
+			want: "Select TTS provider",
+			forbidden: []string{
+				"Select TTS provider [keep]:",
+				"\n  (○) Edge TTS (free, cloud-based, no setup needed)",
+			},
+		},
+		{
+			name: "terminal",
+			mode: "terminal",
+			want: "Select terminal backend",
+			forbidden: []string{
+				"Select terminal backend [keep]:",
+				"\n  (○) Local - run directly on this machine (default)",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -281,7 +297,7 @@ func TestSetupFiniteOptionSectionsTTYE2EConsumeArrowKeys(t *testing.T) {
 
 			events := readPTY(tty)
 			var transcript bytes.Buffer
-			waitForSetupTTYOutput(t, tty, events, &transcript, tc.want, tc.forbidden)
+			waitForSetupTTYOutput(t, tty, events, &transcript, tc.want, tc.forbidden...)
 			if !strings.Contains(transcript.String(), "↑↓ navigate") || !strings.Contains(transcript.String(), "→") {
 				t.Fatalf("setup %s prompt did not render as a selectable TUI:\n%s", tc.mode, transcript.String())
 			}
