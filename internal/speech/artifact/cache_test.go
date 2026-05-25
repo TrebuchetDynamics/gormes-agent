@@ -40,6 +40,25 @@ func TestEnsureDownloadsAndVerifiesArtifact(t *testing.T) {
 	assertNoPartialArtifact(t, cacheDir)
 }
 
+func TestEnsureDownloadsWithDefaultClientWhenHTTPClientIsTypedNil(t *testing.T) {
+	body := []byte("downloaded with default client")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+
+	var client *http.Client
+	cacheDir := t.TempDir()
+	artifact := testArtifact(body, server.URL)
+	got, err := Ensure(context.Background(), artifact, cacheDir, client)
+	if err != nil {
+		t.Fatalf("Ensure with typed nil client: %v", err)
+	}
+	if got != filepath.Join(cacheDir, artifact.Filename) {
+		t.Fatalf("Ensure path = %q", got)
+	}
+}
+
 func TestEnsureUsesVerifiedCacheWithoutNetwork(t *testing.T) {
 	body := []byte("cached speech artifact bytes")
 	cacheDir := t.TempDir()

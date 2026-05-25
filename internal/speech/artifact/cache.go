@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -77,13 +78,26 @@ func Ensure(ctx context.Context, artifact Artifact, cacheDir string, client Doer
 			return "", &CacheError{Code: WriteFailed, Path: finalPath, Err: removeErr}
 		}
 	}
-	if client == nil {
+	if nilDoer(client) {
 		client = http.DefaultClient
 	}
 	if err := download(ctx, artifact, finalPath, client); err != nil {
 		return "", err
 	}
 	return finalPath, nil
+}
+
+func nilDoer(client Doer) bool {
+	if client == nil {
+		return true
+	}
+	value := reflect.ValueOf(client)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func Validate(artifact Artifact) error {
