@@ -248,6 +248,35 @@ func TestTelegramApprovalCallback_ResolvesOnceAndEditsPrompt(t *testing.T) {
 	}
 }
 
+func TestTelegramApprovalCallback_AccountScopedPlatform(t *testing.T) {
+	client := newMockClient()
+	resolver := &approvalRecorder{}
+	b := New(Config{
+		AllowedChatID:    42,
+		AccountID:        "ops",
+		ApprovalResolver: resolver,
+	}, client, nil)
+	data := sendTelegramApprovalPrompt(t, b, client, "telegram:ops:42:once", 0)
+
+	b.handleCallbackQuery(context.Background(), &tgbotapi.CallbackQuery{
+		ID:   "callback-account-1",
+		Data: data,
+		From: &tgbotapi.User{ID: 111, FirstName: "Norbert"},
+		Message: &tgbotapi.Message{
+			MessageID: 1000,
+			Chat:      &tgbotapi.Chat{ID: 42, Type: "private"},
+		},
+	})
+
+	resolved := resolver.snapshot()
+	if len(resolved) != 1 {
+		t.Fatalf("resolver calls = %+v, want one", resolved)
+	}
+	if resolved[0].Platform != "telegram:ops" {
+		t.Fatalf("Platform = %q, want telegram:ops", resolved[0].Platform)
+	}
+}
+
 func TestTelegramApprovalCallback_DoubleClickAckedWithoutSecondResolution(t *testing.T) {
 	client := newMockClient()
 	resolver := &approvalRecorder{}

@@ -92,14 +92,13 @@ func HandleSlashSpawn(ctx context.Context, req SlashSpawnRequest) SlashSpawnResu
 		return spawnResult(AgentSpawnUnavailable, string(AgentSpawnUnavailable)+": dynamic agent registry is not configured.")
 	}
 
-	switch strings.ToLower(strings.TrimSpace(req.Event.Platform)) {
-	case "telegram":
+	if isTelegramPlatform(req.Event.Platform) {
 		return handleTelegramSlashSpawn(ctx, req, cmd)
-	case "discord":
-		return handleDiscordSlashSpawn(ctx, req, cmd)
-	default:
-		return spawnResult(AgentSpawnUnavailable, string(AgentSpawnUnavailable)+": /spawn is not available for this platform.")
 	}
+	if isDiscordPlatform(req.Event.Platform) {
+		return handleDiscordSlashSpawn(ctx, req, cmd)
+	}
+	return spawnResult(AgentSpawnUnavailable, string(AgentSpawnUnavailable)+": /spawn is not available for this platform.")
 }
 
 func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd SpawnSlashCommand) SlashSpawnResult {
@@ -151,7 +150,7 @@ func handleTelegramSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Sp
 }
 
 func telegramSpawnForumSurface(ev InboundEvent) bool {
-	if !strings.EqualFold(strings.TrimSpace(ev.Platform), "telegram") {
+	if !isTelegramPlatform(ev.Platform) {
 		return false
 	}
 	return strings.EqualFold(strings.TrimSpace(ev.ChatType), "supergroup") && strings.TrimSpace(ev.ChatID) != ""
@@ -206,7 +205,7 @@ func handleDiscordSlashSpawn(ctx context.Context, req SlashSpawnRequest, cmd Spa
 }
 
 func discordSpawnGuildSurface(ev InboundEvent) bool {
-	if !strings.EqualFold(strings.TrimSpace(ev.Platform), "discord") {
+	if !isDiscordPlatform(ev.Platform) {
 		return false
 	}
 	return strings.TrimSpace(ev.GuildID) != "" && strings.TrimSpace(ev.ChatID) != ""

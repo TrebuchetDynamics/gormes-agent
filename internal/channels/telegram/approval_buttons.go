@@ -124,7 +124,7 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQ
 	if err := b.cfg.ApprovalResolver.ResolveGatewayApproval(ctx, gateway.ApprovalResolution{
 		SessionKey: state.SessionKey,
 		Choice:     choice,
-		Platform:   "telegram",
+		Platform:   b.Name(),
 		ChatID:     strconv.FormatInt(state.ChatID, 10),
 		MessageID:  strconv.Itoa(state.MessageID),
 		ActorID:    actorID,

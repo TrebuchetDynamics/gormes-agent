@@ -265,7 +265,7 @@ func validateTTSOutputFile(provider, path string) TTSResult {
 }
 
 func shouldPreferOpusForTTS(provider, platform string) bool {
-	if !strings.EqualFold(strings.TrimSpace(platform), "telegram") {
+	if !isTelegramTTSPlatform(platform) {
 		return false
 	}
 	switch normalizeTTSProviderName(provider) {
@@ -277,7 +277,12 @@ func shouldPreferOpusForTTS(provider, platform string) bool {
 }
 
 func shouldTreatTTSAsVoiceCompatible(provider, path, platform string) bool {
-	return strings.EqualFold(strings.TrimSpace(platform), "telegram") && strings.EqualFold(filepath.Ext(path), ".ogg")
+	return isTelegramTTSPlatform(platform) && strings.EqualFold(filepath.Ext(path), ".ogg")
+}
+
+func isTelegramTTSPlatform(platform string) bool {
+	platform = strings.ToLower(strings.TrimSpace(platform))
+	return platform == "telegram" || strings.HasPrefix(platform, "telegram:")
 }
 
 func supportedTTSAudioExt(ext string) bool {

@@ -114,6 +114,18 @@ func TestTextToSpeechToolExecute(t *testing.T) {
 	}
 }
 
+func TestTelegramAccountPlatformTTSHelpers(t *testing.T) {
+	if !shouldPreferOpusForTTS("openai", "telegram:ops") {
+		t.Fatal("expected OpenAI TTS on account-scoped Telegram to prefer Opus output")
+	}
+	if shouldPreferOpusForTTS("openai", "discord") {
+		t.Fatal("did not expect non-Telegram platforms to prefer Opus output")
+	}
+	if !shouldTreatTTSAsVoiceCompatible("openai", "/tmp/voice.ogg", "telegram:ops") {
+		t.Fatal("expected account-scoped Telegram OGG output to be voice compatible")
+	}
+}
+
 type fakeTTSProvider struct {
 	available bool
 	calls     int

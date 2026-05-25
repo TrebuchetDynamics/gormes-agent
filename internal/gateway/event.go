@@ -233,7 +233,7 @@ func (e InboundEvent) PairingUserID() string {
 	if userID := strings.TrimSpace(e.UserID); userID != "" {
 		return userID
 	}
-	if strings.EqualFold(strings.TrimSpace(e.Platform), "telegram") && e.IsDirectMessage() {
+	if isTelegramPlatform(e.Platform) && e.IsDirectMessage() {
 		return strings.TrimSpace(e.ChatID)
 	}
 	return ""

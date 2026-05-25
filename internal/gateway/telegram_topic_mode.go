@@ -78,7 +78,7 @@ func (m *Manager) telegramTopicCommandReply(ctx context.Context, ev InboundEvent
 }
 
 func telegramTopicPrivateChat(ev InboundEvent) bool {
-	if !strings.EqualFold(strings.TrimSpace(ev.Platform), "telegram") {
+	if !isTelegramPlatform(ev.Platform) {
 		return false
 	}
 	if ev.IsDirectMessage() {

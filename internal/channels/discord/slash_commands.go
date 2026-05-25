@@ -317,7 +317,8 @@ func (b *Bot) inboundEventFromInteraction(i *discordgo.InteractionCreate, text s
 		}
 	}
 	return gateway.InboundEvent{
-		Platform:     "discord",
+		Platform:     b.Name(),
+		AccountID:    strings.TrimSpace(b.cfg.AccountID),
 		ChatID:       chatID,
 		ChatName:     chatName,
 		UserID:       interactionUserID(i),

@@ -79,7 +79,7 @@ func (m *Manager) formatFinalDeliveryForTurn(ctx context.Context, platform strin
 	if strings.TrimSpace(text) == "" && len(media) > 0 {
 		text = "Media attached."
 	}
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatFinalTelegramText(text), media
 	}
 	return FormatFinalPlainText(text), media
@@ -87,7 +87,7 @@ func (m *Manager) formatFinalDeliveryForTurn(ctx context.Context, platform strin
 
 func (m *Manager) formatFinalDeliveryPagesForTurn(ctx context.Context, platform string, f kernel.RenderFrame, sessionKey string, audioRequested bool) ([]string, []OutboundMedia) {
 	text, media := m.formatFinalDeliveryForTurn(ctx, platform, f, sessionKey, audioRequested)
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return paginateTelegramText(text), media
 	}
 	return paginatePlainText(text), media

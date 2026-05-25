@@ -1843,7 +1843,7 @@ func (m *Manager) sendWithHooksReplyThread(ctx context.Context, ch Channel, chat
 }
 
 func telegramDMTopicReplyFallbackLane(platform, chatID, threadID string) bool {
-	if !strings.EqualFold(strings.TrimSpace(platform), "telegram") {
+	if !isTelegramPlatform(platform) {
 		return false
 	}
 	if strings.TrimSpace(threadID) == "" {
@@ -2123,21 +2123,26 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 }
 
 func (m *Manager) restartNotificationEnabled(platform string) bool {
-	key := strings.ToLower(strings.TrimSpace(platform))
+	key := normalizedPlatformName(platform)
 	if key == "" || len(m.cfg.RestartNotifications) == 0 {
 		return true
 	}
-	enabled, ok := m.cfg.RestartNotifications[key]
-	if !ok {
-		return true
+	if enabled, ok := m.cfg.RestartNotifications[key]; ok {
+		return enabled
 	}
-	return enabled
+	base := platformBaseName(key)
+	if base != key {
+		if enabled, ok := m.cfg.RestartNotifications[base]; ok {
+			return enabled
+		}
+	}
+	return true
 }
 
 func (m *Manager) allowed(ev InboundEvent) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if ev.Platform == "telegram" && ev.AllowlistBypassReason == AllowlistBypassTelegramGuestMention {
+	if isTelegramPlatform(ev.Platform) && ev.AllowlistBypassReason == AllowlistBypassTelegramGuestMention {
 		if _, ok := m.cfg.AllowedChatWhitelists[ev.Platform]; ok {
 			return true
 		}
@@ -2279,7 +2284,7 @@ func (m *Manager) activeTurnSnapshot() (activeTurnSnapshot, bool) {
 }
 
 func (m *Manager) formatStream(platform string, f kernel.RenderFrame) string {
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatStreamTelegram(f)
 	}
 	return FormatStreamPlain(f)
@@ -2287,7 +2292,7 @@ func (m *Manager) formatStream(platform string, f kernel.RenderFrame) string {
 
 func (m *Manager) formatToolProgress(platform string, f kernel.RenderFrame) string {
 	mode := m.toolProgressMode(platform)
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatToolProgressTelegramMode(f, mode)
 	}
 	return FormatToolProgressPlainMode(f, mode)
@@ -2357,10 +2362,16 @@ func toolMaxDuration(events []kernel.SoulEntry) time.Duration {
 }
 
 func (m *Manager) toolProgressMode(platform string) string {
-	key := strings.ToLower(strings.TrimSpace(platform))
+	key := normalizedPlatformName(platform)
 	if key != "" && len(m.cfg.ToolProgressModes) > 0 {
 		if mode := strings.TrimSpace(m.cfg.ToolProgressModes[key]); mode != "" {
 			return normalizeGatewayToolProgressMode(mode)
+		}
+		base := platformBaseName(key)
+		if base != key {
+			if mode := strings.TrimSpace(m.cfg.ToolProgressModes[base]); mode != "" {
+				return normalizeGatewayToolProgressMode(mode)
+			}
 		}
 	}
 	if mode := strings.TrimSpace(m.cfg.ToolProgressMode); mode != "" {
@@ -2370,12 +2381,18 @@ func (m *Manager) toolProgressMode(platform string) string {
 }
 
 func defaultToolProgressModeForPlatform(platform string) string {
-	switch strings.ToLower(strings.TrimSpace(platform)) {
-	case "telegram", "discord", "api_server":
+	if isTelegramPlatform(platform) || isDiscordPlatform(platform) {
+		return "all"
+	}
+	if isSlackPlatform(platform) {
+		return "off"
+	}
+	switch platformBaseName(platform) {
+	case "api_server":
 		return "all"
 	case "mattermost", "matrix", "feishu", "whatsapp":
 		return "new"
-	case "slack", "signal", "bluebubbles", "weixin", "wecom", "wecom_callback", "dingtalk",
+	case "signal", "bluebubbles", "weixin", "wecom", "wecom_callback", "dingtalk",
 		"email", "sms", "webhook", "homeassistant":
 		return "off"
 	default:
@@ -2384,7 +2401,7 @@ func defaultToolProgressModeForPlatform(platform string) string {
 }
 
 func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatFinalTelegram(f)
 	}
 	return FormatFinalPlain(f)
@@ -2396,7 +2413,7 @@ func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (st
 	if strings.TrimSpace(text) == "" && len(content.Media) > 0 {
 		text = "Media attached."
 	}
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatFinalTelegramText(text), content.Media
 	}
 	return FormatFinalPlainText(text), content.Media
@@ -2404,7 +2421,7 @@ func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (st
 
 func (m *Manager) formatFinalDeliveryPages(platform string, f kernel.RenderFrame) ([]string, []OutboundMedia) {
 	text, media := m.formatFinalDelivery(platform, f)
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return paginateTelegramText(text), media
 	}
 	return paginatePlainText(text), media
@@ -2443,7 +2460,7 @@ func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToM
 }
 
 func (m *Manager) formatError(platform string, f kernel.RenderFrame) string {
-	if platform == "telegram" {
+	if isTelegramPlatform(platform) {
 		return FormatErrorTelegram(f)
 	}
 	return FormatErrorPlain(f)

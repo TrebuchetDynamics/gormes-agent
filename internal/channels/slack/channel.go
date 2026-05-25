@@ -160,7 +160,7 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 		accountID = strings.TrimSpace(e.TeamID)
 	}
 	return gateway.InboundEvent{
-		Platform:    "slack",
+		Platform:    c.Name(),
 		AccountID:   accountID,
 		ChatID:      channelID,
 		ChatType:    slackChatType(e.ChannelID, e.ChatType),

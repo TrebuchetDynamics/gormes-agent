@@ -247,7 +247,8 @@ func (b *Bot) toInboundEventWithContext(ctx context.Context, m *discordgo.Messag
 	}
 	messageID := strings.TrimSpace(m.ID)
 	return gateway.InboundEvent{
-		Platform:     "discord",
+		Platform:     b.Name(),
+		AccountID:    strings.TrimSpace(b.cfg.AccountID),
 		ChatID:       chatID,
 		ChatName:     chatName,
 		UserID:       userID,
@@ -457,7 +458,8 @@ func (b *Bot) toThreadLifecycleEvent(ch *discordgo.Channel) (gateway.InboundEven
 	parentID := strings.TrimSpace(ch.ParentID)
 	name := strings.TrimSpace(ch.Name)
 	return gateway.InboundEvent{
-		Platform:     "discord",
+		Platform:     b.Name(),
+		AccountID:    strings.TrimSpace(b.cfg.AccountID),
 		ChatID:       parentID,
 		ChatName:     name,
 		ThreadID:     threadID,

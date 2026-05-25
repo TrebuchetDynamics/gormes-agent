@@ -347,7 +347,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 	}
 
 	ev := gateway.InboundEvent{
-		Platform:    "telegram",
+		Platform:    b.Name(),
 		ChatID:      strconv.FormatInt(chatID, 10),
 		ChatType:    telegramChatType(u.Message.Chat),
 		UserID:      userID,

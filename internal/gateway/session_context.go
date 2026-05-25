@@ -61,14 +61,14 @@ type resolvedSession struct {
 }
 
 func sessionSourceFromInbound(ev InboundEvent) SessionSource {
-	platform := strings.ToLower(strings.TrimSpace(ev.Platform))
+	platform := normalizedPlatformName(ev.Platform)
 	chatType := "dm"
 	if strings.TrimSpace(ev.ThreadID) != "" {
 		chatType = "thread"
 	}
 	messageID := strings.TrimSpace(ev.MessageID)
 	if messageID == "" {
-		switch platform {
+		switch platformBaseName(platform) {
 		case "discord", "matrix", "mattermost":
 			messageID = strings.TrimSpace(ev.MsgID)
 		}
