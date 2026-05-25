@@ -97,7 +97,7 @@ id = "MISSING_DISCORD_SECRET"
 	}
 	output := stdout + stderr
 	for _, want := range []string{
-		"[PASS] SecretRef runtime: resolved=3 inactive=1 unavailable=0",
+		"✓ SecretRef runtime — resolved=3 inactive=1 unavailable=0",
 		"hermes.api_key: resolved",
 		"slack.bot_token: resolved",
 		"slack.app_token: resolved",

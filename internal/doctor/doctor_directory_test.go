@@ -102,8 +102,9 @@ func TestCheckDirectoryStructureDefaultSoulIsTemplateOnly(t *testing.T) {
 }
 
 // A fresh/empty home: subdirs and SOUL.md are WARN with create/setup
-// guidance, but the memory starters are NON-actionable PASS "not yet
-// created" - they must NOT be WARN/FAIL (would inflate the Found-N count).
+// guidance, but the final Found-N summary follows Hermes' explicit issue
+// funnel. These local-first warnings are visible in the section yet do not
+// inflate the action summary.
 func TestCheckDirectoryStructureFreshHomeMemoryStartersAreNonActionable(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "does-not-exist-yet")
 
@@ -131,12 +132,7 @@ func TestCheckDirectoryStructureFreshHomeMemoryStartersAreNonActionable(t *testi
 			t.Fatalf("%s should note 'not yet created', got %+v", f, it)
 		}
 	}
-	// CollectDoctorIssues (the Found-N source) must NOT include the
-	// non-actionable memory starters - only real WARN/FAIL.
-	issues := CollectDoctorIssues([]CheckResult{r})
-	for _, is := range issues {
-		if strings.Contains(is.Name, "MEMORY.md") || strings.Contains(is.Name, "USER.md") {
-			t.Fatalf("memory starter leaked into Found-N issues: %+v", is)
-		}
+	if issues := CollectDoctorIssues([]CheckResult{r}); len(issues) != 0 {
+		t.Fatalf("fresh-home directory warnings must not inflate Found-N issues: %+v", issues)
 	}
 }

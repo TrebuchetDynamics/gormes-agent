@@ -164,4 +164,7 @@ func TestCheckProfilesNamedMissingConfigWarns(t *testing.T) {
 	if work.Status != StatusWarn || !strings.Contains(work.Note, "config missing") {
 		t.Fatalf("work item = %+v, want config missing WARN", work)
 	}
+	if got := len(CollectDoctorIssues([]CheckResult{r})); got != 0 {
+		t.Fatalf("profile config warnings remain section-visible but non-actionable in Found-N, got %d", got)
+	}
 }

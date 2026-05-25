@@ -28,17 +28,19 @@ const (
 // config-version auto-fix class.
 const FixClassConfigVersion = doctorFixClassConfigVersion
 
-// CollectDoctorIssues reduces a completed doctor run to its actionable issues.
-// Only StatusWarn and StatusFail count; the N in the summary is therefore
-// computed from real results, never narrated (consistent with the
-// "doctor counts must be computed" contract).
+// CollectDoctorIssues reduces a completed doctor run to the actionable issue
+// funnel that Hermes doctor keeps in its explicit issues/manual_issues lists.
+// A WARN status alone is not enough: optional/degraded warnings still render in
+// their sections, but they do not inflate the end-of-report Found-N summary.
+// The N in the summary is therefore computed from actionable results, never
+// narrated (consistent with the "doctor counts must be computed" contract).
 func CollectDoctorIssues(results []CheckResult) []DoctorIssue {
 	issues := make([]DoctorIssue, 0, len(results))
 	for _, r := range results {
-		if r.Status != StatusWarn && r.Status != StatusFail {
+		class, fixable := classifyDoctorFix(r.Name, r.Summary)
+		if !isActionableDoctorIssue(r, class) {
 			continue
 		}
-		class, fixable := classifyDoctorFix(r.Name, r.Summary)
 		issues = append(issues, DoctorIssue{
 			Name:    r.Name,
 			Hint:    doctorRemediationHint(r.Name, r.Summary, class),
@@ -47,6 +49,37 @@ func CollectDoctorIssues(results []CheckResult) []DoctorIssue {
 		})
 	}
 	return issues
+}
+
+func isActionableDoctorIssue(r CheckResult, class string) bool {
+	switch r.Status {
+	case StatusFail:
+		return true
+	case StatusWarn:
+		if class != "" {
+			return true
+		}
+		switch strings.TrimSpace(r.Name) {
+		case "target readiness", "provider setup", "provider health", "SecretRef runtime":
+			return true
+		case "Profiles":
+			return profileWarningActionable(r)
+		}
+	}
+	return false
+}
+
+func profileWarningActionable(r CheckResult) bool {
+	for _, it := range r.Items {
+		if it.Status != StatusWarn {
+			continue
+		}
+		note := strings.ToLower(it.Note)
+		if strings.Contains(note, "root missing") || strings.Contains(note, "unreadable") || strings.Contains(note, "invalid") {
+			return true
+		}
+	}
+	return false
 }
 
 func classifyDoctorFix(name, summary string) (string, bool) {

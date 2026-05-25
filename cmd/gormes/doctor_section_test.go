@@ -30,9 +30,12 @@ func TestDoctorCommandHumanOutputIsSectionGrouped(t *testing.T) {
 	if !strings.Contains(out, "◆ Configuration Files") {
 		t.Fatalf("human doctor output missing ◆ Configuration Files section:\n%s", out)
 	}
-	// Toolbox check renders exactly once (grouped, not also flat-streamed).
-	if c := strings.Count(out, "] Toolbox:"); c != 1 {
+	// Toolbox check renders exactly once (grouped, compacted, not also flat-streamed).
+	if c := strings.Count(out, "✓ Toolbox —"); c != 1 {
 		t.Fatalf("Toolbox check rendered %d times, want exactly 1 (grouped render must replace the flat stream):\n%s", c, out)
+	}
+	if strings.Contains(out, "[PASS]") || strings.Contains(out, "[WARN]") || strings.Contains(out, "[FAIL]") {
+		t.Fatalf("human doctor output should use Hermes-style glyph rows, not bracketed status tags:\n%s", out)
 	}
 	// The shipped Found-N summary still renders, and AFTER the sections.
 	foundIdx := strings.Index(out, "issue(s) to address:")
@@ -77,13 +80,19 @@ func TestDoctorCommandFreshHumanModeContinuesAfterProviderFailure(t *testing.T) 
 		"◆ Configuration Files",
 		"◆ API Connectivity",
 		"◆ Tool Availability",
-		"[FAIL] provider setup:",
-		"[PASS] Toolbox:",
+		"✗ Provider setup —",
+		"✓ Toolbox —",
 		"Found ",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("fresh human doctor output missing %q:\n%s", want, out)
 		}
+	}
+	if !strings.Contains(out, "No provider endpoint or credential-backed provider is configured.") {
+		t.Fatalf("provider setup failure should use operator-facing provider wording:\n%s", out)
+	}
+	if strings.Contains(out, "hermes endpoint unconfigured") {
+		t.Fatalf("provider setup failure leaked raw hermes endpoint wording:\n%s", out)
 	}
 	if strings.Contains(out, "Configure Gormes provider credentials/endpoint") {
 		t.Fatalf("provider failure must be rendered inside the sectioned report, not as a pre-report stderr banner:\n%s", out)

@@ -89,8 +89,10 @@ type doctorTargetReadinessJSON struct {
 
 func (r *doctorReporter) Finalize() error {
 	if !r.asJSON {
-		fmt.Fprint(r.w, doctor.RenderDoctorHeader("Gormes Doctor"))
-		fmt.Fprint(r.w, doctor.RenderSectionedReport(r.collected))
+		style := doctor.RenderStyleForWriter(r.w)
+		fmt.Fprint(r.w, doctor.RenderDoctorHeaderStyled("🩺 Gormes Doctor", style))
+		fmt.Fprint(r.w, doctor.RenderDoctorStatusSummary(r.collected, style))
+		fmt.Fprint(r.w, doctor.RenderSectionedReportWithStyle(r.collected, style))
 		issues := doctor.CollectDoctorIssues(r.collected)
 		fmt.Fprint(r.w, doctor.RenderDoctorIssuesSummary(issues))
 		if r.fix {
@@ -270,7 +272,7 @@ func buildDoctorCmd() *cobra.Command {
 				} else {
 					c, err := newProviderHTTPClient(cfg, providerName)
 					if err != nil {
-						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+						redactedErr := friendlyProviderSetupDetail(redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey))
 						reporter.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: redactedErr})
 						markFailure(1)
 					} else {
@@ -1029,7 +1031,15 @@ func readinessBoolItem(name string, present bool, missingStatus doctor.Status) d
 
 func doctorGonchoConfig(cfg config.Config) doctor.CheckResult {
 	g := cfg.Goncho
+	profile := doctorGonchoProfileName(config.GormesHome())
+	memoryDB := doctorGormesDisplayPath(config.MemoryDBPath())
 	items := []doctor.ItemInfo{
+		{
+			Name:   "storage",
+			Status: doctor.StatusPass,
+			Note: fmt.Sprintf("profile=%s scope=profile_root memory_db=%s sessions_db=%s",
+				profile, memoryDB, doctorGormesDisplayPath(config.SessionDBPath())),
+		},
 		{
 			Name:   "runtime",
 			Status: doctor.StatusPass,
@@ -1064,7 +1074,32 @@ func doctorGonchoConfig(cfg config.Config) doctor.CheckResult {
 	return doctor.CheckResult{
 		Name:    "Goncho config",
 		Status:  doctor.StatusPass,
-		Summary: fmt.Sprintf("enabled=%t workspace=%s observer_peer=%s", g.Enabled, g.Workspace, g.ObserverPeer),
+		Summary: fmt.Sprintf("enabled=%t profile=%s memory_db=%s workspace=%s observer_peer=%s", g.Enabled, profile, memoryDB, g.Workspace, g.ObserverPeer),
 		Items:   items,
 	}
+}
+
+func doctorGonchoProfileName(home string) string {
+	clean := filepath.Clean(strings.TrimSpace(home))
+	if clean != "." && filepath.Base(filepath.Dir(clean)) == "profiles" {
+		if name := filepath.Base(clean); name != "." && name != string(filepath.Separator) && strings.TrimSpace(name) != "" {
+			return name
+		}
+	}
+	return "default"
+}
+
+func doctorGormesDisplayPath(path string) string {
+	clean := filepath.Clean(strings.TrimSpace(path))
+	base := filepath.Clean(strings.TrimSpace(config.GormesBaseHome()))
+	if clean == "." || base == "." || base == string(filepath.Separator) {
+		return filepath.ToSlash(clean)
+	}
+	if rel, err := filepath.Rel(base, clean); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if rel == "." {
+			return "~/.gormes"
+		}
+		return filepath.ToSlash(filepath.Join("~/.gormes", rel))
+	}
+	return filepath.ToSlash(clean)
 }

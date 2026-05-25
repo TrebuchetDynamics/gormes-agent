@@ -42,7 +42,7 @@ func TestDoctorCommandRendersSkillsHubSectionOffline(t *testing.T) {
 	out := stdout + stderr
 	for _, want := range []string{
 		"◆ Skills Hub",
-		"] Skills Hub:",
+		"✓ Skills Hub ready",
 		".hub",
 		"2 hub-installed skill(s)",
 		"skipped (--offline",

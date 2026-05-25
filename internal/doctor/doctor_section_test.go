@@ -64,13 +64,50 @@ func TestRenderSectionedReportGroupsExistingChecksInUpstreamOrder(t *testing.T) 
 
 	// Each check renders under (after) its section header, not before it.
 	cfgIdx := strings.Index(out, "◆ Configuration Files")
-	biIdx := strings.Index(out, "build identity")
+	biIdx := strings.Index(out, "Build identity")
 	if biIdx < cfgIdx {
 		t.Fatalf("check 'build identity' must render after its ◆ Configuration Files header:\n%s", out)
 	}
 	// A blank line precedes each header (parity with hermes print(); print(...)).
 	if !strings.Contains(out, "\n\n◆ Configuration Files") {
 		t.Fatalf("each ◆ header must be preceded by a blank line:\n%s", out)
+	}
+}
+
+func TestRenderSectionedReportUsesHermesGlyphRowsAndCompactsPassingToolbox(t *testing.T) {
+	out := RenderSectionedReport([]CheckResult{
+		{Name: "Security Advisories", Status: StatusPass, Summary: "No active security advisories", Items: []ItemInfo{{Name: "advisories", Status: StatusPass, Note: "No active security advisories"}}},
+		{Name: "Toolbox", Status: StatusPass, Summary: "3 tools registered (read_file, terminal, web_search)", Items: []ItemInfo{
+			{Name: "read_file", Status: StatusPass, Note: "Read files"},
+			{Name: "terminal", Status: StatusPass, Note: "Run commands"},
+			{Name: "web_search", Status: StatusPass, Note: "Search web"},
+		}},
+	})
+
+	for _, want := range []string{
+		"◆ Security Advisories",
+		"  ✓ No active security advisories\n",
+		"◆ Tool Availability",
+		"  ✓ Toolbox — 3 tools registered\n",
+		"    → enabled: read_file, terminal, web_search\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("human doctor output missing %q:\n%s", want, out)
+		}
+	}
+	for _, forbidden := range []string{"[PASS]", "  ✓ read_file\n", "  ✓ terminal\n", "Read files", "Run commands"} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("human doctor output should be glyph-based and compact; found %q:\n%s", forbidden, out)
+		}
+	}
+}
+
+func TestRenderSectionedReportStyledUsesANSIWhenEnabled(t *testing.T) {
+	out := RenderSectionedReportWithStyle([]CheckResult{{Name: "provider setup", Status: StatusFail, Summary: "endpoint missing"}}, RenderStyle{Color: true})
+	for _, want := range []string{"\x1b[36m\x1b[1m◆ API Connectivity\x1b[0m", "\x1b[31m✗\x1b[0m Provider setup"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("styled doctor output missing ANSI %q:\n%q", want, out)
+		}
 	}
 }
 
@@ -97,12 +134,12 @@ func TestRenderSectionedReportCompactsToolboxItemsForHumanParity(t *testing.T) {
 			{Name: "terminal", Status: StatusPass, Note: "Execute a local shell command with timeout handling."},
 		},
 	}})
-	for _, want := range []string{"[PASS] Toolbox:", "  ✓ read_file\n", "  ✓ terminal\n"} {
+	for _, want := range []string{"  ✓ Toolbox — 2 tools registered\n", "    → enabled: read_file, terminal\n"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("compact toolbox output missing %q:\n%s", want, out)
 		}
 	}
-	for _, forbidden := range []string{"Read a text file", "Execute a local shell command"} {
+	for _, forbidden := range []string{"[PASS]", "  ✓ read_file\n", "  ✓ terminal\n", "Read a text file", "Execute a local shell command"} {
 		if strings.Contains(out, forbidden) {
 			t.Fatalf("human toolbox output should be compact like Hermes and omit long passing notes %q:\n%s", forbidden, out)
 		}
@@ -165,8 +202,9 @@ func TestSectionForCheckOwnedDivergencePlacement(t *testing.T) {
 	}
 	out := RenderSectionedReport(results)
 	for name := range cases {
-		if c := strings.Count(out, "[PASS] "+name+":"); c != 1 {
-			t.Fatalf("check %q rendered %d times, want exactly 1 (no drop/dupe):\n%s", name, c, out)
+		want := "✓ " + displayCheckName(name) + " — x"
+		if c := strings.Count(out, want); c != 1 {
+			t.Fatalf("check %q rendered %d times, want exactly 1 as %q (no drop/dupe):\n%s", name, c, want, out)
 		}
 	}
 }
@@ -181,7 +219,7 @@ func TestRenderSectionedReportUnknownCheckFallsToCatchAll(t *testing.T) {
 	if !strings.Contains(out, "◆ "+SectionGormesRuntime) {
 		t.Fatalf("unmapped check must render under the ◆ %s catch-all:\n%s", SectionGormesRuntime, out)
 	}
-	if !strings.Contains(out, "[WARN] some-future-unmapped-check: novel") {
+	if !strings.Contains(out, "⚠ Some-future-unmapped-check — novel") {
 		t.Fatalf("unmapped check must still be rendered, not dropped:\n%s", out)
 	}
 }

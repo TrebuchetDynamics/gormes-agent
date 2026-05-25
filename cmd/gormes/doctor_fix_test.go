@@ -106,6 +106,7 @@ func TestDoctorReporterHumanFinalizePrintsIssuesSummary(t *testing.T) {
 	r := &doctorReporter{w: &buf}
 	r.Add(doctor.CheckResult{Name: "build identity", Status: doctor.StatusPass, Summary: "version=0.2.12"})
 	r.Add(doctor.CheckResult{Name: "config schema", Status: doctor.StatusFail, Summary: "config schema version is behind; run migrate"})
+	r.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: "endpoint unconfigured"})
 	r.Add(doctor.CheckResult{Name: "Gateway Slack", Status: doctor.StatusWarn, Summary: "disabled"})
 	if err := r.Finalize(); err != nil {
 		t.Fatalf("Finalize: %v", err)
@@ -138,6 +139,36 @@ func TestDoctorReporterHumanFinalizeCleanWhenNoIssues(t *testing.T) {
 	}
 	if !strings.Contains(out, "No issues") {
 		t.Fatalf("clean run must print a no-issues line:\n%s", out)
+	}
+}
+
+func TestDoctorReporterHumanFinalizeDoesNotCountOptionalWarnings(t *testing.T) {
+	var buf bytes.Buffer
+	r := &doctorReporter{w: &buf}
+	r.Add(doctor.CheckResult{Name: "build identity", Status: doctor.StatusWarn, Summary: "dirty build"})
+	r.Add(doctor.CheckResult{Name: "Auth Providers", Status: doctor.StatusWarn, Summary: "some auth providers are not logged in"})
+	r.Add(doctor.CheckResult{Name: "Directory Structure", Status: doctor.StatusWarn, Summary: "some Gormes directories/files not yet present"})
+	r.Add(doctor.CheckResult{Name: "Browser runtime", Status: doctor.StatusWarn, Summary: "cdp_not_configured"})
+	r.Add(doctor.CheckResult{Name: "GitHub auth", Status: doctor.StatusWarn, Summary: "No GITHUB_TOKEN and gh auth status failed"})
+	r.Add(doctor.CheckResult{Name: "Gateway Slack", Status: doctor.StatusWarn, Summary: "disabled"})
+	r.Add(doctor.CheckResult{Name: "Profiles", Status: doctor.StatusWarn, Summary: "6 profile(s) found; some profile details need attention", Items: []doctor.ItemInfo{{Name: "default (active)", Status: doctor.StatusWarn, Note: "root=set; provider/model missing; no distribution manifest"}}})
+	r.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: "hermes endpoint unconfigured and no provider declared"})
+	if err := r.Finalize(); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+	out := buf.String()
+	idx := strings.LastIndex(out, "Found ")
+	if idx < 0 {
+		t.Fatalf("human report missing Found-N summary:\n%s", out)
+	}
+	summary := out[idx:]
+	if !strings.Contains(summary, "Found 1 issue(s) to address:") {
+		t.Fatalf("optional warnings must not inflate Found-N summary, got:\n%s", summary)
+	}
+	for _, noisy := range []string{"build identity", "Auth Providers", "Directory Structure", "Browser runtime", "GitHub auth", "Gateway Slack", "Profiles"} {
+		if strings.Contains(summary, noisy) {
+			t.Fatalf("optional warning %q leaked into action summary:\n%s", noisy, summary)
+		}
 	}
 }
 

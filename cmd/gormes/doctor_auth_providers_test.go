@@ -44,7 +44,7 @@ model = "gpt-5.5"
 	out := stdout + stderr
 	for _, want := range []string{
 		"◆ Auth Providers",
-		"] Auth Providers:",
+		"✓ provider auth ready",
 		"OpenAI Codex",
 		"openai-codex",
 		"logged in",

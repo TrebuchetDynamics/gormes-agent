@@ -32,7 +32,7 @@ func TestDoctorCommandRendersProfilesDefaultOnly(t *testing.T) {
 	if !strings.Contains(out, "◆ Profiles") {
 		t.Fatalf("doctor must render the ◆ Profiles section:\n%s", out)
 	}
-	if !strings.Contains(out, "] Profiles:") {
+	if !strings.Contains(out, "✓ default profile only") {
 		t.Fatalf("doctor must emit a Profiles check line:\n%s", out)
 	}
 	if !strings.Contains(out, "default profile only") {

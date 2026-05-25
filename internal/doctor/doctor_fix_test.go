@@ -5,26 +5,36 @@ import (
 	"testing"
 )
 
-func TestDoctorIssuesSummaryComputesCountAndGormesWording(t *testing.T) {
+func TestDoctorIssuesSummaryComputesActionableCountAndGormesWording(t *testing.T) {
 	results := []CheckResult{
-		{Name: "build identity", Status: StatusPass, Summary: "version=0.2.12"},
+		{Name: "build identity", Status: StatusWarn, Summary: "dirty build"},
 		{Name: "GitHub auth", Status: StatusWarn, Summary: "No GITHUB_TOKEN and gh auth status failed"},
 		{Name: "Gateway Slack", Status: StatusWarn, Summary: "disabled"},
-		{Name: "config schema", Status: StatusFail, Summary: "config schema version is behind; run migrate"},
+		{Name: "config schema", Status: StatusWarn, Summary: "config schema version is behind; run migrate"},
+		{Name: "provider setup", Status: StatusFail, Summary: "endpoint unconfigured"},
 		{Name: "provider health", Status: StatusSkip, Summary: "skipped (--offline)"},
 	}
 
 	issues := CollectDoctorIssues(results)
-	// WARN + FAIL count, computed from results (not narrated). SKIP/PASS excluded.
-	if len(issues) != 3 {
-		t.Fatalf("CollectDoctorIssues = %d, want 3 (2 WARN + 1 FAIL; PASS/SKIP excluded): %+v", len(issues), issues)
+	// Hermes doctor keeps optional WARN checks visible in their sections without
+	// automatically appending them to the final issues list. Only the actionable
+	// config-schema warning and provider failure enter the computed count.
+	if len(issues) != 2 {
+		t.Fatalf("CollectDoctorIssues = %d, want 2 actionable issues: %+v", len(issues), issues)
+	}
+	for _, is := range issues {
+		for _, nonActionable := range []string{"build identity", "GitHub auth", "Gateway Slack"} {
+			if is.Name == nonActionable {
+				t.Fatalf("non-actionable warning %q leaked into issues: %+v", nonActionable, issues)
+			}
+		}
 	}
 
 	out := RenderDoctorIssuesSummary(issues)
-	if !strings.Contains(out, "Found 3 issue(s) to address:") {
+	if !strings.Contains(out, "Found 2 issue(s) to address:") {
 		t.Fatalf("summary missing computed count line, got:\n%s", out)
 	}
-	for i, want := range []string{"1.", "2.", "3."} {
+	for i, want := range []string{"1.", "2."} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("summary missing numbered item %d (%q):\n%s", i+1, want, out)
 		}
@@ -61,7 +71,7 @@ func TestDoctorIssuesSummaryZeroIssuesNoFixTip(t *testing.T) {
 
 func TestDoctorIssuesSummaryNoFixTipWhenNoFixableIssue(t *testing.T) {
 	results := []CheckResult{
-		{Name: "Gateway Slack", Status: StatusWarn, Summary: "disabled"},
+		{Name: "provider setup", Status: StatusFail, Summary: "endpoint unconfigured"},
 	}
 	out := RenderDoctorIssuesSummary(CollectDoctorIssues(results))
 	if !strings.Contains(out, "Found 1 issue(s) to address:") {
@@ -96,9 +106,9 @@ func TestRunDoctorFixAppliesEveryAutoFixableClassAndReportsComputed(t *testing.T
 		}
 	}
 
-	// Residual manual issues are the non-auto-fixable WARN/FAILs.
+	// Residual manual issues are the non-auto-fixable actionable findings.
 	manual := CollectDoctorIssues([]CheckResult{
-		{Name: "Gateway Slack", Status: StatusWarn, Summary: "disabled"},
+		{Name: "provider setup", Status: StatusFail, Summary: "endpoint unconfigured"},
 	})
 	out := RenderDoctorFixReport(outcomes, manual)
 	if !strings.Contains(out, "✓ Fixed: config schema — migrated _config_version v0→v1") {
@@ -107,7 +117,7 @@ func TestRunDoctorFixAppliesEveryAutoFixableClassAndReportsComputed(t *testing.T
 	if !strings.Contains(out, "Still manual (1):") {
 		t.Fatalf("fix report missing computed still-manual count:\n%s", out)
 	}
-	if !strings.Contains(out, "Gateway Slack") {
+	if !strings.Contains(out, "provider setup") {
 		t.Fatalf("fix report must list the residual manual issue:\n%s", out)
 	}
 	for _, forbidden := range []string{"hermes doctor", "hermes setup", "~/.hermes", "/.hermes"} {
