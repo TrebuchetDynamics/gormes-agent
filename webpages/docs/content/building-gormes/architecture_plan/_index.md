@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 103/111 subphases shipped · 8 in progress · 0 planned
+**Overall:** 104/111 subphases shipped · 7 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -102,7 +102,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -1511,7 +1511,7 @@ classification and row-backed implementation queue.
 - [x] `docs` Strict-fidelity upstream test-suite classifier
 - [ ] `docs` Hermes integrations claim audit + source-backed plugin/skill parity map
 
-### 8.D — Sharp v1.0 🔨
+### 8.D — Sharp v1.0 ✅
 
 - [x] `release` Sharp v1.0 differentiator decision
 - [x] `release` Single-binary cross-platform release pipeline
@@ -1537,7 +1537,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Gormes welcome panel version/tool-count wiring
 - [x] `release` Termux latest-installer follow-up release publication
 - [x] `release` Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs
-- [ ] `tui` Gormes-owned TUI queued-message widget and busy delivery modes
+- [x] `tui` Gormes-owned TUI queued-message widget and busy delivery modes
 - [x] `tui` Gormes-owned TUI extension status widget and footer seam
 
 ### 8.E — Toolkit Extraction 🔨
@@ -1625,7 +1625,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox profile contact summary API
 - [x] `navivox` Navivox API capability contract
 - [x] `navivox` Navivox continuous voice command mode
-- [ ] `navivox` Navivox Telegram-inspired chat polish
+- [x] `navivox` Navivox Telegram-inspired chat polish
 - [x] `navivox` Navivox natural-language profile seed backend API
 - [ ] `navivox` Navivox natural-language profile seed Flutter UI
 - [x] `navivox` Navivox structured tool event cards backend API

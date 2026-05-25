@@ -1281,9 +1281,9 @@
     "item": {
       "name": "Navivox Telegram-inspired chat polish",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "After the connect-and-talk loop and profile contact summary API work, make Navivox feel like a polished Telegram-inspired operator client without changing the Gormes HTTP/WS backend. Render a flat profile-contact list with deterministic avatar, display name, small server label, sanitized latest preview, timestamp, health, attention badges, workspace counts, and mic availability; render the profile chat screen with grouped Telegram-style bubbles, compact timestamps, local send/queued/streaming/done/error ticks, a pinned redacted server/profile/trust banner, always-reachable composer, and a global continuous-voice bar when active. Use Telegram-like draggable sheets for profile/server/action/tool detail flows. Evaluate `v_chat_bubbles` as the bubble renderer (`VBubbleStyle.telegram`, `VCustomBubble` for ToolCallCard, performance config for long transcripts) but fall back to local widgets if the package fails accessibility, theming, performance, or dependency review. This row is visual/interaction polish only: no TDLib, MTProto, Firebase chat backend, Telegram login, telephony, campaigns, or call-center scope.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1323,10 +1323,10 @@
         "Chat bubbles are grouped by author and time gap, have compact timestamps and local delivery-state ticks, and update one assistant bubble during streaming.",
         "ToolCallCard remains a structured custom bubble or local widget with redaction, status, and expandable details; tool output is not rendered as assistant prose.",
         "Profile/server/action/tool detail panels use `DraggableScrollableSheet` or a tested desktop side-panel equivalent.",
-        "Mobile uses Material 3 `NavigationBar` with Chats, Servers, and Settings; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage.",
+        "Mobile uses a Telegram-style navigation drawer with Chats, Servers, Memory, and Settings while profile chat/contact surfaces omit bottom navigation; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage.",
         "A package gate documents whether `v_chat_bubbles` was adopted or rejected, including accessibility, theming, performance, license, and dependency findings."
       ],
-      "note": "Package gate 2026-05-24: `../navivox-app/navivox-chat-ui-research.md` now records that `v_chat_bubbles` remains a visual reference rather than an adopted dependency for this slice. Current local widgets keep Gormes gateway state ownership for grouped bubbles, typing updates, ToolCallCard/safety/voice custom surfaces, and long-press actions; future adoption requires a small adapter proving `VBubbleStyle.telegram` plus `VCustomBubble` accessibility/performance. Validation: `cd /home/xel/git/gormes/navivox-app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart`.",
+      "note": "Package gate 2026-05-24: `../navivox-app/navivox-chat-ui-research.md` now records that `v_chat_bubbles` remains a visual reference rather than an adopted dependency for this slice. Current local widgets keep Gormes gateway state ownership for grouped bubbles, typing updates, ToolCallCard/safety/voice custom surfaces, and long-press actions; future adoption requires a small adapter proving `VBubbleStyle.telegram` plus `VCustomBubble` accessibility/performance. COMPLETE 2026-05-25: Verified the sibling Navivox Flutter implementation already provides the Telegram-inspired profile contact list, grouped/statused bubbles, ToolCallCard/custom surfaces, draggable sheets, continuous voice affordances, drawer/rail navigation coverage, and no TDLib/MTProto/Firebase backend dependency. Updated local Navivox UI docs to make the drawer-over-bottom-nav decision explicit. Validation: `cd /home/xel/git/gormes/navivox-app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart test/shared/app_shell_test.dart` ok; `go run ./cmd/progress validate` ok.",
       "write_scope": [
         "../navivox-app/pubspec.yaml",
         "../navivox-app/lib/features/chat/",

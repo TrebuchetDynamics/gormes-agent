@@ -27,47 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Gormes-owned TUI queued-message widget and busy delivery modes
-
-- Phase: 8 / 8.D
-- Owner: `tui`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Adapt Pi's visible steering/follow-up queue pattern into the native Gormes Bubble Tea chat TUI without changing Hermes-compatible slash command semantics. While a turn is active, plain Enter should honor the configured busy-input mode, queued or steering drafts should be visible in the bottom-pinned chrome, queued entries should drain after the kernel returns idle, and the UI must keep Alt/Shift+Enter newline behavior intact.
-- Trust class: operator, system
-- Ready when: The builder keeps the work in the local Bubble Tea TUI and kernel submit/cancel seams; gateway/channel follow-up behavior remains unchanged., The implementation uses fake frames and pure TUI tests; no provider, gateway process, or live terminal automation is required.
-- Not ready when: The slice changes Hermes-compatible Enter, Alt+Enter, Shift+Enter, Ctrl+C, slash dispatch, or active-turn policy semantics instead of only wiring visible queue state., The slice stores queued drafts in a side file, hidden TODO list, or non-session backlog outside the TUI/kernel state path.
-- Degraded mode: -
-- Fixture: `internal/tui/queued_messages_test.go`
-- Write scope: `internal/tui/queued_messages.go`, `internal/tui/update.go`, `internal/tui/view.go`, `internal/tui/hermes_chrome.go`, `internal/tui/*queued*test.go`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tui -run 'Test.*Queued\|TestHermesKeybindings_EnterPlainTextHonorsBusyInputMode\|TestHermesChrome' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Report focused TUI test output, a short before/after render fixture for queued rows, and progress validation.
-- Acceptance: Active-turn drafts submitted in queue mode appear in a three-row queued-message widget above the status rule and do not immediately call Submit., Steer mode shows steering evidence and schedules the draft through the existing active-turn injection path without hiding queued text from the operator., When a frame transitions to idle/failed, queued follow-up drafts drain in FIFO order through the existing submit callback and the widget clears., Alt+Enter and Shift+Enter still insert newlines and never enqueue or submit drafts.
-- Source refs: pi@fc8a155 packages/coding-agent/README.md:Message Queue, pi@fc8a155 packages/coding-agent/docs/settings.md:Message Delivery, pi@fc8a155 packages/coding-agent/docs/rpc.md:queue_update events, internal/tui/queued_messages.go:QueuedMessages, internal/tui/update.go:HermesBusyInputMode and ResolveHermesKey, internal/tui/hermes_chrome.go:HermesChromeInput.QueuedMessages, internal/tui/view.go:RenderHermesChrome call site
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Navivox Telegram-inspired chat polish
-
-- Phase: 9 / 9.F
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: After the connect-and-talk loop and profile contact summary API work, make Navivox feel like a polished Telegram-inspired operator client without changing the Gormes HTTP/WS backend. Render a flat profile-contact list with deterministic avatar, display name, small server label, sanitized latest preview, timestamp, health, attention badges, workspace counts, and mic availability; render the profile chat screen with grouped Telegram-style bubbles, compact timestamps, local send/queued/streaming/done/error ticks, a pinned redacted server/profile/trust banner, always-reachable composer, and a global continuous-voice bar when active. Use Telegram-like draggable sheets for profile/server/action/tool detail flows. Evaluate `v_chat_bubbles` as the bubble renderer (`VBubbleStyle.telegram`, `VCustomBubble` for ToolCallCard, performance config for long transcripts) but fall back to local widgets if the package fails accessibility, theming, performance, or dependency review. This row is visual/interaction polish only: no TDLib, MTProto, Firebase chat backend, Telegram login, telephony, campaigns, or call-center scope.
-- Trust class: operator, gateway
-- Ready when: `Navivox connect-and-talk first screen` has landed and provides a live chat fixture., `Navivox profile contact summary API` has landed so the list uses server-authoritative profile contacts, not mocks., The UI docs classify Telegram/TDLib references as rendering/lifecycle inspiration only, not backend dependencies., The package/dependency review for `v_chat_bubbles` can be performed without blocking text chat.
-- Not ready when: The slice adds Telegram account login, MTProto, TDLib, Firebase Firestore, or another chat backend., The slice makes `v_chat_bubbles` mandatory before proving it can render ToolCallCard as a custom bubble., The slice hides gateway status, auth mode, token-required state, or redaction evidence in favor of decorative chat styling., The slice introduces telephony, campaigns, scheduling, retries, or human handoff.
-- Degraded mode: If `v_chat_bubbles` is unsuitable, Navivox keeps the current simple adapter and implements only local Telegram-like preview tiles, grouped bubbles, status ticks, and sheets. Text chat, tool cards, and voice transcript fallback remain usable.
-- Fixture: `../navivox-app/test/features/chat/profile_contact_list_test.dart + ../navivox-app/test/features/chat/transcript_bubble_test.dart + ../navivox-app/test/features/chat/transcript_thread_test.dart + ../navivox-app/test/shared/app_shell_test.dart`
-- Write scope: `../navivox-app/pubspec.yaml`, `../navivox-app/lib/features/chat/`, `../navivox-app/lib/features/servers/`, `../navivox-app/lib/shared/widgets/`, `../navivox-app/test/features/chat/`, `../navivox-app/test/features/servers/`, `../navivox-app/navivox-chat-ui-research.md`, `../navivox-app/navivox-ui-design.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `sh -c 'cd ../navivox-app && flutter test test/features/chat test/features/servers test/router/app_router_test.dart test/shared/app_shell_test.dart'`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Navivox opens to a Telegram-inspired chat list and chat surface that is visually polished, operationally useful, and still backed only by the Gormes HTTP/WS gateway.
-- Acceptance: Chat list previews show profile avatar, display name, server label, sanitized latest preview, timestamp, health/auth status, attention badges, workspace counts, and mic availability., Chat bubbles are grouped by author and time gap, have compact timestamps and local delivery-state ticks, and update one assistant bubble during streaming., ToolCallCard remains a structured custom bubble or local widget with redaction, status, and expandable details; tool output is not rendered as assistant prose., Profile/server/action/tool detail panels use `DraggableScrollableSheet` or a tested desktop side-panel equivalent., Mobile uses Material 3 `NavigationBar` with Chats, Servers, and Settings; desktop uses a rail/sidebar equivalent; both layouts have widget or golden coverage., A package gate documents whether `v_chat_bubbles` was adopted or rejected, including accessibility, theming, performance, license, and dependency findings.
-- Source refs: ../navivox-app/navivox-chat-ui-research.md:2, ../navivox-app/navivox-ui-design.md:2.1, https://pub.dev/packages/v_chat_bubbles, https://docs.flutter.dev/ui/design/material, https://api.flutter.dev/flutter/widgets/DraggableScrollableSheet-class.html, https://github.com/tdlib/td, https://github.com/babakcode/flutter_chat
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Navivox natural-language profile seed Flutter UI
+## 1. Navivox natural-language profile seed Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -88,7 +48,7 @@ selection.
 - Unblocks: Navivox per-profile BYO voice profiles
 - Why now: Unblocks Navivox per-profile BYO voice profiles.
 
-## 4. Navivox per-profile BYO voice profiles Flutter UI
+## 2. Navivox per-profile BYO voice profiles Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -108,7 +68,7 @@ selection.
 - Source refs: ../navivox-app/navivox-ui-design.md:2.8, ../navivox-app/lib/features/profiles/, ../navivox-app/lib/features/config/, docs/content/building-gormes/architecture_plan/progress.json:Navivox per-profile BYO voice profiles backend API
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Navivox safe config admin Flutter UI
+## 3. Navivox safe config admin Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -129,7 +89,7 @@ selection.
 - Unblocks: Navivox per-profile BYO voice profiles
 - Why now: Unblocks Navivox per-profile BYO voice profiles.
 
-## 6. Navivox structured tool event cards Flutter UI
+## 4. Navivox structured tool event cards Flutter UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -149,7 +109,7 @@ selection.
 - Source refs: docs/content/building-gormes/architecture_plan/progress.json:Navivox structured tool event cards backend API, ../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxToolCall, ../navivox-app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall, ../navivox-app/lib/features/chat/widgets/simple_chat_adapter.dart:_ToolCallBody
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Navivox voice run records Flutter inspection UI
+## 5. Navivox voice run records Flutter inspection UI
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -169,7 +129,7 @@ selection.
 - Source refs: internal/apiserver/runs.go:runRecord, internal/channels/navivox/channel.go:sessionState, ../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxVoiceMessage, ../navivox-app/lib/core/channel/gateway_navivox_channel.dart, ../navivox-app/lib/features/chat/, https://docs.dograh.com/core-concepts/how-dograh-works
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Hermes integrations claim audit + source-backed plugin/skill parity map
+## 6. Hermes integrations claim audit + source-backed plugin/skill parity map
 
 - Phase: 8 / 8.C
 - Owner: `docs`
@@ -189,7 +149,7 @@ selection.
 - Source refs: sanitized user-provided Reddit/WebAfterAI transcript 2026-05-24: '12 Hermes Integrations That Actually Matter', hermes-agent/hermes_cli/plugins_cmd.py@43e566f77: `hermes plugins install` clones Git plugins into ~/.hermes/plugins and does not imply a built-in short-name registry for every social-post claim, hermes-agent/hermes_cli/plugins.py@43e566f77: bundled/user/project/pip plugin discovery and opt-in semantics, hermes-agent/skills/productivity/google-workspace/SKILL.md@43e566f77: first-party Gmail/Calendar/Drive/Docs/Sheets skill, hermes-agent/skills/note-taking/obsidian/SKILL.md@43e566f77: filesystem-first Obsidian vault skill, hermes-agent/plugins/web/firecrawl/plugin.yaml@43e566f77 and provider.py: bundled Firecrawl web backend with direct/gateway/self-hosted config, hermes-agent/tools/web_tools.py@43e566f77: generic web_search/web_extract/web_crawl dispatch; supports web-scraping/extraction workflows without naming them as native integrations, hermes-agent/skills/github/DESCRIPTION.md@43e566f77 and skills/github/*/SKILL.md: GitHub auth/repo/issues/PR/code-review skills, hermes-agent/skills/media/youtube-content/SKILL.md@43e566f77: YouTube transcript helper skill, hermes-agent/gateway/platforms/discord.py@43e566f77 and hermes-agent/tools/discord_tool.py@43e566f77: Discord gateway and Discord admin/core tools, hermes-agent/optional-skills/productivity/telephony/SKILL.md@43e566f77 and scripts/telephony.py: Twilio, Bland.ai, and Vapi optional telephony skill, hermes-agent/gateway/platforms/sms.py@43e566f77: Twilio-backed SMS gateway contract, repository search 2026-05-24: no first-party Hermes refs found for reddit, stripe API plugin, insforge, graphiti/zep, or fireflies beyond incidental text
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. CLIProxyAPI-compatible upstream route adapter
+## 7. CLIProxyAPI-compatible upstream route adapter
 
 - Phase: 4 / 4.A
 - Owner: `provider`

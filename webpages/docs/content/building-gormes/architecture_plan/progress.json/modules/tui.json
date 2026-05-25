@@ -5186,9 +5186,9 @@
     "item": {
       "name": "Gormes-owned TUI queued-message widget and busy delivery modes",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Adapt Pi's visible steering/follow-up queue pattern into the native Gormes Bubble Tea chat TUI without changing Hermes-compatible slash command semantics. While a turn is active, plain Enter should honor the configured busy-input mode, queued or steering drafts should be visible in the bottom-pinned chrome, queued entries should drain after the kernel returns idle, and the UI must keep Alt/Shift+Enter newline behavior intact.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "tui",
       "module": "tui",
@@ -5220,13 +5220,15 @@
         "When a frame transitions to idle/failed, queued follow-up drafts drain in FIFO order through the existing submit callback and the widget clears.",
         "Alt+Enter and Shift+Enter still insert newlines and never enqueue or submit drafts."
       ],
-      "note": "Planner 2026-05-25: Pi donor sweep classified this as a Gormes-owned TUI ergonomics improvement, not Hermes parity. Keep Pi's visible queue affordance while preserving Gormes/Hermes key semantics.",
+      "note": "Planner 2026-05-25: Pi donor sweep classified this as a Gormes-owned TUI ergonomics improvement, not Hermes parity. Keep Pi's visible queue affordance while preserving Gormes/Hermes key semantics. Builder 2026-05-25 corrected write_scope to include internal/tui/model.go for the local busy-input state and cmd/gormes/main.go for the real kernel PlatformEventSteer adapter. COMPLETE 2026-05-25: Options.BusyInputMode now threads display.busy_input_mode into the native Bubble Tea model, queue mode clears the editor and renders width-bounded queued drafts above the status rule without immediately calling Submit, terminal idle/failed frames drain queued follow-ups FIFO through the existing submit callback, steer mode calls the injected PlatformEventSteer seam and keeps steering guidance visible until terminal turn completion, and Alt+Enter/Shift+Enter remain newline-only. Evidence: go test ./internal/tui -run 'Test.*Queued|TestHermesKeybindings_EnterPlainTextHonorsBusyInputMode|TestHermesChrome' -count=1 ok; go test ./internal/tui ./cmd/gormes -count=1 ok.",
       "write_scope": [
         "internal/tui/queued_messages.go",
         "internal/tui/update.go",
         "internal/tui/view.go",
         "internal/tui/hermes_chrome.go",
+        "internal/tui/model.go",
         "internal/tui/*queued*test.go",
+        "cmd/gormes/main.go",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
