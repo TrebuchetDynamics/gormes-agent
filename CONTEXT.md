@@ -84,6 +84,10 @@ _Avoid_: single profile payload, contact-only contract
 A future Navivox API shape named only as unavailable product direction. Reserved surfaces must not appear in callable endpoint lists and must not enable client affordances.
 _Avoid_: planned endpoint, hidden endpoint, optimistic API
 
+**Navivox Auth Mode**:
+The exact server-configured authentication requirement for a Navivox client, such as token-only, tailnet-identity-only, or layered token plus tailnet identity. It may describe required credential kinds, but never token values, secret references, or private identity state.
+_Avoid_: broad auth bucket, token disclosure, secret source disclosure
+
 ## Example dialogue
 
 Developer: "Should we add a TODO file for the new work?"
