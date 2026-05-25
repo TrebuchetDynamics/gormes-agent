@@ -55,6 +55,12 @@ type HermesChromeInput struct {
 	// placement without coupling the pure chrome assembler to queue state.
 	QueuedMessages string
 	StickyPrompt   string
+
+	// ExtensionWidgetsAbove and ExtensionWidgetsBelow are Gormes-owned,
+	// typed in-process extension rows. Above-editor widgets compose with
+	// panel/todo/status chrome; below-editor widgets stay below the prompt.
+	ExtensionWidgetsAbove string
+	ExtensionWidgetsBelow string
 }
 
 // RenderHermesChrome assembles the bottom-pinned chrome stack used by
@@ -64,10 +70,12 @@ type HermesChromeInput struct {
 //	conversation
 //	(optional) spinner/hint
 //	(optional) modal panel
+//	(optional) extension widgets above editor
 //	(optional) queued messages
 //	(optional) sticky prompt
 //	status bar (top mode)
 //	prompt + input area
+//	(optional) extension widgets below editor
 //	status bar (bottom mode)
 //	(optional) voice status
 //	(optional) image bar
@@ -90,6 +98,9 @@ func RenderHermesChrome(in HermesChromeInput) string {
 	if in.Panel != "" {
 		parts = append(parts, in.Panel)
 	}
+	if in.ExtensionWidgetsAbove != "" {
+		parts = append(parts, in.ExtensionWidgetsAbove)
+	}
 	if in.QueuedMessages != "" {
 		parts = append(parts, in.QueuedMessages)
 	}
@@ -102,6 +113,9 @@ func RenderHermesChrome(in HermesChromeInput) string {
 	}
 	if in.Prompt != "" {
 		parts = append(parts, in.Prompt)
+	}
+	if in.ExtensionWidgetsBelow != "" {
+		parts = append(parts, in.ExtensionWidgetsBelow)
 	}
 	if in.StatusBar != "" && statusBarMode == StatusBarModeBottom {
 		parts = append(parts, in.StatusBar)

@@ -162,6 +162,29 @@ func TestExtensionsRejectInvalidRegistration(t *testing.T) {
 	}
 }
 
+func TestExtensionUINoopReturnsTypedUnavailableEvidence(t *testing.T) {
+	ui := NewNoopExtensionUI("print mode")
+	for name, res := range map[string]ExtensionUIResult{
+		"set status":    ui.SetStatus("demo", "running"),
+		"clear status":  ui.ClearStatus("demo"),
+		"set widget":    ui.SetWidget("demo", []string{"line"}, ExtensionUIWidgetOptions{}),
+		"clear widget":  ui.ClearWidget("demo"),
+		"set footer":    ui.SetFooter([]string{"footer"}),
+		"clear footer":  ui.ClearFooter(),
+		"set working":   ui.SetWorkingIndicator(ExtensionUIWorkingIndicator{Text: "working", Frames: []string{"●"}}),
+		"clear working": ui.ClearWorkingIndicator(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if res.Status != ExtensionUIUnavailable {
+				t.Fatalf("status = %q, want unavailable: %#v", res.Status, res)
+			}
+			if !strings.Contains(res.Evidence, "print mode") {
+				t.Fatalf("evidence = %q, want print mode", res.Evidence)
+			}
+		})
+	}
+}
+
 func mustRegisterExtension(t *testing.T, chain *ExtensionChain, reg ExtensionRegistration) {
 	t.Helper()
 	if err := chain.Register(reg); err != nil {

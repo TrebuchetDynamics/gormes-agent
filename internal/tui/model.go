@@ -321,6 +321,7 @@ type Model struct {
 	detailsState      DetailsState
 	indicatorStyle    IndicatorStyle
 	spinnerFrame      int
+	extensionUI       extensionUIState
 
 	// sessionID, when non-empty, is the locally-tracked active session
 	// owned by a successful /branch fork. SessionID() prefers it over

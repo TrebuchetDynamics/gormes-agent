@@ -74,6 +74,11 @@ func (m Model) View() string {
 	statusBarMode := normalizeStatusBarMode(m.statusBarMode)
 	if statusBarMode != StatusBarModeOff {
 		statusBar = RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
+		if footer, ok := m.renderExtensionFooter(m.width); ok {
+			statusBar = footer
+		} else {
+			statusBar = m.renderExtensionStatusLine(statusBar, m.width)
+		}
 	}
 
 	hint := m.renderHermesHint()
@@ -95,19 +100,24 @@ func (m Model) View() string {
 	todoPanel := m.renderTodoPanel(convW)
 
 	return RenderHermesChrome(HermesChromeInput{
-		Width:         m.width,
-		Conversation:  conv,
-		Spinner:       hint,
-		Panel:         panel,
-		TodoPanel:     todoPanel,
-		StatusBar:     statusBar,
-		StatusBarMode: statusBarMode,
-		Prompt:        prompt,
-		Completions:   completions,
+		Width:                 m.width,
+		Conversation:          conv,
+		Spinner:               hint,
+		Panel:                 panel,
+		TodoPanel:             todoPanel,
+		ExtensionWidgetsAbove: m.renderExtensionWidgets(kernel.ExtensionUIWidgetAboveEditor, m.width),
+		StatusBar:             statusBar,
+		StatusBarMode:         statusBarMode,
+		Prompt:                prompt,
+		ExtensionWidgetsBelow: m.renderExtensionWidgets(kernel.ExtensionUIWidgetBelowEditor, m.width),
+		Completions:           completions,
 	})
 }
 
 func (m Model) renderHermesHint() string {
+	if working, ok := m.extensionWorkingIndicator(); ok {
+		return renderHermesHintWithExtensionWorking(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle, working)
+	}
 	return renderHermesHintWithIndicator(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle)
 }
 
@@ -120,6 +130,44 @@ func renderHermesHintWithIndicator(f kernel.RenderFrame, statusMessage string, w
 	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
 		parts = append(parts, RenderIndicatorFrame(indicator, spinnerFrame))
 		parts = append(parts, strings.ToLower(f.Phase.String()))
+		if f.SessionID != "" {
+			parts = append(parts, "session "+shortSessionID(f.SessionID))
+		}
+	}
+	if statusMessage != "" {
+		parts = append(parts, statusMessage)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	text := strings.Join(parts, " · ")
+	if width > 0 {
+		text = RenderMarkdownSoftWrapTrim(text, width)
+	}
+	return muted.Render(text)
+}
+
+func renderHermesHintWithExtensionWorking(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle, working extensionUIWorking) string {
+	var parts []string
+	if f.Phase != kernel.PhaseIdle && f.Phase != kernel.PhaseFailed {
+		if !working.hideIndicator {
+			if len(working.frames) > 0 {
+				idx := spinnerFrame % len(working.frames)
+				if idx < 0 {
+					idx = 0
+				}
+				parts = append(parts, working.frames[idx])
+			} else {
+				parts = append(parts, RenderIndicatorFrame(indicator, spinnerFrame))
+			}
+		}
+		label := strings.TrimSpace(working.text)
+		if label == "" {
+			label = strings.ToLower(f.Phase.String())
+		}
+		if label != "" {
+			parts = append(parts, label)
+		}
 		if f.SessionID != "" {
 			parts = append(parts, "session "+shortSessionID(f.SessionID))
 		}

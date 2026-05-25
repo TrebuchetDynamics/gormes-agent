@@ -71,6 +71,104 @@ type ExtensionData struct {
 	Values map[string]any
 }
 
+type ExtensionUIStatus string
+
+const (
+	ExtensionUIApplied     ExtensionUIStatus = "applied"
+	ExtensionUICleared     ExtensionUIStatus = "cleared"
+	ExtensionUIUnavailable ExtensionUIStatus = "unavailable"
+	ExtensionUINoop        ExtensionUIStatus = "noop"
+)
+
+type ExtensionUIResult struct {
+	Status   ExtensionUIStatus
+	Evidence string
+}
+
+type ExtensionUIWidgetPlacement string
+
+const (
+	ExtensionUIWidgetAboveEditor ExtensionUIWidgetPlacement = "aboveEditor"
+	ExtensionUIWidgetBelowEditor ExtensionUIWidgetPlacement = "belowEditor"
+)
+
+type ExtensionUIWidgetOptions struct {
+	Placement ExtensionUIWidgetPlacement
+}
+
+type ExtensionUIWorkingIndicator struct {
+	Text   string
+	Frames []string
+}
+
+type ExtensionUI interface {
+	SetStatus(key, text string) ExtensionUIResult
+	ClearStatus(key string) ExtensionUIResult
+	SetWidget(key string, lines []string, opts ExtensionUIWidgetOptions) ExtensionUIResult
+	ClearWidget(key string) ExtensionUIResult
+	SetFooter(lines []string) ExtensionUIResult
+	ClearFooter() ExtensionUIResult
+	SetWorkingIndicator(opts ExtensionUIWorkingIndicator) ExtensionUIResult
+	ClearWorkingIndicator() ExtensionUIResult
+}
+
+type noopExtensionUI struct {
+	reason string
+}
+
+func NewNoopExtensionUI(reason string) ExtensionUI {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "extension UI unavailable"
+	}
+	return noopExtensionUI{reason: reason}
+}
+
+func (n noopExtensionUI) SetStatus(string, string) ExtensionUIResult {
+	return n.unavailable()
+}
+
+func (n noopExtensionUI) ClearStatus(string) ExtensionUIResult {
+	return n.unavailable()
+}
+
+func (n noopExtensionUI) SetWidget(string, []string, ExtensionUIWidgetOptions) ExtensionUIResult {
+	return n.unavailable()
+}
+
+func (n noopExtensionUI) ClearWidget(string) ExtensionUIResult {
+	return n.unavailable()
+}
+
+func (n noopExtensionUI) SetFooter([]string) ExtensionUIResult {
+	return n.unavailable()
+}
+
+func (n noopExtensionUI) ClearFooter() ExtensionUIResult {
+	return n.unavailable()
+}
+
+func (n noopExtensionUI) SetWorkingIndicator(ExtensionUIWorkingIndicator) ExtensionUIResult {
+	return n.unavailable()
+}
+
+func (n noopExtensionUI) ClearWorkingIndicator() ExtensionUIResult {
+	return n.unavailable()
+}
+
+func (n noopExtensionUI) unavailable() ExtensionUIResult {
+	return ExtensionUIResult{Status: ExtensionUIUnavailable, Evidence: n.reason}
+}
+
+func NormalizeExtensionUIWidgetPlacement(placement ExtensionUIWidgetPlacement) ExtensionUIWidgetPlacement {
+	switch placement {
+	case ExtensionUIWidgetBelowEditor:
+		return ExtensionUIWidgetBelowEditor
+	default:
+		return ExtensionUIWidgetAboveEditor
+	}
+}
+
 type ExtensionHandler func(context.Context, ExtensionHook, *ExtensionData) error
 
 type ExtensionRegistration struct {
