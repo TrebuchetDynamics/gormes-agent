@@ -80,6 +80,10 @@ _Avoid_: profile import, automatic profile creation
 The full Navivox profile shape assembled from profile contacts, profile routing, and voice-profile state. It is not a promise that every profile field appears in one JSON payload.
 _Avoid_: single profile payload, contact-only contract
 
+**Navivox Reserved Surface**:
+A future Navivox API shape named only as unavailable product direction. Reserved surfaces must not appear in callable endpoint lists and must not enable client affordances.
+_Avoid_: planned endpoint, hidden endpoint, optimistic API
+
 ## Example dialogue
 
 Developer: "Should we add a TODO file for the new work?"
