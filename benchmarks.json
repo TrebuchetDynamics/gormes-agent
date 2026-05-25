@@ -1,9 +1,9 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "e8582b05d",
+    "commit": "6dc5c261b",
     "go_version": "1.26+",
-    "last_measured": "2026-05-23",
+    "last_measured": "2026-05-25",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
@@ -13,11 +13,18 @@
   },
   "code": {
     "dependencies": 274,
-    "go_files": 992,
-    "go_lines": 259195,
-    "test_count": 6658
+    "go_files": 1014,
+    "go_lines": 261349,
+    "test_count": 6714
   },
   "history": [
+    {
+      "commit": "6dc5c261b",
+      "date": "2026-05-25",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 51220642,
+      "size_mb": 48.8
+    },
     {
       "commit": "ea31f844d",
       "date": "2026-05-23",
@@ -199,14 +206,14 @@
   "runtime": {
     "offline_doctor": {
       "command": "bin/gormes doctor --offline --json",
-      "commit": "e8582b05d",
-      "elapsed_ms": 10,
+      "commit": "6dc5c261b",
+      "elapsed_ms": 49,
       "goarch": "amd64",
       "goos": "linux",
       "isolated_home": true,
-      "last_measured": "2026-05-23",
-      "peak_rss_kb": 27844,
-      "peak_rss_mb": 27.2,
+      "last_measured": "2026-05-25",
+      "peak_rss_kb": 25376,
+      "peak_rss_mb": 24.8,
       "status": "measured"
     }
   },
