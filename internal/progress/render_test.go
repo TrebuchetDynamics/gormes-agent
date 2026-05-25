@@ -377,6 +377,26 @@ func TestRenderBlockedSlices(t *testing.T) {
 	}
 }
 
+func TestRenderBlockedSlicesSkipsRowsWhoseBlockersAreComplete(t *testing.T) {
+	p := &Progress{Phases: map[string]Phase{
+		"1": {Name: "Phase 1", Subphases: map[string]Subphase{
+			"1.A": {Name: "Alpha", Items: []Item{
+				{Name: "Foundation", Status: StatusComplete},
+				{Name: "Dependent", Status: StatusPlanned, Contract: "dependent", BlockedBy: []string{"Foundation"}, ReadyWhen: []string{"Foundation complete"}},
+				{Name: "Still blocked", Status: StatusPlanned, Contract: "blocked", BlockedBy: []string{"Missing"}, ReadyWhen: []string{"Missing complete"}},
+			}},
+		}},
+	}}
+
+	got := RenderBlockedSlices(p)
+	if strings.Contains(got, "Dependent") {
+		t.Fatalf("blocked slices must not include rows whose blockers are complete:\n%s", got)
+	}
+	if !strings.Contains(got, "Still blocked") {
+		t.Fatalf("blocked slices must still include rows with pending blockers:\n%s", got)
+	}
+}
+
 func TestRenderUmbrellaCleanup(t *testing.T) {
 	p := &Progress{Phases: map[string]Phase{
 		"5": {Name: "Phase 5", Subphases: map[string]Subphase{

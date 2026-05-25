@@ -187,7 +187,7 @@ func RenderAgentQueue(p *Progress, limit int) string {
 // RenderBlockedSlices returns rows that cannot start until another roadmap row
 // is complete or another readiness condition becomes true.
 func RenderBlockedSlices(p *Progress) string {
-	rows := blockedRows(contractRows(p))
+	rows := blockedRows(allItemRows(p))
 	if len(rows) == 0 {
 		return "_No contract-bearing rows are currently blocked._\n"
 	}
@@ -648,11 +648,24 @@ func whyNow(it Item) string {
 }
 
 func blockedRows(rows []contractRow) []contractRow {
-	var out []contractRow
+	byKey := map[string]contractRow{}
+	inputs := make([]workitem.RowInput, 0, len(rows))
 	for _, row := range rows {
-		if row.Item.Status != StatusComplete && len(row.Item.BlockedBy) > 0 {
-			out = append(out, row)
+		byKey[contractRowKey(row.PhaseKey, row.SubphaseKey, row.Item.Name)] = row
+		inputs = append(inputs, workitemInputFromContractRow(row))
+	}
+	classified := workitem.Classify(inputs, workitem.Options{ActiveFirst: true})
+
+	var out []contractRow
+	for _, row := range classified {
+		if row.Classification != workitem.ClassificationBlocked {
+			continue
 		}
+		original, ok := byKey[contractRowKey(row.PhaseID, row.SubphaseID, row.ItemName)]
+		if !ok || original.Item.Contract == "" {
+			continue
+		}
+		out = append(out, original)
 	}
 	return out
 }

@@ -63,6 +63,7 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 			DashboardAPIExposed    bool     `json:"dashboard_api_exposed"`
 			SupportedActions       []string `json:"supported_actions"`
 			UnsupportedActions     []string `json:"unsupported_actions"`
+			ProfileContractParts   []string `json:"profile_contract_parts"`
 		} `json:"profile_management"`
 		Attachments struct {
 			MaxRequestBytes          int      `json:"max_request_bytes"`
@@ -107,6 +108,11 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 	}
 	if got.ProfileManagement.DashboardAPIExposed || !containsNavivoxCapabilityString(got.ProfileManagement.SupportedActions, "contact_snapshot") || !containsNavivoxCapabilityString(got.ProfileManagement.SupportedActions, "create_from_seed") || !containsNavivoxCapabilityString(got.ProfileManagement.UnsupportedActions, "direct_dashboard_api_profiles") {
 		t.Fatalf("profile management support = %+v, want stable wrapper not raw dashboard profile API", got.ProfileManagement)
+	}
+	for _, part := range []string{"profile_contacts", "profile_routing", "voice_profiles"} {
+		if !containsNavivoxCapabilityString(got.ProfileManagement.ProfileContractParts, part) {
+			t.Fatalf("profile contract parts = %v, want %q", got.ProfileManagement.ProfileContractParts, part)
+		}
 	}
 	if got.Attachments.MaxRequestBytes != 1<<20 || got.Attachments.RawLocalPathsAccepted || got.Attachments.WorkspaceFileAttach || got.Attachments.OpaqueUploadIDs || got.Attachments.UnsupportedUntilEndpoint == "" || len(got.Attachments.MIMEAllowlist) != 0 {
 		t.Fatalf("attachments = %+v, want explicit unavailable durable-upload contract", got.Attachments)
@@ -172,7 +178,7 @@ func TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, forbidden := range []string{"nvbx_test_token", "GORMES_NAVIVOX_TOKEN=", "/home/", "\\\\Users\\\\", "api_key", "password", "secret"} {
+	for _, forbidden := range []string{"nvbx_test_token", "GORMES_NAVIVOX_TOKEN=", "/home/", "\\\\Users\\\\", "api_key", "password", "secret", "payload_safety"} {
 		if strings.Contains(string(raw), forbidden) {
 			t.Fatalf("capabilities leaked forbidden %q:\n%s", forbidden, raw)
 		}
