@@ -173,6 +173,12 @@ are stable.
 | Batch, mini-SWE, RL, datagen | `batch_runner.py`, `mini_swe_runner.py`, `rl_cli.py`, `datagen-config-examples/` | `internal/tools`, `internal/subagent`, future research packages | Defer research modes until normal turn, tools, and release lanes are stable. Port only hermetic runner contracts first. | Phase 5.M/5.O |
 | Learning loop | `run_agent.py` background review, `agent/curator.py`, `hermes_cli/curator.py`, `tools/skill_manager_tool.py`, `hermes_cli/config.py` auxiliary defaults, `hermes_cli/main.py` auxiliary picker, `hermes_cli/web_server.py` auxiliary model API, skill and memory rows plus Gormes Phase 6 docs | `internal/hermes`, `internal/skills`, `internal/tools`, `internal/memory`, `internal/config`, `internal/cli`, `internal/kernel` | Port Hermes `skill_manage` support-file/curator-intent actions, background-review forks, `auxiliary.curator` model routing, and curator state/CLI first, then add Gormes-native detectors, candidate extraction, review/promotion, hybrid retrieval, and outcome scoring. | Phase 6 |
 
+Integration-count or social-post claims must pass the source-classification gate
+in [Hermes Integrations Claim Audit](../hermes-integrations-claim-audit/) before
+they change README, feature-map, or roadmap wording. Generic web/browser/MCP or
+webhook workflows are useful, but they are not direct Hermes plugin/tool parity
+unless current source names that bundled skill, plugin, gateway, or tool.
+
 ## Honcho Feature Map For Goncho
 
 Goncho is not a hosted Honcho clone. It is the in-process Go memory system that

@@ -977,9 +977,9 @@
     "item": {
       "name": "Hermes integrations claim audit + source-backed plugin/skill parity map",
       "priority": "P2",
-      "status": "planned",
+      "status": "complete",
       "contract": "Turn the sanitized Reddit/WebAfterAI Hermes integrations post into a source-backed parity map without accepting marketing shorthand as fact: classify each named integration as first-party bundled skill, bundled plugin/backend, gateway/platform/tool, optional skill, indirect web/browser/MCP/scraping workflow, Gormes-owned candidate, or unsupported/excluded claim. The audit must explicitly handle cases where a workflow is achievable through generic web scraping, browser automation, MCP, or Firecrawl-style extraction without being a direct Hermes plugin or tool, and it must not create implementation rows for Reddit, Stripe, InsForge, Graphiti/Zep, or Fireflies unless exact current Hermes source appears.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "docs",
       "module": "docs",
@@ -1020,9 +1020,13 @@
         "The audit explicitly notes that some user-visible workflows are not direct tools: e.g. competitor/site/reddit-style research may be covered by generic web search/extract/crawl, browser automation, or future MCP/web-scraping rows rather than a named Hermes Reddit plugin.",
         "Unsupported/excluded claims for Reddit, Stripe, InsForge, Graphiti/Zep, and Fireflies remain excluded or row-backed as discovery-only until source refs are found.",
         "Any follow-up implementation intent is routed into separate small progress rows by source class; this audit row does not broaden into a 12-integration implementation batch.",
-        "Public messaging/docs are updated only with evidence-backed wording and avoid inflated integration counts."
+        "Public messaging/docs are updated only with evidence-backed wording and avoid inflated integration counts.",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-integrations-claim-audit.md lists the 12 normalized social-post claims and classifies each as direct first-party skill/plugin/tool/gateway, optional skill, indirect web/browser/MCP/webhook workflow, or unsupported/excluded.",
+        "The audit explicitly keeps Reddit, Stripe, InsForge, Graphiti/Zep, and Fireflies out of direct Hermes/Gormes integration claims until exact current source or an external plugin repository URL appears.",
+        "Feature-map and upstream-coverage ledger notes now route future integration-count claims through the source-classification audit before README, roadmap, or runtime rows change.",
+        "No follow-up implementation rows were created; existing skills/plugins/web/browser/channel/MCP rows remain the source-backed owners for direct classes and generic workflows."
       ],
-      "note": "Planner intake from sanitized Reddit/WebAfterAI transcript. This row is a parity/source-classification gate, not proof that all named integrations exist. It intentionally preserves the nuance that web scraping, browser automation, Firecrawl extraction, and MCP can satisfy some workflows indirectly without making them direct Hermes plugins or Gormes parity requirements.",
+      "note": "SHIPPED 2026-05-25 — added the source-backed Hermes integrations claim audit. The checked-in table classifies Google Workspace, Obsidian, Firecrawl, GitHub, YouTube, Discord, and Twilio/SMS/telephony as source-backed direct skills/plugins/gateways/tools; classifies generic competitor/Reddit-style research as an indirect web/browser workflow; and keeps Reddit, Stripe, InsForge, Graphiti/Zep, and Fireflies unsupported/excluded as direct Hermes integrations until source appears. Updated feature-map and upstream-coverage ledger notes require future integration-count claims to pass this source-classification gate. No runtime rows were added.",
       "write_scope": [
         "webpages/docs/content/building-gormes/architecture_plan/hermes-integrations-claim-audit.md",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",

@@ -1779,7 +1779,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ],
           "drift_state": {
@@ -5099,7 +5099,7 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             }
           ]
         },

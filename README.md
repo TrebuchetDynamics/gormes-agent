@@ -244,7 +244,7 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |

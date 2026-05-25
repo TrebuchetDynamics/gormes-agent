@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `docs`
 **Rows:** 22
-**Status counts:** `complete`: 18 · `in_progress`: 0 · `planned`: 4
+**Status counts:** `complete`: 19 · `in_progress`: 0 · `planned`: 3
 **Priority counts:** `P1`: 13 · `P2`: 7 · `P3`: 2
 
 ## Phase 8 — Reputation & Publication
@@ -40,7 +40,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `docs` | Hermes v0.14 release feature-to-module pairing ledger |
 | `complete` | `P1` | `docs` | Hermes contract inventory gate |
 | `complete` | `P1` | `docs` | Strict-fidelity upstream test-suite classifier |
-| `planned` | `P2` | `docs` | Hermes integrations claim audit + source-backed plugin/skill parity map |
+| `complete` | `P2` | `docs` | Hermes integrations claim audit + source-backed plugin/skill parity map |
 
 ### 8.E — Toolkit Extraction
 

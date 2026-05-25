@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `providers`
 **Rows:** 126
-**Status counts:** `complete`: 125 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 126 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 9 · `P1`: 55 · `P2`: 24 · `P3`: 3 · `unset`: 35
 
 ## Phase 3 — The Black Box (Memory)
@@ -67,7 +67,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `providers` | Gormes Router OpenAI-compatible models/chat endpoint |
 | `complete` | `P1` | `providers` | Gormes Router streaming SSE and fallback safety |
 | `complete` | `P1` | `providers` | Gormes Router health/status counters and redacted logs |
-| `planned` | `P3` | `providers` | CLIProxyAPI-compatible upstream route adapter |
+| `complete` | `P3` | `providers` | CLIProxyAPI-compatible upstream route adapter |
 
 ### 4.B — Context Engine + Compression
 

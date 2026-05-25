@@ -91,14 +91,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 104/111 subphases shipped · 7 in progress · 0 planned
+**Overall:** 105/111 subphases shipped · 6 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
@@ -559,11 +559,11 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho skill-outcome tracking as conclusions
 - [x] `goncho` Goncho workspace isolation with explicit global scope
 
-## Phase 4 — The Brain Transplant 🔨
+## Phase 4 — The Brain Transplant ✅
 
 *Native Go agent orchestrator + prompt builder*
 
-### 4.A — Provider Adapters 🔨
+### 4.A — Provider Adapters ✅
 
 - [x] `providers` Provider interface + stream fixture harness
 - [x] `providers` Hermes provider registry and alias manifest
@@ -608,7 +608,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Gormes Router OpenAI-compatible models/chat endpoint
 - [x] `providers` Gormes Router streaming SSE and fallback safety
 - [x] `providers` Gormes Router health/status counters and redacted logs
-- [ ] `providers` CLIProxyAPI-compatible upstream route adapter
+- [x] `providers` CLIProxyAPI-compatible upstream route adapter
 
 ### 4.B — Context Engine + Compression ✅
 
@@ -1509,7 +1509,7 @@ classification and row-backed implementation queue.
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
 - [x] `docs` Hermes contract inventory gate
 - [x] `docs` Strict-fidelity upstream test-suite classifier
-- [ ] `docs` Hermes integrations claim audit + source-backed plugin/skill parity map
+- [x] `docs` Hermes integrations claim audit + source-backed plugin/skill parity map
 
 ### 8.D — Sharp v1.0 ✅
 

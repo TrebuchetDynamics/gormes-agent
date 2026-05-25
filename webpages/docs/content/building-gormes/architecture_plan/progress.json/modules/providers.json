@@ -2918,9 +2918,9 @@
     "item": {
       "name": "CLIProxyAPI-compatible upstream route adapter",
       "priority": "P3",
-      "status": "planned",
+      "status": "complete",
       "contract": "After the Gormes Router MVP exists, optionally allow a CLIProxyAPI server to be configured as a normal OpenAI-compatible upstream base URL. This must not import CLIProxyAPI runtime code, management APIs, OAuth automation, or multi-account pooling; it only treats CLIProxyAPI as a user-configured upstream endpoint.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "provider",
       "module": "providers",
@@ -2950,9 +2950,13 @@
         "A CLIProxyAPI-style upstream can be represented as a custom OpenAI-compatible route with base_url and api_key_env.",
         "The adapter only relies on /v1/models and /v1/chat/completions-compatible behavior.",
         "No OAuth, management API, WebSocket, token scraping, or account-pool semantics are added.",
-        "Tests use httptest fake CLIProxyAPI-compatible responses and redaction assertions."
+        "Tests use httptest fake CLIProxyAPI-compatible responses and redaction assertions.",
+        "TestRouterCLIProxyAPIUpstream proves a CLIProxyAPI-style upstream is represented as a custom OpenAI-compatible route using base_url plus api_key_env.",
+        "TestRouterCLIProxyAPIUpstream proves the upstream adapter uses only GET /v1/models and POST /v1/chat/completions, never management APIs, OAuth automation, WebSockets, token scraping, or account-pool semantics.",
+        "TestRouterCLIProxyAPIUpstream proves Router chat requests send the configured upstream model to the fake CLIProxyAPI endpoint while preserving the external route alias for clients.",
+        "TestRouterCLIProxyAPIUpstream proves upstream Authorization and local Router credentials stay redacted from responses and status/log-safe evidence."
       ],
-      "note": "Non-MVP follow-up. Keep CLIProxyAPI compatibility at the OpenAI-compatible upstream boundary only.",
+      "note": "SHIPPED 2026-05-25 — added a Gormes-owned HTTPUpstreamProvider for OpenAI-compatible upstream routes such as user-run CLIProxyAPI servers. The adapter resolves redacted route credential handles (api_key_env/api_key_ref/primary key), probes /v1/models, posts non-streaming and SSE chat-completion requests to /v1/chat/completions with the configured upstream model, classifies HTTP/network failures without raw-body leaks, and remains behind the existing Router provider seam. It does not import CLIProxyAPI runtime code, call management APIs, automate OAuth/browser capture, use WebSockets, or add account-pool semantics. Validated by go test ./internal/provider/router -run 'TestRouterCLIProxyAPIUpstream' -count=1.",
       "write_scope": [
         "internal/provider/router/",
         "internal/config/",
