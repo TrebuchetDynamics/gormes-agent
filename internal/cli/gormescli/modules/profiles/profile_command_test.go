@@ -3,6 +3,8 @@ package profiles
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -67,6 +69,54 @@ func TestProfileModuleCommandUsesInjectedSeamsAndBuildProvenance(t *testing.T) {
 	}
 	if got.Action != "use" || got.Active != "work" || got.Root != ".../work" {
 		t.Fatalf("profile JSON = %+v, want action=use active=work root=.../work", got)
+	}
+}
+
+func TestProfileModuleDefaultSeamsUseBaseHomeFromProfileScopedProcess(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	activeProfileRoot := filepath.Join(base, "profiles", "work")
+	researchRoot := filepath.Join(base, "profiles", "research")
+	if err := os.MkdirAll(researchRoot, 0o700); err != nil {
+		t.Fatalf("mkdir research profile: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(base, "active_profile"), []byte("research\n"), 0o600); err != nil {
+		t.Fatalf("write active profile: %v", err)
+	}
+	t.Setenv("GORMES_HOME", activeProfileRoot)
+
+	seams := DefaultSeams()
+	active, err := seams.ReadActiveProfileName()
+	if err != nil {
+		t.Fatalf("ReadActiveProfileName: %v", err)
+	}
+	if active != "research" {
+		t.Fatalf("active profile = %q, want research", active)
+	}
+	root, err := seams.ResolveProfileRoot("research")
+	if err != nil {
+		t.Fatalf("ResolveProfileRoot: %v", err)
+	}
+	if root != researchRoot {
+		t.Fatalf("ResolveProfileRoot = %q, want base-home profile root %q", root, researchRoot)
+	}
+	known, err := seams.ListKnownProfiles()
+	if err != nil {
+		t.Fatalf("ListKnownProfiles: %v", err)
+	}
+	if !containsString(known, "research") {
+		t.Fatalf("known profiles = %v, want research from base home", known)
+	}
+
+	created, err := seams.CreateProfile("ops", false)
+	if err != nil {
+		t.Fatalf("CreateProfile ops: %v", err)
+	}
+	wantCreated := filepath.Join(base, "profiles", "ops")
+	if created.Root != wantCreated {
+		t.Fatalf("created root = %q, want %q", created.Root, wantCreated)
+	}
+	if strings.Contains(created.Root, filepath.Join("profiles", "work", "profiles")) {
+		t.Fatalf("created nested profile root under active profile: %q", created.Root)
 	}
 }
 

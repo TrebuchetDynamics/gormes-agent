@@ -2030,6 +2030,7 @@ func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams)
 	if err != nil {
 		return fmt.Errorf("resolve profile %q: %w", selected, err)
 	}
+	writeSetupProfileStorageSummary(out, root)
 
 	profileConfigPath := filepath.Join(root, "config.toml")
 

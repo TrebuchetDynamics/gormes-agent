@@ -279,6 +279,7 @@ func validateBlockerMetadata(phKey, spKey string, index int, itemName string, bl
 		value string
 	}{
 		{field: "type", value: blocker.Type},
+		{field: "status", value: blocker.Status},
 		{field: "blocker", value: blocker.Blocker},
 		{field: "evidence", value: blocker.Evidence},
 		{field: "unblocks_when", value: blocker.UnblocksWhen},
@@ -291,7 +292,31 @@ func validateBlockerMetadata(phKey, spKey string, index int, itemName string, bl
 			add("blocker metadata missing %s", req.field)
 		}
 	}
+	if strings.TrimSpace(blocker.Type) != "" && !validBlockerType(blocker.Type) {
+		add("invalid blocker type %q", blocker.Type)
+	}
+	if strings.TrimSpace(blocker.Status) != "" && !validBlockerStatus(blocker.Status) {
+		add("invalid blocker status %q", blocker.Status)
+	}
 	return errs
+}
+
+func validBlockerType(s string) bool {
+	switch s {
+	case "access", "infra", "dependency", "decision", "bug", "unknown":
+		return true
+	default:
+		return false
+	}
+}
+
+func validBlockerStatus(s string) bool {
+	switch s {
+	case "blocked", "resolved", "blocker_active":
+		return true
+	default:
+		return false
+	}
 }
 
 func concreteFixtureRef(fixture string) bool {

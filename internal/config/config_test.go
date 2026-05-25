@@ -1325,6 +1325,25 @@ max_waiting = -1
 	}
 }
 
+func TestGormesBaseHomeForNamedProfileRoot(t *testing.T) {
+	root := filepath.Join(string(filepath.Separator), "home", "juan", ".gormes")
+	profileRoot := filepath.Join(root, "profiles", "researcher")
+	if got := GormesBaseHomeFor(profileRoot); got != root {
+		t.Fatalf("GormesBaseHomeFor(profile root) = %q, want %q", got, root)
+	}
+	if got := GormesBaseHomeFor(root); got != root {
+		t.Fatalf("GormesBaseHomeFor(base root) = %q, want unchanged %q", got, root)
+	}
+}
+
+func TestGormesBaseHomeUsesGormesHomeEnv(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	t.Setenv("GORMES_HOME", filepath.Join(base, "profiles", "work"))
+	if got := GormesBaseHome(); got != base {
+		t.Fatalf("GormesBaseHome() = %q, want %q", got, base)
+	}
+}
+
 func TestSessionDBPath_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-xdg")
 	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")

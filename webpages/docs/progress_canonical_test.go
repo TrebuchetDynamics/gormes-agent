@@ -65,6 +65,38 @@ func TestCanonicalProgressNavivoxPathsUseCurrentSiblingAppRoot(t *testing.T) {
 	}
 }
 
+func TestCanonicalProgressRowsWithActivePlannerBlockersUseStructuredBlockers(t *testing.T) {
+	var data any
+	if err := json.Unmarshal(canonicalProgressBytes(t, canonicalProgressPath), &data); err != nil {
+		t.Fatalf("decode canonical progress: %v", err)
+	}
+	for _, rowName := range []string{
+		"Go-owned WASM TTS backend",
+		"Engineering writeup #1: autonomous Hermes-porting loop",
+		"TD social presence connected to blog feed",
+	} {
+		rowName := rowName
+		t.Run(rowName, func(t *testing.T) {
+			row, ok := findProgressRowByName(data, rowName)
+			if !ok {
+				t.Fatalf("%s row not found", rowName)
+			}
+			blocker, ok := row["blocker"].(map[string]any)
+			if !ok {
+				t.Fatalf("%s row must record a structured blocker: %#v", rowName, row["blocker"])
+			}
+			for _, key := range []string{"type", "status", "blocker", "evidence", "unblocks_when", "owner", "pivot", "next_check"} {
+				if value, ok := blocker[key].(string); !ok || strings.TrimSpace(value) == "" {
+					t.Fatalf("%s blocker missing non-empty %q: %#v", rowName, key, blocker)
+				}
+			}
+			if blocker["status"] != "blocked" {
+				t.Fatalf("%s blocker status = %q, want blocked", rowName, blocker["status"])
+			}
+		})
+	}
+}
+
 func TestWebpagesDocsCanonicalReadersAreSplitDirectorySafe(t *testing.T) {
 	// Build a module-keyed split-DIRECTORY fixture from the real canonical
 	// backlog without disturbing the on-disk monolith.

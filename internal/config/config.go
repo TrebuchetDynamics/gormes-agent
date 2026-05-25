@@ -32,6 +32,7 @@ type Config struct {
 	LegacyConfigVersion int `toml:"_config_version,omitempty" yaml:"_config_version,omitempty"`
 
 	Hermes        HermesCfg                `toml:"hermes" yaml:"hermes"`
+	Router        RouterCfg                `toml:"router" yaml:"router"`
 	Profiles      map[string]ProfileCfg    `toml:"profiles" yaml:"profiles"`
 	Credentials   map[string]CredentialCfg `toml:"credentials" yaml:"credentials"`
 	Agent         AgentRuntimeCfg          `toml:"agent" yaml:"agent"`
@@ -448,6 +449,36 @@ type HermesCfg struct {
 	ModelResolutionSource string     `toml:"-" yaml:"-" json:"model_resolution_source,omitempty"`
 }
 
+type RouterCfg struct {
+	Enabled    bool                `toml:"enabled" yaml:"enabled"`
+	Listen     string              `toml:"listen" yaml:"listen"`
+	APIKeys    []string            `toml:"api_keys" yaml:"api_keys"`
+	APIKeyEnv  string              `toml:"api_key_env" yaml:"api_key_env"`
+	RedactLogs bool                `toml:"redact_logs" yaml:"redact_logs"`
+	SetupMode  string              `toml:"setup_mode" yaml:"setup_mode"`
+	Routes     []RouterRouteCfg    `toml:"routes" yaml:"routes"`
+	Fallback   []RouterFallbackCfg `toml:"fallback" yaml:"fallback"`
+}
+
+type RouterRouteCfg struct {
+	Name      string     `toml:"name" yaml:"name"`
+	Provider  string     `toml:"provider" yaml:"provider"`
+	Model     string     `toml:"model" yaml:"model"`
+	Alias     string     `toml:"alias" yaml:"alias"`
+	BaseURL   string     `toml:"base_url" yaml:"base_url"`
+	APIKeyEnv string     `toml:"api_key_env" yaml:"api_key_env"`
+	APIKeyRef *SecretRef `toml:"api_key_ref" yaml:"api_key_ref" json:"api_key_ref,omitempty"`
+	Transport string     `toml:"transport" yaml:"transport"`
+	Optional  bool       `toml:"optional" yaml:"optional"`
+	Weight    int        `toml:"weight" yaml:"weight"`
+}
+
+type RouterFallbackCfg struct {
+	From string   `toml:"from" yaml:"from"`
+	To   string   `toml:"to" yaml:"to"`
+	On   []string `toml:"on" yaml:"on"`
+}
+
 type AgentRuntimeCfg struct {
 	ImageInputMode     string            `toml:"image_input_mode" yaml:"image_input_mode"`
 	MaxTurns           int               `toml:"max_turns" yaml:"max_turns"`
@@ -759,6 +790,11 @@ func defaults() Config {
 		ConfigVersion: CurrentConfigVersion,
 		Hermes: HermesCfg{
 			Model: "hermes-agent",
+		},
+		Router: RouterCfg{
+			Listen:     "127.0.0.1:8787",
+			RedactLogs: true,
+			SetupMode:  "local_gateway",
 		},
 		Agent: AgentRuntimeCfg{
 			MaxTurns:        60,
@@ -1994,6 +2030,27 @@ func GormesHome() string {
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".gormes")
+}
+
+// GormesBaseHome returns the base Gormes home that owns profile roots. When a
+// process is already scoped to a named profile (`.../.gormes/profiles/<name>`),
+// profile-management commands still need the parent `.../.gormes` so they do
+// not create nested profile trees under the active profile.
+func GormesBaseHome() string {
+	return GormesBaseHomeFor(GormesHome())
+}
+
+// GormesBaseHomeFor returns the parent Gormes home for a named profile root,
+// otherwise it returns current unchanged.
+func GormesBaseHomeFor(current string) string {
+	clean := filepath.Clean(strings.TrimSpace(current))
+	if clean == "." || clean == string(filepath.Separator) {
+		return current
+	}
+	if filepath.Base(filepath.Dir(clean)) == "profiles" {
+		return filepath.Dir(filepath.Dir(clean))
+	}
+	return current
 }
 
 // SubprocessHome returns the Hermes-compatible subprocess HOME for the active

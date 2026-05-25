@@ -332,10 +332,11 @@ func newProfileUseCommand(seams Seams, options Options) *cobra.Command {
 // active marker landed. Root is redacted (only the trailing segment)
 // — same secrets contract as `profile show`.
 type profileSetReportJSON struct {
-	Build  gormescli.BuildProvenance `json:"build"`
-	Action string                    `json:"action"`
-	Active string                    `json:"active"`
-	Root   string                    `json:"root"`
+	Build   gormescli.BuildProvenance  `json:"build"`
+	Action  string                     `json:"action"`
+	Active  string                     `json:"active"`
+	Root    string                     `json:"root"`
+	Storage profileStorageContractJSON `json:"storage"`
 }
 
 func newProfileCreateCommand(seams Seams, options Options) *cobra.Command {
@@ -356,11 +357,12 @@ func newProfileCreateCommand(seams Seams, options Options) *cobra.Command {
 }
 
 type profileCreateReportJSON struct {
-	Build    gormescli.BuildProvenance `json:"build"`
-	Action   string                    `json:"action"`
-	Name     string                    `json:"name"`
-	Root     string                    `json:"root"`
-	CloneAll bool                      `json:"clone_all"`
+	Build    gormescli.BuildProvenance  `json:"build"`
+	Action   string                     `json:"action"`
+	Name     string                     `json:"name"`
+	Root     string                     `json:"root"`
+	Storage  profileStorageContractJSON `json:"storage"`
+	CloneAll bool                       `json:"clone_all"`
 }
 
 type profileUnavailableSpec struct {
@@ -524,6 +526,7 @@ type profileShowReportJSON struct {
 	Build        gormescli.BuildProvenance       `json:"build"`
 	Active       string                          `json:"active"`
 	Root         string                          `json:"root"`
+	Storage      profileStorageContractJSON      `json:"storage"`
 	Distribution *profileDistributionSummaryJSON `json:"distribution,omitempty"`
 }
 
@@ -532,6 +535,7 @@ func emitProfileShowJSON(cmd *cobra.Command, active, root string, manifest *cli.
 		Build:        buildProvenance(options),
 		Active:       active,
 		Root:         root,
+		Storage:      profileStorageContract(root),
 		Distribution: profileDistributionSummaryJSONFromManifest(manifest),
 	}, "", "  ")
 	if err != nil {
@@ -586,10 +590,11 @@ func runProfileSetCommand(cmd *cobra.Command, seams Seams, rawName string, actio
 	asJSON, _ := cmd.Flags().GetBool("json")
 	if asJSON {
 		body, marshalErr := json.MarshalIndent(profileSetReportJSON{
-			Build:  buildProvenance(options),
-			Action: verb,
-			Active: name,
-			Root:   redactProfileRootPath(root),
+			Build:   buildProvenance(options),
+			Action:  verb,
+			Active:  name,
+			Root:    redactProfileRootPath(root),
+			Storage: profileStorageContract(root),
 		}, "", "  ")
 		if marshalErr != nil {
 			return marshalErr
@@ -617,6 +622,7 @@ func runProfileCreateCommand(cmd *cobra.Command, seams Seams, rawName string, cl
 			Action:   "created",
 			Name:     result.Name,
 			Root:     redactedRoot,
+			Storage:  profileStorageContract(result.Root),
 			CloneAll: result.CloneAll,
 		}, "", "  ")
 		if marshalErr != nil {
@@ -627,6 +633,7 @@ func runProfileCreateCommand(cmd *cobra.Command, seams Seams, rawName string, cl
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "created profile: %s\n", result.Name)
 	fmt.Fprintf(cmd.OutOrStdout(), "root: %s\n", redactedRoot)
+	writeProfileStorageSummary(cmd, result.Root)
 	if result.CloneAll {
 		fmt.Fprintln(cmd.OutOrStdout(), "clone_all: true")
 	}
@@ -638,6 +645,14 @@ func runProfileCreateCommand(cmd *cobra.Command, seams Seams, rawName string, cl
 func writeProfileSummary(cmd *cobra.Command, name, root string) {
 	fmt.Fprintf(cmd.OutOrStdout(), "active profile: %s\n", name)
 	fmt.Fprintf(cmd.OutOrStdout(), "root: %s\n", redactProfileRootPath(root))
+	writeProfileStorageSummary(cmd, root)
+}
+
+func writeProfileStorageSummary(cmd *cobra.Command, root string) {
+	storage := profileStorageContract(root)
+	fmt.Fprintf(cmd.OutOrStdout(), "memory_db: %s\n", storage.MemoryDBPath)
+	fmt.Fprintf(cmd.OutOrStdout(), "goncho_db: %s\n", storage.GonchoMemoryDBPath)
+	fmt.Fprintf(cmd.OutOrStdout(), "sessions_db: %s\n", storage.SessionDBPath)
 }
 
 func runProfileListCommand(cmd *cobra.Command, seams Seams, asJSON bool, options Options) error {
@@ -663,9 +678,18 @@ func runProfileListCommand(cmd *cobra.Command, seams Seams, asJSON bool, options
 			if err != nil {
 				return fmt.Errorf("gormes profile list %q: %w", name, err)
 			}
+			root := ""
+			if seams.ResolveProfileRoot != nil {
+				resolved, err := seams.ResolveProfileRoot(name)
+				if err != nil {
+					return fmt.Errorf("gormes profile list %q: %w", name, err)
+				}
+				root = resolved
+			}
 			profiles[i] = profileListEntryJSON{
 				Name:         name,
 				Active:       name == active,
+				Storage:      profileStorageContract(root),
 				Distribution: profileDistributionSummaryJSONFromManifest(manifestPointer(manifest, hasManifest)),
 			}
 		}
@@ -719,7 +743,7 @@ func runProfileInfoCommand(cmd *cobra.Command, seams Seams, rawName string, asJS
 		return fmt.Errorf("gormes profile info %q: %w", name, err)
 	}
 	if asJSON {
-		return emitProfileInfoJSON(cmd, name, redactProfileRootPath(root), manifestPointer(manifest, ok), options)
+		return emitProfileInfoJSON(cmd, name, redactProfileRootPath(root), profileStorageContract(root), manifestPointer(manifest, ok), options)
 	}
 	if !ok {
 		fmt.Fprintf(cmd.OutOrStdout(), "Profile '%s' is not a distribution (no %s).\n", name, cli.ProfileDistributionManifestFile)
@@ -742,6 +766,7 @@ type profileListReportJSON struct {
 type profileListEntryJSON struct {
 	Name         string                          `json:"name"`
 	Active       bool                            `json:"active"`
+	Storage      profileStorageContractJSON      `json:"storage"`
 	Distribution *profileDistributionSummaryJSON `json:"distribution,omitempty"`
 }
 
@@ -762,14 +787,16 @@ type profileInfoReportJSON struct {
 	Build        gormescli.BuildProvenance        `json:"build"`
 	Name         string                           `json:"name"`
 	Root         string                           `json:"root"`
+	Storage      profileStorageContractJSON       `json:"storage"`
 	Distribution *cli.ProfileDistributionManifest `json:"distribution,omitempty"`
 }
 
-func emitProfileInfoJSON(cmd *cobra.Command, name, root string, manifest *cli.ProfileDistributionManifest, options Options) error {
+func emitProfileInfoJSON(cmd *cobra.Command, name, root string, storage profileStorageContractJSON, manifest *cli.ProfileDistributionManifest, options Options) error {
 	body, err := json.MarshalIndent(profileInfoReportJSON{
 		Build:        buildProvenance(options),
 		Name:         name,
 		Root:         root,
+		Storage:      storage,
 		Distribution: manifest,
 	}, "", "  ")
 	if err != nil {
@@ -783,6 +810,14 @@ type profileDistributionSummaryJSON struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 	Source  string `json:"source,omitempty"`
+}
+
+type profileStorageContractJSON struct {
+	Root               string `json:"root"`
+	Scope              string `json:"scope"`
+	MemoryDBPath       string `json:"memory_db_path"`
+	GonchoMemoryDBPath string `json:"goncho_memory_db_path"`
+	SessionDBPath      string `json:"session_db_path"`
 }
 
 func readProfileDistributionForName(seams Seams, name string) (cli.ProfileDistributionManifest, bool, error) {
@@ -829,6 +864,21 @@ func writeProfileDistributionSummary(cmd *cobra.Command, manifest cli.ProfileDis
 	if summary := manifest.Summary(); summary != "" {
 		fmt.Fprintf(cmd.OutOrStdout(), "distribution: %s\n", summary)
 	}
+}
+
+func profileStorageContract(root string) profileStorageContractJSON {
+	return profileStorageContractJSON{
+		Root:               redactProfileRootPath(root),
+		Scope:              "profile_root",
+		MemoryDBPath:       redactProfileChildPath(root, "memory.db"),
+		GonchoMemoryDBPath: redactProfileChildPath(root, "memory.db"),
+		SessionDBPath:      redactProfileChildPath(root, "sessions.db"),
+	}
+}
+
+func redactProfileChildPath(root string, elems ...string) string {
+	parts := append([]string{redactProfileRootPath(root)}, elems...)
+	return filepath.ToSlash(filepath.Join(parts...))
 }
 
 func writeProfileDistributionInfo(cmd *cobra.Command, manifest cli.ProfileDistributionManifest) {
@@ -905,7 +955,8 @@ func newProfileSelectorFromSeams(seams Seams) cli.ProfileSelector {
 // override is in effect for the process. Tests skip this and inject fakes via
 // NewCommandWithSeams.
 func DefaultSeams() Seams {
-	activePath := filepath.Join(config.GormesHome(), "active_profile")
+	baseHome := config.GormesBaseHome()
+	activePath := filepath.Join(baseHome, "active_profile")
 	return Seams{
 		ReadActiveProfileName: func() (string, error) {
 			return cli.ReadActiveProfile(activePath)
@@ -913,12 +964,12 @@ func DefaultSeams() Seams {
 		ValidateProfileName: cli.ValidateProfileName,
 		ResolveProfileRoot: func(name string) (string, error) {
 			if name == "default" {
-				return config.GormesHome(), nil
+				return baseHome, nil
 			}
 			if err := cli.ValidateProfileName(name); err != nil {
 				return "", err
 			}
-			return filepath.Join(config.GormesHome(), "profiles", name), nil
+			return filepath.Join(baseHome, "profiles", name), nil
 		},
 		WriteActiveProfile: func(name string) error {
 			return cli.WriteActiveProfile(activePath, name)
@@ -929,8 +980,8 @@ func DefaultSeams() Seams {
 			}
 			return cli.CreateProfile(cli.ProfileCreateOptions{
 				Name:       name,
-				TargetRoot: filepath.Join(config.GormesHome(), "profiles", name),
-				SourceRoot: config.GormesHome(),
+				TargetRoot: filepath.Join(baseHome, "profiles", name),
+				SourceRoot: baseHome,
 				CloneAll:   cloneAll,
 			})
 		},
@@ -960,7 +1011,7 @@ func DefaultSeams() Seams {
 // reported even if no profile dir exists yet so operators can always orient.
 func DefaultListKnownProfiles() ([]string, error) {
 	known := []string{"default"}
-	profilesDir := filepath.Join(config.GormesHome(), "profiles")
+	profilesDir := filepath.Join(config.GormesBaseHome(), "profiles")
 	entries, err := os.ReadDir(profilesDir)
 	if err != nil {
 		return known, nil

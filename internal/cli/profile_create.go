@@ -42,6 +42,13 @@ var profileCloneAllStripRoot = []string{
 	"gateway.pid",
 	"gateway_state.json",
 	"processes.json",
+	"memory.db",
+	"memory.db-wal",
+	"memory.db-shm",
+	"sessions.db",
+	"sessions.db-wal",
+	"sessions.db-shm",
+	"kanban.db",
 }
 
 var profileCreateDefaultDirs = []string{

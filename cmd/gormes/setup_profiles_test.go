@@ -78,6 +78,37 @@ func TestSetupProfilesInteractiveListsAndCreates(t *testing.T) {
 // as a TOML ARRAY into THAT profile's own config.toml via the real
 // internal/config writer round-trip, and config.Load reads them back into
 // AgentsCfg.Defaults.Workspaces (default profile -> ~/.gormes/config.toml).
+func TestSetupProfilesFromProfileScopedEnvCreatesUnderBaseHome(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	activeProfileRoot := filepath.Join(base, "profiles", "active")
+	if err := os.MkdirAll(activeProfileRoot, 0o700); err != nil {
+		t.Fatalf("mkdir active profile: %v", err)
+	}
+	t.Setenv("GORMES_HOME", activeProfileRoot)
+	fake := &setupCommandFakeSeams{isTTY: true}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "work\nwork\n/srv/work\n\n", "profiles")
+	if err != nil {
+		t.Fatalf("setup profiles: Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	wantProfile := filepath.Join(base, "profiles", "work")
+	if _, statErr := os.Stat(wantProfile); statErr != nil {
+		t.Fatalf("created profile missing at base home %s: %v", wantProfile, statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(activeProfileRoot, "profiles", "work")); !os.IsNotExist(statErr) {
+		t.Fatalf("setup profiles created nested profile under active profile, stat err=%v", statErr)
+	}
+	if _, readErr := os.ReadFile(filepath.Join(wantProfile, "config.toml")); readErr != nil {
+		t.Fatalf("profile config must be written under base-home profile root: %v", readErr)
+	}
+	out := stdout + stderr
+	for _, want := range []string{"memory_db: .../work/memory.db", "goncho_db: .../work/memory.db", "sessions_db: .../work/sessions.db"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("setup profiles output missing storage contract %q:\n%s", want, out)
+		}
+	}
+}
+
 func TestSetupProfilesPersistsWorkspaceListForDefaultProfile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

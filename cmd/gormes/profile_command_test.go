@@ -707,6 +707,57 @@ func TestGormesProfileListShowsDistributionMetadata(t *testing.T) {
 	t.Fatalf("work profile missing from JSON: %+v", got.Profiles)
 }
 
+func TestGormesProfileShowIncludesProfileLocalMemoryContract(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		resolveProfileRoot: func(name string) (string, error) {
+			return "/home/operator-secret/.gormes/profiles/" + name, nil
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "show")
+	if err != nil {
+		t.Fatalf("profile show: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"memory_db: .../work/memory.db",
+		"goncho_db: .../work/memory.db",
+		"sessions_db: .../work/sessions.db",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("profile show missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout+stderr, "/home/operator-secret") {
+		t.Fatalf("profile show leaked raw profile root:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	stdout, stderr, err = runProfileTestCommand(t, fake.defaults(), "show", "--json")
+	if err != nil {
+		t.Fatalf("profile show --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Storage struct {
+			Root               string `json:"root"`
+			Scope              string `json:"scope"`
+			MemoryDBPath       string `json:"memory_db_path"`
+			GonchoMemoryDBPath string `json:"goncho_memory_db_path"`
+			SessionDBPath      string `json:"session_db_path"`
+		} `json:"storage"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("profile show --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Storage.Root != ".../work" || got.Storage.Scope != "profile_root" {
+		t.Fatalf("storage root/scope = %+v, want .../work profile_root", got.Storage)
+	}
+	if got.Storage.MemoryDBPath != ".../work/memory.db" || got.Storage.GonchoMemoryDBPath != ".../work/memory.db" || got.Storage.SessionDBPath != ".../work/sessions.db" {
+		t.Fatalf("storage paths = %+v, want profile-local db paths", got.Storage)
+	}
+	if strings.Contains(stdout+stderr, "/home/operator-secret") {
+		t.Fatalf("profile show --json leaked raw profile root:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
 func TestGormesProfileShowIncludesDistributionSummary(t *testing.T) {
 	fake := &profileCommandFakeSeams{
 		activeProfileName: "work",

@@ -535,23 +535,42 @@ func emitJSONSubcommandRequired(cmd *cobra.Command) error {
 }
 
 func applyProfileStartupFlag(cmd *cobra.Command) error {
+	baseHome := config.GormesBaseHome()
 	name := strings.TrimSpace(commandStringFlag(cmd, "profile"))
 	if name == "" {
-		return nil
+		if commandSkipsStickyActiveProfile(cmd) {
+			return nil
+		}
+		active, err := cli.ReadActiveProfile(filepath.Join(baseHome, "active_profile"))
+		if err != nil {
+			if errors.Is(err, cli.ErrActiveProfileUnset) {
+				return nil
+			}
+			return newExitCodeError(2, fmt.Errorf("profile: read active profile: %w", err))
+		}
+		name = active
 	}
 	if err := cli.ValidateProfileName(name); err != nil {
 		return newExitCodeError(2, fmt.Errorf("profile_name_invalid: %w", err))
 	}
-	var root string
-	if name == "default" {
-		root = config.GormesHome()
-	} else {
-		root = filepath.Join(config.GormesHome(), "profiles", name)
+	root := baseHome
+	if name != "default" {
+		root = filepath.Join(baseHome, "profiles", name)
 	}
 	if err := os.Setenv("GORMES_HOME", root); err != nil {
 		return newExitCodeError(2, fmt.Errorf("profile: set GORMES_HOME: %w", err))
 	}
 	return nil
+}
+
+func commandSkipsStickyActiveProfile(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		switch c.Name() {
+		case "profile", "config":
+			return true
+		}
+	}
+	return false
 }
 
 func newChatCommand(runtime rootRuntime) *cobra.Command {

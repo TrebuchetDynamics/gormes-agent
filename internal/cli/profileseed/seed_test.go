@@ -85,6 +85,26 @@ func TestProfileSeedModelDraftIsValidatedAndMarkedModel(t *testing.T) {
 	}
 }
 
+func TestProfileSeedDefaultCreateProfileUsesBaseHomeFromProfileScopedEnv(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	t.Setenv("GORMES_HOME", filepath.Join(base, "profiles", "active"))
+
+	result, err := Apply("support ops", ApplyOptions{})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	wantRoot := filepath.Join(base, "profiles", "support-ops")
+	if result.Root != wantRoot {
+		t.Fatalf("Apply root = %q, want base-home profile root %q", result.Root, wantRoot)
+	}
+	if strings.Contains(result.Root, filepath.Join("profiles", "active", "profiles")) {
+		t.Fatalf("Apply created nested profile root under active profile: %q", result.Root)
+	}
+	if _, err := os.Stat(filepath.Join(wantRoot, "profile_seed.json")); err != nil {
+		t.Fatalf("profile_seed.json missing under base profile root: %v", err)
+	}
+}
+
 func TestProfileSeedApplyCreatesProfileManifestWithoutImplicitWorkspaceGrant(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "profiles", "work-mineru-repo")
 	result, err := Apply("work on mineru repo", ApplyOptions{

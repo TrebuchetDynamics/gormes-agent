@@ -89,8 +89,49 @@ func TestProgressBlockerMetadataRoundTrips(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsBlockerMetadataWithInvalidTypeAndStatus(t *testing.T) {
+	p := progressWithBlockerForTest(&BlockerMetadata{
+		Type:         "surprise",
+		Status:       "waiting",
+		Blocker:      "lock",
+		Evidence:     "locked",
+		UnblocksWhen: "unlocked",
+		Owner:        "operator",
+		Pivot:        "run next row",
+		NextCheck:    "2026-05-01T12:30:00-06:00",
+	})
+
+	err := Validate(p)
+	if err == nil {
+		t.Fatal("Validate() = nil, want invalid blocker metadata errors")
+	}
+	for _, want := range []string{`invalid blocker type "surprise"`, `invalid blocker status "waiting"`} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("Validate() = %v, want %s", err, want)
+		}
+	}
+}
+
 func TestValidateRejectsBlockerMetadataWithoutPivot(t *testing.T) {
-	p := &Progress{
+	p := progressWithBlockerForTest(&BlockerMetadata{
+		Type:          "infra",
+		Status:        "blocked",
+		Blocker:       "lock",
+		Evidence:      "locked",
+		UnblocksWhen:  "unlocked",
+		Owner:         "operator",
+		NextCheck:     "2026-05-01T12:30:00-06:00",
+		MissingFields: []string{"pivot"},
+	})
+
+	err := Validate(p)
+	if err == nil || !strings.Contains(err.Error(), "blocker metadata missing pivot") {
+		t.Fatalf("Validate() = %v, want blocker metadata missing pivot", err)
+	}
+}
+
+func progressWithBlockerForTest(blocker *BlockerMetadata) *Progress {
+	return &Progress{
 		Meta: Meta{Version: "2.0"},
 		Phases: map[string]Phase{"5": {Subphases: map[string]Subphase{
 			"5.N": {Items: []Item{{
@@ -109,21 +150,8 @@ func TestValidateRejectsBlockerMetadataWithoutPivot(t *testing.T) {
 				WriteScope:     []string{"internal/tools/blocker.go"},
 				TestCommands:   []string{"go test ./internal/tools -run TestBlocker -count=1"},
 				DoneSignal:     []string{"done"},
-				Blocker: &BlockerMetadata{
-					Type:          "infra",
-					Blocker:       "lock",
-					Evidence:      "locked",
-					UnblocksWhen:  "unlocked",
-					Owner:         "operator",
-					NextCheck:     "2026-05-01T12:30:00-06:00",
-					MissingFields: []string{"pivot"},
-				},
+				Blocker:        blocker,
 			}}},
 		}}},
-	}
-
-	err := Validate(p)
-	if err == nil || !strings.Contains(err.Error(), "blocker metadata missing pivot") {
-		t.Fatalf("Validate() = %v, want blocker metadata missing pivot", err)
 	}
 }

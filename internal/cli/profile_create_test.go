@@ -103,7 +103,18 @@ func TestCreateProfileCloneAllStripsRuntimeFiles(t *testing.T) {
 	xdg := t.TempDir()
 	defaultRoot := filepath.Join(xdg, "gormes")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "config.toml"), "model = \"gpt-4\"\n")
-	for _, path := range []string{"gateway.pid", "gateway_state.json", "processes.json"} {
+	for _, path := range []string{
+		"gateway.pid",
+		"gateway_state.json",
+		"processes.json",
+		"memory.db",
+		"memory.db-wal",
+		"memory.db-shm",
+		"sessions.db",
+		"sessions.db-wal",
+		"sessions.db-shm",
+		"kanban.db",
+	} {
 		mustWriteProfileFile(t, filepath.Join(defaultRoot, path), "runtime")
 	}
 
@@ -114,7 +125,18 @@ func TestCreateProfileCloneAllStripsRuntimeFiles(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(target, "config.toml")); err != nil {
 		t.Fatalf("expected copied config: %v", err)
 	}
-	for _, path := range []string{"gateway.pid", "gateway_state.json", "processes.json"} {
+	for _, path := range []string{
+		"gateway.pid",
+		"gateway_state.json",
+		"processes.json",
+		"memory.db",
+		"memory.db-wal",
+		"memory.db-shm",
+		"sessions.db",
+		"sessions.db-wal",
+		"sessions.db-shm",
+		"kanban.db",
+	} {
 		if _, err := os.Stat(filepath.Join(target, path)); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("runtime file %s should be stripped, stat err=%v", path, err)
 		}

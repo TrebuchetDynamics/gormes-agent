@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -50,14 +51,16 @@ func TestChatWelcomeStartupSeedUsesRealVersionAndToolCount(t *testing.T) {
 func TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	initialHome := config.GormesHome()
-	wantProfileHome := filepath.Join(filepath.Dir(initialHome), "gormes", "profiles", "worker")
+	wantProfileHome := filepath.Join(initialHome, "profiles", "worker")
 	hermesHome := os.Getenv("HERMES_HOME")
 
 	var gotHome string
+	var gotMemoryDB string
 	var gotPrompt string
 	cmd := newRootCommandWithRuntime(rootRuntime{
 		runOneshot: func(_ *cobra.Command, invocation oneshotInvocation) error {
 			gotHome = os.Getenv("GORMES_HOME")
+			gotMemoryDB = config.MemoryDBPath()
 			gotPrompt = invocation.Prompt
 			return nil
 		},
@@ -74,11 +77,51 @@ func TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad(t *testing.T) {
 	if gotHome != wantProfileHome {
 		t.Fatalf("GORMES_HOME during chat = %q, want profile root %q", gotHome, wantProfileHome)
 	}
+	if want := filepath.Join(wantProfileHome, "memory.db"); gotMemoryDB != want {
+		t.Fatalf("MemoryDBPath during chat = %q, want profile memory db %q", gotMemoryDB, want)
+	}
 	if os.Getenv("HERMES_HOME") != hermesHome {
 		t.Fatalf("HERMES_HOME changed to %q, want %q", os.Getenv("HERMES_HOME"), hermesHome)
 	}
 	if gotPrompt != "work kanban task t_123" {
 		t.Fatalf("Prompt = %q, want kanban task prompt", gotPrompt)
+	}
+}
+
+func TestChatCommandStickyActiveProfileSetsIndependentMemoryHome(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	baseHome := config.GormesHome()
+	if err := os.MkdirAll(baseHome, 0o755); err != nil {
+		t.Fatalf("create base home: %v", err)
+	}
+	if err := cli.WriteActiveProfile(filepath.Join(baseHome, "active_profile"), "researcher"); err != nil {
+		t.Fatalf("write active profile: %v", err)
+	}
+	wantProfileHome := filepath.Join(baseHome, "profiles", "researcher")
+
+	var gotHome string
+	var gotMemoryDB string
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runOneshot: func(_ *cobra.Command, _ oneshotInvocation) error {
+			gotHome = os.Getenv("GORMES_HOME")
+			gotMemoryDB = config.MemoryDBPath()
+			return nil
+		},
+		runResolvedTUI: func(*cobra.Command, tuiInvocation) error {
+			t.Fatal("runResolvedTUI was called for chat -q")
+			return nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "chat", "-q", "remember profile isolated state")
+	if err != nil {
+		t.Fatalf("Execute() error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if gotHome != wantProfileHome {
+		t.Fatalf("GORMES_HOME during sticky-profile chat = %q, want %q", gotHome, wantProfileHome)
+	}
+	if want := filepath.Join(wantProfileHome, "memory.db"); gotMemoryDB != want {
+		t.Fatalf("MemoryDBPath during sticky-profile chat = %q, want %q", gotMemoryDB, want)
 	}
 }
 

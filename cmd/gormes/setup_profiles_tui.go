@@ -458,6 +458,7 @@ func applySetupProfilesTUIResult(cmd *cobra.Command, pseams profileCommandSeams,
 	if err != nil {
 		return fmt.Errorf("resolve profile %q: %w", selected, err)
 	}
+	writeSetupProfileStorageSummary(out, root)
 	if result.SetActive {
 		if pseams.WriteActiveProfile == nil {
 			return fmt.Errorf("profile active seam unavailable")
@@ -499,6 +500,21 @@ func applySetupProfilesTUIResult(cmd *cobra.Command, pseams profileCommandSeams,
 		fmt.Fprintln(out, "No profile setup changes selected.")
 	}
 	return nil
+}
+
+func writeSetupProfileStorageSummary(out io.Writer, root string) {
+	redacted := setupRedactedProfileRoot(root)
+	fmt.Fprintf(out, "memory_db: %s\n", filepath.ToSlash(filepath.Join(redacted, "memory.db")))
+	fmt.Fprintf(out, "goncho_db: %s\n", filepath.ToSlash(filepath.Join(redacted, "memory.db")))
+	fmt.Fprintf(out, "sessions_db: %s\n", filepath.ToSlash(filepath.Join(redacted, "sessions.db")))
+}
+
+func setupRedactedProfileRoot(root string) string {
+	base := filepath.Base(filepath.Clean(strings.TrimSpace(root)))
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		return "..."
+	}
+	return ".../" + base
 }
 
 func setupProfilesProviderCredential(profileID, providerID string) config.CredentialCfg {
