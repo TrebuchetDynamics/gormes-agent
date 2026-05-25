@@ -214,6 +214,7 @@ type rootRuntime struct {
 	runTUI                 func(*cobra.Command, []string) error
 	runResolvedTUI         func(*cobra.Command, tuiInvocation) error
 	runOneshot             func(*cobra.Command, oneshotInvocation) error
+	runRPC                 func(*cobra.Command, rpcInvocation) error
 	newOneshotClient       oneshotClientFactory
 	configureOneshotKernel oneshotKernelConfigurer
 	tuiProgramFactory      tuiProgramFactory
@@ -241,6 +242,13 @@ type oneshotInvocation struct {
 	Inference    config.OneshotInferenceResolution
 	Config       config.Config
 	ForcedSkills []string
+}
+
+type rpcInvocation struct {
+	Inference    config.TUIInferenceResolution
+	Config       config.Config
+	ForcedSkills []string
+	NoSession    bool
 }
 
 func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
@@ -275,7 +283,10 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 			return runResolvedOneshotWithClient(cmd, invocation, newClient, configureKernel)
 		}
 	}
-	return gormescli.NewRootCommand(gormescli.RootOptions{
+	if runtime.runRPC == nil {
+		runtime.runRPC = runResolvedRPC
+	}
+	root := gormescli.NewRootCommand(gormescli.RootOptions{
 		Version: Version,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			return applyProfileStartupFlag(cmd)
@@ -289,6 +300,20 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 			installRootHelpRenderer,
 		},
 	}, rootCommandFactories(runtime))
+	installRootRPCModeFlags(root)
+	return root
+}
+
+func installRootRPCModeFlags(root *cobra.Command) {
+	if root == nil {
+		return
+	}
+	if root.PersistentFlags().Lookup("mode") == nil {
+		root.PersistentFlags().String("mode", "", "run mode for embedders; supported: rpc")
+	}
+	if root.PersistentFlags().Lookup("no-session") == nil {
+		root.PersistentFlags().Bool("no-session", false, "disable session persistence for RPC mode")
+	}
 }
 
 func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
@@ -638,6 +663,13 @@ func pinCurrentKanbanBoardDBForChat() func() {
 func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) error {
 	restoreKanbanDB := pinCurrentKanbanBoardDBForChat()
 	defer restoreKanbanDB()
+	if strings.TrimSpace(commandStringFlag(cmd, "mode")) != "" {
+		invocation, err := resolveRPCInvocation(cmd)
+		if err != nil {
+			return err
+		}
+		return runtime.runRPC(cmd, invocation)
+	}
 	invocation, err := resolveTUIInvocation(cmd)
 	if err != nil {
 		return err
@@ -646,6 +678,71 @@ func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) erro
 		return err
 	}
 	return runtime.runResolvedTUI(cmd, invocation)
+}
+
+func resolveRPCInvocation(cmd *cobra.Command) (rpcInvocation, error) {
+	mode := strings.TrimSpace(commandStringFlag(cmd, "mode"))
+	if mode != "rpc" {
+		return rpcInvocation{}, newExitCodeError(2, fmt.Errorf("unsupported mode %q; supported modes: rpc", mode))
+	}
+	modelFlag := commandStringFlag(cmd, "model")
+	providerFlag := commandStringFlag(cmd, "provider")
+	endpointFlag := commandStringFlag(cmd, "endpoint")
+	apiKeyFlag := commandStringFlag(cmd, "api-key")
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return rpcInvocation{}, err
+	}
+	forcedSkills := forcedSkillNames(cmd)
+	if err := validateForcedSkills(cfg, forcedSkills); err != nil {
+		return rpcInvocation{Config: cfg, ForcedSkills: forcedSkills}, newExitCodeError(2, err)
+	}
+	applyProviderStartupFlags(&cfg, endpointFlag, apiKeyFlag)
+	resolution, err := config.ResolveTUIInference(config.TUIInferenceRequest{
+		Config:       cfg,
+		ModelFlag:    modelFlag,
+		ProviderFlag: providerFlag,
+	})
+	resolution = resolveStaticStartupInference(resolution)
+	invocation := rpcInvocation{
+		Inference:    resolution,
+		Config:       cfg,
+		ForcedSkills: forcedSkills,
+		NoSession:    commandBoolFlag(cmd, "no-session"),
+	}
+	if err != nil {
+		return invocation, newExitCodeError(2, err)
+	}
+	return invocation, nil
+}
+
+func commandBoolFlag(cmd *cobra.Command, name string) bool {
+	if cmd == nil {
+		return false
+	}
+	if flags := cmd.Flags(); flags != nil && flags.Lookup(name) != nil {
+		value, _ := flags.GetBool(name)
+		return value
+	}
+	if flags := cmd.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
+		value, _ := flags.GetBool(name)
+		return value
+	}
+	if flags := cmd.InheritedFlags(); flags != nil && flags.Lookup(name) != nil {
+		value, _ := flags.GetBool(name)
+		return value
+	}
+	if root := cmd.Root(); root != nil && root != cmd {
+		if flags := root.Flags(); flags != nil && flags.Lookup(name) != nil {
+			value, _ := flags.GetBool(name)
+			return value
+		}
+		if flags := root.PersistentFlags(); flags != nil && flags.Lookup(name) != nil {
+			value, _ := flags.GetBool(name)
+			return value
+		}
+	}
+	return false
 }
 
 func resolveOneshotInvocationForPrompt(cmd *cobra.Command, prompt string) (oneshotInvocation, error) {
