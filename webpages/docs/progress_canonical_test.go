@@ -46,6 +46,25 @@ func canonicalProgressBytes(t *testing.T, path string) []byte {
 // directory (post module-split umbrella C5), so `go test ./webpages/docs`
 // stays green across the operator-gated on-disk flip. Module-split umbrella
 // prerequisite C5c.
+func TestCanonicalProgressNavivoxPathsUseCurrentSiblingAppRoot(t *testing.T) {
+	stale := "../navivox-app/app"
+	progressRaw := string(canonicalProgressBytes(t, canonicalProgressPath))
+	if strings.Contains(progressRaw, stale) {
+		t.Fatalf("canonical progress still points at stale nested Navivox app root %q", stale)
+	}
+
+	featureMap := readDoc(t, "content/building-gormes/architecture_plan/hermes-honcho-feature-map.md")
+	oldAbsolute := "/home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app"
+	for _, reject := range []string{stale, oldAbsolute} {
+		if strings.Contains(featureMap, reject) {
+			t.Fatalf("feature map still points at stale Navivox app root %q", reject)
+		}
+	}
+	if !strings.Contains(featureMap, "/home/xel/git/gormes/navivox-app") {
+		t.Fatalf("feature map must name the current Navivox app root")
+	}
+}
+
 func TestWebpagesDocsCanonicalReadersAreSplitDirectorySafe(t *testing.T) {
 	// Build a module-keyed split-DIRECTORY fixture from the real canonical
 	// backlog without disturbing the on-disk monolith.

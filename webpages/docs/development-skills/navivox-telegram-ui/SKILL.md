@@ -24,9 +24,9 @@ Do not use this for Gormes backend provider/runtime work unless UI changes requi
 
 The Navivox Flutter app is now a sibling repo, not an in-repo `flutter-navivox/` tree.
 
-- Local app root: `/home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app`
-- Before UI work, run `test -d /home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app` and then `cd /home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app`.
-- Historical Gormes progress rows may mention `flutter-navivox/app`; treat those as old evidence. For new work and tests, use the sibling repo path.
+- Local app root: `/home/xel/git/gormes/navivox-app`
+- Before UI work, run `test -d /home/xel/git/gormes/navivox-app` and then `cd /home/xel/git/gormes/navivox-app`.
+- Historical Gormes progress rows may mention `flutter-navivox/app`, `../navivox-app/app`, or `/home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app`; treat those as old evidence. For new work and tests, use the sibling repo path above.
 - Keep Gormes backend/progress edits in `gormes-agent` and Flutter implementation edits in `navivox-app` unless Juan explicitly scopes both repos.
 
 ## Reference Rules
@@ -71,7 +71,7 @@ Telegram backend | Never: Navivox talks to Gormes gateway only
 ## Implementation Workflow
 
 1. **Scope the surface**
-   - Work under `/home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app` for Flutter UI changes unless docs/tests require Gormes repo updates.
+   - Work under `/home/xel/git/gormes/navivox-app` for Flutter UI changes unless docs/tests require Gormes repo updates.
    - State whether the change is chat thread, contact list, composer, bubbles, voice, or action sheet.
 
 2. **Write/adjust widget tests first**
@@ -91,9 +91,9 @@ Telegram backend | Never: Navivox talks to Gormes gateway only
 
 5. **Validate**
    - Run focused Flutter tests first, for example:
-     `cd /home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app && flutter test test/shared/app_shell_test.dart`
+     `cd /home/xel/git/gormes/navivox-app && flutter test test/shared/app_shell_test.dart`
    - Then run the relevant broader Flutter suite when practical:
-     `cd /home/xel/git/sages-openclaw/workspace-mineru/navivox-app/app && flutter test`
+     `cd /home/xel/git/gormes/navivox-app && flutter test`
    - If generated files or progress docs changed, route through `gormes-git` before push.
 
 ## Common Mistakes

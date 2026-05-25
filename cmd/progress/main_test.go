@@ -51,7 +51,7 @@ func TestRunNextWorkRepoOnlyReportsPlanDecisionWhenCandidatesEscapeRepo(t *testi
 		Phases: map[string]progress.Phase{
 			"9": {Name: "P9", Deliverable: "d9", Subphases: map[string]progress.Subphase{
 				"9.F": {Name: "F", Items: []progress.Item{
-					{Name: "navivox app row", Priority: "P1", Status: progress.StatusPlanned, Contract: "ui", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", Module: progress.ModuleNavivox, WriteScope: []string{"../navivox-app/app/lib/features/chat/"}},
+					{Name: "navivox app row", Priority: "P1", Status: progress.StatusPlanned, Contract: "ui", ContractStatus: progress.ContractStatusFixtureReady, SliceSize: progress.SliceSizeSmall, NoTestRequiredReason: "fixture", Module: progress.ModuleNavivox, WriteScope: []string{"../navivox-app/lib/features/chat/"}},
 				}},
 			}},
 		},

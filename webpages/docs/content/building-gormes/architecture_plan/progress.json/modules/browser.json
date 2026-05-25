@@ -1931,6 +1931,19 @@
         "Existing Firecrawl and Tavily `web_crawl` fixtures, goscrapling static/browser `web_extract` fixtures, and default registry tests remain green with no credential-dependent path."
       ],
       "note": "Planner 2026-05-21 development-loop iteration 10: refined this draft row into a dependency-gated crawler handoff. Public goscrapling v0.1.0 already exposes Crawler/Scheduler/SessionManager/Result and spider foundation tests, but its own blocked-slices ledger still lists robots/cache/checkpoint/session-adapter gaps; keep the row draft and blocked until a released goscrapling API closes or explicitly scopes out those prerequisites.",
+      "blocker": {
+        "title": "Goscrapling crawler backend dependency gate",
+        "type": "dependency",
+        "status": "blocked",
+        "recorded_at": "2026-05-24 00:00:00 America/Monterrey",
+        "blocker": "The local web_crawl backend depends on a public goscrapling release closing robots/cache/checkpoint/session-adapter crawler prerequisites; Gormes must not vendor or reimplement those spider primitives inside this repo.",
+        "evidence": "Row source_refs cite github.com/TrebuchetDynamics/goscrapling@v0.1.0 spider foundation APIs plus goscrapling blocked-slices for robots.txt manager, development response cache, checkpoint pause/resume, and session adapters.",
+        "unblocks_when": "A public goscrapling v0.1.x+ module release exposes the required robots/cache/checkpoint/session-adapter APIs, or a planner narrows the Gormes row to explicitly exclude each missing primitive with degraded evidence.",
+        "owner": "browser/tools dependency lane",
+        "pivot": "Keep Firecrawl/Tavily web_crawl routing as the active implementation and defer local crawler selection until the dependency gate is satisfied.",
+        "next_check": "next goscrapling release or browser/tools parity sweep",
+        "degraded": true
+      },
       "write_scope": [
         "go.mod",
         "go.sum",
