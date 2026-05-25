@@ -21,6 +21,10 @@ type SlashResult struct {
 	Handled       bool
 	StatusMessage string
 	Cmd           tea.Cmd
+	// EditorText, when non-empty, seeds the editor after the slash command text
+	// has been consumed. /tree restore uses this to make a prior user turn
+	// editable without submitting it or mutating the active session.
+	EditorText string
 }
 
 // SlashHandler implements one slash command. It receives the full editor
@@ -143,6 +147,7 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("title", titleSlashHandler, WithBusyAvailable())
 	r.Register("sessions", sessionsSlashHandler)
 	r.Register("resume", sessionsSlashHandler)
+	r.Register("tree", treeSlashHandler)
 	r.Register("usage", usageSlashHandler, WithBusyAvailable())
 	r.Register("mouse", mouseSlashHandler)
 	r.Register("scroll", mouseSlashHandler)

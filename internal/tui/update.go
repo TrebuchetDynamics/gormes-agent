@@ -475,6 +475,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.slashRegistry != nil {
 				if res := m.slashRegistry.Dispatch(text, &m); res.Handled {
 					m.editor.Reset()
+					if res.EditorText != "" {
+						m.editor.SetValue(res.EditorText)
+					}
 					if res.StatusMessage != "" {
 						m.statusMessage = res.StatusMessage
 					}

@@ -217,6 +217,12 @@ type Options struct {
 	// switcher invoked by `/resume <id-or-prefix>`. nil keeps argument-based
 	// resume consumed with visible degraded evidence.
 	SessionResume SessionResumeFunc
+	// SessionTree is the injected lineage/label tree reader invoked by /tree.
+	// Production callers own session metadata/transcript I/O; internal/tui only
+	// renders the tree and dispatches typed label/restore requests.
+	SessionTree        SessionTreeFunc
+	SessionTreeLabel   SessionTreeLabelFunc
+	SessionTreeRestore SessionTreeRestoreFunc
 	// SetSessionModel is the injected kernel apply seam invoked by /model.
 	// nil keeps /model consumed with visible degraded evidence.
 	SetSessionModelFunc SetSessionModelFunc
@@ -320,20 +326,23 @@ type Model struct {
 	// owned by a successful /branch fork. SessionID() prefers it over
 	// frame.SessionID so subsequent UI reads see the branch session even
 	// before the kernel acks the switch on its next render frame.
-	sessionID        string
-	sessionBranch    SessionBranchFunc
-	sessionExport    SessionExportFunc
-	clipboardWrite   func(string) error
-	kanbanSlash      KanbanSlashFunc
-	gatewayLogTail   GatewayLogTailFunc
-	sessionTitle     SessionTitleFunc
-	sessionDirectory SessionDirectoryFunc
-	accountUsage     AccountUsageFunc
-	toolsConfigure   ToolsConfigureFunc
-	voiceToggle      VoiceToggleFunc
-	skinConfig       SkinConfigFunc
-	sessionResume    SessionResumeFunc
-	todoReader       func(sessionID string) []TodoItem
+	sessionID          string
+	sessionBranch      SessionBranchFunc
+	sessionExport      SessionExportFunc
+	clipboardWrite     func(string) error
+	kanbanSlash        KanbanSlashFunc
+	gatewayLogTail     GatewayLogTailFunc
+	sessionTitle       SessionTitleFunc
+	sessionDirectory   SessionDirectoryFunc
+	sessionTree        SessionTreeFunc
+	sessionTreeLabel   SessionTreeLabelFunc
+	sessionTreeRestore SessionTreeRestoreFunc
+	accountUsage       AccountUsageFunc
+	toolsConfigure     ToolsConfigureFunc
+	voiceToggle        VoiceToggleFunc
+	skinConfig         SkinConfigFunc
+	sessionResume      SessionResumeFunc
+	todoReader         func(sessionID string) []TodoItem
 
 	slashRegistry *SlashRegistry
 
@@ -402,6 +411,9 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		gatewayLogTail:     opts.GatewayLogTail,
 		sessionTitle:       opts.SessionTitle,
 		sessionDirectory:   opts.SessionDirectory,
+		sessionTree:        opts.SessionTree,
+		sessionTreeLabel:   opts.SessionTreeLabel,
+		sessionTreeRestore: opts.SessionTreeRestore,
 		accountUsage:       opts.AccountUsage,
 		toolsConfigure:     opts.ToolsConfigure,
 		voiceToggle:        opts.VoiceToggle,

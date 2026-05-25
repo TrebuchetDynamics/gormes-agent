@@ -56,6 +56,7 @@ type Metadata struct {
 	ChatID                       string               `json:"chat_id,omitempty"`
 	UserID                       string               `json:"user_id,omitempty"`
 	Title                        string               `json:"title,omitempty"`
+	Labels                       []string             `json:"labels,omitempty"`
 	ParentSessionID              string               `json:"parent_session_id,omitempty"`
 	LineageKind                  string               `json:"lineage_kind"`
 	CreatedAt                    int64                `json:"created_at,omitempty"`
@@ -102,6 +103,7 @@ func normalizeMetadata(meta Metadata) Metadata {
 	meta.ChatID = strings.TrimSpace(meta.ChatID)
 	meta.UserID = strings.TrimSpace(meta.UserID)
 	meta.Title = strings.TrimSpace(meta.Title)
+	meta.Labels = normalizeLabels(meta.Labels)
 	meta.ParentSessionID = strings.TrimSpace(meta.ParentSessionID)
 	meta.LineageKind = strings.ToLower(strings.TrimSpace(meta.LineageKind))
 	meta.ResumeReason = strings.ToLower(strings.TrimSpace(meta.ResumeReason))
@@ -135,6 +137,9 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 	}
 	if incoming.Title != "" {
 		out.Title = incoming.Title
+	}
+	if incoming.Labels != nil {
+		out.Labels = append([]string(nil), incoming.Labels...)
 	}
 	// TitleManuallySet is sticky-true: incoming=true always sets the flag;
 	// incoming=false (the default zero value) never clears an existing true.
