@@ -76,6 +76,10 @@ _Avoid_: dashboard profile management, generic import/manage profiles
 A constrained Navivox Profile Management action where an operator-supplied profile description becomes a draft before any apply step. It is creation-by-confirmed-draft, not bulk import or unrestricted profile mutation.
 _Avoid_: profile import, automatic profile creation
 
+**Composed Profile Contract**:
+The full Navivox profile shape assembled from profile contacts, profile routing, and voice-profile state. It is not a promise that every profile field appears in one JSON payload.
+_Avoid_: single profile payload, contact-only contract
+
 ## Example dialogue
 
 Developer: "Should we add a TODO file for the new work?"

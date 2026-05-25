@@ -35,7 +35,7 @@ type capabilityProfileManagement struct {
 	DashboardAPIExposed    bool     `json:"dashboard_api_exposed"`
 	SupportedActions       []string `json:"supported_actions"`
 	UnsupportedActions     []string `json:"unsupported_actions"`
-	PayloadSafety          []string `json:"payload_safety"`
+	ProfileContractParts   []string `json:"profile_contract_parts"`
 }
 
 type capabilityAttachments struct {
@@ -121,7 +121,7 @@ func (c *Channel) capabilityDocument() capabilityDocument {
 			DashboardAPIExposed:    false,
 			SupportedActions:       []string{"contact_snapshot", "contact_updates", "routing_read", "seed_draft", "create_from_seed"},
 			UnsupportedActions:     []string{"direct_dashboard_api_profiles", "bulk_import", "raw_config_document", "raw_local_path_import"},
-			PayloadSafety:          []string{"profile_id", "display_name", "health", "attention_badges", "workspace_status", "routing_options", "voice_capability"},
+			ProfileContractParts:   []string{"profile_contacts", "profile_routing", "voice_profiles"},
 		},
 		Attachments: capabilityAttachments{
 			MaxRequestBytes:          navivoxMaxTurnRequestBytes,
