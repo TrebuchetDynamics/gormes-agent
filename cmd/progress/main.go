@@ -12,7 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress/ctl"
 )
 
-const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write|compact|split <dir>|emit|list --module <module>|next-work [--repo-only]}"
+const usage = "usage: progress [--repo-root <path>] {validate [--format text|json]|write [--dry-run]|compact|split <dir>|emit|list --module <module>|next-work [--repo-only]}"
 
 var errParse = errors.New("parse error")
 
@@ -45,10 +45,11 @@ func run(stdout, stderr io.Writer, args []string) error {
 		}
 		return progressctl.Validate(stdout, root, format)
 	case "write":
-		if len(args) != 1 {
-			return fmt.Errorf("%w\n%s", errParse, usage)
+		opts, err := parseWriteOptions(args[1:])
+		if err != nil {
+			return err
 		}
-		return progressctl.Write(stdout, root)
+		return progressctl.WriteWithOptions(stdout, root, opts)
 	case "compact":
 		if len(args) != 1 {
 			return fmt.Errorf("%w\n%s", errParse, usage)
@@ -125,6 +126,19 @@ func parseFormat(args []string) (string, error) {
 		return "", fmt.Errorf("%w: unexpected argument %q\n%s", errParse, args[i], usage)
 	}
 	return format, nil
+}
+
+func parseWriteOptions(args []string) (progressctl.WriteOptions, error) {
+	var opts progressctl.WriteOptions
+	for _, arg := range args {
+		switch arg {
+		case "--dry-run":
+			opts.DryRun = true
+		default:
+			return opts, fmt.Errorf("%w: unexpected argument %q\n%s", errParse, arg, usage)
+		}
+	}
+	return opts, nil
 }
 
 func parseNextWorkOptions(args []string) (progressctl.NextWorkOptions, error) {

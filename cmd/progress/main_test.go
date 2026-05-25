@@ -70,6 +70,39 @@ func TestRunNextWorkRepoOnlyReportsPlanDecisionWhenCandidatesEscapeRepo(t *testi
 	}
 }
 
+func TestRunWriteDryRunListsArtifactsAndDoesNotRequireMarkerFiles(t *testing.T) {
+	root := t.TempDir()
+	progressJSON := filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	if err := os.MkdirAll(filepath.Dir(progressJSON), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	p := &progress.Progress{
+		Meta: progress.Meta{Version: "2.0"},
+		Phases: map[string]progress.Phase{
+			"1": {Name: "P1", Deliverable: "d1", Subphases: map[string]progress.Subphase{
+				"1.A": {Name: "A", Items: []progress.Item{{Name: "row", Status: progress.StatusPlanned, Module: progress.ModuleProgress}}},
+			}},
+		},
+	}
+	if err := progress.SaveProgress(progressJSON, p); err != nil {
+		t.Fatalf("seed progress: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if err := run(&stdout, &stderr, []string{"--repo-root", root, "write", "--dry-run"}); err != nil {
+		t.Fatalf("run write --dry-run: %v\nstderr=%s", err, stderr.String())
+	}
+	got := stdout.String()
+	for _, want := range []string{"progress: dry-run", "marker:docs-full-checklist", "module-roadmap:progress", "site-progress-slim"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, got)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "webpages", "docs", "content", "building-gormes", "modules", "_index.md")); !os.IsNotExist(err) {
+		t.Fatalf("write --dry-run must not create module index, stat err=%v", err)
+	}
+}
+
 func TestRunListModuleScopesOutput(t *testing.T) {
 	root := t.TempDir()
 	progressJSON := filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")

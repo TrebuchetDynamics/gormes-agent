@@ -354,51 +354,7 @@ func Validate(stdout io.Writer, root, format string) error {
 // returned via errors.Join so the caller fails the whole run while still
 // telling the operator which markers updated and which did not.
 func Write(stdout io.Writer, root string) error {
-	p, err := loadValidProgress(root)
-	if err != nil {
-		return err
-	}
-	paths := progressPaths(root)
-
-	markers := []marker{
-		{pathOf: func(s pathSet) string { return s.docsIndex }, kind: "docs-full-checklist", label: "_index.md regenerated", render: progress.RenderDocsChecklist},
-		{pathOf: func(s pathSet) string { return s.readme }, kind: "readme-rollup", label: "README.md regenerated", render: progress.RenderReadmeRollup},
-		{pathOf: func(s pathSet) string { return s.contractReadiness }, kind: "contract-readiness", label: "contract readiness regenerated", render: progress.RenderContractReadiness},
-		{pathOf: func(s pathSet) string { return s.builderLoopHandoff }, kind: "builder-loop-handoff", label: "builder-loop handoff regenerated", render: progress.RenderBuilderLoopHandoff},
-		{pathOf: func(s pathSet) string { return s.agentQueue }, kind: "agent-queue", label: "agent queue regenerated", render: func(p *progress.Progress) string { return progress.RenderAgentQueue(p, 10) }},
-		{pathOf: func(s pathSet) string { return s.nextSlices }, kind: "next-slices", label: "next slices regenerated", render: func(p *progress.Progress) string { return progress.RenderNextSlices(p, 10) }},
-		{pathOf: func(s pathSet) string { return s.blockedSlices }, kind: "blocked-slices", label: "blocked slices regenerated", render: progress.RenderBlockedSlices},
-		{pathOf: func(s pathSet) string { return s.umbrellaCleanup }, kind: "umbrella-cleanup", label: "umbrella cleanup regenerated", render: progress.RenderUmbrellaCleanup},
-		{pathOf: func(s pathSet) string { return s.progressSchema }, kind: "progress-schema", label: "progress schema regenerated", render: func(*progress.Progress) string { return progress.RenderProgressSchema() }},
-	}
-
-	var errs []error
-	for _, m := range markers {
-		if err := rewriteMarker(m.pathOf(paths), m.kind, m.render(p)); err != nil {
-			errs = append(errs, err)
-		} else {
-			fmt.Fprintln(stdout, "progress:", m.label)
-		}
-	}
-	if err := writeModuleRoadmapPages(p, paths.moduleRoadmapsDir); err != nil {
-		errs = append(errs, err)
-	} else {
-		fmt.Fprintln(stdout, "progress: module roadmaps regenerated")
-	}
-	for _, siteProgress := range paths.siteProgress {
-		if err := syncFile(paths.progressJSON, siteProgress); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	if paths.siteProgressSlim != "" {
-		if err := writeSlimProgress(p, paths.siteProgressSlim); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	if len(errs) == 0 {
-		fmt.Fprintln(stdout, "progress: site progress data refreshed")
-	}
-	return joinErrors(stdout, errs)
+	return WriteWithOptions(stdout, root, WriteOptions{})
 }
 
 // Compact rewrites every completed row's verbose shipped-evidence note to a
