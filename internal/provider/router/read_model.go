@@ -90,6 +90,13 @@ type Route struct {
 	CredentialStatus CredentialStatus `json:"credential_status"`
 	QuotaStatus      string           `json:"quota_status,omitempty"`
 	Evidence         []string         `json:"evidence,omitempty"`
+
+	// Credential handles are kept for upstream adapters but never serialized in
+	// read-model/status JSON. The Router may show that a credential is present;
+	// it must not reveal secret values or raw secret locations.
+	APIKeyEnv string            `json:"-"`
+	APIKeyRef *config.SecretRef `json:"-"`
+	apiKey    string
 }
 
 type FallbackRule struct {
@@ -281,6 +288,11 @@ func buildRoute(cfg config.Config, raw config.RouterRouteCfg, lookupEnv func(str
 		Optional:  raw.Optional,
 		Weight:    raw.Weight,
 		Status:    RouteStatusConfigured,
+		APIKeyEnv: strings.TrimSpace(raw.APIKeyEnv),
+		APIKeyRef: raw.APIKeyRef,
+	}
+	if route.Name == "primary-provider" && strings.TrimSpace(cfg.Hermes.APIKey) != "" {
+		route.apiKey = strings.TrimSpace(cfg.Hermes.APIKey)
 	}
 	if route.Transport == "" {
 		route.Transport = DefaultTransport

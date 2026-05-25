@@ -112,13 +112,17 @@ func NewHandler(cfg config.Config, opts HandlerOptions) http.Handler {
 	if nowUnix == nil {
 		nowUnix = func() int64 { return time.Now().Unix() }
 	}
+	provider := opts.Provider
+	if provider == nil {
+		provider = NewHTTPUpstreamProvider(HTTPUpstreamProviderOptions{LookupEnv: lookupEnv})
+	}
 	model := BuildReadModel(cfg, Options{LookupEnv: lookupEnv, Probe: opts.Probe, ProbeContext: opts.ProbeContext})
 	s := &Server{
 		cfg:      cfg,
 		model:    model,
 		registry: NewRegistry(model),
 		keys:     routerInboundKeys(cfg.Router, lookupEnv),
-		provider: opts.Provider,
+		provider: provider,
 		nowUnix:  nowUnix,
 		logf:     opts.Logf,
 	}
