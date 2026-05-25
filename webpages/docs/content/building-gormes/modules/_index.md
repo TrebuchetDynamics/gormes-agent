@@ -25,11 +25,11 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Landing](landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |
 | [Learning Loop](learning-loop/) | 6 | 6 | 0 | 0 | `P1`: 3 · `P2`: 2 · `P3`: 1 |
 | [Memory](memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
-| [Navivox](navivox/) | 27 | 21 | 0 | 6 | `P0`: 3 · `P1`: 18 · `unset`: 6 |
+| [Navivox](navivox/) | 28 | 22 | 0 | 6 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
 | [Planner](planner/) | 10 | 10 | 0 | 0 | `P0`: 1 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Profiles](profiles/) | 24 | 24 | 0 | 0 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `unset`: 6 |
-| [Progress](progress/) | 21 | 21 | 0 | 0 | `P1`: 6 · `P2`: 15 |
-| [Providers](providers/) | 126 | 121 | 0 | 5 | `P0`: 9 · `P1`: 55 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
+| [Progress](progress/) | 26 | 24 | 0 | 2 | `P1`: 11 · `P2`: 15 |
+| [Providers](providers/) | 126 | 125 | 0 | 1 | `P0`: 9 · `P1`: 55 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
 | [Release](release/) | 13 | 13 | 0 | 0 | `P0`: 3 · `P1`: 10 |
 | [Runtime](runtime/) | 18 | 18 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
 | [Sessions](sessions/) | 29 | 28 | 0 | 1 | `P1`: 9 · `P2`: 5 · `P3`: 1 · `unset`: 14 |

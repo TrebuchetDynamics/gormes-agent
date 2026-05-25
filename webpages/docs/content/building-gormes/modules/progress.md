@@ -7,9 +7,9 @@ title: "Progress Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `progress`
-**Rows:** 21
-**Status counts:** `complete`: 21 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 6 · `P2`: 15
+**Rows:** 26
+**Status counts:** `complete`: 24 · `in_progress`: 0 · `planned`: 2
+**Priority counts:** `P1`: 11 · `P2`: 15
 
 ## Phase 1 — The Dashboard
 
@@ -45,3 +45,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `progress` | Progress next-work read-only selector |
 | `complete` | `P1` | `progress` | Progress next-work repo-scope filter |
 | `complete` | `P1` | `progress` | Internal topology guard for package consolidation |
+| `planned` | `P1` | `progress` | Progress Control Plane staged deepening program |
+| `complete` | `P1` | `progress` | Progress workitem row classification seam |
+| `complete` | `P1` | `progress` | Progress Workspace layout and path seam |
+| `complete` | `P1` | `progress` | Progress write generated artifact plan |
+| `planned` | `P1` | `progress` | Progress projections for active handoff shipped evidence and health |

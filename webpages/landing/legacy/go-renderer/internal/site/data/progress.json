@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-24",
+    "last_updated": "2026-05-25",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -1763,19 +1763,19 @@
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
-              "status": "planned"
+              "status": "complete"
             },
             {
               "name": "",
@@ -5347,6 +5347,26 @@
             {
               "name": "",
               "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "planned"
             }
           ]
         },
@@ -5442,6 +5462,10 @@
           "name": "Navivox Operator Activation",
           "priority": "P0",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"

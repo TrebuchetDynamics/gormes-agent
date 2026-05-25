@@ -2604,9 +2604,9 @@
     "item": {
       "name": "Gormes Router setup wizard and provider-picker boundary",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add `gormes setup router` as a local-gateway setup path that enables the OpenAI-compatible Gormes Router without treating it as a normal upstream provider. Setup must preserve `gormes setup provider` for upstream provider credentials, offer configured/healthy route aliases and fallback choices, generate or reference an inbound local API key safely, and prevent accidental self-routing/recursion.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "provider",
       "module": "providers",
@@ -2642,15 +2642,22 @@
         "`gormes setup provider` continues to list upstream providers only; Router is surfaced as a client endpoint, not the default provider picker target.",
         "Router setup suggests fallback candidates only from configured providers or health-gated optional routes, labelling free-tier routes as user-key/provider-quota controlled.",
         "Non-interactive setup supports env-driven listen/API-key/route config and emits redacted copy-paste client instructions.",
-        "A custom route pointed at the same local Router endpoint fails fast with `router_recursion_detected` evidence."
+        "A custom route pointed at the same local Router endpoint fails fast with `router_recursion_detected` evidence.",
+        "TestSetupRouterNonInteractiveWritesRouterWithoutOverwritingProviderAndRedacts proves `gormes setup router --non-interactive` writes [router] enabled/listen/api_key_env/redact/setup_mode/routes/fallback without overwriting primary upstream provider settings or leaking the inbound API key.",
+        "TestSetupProviderPickerExcludesRouterAsUpstreamProvider proves `gormes setup provider` continues to expose upstream providers only and does not list Router as a provider target.",
+        "TestSetupRouterNonInteractiveRejectsSelfRoutingRoute and TestRouterRecursionDetectedForRoutePointingAtLocalListen prove custom routes pointed at the same Router listen origin fail fast with redacted router_recursion_detected evidence.",
+        "TestCLIContractRegistryOwnsLiveCobraSetupAndSlashSurfaces proves the new router setup section is owned by the providers module in the importable CLI contract manifest."
       ],
-      "note": "Router setup should be a setup section/local serving feature, not a normal upstream provider. External clients see an OpenAI-compatible endpoint; Gormes provider selection still chooses real upstreams.",
+      "note": "Router setup should be a setup section/local serving feature, not a normal upstream provider. External clients see an OpenAI-compatible endpoint; Gormes provider selection still chooses real upstreams. The 2026-05-25 setup-router pass added `gormes setup router` as a local client endpoint setup section, with non-interactive env-driven listen/API-key/route config, generated-or-referenced inbound API key handling, redacted OpenAI client instructions, configured-provider/fallback route aliases, provider-picker exclusion, and router_recursion_detected validation for routes pointing back at the local listen address. Focused tests cover setup output/config preservation, env route writing, provider-picker boundary, and read-model recursion diagnostics.",
       "write_scope": [
         "cmd/gormes/setup*.go",
         "cmd/gormes/router*.go",
         "internal/provider/router/",
         "internal/config/",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/cli/gormescli/default_contracts.go",
+        "internal/cli/gormescli/setup_registry.go",
+        "internal/cli/gormescli/modules/providers/router.go"
       ],
       "test_commands": [
         "go test ./cmd/gormes -run 'TestSetupRouter|TestRouterRecursion|TestSetupProvider.*Router' -count=1",
@@ -2661,6 +2668,11 @@
       "done_signal": [
         "Report temp-home setup transcript, config snippet with secrets redacted, provider-picker exclusion evidence, recursion diagnostic, and focused tests."
       ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T10:35:00Z",
+        "last_success": "2026-05-25T10:35:00Z"
+      },
       "provenance": {
         "origin_type": "gormes",
         "upstream_ref": "cmd/gormes/setup.go + Gormes Router plan",
@@ -2675,9 +2687,9 @@
     "item": {
       "name": "Gormes Router OpenAI-compatible models/chat endpoint",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Expose the first local Gormes Router HTTP service with GET /v1/models, POST /v1/chat/completions non-streaming, and local inbound API-key authentication over the route registry. The endpoint must use fakeable provider clients and Gormes request/response mapping rather than a blind reverse proxy.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "provider",
       "module": "providers",
@@ -2711,14 +2723,21 @@
         "GET /v1/models returns OpenAI-compatible model objects for configured aliases only.",
         "POST /v1/chat/completions non-streaming maps an OpenAI-compatible request to a selected fake provider and returns OpenAI-compatible JSON.",
         "Inbound auth accepts configured Bearer and X-Api-Key credentials and rejects missing/bad credentials with safe 401 bodies.",
-        "cmd/gormes router --dry-run or equivalent command wiring can render listen/status config without binding a port."
+        "cmd/gormes router --dry-run or equivalent command wiring can render listen/status config without binding a port.",
+        "TestRouterModelsListsConfiguredAliases proves GET /v1/models returns OpenAI-compatible model objects for servable configured aliases only and excludes missing-credential routes/secrets.",
+        "TestRouterChatCompletionsNonStreaming proves POST /v1/chat/completions maps an OpenAI-compatible request to a fake ChatProvider and returns OpenAI-compatible JSON without leaking secrets.",
+        "TestRouterAuthAcceptsBearerAndXAPIKeyAndRejectsMissingOrBad proves inbound auth accepts configured Bearer and X-Api-Key credentials and returns safe 401 bodies for missing/bad credentials.",
+        "TestRouterDryRunRendersConfigWithoutBindingPort and TestRouterCommandIsRegisteredOnRoot prove `gormes router --dry-run` renders redacted listen/status/model config without binding a port and is exposed on the root command."
       ],
-      "note": "Gormes Router MVP row 2/4. This establishes the local OpenAI-compatible endpoint; streaming and fallback safety stay separate.",
+      "note": "Gormes Router MVP row 2/4. This establishes the local OpenAI-compatible endpoint; streaming and fallback safety stay separate. The 2026-05-25 endpoint pass added internal/provider/router HTTP handler support for authenticated GET /v1/models and non-streaming POST /v1/chat/completions over the existing route read model. The handler uses a fakeable ChatProvider boundary, filters model listings to servable configured aliases, accepts Bearer and X-Api-Key inbound credentials, rejects missing/bad auth with safe OpenAI-style error JSON, maps chat requests/responses without reverse-proxying, and adds `gormes router --dry-run` to render redacted listen/status/model config without binding a port.",
       "write_scope": [
         "internal/provider/router/",
         "internal/config/",
         "cmd/gormes/",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/cli/gormescli/modules/providers/router_command.go",
+        "internal/cli/gormescli/root.go",
+        "internal/cli/gormescli/default_contracts.go"
       ],
       "test_commands": [
         "go test ./internal/provider/router -run 'TestRouter(Models|ChatCompletions|Auth)' -count=1",
@@ -2729,6 +2748,11 @@
       "done_signal": [
         "Report focused fake-provider test output, redaction evidence, and progress validation."
       ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T11:25:00Z",
+        "last_success": "2026-05-25T11:25:00Z"
+      },
       "provenance": {
         "origin_type": "hybrid",
         "upstream_ref": "CLIProxyAPI@50d19e2 docs/config/examples as architecture context",
@@ -2743,9 +2767,9 @@
     "item": {
       "name": "Gormes Router streaming SSE and fallback safety",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add stream:true SSE support and safe fallback routing. The router may retry/fallback on 429, 408, timeout, and 5xx before output starts; it must not fallback after emitting partial streamed output and must not fallback on auth, policy, or malformed-request errors.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "provider",
       "module": "providers",
@@ -2778,9 +2802,13 @@
         "Streaming responses emit valid OpenAI-compatible SSE data chunks and a terminal [DONE].",
         "A fake primary 429/5xx/timeout before output falls through to the configured fallback route and records fallback evidence.",
         "A fake partial-stream-then-error does not start a second provider and returns safe stream termination evidence.",
-        "Auth, policy, and malformed-request failures do not rotate providers by default."
+        "Auth, policy, and malformed-request failures do not rotate providers by default.",
+        "TestRouterStreamingSSEEmitsChunksAndDone proves stream:true emits OpenAI-compatible SSE data chunks and terminal [DONE].",
+        "TestRouterFallbackOnRateLimitBeforeOutput proves a fake primary retryable failure before output falls through to a configured fallback route and records fallback/counter evidence.",
+        "TestRouterNoFallbackAfterStreamStarted proves partial stream output followed by an error emits safe interruption evidence and does not call a second provider.",
+        "TestRouterNoFallbackOnAuthPolicyOrMalformed proves auth, policy, and malformed-request failures do not rotate providers by default and remain redacted."
       ],
-      "note": "Gormes Router MVP row 3/4. Fallback safety is output-boundary sensitive; prove it with fake providers only.",
+      "note": "Gormes Router MVP row 3/4. Fallback safety is output-boundary sensitive; prove it with fake providers only. The 2026-05-25 streaming/fallback pass added OpenAI-compatible stream:true SSE chunks, [DONE] termination, fakeable StreamChatProvider support, route fallback on retryable pre-output classes, in-memory fallback counters, last error class evidence, and no-fallback safeguards for partial streamed output plus auth/policy/malformed request failures. Tests use fake providers only and assert secret/raw-body redaction across responses/status.",
       "write_scope": [
         "internal/provider/router/",
         "internal/config/",
@@ -2795,6 +2823,11 @@
       "done_signal": [
         "Report focused fake-provider test output, redaction evidence, and progress validation."
       ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T12:20:00Z",
+        "last_success": "2026-05-25T12:20:00Z"
+      },
       "provenance": {
         "origin_type": "hybrid",
         "upstream_ref": "CLIProxyAPI@50d19e2 docs/config/examples as architecture context",
@@ -2809,9 +2842,9 @@
     "item": {
       "name": "Gormes Router health/status counters and redacted logs",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add router health checks, quota/status counters, and redacted operational logging for the local router. Status must expose provider/model route health, attempt/success/failure/fallback counters, quota/usage signals when available, and last error class without exposing raw secrets or raw upstream bodies.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "provider",
       "module": "providers",
@@ -2844,9 +2877,13 @@
         "GET /v1/status or /router/status reports redacted route health, counters, fallback counts, and last error class.",
         "Fake health probes are bounded, testable, and do not require live provider credentials.",
         "Log/status tests assert API keys, Authorization headers, query credentials, and raw upstream error bodies are absent.",
-        "Optional local routes report unavailable when their OpenAI-compatible endpoint is absent instead of failing router startup."
+        "Optional local routes report unavailable when their OpenAI-compatible endpoint is absent instead of failing router startup.",
+        "TestRouterHealthReportsConfigWithoutSecrets proves GET /healthz reports Router process/config health and route count without provider or inbound secrets.",
+        "TestRouterStatusCountersAndUsageAreRedacted proves authenticated status exposes attempts, successes, failures, fallback count, token usage, route health, and last error class while log/status output excludes API keys, Authorization headers, query credentials, and raw upstream error bodies.",
+        "TestRouterStatusAliasAndOptionalLocalUnavailable proves optional local routes report unavailable with evidence when no fake probe marks them healthy, without failing router startup.",
+        "TestRouterStatusUsesFakeHealthProbe proves optional route health checks are fakeable and bounded to one handler-construction probe in the fixture."
       ],
-      "note": "Gormes Router MVP row 4/4. Counters can remain in-memory for MVP; persist only after operator need is proven.",
+      "note": "Gormes Router MVP row 4/4. Counters can remain in-memory for MVP; persist only after operator need is proven. The 2026-05-25 health/status pass added redacted Router health/status surfaces, in-memory attempt/success/failure/fallback counters, token usage aggregation, last error class tracking, bounded fake health probes, and sanitized operational log hooks. /healthz reports process/config health without auth or secrets; /v1/status and /router/status require local Router auth and expose route health/evidence plus counters without API keys, Authorization headers, query credentials, or raw upstream error bodies.",
       "write_scope": [
         "internal/provider/router/",
         "internal/config/",
@@ -2862,6 +2899,11 @@
       "done_signal": [
         "Report focused fake-provider test output, redaction evidence, and progress validation."
       ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T11:55:00Z",
+        "last_success": "2026-05-25T11:55:00Z"
+      },
       "provenance": {
         "origin_type": "hybrid",
         "upstream_ref": "CLIProxyAPI@50d19e2 docs/config/examples as architecture context",

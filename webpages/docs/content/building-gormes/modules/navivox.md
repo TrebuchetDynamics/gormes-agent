@@ -7,9 +7,9 @@ title: "Navivox Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `navivox`
-**Rows:** 27
-**Status counts:** `complete`: 21 · `in_progress`: 0 · `planned`: 6
-**Priority counts:** `P0`: 3 · `P1`: 18 · `unset`: 6
+**Rows:** 28
+**Status counts:** `complete`: 22 · `in_progress`: 0 · `planned`: 6
+**Priority counts:** `P0`: 3 · `P1`: 19 · `unset`: 6
 
 ## Phase 2 — The Gateway
 
@@ -56,6 +56,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P0` | `navivox` | Navivox HTTP/WS documentation refresh |
 | `complete` | `P0` | `navivox` | Navivox connect-and-talk first screen |
 | `complete` | `P1` | `navivox` | Navivox profile contact summary API |
+| `complete` | `P1` | `navivox` | Navivox API capability contract |
 | `complete` | `P1` | `navivox` | Navivox continuous voice command mode |
 | `planned` | `P1` | `navivox` | Navivox Telegram-inspired chat polish |
 | `complete` | `P1` | `navivox` | Navivox natural-language profile seed backend API |

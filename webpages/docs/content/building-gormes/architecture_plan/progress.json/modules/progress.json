@@ -1322,5 +1322,339 @@
         "note": "No Hermes runtime feature analog; Hermes CLI/gateway/tool source families are shape evidence only."
       }
     }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 26,
+    "item": {
+      "name": "Progress Control Plane staged deepening program",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Track the staged architecture program that deepens the Progress Control Plane while preserving progress.json as the single Logical Backlog: workitem classification first, Progress Workspace layout/path seam second, Generated Artifact Plan third, and Progress Projections fourth.",
+      "contract_status": "draft",
+      "slice_size": "umbrella",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without the staged program, progress surfaces can drift independently and agents may select different next rows from the same Logical Backlog.",
+      "fixture": "internal/progress/workitem/workitem_test.go",
+      "source_refs": [
+        "CONTEXT.md:Progress Control Plane, Logical Backlog, Staged Deepening Program",
+        "internal/progress/builderloop/candidates.go:NormalizeCandidates",
+        "internal/progress/ctl/progressctl.go:canonicalSource and Write",
+        "internal/progress/render.go:RenderNextSlices and RenderAgentQueue",
+        "internal/progress/split.go:module-keyed split layout"
+      ],
+      "ready_when": [
+        "A builder picks one child row at a time in the accepted order and preserves the single Logical Backlog contract."
+      ],
+      "not_ready_when": [
+        "The implementation attempts a big-bang rewrite across all progress modules.",
+        "The implementation creates a side tracker, issue queue, TODO list, or separate backlog outside progress.json.",
+        "The implementation changes public row ranking semantics before a characterization test locks current behavior."
+      ],
+      "unblocks": [
+        "Progress workitem row classification seam",
+        "Progress Workspace layout and path seam",
+        "Progress write generated artifact plan",
+        "Progress projections for active handoff shipped evidence and health"
+      ],
+      "acceptance": [
+        "The four child rows below exist as the only implementation backlog for this architecture program.",
+        "Each child row preserves progress.json as the single Logical Backlog and has focused tests.",
+        "No physical split of shipped evidence or row health is introduced before the projections slice proves smaller interfaces are useful."
+      ],
+      "note": "Grilled with Juan on 2026-05-25: choose a hybrid/all-options staged program, not a big-bang refactor. Candidate order is workitem classification, workspace layout seam, generated artifact plan, then projections.",
+      "write_scope": [
+        "internal/progress/",
+        "cmd/progress/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "no_test_required": "Umbrella row only; child rows carry the executable characterization and refactor tests.",
+      "done_signal": [
+        "Report the child rows and the validation evidence that the Logical Backlog still loads, validates, and regenerates docs."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-25",
+        "note": "Gormes-owned Progress Control Plane architecture deepening from grill-with-docs decisions."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 27,
+    "item": {
+      "name": "Progress workitem row classification seam",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Introduce a deep internal/progress/workitem module that indexes every Progress Row once, classifies it as assignable, blocked, umbrella, missing-proof, complete, needs-human, quarantined, or deferred, and exposes one Assignable Row Order consumed by progress next-work, RenderNextSlices, RenderAgentQueue, and builderloop.NormalizeCandidates.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If row classification stays split across render.go and builderloop/candidates.go, generated next-work views can disagree with the CLI selector about which Progress Row is assignable.",
+      "fixture": "internal/progress/workitem/workitem_test.go",
+      "source_refs": [
+        "CONTEXT.md:Assignable Progress Row, Deferred Progress Row, Row Classification, Assignable Row Order",
+        "internal/progress/builderloop/candidates.go:NormalizeCandidates",
+        "internal/progress/render.go:nextSliceRows",
+        "internal/progress/render.go:RenderAgentQueue",
+        "internal/progress/ctl/progressctl.go:NextWorkWithOptions",
+        "webpages/docs/content/building-gormes/builder-loop/next-slices.md:generated next slices view"
+      ],
+      "ready_when": [
+        "The first characterization fixture proves a completed Blocking Dependency makes a dependent row assignable across CLI and generated views.",
+        "The builder preserves the current ranking policy except for centralizing the implementation and fixing completed-blocker disagreement."
+      ],
+      "not_ready_when": [
+        "The slice redesigns ranking policy, adds configurable ranking, or changes priority bucket semantics.",
+        "The slice only patches RenderNextSlices without creating the shared Row Classification seam.",
+        "The slice removes builderloop.NormalizeCandidates as a compatibility adapter in the first pass."
+      ],
+      "unblocks": [
+        "Progress Workspace layout and path seam"
+      ],
+      "acceptance": [
+        "A fixture with a complete row named Foundation and a fixture_ready row blocked_by Foundation classifies the dependent row as assignable in workitem and appears in both next-work and generated next slices ordering.",
+        "Umbrella, missing-test/no-testless, complete, current-quarantine, and needs-human rows classify as deferred or complete consistently across workitem and builderloop adapters.",
+        "builderloop.NormalizeCandidates delegates to or is covered by the workitem classification rules while preserving its public Candidate output for existing callers.",
+        "RenderNextSlices and RenderAgentQueue consume the same ordered assignable list that progress next-work uses; next-work is the first row and generated views are the first N rows."
+      ],
+      "note": "SHIPPED 2026-05-25 (gormes-tdd-slice). Added internal/progress/workitem as the shared Row Classification and Assignable Row Order seam; builderloop.NormalizeCandidates now delegates through it, and RenderNextSlices/RenderAgentQueue consume the same completed-blocker-aware assignable list. Validation: go test ./internal/progress/... -run 'Test.*(WorkItem|Assignable|CompletedBlocker|NextSlices|AgentQueue|NormalizeCandidates)' -count=1; go test ./cmd/progress -run TestRunNextWork -count=1; go run ./cmd/progress validate; git diff --check.",
+      "write_scope": [
+        "internal/progress/workitem/",
+        "internal/progress/builderloop/candidates.go",
+        "internal/progress/render.go",
+        "internal/progress/ctl/progressctl.go",
+        "cmd/progress/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress/... -run 'Test.*(WorkItem|Assignable|CompletedBlocker|NextSlices|AgentQueue|NormalizeCandidates)' -count=1",
+        "go test ./cmd/progress -run TestRunNextWork -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report completed-blocker fixture output, next-work vs next-slices agreement, builderloop adapter compatibility, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-25",
+        "note": "Gormes-owned row selection correctness slice from architecture review and grill-with-docs decisions."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 28,
+    "item": {
+      "name": "Progress Workspace layout and path seam",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Introduce a Progress Workspace module that owns canonical backlog path resolution, monolith-vs-module-split layout adapters, load/save/emit helpers, and generated artifact paths. Retire progress.split from canonical resolution now that the canonical progress.json path is already materialized as a module-keyed split directory; keep split export as explicit maintenance behavior only if still useful.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When layout handling leaks, callers must know whether progress.json is a file or directory and duplicate temp re-encode recipes to stay split-safe.",
+      "fixture": "internal/progress/workspace/workspace_test.go",
+      "source_refs": [
+        "CONTEXT.md:Progress Workspace",
+        "internal/progress/ctl/progressctl.go:progressPaths and canonicalSource",
+        "internal/progress/split.go:Load and SaveProgress split-layout behavior",
+        "webpages/docs/progress_canonical_test.go:canonicalProgressBytes",
+        "internal/installtest/go_toolchain_floor_test.go:readLogicalProgressFromRoot"
+      ],
+      "ready_when": [
+        "Progress workitem row classification seam is complete, so workspace refactors do not mix with row ranking semantics.",
+        "The builder keeps row semantics out of the workspace and preserves progress.Load/SaveProgress layout transparency."
+      ],
+      "not_ready_when": [
+        "The workspace module starts owning validation, rendering, row ranking, or builder policy semantics.",
+        "The implementation reintroduces progress.split as the preferred canonical layout or creates another staging backlog.",
+        "Callers still need to reimplement file-vs-directory detection to read the Logical Backlog."
+      ],
+      "unblocks": [
+        "Progress write generated artifact plan"
+      ],
+      "acceptance": [
+        "cmd/progress and progressctl load, save, emit, and generated-output path decisions through a Progress Workspace interface rather than direct path constants in command logic.",
+        "canonical resolution no longer prefers architecture_plan/progress.split; the canonical progress.json file-or-directory path remains the single Logical Backlog.",
+        "Existing split-layout tests cover monolith and module-keyed directory reads through the workspace seam, including malformed split error behavior.",
+        "At least one docs/test helper that previously re-encoded progress through a temp file uses the workspace read/emit helper or a shared equivalent."
+      ],
+      "note": "SHIPPED 2026-05-25 (gormes-tdd-slice). Added internal/progress/workspace as the Progress Workspace seam for canonical progress.json path resolution, Load/LoadValid/Save/EmitBytes helpers, and generated artifact paths. progressctl now loads, emits, saves compaction, and resolves generated paths through the workspace; progress.split is ignored by canonical resolution and remains only an explicit split export destination. Migrated an installtest logical-progress helper off the duplicate temp re-encode recipe. Validation: go test ./internal/progress/... -run 'Test.*(Workspace|Split|Canonical|Emit|Malformed)' -count=1; go test ./cmd/progress ./webpages/docs -run 'Test.*(Emit|Canonical|Progress)' -count=1; go test ./internal/progress/... -count=1; go test ./cmd/progress -count=1; go test ./internal/installtest -run TestInstallersRequireCurrentGoToolchain -count=1; go run ./cmd/progress validate; git diff --check.",
+      "write_scope": [
+        "internal/progress/workspace/",
+        "internal/progress/ctl/progressctl.go",
+        "internal/progress/split.go",
+        "cmd/progress/",
+        "webpages/docs/",
+        "internal/installtest/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress/... -run 'Test.*(Workspace|Split|Canonical|Emit|Malformed)' -count=1",
+        "go test ./cmd/progress ./webpages/docs -run 'Test.*(Emit|Canonical|Progress)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report canonical resolution behavior, progress.split retirement evidence, split-safe helper migration, and validation output."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-25",
+        "note": "Gormes-owned layout locality slice from architecture review and grill-with-docs decisions."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 29,
+    "item": {
+      "name": "Progress write generated artifact plan",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Refactor progress write so it first builds a Generated Artifact Plan describing marker updates, module roadmap pages, and site mirrors, then executes that plan. Add a small progress write --dry-run adapter if it falls out naturally, listing artifact kinds and paths without writing.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without an artifact plan, progressctl.Write mixes output inventory, rendering, filesystem writes, and operator messages, making dirty-worktree impact hard to inspect before generation.",
+      "fixture": "internal/progress/ctl/artifacts_test.go",
+      "source_refs": [
+        "CONTEXT.md:Generated Artifact Plan",
+        "internal/progress/ctl/progressctl.go:Write",
+        "internal/progress/ctl/progressctl.go:writeModuleRoadmapPages",
+        "internal/progress/render.go:RenderModuleRoadmapPage",
+        "internal/progress/render.go:RenderProgressSchema"
+      ],
+      "ready_when": [
+        "Progress Workspace layout and path seam is complete or this slice scopes path lookup behind an equivalent workspace-compatible adapter.",
+        "The builder preserves current generated file contents before adding optional dry-run output."
+      ],
+      "not_ready_when": [
+        "The slice changes markdown content, module roadmap ordering, or site mirror shape without characterization tests.",
+        "The dry-run path writes files or becomes a separate source of generated artifact truth."
+      ],
+      "unblocks": [
+        "Progress projections for active handoff shipped evidence and health"
+      ],
+      "acceptance": [
+        "A PlanArtifacts-style function returns the full ordered set of marker, module roadmap, schema, and site mirror artifacts with stable kind/path metadata.",
+        "progress write executes the artifact plan and produces byte-identical generated outputs for a seeded fixture compared with the pre-refactor write path.",
+        "If implemented, progress write --dry-run prints artifact kinds and paths and leaves a temp-repo fixture unchanged.",
+        "Error reporting still identifies the specific artifact path/kind that failed."
+      ],
+      "note": "SHIPPED 2026-05-25 (gormes-tdd-slice). Refactored progress write through a Generated Artifact Plan with stable artifact kind/path metadata for marker updates, module roadmap pages, and site mirrors. Added progress write --dry-run to list artifact impact without writing, preserved write output behavior, and made artifact failures include kind/path evidence. Validation: go test ./internal/progress/ctl ./cmd/progress -run 'Test.*(Artifact|Write|DryRun|ModuleRoadmap)' -count=1; go test ./internal/progress -run 'TestRender(ModuleRoadmap|ProgressSchema|AgentQueue|NextSlices)' -count=1; go run ./cmd/progress validate; git diff --check.",
+      "write_scope": [
+        "internal/progress/ctl/",
+        "internal/progress/render.go",
+        "cmd/progress/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress/ctl ./cmd/progress -run 'Test.*(Artifact|Write|DryRun|ModuleRoadmap)' -count=1",
+        "go test ./internal/progress -run 'TestRender(ModuleRoadmap|ProgressSchema|AgentQueue|NextSlices)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report artifact inventory fixture, byte-identical write evidence, dry-run evidence if implemented, and validation output."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-25",
+        "note": "Gormes-owned generated-output locality slice from architecture review and grill-with-docs decisions."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.F",
+    "pos": 30,
+    "item": {
+      "name": "Progress projections for active handoff shipped evidence and health",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add typed Progress Projections over the same Logical Backlog so callers can request active handoff, shipped evidence, and row health views without understanding every progress.Item field. This slice must not physically move shipped evidence, notes, provenance, health, or blockers into separate stores.",
+      "contract_status": "draft",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "progress",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If every caller consumes progress.Item directly, schema knowledge spreads and future row-field changes require broad edits across validators, renderers, and control-plane tools.",
+      "fixture": "internal/progress/projections_test.go",
+      "source_refs": [
+        "CONTEXT.md:Progress Projection",
+        "internal/progress/progress.go:Item",
+        "internal/progress/health.go:RowHealth and PlannerVerdict",
+        "internal/progress/render.go:contractRow and contractRows",
+        "internal/progress/validate.go:validateExecutionMetadata"
+      ],
+      "ready_when": [
+        "Progress write generated artifact plan is complete, so projections can be tested through generated consumers without mixing artifact planning refactors.",
+        "The builder keeps progress.json as the single Logical Backlog and treats projections as read models only."
+      ],
+      "not_ready_when": [
+        "The slice moves shipped evidence, row health, or provenance into a second physical backlog or database.",
+        "The slice removes historical row fields before generated docs and builder-loop health writers are projection-safe.",
+        "The projections expose the same wide interface as progress.Item under new names."
+      ],
+      "blocked_by": [
+        "Progress write generated artifact plan"
+      ],
+      "acceptance": [
+        "Active handoff projection exposes only row identity, classification/order, contract, fixture, readiness, write scope, test commands/no-test reason, acceptance, and done signal.",
+        "Shipped evidence projection exposes completed-row identity, provenance, note/evidence summary, source refs, and validation signal without requiring consumers to know active handoff fields.",
+        "Health projection exposes row health, quarantine, planner verdict, and blocker state without requiring consumers to parse unrelated item fields.",
+        "Existing renderers or tests consume at least one projection and preserve generated output."
+      ],
+      "note": "Fourth slice of the staged program. Projection only: no physical split of the Logical Backlog in this row.",
+      "write_scope": [
+        "internal/progress/",
+        "internal/progress/builderloop/",
+        "internal/progress/ctl/",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/progress/... -run 'Test.*(Projection|Handoff|Shipped|Health|Render)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report projection fixture output, unchanged generated render evidence, no physical split evidence, and validation output."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-25",
+        "note": "Gormes-owned schema-depth slice from architecture review and grill-with-docs decisions."
+      }
+    }
   }
 ]

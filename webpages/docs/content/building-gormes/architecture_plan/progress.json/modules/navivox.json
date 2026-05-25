@@ -1114,6 +1114,87 @@
     "subphase": "9.F",
     "pos": 3,
     "item": {
+      "name": "Navivox API capability contract",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Expose a first-class authenticated `/v1/navivox/capabilities` document for Navivox clients. The document must list supported Navivox endpoints, health aliases, event kinds, auth mode, profile-management actions, attachment limits, voice/STT/TTS support, canonical stream/deprecation rules, and must keep dashboard `/api/profiles`, raw local paths, tokens, and provider credentials out of the mobile contract.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "If the capability document is unavailable, Navivox clients must keep profile creation/import, attachment upload, and voice affordances disabled or in unavailable-sheet mode instead of guessing from dashboard or OpenAI-style endpoints.",
+      "fixture": "internal/channels/navivox/capabilities_test.go",
+      "source_refs": [
+        "../navivox-app/TODO.md:Gormes Navivox API capability contract",
+        "internal/channels/navivox/channel.go:Handler",
+        "internal/channels/navivox/capabilities.go:capabilityDocument",
+        "cmd/gormes/navivox_connect_info.go:navivoxConnectInfoEntry",
+        "docs/navivox-gateway-channel.md#endpoints",
+        "docs/content/cli/navivox.md#current-channel-contract"
+      ],
+      "ready_when": [
+        "Existing Navivox HTTP/WS channel already authenticates `/v1/navivox/*` routes and exposes status, profile contacts, turns, and stream endpoints.",
+        "Sibling Navivox TODO names the capability mismatch and asks Gormes to publish one versioned document before enabling client affordances."
+      ],
+      "not_ready_when": [
+        "The slice exposes dashboard `/api/profiles` directly to Navivox instead of a stable `/v1/navivox/*` wrapper.",
+        "The slice advertises raw local file paths, tokens, provider credentials, unsupported attachment upload, or unimplemented profile imports as available."
+      ],
+      "unblocks": [
+        "Navivox natural-language profile seed Flutter UI",
+        "Navivox safe config admin Flutter UI",
+        "Navivox voice run records Flutter inspection UI",
+        "Navivox per-profile BYO voice profiles Flutter UI"
+      ],
+      "acceptance": [
+        "`GET /v1/navivox/capabilities` requires Navivox auth and returns object `gormes.navivox.capabilities` with protocol_version `navivox.v1`.",
+        "The document advertises status, capabilities, profile contacts/routing/seed, config admin, voice profiles, run records, memory overview, sessions, turn, and canonical `/v1/navivox/stream` event kinds.",
+        "Profile management is capability-gated through `/v1/navivox/profile-contacts`, `/profile-routing`, and `/profile-seed`; dashboard `/api/profiles` is explicitly not exposed to Navivox clients.",
+        "Attachment and voice sections truthfully advertise no raw local path uploads, no workspace-file attach, 1 MiB turn request bound, device-transcribed text turns, voice profile endpoint, and STT/TTS provider matrices.",
+        "`gormes navivox connect` and pairing descriptors include `capabilities_url` without printing raw tokens; docs list the capability endpoint and gating rule."
+      ],
+      "note": "Shipped 2026-05-25: added `/v1/navivox/capabilities`, linked it from `/v1/navivox/status`, included capabilities_url in connect/pair descriptors, documented the capability-gating rule, and proved the contract with auth, endpoint/event, profile-management, attachment, voice, stream, and redaction assertions.",
+      "write_scope": [
+        "internal/channels/navivox/",
+        "cmd/gormes/navivox*.go",
+        "cmd/gormes/setup_navivox*.go",
+        "docs/navivox-gateway-channel.md",
+        "docs/content/cli/navivox.md",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/channels/navivox -run 'TestNavivoxCapabilities|TestNavivoxStatusLinksCapabilities' -count=1",
+        "go test ./internal/channels/navivox -count=1",
+        "go test ./cmd/gormes -run 'TestNavivox.*(ConnectInfo|Pair|Setup)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Navivox clients can fetch one authenticated capability document that gates profile-management, attachment, voice, and stream UI without relying on dashboard APIs or raw local paths."
+      ],
+      "health": {
+        "attempt_count": 1,
+        "last_attempt": "2026-05-25T12:00:00Z",
+        "last_success": "2026-05-25T12:00:00Z"
+      },
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-05-25",
+        "note": "Gormes-owned Navivox mobile/API contract; Hermes has no Navivox equivalent."
+      }
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.F",
+    "pos": 4,
+    "item": {
       "name": "Navivox continuous voice command mode",
       "priority": "P1",
       "status": "complete",
@@ -1196,7 +1277,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 4,
+    "pos": 5,
     "item": {
       "name": "Navivox Telegram-inspired chat polish",
       "priority": "P1",
@@ -1275,7 +1356,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 5,
+    "pos": 6,
     "item": {
       "name": "Navivox natural-language profile seed backend API",
       "priority": "P1",
@@ -1374,7 +1455,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 6,
+    "pos": 7,
     "item": {
       "name": "Navivox natural-language profile seed Flutter UI",
       "priority": "P1",
@@ -1447,7 +1528,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 7,
+    "pos": 8,
     "item": {
       "name": "Navivox structured tool event cards backend API",
       "priority": "P1",
@@ -1527,7 +1608,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 8,
+    "pos": 9,
     "item": {
       "name": "Navivox structured tool event cards Flutter UI",
       "priority": "P1",
@@ -1595,7 +1676,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 9,
+    "pos": 10,
     "item": {
       "name": "Navivox safe config admin backend API",
       "priority": "P1",
@@ -1684,7 +1765,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 10,
+    "pos": 11,
     "item": {
       "name": "Navivox safe config admin Flutter UI",
       "priority": "P1",
@@ -1756,7 +1837,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 11,
+    "pos": 12,
     "item": {
       "name": "Navivox voice run records backend API",
       "priority": "P1",
@@ -1846,7 +1927,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 12,
+    "pos": 13,
     "item": {
       "name": "Navivox voice run records Flutter inspection UI",
       "priority": "P1",
@@ -1916,7 +1997,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 13,
+    "pos": 14,
     "item": {
       "name": "Navivox per-profile BYO voice profiles backend API",
       "priority": "P1",
@@ -2012,7 +2093,7 @@
   {
     "phase": "9",
     "subphase": "9.F",
-    "pos": 14,
+    "pos": 15,
     "item": {
       "name": "Navivox per-profile BYO voice profiles Flutter UI",
       "priority": "P1",

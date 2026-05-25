@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-24",
+    "last_updated": "2026-05-25",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -915,7 +915,7 @@
         {
           "id": "8.F",
           "name": "Cost Discipline & Loop Economics",
-          "item_count": 26
+          "item_count": 31
         },
         {
           "id": "8.G",
@@ -958,7 +958,7 @@
           "id": "9.F",
           "name": "Navivox Operator Activation",
           "priority": "P0",
-          "item_count": 15
+          "item_count": 16
         },
         {
           "id": "9.G",

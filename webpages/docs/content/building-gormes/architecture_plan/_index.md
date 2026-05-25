@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 100/111 subphases shipped · 11 in progress · 0 planned
+**Overall:** 99/111 subphases shipped · 12 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -102,7 +102,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -604,10 +604,10 @@ classification and row-backed implementation queue.
 - [x] `providers` LM Studio provider adapter
 - [x] `providers` Vision-unsupported provider retry (strip-images-and-resend)
 - [x] `providers` Gormes Router config and route registry read model
-- [ ] `providers` Gormes Router setup wizard and provider-picker boundary
-- [ ] `providers` Gormes Router OpenAI-compatible models/chat endpoint
-- [ ] `providers` Gormes Router streaming SSE and fallback safety
-- [ ] `providers` Gormes Router health/status counters and redacted logs
+- [x] `providers` Gormes Router setup wizard and provider-picker boundary
+- [x] `providers` Gormes Router OpenAI-compatible models/chat endpoint
+- [x] `providers` Gormes Router streaming SSE and fallback safety
+- [x] `providers` Gormes Router health/status counters and redacted logs
 - [ ] `providers` CLIProxyAPI-compatible upstream route adapter
 
 ### 4.B — Context Engine + Compression 🔨
@@ -1549,7 +1549,7 @@ classification and row-backed implementation queue.
 - [x] `docs` Agentic-porting-kit local public layout assembly gate
 - [ ] `docs` Agentic-porting-kit public repo scaffold
 
-### 8.F — Cost Discipline & Loop Economics ✅
+### 8.F — Cost Discipline & Loop Economics 🔨
 
 - [x] `progress` Loop $/iteration cost metric in status file
 - [x] `landing` Stop git-tracking duplicate landing progress mirrors (build-time generate)
@@ -1577,6 +1577,11 @@ classification and row-backed implementation queue.
 - [x] `tools` Internal tool compact helper package rehome
 - [x] `tools` Internal tool trace helper package rehome
 - [x] `tools` Internal session search tool package rehome
+- [ ] `progress` Progress Control Plane staged deepening program
+- [x] `progress` Progress workitem row classification seam
+- [x] `progress` Progress Workspace layout and path seam
+- [x] `progress` Progress write generated artifact plan
+- [ ] `progress` Progress projections for active handoff shipped evidence and health
 
 ### 8.G — Community & External Contributions ✅
 
@@ -1618,6 +1623,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox HTTP/WS documentation refresh
 - [x] `navivox` Navivox connect-and-talk first screen
 - [x] `navivox` Navivox profile contact summary API
+- [x] `navivox` Navivox API capability contract
 - [x] `navivox` Navivox continuous voice command mode
 - [ ] `navivox` Navivox Telegram-inspired chat polish
 - [x] `navivox` Navivox natural-language profile seed backend API
