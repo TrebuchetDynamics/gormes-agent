@@ -32,19 +32,15 @@ func TestNavivoxCommandHelpUsesConnectNotConnectInfo(t *testing.T) {
 		t.Fatalf("navivox help: %v", err)
 	}
 	help := buf.String()
-	if !strings.Contains(help, "connect      Print Navivox connect URLs") {
+	if !strings.Contains(help, "connect") || !strings.Contains(help, "Print Navivox connect URLs") {
 		t.Fatalf("navivox help must advertise connect command:\n%s", help)
 	}
 	if strings.Contains(help, "connect-info") {
 		t.Fatalf("navivox help must not advertise connect-info after rename:\n%s", help)
 	}
 
-	legacy, _, err := cmd.Find([]string{"connect-info"})
-	if err != nil {
-		t.Fatalf("legacy connect-info alias should still resolve: %v", err)
-	}
-	if !legacy.Hidden {
-		t.Fatalf("legacy connect-info alias should be hidden from help")
+	if legacy, _, err := cmd.Find([]string{"connect-info"}); err == nil && legacy.Name() == "connect-info" {
+		t.Fatalf("connect-info alias should be removed, got %#v", legacy)
 	}
 }
 

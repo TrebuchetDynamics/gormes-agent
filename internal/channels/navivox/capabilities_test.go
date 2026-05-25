@@ -42,8 +42,9 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 		Object          string `json:"object"`
 		ProtocolVersion string `json:"protocol_version"`
 		Auth            struct {
-			Mode    string   `json:"mode"`
-			Headers []string `json:"headers"`
+			Mode               string   `json:"mode"`
+			Headers            []string `json:"headers"`
+			WebSocketProtocols []string `json:"websocket_protocols"`
 		} `json:"auth"`
 		Health struct {
 			Aliases []string `json:"aliases"`
@@ -94,6 +95,10 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 	}
 	if got.Auth.Mode != "pairing_token" || !containsNavivoxCapabilityString(got.Auth.Headers, "Authorization: Bearer <token>") {
 		t.Fatalf("auth = %+v, want pairing token bearer contract", got.Auth)
+	}
+	removedProtocol := "gormes." + navivoxWebSocketProtocol
+	if !containsNavivoxCapabilityString(got.Auth.WebSocketProtocols, navivoxWebSocketProtocol) || containsNavivoxCapabilityString(got.Auth.WebSocketProtocols, removedProtocol) {
+		t.Fatalf("websocket protocols = %v, want current protocol without removed fallback", got.Auth.WebSocketProtocols)
 	}
 	if !containsNavivoxCapabilityString(got.Health.Aliases, "/healthz") || !containsEndpoint(got.Endpoints, http.MethodGet, "/v1/navivox/status") || !containsEndpoint(got.Endpoints, http.MethodGet, "/v1/navivox/capabilities") || !containsEndpoint(got.Endpoints, "WS", "/v1/navivox/stream") {
 		t.Fatalf("endpoints/health missing stable status/capabilities/stream contract: health=%+v endpoints=%+v", got.Health, got.Endpoints)
@@ -178,7 +183,7 @@ func TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, forbidden := range []string{"nvbx_test_token", "GORMES_NAVIVOX_TOKEN=", "/home/", "\\\\Users\\\\", "api_key", "password", "secret", "payload_safety"} {
+	for _, forbidden := range []string{"nvbx_test_token", "GORMES_NAVIVOX_TOKEN=", "/home/", "\\\\Users\\\\", "api_key", "password", "secret", "payload_safety", "gormes." + navivoxWebSocketProtocol} {
 		if strings.Contains(string(raw), forbidden) {
 			t.Fatalf("capabilities leaked forbidden %q:\n%s", forbidden, raw)
 		}

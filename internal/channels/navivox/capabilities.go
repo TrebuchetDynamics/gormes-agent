@@ -64,12 +64,6 @@ type capabilityStreams struct {
 	RunsBridge        string   `json:"runs_bridge"`
 }
 
-type capabilityDeprecation struct {
-	Surface     string `json:"surface"`
-	Rule        string `json:"rule"`
-	Replacement string `json:"replacement"`
-}
-
 type capabilityDocument struct {
 	Object             string                      `json:"object"`
 	ProtocolVersion    string                      `json:"protocol_version"`
@@ -82,7 +76,6 @@ type capabilityDocument struct {
 	Attachments        capabilityAttachments       `json:"attachments"`
 	Voice              capabilityVoice             `json:"voice"`
 	Streams            capabilityStreams           `json:"streams"`
-	Deprecations       []capabilityDeprecation     `json:"deprecations"`
 	CompatibilityNotes []string                    `json:"compatibility_notes"`
 }
 
@@ -105,7 +98,7 @@ func (c *Channel) capabilityDocument() capabilityDocument {
 			Mode:               strings.TrimSpace(c.cfg.AuthMode),
 			AcceptedModes:      []string{"pairing_token", "static_token", "tailscale_identity", "token_and_tailscale_identity"},
 			Headers:            []string{"Authorization: Bearer <token>", "X-Gormes-Navivox-Token", "Tailscale-User-Login", "Tailscale-Device-Name"},
-			WebSocketProtocols: []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol, navivoxWebSocketTokenProtocolPrefix + "<base64url-token>"},
+			WebSocketProtocols: []string{navivoxWebSocketProtocol, navivoxWebSocketTokenProtocolPrefix + "<base64url-token>"},
 		},
 		Health: capabilityHealth{
 			Canonical: "/healthz",
@@ -145,11 +138,6 @@ func (c *Channel) capabilityDocument() capabilityDocument {
 			Transport:         "websocket",
 			EventKinds:        events,
 			RunsBridge:        "navivox_stream_is_canonical_for_navivox_clients",
-		},
-		Deprecations: []capabilityDeprecation{
-			{Surface: "dashboard_profiles", Rule: "do_not_call_from_navivox_clients", Replacement: "/v1/navivox/profile-contacts and /v1/navivox/profile-seed"},
-			{Surface: navivoxLegacyWebSocketProtocol, Rule: "accepted_for_legacy_clients", Replacement: navivoxWebSocketProtocol},
-			{Surface: "local_file_attachment_paths", Rule: "not_accepted", Replacement: "future opaque upload ids"},
 		},
 		CompatibilityNotes: []string{
 			"Navivox clients should enable UI affordances only when this document advertises the required endpoint and action.",

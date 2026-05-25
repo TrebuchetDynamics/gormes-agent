@@ -68,8 +68,8 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 		t.Fatalf("protocol_version = %v, want navivox.v1", payload["protocol_version"])
 	}
 	protocols, ok := payload["websocket_protocols"].([]any)
-	if !ok || len(protocols) < 2 || protocols[0] != "navivox.v1" || protocols[1] != "gormes.navivox.v1" {
-		t.Fatalf("websocket_protocols = %#v, want neutral protocol plus legacy gormes fallback", payload["websocket_protocols"])
+	if !ok || len(protocols) != 1 || protocols[0] != "navivox.v1" {
+		t.Fatalf("websocket_protocols = %#v, want current Navivox protocol only", payload["websocket_protocols"])
 	}
 	capabilities, ok := payload["capabilities"].([]any)
 	if !ok || !containsAny(capabilities, "profile_contacts") || !containsAny(capabilities, "turn_control") {

@@ -118,7 +118,7 @@ may pass the bearer token through the supported Navivox token subprotocol.
 
 `GET /v1/navivox/capabilities` is the first-class app contract. It advertises
 supported endpoints, event kinds, active auth mode, profile-management actions,
-attachment limits, voice/STT/TTS state, and deprecation rules. Navivox clients
+attachment limits, voice/STT/TTS state, and exclusion rules. Navivox clients
 should capability-gate UI affordances from this document. In particular,
 profile contacts and seed/apply actions are wrapped by `/v1/navivox/*`; clients
 must not call dashboard `/api/profiles` routes directly. Attachments are not

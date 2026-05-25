@@ -379,7 +379,7 @@ func (c *Channel) handleStatus(w http.ResponseWriter, r *http.Request, _ string)
 		"auth_mode":           c.cfg.AuthMode,
 		"profile_routing":     c.profileRouting,
 		"protocol_version":    navivoxWebSocketProtocol,
-		"websocket_protocols": []string{navivoxWebSocketProtocol, navivoxLegacyWebSocketProtocol},
+		"websocket_protocols": []string{navivoxWebSocketProtocol},
 		"capabilities_url":    "/v1/navivox/capabilities",
 		"capabilities":        navivoxCapabilityNames(),
 		"setup_handoff": map[string]any{

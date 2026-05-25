@@ -45,7 +45,7 @@ func newNavivoxCommand() *cobra.Command {
 		Use:   "navivox",
 		Short: "Navivox HTTP channel utilities",
 	}
-	cmd.AddCommand(newNavivoxConnectCommand("connect", false), newNavivoxConnectCommand("connect-info", true), newNavivoxPairCommand())
+	cmd.AddCommand(newNavivoxConnectCommand("connect", false), newNavivoxPairCommand())
 	return cmd
 }
 
