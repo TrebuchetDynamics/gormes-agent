@@ -259,8 +259,17 @@ printf '%s\n' "$@" > "$NAVIVOX_FAKE_AM_ARGS"
 		}
 	}
 	out := buf.String()
-	if !strings.Contains(out, "Opening Navivox directly...") || !strings.Contains(out, "Scan this QR from Navivox:") {
-		t.Fatalf("connect output missing direct-open and QR fallback messaging:\n%s", out)
+	for _, want := range []string{
+		"Opening Navivox directly...",
+		"Navivox connect URLs:",
+		"Use `gormes navivox pair` for the one-terminal QR pairing flow.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("connect output missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Scan this QR from Navivox:") || strings.ContainsAny(out, "█▀▄") {
+		t.Fatalf("connect output should not duplicate the terminal QR; use navivox pair for QR:\n%s", out)
 	}
 	if strings.Contains(out, "nvbx_connect_open_token") || strings.Contains(out, "rest_token=") || strings.Contains(out, descriptor) {
 		t.Fatalf("connect output leaked descriptor/token material:\n%s", out)
