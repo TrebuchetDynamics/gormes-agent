@@ -24,6 +24,7 @@ func EnvPath() string {
 // Keep in sync with the Config struct in config.go.
 var allowedTOMLSections = map[string]struct{}{
 	"hermes":      {},
+	"router":      {},
 	"profiles":    {},
 	"credentials": {},
 	"runtime":     {},

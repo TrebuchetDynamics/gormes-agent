@@ -40,6 +40,7 @@ var RootCommandOrder = []string{
 	"logout",
 	"config",
 	"fallback",
+	"router",
 	"fidelity",
 	"secrets",
 	"security",
@@ -102,6 +103,7 @@ Operator workflows:
     gormes auth add <provider>        add provider credentials
     gormes logout <provider>          clear stored provider auth
     gormes usage                      show provider account usage
+    gormes router --dry-run           inspect local OpenAI-compatible Router config
     gormes debug share                collect and share a debug bundle
 
   Session and memory

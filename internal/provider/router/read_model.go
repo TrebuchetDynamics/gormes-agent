@@ -156,7 +156,7 @@ func BuildReadModel(cfg config.Config, opts Options) ReadModel {
 	}
 
 	routes := make([]config.RouterRouteCfg, 0, len(cfg.Router.Routes)+1)
-	if !opts.SkipPrimary {
+	if !opts.SkipPrimary && !hasPrimaryRoute(cfg.Router.Routes) {
 		if primary, ok := primaryRoute(cfg); ok {
 			routes = append(routes, primary)
 		}
@@ -232,6 +232,15 @@ func buildAuthStatus(cfg config.RouterCfg, lookupEnv func(string) (string, bool)
 	return status
 }
 
+func hasPrimaryRoute(routes []config.RouterRouteCfg) bool {
+	for _, route := range routes {
+		if strings.EqualFold(strings.TrimSpace(route.Name), "primary-provider") || strings.EqualFold(strings.TrimSpace(route.Alias), "primary-chat") {
+			return true
+		}
+	}
+	return false
+}
+
 func primaryRoute(cfg config.Config) (config.RouterRouteCfg, bool) {
 	provider := strings.TrimSpace(cfg.Hermes.Provider)
 	model := strings.TrimSpace(cfg.Hermes.Model)
@@ -305,6 +314,12 @@ func buildRoute(cfg config.Config, raw config.RouterRouteCfg, lookupEnv func(str
 		route.Status = RouteStatusInvalidRoute
 		route.CredentialStatus = CredentialMissing
 		route.Evidence = append(route.Evidence, "unsupported_transport:"+route.Transport)
+		return route
+	}
+	if evidence, ok := recursionEvidence(cfg.Router.Listen, route.BaseURL); ok {
+		route.Status = RouteStatusInvalidRoute
+		route.CredentialStatus = CredentialMissing
+		route.Evidence = append(route.Evidence, evidence)
 		return route
 	}
 

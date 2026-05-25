@@ -20,11 +20,12 @@ type SetupSection struct {
 // cmd/gormes does not need to import progress schema details for static setup
 // section ownership.
 const (
-	SetupModuleGateway = progress.ModuleGateway
-	SetupModuleNavivox = progress.ModuleNavivox
-	SetupModuleTools   = progress.ModuleTools
-	SetupModuleTTS     = progress.ModuleTTS
-	SetupModuleTUI     = progress.ModuleTUI
+	SetupModuleGateway   = progress.ModuleGateway
+	SetupModuleNavivox   = progress.ModuleNavivox
+	SetupModuleProviders = progress.ModuleProviders
+	SetupModuleTools     = progress.ModuleTools
+	SetupModuleTTS       = progress.ModuleTTS
+	SetupModuleTUI       = progress.ModuleTUI
 )
 
 // SetupRegistry preserves ordered setup sections and exposes compatibility

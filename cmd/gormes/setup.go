@@ -60,6 +60,7 @@ func defaultSetupSections() []gormescli.SetupSection {
 		gormescli.SetupSection{Name: "gateway", Label: "Messaging Gateway", Module: gormescli.SetupModuleGateway},
 		gormescli.SetupSection{Name: "navivox", Label: "Navivox", Module: gormescli.SetupModuleNavivox},
 		gormescli.SetupSection{Name: "tools", Label: "Tools", Module: gormescli.SetupModuleTools},
+		gormescli.SetupSection{Name: "router", Label: "Router", Module: gormescli.SetupModuleProviders},
 	)
 	return sections
 }
@@ -468,6 +469,7 @@ func printSetupSections(cmd *cobra.Command) {
 	fmt.Fprintln(out, "  Interactive menu: gormes setup")
 	fmt.Fprintln(out, "  Terminal/TUI quick setup: gormes setup --quick --target tui")
 	fmt.Fprintln(out, "  Provider setup: gormes setup provider")
+	fmt.Fprintln(out, "  Router setup:   gormes setup router")
 }
 
 func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
@@ -657,6 +659,8 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 		return runSetupModelSection(cmd, seams, nonInteractive)
 	case "fallback":
 		return runSetupFallbackSection(cmd, seams, nonInteractive)
+	case "router":
+		return runSetupRouterSection(cmd, seams, nonInteractive || !seams.IsTTY())
 	case "agent":
 		if !nonInteractive && !seams.IsTTY() {
 			return errSetupRequiresTTY
@@ -3555,7 +3559,7 @@ func firstNonEmptySetup(values ...string) string {
 
 func setupSectionUnsupported(cmd *cobra.Command, section string) error {
 	fmt.Fprintf(cmd.ErrOrStderr(), "setup_section_unsupported: section=%s available=%s\n", section, setupSectionList())
-	fmt.Fprintln(cmd.ErrOrStderr(), "Implemented sections: provider, model, agent, workspace, bindings, tts, terminal, gateway, navivox, and tools.")
+	fmt.Fprintf(cmd.ErrOrStderr(), "Implemented sections: %s.\n", setupSectionList())
 	fmt.Fprintln(cmd.ErrOrStderr(), "setup_section_row_backed: recommended_command=\"gormes setup\"")
 	return newExitCodeError(2, fmt.Errorf("setup_section_unsupported: %s", section))
 }
@@ -3568,7 +3572,7 @@ func setupSectionOwnership(section string) string {
 	switch normalizeSetupChoice(section) {
 	case "model", "tts", "terminal", "gateway", "tools", "agent":
 		return "hermes_owned"
-	case "provider", "workspace", "bindings", "navivox":
+	case "provider", "workspace", "bindings", "navivox", "router":
 		return "gormes_owned_extension"
 	default:
 		return "unknown"

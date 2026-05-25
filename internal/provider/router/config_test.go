@@ -158,6 +158,41 @@ func TestRouterStatusRedactsSecretsAndDistinguishesStates(t *testing.T) {
 	}
 }
 
+func TestRouterRecursionDetectedForRoutePointingAtLocalListen(t *testing.T) {
+	cfg := config.Config{
+		Router: config.RouterCfg{
+			Enabled:   true,
+			Listen:    "127.0.0.1:8787",
+			APIKeyEnv: "GORMES_ROUTER_API_KEY",
+			Routes: []config.RouterRouteCfg{{
+				Name:     "self-route",
+				Alias:    "self-chat",
+				Provider: "custom",
+				Model:    "self-model",
+				BaseURL:  "http://127.0.0.1:8787/v1?key=must-not-leak",
+			}},
+		},
+	}
+
+	if err := ValidateNoRecursion(cfg.Router); err == nil || !strings.Contains(err.Error(), "router_recursion_detected") || strings.Contains(err.Error(), "must-not-leak") {
+		t.Fatalf("ValidateNoRecursion err = %v, want redacted router_recursion_detected", err)
+	}
+	model := BuildReadModel(cfg, Options{SkipPrimary: true})
+	if model.Status.State != RouterStatusInvalidRoute {
+		t.Fatalf("router status = %q, want %q (model=%+v)", model.Status.State, RouterStatusInvalidRoute, model)
+	}
+	assertRouteStatus(t, model.Routes, "self-chat", RouteStatusInvalidRoute)
+	var evidence string
+	for _, route := range model.Routes {
+		if route.Alias == "self-chat" {
+			evidence = strings.Join(route.Evidence, ",")
+		}
+	}
+	if !strings.Contains(evidence, "router_recursion_detected") || strings.Contains(evidence, "must-not-leak") {
+		t.Fatalf("route evidence = %q, want redacted router_recursion_detected", evidence)
+	}
+}
+
 func TestRouterFallbackRejectsAuthPolicyAndMalformedClasses(t *testing.T) {
 	cfg := routerFixtureConfig()
 	cfg.Router.Fallback = []config.RouterFallbackCfg{{

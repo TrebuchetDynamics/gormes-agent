@@ -317,6 +317,7 @@ func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 		"logout":   newLogoutCommand,
 		"config":   newConfigCommand,
 		"fallback": newFallbackCommand,
+		"router":   newRouterCommand,
 		"fidelity": func() *cobra.Command {
 			return gormescli.NewFidelityCommand(gormescli.FidelityCommandOptions{
 				Build: func() any {
