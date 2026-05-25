@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -42,7 +42,7 @@ Examples:
 				return err
 			}
 			defer smap.Close()
-			return runCronList(store)
+			return runCronList(cmd.OutOrStdout(), store)
 		},
 	}
 
@@ -57,7 +57,7 @@ Examples:
 				return err
 			}
 			defer smap.Close()
-			return runCronRemove(store, args[0])
+			return runCronRemove(cmd.OutOrStdout(), store, args[0])
 		},
 	}
 
@@ -73,7 +73,7 @@ Examples:
 			if smap != nil {
 				defer smap.Close()
 			}
-			return runCronStatus(store, runStore, args[0])
+			return runCronStatus(cmd.OutOrStdout(), store, runStore, args[0])
 		},
 	}
 
@@ -148,17 +148,17 @@ func openCronStoreWithRuns(dbPath string) (*cron.Store, *cron.RunStore, *session
 	return store, nil, smap, nil // RunStore needs sql.DB; not wired here yet
 }
 
-func runCronList(store *cron.Store) error {
+func runCronList(out io.Writer, store *cron.Store) error {
 	jobs, err := store.List()
 	if err != nil {
 		return fmt.Errorf("list cron jobs: %w", err)
 	}
 	if len(jobs) == 0 {
-		fmt.Println("No cron jobs found.")
+		fmt.Fprintln(out, "No cron jobs found.")
 		return nil
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	w := tabwriter.NewWriter(out, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tSchedule\tStatus\tLast Run\tScript/Prompt\tPaused")
 	fmt.Fprintln(w, "--\t----\t--------\t------\t--------\t------------\t------")
 	for _, j := range jobs {
@@ -194,7 +194,7 @@ func runCronList(store *cron.Store) error {
 	return w.Flush()
 }
 
-func runCronRemove(store *cron.Store, jobID string) error {
+func runCronRemove(out io.Writer, store *cron.Store, jobID string) error {
 	job := findJob(store, jobID)
 	if job == nil {
 		return fmt.Errorf("cron job %q not found", jobID)
@@ -202,39 +202,39 @@ func runCronRemove(store *cron.Store, jobID string) error {
 	if err := store.Delete(job.ID); err != nil {
 		return fmt.Errorf("delete cron job %s: %w", job.ID[:8], err)
 	}
-	fmt.Printf("Removed cron job %s (%s)\n", job.ID[:8], job.Name)
+	fmt.Fprintf(out, "Removed cron job %s (%s)\n", job.ID[:8], job.Name)
 	return nil
 }
 
-func runCronStatus(store *cron.Store, runStore *cron.RunStore, jobID string) error {
+func runCronStatus(out io.Writer, store *cron.Store, runStore *cron.RunStore, jobID string) error {
 	job := findJob(store, jobID)
 	if job == nil {
 		return fmt.Errorf("cron job %q not found", jobID)
 	}
 
-	fmt.Printf("Job:      %s (%s)\n", job.Name, job.ID[:8])
-	fmt.Printf("Schedule: %s\n", job.Schedule)
-	fmt.Printf("Created:  %s\n", time.Unix(job.CreatedAt, 0).Format("2006-01-02 15:04:05"))
-	fmt.Printf("Paused:   %v\n", job.Paused)
+	fmt.Fprintf(out, "Job:      %s (%s)\n", job.Name, job.ID[:8])
+	fmt.Fprintf(out, "Schedule: %s\n", job.Schedule)
+	fmt.Fprintf(out, "Created:  %s\n", time.Unix(job.CreatedAt, 0).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(out, "Paused:   %v\n", job.Paused)
 	if job.Script != "" {
-		fmt.Printf("Script:   %s\n", job.Script)
+		fmt.Fprintf(out, "Script:   %s\n", job.Script)
 	}
-	fmt.Printf("NoAgent:  %v\n", job.NoAgent)
+	fmt.Fprintf(out, "NoAgent:  %v\n", job.NoAgent)
 	if job.Deliver != "" {
-		fmt.Printf("Deliver:  %s\n", job.Deliver)
+		fmt.Fprintf(out, "Deliver:  %s\n", job.Deliver)
 	}
 	if job.LastRunUnix > 0 {
-		fmt.Printf("Last run: %s (status: %s)\n",
+		fmt.Fprintf(out, "Last run: %s (status: %s)\n",
 			time.Unix(job.LastRunUnix, 0).Format("2006-01-02 15:04:05"), job.LastStatus)
 	} else {
-		fmt.Println("Last run: never")
+		fmt.Fprintln(out, "Last run: never")
 	}
 
 	// Show last 5 runs from run store
 	if runStore != nil {
 		runs, err := runStore.LatestRuns(nil, job.ID, 5)
 		if err == nil && len(runs) > 0 {
-			fmt.Println("\nRecent runs:")
+			fmt.Fprintln(out, "\nRecent runs:")
 			for _, r := range runs {
 				started := time.Unix(r.StartedAt, 0).Format("15:04:05")
 				preview := r.OutputPreview
@@ -245,7 +245,7 @@ func runCronStatus(store *cron.Store, runStore *cron.RunStore, jobID string) err
 				if r.ErrorMsg != "" {
 					errFlag = " ERROR"
 				}
-				fmt.Printf("  %s  %-12s %s%s\n", started, r.Status, preview, errFlag)
+				fmt.Fprintf(out, "  %s  %-12s %s%s\n", started, r.Status, preview, errFlag)
 			}
 		}
 	}
