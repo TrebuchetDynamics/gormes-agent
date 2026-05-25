@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/skip2/go-qrcode"
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -255,25 +254,19 @@ func writeNavivoxConnectInfoTextWithOptions(out io.Writer, cfg config.NavivoxCfg
 				fmt.Fprintf(out, "    warning: %s %s\n", warning.Code, warning.ProfileID)
 			}
 		}
-		qr, err := navivoxConnectInfoTerminalQR(cfg, e)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(out, "    Scan this QR from Navivox:")
-		for _, line := range strings.Split(strings.TrimRight(qr, "\n"), "\n") {
-			fmt.Fprintf(out, "    %s\n", line)
-		}
-		descriptor, err := navivoxConnectInfoDescriptor(cfg, e)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(out, "    navivox://connect descriptor is encoded in the QR.")
-		fmt.Fprintln(out, "    QR payload includes the token when required; the raw token is not printed.")
 		if opts.printDeeplink {
+			descriptor, err := navivoxConnectInfoDescriptor(cfg, e)
+			if err != nil {
+				return err
+			}
 			fmt.Fprintln(out, "    Warning: navivox://connect descriptor contains a secret; do not share it.")
 			fmt.Fprintf(out, "    %s\n", descriptor)
 		}
 	}
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "QR pairing:")
+	fmt.Fprintln(out, "  Use `gormes navivox pair` for the one-terminal QR pairing flow.")
+	fmt.Fprintln(out, "  Use `gormes navivox connect --open-navivox` to hand these URLs directly to Navivox.")
 	return nil
 }
 
@@ -309,18 +302,6 @@ func navivoxConnectInfoProfileSummary(profiles []config.NavivoxProfileRoute) str
 		parts = append(parts, profile.ProfileID+" ("+label+")")
 	}
 	return strings.Join(parts, ", ")
-}
-
-func navivoxConnectInfoTerminalQR(cfg config.NavivoxCfg, entry navivoxConnectInfoEntry) (string, error) {
-	descriptor, err := navivoxConnectInfoDescriptor(cfg, entry)
-	if err != nil {
-		return "", err
-	}
-	qr, err := qrcode.New(descriptor, qrcode.Medium)
-	if err != nil {
-		return "", fmt.Errorf("navivox connect: encode terminal QR: %w", err)
-	}
-	return qr.ToSmallString(false), nil
 }
 
 func navivoxConnectInfoDescriptor(cfg config.NavivoxCfg, entry navivoxConnectInfoEntry) (string, error) {

@@ -163,7 +163,7 @@ func TestNavivoxConnectInfoJSONIncludesServerScopedRouting(t *testing.T) {
 	}
 }
 
-func TestNavivoxConnectInfo_TextOutputIncludesTerminalQRAndKeepsTokenOpaque(t *testing.T) {
+func TestNavivoxConnectInfo_TextOutputDoesNotDuplicatePairQRCode(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
 	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
@@ -187,19 +187,21 @@ func TestNavivoxConnectInfo_TextOutputIncludesTerminalQRAndKeepsTokenOpaque(t *t
 	}
 	s := buf.String()
 	for _, want := range []string{
-		"Scan this QR from Navivox:",
-		"QR payload includes the token when required; the raw token is not printed.",
-		"navivox://connect descriptor",
+		"QR pairing:",
+		"Use `gormes navivox pair` for the one-terminal QR pairing flow.",
+		"Use `gormes navivox connect --open-navivox` to hand these URLs directly to Navivox.",
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("text output missing %q\noutput: %s", want, s)
 		}
 	}
-	if !strings.ContainsAny(s, "█▀▄") {
-		t.Fatalf("text output missing terminal QR block characters\noutput: %s", s)
+	for _, forbidden := range []string{"Scan this QR from Navivox:", "navivox://connect descriptor", sensitiveToken, "rest_token="} {
+		if strings.Contains(s, forbidden) {
+			t.Fatalf("text output should not contain %q\noutput: %s", forbidden, s)
+		}
 	}
-	if strings.Contains(s, sensitiveToken) || strings.Contains(s, "rest_token=") {
-		t.Fatalf("text output leaks raw token material\noutput: %s", s)
+	if strings.ContainsAny(s, "█▀▄") {
+		t.Fatalf("connect output should not duplicate the terminal QR; use navivox pair for QR\noutput: %s", s)
 	}
 }
 
