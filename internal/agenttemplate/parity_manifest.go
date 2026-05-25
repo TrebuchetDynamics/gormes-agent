@@ -56,13 +56,13 @@ func TemplatePairManifest() []TemplatePair {
 				"internal/hermes/default_soul.go",
 				"internal/agenttemplate/default_templates.go",
 			},
-			TransformReason: "Gormes replaces the upstream Hermes/Nous identity with the Gorm persona and gormes runtime, then appends Gormes-owned operating and boundary guidance.",
+			TransformReason: "Gormes replaces the upstream Hermes/Nous identity with the Gorm persona and gormes runtime, then appends Gormes-owned concise personality and boundary guidance while leaving workflow rules to AGENTS.md/TOOLS.md.",
 			TestGate: []string{
 				"go test ./internal/hermes -run TestDefaultSoulMD -count=1",
 				"go test ./internal/agenttemplate -count=1",
 			},
 			OwnerRow: "Gormes agent template reset command",
-			Contract: "Gormes seeds SOUL.md from the Hermes DEFAULT_SOUL_MD contract with only the declared Gormes product-identity substitution, then appends Gormes-owned operating and boundary guidance.",
+			Contract: "Gormes seeds SOUL.md from the Hermes DEFAULT_SOUL_MD contract with the declared Gormes product-identity substitution, then appends a lean Gormes-owned personality/boundary block; workflow-specific instructions live in AGENTS.md, IDENTITY.md, or TOOLS.md.",
 		},
 		{
 			TemplateID: "agents",

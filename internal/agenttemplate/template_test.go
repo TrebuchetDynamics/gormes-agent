@@ -43,6 +43,45 @@ func TestAgentTemplateDefaultFilesMatchLiveTurnLookup(t *testing.T) {
 	}
 }
 
+func TestAgentTemplateSoulTemplateKeepsWorkflowOutOfSoul(t *testing.T) {
+	var soul string
+	for _, file := range DefaultFiles() {
+		if filepath.ToSlash(file.Path) == "SOUL.md" {
+			soul = file.Content
+			break
+		}
+	}
+	if soul == "" {
+		t.Fatal("SOUL.md template missing")
+	}
+	for _, want := range []string{
+		"## Personality And Boundaries",
+		"Be direct; short answers unless the user asks for detail.",
+		"Never send messages, book appointments, spend money, sign up for services, or delete files without showing the plan and getting explicit approval.",
+		"If access or evidence is missing, say so; do not guess or pretend to check unavailable systems.",
+		"Save durable facts and preferences to memory when the user asks or the fact will matter later; never store secrets.",
+		"Keep workflow and project rules in AGENTS.md, IDENTITY.md, or TOOLS.md so SOUL.md stays short.",
+	} {
+		if !strings.Contains(soul, want) {
+			t.Fatalf("SOUL.md missing lean personality/boundary line %q:\n%s", want, soul)
+		}
+	}
+	for _, forbidden := range []string{
+		"## Operating Style",
+		"Read the local `AGENTS.md`",
+		"Use tools when they improve correctness",
+		"State assumptions when context is incomplete",
+		"When a workspace adds more specific instructions",
+	} {
+		if strings.Contains(soul, forbidden) {
+			t.Fatalf("SOUL.md should keep workflow-specific instruction %q out of the always-loaded persona:\n%s", forbidden, soul)
+		}
+	}
+	if lines := nonBlankLineCount(soul); lines > 8 {
+		t.Fatalf("SOUL.md starter template has %d non-blank lines, want <= 8 so fresh installs stay lean:\n%s", lines, soul)
+	}
+}
+
 func TestAgentTemplateDefaultFilesAreFreshInstallReady(t *testing.T) {
 	files := DefaultFiles()
 	got := map[string]string{}
@@ -52,10 +91,10 @@ func TestAgentTemplateDefaultFilesAreFreshInstallReady(t *testing.T) {
 
 	for path, wants := range map[string][]string{
 		"SOUL.md": {
-			"## Operating Style",
-			"## Boundaries",
-			"evidence",
-			"secrets",
+			"## Personality And Boundaries",
+			"short answers unless the user asks for detail",
+			"do not guess",
+			"never store secrets",
 		},
 		"AGENTS.md": {
 			"agents run by `gormes`",
@@ -401,6 +440,16 @@ func actionsByPath(result WriteResult) map[string]Action {
 
 func containsFold(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
+}
+
+func nonBlankLineCount(s string) int {
+	count := 0
+	for _, line := range strings.Split(s, "\n") {
+		if strings.TrimSpace(line) != "" {
+			count++
+		}
+	}
+	return count
 }
 
 func templatePairSourceRoots(t *testing.T) (string, string) {
