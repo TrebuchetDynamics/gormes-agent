@@ -44,6 +44,7 @@ func newNavivoxPairCommand() *cobra.Command {
 		Short: "Create a local Navivox pairing handoff",
 		Long: `Start a local Navivox bridge, generate a pairing token, write a QR image,
 open Navivox directly on Android when available, then wait for the app to connect.
+The terminal handoff also prints a compact QR when it fits the current screen.
 
 Use this after the installer recommends Navivox setup:
 
@@ -132,41 +133,42 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	}
 
 	out := cmd.OutOrStdout()
-	if shouldOpenNavivoxAndroid(opts.openNavivox, opts.noOpenNavivox) {
-		fmt.Fprintln(out, "Opening Navivox directly...")
+	openAttempted := shouldOpenNavivoxAndroid(opts.openNavivox, opts.noOpenNavivox)
+	openSucceeded := false
+	openFailure := ""
+	if openAttempted {
 		if err := openNavivoxAndroid(cmd.Context(), descriptor, opts.androidPackage); err != nil {
-			fmt.Fprintf(out, "Could not open Navivox directly: %s\n", err)
-			fmt.Fprintln(out, "Use the QR image fallback or manual connect-info import.")
+			openFailure = err.Error()
 		} else {
-			fmt.Fprintln(out, "If Navivox did not open, use the QR/image fallback or run with --print-deeplink.")
+			openSucceeded = true
 		}
-		fmt.Fprintln(out)
 	}
 	fmt.Fprintln(out, "Navivox pairing ready.")
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Connection")
-	fmt.Fprintf(out, "  HTTP: %s\n", baseURL)
-	fmt.Fprintf(out, "  WebSocket: %s\n", wsURL)
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Pairing")
-	if generatedToken {
-		fmt.Fprintln(out, "  Token: generated and stored as GORMES_NAVIVOX_TOKEN in:")
+	fmt.Fprintf(out, "  Bridge: %s\n", baseURL)
+	fmt.Fprintf(out, "  Stream: %s\n", wsURL)
+	terminalQRFallback := false
+	if openSucceeded {
+		fmt.Fprintln(out, "  Handoff: opened Navivox directly")
+	} else if openAttempted {
+		fmt.Fprintf(out, "  Handoff: direct open failed (%s); QR fallback saved:\n", openFailure)
+		fmt.Fprintf(out, "    %s\n", qrPath)
+		terminalQRFallback = true
+		fmt.Fprintln(out, "  Secret: QR embeds the local bridge URL and Navivox token.")
 	} else {
-		fmt.Fprintln(out, "  Token: reused from GORMES_NAVIVOX_TOKEN in:")
+		fmt.Fprintln(out, "  Handoff: QR fallback saved:")
+		fmt.Fprintf(out, "    %s\n", qrPath)
+		terminalQRFallback = true
+		fmt.Fprintln(out, "  Secret: QR embeds the local bridge URL and Navivox token.")
 	}
-	fmt.Fprintf(out, "  %s\n", config.EnvPath())
-	fmt.Fprintln(out, "  Pairing QR image:")
-	fmt.Fprintf(out, "  %s\n", qrPath)
-	fmt.Fprintln(out, "  Secret: the QR image embeds the local bridge URL and Navivox token.")
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Bridge")
-	fmt.Fprintf(out, "  Local bridge URL: %s\n", baseURL)
-	fmt.Fprintf(out, "  Local bridge listening: %s\n", baseURL)
-	fmt.Fprintln(out, "  Lifecycle: keep this terminal open after Navivox connects.")
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Next steps")
-	fmt.Fprintln(out, "  1. Open Navivox on Android and scan the QR image.")
-	fmt.Fprintln(out, "  2. Finish provider, model, workspace, and channel setup in Navivox.")
+	if terminalQRFallback {
+		if err := renderNavivoxPairTerminalQR(out, runtimeCfg, baseURL, wsURL, qrPath); err != nil {
+			return err
+		}
+	}
+	if generatedToken {
+		fmt.Fprintf(out, "  Token: generated and stored in %s\n", config.EnvPath())
+	}
+	fmt.Fprintln(out, "  Keep this terminal open for the local bridge.")
 	if opts.printDeeplink {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "Deeplink")

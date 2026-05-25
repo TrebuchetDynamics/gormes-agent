@@ -71,12 +71,17 @@ printf '%s\n' "$@"
 		}
 	}
 	for _, want := range []string{
-		"Opening Navivox directly...",
-		"If Navivox did not open, use the QR/image fallback or run with --print-deeplink.",
-		"Pairing QR image:",
+		"Navivox pairing ready.",
+		"Handoff: opened Navivox directly",
+		"Keep this terminal open for the local bridge.",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, removed := range []string{"Pairing QR image:", "scan the QR image", "Next steps"} {
+		if strings.Contains(stdout, removed) {
+			t.Fatalf("stdout still contains noisy pair output %q:\n%s", removed, stdout)
 		}
 	}
 }
@@ -171,10 +176,8 @@ func TestNavivoxPairOpenNavivoxMissingAMFallsBackToQR(t *testing.T) {
 		t.Fatalf("navivox pair with missing am should keep QR fallback: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"Opening Navivox directly...",
-		"Could not open Navivox directly: navivox open: Android activity manager not found",
-		"Use the QR image fallback or manual connect-info import.",
-		"Pairing QR image:",
+		"Handoff: direct open failed (navivox open: Android activity manager not found); QR fallback saved:",
+		"Secret: QR embeds the local bridge URL and Navivox token.",
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {
 		if !strings.Contains(stdout, want) {

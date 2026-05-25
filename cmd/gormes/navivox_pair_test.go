@@ -80,6 +80,7 @@ func TestNavivoxPairDescriptorIncludesSetupContinuationHints(t *testing.T) {
 func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	t.Setenv("COLUMNS", "120")
 	previousToken, hadPreviousToken := os.LookupEnv("GORMES_NAVIVOX_TOKEN")
 	if err := os.Unsetenv("GORMES_NAVIVOX_TOKEN"); err != nil {
 		t.Fatalf("unset GORMES_NAVIVOX_TOKEN: %v", err)
@@ -100,27 +101,28 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	qrPath := filepath.Join(home, "navivox", "pairing.png")
 	for _, want := range []string{
 		"Navivox pairing ready.",
-		"Connection",
-		fmt.Sprintf("  HTTP: http://127.0.0.1:%d", port),
-		fmt.Sprintf("  WebSocket: ws://127.0.0.1:%d/v1/navivox/stream", port),
-		"Pairing",
-		"  Token: generated and stored as GORMES_NAVIVOX_TOKEN in:",
-		"  Pairing QR image:\n  " + qrPath,
-		"  Secret: the QR image embeds the local bridge URL and Navivox token.",
-		"Bridge",
-		fmt.Sprintf("  Local bridge URL: http://127.0.0.1:%d", port),
-		"  Lifecycle: keep this terminal open after Navivox connects.",
-		"Next steps",
-		"  1. Open Navivox on Android and scan the QR image.",
-		"  2. Finish provider, model, workspace, and channel setup in Navivox.",
+		fmt.Sprintf("  Bridge: http://127.0.0.1:%d", port),
+		fmt.Sprintf("  Stream: ws://127.0.0.1:%d/v1/navivox/stream", port),
+		"  Handoff: QR fallback saved:\n    " + qrPath,
+		"  Scan this QR from Navivox:",
+		"  QR payload includes the local bridge URL and Navivox token.",
+		"  Raw token is not printed.",
+		"  Secret: QR embeds the local bridge URL and Navivox token.",
+		"  Token: generated and stored in " + config.EnvPath(),
+		"  Keep this terminal open for the local bridge.",
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	if strings.Contains(stdout, "Pairing QR image: "+qrPath) {
-		t.Fatalf("QR path should be on its own line for narrow terminals:\n%s", stdout)
+	for _, removed := range []string{"Next steps", "scan the QR image", "Connection\n", "Pairing\n", "Local bridge listening"} {
+		if strings.Contains(stdout, removed) {
+			t.Fatalf("stdout still contains noisy pair output %q:\n%s", removed, stdout)
+		}
+	}
+	if !strings.ContainsAny(stdout, "▀▄█") {
+		t.Fatalf("terminal QR block missing from pair output:\n%s", stdout)
 	}
 
 	cfg, err := config.Load(nil)
@@ -143,6 +145,37 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	}
 	if got := info.Mode().Perm(); got != 0o600 {
 		t.Fatalf("pairing QR mode = %v, want 0600", got)
+	}
+}
+
+func TestNavivoxPairNarrowTermuxFallsBackToPNGQRCode(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_NAVIVOX_TOKEN", "nvbx_narrow_termux_token")
+	t.Setenv("COLUMNS", "48")
+
+	port := freeLocalTCPPort(t)
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--port", strconv.Itoa(port), "--no-wait")
+	if err != nil {
+		t.Fatalf("navivox pair --no-wait narrow: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	qrPath := filepath.Join(home, "navivox", "pairing.png")
+	for _, want := range []string{
+		"  Scan this QR from Navivox:",
+		"  Terminal QR: not printed; terminal is too narrow.",
+		"  Detected columns: 48; QR needs ",
+		"  Termux tip: rotate phone, reduce font size, or open the PNG:",
+		"  termux-open " + qrPath,
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.ContainsAny(stdout, "▀▄█") {
+		t.Fatalf("narrow-terminal fallback should not print a wrapped QR block:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "nvbx_narrow_termux_token") || strings.Contains(stdout+stderr, "rest_token=") {
+		t.Fatalf("narrow-terminal fallback leaked token material:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 
@@ -193,8 +226,8 @@ func TestNavivoxPairWaitStartsLocalBridgeUntilContextCanceled(t *testing.T) {
 
 	out := stdout.String()
 	for _, want := range []string{
-		fmt.Sprintf("Local bridge URL: http://127.0.0.1:%d", port),
-		fmt.Sprintf("Local bridge listening: http://127.0.0.1:%d", port),
+		fmt.Sprintf("Bridge: http://127.0.0.1:%d", port),
+		"Keep this terminal open for the local bridge.",
 		"Waiting for Navivox connection... Press Ctrl-C to stop.",
 	} {
 		if !strings.Contains(out, want) {
