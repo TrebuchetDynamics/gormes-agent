@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Run Hermes-compatible agents from one Go binary.</strong><br>
-  Gormes is a Go-native runtime for providers, tools, skills, local SQLite memory, sessions, dashboard, and chat gateways in one static binary. It brings the Hermes agent shape to Termux, Windows-without-Python, and locked-down Linux hosts: no pip, no venv, no Docker daemon. The bundled skill set covers the 30 most-used Hermes skills, including coding, GitHub, browser/web tools, research, productivity, and media workflows.
+  Gormes is a Go-native runtime for agents: providers, tools, skills, local SQLite memory, sessions, dashboard, and chat gateways are packaged as one static binary. It brings the durable parts of Hermes — terminal UX, gateway conversations, reusable skills, persistent state, and provider/model choice — to Termux, Windows-without-Python, and locked-down Linux hosts: no pip, no venv, no Docker daemon. The bundled skill set covers the 30 most-used Hermes skills, including coding, GitHub, browser/web tools, research, productivity, and media workflows.
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
   <img src="webpages/docs/assets/gormes-tui-demo.gif" alt="Gormes install, setup, provider setup, first task, web tools, Termux, and gateway demo" width="960">
 </p>
 
-Gormes is not a micro-agent. It keeps the broad Hermes agent architecture and makes it portable, inspectable, and cheap to operate from a normal terminal.
+Gormes is not a micro-agent or a prompt-wrapper app. It is runtime plumbing for agents that need to keep useful structure across sessions: configuration, tool permissions, skills, memory, profiles, logs, and channel bindings. It keeps the broad Hermes agent architecture and makes it portable, inspectable, and cheap to operate from a normal terminal.
 
 The demo above is a real operator path: install, setup, provider setup, first task, web tools, Termux, and gateway.
 
@@ -84,6 +84,7 @@ If `gormes chat` opens, the TUI and gateway have a model to use.
 - Small servers, Termux/Android, WSL2, and locked-down Linux hosts where Docker or venv repair is friction.
 - Termux can be the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds.
 - Long-running personal or team agents that need local sessions, memory, tools, and chat gateways.
+- Builders who care less about one-off model outputs and more about reusable structure: skills, policies, profiles, memories, logs, and repeatable workflows.
 
 Not yet for teams that require signed enterprise releases, voice/TTS parity, or every Hermes channel on day one.
 
@@ -103,6 +104,19 @@ Not yet for teams that require signed enterprise releases, voice/TTS parity, or 
 | Release signing, package-manager lanes | **Roadmap** |
 
 Detailed parity status by phase lives in the [roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/).
+
+## Hermes Compatibility, Go Ownership
+
+Hermes is the behavior reference: terminal-first agent UX, shared CLI/gateway conversations, model choice, tools, skills, memory, migration, and longer-running workflows. Gormes ports that shape into a Go runtime with a different operational bet: make the agent's reusable structure easy to install, inspect, back up, and run where Python/Node stacks are hard to maintain.
+
+| Hermes surface | Gormes path today |
+|---|---|
+| Terminal agent interface | Native CLI/TUI plus `gormes chat` and offline TUI smoke tests |
+| Provider/model choice | OpenAI-compatible, Anthropic, DeepSeek, Groq, Ollama, Codex, OpenCode, and custom endpoints |
+| Messaging gateway | Telegram, Discord, and Slack are stable; WhatsApp, Teams, and Yuanbao are experimental |
+| Skills and tools | Bundled Hermes skill set plus Go-native registries for tools, skills, audits, and security checks |
+| Memory and sessions | Local SQLite state under `~/.gormes`, with Goncho/Honcho compatibility work tracked in the roadmap |
+| Learning loop, MCP, voice/TTS, broader channel parity | Explicit roadmap items, not treated as shipped claims |
 
 ## Why People Switch
 
@@ -230,11 +244,11 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
-| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 11/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 <!-- PROGRESS:END -->
 

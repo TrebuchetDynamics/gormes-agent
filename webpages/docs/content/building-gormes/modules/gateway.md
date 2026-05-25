@@ -7,9 +7,9 @@ title: "Gateway Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `gateway`
-**Rows:** 158
-**Status counts:** `complete`: 158 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 14 · `P1`: 49 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 159
+**Status counts:** `complete`: 158 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 14 · `P1`: 50 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -309,6 +309,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `gateway` | Provider client lazy-init for TUI cold-start budget |
 | `complete` | `P2` | `gateway` | Kernel cross-provider client swap for in-session model switch |
 | `complete` | `P1` | `gateway` | Hermes web dashboard strict-fidelity contract map |
+| `planned` | `P1` | `gateway` | Gormes JSONL RPC mode over agent runtime events |
 
 ### 5.V — Unified Event Bus
 

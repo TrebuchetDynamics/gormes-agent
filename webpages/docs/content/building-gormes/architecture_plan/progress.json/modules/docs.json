@@ -113,7 +113,20 @@
         "The automation is reproducible from a script and documented inputs, not click-configured in a provider console.",
         "success-plan.md records the social account URL, automation method, and secret-handling boundary without storing tokens."
       ],
-      "note": "Dry-run package advanced 2026-05-23 in development-goal iteration 24: scripts/blog-feed-social/publish.mjs now reads a built RSS feed and writes deterministic social preview JSON with canonical URL, post text, idempotency key, network_publish=false, and a no-token dry-run secret policy. Row intentionally remains planned because live social posting still requires an operator-selected platform/account, credentials outside the repo, and public test-post evidence.",
+      "note": "Dry-run package advanced 2026-05-23 in development-goal iteration 24: scripts/blog-feed-social/publish.mjs now reads a built RSS feed and writes deterministic social preview JSON with canonical URL, post text, idempotency key, network_publish=false, and a no-token dry-run secret policy. Row intentionally remains planned because live social posting still requires an operator-selected platform/account, credentials outside the repo, and public test-post evidence.\n\n2026-05-24 planner pass: added structured blocker metadata so the completed dry-run package is preserved while live social publication remains gated on operator account/credential decisions.",
+      "blocker": {
+        "title": "TD social feed publication account gate",
+        "type": "access",
+        "status": "blocked",
+        "recorded_at": "2026-05-24 00:00:00 America/Monterrey",
+        "blocker": "Live feed-to-social publication requires an operator-selected social platform/account, non-repo credentials, and public test-post URL evidence; autonomous repo agents must not invent accounts, store tokens, or publish externally.",
+        "evidence": "The row's dry-run package is already complete, but ready_when and blocked_by still require operator-selected platform/account credentials outside the repository plus public social test-post evidence.",
+        "unblocks_when": "Juan selects the social platform/account, provides the non-secret public handle or account URL for docs, supplies credentials outside the repo, and authorizes a live test post.",
+        "owner": "operator / Gormes publication lane",
+        "pivot": "Keep the deterministic dry-run feed preview as the validated local artifact; builders should not attempt live publication until credentials and account decisions exist.",
+        "next_check": "next publication-lane review or explicit social account setup request",
+        "degraded": true
+      },
       "write_scope": [
         "scripts/blog-feed-social/",
         "webpages/blog/",
@@ -538,7 +551,20 @@
         "Post includes real cost-per-feature numbers from 8.F telemetry.",
         "Post has been submitted to HN/Lobsters at least once (success metric is the submission, not front-page placement)."
       ],
-      "note": "Local draft package advanced 2026-05-23 in development-goal iteration 23: webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md now contains a 1500+ word source-backed draft with architecture diagram, three recent commit walkthroughs (2e3a56a21, 5cd4f870f, c2a267dad), validation-gate flow, and explicit cost/operator-review blockers. Row intentionally remains planned/draft because final acceptance still requires measured cost-per-feature telemetry, operator voice/publication review, public URL evidence, and submission evidence. Planner 2026-05-23 iteration 52: split an unblocked local publication review-packet child row from this blocked parent so agents can prepare operator-review evidence without needing cost telemetry, social credentials, public posting, or date/platform approval. Planner 2026-05-23 iteration 54: removed the completed local review-packet child from `blocked_by` and split a builder-ready local cost-telemetry evidence-packet child row so the parent keeps waiting only on measured cost evidence and operator publication decisions. Builder 2026-05-23 iteration 55: completed the local cost telemetry evidence packet and removed that child row from active blockers; the parent remains blocked by one week of measured cost telemetry and operator publication review/date/platform decision. Planner 2026-05-23 iteration 56: added a builder-ready telemetry adapter row after local OpenCode logs showed `part.cost` spend data that the current cost-report parser ignored; this keeps the writeup parent blocked until the adapter and one-week measured window are both proven. Builder 2026-05-23 iteration 56: completed the OpenCode part-cost telemetry adapter and removed that child row from active blockers; the parent remains blocked by one week of recent 7-day priced telemetry and operator publication review/date/platform decision.",
+      "note": "Local draft package advanced 2026-05-23 in development-goal iteration 23: webpages/blog/src/content/posts/autonomous-hermes-porting-loop.md now contains a 1500+ word source-backed draft with architecture diagram, three recent commit walkthroughs (2e3a56a21, 5cd4f870f, c2a267dad), validation-gate flow, and explicit cost/operator-review blockers. Row intentionally remains planned/draft because final acceptance still requires measured cost-per-feature telemetry, operator voice/publication review, public URL evidence, and submission evidence. Planner 2026-05-23 iteration 52: split an unblocked local publication review-packet child row from this blocked parent so agents can prepare operator-review evidence without needing cost telemetry, social credentials, public posting, or date/platform approval. Planner 2026-05-23 iteration 54: removed the completed local review-packet child from `blocked_by` and split a builder-ready local cost-telemetry evidence-packet child row so the parent keeps waiting only on measured cost evidence and operator publication decisions. Builder 2026-05-23 iteration 55: completed the local cost telemetry evidence packet and removed that child row from active blockers; the parent remains blocked by one week of measured cost telemetry and operator publication review/date/platform decision. Planner 2026-05-23 iteration 56: added a builder-ready telemetry adapter row after local OpenCode logs showed `part.cost` spend data that the current cost-report parser ignored; this keeps the writeup parent blocked until the adapter and one-week measured window are both proven. Builder 2026-05-23 iteration 56: completed the OpenCode part-cost telemetry adapter and removed that child row from active blockers; the parent remains blocked by one week of recent 7-day priced telemetry and operator publication review/date/platform decision.\n\n2026-05-24 planner pass: added structured blocker metadata so repo-only builder selection can distinguish remaining public-publication gates from completed local draft/review child work.",
+      "blocker": {
+        "title": "Engineering writeup public publication gate",
+        "type": "decision",
+        "status": "blocked",
+        "recorded_at": "2026-05-24 00:00:00 America/Monterrey",
+        "blocker": "The public writeup parent row still requires one week of measured loop cost telemetry plus operator review of voice, publication date, and submission platform before public posting.",
+        "evidence": "The row ready_when and blocked_by fields require 7-day cost telemetry and operator publication/date/platform decisions; completed child notes already say local review packet, cost evidence packet, and OpenCode part-cost adapter work are done but do not satisfy the parent public-publication gate.",
+        "unblocks_when": "Seven days of recent priced loop telemetry are available and Juan approves the public draft voice, publication date, and target platform for submission.",
+        "owner": "operator / Gormes publication lane",
+        "pivot": "Keep using the local draft/review evidence as source material; autonomous builders should work unblocked runtime/docs rows instead of publishing or fabricating cost numbers.",
+        "next_check": "next publication-lane review or after one week of priced loop telemetry is collected",
+        "degraded": true
+      },
       "write_scope": [
         "webpages/blog/ (or external blog repo path)",
         "docs/content/building-gormes/strategy/writeups/",
@@ -942,6 +968,81 @@
         "go run ./cmd/progress validate",
         "git diff --check"
       ]
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.C",
+    "pos": 6,
+    "item": {
+      "name": "Hermes integrations claim audit + source-backed plugin/skill parity map",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Turn the sanitized Reddit/WebAfterAI Hermes integrations post into a source-backed parity map without accepting marketing shorthand as fact: classify each named integration as first-party bundled skill, bundled plugin/backend, gateway/platform/tool, optional skill, indirect web/browser/MCP/scraping workflow, Gormes-owned candidate, or unsupported/excluded claim. The audit must explicitly handle cases where a workflow is achievable through generic web scraping, browser automation, MCP, or Firecrawl-style extraction without being a direct Hermes plugin or tool, and it must not create implementation rows for Reddit, Stripe, InsForge, Graphiti/Zep, or Fireflies unless exact current Hermes source appears.",
+      "contract_status": "fixture_ready",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Until the claims are source-classified, public roadmap and parity work can overstate Hermes/Gormes integration breadth by treating scraped workflows, optional skills, and unsupported social-post claims as native plugins.",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/hermes-integrations-claim-audit.md",
+      "source_refs": [
+        "sanitized user-provided Reddit/WebAfterAI transcript 2026-05-24: '12 Hermes Integrations That Actually Matter'",
+        "hermes-agent/hermes_cli/plugins_cmd.py@43e566f77: `hermes plugins install` clones Git plugins into ~/.hermes/plugins and does not imply a built-in short-name registry for every social-post claim",
+        "hermes-agent/hermes_cli/plugins.py@43e566f77: bundled/user/project/pip plugin discovery and opt-in semantics",
+        "hermes-agent/skills/productivity/google-workspace/SKILL.md@43e566f77: first-party Gmail/Calendar/Drive/Docs/Sheets skill",
+        "hermes-agent/skills/note-taking/obsidian/SKILL.md@43e566f77: filesystem-first Obsidian vault skill",
+        "hermes-agent/plugins/web/firecrawl/plugin.yaml@43e566f77 and provider.py: bundled Firecrawl web backend with direct/gateway/self-hosted config",
+        "hermes-agent/tools/web_tools.py@43e566f77: generic web_search/web_extract/web_crawl dispatch; supports web-scraping/extraction workflows without naming them as native integrations",
+        "hermes-agent/skills/github/DESCRIPTION.md@43e566f77 and skills/github/*/SKILL.md: GitHub auth/repo/issues/PR/code-review skills",
+        "hermes-agent/skills/media/youtube-content/SKILL.md@43e566f77: YouTube transcript helper skill",
+        "hermes-agent/gateway/platforms/discord.py@43e566f77 and hermes-agent/tools/discord_tool.py@43e566f77: Discord gateway and Discord admin/core tools",
+        "hermes-agent/optional-skills/productivity/telephony/SKILL.md@43e566f77 and scripts/telephony.py: Twilio, Bland.ai, and Vapi optional telephony skill",
+        "hermes-agent/gateway/platforms/sms.py@43e566f77: Twilio-backed SMS gateway contract",
+        "repository search 2026-05-24: no first-party Hermes refs found for reddit, stripe API plugin, insforge, graphiti/zep, or fireflies beyond incidental text"
+      ],
+      "ready_when": [
+        "The audit uses only sanitized transcript text plus checked-in Hermes/Gormes source refs; no live private ~/.hermes, credentials, browser sessions, or external API accounts are read.",
+        "Each of the 12 post items is classified with source refs or explicit unsupported/excluded evidence.",
+        "Indirect capabilities are allowed as a separate class: generic web scraping, browser automation, Firecrawl extraction, MCP, or skill workflows may satisfy a use case without proving a direct Hermes plugin/tool exists."
+      ],
+      "not_ready_when": [
+        "The row is used to implement all integrations in one pass instead of producing a bounded source-backed audit/map.",
+        "Unsupported claims are copied into README/docs as if they were Hermes-native integrations.",
+        "The audit treats `hermes plugins install reddit|stripe|insforge|graphiti|fireflies` as valid without exact current Hermes source or an external plugin repository URL.",
+        "The audit reads live user config, token stores, memory databases, or private home directories as evidence."
+      ],
+      "acceptance": [
+        "A checked-in audit document or architecture-plan section lists all 12 post items and classifies each as direct first-party skill/plugin/tool/gateway, optional skill, indirect scraping/browser/MCP workflow, Gormes-owned candidate, or unsupported/excluded.",
+        "The audit explicitly notes that some user-visible workflows are not direct tools: e.g. competitor/site/reddit-style research may be covered by generic web search/extract/crawl, browser automation, or future MCP/web-scraping rows rather than a named Hermes Reddit plugin.",
+        "Unsupported/excluded claims for Reddit, Stripe, InsForge, Graphiti/Zep, and Fireflies remain excluded or row-backed as discovery-only until source refs are found.",
+        "Any follow-up implementation intent is routed into separate small progress rows by source class; this audit row does not broaden into a 12-integration implementation batch.",
+        "Public messaging/docs are updated only with evidence-backed wording and avoid inflated integration counts."
+      ],
+      "note": "Planner intake from sanitized Reddit/WebAfterAI transcript. This row is a parity/source-classification gate, not proof that all named integrations exist. It intentionally preserves the nuance that web scraping, browser automation, Firecrawl extraction, and MCP can satisfy some workflows indirectly without making them direct Hermes plugins or Gormes parity requirements.",
+      "write_scope": [
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-integrations-claim-audit.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "README.md"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress validate",
+        "go test ./webpages/docs -run 'TestUpstreamCoverageLedgerMatchesSourceClasses|TestProgressCanonical' -count=1",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report the 12-row classification table, exact Hermes source refs, unsupported/excluded claims, indirect scraping/browser/MCP classifications, and any newly-created follow-up progress row names."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:43e566f77 skills/productivity/google-workspace/SKILL.md; skills/note-taking/obsidian/SKILL.md; plugins/web/firecrawl/plugin.yaml; tools/web_tools.py; skills/github/*; skills/media/youtube-content/SKILL.md; gateway/platforms/discord.py; optional-skills/productivity/telephony/SKILL.md",
+        "note": "User-provided social-post claim audit over checked-in Hermes source; unsupported claims stay excluded unless future source refs are found."
+      }
     }
   },
   {

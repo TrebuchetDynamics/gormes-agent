@@ -7,9 +7,9 @@ title: "Providers Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `providers`
-**Rows:** 120
-**Status counts:** `complete`: 120 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 9 · `P1`: 50 · `P2`: 24 · `P3`: 2 · `unset`: 35
+**Rows:** 126
+**Status counts:** `complete`: 121 · `in_progress`: 0 · `planned`: 5
+**Priority counts:** `P0`: 9 · `P1`: 55 · `P2`: 24 · `P3`: 3 · `unset`: 35
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -62,6 +62,12 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `providers` | xAI Grok provider adapter |
 | `complete` | `P1` | `providers` | LM Studio provider adapter |
 | `complete` | `P1` | `providers` | Vision-unsupported provider retry (strip-images-and-resend) |
+| `complete` | `P1` | `providers` | Gormes Router config and route registry read model |
+| `planned` | `P1` | `providers` | Gormes Router setup wizard and provider-picker boundary |
+| `planned` | `P1` | `providers` | Gormes Router OpenAI-compatible models/chat endpoint |
+| `planned` | `P1` | `providers` | Gormes Router streaming SSE and fallback safety |
+| `planned` | `P1` | `providers` | Gormes Router health/status counters and redacted logs |
+| `planned` | `P3` | `providers` | CLIProxyAPI-compatible upstream route adapter |
 
 ### 4.B — Context Engine + Compression
 

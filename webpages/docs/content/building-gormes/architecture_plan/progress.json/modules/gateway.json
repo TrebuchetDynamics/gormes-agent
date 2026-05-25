@@ -9689,6 +9689,72 @@
   },
   {
     "phase": "5",
+    "subphase": "5.Q",
+    "pos": 80,
+    "item": {
+      "name": "Gormes JSONL RPC mode over agent runtime events",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Expose a local `gormes` JSONL RPC run mode for language-agnostic embedding. The protocol should accept prompt, steer, follow_up, abort, get_state, get_messages, session stats, model/thinking controls where existing runtime seams support them, and stream agent/tool/queue/compaction events as newline-delimited JSON with strict LF framing. It should reuse Gormes kernel/API-server event models and must not require a web server, Pi subprocess, or live provider in tests.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "cmd/gormes/rpc_mode_test.go",
+      "source_refs": [
+        "pi@fc8a155 packages/coding-agent/docs/rpc.md:Protocol Overview and Commands",
+        "pi@fc8a155 packages/coding-agent/docs/json.md:JSON Event Stream Mode",
+        "pi@fc8a155 packages/coding-agent/src/modes/rpc/rpc-types.ts",
+        "internal/kernel/frame.go:RenderFrame",
+        "internal/hermes/events.go:turn/run event types",
+        "internal/apiserver/runs.go:run inspection/event surfaces",
+        "cmd/gormes/main.go:root command mode selection"
+      ],
+      "ready_when": [
+        "The builder starts with stdio JSONL and fake provider/kernel fixtures; no HTTP listener or live credentials are required.",
+        "The protocol names Gormes-owned events and documents any unsupported Pi command as typed unavailable evidence rather than pretending parity."
+      ],
+      "not_ready_when": [
+        "The slice starts a gateway server, opens network ports, depends on Pi RPC clients, or blocks on subscription/OAuth provider credentials.",
+        "JSON records are split by anything other than LF, raw stderr contaminates stdout, or command responses cannot be correlated by id."
+      ],
+      "acceptance": [
+        "`gormes --mode rpc --no-session` or the chosen subcommand starts a stdin/stdout JSONL loop with a session/header response and no startup chatter on stdout.",
+        "A fake prompt command emits accepted response, agent/message/tool lifecycle events, and a final agent_end event in deterministic order.",
+        "Steer/follow_up/abort commands update queue or cancellation state and emit structured responses with request ids.",
+        "Malformed JSON, unknown commands, and unsupported model/session controls return structured errors without terminating the process unless stdin closes."
+      ],
+      "note": "Planner 2026-05-25: Pi donor sweep identified RPC/JSONL as a high-value embedding surface for a multifaceted Gormes agent. This is a Gormes-owned protocol inspired by Pi, not Pi protocol parity.",
+      "write_scope": [
+        "cmd/gormes/",
+        "internal/kernel/",
+        "internal/gateway/",
+        "internal/apiserver/",
+        "pkg/gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes ./internal/kernel ./internal/gateway ./internal/apiserver -run 'Test.*(RPC|JSONL|EventStream|Queue|Abort)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report RPC fixture transcript, stdout-cleanliness proof, malformed-command evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "upstream_ref": "Pi coding-agent fc8a155 RPC and JSON mode docs as donor evidence",
+        "owned_since": "2026-05-25",
+        "note": "Owned Gormes stdio protocol for embedding."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.V",
     "pos": 2,
     "item": {

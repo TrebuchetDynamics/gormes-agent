@@ -6517,6 +6517,68 @@
   },
   {
     "phase": "5",
+    "subphase": "5.L",
+    "pos": 26,
+    "item": {
+      "name": "Per-file mutation queue for native write edit and patch tools",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Serialize concurrent file mutations that target the same canonical path across native write, edit, patch, and custom file-task tools while preserving parallel execution for independent files. The queue must resolve symlink aliases for existing files, use cleaned absolute paths for new files, cover the full read-modify-write window, and compose with the existing file staleness registry and atomic writer helpers.",
+      "contract_status": "fixture_ready",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/tools/file_mutation_queue_test.go",
+      "source_refs": [
+        "pi@fc8a155 packages/coding-agent/docs/extensions.md:withFileMutationQueue guidance",
+        "pi@fc8a155 packages/coding-agent/src/core/tools/file-mutation-queue.ts",
+        "internal/tools/file_state_registry.go:FileStateRegistry",
+        "internal/tools/atomic_replace.go:atomic file replace helper",
+        "internal/tools/file_task_tools.go:native file task tools",
+        "internal/kernel/toolexec.go:tool execution concurrency boundary"
+      ],
+      "ready_when": [
+        "The builder can prove behavior with in-memory/fake concurrent tools and temp files; no provider call is needed.",
+        "The queue is scoped to file mutation paths only and does not serialise unrelated tool calls globally."
+      ],
+      "not_ready_when": [
+        "The slice disables concurrent tool execution entirely, relies only on stale-read rejection, or queues only the final write rather than the full mutation window.",
+        "Symlink aliases for an existing file can still run in parallel and clobber one another."
+      ],
+      "acceptance": [
+        "Two concurrent mutations to the same existing file run in deterministic serial order and preserve both changes when each operation is valid.",
+        "Concurrent mutations to different files overlap or are not forced through a global lock.",
+        "Existing-file symlink aliases share one queue key; missing/new files use the resolved absolute path key.",
+        "Staleness registry and atomic replace behavior remain covered by existing tests."
+      ],
+      "note": "Planner 2026-05-25: Pi donor sweep identified per-file mutation queues as a compact safety improvement for Gormes' native parallel tool executor.",
+      "write_scope": [
+        "internal/tools/",
+        "internal/kernel/toolexec.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools ./internal/kernel -run 'Test.*(MutationQueue|FileState|Atomic|ToolExec)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report same-file concurrency, different-file concurrency, symlink alias evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "upstream_ref": "Pi coding-agent fc8a155 file-mutation-queue utility as donor evidence",
+        "owned_since": "2026-05-25",
+        "note": "Owned Gormes tool-runtime safety improvement."
+      }
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.N",
     "pos": 0,
     "item": {

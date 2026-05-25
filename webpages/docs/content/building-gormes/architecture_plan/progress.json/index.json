@@ -383,7 +383,7 @@
             "last_upstream_check": "2026-04-27T11:09:04Z",
             "origin_decision": "Hermes ee1a07f is current after the 2026-04-27 sync. Gormes provider fixtures validate DeepSeek/Kimi, Azure OpenAI, Azure Anthropic, Azure Foundry probing/runtime/status, Codex Responses conversion/repair, and Bedrock request/cache mapping. Hermes ee1a07f reasserts the cross-provider reasoning leak guard for DeepSeek/Kimi; the completed Gormes reasoning_content isolation fixtures already cover storage-only reasoning from prior providers. Hermes c5781d50 adds Azure Foundry GPT-5.x/codex/o-series Responses-only api_mode inference; Gormes tracks that as a small runtime read-model row instead of reopening the probe/status rows. Bedrock remains upstream-led for ConverseStream event decoding and the blocked SigV4/credential seam. Hermes 192e7eb2 provider-rate drift remains tracked under 4.H; b2d3308f/25ba6a4a doctor and gateway reasoning drift remain under 5.O/4.D."
           },
-          "item_count": 38
+          "item_count": 44
         },
         {
           "id": "4.B",
@@ -393,7 +393,7 @@
             "last_upstream_check": "2026-05-09T12:28:42-07:00",
             "origin_decision": "Hermes e90aa7f28 is current after sync. Prior context-engine compression, budget, and boundary rows remain complete or row-backed. New Hermes #22764 fixes commit_memory_session so context_compressor.on_session_end fires when a session id rotates; Gormes has ContextEngine.OnSessionEnd but reset/session-rotation only called OnSessionReset after clearing state. Track the bounded P1 row `ContextEngine session-end hook on reset` rather than reopening compression, memory extraction, or gateway reset umbrella rows."
           },
-          "item_count": 16
+          "item_count": 17
         },
         {
           "id": "4.C",
@@ -602,7 +602,7 @@
             "last_upstream_check": "2026-05-10T00:00:00Z",
             "origin_decision": "Hermes ce374bc1b plus recent file-operation rows show the remaining File Ops + Patches weakness is full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, block-anchor fuzzy replace, V4A fuzzy hunk matching, V4A apply rollback, context-aware fuzzy replacement, and replace-mode post-write verification validated. The 2026-05-10 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 15 before adding the post-write verification row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `Patch replace post-write verification` as the next small builder-ready runtime slice."
           },
-          "item_count": 26
+          "item_count": 27
         },
         {
           "id": "5.M",
@@ -699,7 +699,7 @@
             "last_upstream_check": "2026-05-09T00:00:00Z",
             "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, `ui-tui/packages/hermes-ink`, and `ui-tui/src/__tests__`) remains the TUI source of truth. The 2026-05-09 all-topic weakness sweep refreshed Hermes to a7e7921db and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Provider/auth, gateway/channel, tools, memory/Goncho, browser, docs/public, and release/operator gaps stayed complete, owned, blocked, or row-backed; the newly refreshed active Ink change was markdown/prose wrap-trim behavior, now tracked by `Native TUI markdown soft-wrap boundary trim`. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits TUI drift into narrow renderer rows rather than reopening completed chat-completions, cron-admin, keybinding, slash, or websocket rows."
           },
-          "item_count": 80
+          "item_count": 81
         },
         {
           "id": "5.R",
@@ -900,12 +900,12 @@
         {
           "id": "8.C",
           "name": "Engineering Writeups",
-          "item_count": 6
+          "item_count": 7
         },
         {
           "id": "8.D",
           "name": "Sharp v1.0",
-          "item_count": 24
+          "item_count": 26
         },
         {
           "id": "8.E",

@@ -2533,6 +2533,407 @@
   },
   {
     "phase": "4",
+    "subphase": "4.A",
+    "pos": 38,
+    "item": {
+      "name": "Gormes Router config and route registry read model",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add an opt-in router config/read-model that exposes local routes for the user's primary provider, user-owned provider free-tier candidates, optional local OpenAI-compatible endpoints, and custom OpenAI-compatible providers. It must parse routes, aliases, inbound API-key settings, fallback classes, and redacted status evidence without starting the HTTP server.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/provider/router/config_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Config schema",
+        "CLIProxyAPI@50d19e2 config.example.yaml: api-keys, request-retry, openai-compatibility, model aliases",
+        "CLIProxyAPI@50d19e2 docs/sdk-access.md: Bearer/X-Api-Key/X-Goog-Api-Key/key query auth sources",
+        "internal/config/config.go:Config and CredentialCfg",
+        "internal/hermes/provider_registry_manifest.go:ProviderManifestEntry",
+        "internal/hermes/model_routing.go:ModelRoute and FallbackModelPolicy",
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
+      ],
+      "ready_when": [
+        "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
+        "The implementation preserves the user-owned credential boundary from the router plan."
+      ],
+      "not_ready_when": [
+        "The slice claims free/unlimited LLM access, requires Ollama/LM Studio, automates OAuth/browser token capture, or copies CLIProxyAPI runtime code.",
+        "Secrets appear in logs, status JSON, docs, progress evidence, or tests.",
+        "The default route set assumes a local model runtime exists or makes Ollama/LM Studio part of the MVP dependency chain."
+      ],
+      "acceptance": [
+        "Router config fixtures parse enabled/listen/api_key_env/routes/fallback into a typed read model with stable defaults.",
+        "Route registry lists model aliases and provider IDs for primary, provider free-tier candidate, optional local, and custom OpenAI-compatible routes.",
+        "Status evidence distinguishes disabled, configured, missing_credential, and invalid_route without exposing secrets.",
+        "Fallback rules normalize only retryable classes and reject auth/policy fallback by default.",
+        "Absent Ollama/LM Studio/local endpoints are represented as optional/unavailable and do not block non-local routes.",
+        "Free-tier candidate routes require user-owned credentials and are labelled provider-controlled quota, not free/unlimited capacity."
+      ],
+      "note": "SHIPPED 2026-05-25 — added internal/provider/router config/read-model registry with redacted auth/status evidence, provider-controlled quota labelling, optional local-route unavailable state, and retryable-only fallback normalization; validated by go test ./internal/config ./internal/provider/router -run 'TestRouter(Config|Route|Registry|Status)' -count=1.",
+      "write_scope": [
+        "internal/provider/router/",
+        "internal/config/",
+        "cmd/gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/config ./internal/provider/router -run 'TestRouter(Config|Route|Registry|Status)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report focused fake-provider test output, redaction evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "CLIProxyAPI@50d19e2 docs/config/examples as architecture context",
+        "note": "Gormes-owned minimal router design; CLIProxyAPI is context only, not a dependency."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.A",
+    "pos": 39,
+    "item": {
+      "name": "Gormes Router setup wizard and provider-picker boundary",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add `gormes setup router` as a local-gateway setup path that enables the OpenAI-compatible Gormes Router without treating it as a normal upstream provider. Setup must preserve `gormes setup provider` for upstream provider credentials, offer configured/healthy route aliases and fallback choices, generate or reference an inbound local API key safely, and prevent accidental self-routing/recursion.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If Router is treated as a normal provider, users can accidentally configure Gormes to call its own local endpoint or assume Router itself supplies free model capacity instead of routing to configured user-owned providers.",
+      "fixture": "cmd/gormes/setup_router_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary",
+        "cmd/gormes/setup.go:setupProviderInteractive",
+        "cmd/gormes/setup.go:setupProviderAutoDetectEnvProvider",
+        "cmd/gormes/setup.go:runSetupFallback",
+        "internal/cli/gormescli/modules/providers/fallback.go:AppendFallbackSelection",
+        "internal/hermes/provider_registry_manifest.go:HermesProviderRegistryManifest"
+      ],
+      "ready_when": [
+        "Gormes Router config and route registry read model is complete or the builder includes equivalent config seams.",
+        "The builder uses temp GORMES_HOME fixtures and fake provider catalogs; no live credentials, local Ollama/LM Studio, or bound public port is required."
+      ],
+      "not_ready_when": [
+        "`gormes-router` appears as a default upstream provider choice in `gormes setup provider`.",
+        "Setup claims Router provides free/unlimited LLM access or silently enables a provider free-tier without user credentials.",
+        "Setup starts, installs, or requires Ollama/LM Studio instead of marking local routes optional/unavailable.",
+        "Self-routing to the same router base URL is possible without a recursion diagnostic."
+      ],
+      "blocked_by": [
+        "Gormes Router config and route registry read model"
+      ],
+      "acceptance": [
+        "`gormes setup router` writes `[router]` config with enabled/listen/redact/auth/route-alias fields and does not overwrite primary upstream provider settings.",
+        "`gormes setup provider` continues to list upstream providers only; Router is surfaced as a client endpoint, not the default provider picker target.",
+        "Router setup suggests fallback candidates only from configured providers or health-gated optional routes, labelling free-tier routes as user-key/provider-quota controlled.",
+        "Non-interactive setup supports env-driven listen/API-key/route config and emits redacted copy-paste client instructions.",
+        "A custom route pointed at the same local Router endpoint fails fast with `router_recursion_detected` evidence."
+      ],
+      "note": "Router setup should be a setup section/local serving feature, not a normal upstream provider. External clients see an OpenAI-compatible endpoint; Gormes provider selection still chooses real upstreams.",
+      "write_scope": [
+        "cmd/gormes/setup*.go",
+        "cmd/gormes/router*.go",
+        "internal/provider/router/",
+        "internal/config/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./cmd/gormes -run 'TestSetupRouter|TestRouterRecursion|TestSetupProvider.*Router' -count=1",
+        "go test ./internal/provider/router -run 'TestRouter(Config|Recursion)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report temp-home setup transcript, config snippet with secrets redacted, provider-picker exclusion evidence, recursion diagnostic, and focused tests."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "upstream_ref": "cmd/gormes/setup.go + Gormes Router plan",
+        "note": "Gormes-owned setup UX for a local OpenAI-compatible serving feature."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.A",
+    "pos": 40,
+    "item": {
+      "name": "Gormes Router OpenAI-compatible models/chat endpoint",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Expose the first local Gormes Router HTTP service with GET /v1/models, POST /v1/chat/completions non-streaming, and local inbound API-key authentication over the route registry. The endpoint must use fakeable provider clients and Gormes request/response mapping rather than a blind reverse proxy.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/provider/router/server_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:HTTP surface",
+        "CLIProxyAPI@50d19e2 README.md: OpenAI/Gemini/Claude/Codex/Grok compatible API endpoints",
+        "CLIProxyAPI@50d19e2 examples/custom-provider/main.go: executor registration and model registration",
+        "internal/hermes/http_client.go:OpenAI-compatible chat-completions behavior",
+        "internal/hermes/provider_transport.go:chat_completions transport",
+        "cmd/gormes/provider_client.go:provider credential resolution",
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
+      ],
+      "ready_when": [
+        "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
+        "The implementation preserves the user-owned credential boundary from the router plan."
+      ],
+      "not_ready_when": [
+        "The slice claims free/unlimited LLM access, requires Ollama/LM Studio, automates OAuth/browser token capture, or copies CLIProxyAPI runtime code.",
+        "Secrets appear in logs, status JSON, docs, progress evidence, or tests."
+      ],
+      "blocked_by": [
+        "Gormes Router config and route registry read model",
+        "Gormes Router setup wizard and provider-picker boundary"
+      ],
+      "acceptance": [
+        "GET /v1/models returns OpenAI-compatible model objects for configured aliases only.",
+        "POST /v1/chat/completions non-streaming maps an OpenAI-compatible request to a selected fake provider and returns OpenAI-compatible JSON.",
+        "Inbound auth accepts configured Bearer and X-Api-Key credentials and rejects missing/bad credentials with safe 401 bodies.",
+        "cmd/gormes router --dry-run or equivalent command wiring can render listen/status config without binding a port."
+      ],
+      "note": "Gormes Router MVP row 2/4. This establishes the local OpenAI-compatible endpoint; streaming and fallback safety stay separate.",
+      "write_scope": [
+        "internal/provider/router/",
+        "internal/config/",
+        "cmd/gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/provider/router -run 'TestRouter(Models|ChatCompletions|Auth)' -count=1",
+        "go test ./cmd/gormes -run 'TestRouter' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report focused fake-provider test output, redaction evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "CLIProxyAPI@50d19e2 docs/config/examples as architecture context",
+        "note": "Gormes-owned minimal router design; CLIProxyAPI is context only, not a dependency."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.A",
+    "pos": 41,
+    "item": {
+      "name": "Gormes Router streaming SSE and fallback safety",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add stream:true SSE support and safe fallback routing. The router may retry/fallback on 429, 408, timeout, and 5xx before output starts; it must not fallback after emitting partial streamed output and must not fallback on auth, policy, or malformed-request errors.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/provider/router/stream_fallback_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Fallback and health",
+        "CLIProxyAPI@50d19e2 config.example.yaml: request-retry and retry interval settings",
+        "CLIProxyAPI@50d19e2 README.md: streaming/non-streaming responses and model fallback",
+        "internal/hermes/fallback_chain.go:ProviderChain dispatch attempts",
+        "internal/hermes/errors.go:provider error classification",
+        "internal/hermes/model_routing.go:FallbackModelPolicy",
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
+      ],
+      "ready_when": [
+        "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
+        "The implementation preserves the user-owned credential boundary from the router plan."
+      ],
+      "not_ready_when": [
+        "The slice claims free/unlimited LLM access, requires Ollama/LM Studio, automates OAuth/browser token capture, or copies CLIProxyAPI runtime code.",
+        "Secrets appear in logs, status JSON, docs, progress evidence, or tests."
+      ],
+      "blocked_by": [
+        "Gormes Router OpenAI-compatible models/chat endpoint"
+      ],
+      "acceptance": [
+        "Streaming responses emit valid OpenAI-compatible SSE data chunks and a terminal [DONE].",
+        "A fake primary 429/5xx/timeout before output falls through to the configured fallback route and records fallback evidence.",
+        "A fake partial-stream-then-error does not start a second provider and returns safe stream termination evidence.",
+        "Auth, policy, and malformed-request failures do not rotate providers by default."
+      ],
+      "note": "Gormes Router MVP row 3/4. Fallback safety is output-boundary sensitive; prove it with fake providers only.",
+      "write_scope": [
+        "internal/provider/router/",
+        "internal/config/",
+        "cmd/gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/provider/router -run 'TestRouter(Stream|Fallback|NoFallback)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report focused fake-provider test output, redaction evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "CLIProxyAPI@50d19e2 docs/config/examples as architecture context",
+        "note": "Gormes-owned minimal router design; CLIProxyAPI is context only, not a dependency."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.A",
+    "pos": 42,
+    "item": {
+      "name": "Gormes Router health/status counters and redacted logs",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add router health checks, quota/status counters, and redacted operational logging for the local router. Status must expose provider/model route health, attempt/success/failure/fallback counters, quota/usage signals when available, and last error class without exposing raw secrets or raw upstream bodies.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/provider/router/status_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Logging/redaction",
+        "CLIProxyAPI@50d19e2 docs/sdk-usage.md: request logging hooks and custom routes",
+        "CLIProxyAPI@50d19e2 config.example.yaml: log, cooldown, quota/account status concepts",
+        "internal/hermes/provider_failure_diagnostic.go:redacted provider diagnostics",
+        "cmd/gormes/provider_setup_auth_fidelity_test.go:provider evidence surfacing",
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Setup UX and provider-picker boundary"
+      ],
+      "ready_when": [
+        "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
+        "The implementation preserves the user-owned credential boundary from the router plan."
+      ],
+      "not_ready_when": [
+        "The slice claims free/unlimited LLM access, requires Ollama/LM Studio, automates OAuth/browser token capture, or copies CLIProxyAPI runtime code.",
+        "Secrets appear in logs, status JSON, docs, progress evidence, or tests."
+      ],
+      "blocked_by": [
+        "Gormes Router OpenAI-compatible models/chat endpoint"
+      ],
+      "acceptance": [
+        "GET /healthz reports process/config health without provider secrets.",
+        "GET /v1/status or /router/status reports redacted route health, counters, fallback counts, and last error class.",
+        "Fake health probes are bounded, testable, and do not require live provider credentials.",
+        "Log/status tests assert API keys, Authorization headers, query credentials, and raw upstream error bodies are absent.",
+        "Optional local routes report unavailable when their OpenAI-compatible endpoint is absent instead of failing router startup."
+      ],
+      "note": "Gormes Router MVP row 4/4. Counters can remain in-memory for MVP; persist only after operator need is proven.",
+      "write_scope": [
+        "internal/provider/router/",
+        "internal/config/",
+        "cmd/gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/provider/router -run 'TestRouter(Health|Status|Redact|Counters)' -count=1",
+        "go test ./cmd/gormes -run 'TestRouter' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report focused fake-provider test output, redaction evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "CLIProxyAPI@50d19e2 docs/config/examples as architecture context",
+        "note": "Gormes-owned minimal router design; CLIProxyAPI is context only, not a dependency."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.A",
+    "pos": 43,
+    "item": {
+      "name": "CLIProxyAPI-compatible upstream route adapter",
+      "priority": "P3",
+      "status": "planned",
+      "contract": "After the Gormes Router MVP exists, optionally allow a CLIProxyAPI server to be configured as a normal OpenAI-compatible upstream base URL. This must not import CLIProxyAPI runtime code, management APIs, OAuth automation, or multi-account pooling; it only treats CLIProxyAPI as a user-configured upstream endpoint.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "provider",
+      "module": "providers",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/provider/router/cliproxy_upstream_test.go",
+      "source_refs": [
+        "docs/content/building-gormes/architecture_plan/gormes-router-plan.md:Config schema",
+        "CLIProxyAPI@50d19e2 README.md: /v1/chat/completions and provider route aliases",
+        "CLIProxyAPI@50d19e2 docs/sdk-advanced.md: /v1/models exposure",
+        "internal/hermes/provider_transport.go:chat_completions transport"
+      ],
+      "ready_when": [
+        "The builder uses fake providers/httptest and checked-in fixtures, not live credentials or locally installed Ollama/LM Studio.",
+        "The implementation preserves the user-owned credential boundary from the router plan."
+      ],
+      "not_ready_when": [
+        "The slice claims free/unlimited LLM access, requires Ollama/LM Studio, automates OAuth/browser token capture, or copies CLIProxyAPI runtime code.",
+        "Secrets appear in logs, status JSON, docs, progress evidence, or tests."
+      ],
+      "blocked_by": [
+        "Gormes Router health/status counters and redacted logs"
+      ],
+      "acceptance": [
+        "A CLIProxyAPI-style upstream can be represented as a custom OpenAI-compatible route with base_url and api_key_env.",
+        "The adapter only relies on /v1/models and /v1/chat/completions-compatible behavior.",
+        "No OAuth, management API, WebSocket, token scraping, or account-pool semantics are added.",
+        "Tests use httptest fake CLIProxyAPI-compatible responses and redaction assertions."
+      ],
+      "note": "Non-MVP follow-up. Keep CLIProxyAPI compatibility at the OpenAI-compatible upstream boundary only.",
+      "write_scope": [
+        "internal/provider/router/",
+        "internal/config/",
+        "cmd/gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/provider/router -run 'TestRouterCLIProxyAPIUpstream' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report focused fake-provider test output, redaction evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "CLIProxyAPI@50d19e2 docs/config/examples as architecture context",
+        "note": "Gormes-owned minimal router design; CLIProxyAPI is context only, not a dependency."
+      }
+    }
+  },
+  {
+    "phase": "4",
     "subphase": "4.B",
     "pos": 5,
     "item": {

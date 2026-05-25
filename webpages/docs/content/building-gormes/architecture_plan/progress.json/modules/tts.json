@@ -1716,7 +1716,20 @@
         "Model/voice cache helpers verify size and checksum, use atomic partial-file cleanup, and never place artifacts under git-tracked testdata.",
         "Benchmark metadata captures load time, synthesis time, memory, output format, and binary-size delta before the provider can become the default local TTS choice."
       ],
-      "note": "Owner direction 2026-05-24 supersedes the previous command-provider-only local TTS decision. This row is intentionally blocked until context sourcing selects a concrete engine/artifact and license; builders must not fake the provider with a shell-out wrapper.\n\n2026-05-24 source study: native Piper/sherpa Go bindings currently fail the default no-CGO/no-Python/static-binary gate, so the shared speech artifact cache shipped first. Remaining blocker is runtime execution source selection for a wazero/WASI-friendly or otherwise explicit optional engine.",
+      "note": "Owner direction 2026-05-24 supersedes the previous command-provider-only local TTS decision. This row is intentionally blocked until context sourcing selects a concrete engine/artifact and license; builders must not fake the provider with a shell-out wrapper.\n\n2026-05-24 source study: native Piper/sherpa Go bindings currently fail the default no-CGO/no-Python/static-binary gate, so the shared speech artifact cache shipped first. Remaining blocker is runtime execution source selection for a wazero/WASI-friendly or otherwise explicit optional engine.\n\n2026-05-24 planner pass: added structured blocker metadata so repo-only builder selection can auto-pivot away from this draft row until the runtime execution source is selected.",
+      "blocker": {
+        "title": "WASI TTS runtime source selection",
+        "type": "decision",
+        "status": "blocked",
+        "recorded_at": "2026-05-24 00:00:00 America/Monterrey",
+        "blocker": "The Go-owned TTS backend needs a sourced runtime execution path before implementation; current Piper and sherpa Go options either require CGO/native libraries, Python packaging, GPL redistribution planning, browser/Emscripten assumptions, or external commands.",
+        "evidence": "docs/content/building-gormes/strategy/go-native-tts-source-study.md rejects native Piper/sherpa/command-provider paths for the first provider and narrows the open question to a wazero/WASI-compatible fixture engine, explicit optional purego ONNX strategy, or deliberately low-quality fully Go-owned formant fallback.",
+        "unblocks_when": "A context-sourcing pass records one runtime execution choice with license, artifact/cache shape, fixture synthesis path, benchmark budget, and no hidden Python/Node/shell/CGO requirement, or intentionally narrows the row to a degraded fakeable runtime seam.",
+        "owner": "tools/speech runtime lane",
+        "pivot": "Keep cloud and command TTS providers as compatibility fallbacks, keep LazyLocalTTSProvider degraded, and work unblocked speech artifact/profile rows until the runtime source is selected.",
+        "next_check": "next Go-native speech source study or TTS context-sourcing pass",
+        "degraded": true
+      },
       "write_scope": [
         "internal/tools/tts_tool.go",
         "internal/tools/tts_providers.go",

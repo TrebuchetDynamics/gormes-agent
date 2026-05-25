@@ -7,9 +7,9 @@ title: "Tools Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `tools`
-**Rows:** 146
-**Status counts:** `complete`: 146 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 23 · `P1`: 52 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
+**Rows:** 147
+**Status counts:** `complete`: 146 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 23 · `P1`: 53 · `P2`: 35 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -174,6 +174,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | V4A patch apply rollback for native patch tool |
 | `complete` | `P1` | `tools` | Patch replace post-write verification |
 | `complete` | `P1` | `tools` | Hermes LSP write-time semantic diagnostics |
+| `planned` | `P1` | `tools` | Per-file mutation queue for native write edit and patch tools |
 
 ### 5.N — Misc Operator Tools
 

@@ -91,18 +91,18 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 105/111 subphases shipped · 6 in progress · 0 planned
+**Overall:** 100/111 subphases shipped · 11 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
-| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 11/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
 
 ---
@@ -559,11 +559,11 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho skill-outcome tracking as conclusions
 - [x] `goncho` Goncho workspace isolation with explicit global scope
 
-## Phase 4 — The Brain Transplant ✅
+## Phase 4 — The Brain Transplant 🔨
 
 *Native Go agent orchestrator + prompt builder*
 
-### 4.A — Provider Adapters ✅
+### 4.A — Provider Adapters 🔨
 
 - [x] `providers` Provider interface + stream fixture harness
 - [x] `providers` Hermes provider registry and alias manifest
@@ -603,8 +603,14 @@ classification and row-backed implementation queue.
 - [x] `providers` xAI Grok provider adapter
 - [x] `providers` LM Studio provider adapter
 - [x] `providers` Vision-unsupported provider retry (strip-images-and-resend)
+- [x] `providers` Gormes Router config and route registry read model
+- [ ] `providers` Gormes Router setup wizard and provider-picker boundary
+- [ ] `providers` Gormes Router OpenAI-compatible models/chat endpoint
+- [ ] `providers` Gormes Router streaming SSE and fallback safety
+- [ ] `providers` Gormes Router health/status counters and redacted logs
+- [ ] `providers` CLIProxyAPI-compatible upstream route adapter
 
-### 4.B — Context Engine + Compression ✅
+### 4.B — Context Engine + Compression 🔨
 
 - [x] `sessions` Long session management
 - [x] `sessions` Context compression
@@ -622,6 +628,7 @@ classification and row-backed implementation queue.
 - [x] `sessions` ContextEngine compression-boundary callback vocabulary
 - [x] `sessions` Kernel compression-boundary callback binding
 - [x] `sessions` ContextEngine session-end hook on reset
+- [ ] `sessions` Gormes-owned session tree navigator over lineage and labels
 
 ### 4.C — Native Prompt Builder ✅
 
@@ -923,7 +930,7 @@ classification and row-backed implementation queue.
 
 - [x] `tools` Sandboxed exec
 
-### 5.L — File Ops + Patches ✅
+### 5.L — File Ops + Patches 🔨
 
 - [x] `tools` Atomic file write helper with temp+rename pattern
 - [x] `tools` File tool atomic checkpoint integration
@@ -951,6 +958,7 @@ classification and row-backed implementation queue.
 - [x] `tools` V4A patch apply rollback for native patch tool
 - [x] `tools` Patch replace post-write verification
 - [x] `tools` Hermes LSP write-time semantic diagnostics
+- [ ] `tools` Per-file mutation queue for native write edit and patch tools
 
 ### 5.M — Mixture of Agents ✅
 
@@ -1215,7 +1223,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux exec argv path-alias sanitizer
 - [x] `install` Termux binary-fetch publish verification source fallback
 
-### 5.Q — API Server + TUI Gateway Streaming ✅
+### 5.Q — API Server + TUI Gateway Streaming 🔨
 
 - [x] `profiles` Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
 - [x] `gateway` TUI gateway tool-progress mode normalizer
@@ -1297,6 +1305,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Native TUI /tools enable-disable binding
 - [x] `tui` Native TUI /voice status and toggle binding
 - [x] `tui` Native TUI /skin get-set binding
+- [ ] `gateway` Gormes JSONL RPC mode over agent runtime events
 
 ### 5.R — Code Execution Mode Policy ✅
 
@@ -1500,8 +1509,9 @@ classification and row-backed implementation queue.
 - [x] `docs` Hermes v0.14 release feature-to-module pairing ledger
 - [x] `docs` Hermes contract inventory gate
 - [x] `docs` Strict-fidelity upstream test-suite classifier
+- [ ] `docs` Hermes integrations claim audit + source-backed plugin/skill parity map
 
-### 8.D — Sharp v1.0 ✅
+### 8.D — Sharp v1.0 🔨
 
 - [x] `release` Sharp v1.0 differentiator decision
 - [x] `release` Single-binary cross-platform release pipeline
@@ -1527,6 +1537,8 @@ classification and row-backed implementation queue.
 - [x] `tui` Gormes welcome panel version/tool-count wiring
 - [x] `release` Termux latest-installer follow-up release publication
 - [x] `release` Removal of public v0.2.20 Termux latest-install caveats from README, landing, install docs, and troubleshooting docs
+- [ ] `tui` Gormes-owned TUI queued-message widget and busy delivery modes
+- [ ] `tui` Gormes-owned TUI extension status widget and footer seam
 
 ### 8.E — Toolkit Extraction 🔨
 

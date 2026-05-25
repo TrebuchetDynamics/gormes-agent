@@ -982,6 +982,73 @@
   },
   {
     "phase": "4",
+    "subphase": "4.B",
+    "pos": 16,
+    "item": {
+      "name": "Gormes-owned session tree navigator over lineage and labels",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Add a native `/tree` session navigator that projects Gormes' existing session lineage, fork, compression, and title metadata into an in-place tree view with search/filter modes and operator labels. Selecting a prior user turn should restore that prompt for editing when safe; selecting non-user entries should switch the visible leaf or report why the stored transcript cannot be replayed. The implementation must use Gormes session stores and lineage tables, not Pi JSONL files.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "sessions",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/tui/tree_selector_test.go",
+      "source_refs": [
+        "pi@fc8a155 packages/coding-agent/docs/sessions.md:/tree navigation",
+        "pi@fc8a155 packages/coding-agent/docs/session-format.md:labels, branch summaries, tree entries",
+        "pi@fc8a155 packages/coding-agent/src/modes/interactive/components/tree-selector.ts",
+        "internal/session/lineage.go:LineageKindFork and ResolveLineageTip",
+        "internal/session/directory.go:SessionDirectoryEntry",
+        "internal/tui/slash_sessions.go:/sessions and /resume picker",
+        "internal/tui/slash_branch.go:/branch fork seam"
+      ],
+      "ready_when": [
+        "The builder reuses existing session directory, lineage, fork, resume, and TUI panel seams with fake stores in tests.",
+        "The first slice may omit LLM-generated branch summaries if it records typed not-yet-supported evidence and keeps labels/navigation functional."
+      ],
+      "not_ready_when": [
+        "The implementation introduces a second session file format, writes Pi JSONL sessions, or bypasses internal/session and store abstractions.",
+        "The navigator silently mutates live session state while the kernel is active or loses fork/compression lineage evidence."
+      ],
+      "acceptance": [
+        "A seeded lineage fixture renders a tree with forks, compressed/continued sessions, titles, timestamps, and active leaf marker.",
+        "Filter modes can show default, no-tools, user-only, labeled-only, and all-equivalent projections over Gormes transcript metadata where data exists.",
+        "Labels/bookmarks can be set and cleared through a session metadata seam and appear in the tree selector.",
+        "Selecting a prior user turn restores editable text or returns typed replay-unavailable evidence without corrupting the active session."
+      ],
+      "note": "Planner 2026-05-25: Pi donor sweep identified tree navigation/labels as a high-value Gormes-owned session UX. Adapt to Gormes lineage stores; do not adopt Pi JSONL as a product contract.",
+      "write_scope": [
+        "internal/session/",
+        "internal/tui/tree_selector.go",
+        "internal/tui/slash_tree.go",
+        "internal/tui/slash_dispatch.go",
+        "cmd/gormes/",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/session ./internal/tui -run 'Test.*(Tree|Label|Lineage|Resume|Branch)' -count=1",
+        "go test ./cmd/gormes -run 'Test.*Session.*(Tree|Resume|Branch)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report seeded tree fixture output, label persistence evidence, replay/degraded cases, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "upstream_ref": "Pi coding-agent fc8a155 session tree docs as donor evidence",
+        "owned_since": "2026-05-25",
+        "note": "Owned Gormes session UX over existing lineage stores."
+      }
+    }
+  },
+  {
+    "phase": "4",
     "subphase": "4.F",
     "pos": 0,
     "item": {

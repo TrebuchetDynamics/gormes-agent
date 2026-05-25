@@ -5178,5 +5178,135 @@
         "note": "Gormes-owned chat TUI surface per methodology-first pivot; ccx-go (github.com/anton-abyzov/ccx-go, MIT) patterns-only donor, no code copy."
       }
     }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.D",
+    "pos": 24,
+    "item": {
+      "name": "Gormes-owned TUI queued-message widget and busy delivery modes",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Adapt Pi's visible steering/follow-up queue pattern into the native Gormes Bubble Tea chat TUI without changing Hermes-compatible slash command semantics. While a turn is active, plain Enter should honor the configured busy-input mode, queued or steering drafts should be visible in the bottom-pinned chrome, queued entries should drain after the kernel returns idle, and the UI must keep Alt/Shift+Enter newline behavior intact.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/tui/queued_messages_test.go",
+      "source_refs": [
+        "pi@fc8a155 packages/coding-agent/README.md:Message Queue",
+        "pi@fc8a155 packages/coding-agent/docs/settings.md:Message Delivery",
+        "pi@fc8a155 packages/coding-agent/docs/rpc.md:queue_update events",
+        "internal/tui/queued_messages.go:QueuedMessages",
+        "internal/tui/update.go:HermesBusyInputMode and ResolveHermesKey",
+        "internal/tui/hermes_chrome.go:HermesChromeInput.QueuedMessages",
+        "internal/tui/view.go:RenderHermesChrome call site"
+      ],
+      "ready_when": [
+        "The builder keeps the work in the local Bubble Tea TUI and kernel submit/cancel seams; gateway/channel follow-up behavior remains unchanged.",
+        "The implementation uses fake frames and pure TUI tests; no provider, gateway process, or live terminal automation is required."
+      ],
+      "not_ready_when": [
+        "The slice changes Hermes-compatible Enter, Alt+Enter, Shift+Enter, Ctrl+C, slash dispatch, or active-turn policy semantics instead of only wiring visible queue state.",
+        "The slice stores queued drafts in a side file, hidden TODO list, or non-session backlog outside the TUI/kernel state path."
+      ],
+      "acceptance": [
+        "Active-turn drafts submitted in queue mode appear in a three-row queued-message widget above the status rule and do not immediately call Submit.",
+        "Steer mode shows steering evidence and schedules the draft through the existing active-turn injection path without hiding queued text from the operator.",
+        "When a frame transitions to idle/failed, queued follow-up drafts drain in FIFO order through the existing submit callback and the widget clears.",
+        "Alt+Enter and Shift+Enter still insert newlines and never enqueue or submit drafts."
+      ],
+      "note": "Planner 2026-05-25: Pi donor sweep classified this as a Gormes-owned TUI ergonomics improvement, not Hermes parity. Keep Pi's visible queue affordance while preserving Gormes/Hermes key semantics.",
+      "write_scope": [
+        "internal/tui/queued_messages.go",
+        "internal/tui/update.go",
+        "internal/tui/view.go",
+        "internal/tui/hermes_chrome.go",
+        "internal/tui/*queued*test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'Test.*Queued|TestHermesKeybindings_EnterPlainTextHonorsBusyInputMode|TestHermesChrome' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report focused TUI test output, a short before/after render fixture for queued rows, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "upstream_ref": "Pi coding-agent fc8a155 message queue docs as donor evidence",
+        "owned_since": "2026-05-25",
+        "note": "Owned Gormes chat TUI enhancement; Pi is not a parity contract."
+      }
+    }
+  },
+  {
+    "phase": "8",
+    "subphase": "8.D",
+    "pos": 25,
+    "item": {
+      "name": "Gormes-owned TUI extension status widget and footer seam",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Introduce a small Go-native TUI extension context that lets trusted in-process Gormes extensions add or clear footer status entries, widgets above or below the editor, and working-indicator text/frames. The seam should be typed, width-safe, scoped to the active session, and degrade to no-op evidence in non-interactive modes; it must not execute TypeScript or import Pi packages.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "fixture": "internal/tui/status_bar_ext_test.go",
+      "source_refs": [
+        "pi@fc8a155 packages/coding-agent/docs/extensions.md:ctx.ui.setStatus/setWidget/setFooter/setWorkingIndicator",
+        "pi@fc8a155 packages/coding-agent/docs/tui.md:Patterns 4-6",
+        "pi@fc8a155 packages/coding-agent/examples/extensions/custom-footer.ts",
+        "pi@fc8a155 packages/coding-agent/examples/extensions/status-line.ts",
+        "internal/tui/status_bar_ext.go:RenderFaceTicker and RenderContextBar",
+        "internal/tui/hermes_chrome.go:HermesChromeInput",
+        "internal/kernel/extensions.go:ExtensionChain"
+      ],
+      "ready_when": [
+        "The builder defines a Go interface or small adapter layer rather than a script runtime; extension callbacks are fakeable in tests.",
+        "The first slice only covers TUI status/widget/footer/working indicator rendering, not general tool registration or package installation."
+      ],
+      "not_ready_when": [
+        "The slice loads third-party executable extension code, adds npm/TypeScript dependencies, or changes Hermes plugin CLI behavior.",
+        "The extension seam can write files, mutate provider requests, or bypass existing tool safety in this TUI-only slice."
+      ],
+      "acceptance": [
+        "A fake extension can set, replace, and clear a status entry that renders in the Hermes status/footer area without corrupting width-bounded output.",
+        "A fake extension can set a widget above or below the editor and the widget composes with todo/panel/status chrome ordering.",
+        "Working-indicator customization applies during active-turn frames and restores the default when cleared.",
+        "Non-interactive or nil-extension contexts return typed unavailable/no-op evidence instead of panicking."
+      ],
+      "note": "Planner 2026-05-25: Pi donor sweep found ctx.ui status/widget/footer APIs as useful Gormes-owned harness seams. Keep this slice Go-native and TUI-scoped; broader extension middleware belongs in later skills/plugin rows.",
+      "write_scope": [
+        "internal/tui/",
+        "internal/kernel/extensions.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'Test.*Extension.*(Status|Widget|Footer|Working)|TestHermesChrome' -count=1",
+        "go test ./internal/kernel -run TestExtension -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report fake-extension render tests, non-interactive degraded evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "upstream_ref": "Pi coding-agent fc8a155 extension UI docs as donor evidence",
+        "owned_since": "2026-05-25",
+        "note": "Owned Go-native TUI extension seam; do not import Pi runtime."
+      }
+    }
   }
 ]
