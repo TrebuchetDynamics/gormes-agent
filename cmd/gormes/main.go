@@ -1343,6 +1343,9 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	cancelTurn := func() {
 		_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventCancel})
 	}
+	steerTurn := func(text string) {
+		_ = k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSteer, Text: text})
+	}
 
 	welcomeVersion, welcomeToolCount, welcomeToolsets := welcomeStartupSeed(registry)
 	model := tui.NewModelWithOptions(hookedFrames, submit, cancelTurn, tui.Options{
@@ -1372,6 +1375,8 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		ModelName:           modelName,
 		OfflineSmoke:        offline,
 		StartupNotice:       startupNotice,
+		BusyInputMode:       tui.HermesBusyInputMode(cfg.Display.BusyInputMode),
+		Steer:               steerTurn,
 		WelcomeVersion:      welcomeVersion,
 		WelcomeToolCount:    welcomeToolCount,
 		WelcomeToolsets:     welcomeToolsets,

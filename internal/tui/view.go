@@ -106,6 +106,7 @@ func (m Model) View() string {
 		Panel:                 panel,
 		TodoPanel:             todoPanel,
 		ExtensionWidgetsAbove: m.renderExtensionWidgets(kernel.ExtensionUIWidgetAboveEditor, m.width),
+		QueuedMessages:        m.renderQueuedMessageWidgets(m.width),
 		StatusBar:             statusBar,
 		StatusBarMode:         statusBarMode,
 		Prompt:                prompt,

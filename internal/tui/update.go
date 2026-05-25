@@ -106,6 +106,15 @@ const (
 	HermesBusySteer HermesBusyInputMode = "steer"
 )
 
+func normalizeHermesBusyInputMode(mode HermesBusyInputMode) HermesBusyInputMode {
+	switch mode {
+	case HermesBusyQueue, HermesBusySteer, HermesBusyInterrupt:
+		return mode
+	default:
+		return HermesBusyInterrupt
+	}
+}
+
 // HermesInputState is the pure read-only snapshot the resolver consults. The
 // caller (Bubble Tea Update) builds it from the textarea + the latest kernel
 // frame; the resolver never reaches back into the model.
@@ -487,14 +496,38 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Batch(cmds...)
 				}
 			}
-			if text != "" && !m.inFlight {
-				m.editor.Reset()
-				if m.offlineSmoke {
-					m.applyOfflineSmokeTurn(text)
-					return m, tea.Batch(cmds...)
+			if text != "" {
+				phase := HermesPhaseIdle
+				if m.turnActive() {
+					phase = HermesPhaseRunning
 				}
-				m.inFlight = true
-				cmds = append(cmds, m.submitCmd(text))
+				decision := ResolveHermesKey(HermesKeyEvent{Kind: HermesKeyEnter}, HermesInputState{
+					Text:          text,
+					Phase:         phase,
+					BusyInputMode: m.busyInputMode,
+				})
+				switch decision.Action {
+				case HermesActionSubmit:
+					m.editor.Reset()
+					if m.offlineSmoke {
+						m.applyOfflineSmokeTurn(decision.SubmitText)
+						return m, tea.Batch(cmds...)
+					}
+					m.inFlight = true
+					cmds = append(cmds, m.submitCmd(decision.SubmitText))
+				case HermesActionQueueForNextTurn:
+					m.queueFollowUpDraft(decision.SubmitText)
+				case HermesActionSteer:
+					if cmd := m.queueSteeringDraft(decision.SubmitText); cmd != nil {
+						cmds = append(cmds, cmd)
+					}
+				case HermesActionInterrupt:
+					m.queueInterruptDraft(decision.SubmitText)
+					cmds = append(cmds, m.cancelCmd())
+				case HermesActionConsumeWithEvidence:
+					m.editor.Reset()
+					m.statusMessage = decision.Evidence
+				}
 			}
 			// Return early so textarea's own Enter handling does not insert
 			// a newline on the now-empty editor.
@@ -508,6 +541,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.frame.Phase == kernel.PhaseIdle || m.frame.Phase == kernel.PhaseFailed {
 			m.inFlight = false
 			m.spinnerFrame = 0
+			m.steeringMessages = QueuedMessages{}
+			if cmd := m.drainQueuedFollowUp(); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
 		} else if turnIsActive(m.frame.Phase) {
 			cmds = append(cmds, activeTurnTickCmd())
 		}
@@ -692,6 +729,70 @@ func teaCtrlRune(kind tea.KeyType) (string, bool) {
 	}
 }
 
+func (m Model) turnActive() bool {
+	return m.inFlight || turnIsActive(m.frame.Phase)
+}
+
+func (m *Model) queueFollowUpDraft(text string) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		m.editor.Reset()
+		return
+	}
+	m.queuedMessages.Enqueue(text)
+	m.editor.Reset()
+	m.statusMessage = "queued follow-up for next turn"
+}
+
+func (m *Model) queueInterruptDraft(text string) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		m.editor.Reset()
+		return
+	}
+	m.queuedMessages.Enqueue(text)
+	m.editor.Reset()
+	m.statusMessage = "interrupt requested; draft queued for next turn"
+}
+
+func (m *Model) queueSteeringDraft(text string) tea.Cmd {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		m.editor.Reset()
+		return nil
+	}
+	m.editor.Reset()
+	if m.steer == nil {
+		m.queuedMessages.Enqueue(text)
+		m.statusMessage = "steer unavailable; queued follow-up for next turn"
+		return nil
+	}
+	m.steeringMessages.Enqueue(text)
+	m.statusMessage = "steer queued for active turn"
+	return m.steerCmd(text)
+}
+
+func (m *Model) drainQueuedFollowUp() tea.Cmd {
+	for {
+		text, ok := m.queuedMessages.Dequeue()
+		if !ok {
+			return nil
+		}
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		if m.offlineSmoke {
+			m.applyOfflineSmokeTurn(text)
+			m.statusMessage = "queued follow-up handled offline"
+			return nil
+		}
+		m.inFlight = true
+		m.statusMessage = "queued follow-up sent"
+		return m.submitCmd(text)
+	}
+}
+
 // submitCmd wraps the submit callback as a tea.Cmd so it runs off the
 // Update goroutine.
 func (m Model) submitCmd(text string) tea.Cmd {
@@ -699,6 +800,18 @@ func (m Model) submitCmd(text string) tea.Cmd {
 	return func() tea.Msg {
 		submit(text)
 		return submittedMsg{}
+	}
+}
+
+// steerCmd wraps the steer callback as a tea.Cmd so active-turn guidance uses
+// the same non-blocking adapter pattern as submit/cancel.
+func (m Model) steerCmd(text string) tea.Cmd {
+	steer := m.steer
+	return func() tea.Msg {
+		if steer != nil {
+			steer(text)
+		}
+		return nil
 	}
 }
 

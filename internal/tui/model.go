@@ -25,6 +25,10 @@ type Submitter func(text string)
 // Canceller is the callback wired by main.go to send PlatformEventCancel.
 type Canceller func()
 
+// Steerer is the callback wired by main.go to send PlatformEventSteer while a
+// turn is active. Nil means steer-mode drafts fall back to the next-turn queue.
+type Steerer func(text string)
+
 // SetSessionModelFunc is the TUI-local bridge to the kernel's resident
 // in-session model override. It applies to future turns without resetting the
 // current transcript.
@@ -261,6 +265,13 @@ type Options struct {
 	// Runtime callers use it for recoverable degraded state that should not
 	// scar terminal scrollback before Bubble Tea enters the alt screen.
 	StartupNotice string
+	// BusyInputMode controls Enter on plain text while a kernel turn is active:
+	// interrupt (default), queue, or steer. Queue and steer keep drafts visible
+	// in the bottom-pinned chrome until delivered or cleared.
+	BusyInputMode HermesBusyInputMode
+	// Steer is the injected active-turn guidance adapter used when BusyInputMode
+	// is steer. Nil degrades to queue mode with visible evidence.
+	Steer Steerer
 	// WelcomeVersion / WelcomeToolCount seed the session-aware welcome panel
 	// with the operator-facing release version and agent tool count, which
 	// are unreachable from internal/tui (main.Version is package main; the
@@ -305,6 +316,7 @@ type Model struct {
 	frames   <-chan kernel.RenderFrame
 	submit   Submitter
 	cancel   Canceller
+	steer    Steerer
 	inFlight bool // true between a user submit and the next terminal frame
 
 	mouseTracking     bool
@@ -321,6 +333,9 @@ type Model struct {
 	detailsState      DetailsState
 	indicatorStyle    IndicatorStyle
 	spinnerFrame      int
+	busyInputMode     HermesBusyInputMode
+	queuedMessages    QueuedMessages
+	steeringMessages  QueuedMessages
 	extensionUI       extensionUIState
 
 	// sessionID, when non-empty, is the locally-tracked active session
@@ -398,6 +413,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		frames:             frames,
 		submit:             submit,
 		cancel:             cancel,
+		steer:              opts.Steer,
 		mouseTracking:      opts.MouseTracking,
 		mouseModeCmd:       opts.MouseModeCmd,
 		voiceRecordKey:     opts.VoiceRecordKey,
@@ -428,6 +444,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		sessionReset:       opts.SessionReset,
 		compactTranscript:  opts.CompactTranscript,
 		statusBarMode:      normalizeStatusBarMode(opts.StatusBarMode),
+		busyInputMode:      normalizeHermesBusyInputMode(opts.BusyInputMode),
 		detailsState:       NormalizeDetailsState(opts.DetailsState),
 		indicatorStyle:     NormalizeIndicatorStyle(string(opts.IndicatorStyle)),
 		offlineSmoke:       opts.OfflineSmoke,

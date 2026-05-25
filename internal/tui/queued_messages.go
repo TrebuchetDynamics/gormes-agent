@@ -1,5 +1,10 @@
 package tui
 
+import (
+	"fmt"
+	"strings"
+)
+
 // QueueWindowSize is the number of queued messages rendered per frame. Tracks
 // hermes-agent/ui-tui/src/components/queuedMessages.tsx@ea1012f5 (QUEUE_WINDOW=3).
 const QueueWindowSize = 3
@@ -192,4 +197,54 @@ func ComputeQueueWindow(n int, editIdx *int) QueueWindow {
 		ShowLead: start > 0,
 		ShowTail: end < n,
 	}
+}
+
+func (m Model) renderQueuedMessageWidgets(width int) string {
+	blocks := make([]string, 0, 2)
+	if steering := RenderQueuedMessageWidget("steering", m.steeringMessages, width); steering != "" {
+		blocks = append(blocks, steering)
+	}
+	if queued := RenderQueuedMessageWidget("queued", m.queuedMessages, width); queued != "" {
+		blocks = append(blocks, queued)
+	}
+	return strings.Join(blocks, "\n")
+}
+
+// RenderQueuedMessageWidget renders a width-bounded ComposerPane queue block.
+// It shows at most QueueWindowSize queued drafts at a time, with stable FIFO
+// numbering so operators can see what will steer or submit next.
+func RenderQueuedMessageWidget(label string, q QueuedMessages, width int) string {
+	items := q.Items()
+	if len(items) == 0 || width <= 0 {
+		return ""
+	}
+	label = strings.TrimSpace(label)
+	if label == "" {
+		label = "queued"
+	}
+	var editPtr *int
+	if editIdx, ok := q.EditIndex(); ok {
+		editPtr = &editIdx
+	}
+	win := ComputeQueueWindow(len(items), editPtr)
+	lines := []string{fmt.Sprintf("%s (%d)", label, len(items))}
+	if win.ShowLead {
+		lines = append(lines, "  …")
+	}
+	for i := win.Start; i < win.End; i++ {
+		marker := " "
+		if editPtr != nil && *editPtr == i {
+			marker = "▸"
+		}
+		line := fmt.Sprintf("%s %d. %s", marker, i+1, strings.TrimSpace(items[i]))
+		lines = append(lines, line)
+	}
+	if win.ShowTail {
+		remaining := len(items) - win.End
+		lines = append(lines, fmt.Sprintf("  … and %d more", remaining))
+	}
+	for i, line := range lines {
+		lines[i] = hermesStatusTrimToWidth(line, width)
+	}
+	return strings.Join(lines, "\n")
 }
