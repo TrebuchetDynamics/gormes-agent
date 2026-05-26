@@ -28,6 +28,21 @@ export const page = {
   heroLines: [
     'Run local and server-side AI agents from one static binary, with Hermes-style skills, offline diagnostics, SQLite memory, provider chat, dashboard, Telegram/Discord/Slack gateways, and an experimental Navivox app channel for trusted phone access.',
   ],
+  heroStatus:
+    'Early-stage, useful today for CLI/TUI, provider turns, local state, and trusted gateways; voice/TTS parity and package-manager lanes remain roadmap work.',
+  heroPanelEyebrow: 'OPERATOR QUICK PATH',
+  heroPanelTitle: 'Install, prove local readiness, then chat.',
+  heroPanelSteps: [
+    'curl -fsSL https://gormes.ai/install.sh | bash',
+    'gormes doctor --offline',
+    'gormes setup',
+    'gormes chat',
+  ],
+  heroMetrics: [
+    { value: binarySizeMB ? `~${binarySizeMB} MB` : '~46 MB', label: 'Linux binary' },
+    { value: formattedTests, label: 'tests' },
+    { value: 'offline', label: 'doctor first' },
+  ],
   primaryCta: { label: 'Install Gormes', href: '#install' },
   secondaryCta: {
     label: 'View GitHub',
