@@ -392,6 +392,11 @@ func TestNavivoxPairPrintsConnectedWhenNavivoxStreams(t *testing.T) {
 		<-errCh
 		t.Fatalf("navivox pair did not start local bridge at %s: %v\nstdout=%s\nstderr=%s", healthURL, err, stdout.String(), stderr.String())
 	}
+	if err := waitForOutputContains(&stdout, "Navivox pairing ready."); err != nil {
+		cancel()
+		<-errCh
+		t.Fatalf("navivox pair started bridge before printing persisted handoff: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
 	cfg, err := config.Load(nil)
 	if err != nil {
 		cancel()
