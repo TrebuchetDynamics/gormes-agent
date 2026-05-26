@@ -22,7 +22,7 @@ func newConnectInfoTestCommand(t *testing.T) (*cobra.Command, *bytes.Buffer) {
 	return cmd, buf
 }
 
-func TestNavivoxCommandHelpUsesConnectNotConnectInfo(t *testing.T) {
+func TestNavivoxCommandHelpShowsPairOnly(t *testing.T) {
 	cmd := newNavivoxCommand()
 	buf := &bytes.Buffer{}
 	cmd.SetOut(buf)
@@ -32,13 +32,18 @@ func TestNavivoxCommandHelpUsesConnectNotConnectInfo(t *testing.T) {
 		t.Fatalf("navivox help: %v", err)
 	}
 	help := buf.String()
-	if !strings.Contains(help, "connect") || !strings.Contains(help, "Print Navivox connect URLs") {
-		t.Fatalf("navivox help must advertise connect command:\n%s", help)
+	if !strings.Contains(help, "pair") || !strings.Contains(help, "Create a local Navivox pairing handoff") {
+		t.Fatalf("navivox help must advertise pair command:\n%s", help)
 	}
-	if strings.Contains(help, "connect-info") {
-		t.Fatalf("navivox help must not advertise connect-info after rename:\n%s", help)
+	for _, removed := range []string{"connect", "connect-info", "Print Navivox connect URLs"} {
+		if strings.Contains(help, removed) {
+			t.Fatalf("navivox help must keep pair only; still contains %q:\n%s", removed, help)
+		}
 	}
 
+	if connect, _, err := cmd.Find([]string{"connect"}); err == nil && connect.Name() == "connect" {
+		t.Fatalf("connect command should be removed from navivox command tree, got %#v", connect)
+	}
 	if legacy, _, err := cmd.Find([]string{"connect-info"}); err == nil && legacy.Name() == "connect-info" {
 		t.Fatalf("connect-info alias should be removed, got %#v", legacy)
 	}
@@ -189,7 +194,7 @@ func TestNavivoxConnectInfo_TextOutputDoesNotDuplicatePairQRCode(t *testing.T) {
 	for _, want := range []string{
 		"QR pairing:",
 		"Use `gormes navivox pair` for the one-terminal QR pairing flow.",
-		"Use `gormes navivox connect --open-navivox` to hand these URLs directly to Navivox.",
+		"Use `gormes navivox pair --open-navivox` to hand these URLs directly to Navivox.",
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("text output missing %q\noutput: %s", want, s)

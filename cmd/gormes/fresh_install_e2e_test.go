@@ -252,7 +252,7 @@ func TestFreshInstallE2E_OfflineCornerCommandMatrix(t *testing.T) {
 		{name: "cron_list", args: []string{"cron", "list"}, want: []string{"No cron jobs found"}},
 		{name: "agent_reset_dry_run", args: []string{"agent", "reset", "--dry-run"}, want: []string{"would_create SOUL.md", "would_create AGENTS.md"}},
 		{name: "send_dry_run", args: []string{"send", "--dry-run", "--to", "telegram", "hello"}, want: []string{"dry run: would send"}},
-		{name: "navivox_connect_help", args: []string{"navivox", "connect", "--help"}, want: []string{"token_required", "exposure_mode"}},
+		{name: "navivox_pair_help", args: []string{"navivox", "pair", "--help"}, want: []string{"terminal handoff", "compact QR"}},
 		{name: "hooks_row_backed", args: []string{"hooks", "list"}, exitCode: 2, want: []string{"row-backed in Gormes"}},
 		{name: "mcp_row_backed", args: []string{"mcp", "list"}, exitCode: 2, want: []string{"row-backed in Gormes"}},
 	}

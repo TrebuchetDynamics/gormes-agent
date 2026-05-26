@@ -44,7 +44,7 @@ func newNavivoxCommand() *cobra.Command {
 		Use:   "navivox",
 		Short: "Navivox HTTP channel utilities",
 	}
-	cmd.AddCommand(newNavivoxConnectCommand("connect", false), newNavivoxPairCommand())
+	cmd.AddCommand(newNavivoxPairCommand())
 	return cmd
 }
 
@@ -54,37 +54,6 @@ type navivoxConnectInfoOptions struct {
 	noOpenNavivox  bool
 	printDeeplink  bool
 	androidPackage string
-}
-
-func newNavivoxConnectCommand(use string, hidden bool) *cobra.Command {
-	opts := navivoxConnectInfoOptions{
-		openNavivox:    defaultOpenNavivoxAndroid(),
-		androidPackage: navivoxAndroidPackage,
-	}
-	cmd := &cobra.Command{
-		Use:    use,
-		Short:  "Print Navivox connect URLs for active VPN/local interfaces",
-		Hidden: hidden,
-		Long: `Print one connect URL per interface where the running Navivox HTTP channel
-should be reachable. Loopback is shown only for exposure_mode=local; VPN-class
-modes (tailscale, wireguard, vpn) list every active VPN interface detected by
-internal/network/vpnhost. The static_token value is never printed; only a
-token_required flag. On Android/Termux, --open-navivox can hand the secret
-navivox://connect descriptor directly to Navivox without printing it.`,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := config.Load(nil)
-			if err != nil {
-				return err
-			}
-			return runNavivoxConnectInfoForConfigWithOptions(cmd, cfg, opts)
-		},
-	}
-	cmd.Flags().BoolVar(&opts.jsonOut, "json", false, "emit machine-readable JSON")
-	cmd.Flags().BoolVar(&opts.openNavivox, "open-navivox", opts.openNavivox, "try Android deep-link handoff using the first reachable entry")
-	cmd.Flags().BoolVar(&opts.noOpenNavivox, "no-open-navivox", false, "do not launch Navivox; keep QR/manual fallback only")
-	cmd.Flags().StringVar(&opts.androidPackage, "android-package", opts.androidPackage, "Android package to target for Navivox deep links")
-	cmd.Flags().BoolVar(&opts.printDeeplink, "print-deeplink", false, "print navivox://connect descriptor; warning: contains a secret")
-	return cmd
 }
 
 func runNavivoxConnectInfo(cmd *cobra.Command, cfg config.NavivoxCfg, jsonOut bool) error {
@@ -266,7 +235,7 @@ func writeNavivoxConnectInfoTextWithOptions(out io.Writer, cfg config.NavivoxCfg
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "QR pairing:")
 	fmt.Fprintln(out, "  Use `gormes navivox pair` for the one-terminal QR pairing flow.")
-	fmt.Fprintln(out, "  Use `gormes navivox connect --open-navivox` to hand these URLs directly to Navivox.")
+	fmt.Fprintln(out, "  Use `gormes navivox pair --open-navivox` to hand these URLs directly to Navivox.")
 	return nil
 }
 
