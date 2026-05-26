@@ -14,8 +14,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 // ToolCallStatus represents the lifecycle state of a tool call.
@@ -50,11 +48,6 @@ type ThinkingState struct {
 	Truncated bool
 }
 
-// thinkingHeader is the lipgloss style for the thinking header.
-var thinkingHeader = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("#FFD700")).
-	Bold(true)
-
 // TruncationThreshold is the maximum number of characters before content
 // is marked as truncated in truncated mode.
 const TruncationThreshold = 500
@@ -63,6 +56,14 @@ const TruncationThreshold = 500
 // actively thinking and content with truncation indicator if over threshold.
 // Mirrors thinking.tsx:Thinking component behavior.
 func RenderThinking(state ThinkingState) string {
+	return renderThinkingWithStyles(state, SkinStyles{}, false)
+}
+
+func RenderThinkingWithSkin(state ThinkingState, skin HermesSkin) string {
+	return renderThinkingWithStyles(state, SkinStylesFor(skin), true)
+}
+
+func renderThinkingWithStyles(state ThinkingState, styles SkinStyles, styled bool) string {
 	if !state.Visible {
 		return ""
 	}
@@ -71,7 +72,7 @@ func RenderThinking(state ThinkingState) string {
 	if content == "" {
 		// Empty thinking during active reasoning — show the thinking indicator
 		// with a subtle cursor blink space to indicate live activity.
-		return "  🤔 " + thinkingHeader.Render("Reasoning...")
+		return "  🤔 " + renderSkinStyle(styled, styles.Title, "Reasoning...")
 	}
 
 	// Apply truncation if indicated and content exceeds threshold.
@@ -80,31 +81,32 @@ func RenderThinking(state ThinkingState) string {
 		display = content[:TruncationThreshold] + "…"
 	}
 
+	truncated := state.Truncated && len(content) > TruncationThreshold
 	lines := strings.Split(display, "\n")
 	if len(lines) > 1 {
 		// Multi-line thinking: show header + content block.
 		var b strings.Builder
 		b.WriteString("  🤔 ")
-		b.WriteString(thinkingHeader.Render("Reasoning"))
-		if state.Truncated && len(content) > TruncationThreshold {
+		b.WriteString(renderSkinStyle(styled, styles.Title, "Reasoning"))
+		if truncated {
 			b.WriteString(" ")
-			b.WriteString(lipgloss.NewStyle().Faint(true).Render("[truncated]"))
+			b.WriteString(renderSkinStyle(styled, styles.Dim, "[truncated]"))
 		}
 		b.WriteString("\n")
 		for _, line := range lines {
 			b.WriteString("  ")
-			b.WriteString(line)
+			b.WriteString(renderSkinStyle(styled, styles.Text, line))
 			b.WriteString("\n")
 		}
 		return b.String()
 	}
 
 	// Single-line thinking: header + inline content.
-	result := "  🤔 " + thinkingHeader.Render("Reasoning")
-	if state.Truncated && len(content) > TruncationThreshold {
-		result += " " + lipgloss.NewStyle().Faint(true).Render("[truncated]")
+	result := "  🤔 " + renderSkinStyle(styled, styles.Title, "Reasoning")
+	if truncated {
+		result += " " + renderSkinStyle(styled, styles.Dim, "[truncated]")
 	}
-	result += "  " + content
+	result += "  " + renderSkinStyle(styled, styles.Text, content)
 	return result
 }
 
@@ -193,17 +195,25 @@ func formatDuration(d time.Duration) string {
 // status indicators, and duration display for completed tools.
 // Mirrors thinking.tsx:ToolTrail component behavior.
 func RenderToolTrail(nodes []ToolCallNode) string {
+	return renderToolTrailWithStyles(nodes, SkinStyles{}, false)
+}
+
+func RenderToolTrailWithSkin(nodes []ToolCallNode, skin HermesSkin) string {
+	return renderToolTrailWithStyles(nodes, SkinStylesFor(skin), true)
+}
+
+func renderToolTrailWithStyles(nodes []ToolCallNode, styles SkinStyles, styled bool) string {
 	if len(nodes) == 0 {
 		return ""
 	}
 
 	var b strings.Builder
-	renderToolNodes(&b, nodes, true)
+	renderToolNodes(&b, nodes, true, styles, styled)
 	return b.String()
 }
 
 // renderToolNodes recursively renders tool call nodes with proper tree formatting.
-func renderToolNodes(b *strings.Builder, nodes []ToolCallNode, parentIsLast bool) {
+func renderToolNodes(b *strings.Builder, nodes []ToolCallNode, parentIsLast bool, styles SkinStyles, styled bool) {
 	for i, node := range nodes {
 		isNodeLast := i == len(nodes)-1
 
@@ -221,21 +231,29 @@ func renderToolNodes(b *strings.Builder, nodes []ToolCallNode, parentIsLast bool
 			durationStr = " (" + formatDuration(node.Duration) + ")"
 		}
 
+		statusStyle := styles.Warn
+		switch node.Status {
+		case ToolCallDone:
+			statusStyle = styles.Good
+		case ToolCallError:
+			statusStyle = styles.Bad
+		}
+
 		// Write the tool line
-		b.WriteString(prefix)
-		b.WriteString(icon)
+		b.WriteString(renderSkinStyle(styled, styles.Dim, prefix))
+		b.WriteString(renderSkinStyle(styled, styles.Accent, icon))
 		b.WriteString(" ")
-		b.WriteString(status)
+		b.WriteString(renderSkinStyle(styled, statusStyle, status))
 		b.WriteString(" ")
-		b.WriteString(node.Name)
+		b.WriteString(renderSkinStyle(styled, styles.Text, node.Name))
 		if durationStr != "" {
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#B8860B")).Render(durationStr))
+			b.WriteString(renderSkinStyle(styled, styles.Dim, durationStr))
 		}
 		b.WriteString("\n")
 
 		// Recursively render children
 		if len(node.Children) > 0 {
-			renderToolNodes(b, node.Children, isNodeLast)
+			renderToolNodes(b, node.Children, isNodeLast, styles, styled)
 		}
 	}
 }

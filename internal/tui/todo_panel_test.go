@@ -3,12 +3,14 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestTodoItem_Struct(t *testing.T) {
 	item := TodoItem{
-		Text:     "Test task",
-		Status:   TodoStatusPending,
+		Text:      "Test task",
+		Status:    TodoStatusPending,
 		Collapsed: false,
 	}
 	if item.Text != "Test task" {
@@ -108,6 +110,30 @@ func TestRenderTodoPanel_WidthRespected(t *testing.T) {
 		got := RenderTodoPanel(items, width)
 		if got == "" && width > 0 {
 			t.Fatalf("width=%d: got empty string for non-empty input", width)
+		}
+	}
+}
+
+func TestRenderTodoPanelWithSkinUsesSharedStyles(t *testing.T) {
+	forceLipglossTrueColor(t)
+	skin := BuiltinSkins()["poseidon"]
+	items := []TodoItem{
+		{Text: "Design shared TUI styles", Status: TodoStatusPending},
+		{Text: "Retheme done rows", Status: TodoStatusDone, Collapsed: true},
+	}
+
+	got := RenderTodoPanelWithSkin(items, 48, skin)
+	for _, want := range []string{"○", "●", "Design shared TUI styles", "Retheme done rows", "▸"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("styled todo panel missing %q:\n%s", want, got)
+		}
+	}
+	if !strings.Contains(got, "\x1b[") {
+		t.Fatalf("styled todo panel should use active skin styles; got no ANSI styling:\n%s", got)
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if w := lipgloss.Width(line); w > 48 {
+			t.Fatalf("styled todo panel line width %d exceeds 48: %q\n\n%s", w, line, got)
 		}
 	}
 }

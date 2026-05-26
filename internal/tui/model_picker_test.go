@@ -5,7 +5,30 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
+
+func TestModelPicker_UsesSharedSkinStyles(t *testing.T) {
+	skin := BuiltinSkins()["ares"]
+	shared := SkinStylesFor(skin)
+	got := RenderModelPickerWithSkin(ModelPickerState{
+		Width:  60,
+		Height: 20,
+		Providers: []ProviderEntry{
+			{ID: "anthropic", Label: "Anthropic"},
+		},
+		SelectedProviderIndex: 0,
+	}, skin)
+	if !strings.Contains(got, "Select Model") || !strings.Contains(got, "❯") {
+		t.Fatalf("styled model picker lost visible chrome:\n%s", got)
+	}
+	if fg := shared.Selected.GetForeground(); fg != lipgloss.Color(skin.Colors.UIAcent) {
+		t.Fatalf("shared selected foreground = %v, want %v", fg, lipgloss.Color(skin.Colors.UIAcent))
+	}
+	if bg := shared.Status.GetBackground(); bg != lipgloss.Color(skin.Colors.StatusBarBackground) {
+		t.Fatalf("shared status background = %v, want %v", bg, lipgloss.Color(skin.Colors.StatusBarBackground))
+	}
+}
 
 // TestModelPicker_RenderProviderList proves the renderer shows all providers
 // in a 2-column grid with the selected provider highlighted by "❯".

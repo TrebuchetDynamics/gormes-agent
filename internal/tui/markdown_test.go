@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
@@ -339,6 +341,34 @@ func TestRenderMarkdown_Tables(t *testing.T) {
 				t.Errorf("RenderMarkdown() = %q, want to contain %q", result, tt.contains)
 			}
 		})
+	}
+}
+
+func TestRenderMarkdownWithSkinUsesSharedStyles(t *testing.T) {
+	forceLipglossTrueColor(t)
+	skin := BuiltinSkins()["poseidon"]
+	shared := SkinStylesFor(skin)
+	styles := markdownStylesFor(skin)
+
+	if got, want := styles.heading1.GetForeground(), shared.Title.GetForeground(); got != want {
+		t.Fatalf("heading1 foreground = %v, want shared title %v", got, want)
+	}
+	if got, want := styles.tableHead.GetForeground(), shared.Selected.GetForeground(); got != want {
+		t.Fatalf("table header foreground = %v, want shared selected %v", got, want)
+	}
+	if got, want := styles.code.GetBackground(), lipgloss.Color(skin.Colors.StatusBarBackground); got != want {
+		t.Fatalf("code background = %v, want focused/status background %v", got, want)
+	}
+
+	got := RenderMarkdownWithSkin("# Heading\n\nUse `gormes` now.\n\n> quoted", skin)
+	plain := StripANSIForTUI(got)
+	for _, want := range []string{"Heading", "gormes", "quoted"} {
+		if !strings.Contains(plain, want) {
+			t.Fatalf("styled markdown missing %q:\n%s", want, got)
+		}
+	}
+	if !strings.Contains(got, "\x1b[") {
+		t.Fatalf("styled markdown should render ANSI styles:\n%s", got)
 	}
 }
 

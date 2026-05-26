@@ -14,8 +14,8 @@ package tui
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // ProviderEntry is one provider option in the picker.
@@ -33,8 +33,8 @@ type ModelEntry struct {
 // ModelPickerState is the complete state for the model picker overlay.
 // Width and Height carry the terminal dimensions for layout calculations.
 type ModelPickerState struct {
-	Width    int
-	Height   int
+	Width  int
+	Height int
 
 	// Providers is the list of available providers.
 	Providers []ProviderEntry
@@ -85,20 +85,26 @@ type modelPickerConfirmedMsg ModelPickerResult
 //   - Model column: appears when provider selected, scrolling list with "*" for current
 //   - Footer: keyboard hints (↑/↓ navigate, Enter confirm, Esc cancel)
 func RenderModelPicker(state ModelPickerState) string {
-	if state.Width < 30 {
-		return renderModelPickerNarrow(state)
-	}
-	return renderModelPickerWide(state)
+	return RenderModelPickerWithSkin(state, DefaultHermesSkin())
 }
 
-func renderModelPickerWide(state ModelPickerState) string {
+func RenderModelPickerWithSkin(state ModelPickerState, skin HermesSkin) string {
+	if state.Width < 30 {
+		return renderModelPickerNarrow(state, skin)
+	}
+	return renderModelPickerWide(state, skin)
+}
+
+func renderModelPickerWide(state ModelPickerState, skin HermesSkin) string {
+	styles := SkinStylesFor(skin)
+	resolved := NormalizeStyleSkin(skin)
 	var b strings.Builder
 
 	// Title
 	title := "  Select Model  "
-	b.WriteString(lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255")).
-		Background(lipgloss.Color("39")).
+	b.WriteString(styles.Status.
+		Foreground(lipgloss.Color(resolved.Colors.StatusBarBackground)).
+		Background(lipgloss.Color(resolved.Colors.UIAcent)).
 		Bold(true).
 		Width(state.Width).
 		Render(title))
@@ -106,7 +112,7 @@ func renderModelPickerWide(state ModelPickerState) string {
 
 	// Provider section header (only show when providers exist)
 	if len(state.Providers) > 0 {
-		b.WriteString("  Provider\n")
+		b.WriteString(styles.Label.Render("  Provider") + "\n")
 	}
 
 	// Provider grid: 2 per row
@@ -116,11 +122,8 @@ func renderModelPickerWide(state ModelPickerState) string {
 		providerColWidth = 20
 	}
 
-	selectedStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("51")). // bright cyan
-		Bold(true)
-	normalStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252")) // muted white
+	selectedStyle := styles.Selected
+	normalStyle := styles.Normal
 
 	for row := 0; row < len(state.Providers); row += providerCols {
 		line := "  "
@@ -151,19 +154,15 @@ func renderModelPickerWide(state ModelPickerState) string {
 	if state.SelectedProviderIndex >= 0 && state.SelectedProviderIndex < len(state.Providers) {
 		b.WriteString("\n")
 		selectedProv := state.Providers[state.SelectedProviderIndex]
-		b.WriteString("  Model (" + selectedProv.Label + ")\n")
+		b.WriteString(styles.Label.Render("  Model ("+selectedProv.Label+")") + "\n")
 
 		// Calculate model list height
-		modelStartY := 4 + (len(state.Providers)+1)/2 // title + header + provider rows
+		modelStartY := 4 + (len(state.Providers)+1)/2    // title + header + provider rows
 		modelMaxHeight := state.Height - modelStartY - 3 // -3 for hints
 
-		modelSelectedStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("51")).
-			Bold(true)
-		modelNormalStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("252"))
-		currentModelStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("82")) // green for current
+		modelSelectedStyle := styles.Selected
+		modelNormalStyle := styles.Normal
+		currentModelStyle := styles.Good
 
 		visibleModels := state.Models
 		if modelMaxHeight > 0 && len(visibleModels) > modelMaxHeight {
@@ -217,29 +216,27 @@ func renderModelPickerWide(state ModelPickerState) string {
 
 	// Keyboard hints at bottom
 	b.WriteString("\n")
-	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	b.WriteString(hintStyle.Render("  ↑/↓ navigate  ·  Enter confirm  ·  Esc cancel"))
+	b.WriteString(styles.Dim.Render("  ↑/↓ navigate  ·  Enter confirm  ·  Esc cancel"))
 
 	return b.String()
 }
 
-func renderModelPickerNarrow(state ModelPickerState) string {
+func renderModelPickerNarrow(state ModelPickerState, skin HermesSkin) string {
+	styles := SkinStylesFor(skin)
+	resolved := NormalizeStyleSkin(skin)
 	var b strings.Builder
 
 	title := "  Select Model  "
-	b.WriteString(lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255")).
-		Background(lipgloss.Color("39")).
+	b.WriteString(styles.Status.
+		Foreground(lipgloss.Color(resolved.Colors.StatusBarBackground)).
+		Background(lipgloss.Color(resolved.Colors.UIAcent)).
 		Bold(true).
 		Width(state.Width).
 		Render(title))
 	b.WriteString("\n\n")
 
-	selectedStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("51")).
-		Bold(true)
-	normalStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252"))
+	selectedStyle := styles.Selected
+	normalStyle := styles.Normal
 
 	// Single column providers
 	for i, entry := range state.Providers {
@@ -256,15 +253,11 @@ func renderModelPickerNarrow(state ModelPickerState) string {
 	if state.SelectedProviderIndex >= 0 && state.SelectedProviderIndex < len(state.Providers) {
 		b.WriteString("\n")
 		selectedProv := state.Providers[state.SelectedProviderIndex]
-		b.WriteString("  Models for " + selectedProv.Label + ":\n")
+		b.WriteString(styles.Label.Render("  Models for "+selectedProv.Label+":") + "\n")
 
-		modelSelectedStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("51")).
-			Bold(true)
-		modelNormalStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("252"))
-		currentModelStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("82"))
+		modelSelectedStyle := styles.Selected
+		modelNormalStyle := styles.Normal
+		currentModelStyle := styles.Good
 
 		for _, entry := range state.Models {
 			prefix := "  "
@@ -289,8 +282,7 @@ func renderModelPickerNarrow(state ModelPickerState) string {
 	}
 
 	b.WriteString("\n")
-	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	b.WriteString(hintStyle.Render("  ↑/↓ navigate  ·  Enter confirm  ·  Esc cancel"))
+	b.WriteString(styles.Dim.Render("  ↑/↓ navigate  ·  Enter confirm  ·  Esc cancel"))
 
 	return b.String()
 }

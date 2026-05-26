@@ -406,6 +406,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	// input line instead of the textarea default cursor marker.
 	normalPrompt, _ := skin.PromptSymbols("default")
 	ta.Prompt = normalPrompt
+	ApplyTextareaSkin(&ta, skin)
 	ta.SetHeight(1)
 	ta.Focus()
 	return Model{

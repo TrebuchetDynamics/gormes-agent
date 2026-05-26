@@ -28,6 +28,30 @@ func TestBannerCaduceus_NonEmpty(t *testing.T) {
 	}
 }
 
+func TestBannerLegacyHelpersUseSkinDerivedStyles(t *testing.T) {
+	forceLipglossTrueColor(t)
+	def := BuiltinSkins()["default"]
+	pos := BuiltinSkins()["poseidon"]
+
+	defColors := bannerLogoColors(def)
+	posColors := bannerLogoColors(pos)
+	if defColors[0] != def.Colors.BannerBorder || defColors[2] != def.Colors.BannerTitle {
+		t.Fatalf("default logo colors not sourced from skin: %v vs %+v", defColors, def.Colors)
+	}
+	if posColors[0] != pos.Colors.BannerBorder || posColors[2] != pos.Colors.BannerTitle {
+		t.Fatalf("poseidon logo colors not sourced from skin: %v vs %+v", posColors, pos.Colors)
+	}
+	if strings.Join(defColors, ",") == strings.Join(posColors, ",") {
+		t.Fatalf("switching skins did not re-theme legacy logo colors: %v", defColors)
+	}
+
+	for _, rendered := range []string{bannerLogo(pos), bannerCaduceusWithSkin(pos), bannerWelcomeWithSkin(pos)} {
+		if !strings.Contains(rendered, "\x1b[") {
+			t.Fatalf("legacy banner helper should render skin ANSI styles:\n%s", rendered)
+		}
+	}
+}
+
 func TestBannerWelcome(t *testing.T) {
 	w := bannerWelcome()
 	if !strings.Contains(w, "Welcome to Gormes. Type your message or /help for commands.") {

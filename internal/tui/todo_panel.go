@@ -43,6 +43,14 @@ type TodoItem struct {
 // It returns an empty string if items is nil or empty.
 // Width constrains the panel; items may be truncated to fit.
 func RenderTodoPanel(items []TodoItem, width int) string {
+	return renderTodoPanelWithStyles(items, width, SkinStyles{}, false)
+}
+
+func RenderTodoPanelWithSkin(items []TodoItem, width int, skin HermesSkin) string {
+	return renderTodoPanelWithStyles(items, width, SkinStylesFor(skin), true)
+}
+
+func renderTodoPanelWithStyles(items []TodoItem, width int, styles SkinStyles, styled bool) string {
 	if len(items) == 0 {
 		return ""
 	}
@@ -54,6 +62,11 @@ func RenderTodoPanel(items []TodoItem, width int) string {
 			hasCollapsed = true
 			break
 		}
+	}
+
+	// If width is too narrow, return compact single line
+	if width > 0 && width < 20 {
+		return renderSkinStyle(styled, styles.Dim, strings.TrimSpace(compactTodoSummary(items, width)))
 	}
 
 	// Build lines
@@ -74,6 +87,21 @@ func RenderTodoPanel(items []TodoItem, width int) string {
 			text = trimToWidth(text, maxTextWidth)
 		}
 
+		if styled {
+			glyphStyle := styles.Accent
+			textStyle := styles.Text
+			if item.Status == TodoStatusDone {
+				glyphStyle = styles.Good
+				textStyle = styles.Dim
+			}
+			marker := "   "
+			if item.Collapsed {
+				marker = " " + styles.Dim.Render("▸") + " "
+			}
+			lines = append(lines, glyphStyle.Render(glyph)+marker+textStyle.Render(text))
+			continue
+		}
+
 		var line string
 		if item.Collapsed {
 			line = glyph + " ▸ " + text
@@ -87,11 +115,6 @@ func RenderTodoPanel(items []TodoItem, width int) string {
 		} else {
 			lines = append(lines, line)
 		}
-	}
-
-	// If width is too narrow, return compact single line
-	if width > 0 && width < 20 {
-		return strings.TrimSpace(compactTodoSummary(items, width))
 	}
 
 	return strings.Join(lines, "\n")
@@ -143,7 +166,7 @@ func compactTodoSummary(items []TodoItem, width int) string {
 	summary.WriteString(strings.TrimSpace(items[0].Text))
 	if len(items) > 1 {
 		summary.WriteString(" +")
-		summary.WriteString(string(rune('0' + len(items)-1)))
+		summary.WriteString(string(rune('0' + len(items) - 1)))
 	}
 	result := summary.String()
 	if lipgloss.Width(result) > width {

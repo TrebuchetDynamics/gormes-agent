@@ -8,67 +8,61 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Markdown rendering styles
-var (
-	codeBlockStyle = lipgloss.NewStyle().
+type markdownStyles struct {
+	codeBlock  lipgloss.Style
+	code       lipgloss.Style
+	bold       lipgloss.Style
+	italic     lipgloss.Style
+	heading1   lipgloss.Style
+	heading2   lipgloss.Style
+	heading3   lipgloss.Style
+	blockquote lipgloss.Style
+	quoteBar   lipgloss.Style
+	list       lipgloss.Style
+	ordered    lipgloss.Style
+	hr         lipgloss.Style
+	tableRule  lipgloss.Style
+	tableHead  lipgloss.Style
+	tableCell  lipgloss.Style
+}
+
+func markdownStylesFor(skin HermesSkin) markdownStyles {
+	shared := SkinStylesFor(skin)
+	return markdownStyles{
+		codeBlock: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("240")).
+			BorderForeground(shared.Separator.GetForeground()).
 			Padding(1).
-			Margin(1)
-
-	codeStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("236")).
-			Foreground(lipgloss.Color("250"))
-
-	boldStyle = lipgloss.NewStyle().Bold(true)
-
-	italicStyle = lipgloss.NewStyle().Italic(true)
-
-	headingStyle1 = lipgloss.NewStyle().
-			Bold(true).
-			Underline(true).
-			Foreground(lipgloss.Color("228"))
-
-	headingStyle2 = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("228"))
-
-	headingStyle3 = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("228"))
-
-	blockquoteStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("242")).
-			MarginLeft(2)
-
-	quoteBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Bold(true)
-
-	listStyle = lipgloss.NewStyle().
-			MarginLeft(2)
-
-	orderedListStyle = lipgloss.NewStyle().
-				MarginLeft(2)
-
-	hrStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240"))
-
-	tableBorderStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("240"))
-
-	tableHeaderStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("75"))
-
-	tableCellStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("252"))
-)
+			Margin(1),
+		code:       shared.Text.Background(shared.FocusLine.GetBackground()),
+		bold:       shared.Text.Bold(true),
+		italic:     shared.Text.Italic(true),
+		heading1:   shared.Title.Underline(true),
+		heading2:   shared.Title,
+		heading3:   shared.Accent,
+		blockquote: shared.Dim.MarginLeft(2),
+		quoteBar:   shared.Separator.Bold(true),
+		list:       lipgloss.NewStyle().MarginLeft(2),
+		ordered:    lipgloss.NewStyle().MarginLeft(2),
+		hr:         shared.Separator,
+		tableRule:  shared.Separator,
+		tableHead:  shared.Selected,
+		tableCell:  shared.Text,
+	}
+}
 
 // RenderMarkdown renders markdown text as a string with lipgloss styling.
 // It handles: fenced code blocks, inline bold/italic/code, headers,
 // bullet/numbered lists, blockquotes, horizontal rules, and tables.
 func RenderMarkdown(text string) string {
+	return RenderMarkdownWithSkin(text, DefaultHermesSkin())
+}
+
+func RenderMarkdownWithSkin(text string, skin HermesSkin) string {
+	return renderMarkdownWithStyles(text, markdownStylesFor(skin))
+}
+
+func renderMarkdownWithStyles(text string, styles markdownStyles) string {
 	if text == "" {
 		return ""
 	}
@@ -94,13 +88,13 @@ func RenderMarkdown(text string) string {
 				i++
 			}
 			i++ // skip closing fence
-			output = append(output, renderCodeBlock(fence, lang, codeLines))
+			output = append(output, renderCodeBlock(fence, lang, codeLines, styles))
 			continue
 		}
 
 		// Horizontal rules - match --- *** ___ on their own lines
 		if isHorizontalRule(line) {
-			output = append(output, hrStyle.Render(strings.Repeat("─", 40)))
+			output = append(output, styles.hr.Render(strings.Repeat("─", 40)))
 			i++
 			continue
 		}
@@ -109,7 +103,7 @@ func RenderMarkdown(text string) string {
 		if matches := headingRe.FindStringSubmatch(line); len(matches) > 0 {
 			level := len(matches[1])
 			content := strings.TrimSpace(matches[2])
-			output = append(output, renderHeading(level, content))
+			output = append(output, renderHeading(level, content, styles))
 			i++
 			continue
 		}
@@ -124,7 +118,7 @@ func RenderMarkdown(text string) string {
 				quoteLines = append(quoteLines, content)
 				i++
 			}
-			output = append(output, renderBlockquote(quoteLines))
+			output = append(output, renderBlockquote(quoteLines, styles))
 			continue
 		}
 
@@ -139,7 +133,7 @@ func RenderMarkdown(text string) string {
 					break
 				}
 			}
-			output = append(output, renderBulletList(listLines))
+			output = append(output, renderBulletList(listLines, styles))
 			continue
 		}
 
@@ -160,7 +154,7 @@ func RenderMarkdown(text string) string {
 					break
 				}
 			}
-			output = append(output, renderNumberedList(separators, listItems))
+			output = append(output, renderNumberedList(separators, listItems, styles))
 			continue
 		}
 
@@ -180,12 +174,12 @@ func RenderMarkdown(text string) string {
 				}
 				i++
 			}
-			output = append(output, renderTable(rows))
+			output = append(output, renderTable(rows, styles))
 			continue
 		}
 
 		// Regular paragraph - apply inline formatting
-		output = append(output, renderInline(line))
+		output = append(output, renderInline(line, styles))
 		i++
 	}
 
@@ -337,61 +331,61 @@ var (
 	linkRe            = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 )
 
-func renderCodeBlock(fence, lang string, lines []string) string {
+func renderCodeBlock(fence, lang string, lines []string, styles markdownStyles) string {
 	var header string
 	if lang != "" {
-		header = "─ " + lang
+		header = styles.tableRule.Render("─") + " " + styles.tableHead.Render(lang)
 	}
 	code := strings.Join(lines, "\n")
-	styled := codeStyle.Render(code)
+	styled := styles.code.Render(code)
 
 	if header != "" {
-		return codeBlockStyle.Render(header + "\n" + styled)
+		return styles.codeBlock.Render(header + "\n" + styled)
 	}
-	return codeBlockStyle.Render(styled)
+	return styles.codeBlock.Render(styled)
 }
 
-func renderHeading(level int, content string) string {
-	inline := renderInline(content)
+func renderHeading(level int, content string, styles markdownStyles) string {
+	inline := renderInline(content, styles)
 	switch level {
 	case 1:
-		return headingStyle1.Render(inline)
+		return styles.heading1.Render(inline)
 	case 2:
-		return headingStyle2.Render(inline)
+		return styles.heading2.Render(inline)
 	default:
-		return headingStyle3.Render(inline)
+		return styles.heading3.Render(inline)
 	}
 }
 
-func renderBlockquote(lines []string) string {
+func renderBlockquote(lines []string, styles markdownStyles) string {
 	var output []string
 	for _, line := range lines {
-		output = append(output, quoteBarStyle.Render("│")+" "+renderInline(line))
+		output = append(output, styles.quoteBar.Render("│")+" "+renderInline(line, styles))
 	}
-	return blockquoteStyle.Render(strings.Join(output, "\n"))
+	return styles.blockquote.Render(strings.Join(output, "\n"))
 }
 
-func renderBulletList(items []string) string {
+func renderBulletList(items []string, styles markdownStyles) string {
 	var output []string
 	for _, item := range items {
-		output = append(output, listStyle.Render("• "+renderInline(item)))
+		output = append(output, styles.list.Render(styles.tableRule.Render("• ")+renderInline(item, styles)))
 	}
 	return strings.Join(output, "\n")
 }
 
-func renderNumberedList(separators []string, items []string) string {
+func renderNumberedList(separators []string, items []string, styles markdownStyles) string {
 	var output []string
 	for i, item := range items {
 		sep := "."
 		if i < len(separators) {
 			sep = separators[i]
 		}
-		output = append(output, orderedListStyle.Render(item+sep+" "+renderInline(item)))
+		output = append(output, styles.ordered.Render(item+sep+" "+renderInline(item, styles)))
 	}
 	return strings.Join(output, "\n")
 }
 
-func renderTable(rows [][]string) string {
+func renderTable(rows [][]string, styles markdownStyles) string {
 	if len(rows) < 1 {
 		return ""
 	}
@@ -425,9 +419,9 @@ func renderTable(rows [][]string) string {
 
 			if ri == 0 {
 				// Header row
-				cells = append(cells, tableHeaderStyle.Render(cell))
+				cells = append(cells, styles.tableHead.Render(cell))
 			} else {
-				cells = append(cells, tableCellStyle.Render(cell))
+				cells = append(cells, styles.tableCell.Render(cell))
 			}
 		}
 
@@ -435,7 +429,7 @@ func renderTable(rows [][]string) string {
 		if ri == 0 && len(rows) > 1 {
 			sepCells := make([]string, colCount)
 			for ci, w := range widths {
-				sepCells[ci] = tableBorderStyle.Render(strings.Repeat("─", w))
+				sepCells[ci] = styles.tableRule.Render(strings.Repeat("─", w))
 			}
 			lines = append(lines, strings.Join(cells, "  "))
 			lines = append(lines, strings.Join(sepCells, "  "))
@@ -447,7 +441,7 @@ func renderTable(rows [][]string) string {
 	return strings.Join(lines, "\n")
 }
 
-func renderInline(text string) string {
+func renderInline(text string, styles markdownStyles) string {
 	if text == "" {
 		return text
 	}
@@ -455,7 +449,7 @@ func renderInline(text string) string {
 	// Process inline code first (before other formatting)
 	text = inlineCodeRe.ReplaceAllStringFunc(text, func(match string) string {
 		if len(match) >= 2 {
-			return codeStyle.Render(match[1 : len(match)-1])
+			return styles.code.Render(match[1 : len(match)-1])
 		}
 		return match
 	})
@@ -463,7 +457,7 @@ func renderInline(text string) string {
 	// Process bold
 	text = boldRe.ReplaceAllStringFunc(text, func(match string) string {
 		if len(match) >= 4 {
-			return boldStyle.Render(match[2 : len(match)-2])
+			return styles.bold.Render(match[2 : len(match)-2])
 		}
 		return match
 	})
@@ -471,7 +465,7 @@ func renderInline(text string) string {
 	// Process italic - simple asterisk pattern
 	text = italicRe.ReplaceAllStringFunc(text, func(match string) string {
 		if len(match) >= 2 {
-			return italicStyle.Render(match[1 : len(match)-1])
+			return styles.italic.Render(match[1 : len(match)-1])
 		}
 		return match
 	})

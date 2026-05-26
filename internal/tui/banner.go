@@ -35,38 +35,28 @@ const (
 	welcomeDefault = "Welcome to Gormes. Type your message or /help for commands."
 )
 
-var logoGradientColors = []string{
-	"#1D4ED8", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE",
+func bannerLogoColors(skin HermesSkin) []string {
+	skin = NormalizeStyleSkin(skin)
+	c := skin.Colors
+	return []string{c.BannerBorder, c.BannerAccent, c.BannerTitle, c.BannerText, c.BannerTitle, c.BannerAccent}
 }
 
-var caduceusGradient = []struct{ line, color string }{
-	{line: "⠀⠀⠀⠀⠀⣀⡀⣀⣀⢀⣀⡀", color: "#CD7F32"},
-	{line: "⠀⠀⠀⣴⣾⣿⣿⣇⠸⣿⣿⠇⣸⣿⣿", color: "#CD7F32"},
-	{line: "⢀⣠⣶⠿⠋⣩⣿⠻⣿⡇⢠⡄⢸⣿⠟", color: "#FFBF00"},
-	{line: "⠉⠉⠁⠶⠟⠋⠉⢀⣈⣁⡈⢁⣈⣁⡀", color: "#FFBF00"},
-	{line: "⠀⠀⠀⠀⠀⣴⣿⡿⠛⢁⡈⠛⢿⣿⣦", color: "#FFD700"},
-	{line: "⠀⠀⠀⠀⠀⠿⣿⣦⣤⣈⠁⢠⣴⣿⠿", color: "#FFD700"},
-	{line: "⠀⠀⠀⠀⠀⠀⠈⠉⠻⢿⣿⣦⡉⠁", color: "#FFBF00"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⠀⠘⢷⣦⣈⠛⠃", color: "#FFBF00"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⢠⣴⠦⠈⠙⠿⣦⡄", color: "#CD7F32"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⠸⣿⣤⡈⠁⢤⣿⠇", color: "#CD7F32"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠷⠄", color: "#B8860B"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⢀⣀⠑⢶⣄⡀", color: "#B8860B"},
-	{line: "⠀⠀⠀⠀⠀⠀⠀⣿⠁⢰⡆⠈", color: "#B8860B"},
-	{line: "⣿⣿⠁⠈⠳⠈⠠⠋⠁", color: "#B8860B"},
-	{line: "⣿⠁", color: "#B8860B"},
-	{line: "⠈⠁", color: "#B8860B"},
+func bannerCaduceusColors(skin HermesSkin) []string {
+	skin = NormalizeStyleSkin(skin)
+	c := skin.Colors
+	return []string{c.BannerBorder, c.BannerAccent, c.BannerTitle, c.BannerTitle, c.BannerAccent, c.BannerDim}
 }
 
 func bannerLogo(skin HermesSkin) string {
 	var b strings.Builder
 	lines := strings.Split(gormesLogo, "\n")
+	colors := bannerLogoColors(skin)
 	for i, line := range lines {
 		colorIdx := i
-		if colorIdx >= len(logoGradientColors) {
-			colorIdx = len(logoGradientColors) - 1
+		if colorIdx >= len(colors) {
+			colorIdx = len(colors) - 1
 		}
-		s := lipgloss.NewStyle().Foreground(lipgloss.Color(logoGradientColors[colorIdx])).Render(line)
+		s := skinForeground(colors[colorIdx]).Render(line)
 		b.WriteString(s)
 		if i < len(lines)-1 {
 			b.WriteByte('\n')
@@ -76,17 +66,30 @@ func bannerLogo(skin HermesSkin) string {
 }
 
 func bannerCaduceus() string {
+	return bannerCaduceusWithSkin(DefaultHermesSkin())
+}
+
+func bannerCaduceusWithSkin(skin HermesSkin) string {
 	var b strings.Builder
-	for _, entry := range caduceusGradient {
-		s := lipgloss.NewStyle().Foreground(lipgloss.Color(entry.color)).Render(entry.line)
-		b.WriteString(s)
+	lines := strings.Split(caduceusArt, "\n")
+	colors := bannerCaduceusColors(skin)
+	for i, line := range lines {
+		colorIdx := i / 3
+		if colorIdx >= len(colors) {
+			colorIdx = len(colors) - 1
+		}
+		b.WriteString(skinForeground(colors[colorIdx]).Render(line))
 		b.WriteByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
 
 func bannerWelcome() string {
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true).Render(welcomeDefault)
+	return bannerWelcomeWithSkin(DefaultHermesSkin())
+}
+
+func bannerWelcomeWithSkin(skin HermesSkin) string {
+	return SkinStylesFor(skin).Title.Render(welcomeDefault)
 }
 
 // welcomeContext carries the live session data the welcome panel renders.

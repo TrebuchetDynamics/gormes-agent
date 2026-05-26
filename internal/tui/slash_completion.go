@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -148,6 +149,10 @@ func HermesSlashSubcommandCompletions(input string) []SlashCompletion {
 }
 
 func renderSlashCompletionMenu(input string, width int) string {
+	return renderSlashCompletionMenuWithSkin(input, width, DefaultHermesSkin())
+}
+
+func renderSlashCompletionMenuWithSkin(input string, width int, skin HermesSkin) string {
 	req, ok := CompletionRequestForInput(input)
 	if !ok || req.Method != TUICompletionSlash {
 		return ""
@@ -160,8 +165,13 @@ func renderSlashCompletionMenu(input string, width int) string {
 		return ""
 	}
 	limit := len(completions)
-	if limit > 6 {
-		limit = 6
+	if limit > 8 {
+		limit = 8
+	}
+	styles := SkinStylesFor(skin)
+	bodyWidth := width - 4
+	if bodyWidth < 20 {
+		bodyWidth = 20
 	}
 	nameW := 0
 	for _, c := range completions[:limit] {
@@ -176,13 +186,27 @@ func renderSlashCompletionMenu(input string, width int) string {
 	if nameW < 8 {
 		nameW = 8
 	}
-	descW := width - nameW - 6
-	if descW < 18 {
-		descW = 18
+	descW := bodyWidth - nameW - 5
+	if descW < 8 {
+		descW = 8
 	}
-	lines := make([]string, 0, limit)
-	for _, c := range completions[:limit] {
-		display := padRightRunes(truncateEllipsis(slashCompletionDisplay(c), nameW), nameW)
+	lines := make([]string, 0, limit+3)
+	query := strings.TrimSpace(req.Text)
+	if query == "" {
+		query = input
+	}
+	lines = append(lines, styles.Accent.Render(truncateEllipsis("╭─ Search "+query, bodyWidth)))
+	for idx, c := range completions[:limit] {
+		marker := "  "
+		rowStyle := styles.Normal
+		if idx == 0 {
+			marker = "❯ "
+			rowStyle = styles.Selected
+		}
+		if !c.Available {
+			rowStyle = styles.Dim
+		}
+		displayText := padRightRunes(truncateEllipsis(slashCompletionDisplay(c), nameW), nameW)
 		desc := strings.TrimSpace(c.Description)
 		if !c.Available {
 			if desc != "" {
@@ -191,8 +215,17 @@ func renderSlashCompletionMenu(input string, width int) string {
 				desc = "⚡ recognized, unavailable"
 			}
 		}
-		lines = append(lines, " "+display+"  "+truncateEllipsis(desc, descW))
+		line := "│ " + marker + rowStyle.Render(displayText)
+		if desc != "" {
+			line += "  " + styles.Dim.Render(truncateEllipsis(desc, descW))
+		}
+		lines = append(lines, line)
 	}
+	if extra := len(completions) - limit; extra > 0 {
+		lines = append(lines, styles.Dim.Render(fmt.Sprintf("│ … +%d more matches", extra)))
+	}
+	footer := "╰─ type to search · Enter run"
+	lines = append(lines, styles.Dim.Render(truncateEllipsis(footer, bodyWidth)))
 	return strings.Join(lines, "\n")
 }
 

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 )
 
@@ -169,6 +171,20 @@ func TestRenderSlashCompletionMenu_Subcommands(t *testing.T) {
 	got := renderSlashCompletionMenu("/browser ", 72)
 	if !strings.Contains(got, "status") || !strings.Contains(got, "connect") {
 		t.Fatalf("renderSlashCompletionMenu(/browser ) missing static subcommands:\n%s", got)
+	}
+}
+
+func TestRenderSlashCompletionMenu_SearchListChrome(t *testing.T) {
+	got := renderSlashCompletionMenuWithSkin("/sta", 52, BuiltinSkins()["poseidon"])
+	for _, want := range []string{"Search /sta", "❯", "/status", "type to search", "Enter run"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("search completion menu missing %q:\n%s", want, got)
+		}
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if w := lipgloss.Width(line); w > 52 {
+			t.Fatalf("search completion line width %d exceeds 52:\n%q\n\n%s", w, line, got)
+		}
 	}
 }
 

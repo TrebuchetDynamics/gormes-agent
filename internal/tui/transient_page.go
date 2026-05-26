@@ -15,6 +15,14 @@ type TransientPageState struct {
 }
 
 func RenderTransientPage(page TransientPageState, width, height int) string {
+	return renderTransientPage(page, width, height, SkinStyles{}, false)
+}
+
+func RenderTransientPageWithSkin(page TransientPageState, width, height int, skin HermesSkin) string {
+	return renderTransientPage(page, width, height, SkinStylesFor(skin), true)
+}
+
+func renderTransientPage(page TransientPageState, width, height int, styles SkinStyles, styled bool) string {
 	title := strings.TrimSpace(page.Title)
 	if title == "" {
 		title = "Page"
@@ -37,21 +45,21 @@ func RenderTransientPage(page TransientPageState, width, height int) string {
 	}
 
 	out := make([]string, 0, len(lines)+2)
-	out = append(out, "╭─ "+title)
+	out = append(out, renderSkinStyle(styled, styles.Title, "╭─ "+title))
 	if len(lines) == 0 {
-		out = append(out, "│ (empty)")
+		out = append(out, renderSkinStyle(styled, styles.Dim, "│ (empty)"))
 	} else {
 		for _, line := range lines {
 			if strings.TrimSpace(line) == "" {
-				out = append(out, "│")
+				out = append(out, renderSkinStyle(styled, styles.Separator, "│"))
 				continue
 			}
 			for _, wrapped := range strings.Split(RenderMarkdownSoftWrapTrim(line, bodyWidth), "\n") {
-				out = append(out, "│ "+wrapped)
+				out = append(out, renderSkinStyle(styled, styles.Separator, "│ ")+renderSkinStyle(styled, styles.Text, wrapped))
 			}
 		}
 	}
-	out = append(out, "╰─ Esc to close")
+	out = append(out, renderSkinStyle(styled, styles.Dim, "╰─ Esc to close"))
 	return strings.Join(out, "\n")
 }
 

@@ -1,20 +1,17 @@
 package tui
 
-import (
-	"strings"
-
-	"github.com/charmbracelet/lipgloss"
-)
+import "strings"
 
 func RenderDiff(skin HermesSkin, diffText string, maxLines int) string {
 	lines := strings.Split(diffText, "\n")
 	if maxLines > 0 && len(lines) > maxLines {
 		lines = lines[:maxLines]
 	}
-	minusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color("#601010"))
-	plusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color("#106010"))
-	hunkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(skin.Colors.SessionBorder))
-	fileStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(skin.Colors.SessionLabel))
+	styles := SkinStylesFor(skin)
+	minusStyle := styles.Bad
+	plusStyle := styles.Good
+	hunkStyle := styles.Separator
+	fileStyle := styles.Label
 
 	var b strings.Builder
 	for _, line := range lines {

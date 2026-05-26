@@ -9,10 +9,38 @@ import (
 	"testing"
 	"time"
 
+	basetui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 )
+
+func TestWizardStylesUseGormesSkinTokens(t *testing.T) {
+	skin := basetui.DefaultHermesSkin()
+	styles := basetui.SkinStylesFor(skin)
+	if got, want := styles.Prompt.GetForeground(), lipgloss.Color(skin.Colors.Prompt); got != want {
+		t.Fatalf("wizard prompt foreground = %v, want %v", got, want)
+	}
+	if got, want := styles.Selected.GetForeground(), lipgloss.Color(skin.Colors.UIAcent); got != want {
+		t.Fatalf("wizard selected foreground = %v, want %v", got, want)
+	}
+	if got, want := styles.Separator.GetForeground(), lipgloss.Color(skin.Colors.SessionBorder); got != want {
+		t.Fatalf("wizard separator foreground = %v, want %v", got, want)
+	}
+
+	m := newModel([]Step{Text("endpoint", "Gateway endpoint", WithPlaceholder("http://host"))})
+	if got, want := m.text.PromptStyle.GetForeground(), lipgloss.Color(skin.Colors.Prompt); got != want {
+		t.Fatalf("text input prompt foreground = %v, want %v", got, want)
+	}
+	if got, want := m.text.PlaceholderStyle.GetForeground(), lipgloss.Color(skin.Colors.Placeholder); got != want {
+		t.Fatalf("text input placeholder foreground = %v, want %v", got, want)
+	}
+
+	search := newModel([]Step{Pick("model", "Select model", []Choice{{ID: "a", Label: "A"}, {ID: "b", Label: "B"}}, WithSearchChoices())})
+	if got, want := search.searchInput.Cursor.Style.GetForeground(), lipgloss.Color(skin.Colors.UIAcent); got != want {
+		t.Fatalf("search input cursor foreground = %v, want %v", got, want)
+	}
+}
 
 func TestWizardChassis_ViewHardeningBoundsSetupUX(t *testing.T) {
 	long := strings.Repeat("x", 160)

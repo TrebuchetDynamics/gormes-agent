@@ -67,6 +67,7 @@ func (m *Model) applySkinName(name string) (string, error) {
 	m.activeSkinName = skin.Name
 	m.activeSkin = skin
 	m.editor.Prompt = prompt
+	ApplyTextareaSkin(&m.editor, skin)
 	return skin.Name, nil
 }
 

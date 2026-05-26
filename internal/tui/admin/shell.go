@@ -14,8 +14,10 @@ import (
 	"strings"
 	"sync"
 
+	basetui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"golang.org/x/term"
 )
 
@@ -23,6 +25,35 @@ import (
 // terminal. Callers translate this into admin_tui_requires_tty operator
 // evidence so automation does not hang on a piped stdin.
 var ErrRequiresTTY = errors.New("admin_tui_requires_tty")
+
+type adminShellStyles struct {
+	ActiveTab   lipgloss.Style
+	InactiveTab lipgloss.Style
+	Separator   lipgloss.Style
+	Status      lipgloss.Style
+	HelpHeader  lipgloss.Style
+	HelpSection lipgloss.Style
+	HelpKey     lipgloss.Style
+	HelpText    lipgloss.Style
+}
+
+func adminShellStylesForSkin(skin basetui.HermesSkin) adminShellStyles {
+	skin = basetui.NormalizeStyleSkin(skin)
+	shared := basetui.SkinStylesFor(skin)
+	return adminShellStyles{
+		ActiveTab: shared.Status.
+			Foreground(lipgloss.Color(skin.Colors.StatusBarBackground)).
+			Background(lipgloss.Color(skin.Colors.UIAcent)).
+			Bold(true),
+		InactiveTab: shared.Dim,
+		Separator:   shared.Separator,
+		Status:      shared.Status,
+		HelpHeader:  shared.Title,
+		HelpSection: shared.Label,
+		HelpKey:     shared.Accent,
+		HelpText:    shared.Text,
+	}
+}
 
 // Shell is the Bubble Tea root model for the admin TUI. Tests drive it
 // directly via teatest.NewTestModel; production callers use Run.
@@ -262,37 +293,43 @@ func (s *Shell) View() string {
 }
 
 func (s *Shell) renderHelpOverlayLocked() string {
+	styles := adminShellStylesForSkin(basetui.DefaultHermesSkin())
 	var b strings.Builder
-	b.WriteString("Admin help (? to close)\n")
+	b.WriteString(styles.HelpHeader.Render("Admin help (? to close)"))
+	b.WriteByte('\n')
 	for _, sc := range s.screens {
 		entries := sc.ShortHelp()
 		if len(entries) == 0 {
 			continue
 		}
-		fmt.Fprintf(&b, "  %s:\n", sc.Title())
+		fmt.Fprintf(&b, "  %s\n", styles.HelpSection.Render(sc.Title()+":"))
 		for _, e := range entries {
-			fmt.Fprintf(&b, "    %s  %s\n", strings.Join(e.Keys, "/"), e.Description)
+			keys := styles.HelpKey.Render(strings.Join(e.Keys, "/"))
+			desc := styles.HelpText.Render(e.Description)
+			fmt.Fprintf(&b, "    %s  %s\n", keys, desc)
 		}
 	}
 	return clampAdminShellBlock(b.String(), s.width, adminShellBodyHeight(s.height))
 }
 
 func (s *Shell) renderTabBarLocked() string {
+	styles := adminShellStylesForSkin(basetui.DefaultHermesSkin())
 	parts := make([]string, 0, len(s.screens))
 	for i, sc := range s.screens {
 		label := fmt.Sprintf("%d %s", i+1, sc.Title())
 		if i == s.active {
-			label = "[" + label + "]"
+			label = styles.ActiveTab.Render("[" + label + "]")
 		} else {
-			label = " " + label + " "
+			label = styles.InactiveTab.Render(" " + label + " ")
 		}
 		parts = append(parts, label)
 	}
-	return trimAdminShellLine(strings.Join(parts, " "), s.width)
+	return trimAdminShellLine(strings.Join(parts, styles.Separator.Render(" ")), s.width)
 }
 
 func (s *Shell) renderStatusBarLocked() string {
-	return trimAdminShellLine("tab/shift+tab cycle  q quit  ? help", s.width)
+	styles := adminShellStylesForSkin(basetui.DefaultHermesSkin())
+	return styles.Status.Render(trimAdminShellLine("⚕ Gormes · tab/shift+tab cycle · q quit · ? help", s.width))
 }
 
 func adminShellBodyHeight(total int) int {
@@ -346,17 +383,7 @@ func trimAdminShellLine(text string, width int) string {
 	if width == 1 {
 		return "…"
 	}
-	ellipsis := "…"
-	limit := width - lipgloss.Width(ellipsis)
-	used := 0
-	for i, r := range text {
-		rw := lipgloss.Width(string(r))
-		if used+rw > limit {
-			return strings.TrimRight(text[:i], " \t") + ellipsis
-		}
-		used += rw
-	}
-	return text
+	return ansi.Truncate(strings.TrimRight(text, " \t"), width, "…")
 }
 
 // Run is the production-facing entry. It refuses to start when in is not

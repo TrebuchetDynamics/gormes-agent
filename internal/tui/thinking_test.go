@@ -88,6 +88,25 @@ func TestThinking_NoTruncationWhenNotMarked(t *testing.T) {
 	}
 }
 
+func TestThinkingWithSkinUsesSharedStyles(t *testing.T) {
+	forceLipglossTrueColor(t)
+	skin := BuiltinSkins()["poseidon"]
+
+	thinking := RenderThinkingWithSkin(ThinkingState{Visible: true, Content: "checking style seams"}, skin)
+	for _, want := range []string{"🤔", "Reasoning", "checking style seams", "\x1b["} {
+		if !strings.Contains(thinking, want) {
+			t.Fatalf("styled thinking block missing %q:\n%s", want, thinking)
+		}
+	}
+
+	trail := RenderToolTrailWithSkin([]ToolCallNode{{Name: "bash", Status: ToolCallDone, Duration: 1500 * time.Millisecond}}, skin)
+	for _, want := range []string{"⚡", "✅", "bash", "1.5s", "\x1b["} {
+		if !strings.Contains(trail, want) {
+			t.Fatalf("styled tool trail missing %q:\n%s", want, trail)
+		}
+	}
+}
+
 // TestToolTrail_SingleNode verifies rendering a single tool call node.
 func TestToolTrail_SingleNode(t *testing.T) {
 	nodes := []ToolCallNode{

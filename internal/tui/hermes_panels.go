@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // =====================================================================
@@ -176,14 +178,22 @@ type ApprovalPanelState struct {
 // descriptions truncate. When ViewExpanded is true the command renders
 // verbatim with no "..." suffix.
 func RenderApprovalPanel(s ApprovalPanelState) string {
-	title := "⚠️  Dangerous Command"
+	return renderApprovalPanel(s, SkinStyles{}, false)
+}
+
+func RenderApprovalPanelWithSkin(s ApprovalPanelState, skin HermesSkin) string {
+	return renderApprovalPanel(s, SkinStylesFor(skin), true)
+}
+
+func renderApprovalPanel(s ApprovalPanelState, styles SkinStyles, styled bool) string {
+	title := renderSkinStyle(styled, styles.Critical, "⚠️  Dangerous Command")
 	cmd := s.Command
 	if !s.ViewExpanded && len(cmd) > 70 {
 		cmd = cmd[:70] + "..."
 	}
 
 	lines := []string{title, ""}
-	lines = append(lines, cmd, "")
+	lines = append(lines, renderSkinStyle(styled, styles.Bad, cmd), "")
 	// When ViewExpanded is true the "Show full command" choice has done
 	// its job; mirror cli.py:_handle_approval_selection which drops it
 	// from state["choices"] before re-rendering.
@@ -197,10 +207,13 @@ func RenderApprovalPanel(s ApprovalPanelState) string {
 	for i, choice := range visible {
 		num := numberedPrefix(i)
 		marker := "  "
+		choiceStyle := styles.Normal
 		if choice == s.Selected {
 			marker = "❯ "
+			choiceStyle = styles.Selected
 		}
-		lines = append(lines, marker+num+". "+approvalLabel(choice))
+		line := marker + num + ". " + approvalLabel(choice)
+		lines = append(lines, renderSkinStyle(styled, choiceStyle, line))
 	}
 	if strings.TrimSpace(s.Description) != "" {
 		desc := s.Description
@@ -215,9 +228,9 @@ func RenderApprovalPanel(s ApprovalPanelState) string {
 			desc = clampLines(desc, budget)
 		}
 		lines = append(lines, "")
-		lines = append(lines, desc)
+		lines = append(lines, renderSkinStyle(styled, styles.Dim, desc))
 	}
-	return boxify(lines)
+	return boxifyWithStyles(lines, styles, styled)
 }
 
 // =====================================================================
@@ -239,28 +252,40 @@ type ClarifyPanelState struct {
 // choice 1..N, marks the selected one with "❯", appends an "Other" option
 // numbered N+1, and surfaces the timeout hint inline at the bottom.
 func RenderClarifyPanel(s ClarifyPanelState) string {
-	title := "Hermes needs your input"
-	lines := []string{title, "", s.Question, ""}
+	return renderClarifyPanel(s, SkinStyles{}, false)
+}
+
+func RenderClarifyPanelWithSkin(s ClarifyPanelState, skin HermesSkin) string {
+	return renderClarifyPanel(s, SkinStylesFor(skin), true)
+}
+
+func renderClarifyPanel(s ClarifyPanelState, styles SkinStyles, styled bool) string {
+	title := renderSkinStyle(styled, styles.Title, "Hermes needs your input")
+	lines := []string{title, "", renderSkinStyle(styled, styles.Text, s.Question), ""}
 
 	for i, choice := range s.Choices {
 		num := numberedPrefix(i)
 		marker := "  "
+		choiceStyle := styles.Normal
 		if i == s.Selected {
 			marker = "❯ "
+			choiceStyle = styles.Selected
 		}
-		lines = append(lines, marker+num+". "+choice)
+		lines = append(lines, renderSkinStyle(styled, choiceStyle, marker+num+". "+choice))
 	}
 
 	otherIdx := len(s.Choices)
 	otherNum := numberedPrefix(otherIdx)
 	otherMarker := "  "
+	otherStyle := styles.Normal
 	if s.Selected == otherIdx {
 		otherMarker = "❯ "
+		otherStyle = styles.Selected
 	}
-	lines = append(lines, otherMarker+otherNum+". Other (type your answer)")
+	lines = append(lines, renderSkinStyle(styled, otherStyle, otherMarker+otherNum+". Other (type your answer)"))
 
 	if strings.TrimSpace(s.TimeoutHint) != "" {
-		lines = append(lines, "", "  ↑/↓ to select, Enter to confirm  "+s.TimeoutHint)
+		lines = append(lines, "", renderSkinStyle(styled, styles.Dim, "  ↑/↓ to select, Enter to confirm  "+s.TimeoutHint))
 	}
 
 	if s.Height > 0 {
@@ -274,7 +299,7 @@ func RenderClarifyPanel(s ClarifyPanelState) string {
 		}
 	}
 
-	return boxify(lines)
+	return boxifyWithStyles(lines, styles, styled)
 }
 
 // compactClarifyLines drops blank padding rows first so the numbered choices
@@ -339,23 +364,33 @@ type SecretPanelState struct {
 // countdown like "(45s)". It NEVER echoes secret bytes — by construction it
 // cannot, since SecretPanelState only carries the length.
 func RenderSecretPanel(s SecretPanelState) string {
+	return renderSecretPanel(s, SkinStyles{}, false)
+}
+
+func RenderSecretPanelWithSkin(s SecretPanelState, skin HermesSkin) string {
+	return renderSecretPanel(s, SkinStylesFor(skin), true)
+}
+
+func renderSecretPanel(s SecretPanelState, styles SkinStyles, styled bool) string {
 	title := "🔑 Skill Setup Required"
+	titleStyle := styles.Title
 	if s.Mode == SecretPanelSudo {
 		title = "🔒 Sudo Password Required"
+		titleStyle = styles.Critical
 	}
 	prompt := strings.TrimSpace(s.PromptText)
 	if prompt == "" {
 		prompt = "Enter secret"
 	}
-	lines := []string{title, "", prompt}
+	lines := []string{renderSkinStyle(styled, titleStyle, title), "", renderSkinStyle(styled, styles.Prompt, prompt)}
 	if strings.TrimSpace(s.Hint) != "" {
-		lines = append(lines, "", s.Hint)
+		lines = append(lines, "", renderSkinStyle(styled, styles.Dim, s.Hint))
 	}
 	if s.Countdown > 0 {
 		secs := int(s.Countdown / time.Second)
-		lines = append(lines, fmt.Sprintf("  (%ds)", secs))
+		lines = append(lines, renderSkinStyle(styled, styles.Warn, fmt.Sprintf("  (%ds)", secs)))
 	}
-	return boxify(lines)
+	return boxifyWithStyles(lines, styles, styled)
 }
 
 // =====================================================================
@@ -379,6 +414,10 @@ func numberedPrefix(i int) string {
 // boxify wraps body lines in a Unicode rounded box, using each line's own
 // length to size the box. Empty lines are preserved as visual gaps.
 func boxify(body []string) string {
+	return boxifyWithStyles(body, SkinStyles{}, false)
+}
+
+func boxifyWithStyles(body []string, styles SkinStyles, styled bool) string {
 	width := 0
 	for _, line := range body {
 		if w := visibleWidth(line); w > width {
@@ -390,30 +429,26 @@ func boxify(body []string) string {
 	}
 
 	var b strings.Builder
-	b.WriteString("╭" + strings.Repeat("─", width+2) + "╮\n")
+	b.WriteString(renderSkinStyle(styled, styles.Separator, "╭"+strings.Repeat("─", width+2)+"╮"))
+	b.WriteString("\n")
 	for _, line := range body {
 		pad := width - visibleWidth(line)
 		if pad < 0 {
 			pad = 0
 		}
-		b.WriteString("│ ")
+		b.WriteString(renderSkinStyle(styled, styles.Separator, "│ "))
 		b.WriteString(line)
 		b.WriteString(strings.Repeat(" ", pad))
-		b.WriteString(" │\n")
+		b.WriteString(renderSkinStyle(styled, styles.Separator, " │"))
+		b.WriteString("\n")
 	}
-	b.WriteString("╰" + strings.Repeat("─", width+2) + "╯\n")
+	b.WriteString(renderSkinStyle(styled, styles.Separator, "╰"+strings.Repeat("─", width+2)+"╯"))
+	b.WriteString("\n")
 	return b.String()
 }
 
-// visibleWidth returns the rune count of s. We approximate cell width by
-// rune count rather than pulling in a wcwidth dependency, which is
-// sufficient for substring-based test assertions.
 func visibleWidth(s string) int {
-	n := 0
-	for range s {
-		n++
-	}
-	return n
+	return lipgloss.Width(s)
 }
 
 // clampLines truncates a multi-line string body to at most n rows, appending

@@ -9,12 +9,17 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	basetui "github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
 )
+
+func defaultWizardStyles() basetui.SkinStyles {
+	return basetui.SkinStylesFor(basetui.DefaultHermesSkin())
+}
 
 var (
 	// ErrRequiresTTY is returned when an interactive wizard is requested
@@ -435,6 +440,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 			ti.EchoCharacter = '*'
 		}
 		ti.Width = setupInputWidth(m.width)
+		basetui.ApplyTextInputSkin(&ti, basetui.DefaultHermesSkin())
 		m.text = ti
 		return m.text.Focus()
 	case KindMultiLine:
@@ -445,6 +451,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 		ta.SetWidth(setupInputWidth(m.width))
 		ta.SetHeight(4)
 		ta.SetValue(step.value.Text)
+		basetui.ApplyTextareaSkin(&ta, basetui.DefaultHermesSkin())
 		m.area = ta
 		return m.area.Focus()
 	case KindPick:
@@ -453,6 +460,7 @@ func (m *model) prepareActiveStep() tea.Cmd {
 			ti.Prompt = ""
 			ti.Placeholder = "Type to filter..."
 			ti.Width = max(1, setupInputWidth(m.width)-10) // account for "Filter: " prefix
+			basetui.ApplyTextInputSkin(&ti, basetui.DefaultHermesSkin())
 			m.searchInput = ti
 			m.pickFiltered, m.pickFilteredIndices = FilterChoices(step.Choices, "")
 			m.pickCursor = 0
@@ -581,12 +589,13 @@ func (m model) renderRadioPick(step Step) string {
 func (m model) renderSearchPick(step Step) string {
 	var b strings.Builder
 
+	styles := defaultWizardStyles()
+
 	// Filter input with styled prompt
-	filterStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	b.WriteString(filterStyle.Render("  Filter: "))
+	b.WriteString(styles.Dim.Render("  Filter: "))
 	b.WriteString(m.searchInput.View())
 	if len(m.pickFiltered) == 0 && m.searchInput.Value() != "" {
-		b.WriteString(filterStyle.Render("  (no matches)"))
+		b.WriteString(styles.Dim.Render("  (no matches)"))
 	}
 	b.WriteString("\n")
 
@@ -595,8 +604,7 @@ func (m model) renderSearchPick(step Step) string {
 	if sepWidth < 1 {
 		sepWidth = 1
 	}
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
-	b.WriteString(sepStyle.Render(strings.Repeat("─", sepWidth)))
+	b.WriteString(styles.Separator.Render(strings.Repeat("─", sepWidth)))
 	b.WriteByte('\n')
 
 	// Filtered choice list with scroll window
@@ -609,25 +617,21 @@ func (m model) renderSearchPick(step Step) string {
 		visibleHeight = 3
 	}
 
-	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Bold(true)
-	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-
 	start, end := searchScrollWindow(m.pickCursor, len(m.pickFiltered), visibleHeight)
 	for i := start; i < end; i++ {
 		choice := m.pickFiltered[i]
 		prefix := "  "
-		style := normalStyle
+		style := styles.Normal
 		if i == m.pickCursor {
 			prefix = "❯ "
-			style = selectedStyle
+			style = styles.Selected
 		}
 		label := choice.Label
 		if label == "" {
 			label = choice.ID
 		}
 		// Index number for quick reference
-		idxStr := dimStyle.Render(fmt.Sprintf("%3d ", i+1))
+		idxStr := styles.Dim.Render(fmt.Sprintf("%3d ", i+1))
 		// Truncate label to fit within terminal width
 		prefixWidth := lipgloss.Width(prefix) + lipgloss.Width(idxStr)
 		maxLabelWidth := m.viewWidth() - prefixWidth
@@ -641,7 +645,7 @@ func (m model) renderSearchPick(step Step) string {
 	total := len(m.pickFiltered)
 	if total > visibleHeight {
 		indicator := fmt.Sprintf("  %d/%d", m.pickCursor+1, total)
-		b.WriteString(dimStyle.Render(indicator))
+		b.WriteString(styles.Dim.Render(indicator))
 	}
 
 	return strings.TrimRight(b.String(), "\n")
