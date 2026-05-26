@@ -235,7 +235,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes 635253b9 remains the donor for busy-input /steer behavior and Hermes b816fd4e2 adds a separate `/goal` loop with per-session persistence, fail-open judging, and bounded post-turn continuations. Gormes has completed steer and active-turn command bypass; the remaining weakness is now tracked as `Gateway persistent goal loop + continuation judge` rather than leaving `/goal` as a recognized-unavailable command."
           },
-          "item_count": 5
+          "item_count": 6
         },
         {
           "id": "2.G",

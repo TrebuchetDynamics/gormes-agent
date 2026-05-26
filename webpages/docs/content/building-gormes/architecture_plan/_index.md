@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 105/111 subphases shipped · 6 in progress · 0 planned
+**Overall:** 106/111 subphases shipped · 5 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -103,7 +103,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 6/7 subphases |
+| Phase 9 — Design & Security Hardening | ✅ | 7/7 subphases |
 
 ---
 
@@ -416,6 +416,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Mid-run steer injection between tool calls
 - [x] `gateway` Gateway-handled slash commands bypass active-session guard
 - [x] `gateway` Gateway persistent goal loop + continuation judge
+- [x] `gateway` Gateway/TUI /queue explicit FIFO slash parity
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 
@@ -1595,7 +1596,7 @@ classification and row-backed implementation queue.
 - [x] `docs` Built-with-Gormes page scaffold
 - [x] `docs` Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening 🔨
+## Phase 9 — Design & Security Hardening ✅
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
@@ -1625,7 +1626,7 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox HTTP gateway connect command
 - [x] `navivox` Navivox setup QR image pairing handoff
 
-### 9.F — Navivox Operator Activation 🔨
+### 9.F — Navivox Operator Activation ✅
 
 - [x] `navivox` Navivox HTTP/WS documentation refresh
 - [x] `navivox` Navivox connect-and-talk first screen
@@ -1636,11 +1637,11 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox natural-language profile seed backend API
 - [x] `navivox` Navivox natural-language profile seed Flutter UI
 - [x] `navivox` Navivox structured tool event cards backend API
-- [ ] `navivox` Navivox structured tool event cards Flutter UI
+- [x] `navivox` Navivox structured tool event cards Flutter UI
 - [x] `navivox` Navivox safe config admin backend API
 - [x] `navivox` Navivox safe config admin Flutter UI
 - [x] `navivox` Navivox voice run records backend API
-- [ ] `navivox` Navivox voice run records Flutter inspection UI
+- [x] `navivox` Navivox voice run records Flutter inspection UI
 - [x] `navivox` Navivox per-profile BYO voice profiles backend API
 - [x] `navivox` Navivox per-profile BYO voice profiles Flutter UI
 

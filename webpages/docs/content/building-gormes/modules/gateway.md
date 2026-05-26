@@ -7,9 +7,9 @@ title: "Gateway Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `gateway`
-**Rows:** 160
-**Status counts:** `complete`: 160 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 14 · `P1`: 51 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 161
+**Status counts:** `complete`: 161 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 14 · `P1`: 52 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -187,6 +187,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P0` | `gateway` | Mid-run steer injection between tool calls |
 | `complete` | `P0` | `gateway` | Gateway-handled slash commands bypass active-session guard |
 | `complete` | `P1` | `gateway` | Gateway persistent goal loop + continuation judge |
+| `complete` | `P1` | `gateway` | Gateway/TUI /queue explicit FIFO slash parity |
 
 ### 2.G — OS-AI Spine: Skills Runtime
 

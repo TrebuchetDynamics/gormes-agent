@@ -1615,9 +1615,9 @@
     "item": {
       "name": "Navivox structured tool event cards Flutter UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "The sibling Navivox Flutter app consumes the Gormes backend structured tool-progress contract, upserts one durable ToolCallCard per tool_call_id for started/updated/finished states, renders redacted artifact rows, and never converts tool events into assistant prose.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1644,16 +1644,13 @@
         "The UI displays raw tool arguments, stdout, credentials, or full logs.",
         "The UI changes the Gormes backend contract or requires non-repo credentials to validate."
       ],
-      "blocked_by": [
-        "Navivox structured tool event cards backend API"
-      ],
       "acceptance": [
         "GatewayNavivoxChannel upserts a single ToolCall message per tool_call_id for started, updated, and finished backend events.",
         "ToolCallCard renders status, summary, approval state when present, and bounded artifact rows with id/kind/title/summary/ref.",
         "Malformed or oversized event metadata is truncated/redacted in UI fixtures and never becomes assistant prose.",
         "Existing chat fixtures remain green for normal assistant streaming and final messages."
       ],
-      "note": "planner_split: 2026-05-23 iteration 66; sibling Flutter child row, intentionally out of repo-only scope unless Juan expands scope. source_ref repair 2026-05-25: current Navivox chat tool-card renderer lives in transcript_bubble.dart and transcript_tool_call_presentation.dart; historical simple_chat_adapter.dart source ref is obsolete.",
+      "note": "planner_split: 2026-05-23 iteration 66; sibling Flutter child row, intentionally out of repo-only scope unless Juan expands scope. source_ref repair 2026-05-25: current Navivox chat tool-card renderer lives in transcript_bubble.dart and transcript_tool_call_presentation.dart; historical simple_chat_adapter.dart source ref is obsolete. Complete 2026-05-26: verified the sibling Navivox Flutter app consumes backend structured tool-progress lifecycle events as one durable ToolCallCard per tool_call_id, preserves started/updated/finished status, renders approval and bounded artifact rows, redacts malformed/secret metadata, and keeps tool progress out of assistant prose. Validation: `cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat`; `go run ./cmd/progress validate`; `git diff --check`.",
       "write_scope": [
         "../navivox-app/lib/core/gateway/navivox_gateway_protocol.dart",
         "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
@@ -1942,9 +1939,9 @@
     "item": {
       "name": "Navivox voice run records Flutter inspection UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Render the sibling Flutter Navivox inspection surface for backend run records after the Gormes run-record API lands. The app should fetch or receive redacted run records, show text and voice transcript evidence, STT/TTS metadata, tool timeline cards, attachment/artifact refs, terminal status, and provider usage/cost with explicit unknown states. This row is intentionally cross-root and must not be selected during repo-only Gormes iterations.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1974,15 +1971,13 @@
         "The slice reports fake token cost when provider usage is absent.",
         "The slice edits Gormes backend persistence instead of consuming the backend contract from the app side."
       ],
-      "blocked_by": [
-        "Navivox voice run records backend API"
-      ],
       "acceptance": [
         "After a text turn ends, the app can open a run detail or transcript panel showing redacted transcript, status, timestamps, session/run ids, and provider usage when available.",
         "After a voice turn ends, the app renders device transcript, optional server STT evidence, audio duration/codec metadata, TTS metadata, and explicit raw-audio retention status.",
         "Typed tool timeline entries render as tool cards or bounded timeline rows instead of assistant prose.",
         "Provider usage/cost fields render as `unknown` or unavailable when absent; the UI never fabricates zero cost."
       ],
+      "note": "Complete 2026-05-26: added sibling Navivox Flutter chat-run inspection from message actions through NavivoxChannel.runRecord, plus a redacted run-record presentation/sheet for transcript rows, voice evidence, raw-audio retention, typed tool timeline artifact refs, and explicit unknown provider usage/cost states. Validation: RED compile/action failures for missing run-record presentation/sheet/action; `cd ../navivox-app && flutter test test/features/chat/transcript_run_record_presentation_test.dart test/features/chat/transcript_run_record_sheet_test.dart test/features/chat/chat_run_record_inspection_test.dart test/features/chat/transcript_message_action_presentation_test.dart test/features/chat/transcript_message_action_sheet_test.dart`; `cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat`; `go run ./cmd/progress validate`; `git diff --check`.",
       "write_scope": [
         "../navivox-app/lib/core/protocol/navivox_event.dart",
         "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",

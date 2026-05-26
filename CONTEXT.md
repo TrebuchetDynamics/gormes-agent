@@ -54,6 +54,20 @@ _Avoid_: write script, docs side effects
 A typed view over Progress Rows that exposes only the fields needed for one purpose, such as active handoff, shipped evidence, or row health, while preserving the Logical Backlog as the source.
 _Avoid_: separate store, shadow backlog
 
+### Gateway Runtime Contract
+
+**Gateway CLI Orchestrator**:
+The operator-facing gateway command surface that loads gateway configuration and secrets, validates startup safety, assembles enabled channel runtimes with session and memory services, and coordinates process lifecycle operations such as run, stop, restart, reload, and status. It is not a platform-specific message transport.
+_Avoid_: Telegram adapter, channel implementation, generic gateway internals
+
+**Channel Adapter**:
+A platform-specific transport boundary that converts one messaging platform's inbound and outbound API into Gormes gateway events and replies. It owns platform quirks such as message formatting, attachment handling, batching, and API retries; it does not own gateway process lifecycle or cross-channel startup policy.
+_Avoid_: gateway CLI, gateway process manager, runtime orchestrator
+
+**Gateway Channel Registration**:
+The Gateway CLI Orchestrator step that inspects configured channel credentials/accounts, invokes the relevant Channel Adapter factories, registers runnable channels with the gateway manager, and records degraded channel evidence for configured-but-unrunnable platforms. It is a startup assembly concern, not message handling or process lifecycle control.
+_Avoid_: channel transport logic, gateway stop/restart logic, provider setup
+
 ### Navivox Channel Contract
 
 **Navivox Capability Gate**:

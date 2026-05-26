@@ -18,14 +18,14 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Doctor](doctor/) | 16 | 16 | 0 | 0 | `P1`: 5 · `P2`: 7 · `P3`: 2 · `unset`: 2 |
 | [Docs](docs/) | 22 | 19 | 0 | 3 | `P1`: 13 · `P2`: 7 · `P3`: 2 |
 | [Fleet](fleet/) | 23 | 23 | 0 | 0 | `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
-| [Gateway](gateway/) | 160 | 160 | 0 | 0 | `P0`: 14 · `P1`: 51 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
+| [Gateway](gateway/) | 161 | 161 | 0 | 0 | `P0`: 14 · `P1`: 52 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
 | [Goncho](goncho/) | 45 | 45 | 0 | 0 | `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
 | [Install](install/) | 30 | 30 | 0 | 0 | `P0`: 2 · `P1`: 17 · `P2`: 4 · `P3`: 3 · `unset`: 4 |
 | [Kanban](kanban/) | 33 | 33 | 0 | 0 | `P1`: 14 · `P2`: 19 |
 | [Landing](landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |
 | [Learning Loop](learning-loop/) | 6 | 6 | 0 | 0 | `P1`: 3 · `P2`: 2 · `P3`: 1 |
 | [Memory](memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
-| [Navivox](navivox/) | 28 | 26 | 0 | 2 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
+| [Navivox](navivox/) | 28 | 28 | 0 | 0 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
 | [Planner](planner/) | 10 | 10 | 0 | 0 | `P0`: 1 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Profiles](profiles/) | 24 | 24 | 0 | 0 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `unset`: 6 |
 | [Progress](progress/) | 26 | 26 | 0 | 0 | `P1`: 11 · `P2`: 15 |

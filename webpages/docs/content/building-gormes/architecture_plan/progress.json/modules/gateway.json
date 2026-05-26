@@ -5833,6 +5833,77 @@
   },
   {
     "phase": "2",
+    "subphase": "2.F.5",
+    "pos": 5,
+    "item": {
+      "name": "Gateway/TUI /queue explicit FIFO slash parity",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port Hermes' explicit `/queue`/`/q` operator command through Gormes gateway channels and the native TUI. `/queue <prompt>` queues exactly one full follow-up user turn without interrupting an active run, preserves FIFO order across multiple invocations, reports queue depth, and never merges queued prompts or submits raw slash text to the model. Native TUI `/queue` with no args reports local queue depth; `/queue <prompt>` appends to the same visible queued-message buffer that drains after the active turn.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "degraded_mode": "Missing arguments return `Usage: /queue <prompt>` in gateway and a queue-depth status in TUI; full queues return the existing busy queue-full evidence without submitting to the model. Gateway `/queue <prompt>` with no active turn returns queue_unavailable guidance instead of silently parking an undrainable prompt or submitting raw slash text.",
+      "fixture": "internal/gateway/queue_command_test.go; internal/tui/queue_slash_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/commands.py:CommandDef(\"queue\")",
+        "./hermes-agent/gateway/run.py:GatewayRunner._enqueue_fifo",
+        "./hermes-agent/gateway/run.py:GatewayRunner._promote_queued_event",
+        "./hermes-agent/gateway/run.py:/queue handler in _process_message_background",
+        "./hermes-agent/gateway/run.py:queued follow-up drain after agent completion",
+        "./hermes-agent/ui-tui/src/app/slash/commands/core.ts:queue command",
+        "internal/gateway/manager.go:handleQueueCommand, queueFollowUpIfActive, drainNextFollowUp",
+        "internal/tui/slash_dispatch.go:queueSlashHandler",
+        "internal/tui/update.go:queueFollowUpDraft and drainQueuedFollowUp",
+        "internal/cli/command_registry.go:queue ported with queue active-turn policy"
+      ],
+      "ready_when": [
+        "Gateway manager active-turn follow-up queue and terminal-frame drain are present.",
+        "Native TUI queued-message buffer, visible queue widget, and post-turn drain are present.",
+        "/queue remains recognized in the command registry so raw slash text is blocked from model submission."
+      ],
+      "not_ready_when": [
+        "The implementation would replace the existing active-turn queue with a new side queue instead of reusing manager/TUI queue seams.",
+        "The gateway path cannot prove each /queue invocation becomes a separate FIFO follow-up turn.",
+        "The slice changes /steer, /busy, restart drain, or media-follow-up semantics beyond the minimum needed to expose explicit /queue."
+      ],
+      "acceptance": [
+        "Gateway `/queue later` during an active turn acknowledges queued status, does not call the kernel immediately, and submits `later` as the next full user turn after the first turn finalizes.",
+        "Two gateway `/queue` invocations preserve FIFO order and report depth without merging prompts.",
+        "Gateway `/q later` aliases `/queue later`; `/queue` without args returns usage; raw `/queue ...` never appears in submitted model text.",
+        "Native TUI `/queue later` appends `later` to the visible queued-message buffer without model submission while busy; `/queue` reports the current queue depth; queued text drains through the existing submit path when the turn settles.",
+        "Command registries mark `/queue` as ported with active-turn queue/drain behavior on the gateway and busy-available local behavior in the TUI."
+      ],
+      "note": "Completed 2026-05-26 in commit 4155335cc feat: handle queued slash prompts. Gormes now ports Hermes' explicit /queue and /q command through gateway dispatch and native TUI slash dispatch. Gateway /queue queues one full FIFO follow-up per invocation while an active turn is pinned, reports depth, degrades when no active turn can drain the queue, and strips raw slash text before kernel submission. Native TUI /queue appends to the existing visible queued-message buffer, reports depth with no args, and drains through the existing post-turn submit path.",
+      "write_scope": [
+        "internal/gateway/commands.go",
+        "internal/gateway/commands_test.go",
+        "internal/gateway/event.go",
+        "internal/gateway/manager.go",
+        "internal/gateway/queue_command_test.go",
+        "internal/gateway/skill_slash.go",
+        "internal/cli/command_registry.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "internal/tui/queue_slash_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestManagerQueueCommand' -count=1",
+        "go test ./internal/tui -run 'TestQueueSlash' -count=1",
+        "go test ./internal/cli ./internal/cli/gormescli -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/gateway/queue_command_test.go proves /queue and /q FIFO follow-up behavior, usage, depth, no-active-turn degradation, and no raw slash leakage.",
+        "internal/tui/queue_slash_test.go proves /queue appends to/drains the local queued-message buffer and reports queue depth without immediate model submission.",
+        "internal/gateway/commands_test.go plus internal/cli registry tests prove /queue is ported and maps to drain/queue active-turn policy instead of unavailable fallback."
+      ]
+    }
+  },
+  {
+    "phase": "2",
     "subphase": "2.G",
     "pos": 0,
     "item": {
