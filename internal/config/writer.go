@@ -609,6 +609,8 @@ func coerceTOMLValue(section string, fields []string, value string) (any, error)
 		return value, nil
 	case "navivox.allow_origins", "navivox.allowed_tailnet_identities":
 		return parseEnvCSV(value), nil
+	case "skills.external_dirs":
+		return coerceTOMLStringList(value), nil
 	case "agents.defaults.workspaces", "agents.defaults.skills", "agents.defaults.channels":
 		// Gormes-owned per-profile multi-workspace list, the existing
 		// agents.defaults.skills list, and the per-profile channels list:
@@ -620,6 +622,22 @@ func coerceTOMLValue(section string, fields []string, value string) (any, error)
 		}
 		return coerceTOMLScalar(value)
 	}
+}
+
+func coerceTOMLStringList(value string) []string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || trimmed == "[]" {
+		return []string{}
+	}
+	if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+		var parsed struct {
+			Value []string `toml:"value"`
+		}
+		if err := toml.Unmarshal([]byte("value = "+trimmed), &parsed); err == nil {
+			return compactStrings(parsed.Value)
+		}
+	}
+	return parseEnvCSV(value)
 }
 
 func coerceTOMLInt64List(value string) ([]int64, error) {

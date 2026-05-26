@@ -195,6 +195,10 @@ type Options struct {
 	// nil keeps /kanban consumed with unavailable evidence; cmd/gormes wires
 	// this to the same Cobra command tree as `gormes kanban`.
 	KanbanSlash KanbanSlashFunc
+	// SkillsCommand is the injected local command runner invoked by /skills.
+	// nil falls back to gateway.HandleSkillsCommand so read-only skills commands
+	// still work in tests and legacy callers; cmd/gormes wires URL install seams.
+	SkillsCommand func(string) string
 	// GatewayLogTail is the injected gateway log-tail reader invoked by /logs.
 	// nil keeps /logs consumed with `no gateway logs`; cmd/gormes wires a
 	// bounded live-gateway/file-fallback adapter for local TUI startup.
@@ -347,6 +351,7 @@ type Model struct {
 	sessionExport      SessionExportFunc
 	clipboardWrite     func(string) error
 	kanbanSlash        KanbanSlashFunc
+	skillsCommand      func(string) string
 	gatewayLogTail     GatewayLogTailFunc
 	sessionTitle       SessionTitleFunc
 	sessionDirectory   SessionDirectoryFunc
@@ -426,6 +431,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		sessionExport:      opts.SessionExport,
 		clipboardWrite:     opts.ClipboardWrite,
 		kanbanSlash:        opts.KanbanSlash,
+		skillsCommand:      opts.SkillsCommand,
 		gatewayLogTail:     opts.GatewayLogTail,
 		sessionTitle:       opts.SessionTitle,
 		sessionDirectory:   opts.SessionDirectory,

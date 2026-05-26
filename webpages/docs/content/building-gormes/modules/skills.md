@@ -7,9 +7,9 @@ title: "Skills Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `skills`
-**Rows:** 46
-**Status counts:** `complete`: 46 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 6 · `P1`: 8 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9
+**Rows:** 48
+**Status counts:** `complete`: 48 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 6 · `P1`: 10 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9
 
 ## Phase 1 — The Dashboard
 
@@ -109,6 +109,8 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P0` | `skills` | Hermes curator command surface |
 | `complete` | `P1` | `skills` | Hermes curator archive/list/prune CLI catch-up |
 | `complete` | `P1` | `skills` | Native skills list/view tool surface |
+| `complete` | `P1` | `skills` | TUI and gateway direct URL skill install binding |
+| `complete` | `P1` | `skills` | Hermes/Pi external skill directories config binding |
 
 ### 6.H — Skill Metadata Placement
 

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
@@ -19,6 +20,8 @@ import (
 type SkillsCommandOptions struct {
 	SkillsRoot          string
 	BundledRoot         string
+	ExternalDirs        []string
+	URLInstall          skills.URLInstallPolicy
 	Disabled            map[string]struct{}
 	HubProviders        []skills.HubRegistryProvider
 	PageSize            int
@@ -29,7 +32,39 @@ type SkillsCommandOptions struct {
 // HandleSkillsCommand parses and executes /skills subcommands.
 // Returns the text output to render in the channel.
 func HandleSkillsCommand(body string) string {
-	return HandleSkillsCommandWithOptions(context.Background(), body, SkillsCommandOptions{})
+	opts := SkillsCommandOptions{}
+	if skillsCommandNeedsInstalledRoots(body) {
+		opts = defaultSkillsCommandOptions()
+	}
+	return HandleSkillsCommandWithOptions(context.Background(), body, opts)
+}
+
+func skillsCommandNeedsInstalledRoots(body string) bool {
+	text := strings.TrimSpace(body)
+	text = strings.TrimPrefix(text, "/skills")
+	parts := strings.Fields(strings.TrimSpace(text))
+	if len(parts) == 0 {
+		return false
+	}
+	switch strings.ToLower(parts[0]) {
+	case "list", "inspect", "view", "show":
+		return true
+	default:
+		return false
+	}
+}
+
+func defaultSkillsCommandOptions() SkillsCommandOptions {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return SkillsCommandOptions{}
+	}
+	externalDirs, _ := cfg.ExternalSkillsDirs()
+	return SkillsCommandOptions{
+		SkillsRoot:   cfg.SkillsRoot(),
+		BundledRoot:  skills.BundledRoot(),
+		ExternalDirs: externalDirs,
+	}
 }
 
 // HandleSkillsCommandWithOptions parses and executes /skills subcommands using
@@ -59,7 +94,9 @@ func HandleSkillsCommandWithOptions(ctx context.Context, body string, opts Skill
 		return handleSkillsSearch(ctx, parts[1:], opts)
 	case "browse":
 		return handleSkillsBrowse(ctx, parts[1:], opts)
-	case "install", "edit", "disable", "review":
+	case "install":
+		return handleSkillsInstall(ctx, parts[1:], opts)
+	case "edit", "disable", "review":
 		return renderSkillsManageUnavailable(subcommand)
 	case "help":
 		return renderSkillsHelp()
@@ -111,6 +148,7 @@ func handleSkillsList(args []string, opts SkillsCommandOptions) string {
 	hubCount := 0
 	builtinCount := 0
 	localCount := 0
+	externalCount := 0
 	enabledCount := 0
 	disabledCount := 0
 
@@ -120,6 +158,8 @@ func handleSkillsList(args []string, opts SkillsCommandOptions) string {
 			hubCount++
 		case "builtin":
 			builtinCount++
+		case "external":
+			externalCount++
 		default:
 			localCount++
 		}
@@ -130,8 +170,8 @@ func handleSkillsList(args []string, opts SkillsCommandOptions) string {
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("\n(%d hub-installed, %d builtin, %d local — %d enabled, %d disabled)\n",
-		hubCount, builtinCount, localCount, enabledCount, disabledCount))
+	b.WriteString(fmt.Sprintf("\n(%d hub-installed, %d builtin, %d local, %d external — %d enabled, %d disabled)\n",
+		hubCount, builtinCount, localCount, externalCount, enabledCount, disabledCount))
 
 	return b.String()
 }
@@ -191,7 +231,11 @@ func handleSkillsInspect(name string, opts SkillsCommandOptions) string {
 				if len(skill.Body) > 2000 {
 					b.WriteString(fmt.Sprintf("\n... (%d more characters)", len(skill.Body)-2000))
 				}
+			} else {
+				b.WriteString("Evidence: skills_external_dir_skipped reason=skill_parse_failed\n")
 			}
+		} else {
+			b.WriteString("Evidence: skills_external_dir_skipped reason=skill_file_unavailable\n")
 		}
 	}
 
@@ -200,6 +244,33 @@ func handleSkillsInspect(name string, opts SkillsCommandOptions) string {
 	b.WriteString(fmt.Sprintf("Status: %s\n", found.Status))
 
 	return b.String()
+}
+
+func handleSkillsInstall(ctx context.Context, args []string, opts SkillsCommandOptions) string {
+	parsed := parseSkillsCommandArgs(args)
+	if len(parsed.positionals) == 0 {
+		return "Usage: /skills install <https://.../SKILL.md> --name <safe-name> [--category <category>]\n"
+	}
+	req := skills.URLInstallRequest{
+		URL:              parsed.positionals[0],
+		NameOverride:     parsed.value("name"),
+		CategoryOverride: parsed.value("category"),
+		Interactive:      false,
+	}
+	ev := skills.PerformURLInstall(ctx, opts.URLInstall, req)
+	return renderSkillsInstallEvidence(ev, opts)
+}
+
+func renderSkillsInstallEvidence(ev skills.URLInstallEvidence, opts SkillsCommandOptions) string {
+	code := strings.TrimSpace(ev.Code)
+	if code == "" {
+		code = "skills_install_unknown"
+	}
+	reason := sanitizeSkillCommandText(ev.Reason, opts)
+	if reason == "" {
+		return code + "\n"
+	}
+	return fmt.Sprintf("%s: %s\n", code, reason)
 }
 
 func handleSkillsSearch(ctx context.Context, args []string, opts SkillsCommandOptions) string {
@@ -291,14 +362,15 @@ func renderSkillsManageUnavailable(action string) string {
 func renderSkillsHelp() string {
 	return `Skills commands:
   /skills list            List all installed skills
-  /skills list --source hub|builtin|local  Filter by source
+  /skills list --source hub|builtin|local|external  Filter by source
   /skills inspect <name>  Show details for a specific installed skill
+  /skills install <https://.../SKILL.md> --name <safe-name>  Install a direct URL skill
   /skills search <query>  Search read-only skill hub metadata
   /skills browse [page]   Browse read-only skill hub metadata
   /skills help            Show this help
 
 Read-only note:
-  /skills install, edit, disable, and review return row-backed unavailable evidence in this build.
+  /skills edit, disable, and review return row-backed unavailable evidence in this build.
 
 Examples:
   /skills list
@@ -310,7 +382,8 @@ Examples:
 }
 
 func listInstalledSkillsForCommand(listOpts skills.ListOptions, opts SkillsCommandOptions) []skills.SkillRow {
-	if strings.TrimSpace(opts.SkillsRoot) != "" || strings.TrimSpace(opts.BundledRoot) != "" {
+	listOpts.ExternalRoots = opts.ExternalDirs
+	if strings.TrimSpace(opts.SkillsRoot) != "" || strings.TrimSpace(opts.BundledRoot) != "" || len(opts.ExternalDirs) > 0 {
 		return skills.ListInstalledSkillsFromRoots(opts.SkillsRoot, opts.BundledRoot, listOpts, opts.Disabled)
 	}
 	return skills.ListInstalledSkills(listOpts, opts.Disabled)
@@ -425,7 +498,7 @@ type skillsPlainReplySender interface {
 }
 
 func (m *Manager) handleSkillsCommand(ctx context.Context, ch Channel, ev InboundEvent) {
-	_, _ = m.sendSkillsCommandReply(ctx, ch, ev.ChatID, ev.MsgID, HandleSkillsCommand(ev.Text))
+	_, _ = m.sendSkillsCommandReply(ctx, ch, ev.ChatID, ev.MsgID, HandleSkillsCommandWithOptions(ctx, ev.Text, m.cfg.SkillsCommandOptions))
 }
 
 func (m *Manager) sendSkillsCommandReply(ctx context.Context, ch Channel, chatID, replyToMsgID, text string) (string, error) {

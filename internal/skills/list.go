@@ -23,8 +23,9 @@ type SkillRow struct {
 }
 
 type ListOptions struct {
-	Source      string
-	EnabledOnly bool
+	Source        string
+	EnabledOnly   bool
+	ExternalRoots []string
 }
 
 type skillListMeta struct {
@@ -41,7 +42,7 @@ func ListInstalledSkills(opts ListOptions, disabled map[string]struct{}) []Skill
 // runtime root plus an optional bundled catalog root. CLI and gateway callers
 // use this when config has already resolved the runtime skills root.
 func ListInstalledSkillsFromRoots(root, bundledRoot string, opts ListOptions, disabled map[string]struct{}) []SkillRow {
-	rows := installedSkillRows(root, bundledRoot)
+	rows := installedSkillRows(root, bundledRoot, opts.ExternalRoots)
 	source := normalizedListSource(opts.Source)
 	disabledNames := normalizedDisabledSet(disabled)
 
@@ -70,7 +71,7 @@ func ListInstalledSkillsFromRoots(root, bundledRoot string, opts ListOptions, di
 	return out
 }
 
-func installedSkillRows(root, bundledRoot string) []SkillRow {
+func installedSkillRows(root, bundledRoot string, externalRoots []string) []SkillRow {
 	store := NewStore(root, 0)
 	snapshot, err := store.SnapshotActive()
 	if err != nil {
@@ -78,9 +79,13 @@ func installedSkillRows(root, bundledRoot string) []SkillRow {
 	}
 
 	rows := make([]SkillRow, 0, len(snapshot.Skills))
+	seen := map[string]bool{}
 	for _, skill := range snapshot.Skills {
-		rows = append(rows, activeSkillRow(store.ActiveDir(), skill))
+		row := activeSkillRow(store.ActiveDir(), skill)
+		rows = append(rows, row)
+		markSkillSeen(seen, row.Name)
 	}
+	rows = append(rows, externalSkillRows(externalRoots, seen)...)
 	rows = append(rows, bundledSkillRows(bundledRoot)...)
 	return rows
 }
@@ -111,6 +116,33 @@ func bundledSkillRows(root string) []SkillRow {
 		row.Source = normalizeInstalledSource(firstNonBlank(meta.Source, "builtin"))
 		row.Trust = firstNonBlank(meta.Trust, "system")
 		rows = append(rows, row)
+	}
+	return rows
+}
+
+func externalSkillRows(roots []string, seen map[string]bool) []SkillRow {
+	var rows []SkillRow
+	for _, root := range roots {
+		root = strings.TrimSpace(root)
+		if root == "" {
+			continue
+		}
+		skills, err := loadSkillDocsFromDir(root, DefaultMaxDocumentBytes)
+		if err != nil {
+			continue
+		}
+		for _, skill := range skills {
+			row := baseSkillRow(skill)
+			if skillSeen(seen, row.Name) {
+				continue
+			}
+			meta := readSkillListMeta(skill.Path)
+			row.Category = firstNonBlank(meta.Category, bundledCategoryFromSkillPath(root, skill.Path))
+			row.Source = normalizeInstalledSource(firstNonBlank(meta.Source, "external"))
+			row.Trust = firstNonBlank(meta.Trust, defaultTrustForSource(row.Source))
+			rows = append(rows, row)
+			markSkillSeen(seen, row.Name)
+		}
 	}
 	return rows
 }
@@ -339,7 +371,7 @@ func normalizedListSource(source string) string {
 		return "all"
 	}
 	switch source {
-	case "all", "hub", "builtin", "local":
+	case "all", "hub", "builtin", "local", "external":
 		return source
 	default:
 		return source
@@ -349,7 +381,7 @@ func normalizedListSource(source string) string {
 func normalizeInstalledSource(source string) string {
 	source = normalizedListSource(source)
 	switch source {
-	case "hub", "builtin", "local":
+	case "hub", "builtin", "local", "external":
 		return source
 	default:
 		return "local"
@@ -362,6 +394,8 @@ func defaultTrustForSource(source string) string {
 		return "community"
 	case "builtin":
 		return "builtin"
+	case "external":
+		return "operator"
 	default:
 		return "local"
 	}
@@ -374,4 +408,21 @@ func firstNonBlank(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func markSkillSeen(seen map[string]bool, name string) {
+	if seen == nil {
+		return
+	}
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name != "" {
+		seen[name] = true
+	}
+}
+
+func skillSeen(seen map[string]bool, name string) bool {
+	if seen == nil {
+		return false
+	}
+	return seen[strings.ToLower(strings.TrimSpace(name))]
 }

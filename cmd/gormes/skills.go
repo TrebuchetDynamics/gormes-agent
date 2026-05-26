@@ -14,6 +14,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/spf13/cobra"
 )
@@ -52,6 +53,8 @@ func newSkillsCommandWithProfileSync(syncSeams skillsProfileSyncSeams) *cobra.Co
 			if err != nil {
 				return nil
 			}
+			externalRoots, _ := cfg.ExternalSkillsDirs()
+			opts.ExternalRoots = externalRoots
 			return skills.ListInstalledSkillsFromRoots(cfg.SkillsRoot(), skills.BundledRoot(), opts, disabled)
 		},
 		DisabledSkills: func(string) map[string]struct{} { return nil },
@@ -221,6 +224,19 @@ func newSkillsSyncCommand(seams skillsProfileSyncSeams) *cobra.Command {
 	return cmd
 }
 
+func skillsCommandOptionsForConfig(cfg config.Config) gateway.SkillsCommandOptions {
+	externalRoots, _ := cfg.ExternalSkillsDirs()
+	return gateway.SkillsCommandOptions{
+		SkillsRoot:   cfg.SkillsRoot(),
+		BundledRoot:  skills.BundledRoot(),
+		ExternalDirs: externalRoots,
+		URLInstall: skills.URLInstallPolicy{
+			Fetcher: httpSkillFetcher{client: &http.Client{Timeout: 30 * time.Second}},
+			Store:   configSkillStore{root: cfg.SkillsRoot()},
+		},
+	}
+}
+
 func defaultSkillSyncProfiles() ([]skills.SkillProfileRoot, error) {
 	names, err := defaultListKnownProfiles()
 	if err != nil {
@@ -283,9 +299,14 @@ func (f httpSkillFetcher) Fetch(ctx context.Context, rawURL string) ([]byte, err
 	return body, nil
 }
 
-type configSkillStore struct{}
+type configSkillStore struct {
+	root string
+}
 
-func (configSkillStore) ActiveDir() string {
+func (s configSkillStore) ActiveDir() string {
+	if strings.TrimSpace(s.root) != "" {
+		return filepath.Join(s.root, "active")
+	}
 	cfg, err := config.Load(nil)
 	if err != nil {
 		return filepath.Join(config.GormesHome(), "skills", "active")

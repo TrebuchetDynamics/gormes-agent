@@ -145,6 +145,29 @@ func TestSkillsListCommand_RendersEnabledOnlySummary(t *testing.T) {
 	}
 }
 
+func TestSkillsListCommand_AllowsExternalSourceFilter(t *testing.T) {
+	var gotOpts skills.ListOptions
+	cmd := NewSkillsCommand(SkillsCommandDeps{
+		ListInstalledSkills: func(opts skills.ListOptions, disabled map[string]struct{}) []skills.SkillRow {
+			gotOpts = opts
+			return []skills.SkillRow{{Name: "external-skill", Category: "x", Source: "external", Trust: "operator", Status: "enabled"}}
+		},
+	})
+
+	stdout, err := executeSkillsCommand(cmd, "list", "--source", "external")
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if gotOpts.Source != "external" {
+		t.Fatalf("opts.Source = %q, want external", gotOpts.Source)
+	}
+	for _, want := range []string{"external-skill", "external", "operator"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
 func TestSkillsListCommand_PlatformArgNotPropagated(t *testing.T) {
 	t.Setenv("HERMES_PLATFORM", "telegram")
 	var seenPlatform string

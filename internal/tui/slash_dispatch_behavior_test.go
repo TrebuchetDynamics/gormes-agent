@@ -122,6 +122,40 @@ func TestHermesSlashDispatchBehavior_SkillsSlashRunsLocallyWhileBusy(t *testing.
 	}
 }
 
+func TestHermesSlashDispatchBehavior_SkillsInstallRunsLocally(t *testing.T) {
+	sub := &nopSubmitter{}
+	calls := 0
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{
+		MouseTracking: true,
+		SkillsCommand: func(input string) string {
+			calls++
+			if input != "/skills install https://example.com/SKILL.md --name tui-skill" {
+				t.Fatalf("SkillsCommand input = %q", input)
+			}
+			return "url_skill_installed: installed tui-skill"
+		},
+	})
+	m.frame.Phase = kernel.PhaseIdle
+
+	m = enterSlashDispatchBehavior(t, m, "/skills install https://example.com/SKILL.md --name tui-skill")
+
+	if calls != 1 {
+		t.Fatalf("SkillsCommand calls = %d, want 1", calls)
+	}
+	if sub.calls != 0 {
+		t.Fatalf("/skills install reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if got := m.editor.Value(); got != "" {
+		t.Fatalf("editor value after /skills install = %q, want cleared", got)
+	}
+	status := strings.ToLower(m.statusMessage)
+	if !strings.Contains(status, "url_skill_installed") || !strings.Contains(status, "tui-skill") {
+		t.Fatalf("status after /skills install = %q, want install evidence", m.statusMessage)
+	}
+}
+
 func TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit(t *testing.T) {
 	for _, input := range []string{
 		"/provider openrouter",

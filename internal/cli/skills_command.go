@@ -143,17 +143,17 @@ func NewSkillsListCommand(deps SkillsCommandDeps) *cobra.Command {
 			return writeSkillsList(cmd, rows, opts.EnabledOnly)
 		},
 	}
-	cmd.Flags().StringVar(&opts.Source, "source", "all", "filter by installed skill source: all, hub, builtin, or local")
+	cmd.Flags().StringVar(&opts.Source, "source", "all", "filter by installed skill source: all, hub, builtin, local, or external")
 	cmd.Flags().BoolVar(&opts.EnabledOnly, "enabled-only", false, "hide disabled skills")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, source, enabled_only, counts, skills}")
 	return cmd
 }
 
 type skillsListReportJSON struct {
-	Build       any                `json:"build,omitempty"`
-	Source      string             `json:"source"`
-	EnabledOnly bool               `json:"enabled_only"`
-	Counts      skillsListCountsJSON `json:"counts"`
+	Build       any                   `json:"build,omitempty"`
+	Source      string                `json:"source"`
+	EnabledOnly bool                  `json:"enabled_only"`
+	Counts      skillsListCountsJSON  `json:"counts"`
 	Skills      []skillsListEntryJSON `json:"skills"`
 }
 
@@ -237,7 +237,7 @@ func normalizedSkillsListSource(source string) string {
 	switch source {
 	case "", "all":
 		return "all"
-	case "hub", "builtin", "local":
+	case "hub", "builtin", "local", "external":
 		return source
 	default:
 		return ""

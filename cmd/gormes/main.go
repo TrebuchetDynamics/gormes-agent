@@ -25,6 +25,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -318,32 +319,32 @@ func installRootRPCModeFlags(root *cobra.Command) {
 
 func rootCommandFactories(runtime rootRuntime) gormescli.CommandFactories {
 	return gormescli.CommandFactories{
-		"doctor":   newDoctorCommand,
-		"version":  newVersionCommand,
-		"telegram": newTelegramCommand,
-		"gateway":  newGatewayCommand,
-		"channels": newChannelsCommand,
-		"whatsapp": newWhatsAppCommand,
-		"slack":    newSlackCommand,
-		"session":  newSessionCommand,
-		"memory":   newMemoryCommand,
-		"goncho":   newGonchoCommand,
-		"kanban":   newKanbanCommand,
-		"chat":     func() *cobra.Command { return newChatCommand(runtime) },
-		"send":     func() *cobra.Command { return newSendCommand(runtime) },
-		"curator":  newCuratorCommand,
-		"acp":      newACPCommand,
-		"system":   newSystemCommand,
-		"agent":    newAgentCommand,
-		"navivox":  newNavivoxCommand,
-		"usage":    newUsageCommand,
-		"status":   newStatusCommand,
+		"doctor":    newDoctorCommand,
+		"version":   newVersionCommand,
+		"telegram":  newTelegramCommand,
+		"gateway":   newGatewayCommand,
+		"channels":  newChannelsCommand,
+		"whatsapp":  newWhatsAppCommand,
+		"slack":     newSlackCommand,
+		"session":   newSessionCommand,
+		"memory":    newMemoryCommand,
+		"goncho":    newGonchoCommand,
+		"kanban":    newKanbanCommand,
+		"chat":      func() *cobra.Command { return newChatCommand(runtime) },
+		"send":      func() *cobra.Command { return newSendCommand(runtime) },
+		"curator":   newCuratorCommand,
+		"acp":       newACPCommand,
+		"system":    newSystemCommand,
+		"agent":     newAgentCommand,
+		"navivox":   newNavivoxCommand,
+		"usage":     newUsageCommand,
+		"status":    newStatusCommand,
 		"auth":      newAuthCommand,
 		"providers": newProvidersCommand,
 		"logout":    newLogoutCommand,
-		"config":   newConfigCommand,
-		"fallback": newFallbackCommand,
-		"router":   newRouterCommand,
+		"config":    newConfigCommand,
+		"fallback":  newFallbackCommand,
+		"router":    newRouterCommand,
 		"fidelity": func() *cobra.Command {
 			return gormescli.NewFidelityCommand(gormescli.FidelityCommandOptions{
 				Build: func() any {
@@ -1359,6 +1360,9 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		SessionBranch:  newTUIBranchFunc(rootCtx, boltMap, k.ResumeSession),
 		KanbanSlash: func(input string) (string, error) {
 			return runTUIKanbanSlashCommand(rootCtx, input)
+		},
+		SkillsCommand: func(input string) string {
+			return gateway.HandleSkillsCommandWithOptions(rootCtx, input, skillsCommandOptionsForConfig(cfg))
 		},
 		GatewayLogTail:      readLogsTail,
 		SessionTitle:        newTUITitleFunc(rootCtx, boltMap),

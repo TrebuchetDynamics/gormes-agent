@@ -83,6 +83,40 @@ func TestListInstalledSkills_SourceFilterRespected(t *testing.T) {
 	}
 }
 
+func TestListInstalledSkillsExternalDirs(t *testing.T) {
+	root := t.TempDir()
+	external := t.TempDir()
+	writeListSkillDoc(t, root, "ops", "shared", "local", "local")
+	writeExternalListSkillDoc(t, external, "research", "external-only")
+	writeExternalListSkillDoc(t, external, "research", "shared")
+
+	rows := ListInstalledSkillsFromRoots(root, "", ListOptions{ExternalRoots: []string{external}}, nil)
+	got := rowNames(rows)
+	want := []string{"shared", "external-only"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("names = %#v, want %#v; rows=%#v", got, want, rows)
+	}
+	local, ok := findListRow(rows, "shared")
+	if !ok || local.Source != "local" || local.Trust != "local" {
+		t.Fatalf("shared row = %#v, want local precedence", local)
+	}
+	externalRow, ok := findListRow(rows, "external-only")
+	if !ok {
+		t.Fatalf("external-only missing from rows: %#v", rows)
+	}
+	if externalRow.Category != "research" || externalRow.Source != "external" || externalRow.Trust != "operator" || externalRow.Status != SkillStatusEnabled {
+		t.Fatalf("external row metadata = %#v", externalRow)
+	}
+
+	externalRows := ListInstalledSkillsFromRoots(root, "", ListOptions{Source: "external", ExternalRoots: []string{external}}, map[string]struct{}{"external-only": {}})
+	if got := rowNames(externalRows); !reflect.DeepEqual(got, []string{"external-only"}) {
+		t.Fatalf("external source names = %#v, want external-only", got)
+	}
+	if externalRows[0].Status != SkillStatusDisabled {
+		t.Fatalf("disabled external status = %q, want disabled", externalRows[0].Status)
+	}
+}
+
 func TestListInstalledSkills_BundledRootSymlinkTracksHermesSkills(t *testing.T) {
 	activeRoot := t.TempDir()
 	bundledReal := t.TempDir()
@@ -109,6 +143,18 @@ func TestListInstalledSkills_BundledRootSymlinkTracksHermesSkills(t *testing.T) 
 }
 
 func writeBundledListSkillDoc(t *testing.T, root, category, name string) {
+	t.Helper()
+	dir := filepath.Join(root, category, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", dir, err)
+	}
+	raw := "---\nname: " + name + "\ndescription: " + name + " description\n---\n\nUse " + name + "."
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(raw), 0o644); err != nil {
+		t.Fatalf("WriteFile(SKILL.md): %v", err)
+	}
+}
+
+func writeExternalListSkillDoc(t *testing.T, root, category, name string) {
 	t.Helper()
 	dir := filepath.Join(root, category, name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {

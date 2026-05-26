@@ -3130,6 +3130,185 @@
   },
   {
     "phase": "6",
+    "subphase": "6.F",
+    "pos": 5,
+    "item": {
+      "name": "TUI and gateway direct URL skill install binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Bind the already-shipped direct-URL skill install policy to the channel-local `/skills install <https://.../SKILL.md> --name <safe-name>` path for native TUI and gateway surfaces. The slice must reuse the existing `skills.PerformURLInstall` quarantine/scan/store contract, keep non-interactive surfaces prompt-free, require explicit safe names when URL/frontmatter cannot provide one, and return channel-safe install or degraded evidence without submitting `/skills install` text to the model. This ports Hermes' chat slash install behavior while adapting Pi's package-source safety lessons (explicit source, scope, and review warning) to a Go-native skills-only slice; broader package resources, GitHub hub sources, update, uninstall, and skill editing remain out of scope.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "skills",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Missing URL install dependencies, unsafe --name/--category values, missing-name evidence, fetch failures, quarantine/scan failures, and store write failures return redacted `skills_install_*` / `url_skill_*` text and leave the active skill store unchanged. Telegram replies stay plain text and TUI status messages stay local.",
+      "fixture": "internal/gateway/skills_command_test.go::TestHandleSkillsCommandInstallDirectURL; internal/tui/slash_dispatch_behavior_test.go::TestHermesSlashDispatchBehavior_SkillsInstallRunsLocally",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/skills_hub.py@43e566f77:handle_skills_slash install branch",
+        "./hermes-agent/hermes_cli/skills_hub.py@43e566f77:do_install noninteractive name override and skip_confirm behavior",
+        "./hermes-agent/tests/hermes_cli/test_skills_hub.py@43e566f77:test_url_install_*",
+        "./hermes-agent/website/docs/user-guide/features/skills.md@43e566f77:Skills Hub common commands and Slash commands",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/packages.md@0.75.5:Package Sources, security warning, scope, package filtering",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/skills.md@0.75.5:Locations and security warning",
+        "internal/skills/url_install.go:PerformURLInstall",
+        "internal/cli/skills_command.go:NewSkillsInstallCommand",
+        "internal/gateway/skills_command.go:renderSkillsManageUnavailable",
+        "internal/tui/slash_dispatch.go:skillsSlashHandler",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+      ],
+      "ready_when": [
+        "The completed `Skills hub direct URL install name/category guard` row provides the noninteractive URL install policy, injected fetcher, quarantine scanner, and store seams.",
+        "The completed `TUI + Telegram browsing` and `Native TUI /skills read-only hub binding` rows already consume `/skills` locally and prove browse/search/list/inspect do not reach the model.",
+        "The builder keeps this first mutation slice scoped to direct HTTPS `SKILL.md` URLs plus safe `--name`/`--category`; registry browse/search sources, update, uninstall, edit, review, and Pi-style multi-resource packages stay future rows."
+      ],
+      "not_ready_when": [
+        "The implementation would install npm/git packages, execute extension code, load third-party skills before quarantine/scan evidence, or broaden to Pi extensions/prompts/themes/packages.",
+        "TUI or gateway code would prompt interactively, ask for secrets in chat, or submit `/skills install` text into the agent turn instead of handling it locally.",
+        "Tests need live network, live home directories, real Telegram credentials, or a real skill registry instead of injected fetcher/scanner/store fixtures."
+      ],
+      "blocked_by": [
+        "Skills hub direct URL install name/category guard",
+        "TUI + Telegram browsing",
+        "Native TUI /skills read-only hub binding"
+      ],
+      "acceptance": [
+        "`/skills install https://example.com/SKILL.md --name safe-skill` through `gateway.HandleSkillsCommandWithOptions` calls an injected fetcher/scanner/store once, writes one active `SKILL.md`, and renders a redacted `url_skill_installed`/installed-name reply.",
+        "Missing safe names on noninteractive TUI/gateway paths render the existing retry hint with `gormes skills install <url> --name <your-name>` and do not fetch or write after the missing-name evidence is known.",
+        "Unsafe `--name` and `--category` values reject before fetch/store mutation; quarantine/scan failures leave the active store unchanged and render channel-safe evidence.",
+        "Native TUI `/skills install ...` is consumed locally, clears the editor, updates the status message, and never invokes the model submitter; existing browse/search/list/inspect behavior remains unchanged.",
+        "Telegram `/skills install ...` replies through the existing plain-text skills reply path without leaking local paths, secrets, or markdown-only formatting."
+      ],
+      "note": "Planner 2026-05-25: bounded Pi+Hermes donor pass. Hermes 43e566f77 makes `/skills install` a chat slash command with noninteractive `--name` support; Gormes currently returns `skills_manage_unavailable` for mutating `/skills` actions even though the CLI direct-URL installer is validated. Pi's package docs reinforce explicit source grammar, scope, filtering, and third-party security warnings; this row adopts only the skills-direct-URL safety shape, not Pi packages or TypeScript extensions. Builder 2026-05-26: shipped direct HTTPS SKILL.md install for gateway/TUI /skills install using the existing PerformURLInstall fetch/scan/store policy, injected command seams for gateway manager and native TUI, kept edit/disable/review unavailable, proved success/missing-name/unsafe-name/quarantine no-mutation behavior, Telegram plain-text replies, and TUI local dispatch without model submission.",
+      "write_scope": [
+        "internal/gateway/skills_command.go",
+        "internal/gateway/skills_command_test.go",
+        "internal/gateway/manager.go",
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_dispatch_behavior_test.go",
+        "cmd/gormes/skills.go",
+        "cmd/gormes/gateway.go",
+        "cmd/gormes/main.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "cmd/gormes/gateway_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestHandleSkillsCommand.*(Install|Telegram)' -count=1",
+        "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_Skills(Install|SlashRunsLocally)' -count=1",
+        "go test ./cmd/gormes -run 'TestSkillsURLInstall|TestGateway.*Skills' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report the fake URL install success fixture, missing-name/unsafe-name no-mutation fixtures, TUI local slash-dispatch fixture, Telegram plain-text reply fixture, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:43e566f77 hermes_cli/skills_hub.py handle_skills_slash + Pi coding-agent 0.75.5 docs/packages.md safety/scope guidance",
+        "note": "Hermes is the compatibility contract for `/skills install`; Pi is a donor for source/scope/security packaging vocabulary only."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.F",
+    "pos": 6,
+    "item": {
+      "name": "Hermes/Pi external skill directories config binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port the Hermes `skills.external_dirs` contract into Gormes' Go-native skills runtime and shape it with Pi's multi-location skills discovery lesson. Gormes config should accept a list of extra skill roots, expand `~` and environment variables, resolve relative paths against Gormes home/profile state rather than the process cwd, skip missing or duplicate roots with typed evidence, preserve local active-skill precedence, and thread the resolved roots into prompt-building, `gormes skills list`, TUI/gateway `/skills list|inspect`, and future skill_manage mutation boundaries without reading live Hermes/Pi homes.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "skills",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "Invalid or missing external skill roots are skipped with `skills_external_dir_skipped` evidence; unreadable roots fail only the affected skills command or prompt build, not provider startup. Duplicate roots and the local active skills root are ignored so external directories cannot shadow local active skills unexpectedly.",
+      "fixture": "internal/config/config_test.go::TestSkillsExternalDirs; internal/skills/list_test.go::TestListInstalledSkillsExternalDirs; internal/hermes/skills_prompt_test.go::TestSkillsPromptExternalDirsOrderingAndStatusFiltering; internal/gateway/skills_command_test.go::TestHandleSkillsCommandExternalDirs",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/config.py@43e566f77:DEFAULT_CONFIG skills.external_dirs",
+        "./hermes-agent/agent/skill_utils.py@43e566f77:get_external_skills_dirs,get_all_skills_dirs",
+        "./hermes-agent/tools/skills_tool.py@43e566f77:_find_all_skills,_get_category_from_path",
+        "./hermes-agent/tools/skill_manager_tool.py@43e566f77:_containing_skills_root",
+        "./hermes-agent/website/docs/user-guide/features/skills.md@43e566f77:External Skill Directories",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/skills.md@0.75.5:Locations",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/packages.md@0.75.5:Package Structure and package-sourced skills",
+        "internal/hermes/skills_prompt.go:SkillsPromptOptions.ExternalDirs and BuildSkillsSystemPrompt",
+        "internal/config/config.go:SkillsCfg",
+        "internal/skills/list.go:ListInstalledSkillsFromRoots",
+        "internal/gateway/skills_command.go:SkillsCommandOptions",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+      ],
+      "ready_when": [
+        "`internal/hermes.BuildSkillsSystemPrompt` already has an `ExternalDirs` seam and fixture coverage for prompt order/filtering; the missing work is config/list/gateway/TUI wiring plus typed evidence.",
+        "The completed skills list/view, TUI browsing, and direct URL installer rows keep active-skill storage and read-only channel behavior separated, so external roots can be introduced as additional read sources before mutation writes are enabled.",
+        "The builder uses temp fixture roots only and treats Pi as a donor for discovery/location patterns, not as a runtime dependency or package format requirement."
+      ],
+      "not_ready_when": [
+        "The slice scans real `~/.hermes`, `~/.pi`, `~/.agents`, or project `.agents` directories instead of configured temp roots.",
+        "The implementation copies or executes external skill code, installs Pi packages, or makes package-sourced prompts/themes/extensions part of this skills-only row.",
+        "External roots can override local active skills, bypass disabled/platform filters, or make skill_manage write into shared directories without an explicit mutation policy fixture."
+      ],
+      "blocked_by": [
+        "Hermes skill catalog strict-fidelity classifier",
+        "Native skills list/view tool surface",
+        "TUI + Telegram browsing"
+      ],
+      "acceptance": [
+        "Config loading and `config set skills.external_dirs` round-trip a list of paths; resolver tests prove `~`, `${VAR}`, relative-to-Gormes-home, duplicate, missing, and local-root cases produce deterministic roots/evidence.",
+        "Prompt-builder tests prove local active skills win over external skills with the same name and that external skill entries still honor disabled names, platform filters, and fallback/requires tool conditions.",
+        "`gormes skills list --source external` (or an equivalent source/status filter) and `/skills list --source external` render bounded rows with source=`external`, category from external path, trust evidence, and no absolute-path leakage on Telegram/TUI surfaces.",
+        "`/skills inspect <external-skill>` can read the selected external SKILL.md through injected roots while missing/unreadable files return channel-safe degraded evidence.",
+        "Any skill_manage/edit mutation path remains explicit: either it refuses external roots with row-backed evidence or routes to the containing root only under a tested policy; no shared external directory is mutated accidentally."
+      ],
+      "note": "Planner 2026-05-25: second bounded Pi+Hermes donor pass. Hermes documents and implements `skills.external_dirs`; Gormes has the prompt-builder seam but no config/list/channel binding. Pi confirms the broader harness value of multiple global/project/package skill locations. This row narrows adoption to Hermes-compatible external skill roots, leaving Pi package resources and executable extension loading out of scope. Builder 2026-05-26: shipped the Gormes config resolver and config-set round trip for skills.external_dirs, wired resolved roots into CLI/root skills list --source external and default TUI/gateway /skills list|inspect, preserved local active-skill precedence over external duplicates, and covered missing/duplicate/local-root resolver evidence plus channel-safe external list/inspect fixtures. Pi remains a discovery-location donor only.",
+      "write_scope": [
+        "internal/config/config.go",
+        "internal/config/config_test.go",
+        "internal/config/writer.go",
+        "internal/skills/list.go",
+        "internal/skills/list_test.go",
+        "internal/hermes/skills_prompt.go",
+        "internal/hermes/skills_prompt_test.go",
+        "internal/gateway/skills_command.go",
+        "internal/gateway/skills_command_test.go",
+        "internal/tui/slash_dispatch.go",
+        "cmd/gormes/skills.go",
+        "cmd/gormes/main.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/cli/skills_command.go",
+        "internal/cli/skills_command_test.go",
+        "cmd/gormes/skills_onboard_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/config -run 'TestSkillsExternalDirs|TestConfigSetSkillsExternalDirs' -count=1",
+        "go test ./internal/skills -run 'TestListInstalledSkillsExternalDirs' -count=1",
+        "go test ./internal/hermes -run 'TestSkillsPromptExternalDirsOrderingAndStatusFiltering' -count=1",
+        "go test ./internal/gateway -run 'TestHandleSkillsCommandExternalDirs' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report config resolver fixtures, prompt local-precedence/filter fixtures, skills list/inspect external-source fixtures, channel-safe degraded evidence, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "hermes:43e566f77 skills.external_dirs + Pi coding-agent 0.75.5 skills/package location model",
+        "note": "Hermes defines the compatibility contract; Pi supplies a donor rationale for multi-location skill discovery and package-sourced skill roots without importing Pi packages."
+      }
+    }
+  },
+  {
+    "phase": "6",
     "subphase": "6.H",
     "pos": 0,
     "item": {

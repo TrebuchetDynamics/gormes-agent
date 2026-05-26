@@ -101,6 +101,10 @@ type ManagerConfig struct {
 	// SkillRuntime is the full process skills runtime. Agent-routed turns
 	// receive an allowlist wrapper when agents.list[].skills is set.
 	SkillRuntime *skills.Runtime
+	// SkillsCommandOptions carries local /skills command dependencies such as
+	// configured roots and direct-URL install seams. Nil/zero dependencies keep
+	// unavailable evidence instead of submitting /skills text to the model.
+	SkillsCommandOptions SkillsCommandOptions
 	// AgentRuntimeFactory optionally returns an independent kernel/runtime for
 	// the routed agent session. When nil, Manager falls back to the legacy
 	// singleton kernel with per-turn policy overrides.

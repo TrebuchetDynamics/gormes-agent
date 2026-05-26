@@ -1512,6 +1512,95 @@ func TestLoad_SkillsRootEnvOverride(t *testing.T) {
 	}
 }
 
+func TestSkillsExternalDirs(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, "gormes")
+	operatorHome := filepath.Join(root, "operator-home")
+	relativeRoot := filepath.Join(gormesHome, "team-skills")
+	envRoot := filepath.Join(root, "env-skills")
+	tildeRoot := filepath.Join(operatorHome, "tilde-skills")
+	localRoot := filepath.Join(gormesHome, "skills")
+	localActive := filepath.Join(localRoot, "active")
+	for _, dir := range []string{relativeRoot, envRoot, tildeRoot, localRoot, localActive} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("HOME", operatorHome)
+	t.Setenv("TEAM_SKILLS_ROOT", envRoot)
+
+	cfg := Config{Skills: SkillsCfg{ExternalDirs: []string{
+		"team-skills",
+		"${TEAM_SKILLS_ROOT}",
+		"~/tilde-skills",
+		"team-skills",
+		"missing-skills",
+		localRoot,
+		localActive,
+	}}}
+	got, evidence := cfg.ExternalSkillsDirs()
+	want := []string{relativeRoot, envRoot, tildeRoot}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("ExternalSkillsDirs() = %#v, want %#v; evidence=%+v", got, want, evidence)
+	}
+	for _, tc := range []struct{ code, reason string }{
+		{SkillsExternalDirResolved, ""},
+		{SkillsExternalDirSkipped, "duplicate"},
+		{SkillsExternalDirSkipped, "missing"},
+		{SkillsExternalDirSkipped, "local_root"},
+	} {
+		if !hasSkillsExternalDirEvidence(evidence, tc.code, tc.reason) {
+			t.Fatalf("missing evidence code=%q reason=%q in %+v", tc.code, tc.reason, evidence)
+		}
+	}
+}
+
+func TestConfigSetSkillsExternalDirs(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, "gormes")
+	relativeRoot := filepath.Join(gormesHome, "team-skills")
+	envRoot := filepath.Join(root, "env-skills")
+	for _, dir := range []string{relativeRoot, envRoot} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("TEAM_SKILLS_ROOT", envRoot)
+
+	if err := WriteTOMLValue(ConfigPath(), "skills.external_dirs", "team-skills,${TEAM_SKILLS_ROOT}"); err != nil {
+		t.Fatalf("WriteTOMLValue skills.external_dirs: %v", err)
+	}
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatalf("Load after skills.external_dirs write: %v", err)
+	}
+	if got := strings.Join(cfg.Skills.ExternalDirs, ","); got != "team-skills,${TEAM_SKILLS_ROOT}" {
+		t.Fatalf("raw external_dirs = %#v", cfg.Skills.ExternalDirs)
+	}
+	resolved, evidence := cfg.ExternalSkillsDirs()
+	want := []string{relativeRoot, envRoot}
+	if strings.Join(resolved, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("resolved external_dirs = %#v, want %#v; evidence=%+v", resolved, want, evidence)
+	}
+}
+
+func hasSkillsExternalDirEvidence(evidence []SkillsExternalDirEvidence, code, reason string) bool {
+	for _, item := range evidence {
+		if item.Code != code {
+			continue
+		}
+		if reason == "" || item.Reason == reason {
+			return true
+		}
+	}
+	return false
+}
+
 func TestLoad_ExtractorDefaults(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	cfg, err := Load(nil)

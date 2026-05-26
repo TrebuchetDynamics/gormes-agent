@@ -1390,6 +1390,8 @@ classification and row-backed implementation queue.
 - [x] `skills` Hermes curator archive/list/prune CLI catch-up
 - [x] `channels` TUI + Telegram browsing
 - [x] `skills` Native skills list/view tool surface
+- [x] `skills` TUI and gateway direct URL skill install binding
+- [x] `skills` Hermes/Pi external skill directories config binding
 
 ### 6.G — Structured Memory Types ✅
 

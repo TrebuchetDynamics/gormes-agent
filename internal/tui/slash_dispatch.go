@@ -292,8 +292,12 @@ func copyStatusForEvidence(result ComposerCopyResult) string {
 	}
 }
 
-func skillsSlashHandler(input string, _ *Model) SlashResult {
-	return SlashResult{Handled: true, StatusMessage: strings.TrimSpace(gateway.HandleSkillsCommand(input))}
+func skillsSlashHandler(input string, model *Model) SlashResult {
+	handler := gateway.HandleSkillsCommand
+	if model != nil && model.skillsCommand != nil {
+		handler = model.skillsCommand
+	}
+	return SlashResult{Handled: true, StatusMessage: strings.TrimSpace(handler(input))}
 }
 
 func quitSlashHandler(_ string, _ *Model) SlashResult {
