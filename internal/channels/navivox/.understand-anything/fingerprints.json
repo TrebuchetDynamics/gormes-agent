@@ -1,0 +1,3425 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "4155335cc4916178a016327af28983fbb0925ee1",
+  "generatedAt": "2026-05-26T20:06:54.839Z",
+  "files": {
+    "auth.go": {
+      "filePath": "auth.go",
+      "contentHash": "8a2b489b4937f218fd8257d98fb31c8e935ed244094b5412aff2cb1d996ac17a",
+      "functions": [
+        {
+          "name": "withAuth",
+          "params": [
+            "next"
+          ],
+          "returnType": "http.HandlerFunc",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "authenticate",
+          "params": [
+            "r"
+          ],
+          "returnType": "(string, bool)",
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "authenticateTailscaleIdentity",
+          "params": [
+            "r"
+          ],
+          "returnType": "(string, bool)",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "authenticateToken",
+          "params": [
+            "r"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "bearerToken",
+          "params": [
+            "r"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "webSocketProtocolToken",
+          "params": [
+            "r"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "firstHeader",
+          "params": [
+            "r"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "cors",
+          "params": [
+            "next"
+          ],
+          "returnType": "http.Handler",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "originAllowed",
+          "params": [
+            "origin"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "crypto/hmac",
+          "specifiers": [
+            "hmac"
+          ]
+        },
+        {
+          "source": "encoding/base64",
+          "specifiers": [
+            "base64"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "github.com/gorilla/websocket",
+          "specifiers": [
+            "websocket"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 139,
+      "hasStructuralAnalysis": true
+    },
+    "capabilities_test.go": {
+      "filePath": "capabilities_test.go",
+      "contentHash": "bb2a8640732ad74a3783c24932bc965d5c65bd89f0f1f63ca09eaa51f3f10b4d",
+      "functions": [
+        {
+          "name": "TestNavivoxCapabilitiesEndpointAdvertisesStableContract",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 131
+        },
+        {
+          "name": "TestNavivoxCapabilitiesAuthContractFollowsActiveMode",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 65
+        },
+        {
+          "name": "TestNavivoxStatusLinksCapabilitiesDocument",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 35
+        },
+        {
+          "name": "containsEndpoint",
+          "params": [
+            "endpoints",
+            "method",
+            "path"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "containsNavivoxCapabilityString",
+          "params": [
+            "values",
+            "want"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "net/http/httptest",
+          "specifiers": [
+            "httptest"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        }
+      ],
+      "exports": [
+        "TestNavivoxCapabilitiesEndpointAdvertisesStableContract",
+        "TestNavivoxCapabilitiesAuthContractFollowsActiveMode",
+        "TestNavivoxStatusLinksCapabilitiesDocument",
+        "TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths"
+      ],
+      "totalLines": 301,
+      "hasStructuralAnalysis": true
+    },
+    "capabilities.go": {
+      "filePath": "capabilities.go",
+      "contentHash": "ecd029d16340ec09ab9732ff729f272fa775ba8ebff4ea461d16ef3897e3f9d9",
+      "functions": [
+        {
+          "name": "handleCapabilities",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "capabilityDocument",
+          "params": [],
+          "returnType": "capabilityDocument",
+          "exported": false,
+          "lineCount": 52
+        },
+        {
+          "name": "navivoxCapabilityAuthHeaders",
+          "params": [
+            "mode"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "navivoxCapabilityWebSocketProtocols",
+          "params": [
+            "mode"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "navivoxAuthModeUsesToken",
+          "params": [
+            "mode"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "navivoxAuthModeUsesTailscale",
+          "params": [
+            "mode"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "navivoxCapabilityNames",
+          "params": [],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "navivoxEventKinds",
+          "params": [],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "navivoxCapabilityEndpoints",
+          "params": [],
+          "returnType": "[]capabilityEndpoint",
+          "exported": false,
+          "lineCount": 23
+        }
+      ],
+      "classes": [
+        {
+          "name": "capabilityEndpoint",
+          "methods": [],
+          "properties": [
+            "Method",
+            "Path",
+            "Auth",
+            "Stability",
+            "Description"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "capabilityAuth",
+          "methods": [],
+          "properties": [
+            "Mode",
+            "Headers",
+            "WebSocketProtocols"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "capabilityHealth",
+          "methods": [],
+          "properties": [
+            "Canonical",
+            "Aliases",
+            "Auth"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "capabilityProfileManagement",
+          "methods": [],
+          "properties": [
+            "ContactsEndpoint",
+            "RoutingEndpoint",
+            "CreateFromSeedEndpoint",
+            "DashboardAPIExposed",
+            "SupportedActions",
+            "UnsupportedActions",
+            "ProfileContractParts"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "capabilityAttachments",
+          "methods": [],
+          "properties": [
+            "MaxRequestBytes",
+            "OpaqueUploadIDs",
+            "RawLocalPathsAccepted",
+            "WorkspaceFileAttach",
+            "MIMEAllowlist",
+            "Retention"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "capabilityVoice",
+          "methods": [],
+          "properties": [
+            "DeviceTranscribedTextTurns",
+            "RawAudioUpload",
+            "VoiceProfilesEndpoint",
+            "RunRecordsEndpoint",
+            "STTProviders",
+            "TTSProviders"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "capabilityStreams",
+          "methods": [],
+          "properties": [
+            "CanonicalEndpoint",
+            "Transport",
+            "EventKinds",
+            "OpenAIRunsBridge"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "capabilityDocument",
+          "methods": [],
+          "properties": [
+            "Object",
+            "ProtocolVersion",
+            "Capabilities",
+            "Auth",
+            "Health",
+            "Endpoints",
+            "ProfileManagement",
+            "Attachments",
+            "Voice",
+            "Streams"
+          ],
+          "exported": false,
+          "lineCount": 12
+        }
+      ],
+      "imports": [
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 235,
+      "hasStructuralAnalysis": true
+    },
+    "channel_test.go": {
+      "filePath": "channel_test.go",
+      "contentHash": "8af7b67fc1414b85fefc3ca97e08fc29706ccd62e7b27522cdab9868bf6d579a",
+      "functions": [
+        {
+          "name": "TestNavivoxStatusRequiresAuthAndHealthzIsPublic",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 53
+        },
+        {
+          "name": "TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 107
+        },
+        {
+          "name": "TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 76
+        },
+        {
+          "name": "TestNavivoxStatusIncludesServerScopedProfileRoutingWithoutDefaultProfile",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 61
+        },
+        {
+          "name": "TestNavivoxStatusIncludesSetupHandoffForAppContinuation",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 82
+        },
+        {
+          "name": "TestNavivoxHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 42
+        },
+        {
+          "name": "TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 36
+        },
+        {
+          "name": "TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 70
+        },
+        {
+          "name": "TestNavivoxWebSocketAuthRejectsBadBrowserSubprotocolToken",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "TestWebSocketPingAndMalformedJSONReturnTypedEvents",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "TestNavivoxWebSocketStartTurnStreamsGatewayResponses",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 59
+        },
+        {
+          "name": "TestNavivoxVoiceMarkedStreamTurnEnqueuesTranscriptOnlyGatewayEvent",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 127
+        },
+        {
+          "name": "TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 67
+        },
+        {
+          "name": "TestNavivoxWebSocketStopTurnEnqueuesCancel",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "TestNavivoxSafetyEventsStreamAsTypedEvents",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 62
+        },
+        {
+          "name": "TestNavivoxSendToolProgressStreamsStructuredToolEvent",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 46
+        },
+        {
+          "name": "containsAny",
+          "params": [
+            "values",
+            "want"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "newTestChannel",
+          "params": [
+            "t"
+          ],
+          "returnType": "*Channel",
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "dialTestWebSocket",
+          "params": [
+            "t",
+            "httpURL"
+          ],
+          "returnType": "*websocket.Conn",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "readNonProfileContactEvent",
+          "params": [
+            "t",
+            "conn"
+          ],
+          "returnType": "ServerEvent",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "TestNewChannel_TailscaleExposureWithMatchingVPNBind_Succeeds",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "TestNewChannel_LocalExposureUnaffectedByVPNCheck",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "TestMergeProfileContact_PreservesLoaderHealth",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "TestNavivoxCORSPreflightAndActualRequest",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "TestNavivoxWebSocketCancelTurnEnqueuesCancel",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "TestNavivoxSubscriberLifecycleAndBroadcast",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 58
+        },
+        {
+          "name": "TestNavivoxSessionSweepEvictsOldSessions",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 28
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "bytes",
+          "specifiers": [
+            "bytes"
+          ]
+        },
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "encoding/base64",
+          "specifiers": [
+            "base64"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "net/http/httptest",
+          "specifiers": [
+            "httptest"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "reflect",
+          "specifiers": [
+            "reflect"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/gorilla/websocket",
+          "specifiers": [
+            "websocket"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost",
+          "specifiers": [
+            "vpnhost"
+          ]
+        }
+      ],
+      "exports": [
+        "TestNavivoxStatusRequiresAuthAndHealthzIsPublic",
+        "TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact",
+        "TestNavivoxProfileRoutingEndpointIsAuthBoundedAndSecretFree",
+        "TestNavivoxStatusIncludesServerScopedProfileRoutingWithoutDefaultProfile",
+        "TestNavivoxStatusIncludesSetupHandoffForAppContinuation",
+        "TestNavivoxHTTPStartTurnRequiresAuthAndEnqueuesTypedGatewayEvent",
+        "TestNavivoxWebSocketAuthAcceptsBrowserSubprotocolToken",
+        "TestNavivoxLayeredAuthRequiresTokenAndAllowedTailscaleIdentity",
+        "TestNavivoxWebSocketAuthRejectsBadBrowserSubprotocolToken",
+        "TestWebSocketPingAndMalformedJSONReturnTypedEvents",
+        "TestNavivoxWebSocketStartTurnStreamsGatewayResponses",
+        "TestNavivoxVoiceMarkedStreamTurnEnqueuesTranscriptOnlyGatewayEvent",
+        "TestNavivoxRunRecordEndpointReturnsRedactedVoiceAndToolTimeline",
+        "TestNavivoxHTTPStartTurnStreamsToSubscribedWebSocket",
+        "TestNavivoxWebSocketStopTurnEnqueuesCancel",
+        "TestNavivoxSafetyEventsStreamAsTypedEvents",
+        "TestNavivoxSendToolProgressStreamsStructuredToolEvent",
+        "TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed",
+        "TestNewChannel_TailscaleExposureWithMatchingVPNBind_Succeeds",
+        "TestNewChannel_LocalExposureUnaffectedByVPNCheck",
+        "TestMergeProfileContact_PreservesLoaderHealth",
+        "TestNavivoxCORSPreflightAndActualRequest",
+        "TestNavivoxWebSocketCancelTurnEnqueuesCancel",
+        "TestNavivoxSubscriberLifecycleAndBroadcast",
+        "TestNavivoxSessionSweepEvictsOldSessions"
+      ],
+      "totalLines": 1376,
+      "hasStructuralAnalysis": true
+    },
+    "channel.go": {
+      "filePath": "channel.go",
+      "contentHash": "1ade9c512842eaf8feaee0d1ef1e414025de5ce53f473ec17bf38f3142d3f731",
+      "functions": [
+        {
+          "name": "WithProfileRouting",
+          "params": [
+            "report"
+          ],
+          "returnType": "ChannelOption",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "NewChannel",
+          "params": [
+            "cfg",
+            "log"
+          ],
+          "returnType": "(*Channel, error)",
+          "exported": true,
+          "lineCount": 42
+        },
+        {
+          "name": "Name",
+          "params": [],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "Run",
+          "params": [
+            "ctx",
+            "inbox"
+          ],
+          "returnType": "error",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "Handler",
+          "params": [
+            "inbox"
+          ],
+          "returnType": "http.Handler",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "Send",
+          "params": [
+            "ctx",
+            "chatID",
+            "text"
+          ],
+          "returnType": "(string, error)",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "SendPlaceholder",
+          "params": [
+            "ctx",
+            "chatID"
+          ],
+          "returnType": "(string, error)",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "SendToolProgress",
+          "params": [
+            "ctx",
+            "chatID",
+            "progress"
+          ],
+          "returnType": "(string, error)",
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "SendSafetyWarning",
+          "params": [
+            "ctx",
+            "chatID",
+            "warning"
+          ],
+          "returnType": "(string, error)",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "SendApprovalRequired",
+          "params": [
+            "ctx",
+            "chatID",
+            "approval"
+          ],
+          "returnType": "(string, error)",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "EditMessage",
+          "params": [
+            "ctx",
+            "chatID",
+            "msgID",
+            "text"
+          ],
+          "returnType": "error",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "EditMessageFinal",
+          "params": [
+            "ctx",
+            "chatID",
+            "msgID",
+            "text",
+            "finalize"
+          ],
+          "returnType": "error",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "edit",
+          "params": [
+            "chatID",
+            "msgID",
+            "text",
+            "finalize"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 39
+        },
+        {
+          "name": "recordRunStartLocked",
+          "params": [
+            "sessionID",
+            "requestID",
+            "text",
+            "metadata"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "recordToolProgress",
+          "params": [
+            "sessionID",
+            "toolCallID",
+            "toolName",
+            "status",
+            "summary",
+            "metadata"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "recordAssistantAndComplete",
+          "params": [
+            "sessionID",
+            "text"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "latestRunRecordLocked",
+          "params": [
+            "sessionID"
+          ],
+          "returnType": "*sessionpkg.NavivoxRunRecord",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "lookupRunRecord",
+          "params": [
+            "id"
+          ],
+          "returnType": "(sessionpkg.NavivoxRunRecord, bool)",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "handleHealthz",
+          "params": [
+            "w",
+            "r"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "handleStatus",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 41
+        },
+        {
+          "name": "handleProfileContacts",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "handleProfileRouting",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "handleProfileSeed",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 46
+        },
+        {
+          "name": "redactNavivoxPathTail",
+          "params": [
+            "path"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "handleRunRecord",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "handleSessions",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "handleSessionByID",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "Error",
+          "params": [],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "codeForNavivoxError",
+          "params": [
+            "err"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "statusForNavivoxError",
+          "params": [
+            "err"
+          ],
+          "returnType": "int",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "safeNavivoxError",
+          "params": [
+            "err"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "writeNavivoxJSON",
+          "params": [
+            "w",
+            "status",
+            "body"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "writeNavivoxError",
+          "params": [
+            "w",
+            "status",
+            "requestID",
+            "code",
+            "message"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "randomID",
+          "params": [],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [
+        {
+          "name": "Channel",
+          "methods": [
+            "Name",
+            "Run",
+            "Handler",
+            "Send",
+            "SendPlaceholder",
+            "SendToolProgress",
+            "SendSafetyWarning",
+            "SendApprovalRequired",
+            "EditMessage",
+            "EditMessageFinal",
+            "edit",
+            "recordRunStartLocked",
+            "recordToolProgress",
+            "recordAssistantAndComplete",
+            "latestRunRecordLocked",
+            "lookupRunRecord",
+            "handleHealthz",
+            "handleStatus",
+            "handleProfileContacts",
+            "handleProfileRouting",
+            "handleProfileSeed",
+            "handleRunRecord",
+            "handleSessions",
+            "handleSessionByID"
+          ],
+          "properties": [
+            "cfg",
+            "log",
+            "now",
+            "newID",
+            "mu",
+            "sessions",
+            "clients",
+            "profileContacts",
+            "loadContacts",
+            "profileRouting",
+            "configAdmin",
+            "voiceProfiles",
+            "runRecords",
+            "latestRunBySession"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "profileSeedRequest",
+          "methods": [],
+          "properties": [
+            "Seed",
+            "Apply",
+            "Workspaces",
+            "WorkspaceRoots"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "profileSeedResponse",
+          "methods": [],
+          "properties": [
+            "Action",
+            "Status",
+            "Applied",
+            "ProfileID",
+            "Root",
+            "WorkspaceCount",
+            "Draft",
+            "Contact"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "navivoxError",
+          "methods": [
+            "Error"
+          ],
+          "properties": [
+            "code",
+            "message"
+          ],
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "crypto/rand",
+          "specifiers": [
+            "rand"
+          ]
+        },
+        {
+          "source": "encoding/hex",
+          "specifiers": [
+            "hex"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "errors",
+          "specifiers": [
+            "errors"
+          ]
+        },
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "log/slog",
+          "specifiers": [
+            "slog"
+          ]
+        },
+        {
+          "source": "net",
+          "specifiers": [
+            "net"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "sync",
+          "specifiers": [
+            "sync"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/cli/profileseed",
+          "specifiers": [
+            "profileseed"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost",
+          "specifiers": [
+            "vpnhost"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/session",
+          "specifiers": [
+            "sessionpkg"
+          ]
+        }
+      ],
+      "exports": [
+        "Channel",
+        "WithProfileRouting",
+        "NewChannel",
+        "Name",
+        "Run",
+        "Handler",
+        "Send",
+        "SendPlaceholder",
+        "SendToolProgress",
+        "SendSafetyWarning",
+        "SendApprovalRequired",
+        "EditMessage",
+        "EditMessageFinal",
+        "Error"
+      ],
+      "totalLines": 626,
+      "hasStructuralAnalysis": true
+    },
+    "codemap.md": {
+      "filePath": "codemap.md",
+      "contentHash": "9b9fb84caad462051861f970e7ba3a7602d7e0f35fbe612b00d91670d1818fd3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 96,
+      "hasStructuralAnalysis": true
+    },
+    "config_admin_test.go": {
+      "filePath": "config_admin_test.go",
+      "contentHash": "3515a90e48ea0eaf5672ef846ac06978484c7bb48110f503eb4e8e3e04e94734",
+      "functions": [
+        {
+          "name": "TestNavivoxConfigAdminRequiresAuthAndRedactsSchemaAndGet",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 88
+        },
+        {
+          "name": "TestNavivoxConfigAdminValidateAndApplyAreNonMutatingOnError",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 56
+        },
+        {
+          "name": "TestNavivoxConfigAdminDiffAndApplyReportsReloadApplied",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 78
+        },
+        {
+          "name": "TestNavivoxConfigAdminApplyWritesSafeValuesAndSecretRedacted",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 67
+        },
+        {
+          "name": "doNavivoxConfigAdminRequest",
+          "params": [
+            "t",
+            "baseURL",
+            "method",
+            "path",
+            "body"
+          ],
+          "returnType": "*http.Response",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "configAdminTestFieldPresent",
+          "params": [
+            "fields",
+            "key"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "configAdminTestFieldByKey",
+          "params": [
+            "fields",
+            "key"
+          ],
+          "returnType": "configAdminSchemaFieldTest",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "configAdminValueByKey",
+          "params": [
+            "values",
+            "key"
+          ],
+          "returnType": "configAdminValueStateTest",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "configAdminDiffByKey",
+          "params": [
+            "values",
+            "key"
+          ],
+          "returnType": "configAdminDiffEntryTest",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "containsString",
+          "params": [
+            "values",
+            "want"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [
+        {
+          "name": "configAdminSchemaFieldTest",
+          "methods": [],
+          "properties": [
+            "Key",
+            "Secret",
+            "Actions"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "configAdminValueStateTest",
+          "methods": [],
+          "properties": [
+            "Key",
+            "Value",
+            "Secret",
+            "SecretStatus",
+            "Source"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "configAdminDiffEntryTest",
+          "methods": [],
+          "properties": [
+            "Key",
+            "Secret",
+            "Before",
+            "After",
+            "BeforeRedacted",
+            "AfterRedacted"
+          ],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "imports": [
+        {
+          "source": "bytes",
+          "specifiers": [
+            "bytes"
+          ]
+        },
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "net/http/httptest",
+          "specifiers": [
+            "httptest"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        }
+      ],
+      "exports": [
+        "TestNavivoxConfigAdminRequiresAuthAndRedactsSchemaAndGet",
+        "TestNavivoxConfigAdminValidateAndApplyAreNonMutatingOnError",
+        "TestNavivoxConfigAdminDiffAndApplyReportsReloadApplied",
+        "TestNavivoxConfigAdminApplyWritesSafeValuesAndSecretRedacted"
+      ],
+      "totalLines": 397,
+      "hasStructuralAnalysis": true
+    },
+    "config_admin.go": {
+      "filePath": "config_admin.go",
+      "contentHash": "350915a5838ba56b17f2499c1b99c89ddd4735f4c5b099cda1c39f9a56a115a8",
+      "functions": [
+        {
+          "name": "WithConfigAdminReloader",
+          "params": [
+            "reload"
+          ],
+          "returnType": "ChannelOption",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "defaultConfigAdminBackend",
+          "params": [],
+          "returnType": "configAdminBackend",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "handleConfigAdmin",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 65
+        },
+        {
+          "name": "validateConfigAdminRequest",
+          "params": [
+            "w",
+            "r"
+          ],
+          "returnType": "(configAdminValidation, bool)",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "loadConfig",
+          "params": [],
+          "returnType": "(config.Config, error)",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "validate",
+          "params": [
+            "changes"
+          ],
+          "returnType": "(configAdminValidation, error)",
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "apply",
+          "params": [
+            "ctx",
+            "validation"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 29
+        },
+        {
+          "name": "reloadResult",
+          "params": [
+            "ctx"
+          ],
+          "returnType": "(reloadApplied bool, pendingRestart bool, sanitizedError string)",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "configPathOrDefault",
+          "params": [],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "envPathOrDefault",
+          "params": [],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "configAdminSchema",
+          "params": [],
+          "returnType": "[]configAdminField",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "configAdminFieldByKey",
+          "params": [
+            "key"
+          ],
+          "returnType": "(configAdminField, bool)",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "configAdminValues",
+          "params": [
+            "cfg"
+          ],
+          "returnType": "[]configAdminValueState",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "configAdminFieldValue",
+          "params": [
+            "cfg",
+            "key"
+          ],
+          "returnType": "any",
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "secretValueForConfigAdmin",
+          "params": [
+            "cfg",
+            "key"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "secretSourceForConfigAdmin",
+          "params": [
+            "key"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "applyConfigAdminChangeToConfig",
+          "params": [
+            "cfg",
+            "field",
+            "change"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 46
+        },
+        {
+          "name": "configAdminDiffs",
+          "params": [
+            "before",
+            "after",
+            "changes"
+          ],
+          "returnType": "[]configAdminDiffEntry",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "secretStatusForConfigAdmin",
+          "params": [
+            "cfg",
+            "key"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "normalizeConfigAdminChanges",
+          "params": [
+            "changes"
+          ],
+          "returnType": "[]configAdminChange",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "cloneConfigAdminStrings",
+          "params": [
+            "values"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "parseConfigAdminBool",
+          "params": [
+            "value"
+          ],
+          "returnType": "(bool, error)",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "parseConfigAdminCSV",
+          "params": [
+            "value"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "containsConfigAdminAllowed",
+          "params": [
+            "allowed",
+            "value"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "firstConfigAdminChangedKey",
+          "params": [
+            "changes",
+            "preferred"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "sanitizeConfigAdminMessage",
+          "params": [
+            "err"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 19
+        }
+      ],
+      "classes": [
+        {
+          "name": "configAdminBackend",
+          "methods": [
+            "loadConfig",
+            "validate",
+            "apply",
+            "reloadResult",
+            "configPathOrDefault",
+            "envPathOrDefault"
+          ],
+          "properties": [
+            "configPath",
+            "envPath",
+            "load",
+            "reload"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "configAdminField",
+          "methods": [],
+          "properties": [
+            "Key",
+            "Type",
+            "Title",
+            "Description",
+            "Secret",
+            "Allowed",
+            "Actions",
+            "Reload"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "configAdminValueState",
+          "methods": [],
+          "properties": [
+            "Key",
+            "Type",
+            "Value",
+            "Secret",
+            "SecretStatus",
+            "Source"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "configAdminRequest",
+          "methods": [],
+          "properties": [
+            "Changes"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "configAdminChange",
+          "methods": [],
+          "properties": [
+            "Key",
+            "Value",
+            "Delete"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "configAdminDiffEntry",
+          "methods": [],
+          "properties": [
+            "Key",
+            "Type",
+            "Secret",
+            "Before",
+            "After",
+            "BeforeRedacted",
+            "AfterRedacted",
+            "SecretStatus"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "configAdminFieldError",
+          "methods": [],
+          "properties": [
+            "Key",
+            "Code",
+            "Message"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "configAdminValidation",
+          "methods": [],
+          "properties": [
+            "cfg",
+            "next",
+            "changes",
+            "diffs",
+            "errors"
+          ],
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "fmt",
+          "specifiers": [
+            "fmt"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "strconv",
+          "specifiers": [
+            "strconv"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        }
+      ],
+      "exports": [
+        "WithConfigAdminReloader"
+      ],
+      "totalLines": 529,
+      "hasStructuralAnalysis": true
+    },
+    "memory_overview_test.go": {
+      "filePath": "memory_overview_test.go",
+      "contentHash": "c56b1d0e1c2bad25dad8409902a60ba0bdaaab38216c0c302a08d813b1cb2656",
+      "functions": [
+        {
+          "name": "TestNavivoxMemoryOverviewRequiresAuthAndReturnsSafeCounts",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 103
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "net/http/httptest",
+          "specifiers": [
+            "httptest"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/memory",
+          "specifiers": [
+            "memory"
+          ]
+        }
+      ],
+      "exports": [
+        "TestNavivoxMemoryOverviewRequiresAuthAndReturnsSafeCounts"
+      ],
+      "totalLines": 117,
+      "hasStructuralAnalysis": true
+    },
+    "memory_overview.go": {
+      "filePath": "memory_overview.go",
+      "contentHash": "b533b981230be90bf8b4929463b6d902171e1630af508237dfa2511502e7cdd4",
+      "functions": [
+        {
+          "name": "handleMemoryOverview",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "readMemoryOverview",
+          "params": [
+            "ctx",
+            "dbPath",
+            "profileID"
+          ],
+          "returnType": "memoryOverviewResponse",
+          "exported": false,
+          "lineCount": 63
+        },
+        {
+          "name": "countMemoryTable",
+          "params": [
+            "ctx",
+            "db",
+            "table",
+            "where"
+          ],
+          "returnType": "(int, error)",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "memoryTableExists",
+          "params": [
+            "ctx",
+            "db",
+            "table"
+          ],
+          "returnType": "(bool, error)",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "firstMemoryWorkspaceID",
+          "params": [
+            "ctx",
+            "db"
+          ],
+          "returnType": "(string, bool)",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "safeMemoryDatabaseLabel",
+          "params": [
+            "path"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 14
+        }
+      ],
+      "classes": [
+        {
+          "name": "memoryOverviewResponse",
+          "methods": [],
+          "properties": [
+            "ProfileID",
+            "WorkspaceID",
+            "DatabaseLabel",
+            "Health",
+            "DegradedReason",
+            "Counts"
+          ],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "database/sql",
+          "specifiers": [
+            "sql"
+          ]
+        },
+        {
+          "source": "errors",
+          "specifiers": [
+            "errors"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "github.com/ncruces/go-sqlite3/driver",
+          "specifiers": [
+            "_"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 158,
+      "hasStructuralAnalysis": true
+    },
+    "profile_contacts_test.go": {
+      "filePath": "profile_contacts_test.go",
+      "contentHash": "74242bdc9adc2aa8df66b1f128787b89c2972a8a788931433653fc210d0b307e",
+      "functions": [
+        {
+          "name": "TestNavivoxProfileContactSnapshotIsAuthBoundedAndRedacted",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 87
+        },
+        {
+          "name": "TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 60
+        },
+        {
+          "name": "profileContactIDs",
+          "params": [
+            "contacts"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "net/http/httptest",
+          "specifiers": [
+            "httptest"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "slices",
+          "specifiers": [
+            "slices"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        }
+      ],
+      "exports": [
+        "TestNavivoxProfileContactSnapshotIsAuthBoundedAndRedacted",
+        "TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview"
+      ],
+      "totalLines": 174,
+      "hasStructuralAnalysis": true
+    },
+    "profile_contacts.go": {
+      "filePath": "profile_contacts.go",
+      "contentHash": "3f4c010acf57c5b4ac356b54c96019a19ebaef6cfeae9fa6930a73cac2b80188",
+      "functions": [
+        {
+          "name": "profileContactSnapshot",
+          "params": [
+            "ctx"
+          ],
+          "returnType": "([]ProfileContact, error)",
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "defaultProfileContacts",
+          "params": [
+            "ctx"
+          ],
+          "returnType": "([]ProfileContact, error)",
+          "exported": false,
+          "lineCount": 33
+        },
+        {
+          "name": "profileContactFromRoot",
+          "params": [
+            "name",
+            "root"
+          ],
+          "returnType": "ProfileContact",
+          "exported": false,
+          "lineCount": 43
+        },
+        {
+          "name": "readProfileContactConfig",
+          "params": [
+            "root"
+          ],
+          "returnType": "(profileConfigReadModel, bool, error)",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "configuredWorkspaceRoots",
+          "params": [
+            "root",
+            "cfg",
+            "present"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "workspaceRootSummary",
+          "params": [
+            "roots"
+          ],
+          "returnType": "(count, warnings, errors int)",
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "profileContactRuntimeUpdateLocked",
+          "params": [
+            "serverID",
+            "profileID",
+            "preview",
+            "previewKind",
+            "turnState"
+          ],
+          "returnType": "ProfileContact",
+          "exported": false,
+          "lineCount": 33
+        },
+        {
+          "name": "updateProfileContactForSession",
+          "params": [
+            "sessionID",
+            "preview",
+            "previewKind",
+            "turnState"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "broadcastProfileContact",
+          "params": [
+            "contact"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "profileScopeFromMetadata",
+          "params": [
+            "metadata"
+          ],
+          "returnType": "(string, string)",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "normalizeProfileScope",
+          "params": [
+            "serverID",
+            "profileID"
+          ],
+          "returnType": "(string, string)",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "profileContactKey",
+          "params": [
+            "serverID",
+            "profileID"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "normalizeProfileContact",
+          "params": [
+            "contact"
+          ],
+          "returnType": "ProfileContact",
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "mergeProfileContact",
+          "params": [
+            "base",
+            "overlay"
+          ],
+          "returnType": "ProfileContact",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "sortProfileContacts",
+          "params": [
+            "contacts"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "profileDisplayName",
+          "params": [
+            "profileID"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "safeNavivoxProfilePreview",
+          "params": [
+            "raw"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "appendBadge",
+          "params": [
+            "badges",
+            "badge"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "compactProfileStrings",
+          "params": [
+            "values"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "dirExists",
+          "params": [
+            "path"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "anyString",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [
+        {
+          "name": "ProfileContact",
+          "methods": [],
+          "properties": [
+            "ServerID",
+            "ProfileID",
+            "DisplayName",
+            "ServerLabel",
+            "AvatarSeed",
+            "LatestPreview",
+            "LatestPreviewKind",
+            "LatestPreviewAt",
+            "Health",
+            "WorkspaceRootCount",
+            "WorkspaceRootsOK",
+            "WorkspaceRootsWarning",
+            "WorkspaceRootsError",
+            "AttentionBadges",
+            "MicAvailable",
+            "ActiveTurnState"
+          ],
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "profileContactSnapshot",
+          "methods": [],
+          "properties": [
+            "Contacts"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "profileConfigReadModel",
+          "methods": [],
+          "properties": [
+            "Hermes",
+            "Agents"
+          ],
+          "exported": false,
+          "lineCount": 12
+        }
+      ],
+      "imports": [
+        {
+          "source": "bytes",
+          "specifiers": [
+            "bytes"
+          ]
+        },
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "regexp",
+          "specifiers": [
+            "regexp"
+          ]
+        },
+        {
+          "source": "sort",
+          "specifiers": [
+            "sort"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/profiles",
+          "specifiers": [
+            "profilemodule"
+          ]
+        },
+        {
+          "source": "github.com/pelletier/go-toml/v2",
+          "specifiers": [
+            "v2"
+          ]
+        },
+        {
+          "source": "gopkg.in/yaml.v3",
+          "specifiers": [
+            "yaml.v3"
+          ]
+        }
+      ],
+      "exports": [
+        "ProfileContact"
+      ],
+      "totalLines": 472,
+      "hasStructuralAnalysis": true
+    },
+    "stream.go": {
+      "filePath": "stream.go",
+      "contentHash": "a2581f1d02f8c7f5d8529cb4d85ea208b2c44c7fa2977d3a8fb4ebb9e8e94464",
+      "functions": [
+        {
+          "name": "handleStream",
+          "params": [
+            "inbox"
+          ],
+          "returnType": "http.HandlerFunc",
+          "exported": false,
+          "lineCount": 55
+        },
+        {
+          "name": "handle",
+          "params": [
+            "ctx",
+            "inbox",
+            "msg"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 37
+        },
+        {
+          "name": "enqueueTurnControl",
+          "params": [
+            "ctx",
+            "inbox",
+            "msg",
+            "status"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "sweepSessions",
+          "params": [],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "ensureSessionLocked",
+          "params": [
+            "id",
+            "requestID"
+          ],
+          "returnType": "*sessionState",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "subscribe",
+          "params": [
+            "sessionID",
+            "requestID"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "addClient",
+          "params": [
+            "cl"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "removeClient",
+          "params": [
+            "cl"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "broadcast",
+          "params": [
+            "sessionID",
+            "ev"
+          ],
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "eventPump",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "write",
+          "params": [
+            "ev"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "safeNavivoxToolName",
+          "params": [
+            "raw"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "safeNavivoxToolSummary",
+          "params": [
+            "raw"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "safeNavivoxToolMetadata",
+          "params": [
+            "raw"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "navivoxToolMetadataSensitiveKey",
+          "params": [
+            "key"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 9
+        }
+      ],
+      "classes": [
+        {
+          "name": "sessionState",
+          "methods": [],
+          "properties": [
+            "ID",
+            "LastRequestID",
+            "ProfileServer",
+            "ProfileID",
+            "CreatedAt",
+            "UpdatedAt",
+            "Subscribers",
+            "lastMessageID",
+            "lastText",
+            "seq"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "client",
+          "methods": [
+            "handle",
+            "enqueueTurnControl",
+            "subscribe",
+            "eventPump",
+            "write"
+          ],
+          "properties": [
+            "ch",
+            "conn",
+            "writeMu",
+            "sessions",
+            "requests",
+            "identity",
+            "events",
+            "done"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "ClientMessage",
+          "methods": [],
+          "properties": [
+            "Type",
+            "RequestID",
+            "SessionID",
+            "Text",
+            "Metadata"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "ServerEvent",
+          "methods": [],
+          "properties": [
+            "Type",
+            "RequestID",
+            "SessionID",
+            "Text",
+            "Code",
+            "Message",
+            "ToolName",
+            "ToolCallID",
+            "Status",
+            "SafetyID",
+            "ApprovalID",
+            "Severity",
+            "Risk",
+            "Seq",
+            "Metadata",
+            "Contact"
+          ],
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "SafetyEvent",
+          "methods": [],
+          "properties": [
+            "ID",
+            "Severity",
+            "Message",
+            "Risk",
+            "Metadata"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "ApprovalEvent",
+          "methods": [],
+          "properties": [
+            "ID",
+            "ToolCallID",
+            "Prompt",
+            "Risk",
+            "Metadata"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "sync",
+          "specifiers": [
+            "sync"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/gorilla/websocket",
+          "specifiers": [
+            "websocket"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        }
+      ],
+      "exports": [
+        "ClientMessage",
+        "ServerEvent",
+        "SafetyEvent",
+        "ApprovalEvent"
+      ],
+      "totalLines": 382,
+      "hasStructuralAnalysis": true
+    },
+    "tool_events_test.go": {
+      "filePath": "tool_events_test.go",
+      "contentHash": "2d3048a9b3256a7d4bf668eefb16f05b6470fca66722066bc4515fbefde7b237",
+      "functions": [
+        {
+          "name": "TestNavivoxSendToolProgressStreamsUpdatedEvent",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 55
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "net/http/httptest",
+          "specifiers": [
+            "httptest"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        }
+      ],
+      "exports": [
+        "TestNavivoxSendToolProgressStreamsUpdatedEvent"
+      ],
+      "totalLines": 66,
+      "hasStructuralAnalysis": true
+    },
+    "turn.go": {
+      "filePath": "turn.go",
+      "contentHash": "52e06e436c5233e1a4ace34191bf971441458e1f0a2ff29af836d534918aa20d",
+      "functions": [
+        {
+          "name": "turnInputFromRequest",
+          "params": [
+            "req"
+          ],
+          "returnType": "turnInput",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "turnInputFromClientMessage",
+          "params": [
+            "msg"
+          ],
+          "returnType": "turnInput",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "handleTurn",
+          "params": [
+            "inbox"
+          ],
+          "returnType": "func(http.ResponseWriter, *http.Request, string)",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "enqueueTurn",
+          "params": [
+            "ctx",
+            "inbox",
+            "turn",
+            "identity"
+          ],
+          "returnType": "(string, *ProfileContact, error)",
+          "exported": false,
+          "lineCount": 41
+        },
+        {
+          "name": "enqueue",
+          "params": [
+            "ctx",
+            "inbox",
+            "ev"
+          ],
+          "returnType": "error",
+          "exported": false,
+          "lineCount": 10
+        }
+      ],
+      "classes": [
+        {
+          "name": "turnRequest",
+          "methods": [],
+          "properties": [
+            "RequestID",
+            "SessionID",
+            "Text",
+            "Metadata"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "turnInput",
+          "methods": [],
+          "properties": [
+            "RequestID",
+            "SessionID",
+            "Text",
+            "Metadata"
+          ],
+          "exported": false,
+          "lineCount": 6
+        }
+      ],
+      "imports": [
+        {
+          "source": "context",
+          "specifiers": [
+            "context"
+          ]
+        },
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 128,
+      "hasStructuralAnalysis": true
+    },
+    "voice_profiles_test.go": {
+      "filePath": "voice_profiles_test.go",
+      "contentHash": "6801ebda5082c637753b08b5d738d8b8a3c56cf0777a8a7d3384d2046e2ba79f",
+      "functions": [
+        {
+          "name": "TestNavivoxVoiceProfilesReadRedactsCredentialsAndValidatesProviders",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 115
+        },
+        {
+          "name": "TestNavivoxVoiceTurnResolvesProfileVoiceFallbackEvidence",
+          "params": [
+            "t"
+          ],
+          "exported": true,
+          "lineCount": 78
+        },
+        {
+          "name": "doNavivoxVoiceProfileRequest",
+          "params": [
+            "t",
+            "baseURL",
+            "method",
+            "path",
+            "body"
+          ],
+          "returnType": "*http.Response",
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "stringListContains",
+          "params": [
+            "values",
+            "want"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "net/http/httptest",
+          "specifiers": [
+            "httptest"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "path/filepath",
+          "specifiers": [
+            "filepath"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "testing",
+          "specifiers": [
+            "testing"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/gateway",
+          "specifiers": [
+            "gateway"
+          ]
+        }
+      ],
+      "exports": [
+        "TestNavivoxVoiceProfilesReadRedactsCredentialsAndValidatesProviders",
+        "TestNavivoxVoiceTurnResolvesProfileVoiceFallbackEvidence"
+      ],
+      "totalLines": 242,
+      "hasStructuralAnalysis": true
+    },
+    "voice_profiles.go": {
+      "filePath": "voice_profiles.go",
+      "contentHash": "93a046b224f23e118536d40223074cadea9b0e54ead0db76726726299abfb4f5",
+      "functions": [
+        {
+          "name": "defaultVoiceProfileBackend",
+          "params": [],
+          "returnType": "voiceProfileBackend",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "handleVoiceProfiles",
+          "params": [
+            "w",
+            "r",
+            "_"
+          ],
+          "exported": false,
+          "lineCount": 32
+        },
+        {
+          "name": "loadConfig",
+          "params": [],
+          "returnType": "(config.Config, error)",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "voiceProfileViews",
+          "params": [
+            "cfg"
+          ],
+          "returnType": "[]voiceProfileView",
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "navivoxVoiceProviderMatrix",
+          "params": [],
+          "returnType": "config.ProfileVoiceProviderMatrix",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "uniqueSortedVoiceProviders",
+          "params": [
+            "values"
+          ],
+          "returnType": "[]string",
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "voiceProfileMetadataForTurn",
+          "params": [
+            "metadata",
+            "profileID"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 46
+        },
+        {
+          "name": "navivoxTurnMetadataMarksVoice",
+          "params": [
+            "metadata"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "cloneNavivoxMetadata",
+          "params": [
+            "metadata"
+          ],
+          "returnType": "map[string]any",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "boolFromNavivoxMetadata",
+          "params": [
+            "value"
+          ],
+          "returnType": "bool",
+          "exported": false,
+          "lineCount": 10
+        }
+      ],
+      "classes": [
+        {
+          "name": "voiceProfileBackend",
+          "methods": [
+            "loadConfig"
+          ],
+          "properties": [
+            "load"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "voiceProfileRequest",
+          "methods": [],
+          "properties": [
+            "ProfileID",
+            "VoiceProfile"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "voiceProfileResponse",
+          "methods": [],
+          "properties": [
+            "Action",
+            "ProviderMatrix",
+            "Profiles",
+            "Validation",
+            "Valid",
+            "Errors"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "voiceProfileView",
+          "methods": [],
+          "properties": [
+            "ProfileID",
+            "DisplayName",
+            "VoiceProfile",
+            "CredentialStatusRefs",
+            "Valid",
+            "Errors"
+          ],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "imports": [
+        {
+          "source": "encoding/json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "net/http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "sort",
+          "specifiers": [
+            "sort"
+          ]
+        },
+        {
+          "source": "strings",
+          "specifiers": [
+            "strings"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/config",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/tools",
+          "specifiers": [
+            "tools"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 211,
+      "hasStructuralAnalysis": true
+    }
+  }
+}
