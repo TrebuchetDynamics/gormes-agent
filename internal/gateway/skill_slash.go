@@ -76,7 +76,7 @@ func (m *Manager) preprocessSlashSubmit(ctx context.Context, ch Channel, ev Inbo
 
 func slashCommandKindCarriesBody(kind EventKind) bool {
 	switch kind {
-	case EventSteer, EventTitle, EventSessions, EventProfile, EventSkills, EventCommands, EventReasoning,
+	case EventSteer, EventQueue, EventTitle, EventSessions, EventProfile, EventSkills, EventCommands, EventReasoning,
 		EventBusy, EventTTS, EventReload, EventReloadSkills, EventRetry, EventGoal, EventTopic, EventKanban,
 		EventSpawn, EventPlatformControl:
 		return true

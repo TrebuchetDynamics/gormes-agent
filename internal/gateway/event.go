@@ -28,6 +28,8 @@ const (
 	EventRestart
 	// EventSteer queues operator guidance for the active turn fallback path.
 	EventSteer
+	// EventQueue queues one full follow-up turn without interrupting the active run.
+	EventQueue
 	// EventUsage renders runtime and provider account-usage evidence.
 	EventUsage
 	// EventStatus renders Hermes-style gateway/session status directly in the
@@ -97,6 +99,8 @@ func (k EventKind) String() string {
 		return "restart"
 	case EventSteer:
 		return "steer"
+	case EventQueue:
+		return "queue"
 	case EventUsage:
 		return "usage"
 	case EventStatus:

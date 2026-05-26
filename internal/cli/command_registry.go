@@ -142,7 +142,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "platforms", Description: "Show gateway/messaging platform status", Aliases: []string{"gateway"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "plugins", Description: "List installed plugins", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "profile", Description: "Show active profile name and home directory", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
-	{Name: "queue", Description: "Queue a prompt for the next turn", Aliases: []string{"q"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "queue", Description: "Queue a prompt for the next turn", Aliases: []string{"q"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyQueue, Ported: true},
 	{Name: "quit", Description: "Exit the CLI", Aliases: []string{"exit"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBusyReject, Ported: true},
 	{Name: "reload", Description: "Reload gateway config without restarting", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "reload-skills", Description: "Re-scan installed skills for newly added or removed skill commands", Aliases: []string{"reload_skills"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},

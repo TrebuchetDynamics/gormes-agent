@@ -992,6 +992,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventSteer:
 		m.handleSteerCommand(ctx, ch, ev)
 		return nil
+	case EventQueue:
+		m.handleQueueCommand(ctx, ch, ev)
+		return nil
 	case EventUsage:
 		m.handleUsageCommand(ctx, ch, ev)
 		return nil
@@ -1106,6 +1109,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventSteer:
 		m.handleSteerCommand(ctx, ch, ev)
+		return true
+	case EventQueue:
+		m.handleQueueCommand(ctx, ch, ev)
 		return true
 	case EventUsage:
 		m.handleUsageCommand(ctx, ch, ev)
@@ -1416,6 +1422,33 @@ func (m *Manager) handleSteerCommand(ctx context.Context, ch Channel, ev Inbound
 		return
 	}
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, string(SteerEvidenceUnavailable)+": no active turn; "+string(SteerEvidencePreview)+": "+parsed.Preview)
+}
+
+func (m *Manager) handleQueueCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	text := strings.TrimSpace(strings.Join(commandArgs(ev.Text), " "))
+	if text == "" {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Usage: /queue <prompt>")
+		return
+	}
+	followUp := ev
+	followUp.Kind = EventSubmit
+	followUp.Text = text
+	followUp.Attachments = nil
+	queued, full := m.queueFollowUpIfActive(followUp)
+	if full {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, followUpQueueFullNotice)
+		return
+	}
+	if !queued {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "queue_unavailable: no active turn; send the prompt without /queue to run it now")
+		return
+	}
+	depth := m.followUpQueueDepth()
+	if depth <= 1 {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Queued for the next turn.")
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("Queued for the next turn. (%d queued)", depth))
 }
 
 func steerPayloadMetadataFromInbound(ev InboundEvent) SteerPayloadMetadata {
@@ -2469,6 +2502,12 @@ func (m *Manager) queueFollowUpIfActive(ev InboundEvent) (queued bool, full bool
 	}
 	m.followUps = append(m.followUps, ev)
 	return true, false
+}
+
+func (m *Manager) followUpQueueDepth() int {
+	m.turnMu.Lock()
+	defer m.turnMu.Unlock()
+	return len(m.followUps)
 }
 
 func (m *Manager) drainNextFollowUp(ctx context.Context) {

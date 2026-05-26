@@ -162,7 +162,6 @@ func TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit(t *testin
 		"/image ./diagram.png",
 		"/tools list",
 		"/rollback",
-		"/queue later",
 	} {
 		t.Run(input, func(t *testing.T) {
 			sub := &nopSubmitter{}

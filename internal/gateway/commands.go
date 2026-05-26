@@ -69,6 +69,13 @@ var CommandRegistry = []CommandDef{
 		ActiveTurnPolicy: CommandActiveTurnPolicyDrain,
 	},
 	{
+		Name:             "queue",
+		Description:      "Queue a prompt for the next turn (doesn't interrupt)",
+		Kind:             EventQueue,
+		Aliases:          []string{"q"},
+		ActiveTurnPolicy: CommandActiveTurnPolicyDrain,
+	},
+	{
 		Name:             "usage",
 		Description:      "Show runtime and provider account usage",
 		Kind:             EventUsage,
@@ -132,7 +139,6 @@ var CommandRegistry = []CommandDef{
 	{Name: "background", Description: "Run a prompt in the background", Kind: EventUnknown, Aliases: []string{"bg"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "btw", Description: "Ephemeral side question using session context (no tools, not persisted)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "agents", Description: "Show active agents and running tasks", Kind: EventUnknown, Aliases: []string{"tasks"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "queue", Description: "Queue a prompt for the next turn (doesn't interrupt)", Kind: EventUnknown, Aliases: []string{"q"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "status", Description: "Show session info", Kind: EventStatus, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "footer", Description: "Toggle the gateway footer", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "gquota", Description: "Show Google Gemini Code Assist quota usage", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -149,7 +155,6 @@ var telegramMenuUnavailableCommands = map[string]struct{}{
 	"btw":        {},
 	"compress":   {},
 	"deny":       {},
-	"queue":      {},
 	"rollback":   {},
 	"snapshot":   {},
 	"undo":       {},
@@ -234,7 +239,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventCommands || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventReloadSkills || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn || cmd.Kind == EventPlatformControl {
+	if cmd.Kind == EventSteer || cmd.Kind == EventQueue || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventCommands || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventReloadSkills || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn || cmd.Kind == EventPlatformControl {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""

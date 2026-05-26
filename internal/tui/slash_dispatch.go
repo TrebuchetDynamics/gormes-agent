@@ -166,6 +166,8 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("details", detailsSlashHandler, WithBusyAvailable())
 	r.Register("indicator", indicatorSlashHandler, WithBusyAvailable())
 	r.Register("history", historySlashHandler, WithBusyAvailable())
+	r.Register("queue", queueSlashHandler, WithBusyAvailable())
+	r.Register("q", queueSlashHandler, WithBusyAvailable())
 	r.Register("logs", logsSlashHandler, WithBusyAvailable())
 	r.Register("title", titleSlashHandler, WithBusyAvailable())
 	r.Register("sessions", sessionsSlashHandler)
@@ -416,6 +418,18 @@ func skillsSlashHandler(input string, model *Model) SlashResult {
 		handler = model.skillsCommand
 	}
 	return SlashResult{Handled: true, StatusMessage: strings.TrimSpace(handler(input))}
+}
+
+func queueSlashHandler(input string, model *Model) SlashResult {
+	if model == nil {
+		return SlashResult{Handled: true, StatusMessage: "0 queued message(s)"}
+	}
+	text := strings.TrimSpace(slashInvocationArgs(input))
+	if text == "" {
+		return SlashResult{Handled: true, StatusMessage: fmt.Sprintf("%d queued message(s)", model.queuedMessages.Len())}
+	}
+	model.queueFollowUpDraft(text)
+	return SlashResult{Handled: true}
 }
 
 func reloadSkillsSlashHandler(_ string, model *Model) SlashResult {
