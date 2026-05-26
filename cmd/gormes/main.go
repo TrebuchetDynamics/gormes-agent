@@ -236,6 +236,10 @@ type tuiInvocation struct {
 	// instantiating a local kernel + provider client. Empty leaves local
 	// Bubble Tea behavior intact.
 	RemoteURL string
+	// PromptTemplatePaths are explicit operator-provided Markdown template files
+	// or directories for the native TUI. NoPromptTemplates disables discovery.
+	PromptTemplatePaths []string
+	NoPromptTemplates   bool
 }
 
 type oneshotInvocation struct {
@@ -314,6 +318,12 @@ func installRootRPCModeFlags(root *cobra.Command) {
 	}
 	if root.PersistentFlags().Lookup("no-session") == nil {
 		root.PersistentFlags().Bool("no-session", false, "disable session persistence for RPC mode")
+	}
+	if root.PersistentFlags().Lookup("prompt-template") == nil {
+		root.PersistentFlags().StringArray("prompt-template", nil, "load a Markdown prompt template file or directory for the native TUI (repeatable)")
+	}
+	if root.PersistentFlags().Lookup("no-prompt-templates") == nil {
+		root.PersistentFlags().Bool("no-prompt-templates", false, "disable native TUI prompt template discovery")
 	}
 }
 
@@ -799,10 +809,12 @@ func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
 	})
 	resolution = resolveStaticStartupInference(resolution)
 	invocation := tuiInvocation{
-		Inference:    resolution,
-		Config:       cfg,
-		ForcedSkills: forcedSkillNames(cmd),
-		RemoteURL:    remoteFlag,
+		Inference:           resolution,
+		Config:              cfg,
+		ForcedSkills:        forcedSkillNames(cmd),
+		RemoteURL:           remoteFlag,
+		PromptTemplatePaths: commandStringArrayFlag(cmd, "prompt-template"),
+		NoPromptTemplates:   commandBoolFlag(cmd, "no-prompt-templates"),
 	}
 	if err != nil {
 		return invocation, newExitCodeError(2, err)
@@ -1364,6 +1376,9 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		SkillsCommand: func(input string) string {
 			return gateway.HandleSkillsCommandWithOptions(rootCtx, input, skillsCommandOptionsForConfig(cfg))
 		},
+		SkillSlashCommands:  tuiSkillSlashCommands(rootCtx, cfg),
+		SkillSlashReload:    tuiSkillSlashReloadFunc(cfg),
+		PromptTemplates:     tuiPromptTemplateCatalog(cfg, "", promptTemplateCatalogOptions{Paths: invocation.PromptTemplatePaths, Disabled: invocation.NoPromptTemplates}),
 		GatewayLogTail:      readLogsTail,
 		SessionTitle:        newTUITitleFunc(rootCtx, boltMap),
 		SessionDirectory:    newTUISessionDirectoryFunc(rootCtx),

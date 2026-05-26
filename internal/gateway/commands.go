@@ -80,7 +80,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "tts", Description: "Configure text-to-speech", Kind: EventTTS, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "topic", Description: "Manage Telegram multi-session topics", Kind: EventTopic, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "clear", Description: "Clear screen and start a new session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "commands", Description: "Browse all commands and skills", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "commands", Description: "Browse all commands and skills", Kind: EventCommands, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "compact", Description: "Toggle compact transcript", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "config", Description: "Show current configuration", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "copy", Description: "Copy the last assistant response to clipboard", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -104,6 +104,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "profile", Description: "Show active profile name and home directory", Kind: EventProfile, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "quit", Description: "Exit the CLI", Kind: EventUnknown, Aliases: []string{"exit"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "reload", Description: "Reload gateway config without restarting", Kind: EventReload, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
+	{Name: "reload-skills", Description: "Re-scan installed skills for newly added or removed skill commands", Kind: EventReloadSkills, Aliases: []string{"reload_skills"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "reload-mcp", Description: "Reload MCP servers from config", Kind: EventUnknown, Aliases: []string{"reload_mcp"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "resume", Description: "Resume a previously-named session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "save", Description: "Save the current conversation", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -233,7 +234,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn || cmd.Kind == EventPlatformControl {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventCommands || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventReloadSkills || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn || cmd.Kind == EventPlatformControl {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""
@@ -242,6 +243,20 @@ func ParseInboundText(text string) (EventKind, string) {
 // ResolveGatewayCommandDispatch maps a typed gateway slash command or alias to
 // the canonical command definition while preserving the typed command and raw
 // argument tail for hook contexts.
+// ParseInboundTextPreserveUnknown matches ParseInboundText except that the raw
+// slash text is preserved as the body for unknown commands. Manager-backed
+// adapters use this so the manager can resolve dynamic runtime slash commands
+// (for example /skill-name) before falling back to unknown-command guidance,
+// while legacy adapters can keep ParseInboundText's empty unknown body to avoid
+// accidentally submitting unknown slash text.
+func ParseInboundTextPreserveUnknown(text string) (EventKind, string) {
+	kind, body := ParseInboundText(text)
+	if kind == EventUnknown {
+		body = strings.TrimSpace(text)
+	}
+	return kind, body
+}
+
 func ResolveGatewayCommandDispatch(text string) GatewayCommandDispatch {
 	token, args := splitGatewayCommandLine(text)
 	raw := slashCommandName(token)

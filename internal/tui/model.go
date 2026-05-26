@@ -13,6 +13,8 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 )
 
 // Submitter is the callback wired by main.go to enqueue a user turn on the
@@ -112,6 +114,19 @@ type ToolsConfigureResult struct {
 // It is injected so internal/tui never writes config files directly.
 type ToolsConfigureFunc func(ToolsConfigureRequest) (ToolsConfigureResult, error)
 
+// SkillSlashReloadResult is the native TUI reload payload for /reload-skills.
+// Commands replaces the dynamic /skill-name registry; Output is operator-facing
+// evidence rendered in the status line.
+type SkillSlashReloadResult struct {
+	Commands []skills.SkillSlashCommand
+	Output   string
+}
+
+// SkillSlashReloadFunc refreshes dynamic skill slash commands for the native
+// TUI. Production callers own filesystem/config access; internal/tui only
+// swaps the in-memory registry.
+type SkillSlashReloadFunc func(context.Context) (SkillSlashReloadResult, error)
+
 // VoiceToggleRequest is the TUI-local request shape for /voice status|on|off|tts.
 // Production callers own runtime voice state, setup checks, and config access;
 // internal/tui only parses slash input and renders adapter evidence.
@@ -199,6 +214,17 @@ type Options struct {
 	// nil falls back to gateway.HandleSkillsCommand so read-only skills commands
 	// still work in tests and legacy callers; cmd/gormes wires URL install seams.
 	SkillsCommand func(string) string
+	// SkillSlashCommands are Hermes-compatible dynamic /skill-name invocations.
+	// Built-in slash handlers keep precedence; prompt templates may not shadow
+	// these commands.
+	SkillSlashCommands []skills.SkillSlashCommand
+	// SkillSlashReload refreshes SkillSlashCommands for /reload-skills.
+	// nil keeps the command consumed with visible unavailable evidence.
+	SkillSlashReload SkillSlashReloadFunc
+	// PromptTemplates are local operator-authored Markdown snippets exposed as
+	// slash expansions. They never override built-in slash handlers and expand
+	// into editable composer text rather than submitting to the model directly.
+	PromptTemplates prompttemplates.Catalog
 	// GatewayLogTail is the injected gateway log-tail reader invoked by /logs.
 	// nil keeps /logs consumed with `no gateway logs`; cmd/gormes wires a
 	// bounded live-gateway/file-fallback adapter for local TUI startup.
@@ -352,6 +378,9 @@ type Model struct {
 	clipboardWrite     func(string) error
 	kanbanSlash        KanbanSlashFunc
 	skillsCommand      func(string) string
+	skillSlashCommands []skills.SkillSlashCommand
+	skillSlashReload   SkillSlashReloadFunc
+	promptTemplates    prompttemplates.Catalog
 	gatewayLogTail     GatewayLogTailFunc
 	sessionTitle       SessionTitleFunc
 	sessionDirectory   SessionDirectoryFunc
@@ -432,6 +461,9 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		clipboardWrite:     opts.ClipboardWrite,
 		kanbanSlash:        opts.KanbanSlash,
 		skillsCommand:      opts.SkillsCommand,
+		skillSlashCommands: opts.SkillSlashCommands,
+		skillSlashReload:   opts.SkillSlashReload,
+		promptTemplates:    opts.PromptTemplates,
 		gatewayLogTail:     opts.GatewayLogTail,
 		sessionTitle:       opts.SessionTitle,
 		sessionDirectory:   opts.SessionDirectory,
@@ -455,8 +487,19 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		detailsState:       NormalizeDetailsState(opts.DetailsState),
 		indicatorStyle:     NormalizeIndicatorStyle(string(opts.IndicatorStyle)),
 		offlineSmoke:       opts.OfflineSmoke,
-		slashRegistry:      NewDefaultSlashRegistry(),
-	}
+	}.withRebuiltSlashRegistry()
+}
+
+func (m Model) withRebuiltSlashRegistry() Model {
+	m.rebuildSlashRegistry()
+	return m
+}
+
+func (m *Model) rebuildSlashRegistry() {
+	r := NewDefaultSlashRegistry()
+	r.RegisterSkillSlashCommands(m.skillSlashCommands)
+	r.RegisterPromptTemplates(m.promptTemplates)
+	m.slashRegistry = r
 }
 
 // SessionID returns the model's active session identifier. A locally-tracked

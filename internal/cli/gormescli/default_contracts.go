@@ -196,6 +196,7 @@ func DefaultContracts() []ModuleContract {
 			SlashCommands: slashCommands(
 				"curator",
 				"plugins",
+				"reload-skills",
 				"skills",
 			),
 		},

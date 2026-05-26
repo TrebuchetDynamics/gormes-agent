@@ -49,6 +49,8 @@ const (
 	EventProfile
 	// EventSkills handles /skills subcommands (list, inspect).
 	EventSkills
+	// EventCommands handles /commands [page] command and skill catalog.
+	EventCommands
 	// EventReasoning handles /reasoning subcommands (show, set, reset).
 	EventReasoning
 	// EventBusy handles /busy subcommands (queue, steer, interrupt, status).
@@ -57,6 +59,8 @@ const (
 	EventTTS
 	// EventReload reloads gateway runtime config without restarting the process.
 	EventReload
+	// EventReloadSkills refreshes dynamic skill command catalogs without a model turn.
+	EventReloadSkills
 	// EventRetry handles /retry (retry the last message by resending to agent).
 	EventRetry
 	// EventUndo handles /undo (remove the last user/assistant exchange).
@@ -113,6 +117,8 @@ func (k EventKind) String() string {
 		return "profile"
 	case EventSkills:
 		return "skills"
+	case EventCommands:
+		return "commands"
 	case EventReasoning:
 		return "reasoning"
 	case EventBusy:
@@ -121,6 +127,8 @@ func (k EventKind) String() string {
 		return "tts"
 	case EventReload:
 		return "reload"
+	case EventReloadSkills:
+		return "reload_skills"
 	case EventRetry:
 		return "retry"
 	case EventUndo:
@@ -190,6 +198,10 @@ type InboundEvent struct {
 	// AutoSkills carries channel-scoped skills resolved by adapters from
 	// Hermes-compatible channel_skill_bindings.
 	AutoSkills []string
+	// SkillSlashExpanded marks submit text that was already expanded from a
+	// Hermes-compatible /skill-name invocation. The manager uses it to avoid
+	// injecting a second automatic skill block for the same turn.
+	SkillSlashExpanded bool
 	// ChannelPrompt carries an ephemeral per-channel prompt resolved by the
 	// adapter. It is injected for this turn only and never mutates global
 	// prompt or skill configuration.

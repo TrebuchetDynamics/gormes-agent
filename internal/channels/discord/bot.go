@@ -219,7 +219,7 @@ func (b *Bot) toInboundEventWithContext(ctx context.Context, m *discordgo.Messag
 	if strings.TrimSpace(text) == "" && len(attachments) == 0 {
 		return gateway.InboundEvent{}, false
 	}
-	kind, body := gateway.ParseInboundText(text)
+	kind, body := gateway.ParseInboundTextPreserveUnknown(text)
 
 	userID := ""
 	if m.Author != nil {

@@ -1053,65 +1053,18 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/undo is coming soon — message undo is not yet implemented in the gateway")
 		return nil
 	case EventSubmit:
-		if m.handleSlashSubmitCommand(ctx, ch, ev) {
-			return nil
-		}
-		if m.kernel == nil && m.cfg.AgentRuntimeFactory == nil {
-			return nil
-		}
-		if m.dropDuplicateInboundSubmit(ev) {
-			return nil
-		}
-		queued, full := m.queueFollowUpIfActive(ev)
-		if queued {
-			return nil
-		}
-		if full {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, followUpQueueFullNotice)
-			return nil
-		}
-		m.pinTurn(ev.Platform, ev.ChatID, ev.MsgID)
-		m.submitPinned(ctx, ch, ev)
+		m.handleSubmitEvent(ctx, ch, ev)
 		return nil
 	case EventUnknown:
+		if strings.HasPrefix(strings.TrimSpace(ev.Text), "/") {
+			ev.Kind = EventSubmit
+			m.handleSubmitEvent(ctx, ch, ev)
+			return nil
+		}
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command")
 		return nil
 	}
 	return nil
-}
-
-func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev InboundEvent) bool {
-	body := strings.TrimSpace(ev.Text)
-	if !strings.HasPrefix(body, "/") {
-		return false
-	}
-
-	cmd, ok := ResolveCommand(body)
-	if !ok {
-		name := slashCommandName(body)
-		if isRecognizedUnavailableSlashCommand(name) {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+name+" is recognized but unavailable in this build")
-		} else {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, UnknownSlashCommandGuidance(name))
-		}
-		return true
-	}
-	if m.hasActiveTurn() && cmd.ActiveTurnPolicy == CommandActiveTurnPolicyReject {
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Gormes is busy — finish the current turn or send /stop before /"+cmd.Name)
-		return true
-	}
-	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
-		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+cmd.Name+" is recognized but unavailable in this build")
-		return true
-	}
-	commandEvent := ev
-	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn {
-		commandEvent.Text = body
-	} else {
-		commandEvent.Text = ""
-	}
-	return m.dispatchCommandEvent(ctx, ch, commandEvent)
 }
 
 func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev InboundEvent) bool {
@@ -1166,6 +1119,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 	case EventSkills:
 		m.handleSkillsCommand(ctx, ch, ev)
 		return true
+	case EventCommands:
+		m.handleCommandsCommand(ctx, ch, ev)
+		return true
 	case EventVerbose:
 		m.handleVerboseCommand(ctx, ch, ev)
 		return true
@@ -1207,6 +1163,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
+		return true
+	case EventReloadSkills:
+		m.handleReloadSkillsCommand(ctx, ch, ev)
 		return true
 	case EventRetry:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
@@ -2904,6 +2863,9 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	sessionContext, _, _ := assembleLiveTurnPrompt(seams, submitText, resolved.SessionID, sessionBlock)
 	snapshot := m.agentRuntimeSnapshot(route)
 	snapshot = m.applyChannelAutoSkills(route, snapshot, ev.AutoSkills)
+	if ev.SkillSlashExpanded {
+		snapshot.Skills = noSkillProvider{}
+	}
 	submitter := KernelSubmitter(m.kernel)
 	if m.cfg.AgentRuntimeFactory != nil && route.Enabled {
 		runtime, err := m.agentRuntimeForRoute(ctx, route, snapshot)

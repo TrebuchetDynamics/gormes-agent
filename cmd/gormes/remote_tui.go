@@ -78,8 +78,10 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 	}
 
 	model := tui.NewModelWithOptions(frames, submit, cancelTurn, tui.Options{
-		MouseTracking:  invocation.Config.TUI.MouseTracking,
-		VoiceRecordKey: invocation.Config.Voice.RecordKey,
+		MouseTracking:      invocation.Config.TUI.MouseTracking,
+		VoiceRecordKey:     invocation.Config.Voice.RecordKey,
+		SkillSlashCommands: tuiSkillSlashCommands(rootCtx, invocation.Config),
+		SkillSlashReload:   tuiSkillSlashReloadFunc(invocation.Config),
 	})
 	programOptions := []tea.ProgramOption{tea.WithAltScreen()}
 	if invocation.Config.TUI.MouseTracking {

@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 )
 
 // SlashCompletion is one entry in a slash-completion menu. It carries enough
@@ -25,6 +27,9 @@ type SlashCompletion struct {
 	// Description carries the registry's command description, or an empty
 	// string for subcommands.
 	Description string
+	// ArgumentHint carries optional template argument guidance displayed next
+	// to the slash command name, e.g. `/review <scope>`.
+	ArgumentHint string
 	// Available reports whether the command's active-turn policy is
 	// anything other than ActiveTurnPolicyUnavailable. Recognized-but-not-
 	// yet-ported commands surface in completions with Available=false so the
@@ -96,22 +101,94 @@ func HermesSlashCommandCompletions(input string) []SlashCompletion {
 	return out
 }
 
+// PromptTemplateSlashCompletions returns prompt-template command completions.
+func PromptTemplateSlashCompletions(input string, catalog prompttemplates.Catalog) []SlashCompletion {
+	if !strings.HasPrefix(input, "/") || strings.ContainsAny(input, " \t") {
+		return nil
+	}
+	prefix := strings.ToLower(strings.TrimPrefix(input, "/"))
+	var out []SlashCompletion
+	for _, tmpl := range catalog.Templates {
+		if !strings.HasPrefix(tmpl.Name, prefix) {
+			continue
+		}
+		out = append(out, SlashCompletion{
+			Name:         tmpl.Name,
+			Display:      "/" + tmpl.Name,
+			Description:  tmpl.Description,
+			ArgumentHint: tmpl.ArgumentHint,
+			Available:    true,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+// SkillSlashCompletions returns enabled dynamic skill slash completions.
+func SkillSlashCompletions(input string, commands []skills.SkillSlashCommand) []SlashCompletion {
+	if !strings.HasPrefix(input, "/") || strings.ContainsAny(input, " \t") {
+		return nil
+	}
+	prefix := strings.ToLower(strings.TrimPrefix(input, "/"))
+	var out []SlashCompletion
+	for _, command := range commands {
+		name := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(command.Command)), "/")
+		if name == "" || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		out = append(out, SlashCompletion{
+			Name:        name,
+			Display:     "/" + name,
+			Description: command.Description,
+			Available:   true,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+// SlashCompletionsWithPromptTemplates merges built-in Hermes/Gormes slash
+// completions with non-shadowing prompt-template completions.
+func SlashCompletionsWithPromptTemplates(input string, catalog prompttemplates.Catalog) []SlashCompletion {
+	return SlashCompletionsWithDynamic(input, nil, catalog)
+}
+
+// SlashCompletionsWithDynamic merges built-in Hermes/Gormes slash completions,
+// dynamic skill invocations, and prompt-template completions in precedence
+// order. Later sources cannot shadow earlier ones.
+func SlashCompletionsWithDynamic(input string, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) []SlashCompletion {
+	groups := [][]SlashCompletion{
+		HermesSlashCommandCompletions(input),
+		SkillSlashCompletions(input, commands),
+		PromptTemplateSlashCompletions(input, catalog),
+	}
+	count := 0
+	for _, group := range groups {
+		count += len(group)
+	}
+	if count == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, count)
+	out := make([]SlashCompletion, 0, count)
+	for _, group := range groups {
+		for _, c := range group {
+			if _, ok := seen[c.Name]; ok {
+				continue
+			}
+			seen[c.Name] = struct{}{}
+			out = append(out, c)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
 // HermesSlashSubcommandCompletions returns static subcommand completions for
 // inputs of the form "/cmd <prefix>" where the resolved command declares a
 // non-empty Subcommands inventory in cli.CommandRegistry. Dynamic per-runtime
 // menus (/model, /skin, /personality) are intentionally not surfaced here —
 // they remain dependent rows that bind live config sources.
-//
-// Behavior, mirroring hermes_cli/commands.py:SlashCommandCompleter subcommand
-// branch:
-//   - returns nil when input lacks a leading "/", lacks any whitespace
-//     (still typing the command name), or has whitespace inside the
-//     sub-token (past the first sub-token boundary).
-//   - returns nil when the command does not resolve or has no static
-//     Subcommands.
-//   - preserves the registry-defined Hermes order; it does NOT sort.
-//   - prefix matching is case-insensitive; exact matches are still returned
-//     so the dropdown can stay open like Hermes does.
 func HermesSlashSubcommandCompletions(input string) []SlashCompletion {
 	if !strings.HasPrefix(input, "/") {
 		return nil
@@ -153,13 +230,21 @@ func renderSlashCompletionMenu(input string, width int) string {
 }
 
 func renderSlashCompletionMenuWithSkin(input string, width int, skin HermesSkin) string {
+	return renderSlashCompletionMenuWithTemplates(input, width, skin, prompttemplates.Catalog{})
+}
+
+func renderSlashCompletionMenuWithTemplates(input string, width int, skin HermesSkin, catalog prompttemplates.Catalog) string {
+	return renderSlashCompletionMenuWithDynamic(input, width, skin, nil, catalog)
+}
+
+func renderSlashCompletionMenuWithDynamic(input string, width int, skin HermesSkin, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) string {
 	req, ok := CompletionRequestForInput(input)
 	if !ok || req.Method != TUICompletionSlash {
 		return ""
 	}
 	completions := HermesSlashSubcommandCompletions(input)
 	if len(completions) == 0 {
-		completions = HermesSlashCommandCompletions(input)
+		completions = SlashCompletionsWithDynamic(input, commands, catalog)
 	}
 	if len(completions) == 0 {
 		return ""
@@ -230,13 +315,18 @@ func renderSlashCompletionMenuWithSkin(input string, width int, skin HermesSkin)
 }
 
 func slashCompletionDisplay(c SlashCompletion) string {
-	if display := strings.TrimSpace(c.Display); display != "" {
-		return display
+	display := strings.TrimSpace(c.Display)
+	if display == "" {
+		if strings.HasPrefix(c.Name, "/") {
+			display = c.Name
+		} else {
+			display = c.Name
+		}
 	}
-	if strings.HasPrefix(c.Name, "/") {
-		return c.Name
+	if hint := strings.TrimSpace(c.ArgumentHint); hint != "" {
+		return display + " " + hint
 	}
-	return c.Name
+	return display
 }
 
 func padRightRunes(value string, width int) string {

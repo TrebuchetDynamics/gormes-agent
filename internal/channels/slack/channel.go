@@ -119,7 +119,7 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 		}
 	}
 
-	kind, body := gateway.ParseInboundText(strings.TrimSpace(e.Text))
+	kind, body := gateway.ParseInboundTextPreserveUnknown(strings.TrimSpace(e.Text))
 	if kind == gateway.EventSubmit {
 		policy := ResolveMentionPolicy(MentionPolicyConfig{
 			RequireMention:       c.cfg.RequireMention,
@@ -143,7 +143,7 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 		if !decision.Process {
 			return gateway.InboundEvent{}, false
 		}
-		kind, body = gateway.ParseInboundText(decision.Text)
+		kind, body = gateway.ParseInboundTextPreserveUnknown(decision.Text)
 		if decision.RememberThread {
 			c.rememberMentionedThread(threadTS)
 		}

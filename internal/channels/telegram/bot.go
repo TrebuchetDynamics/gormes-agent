@@ -339,7 +339,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 		guestBypass = b.cfg.GuestMode && addressed && b.telegramHasConfiguredAllowedChats() && !b.telegramChatAllowed(chatID)
 	}
 
-	kind, body := gateway.ParseInboundText(text)
+	kind, body := gateway.ParseInboundTextPreserveUnknown(text)
 
 	var userID string
 	if u.Message.From != nil {

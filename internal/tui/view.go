@@ -75,7 +75,7 @@ func (m Model) View() string {
 	}
 
 	hint := m.renderHermesHint()
-	completions := renderSlashCompletionMenuWithSkin(editor.Value(), m.width, m.currentSkin())
+	completions := renderSlashCompletionMenuWithDynamic(editor.Value(), m.width, m.currentSkin(), m.skillSlashCommands, m.promptTemplates)
 
 	// Render the active modal panel if one is present.
 	panel := m.RenderActivePanel(m.width, m.height)

@@ -48,8 +48,8 @@ func TestDiscordSlashCommandsExposeRegistryAndSkipDynamicConflicts(t *testing.T)
 	}
 
 	skill := seen["skill"]
-	if len(skill.Options) != 1 || skill.Options[0].Name != "name" || !skill.Options[0].Autocomplete {
-		t.Fatalf("/skill options = %#v, want one autocomplete name option", skill.Options)
+	if len(skill.Options) != 2 || skill.Options[0].Name != "name" || !skill.Options[0].Autocomplete || skill.Options[1].Name != "args" || skill.Options[1].Required {
+		t.Fatalf("/skill options = %#v, want autocomplete name option plus optional args", skill.Options)
 	}
 	if len(commands) > 0 && len(discordCommandPayloadBytes(commands)) > discordCommandPayloadSoftLimit {
 		t.Fatalf("command payload length = %d, want <= %d", len(discordCommandPayloadBytes(commands)), discordCommandPayloadSoftLimit)
@@ -84,12 +84,12 @@ func TestDiscordSkillSlashDispatchesSelectedSkillAndGuidesUnknown(t *testing.T) 
 	b.setSkillCommandsForTest([]gateway.PlatformCommand{{Name: "deploy-prod", Description: "Deploy production"}})
 
 	inbox := make(chan gateway.InboundEvent, 1)
-	b.handleInteraction(context.Background(), inbox, ms, newCommandInteraction("skill", "chan-1", "user-1", map[string]any{"name": "deploy-prod"}))
+	b.handleInteraction(context.Background(), inbox, ms, newCommandInteraction("skill", "chan-1", "user-1", map[string]any{"name": "deploy-prod", "args": "ship now"}))
 
 	select {
 	case ev := <-inbox:
-		if ev.Kind != gateway.EventSubmit || ev.Text != "/deploy-prod" || ev.Platform != "discord" || ev.ChatID != "chan-1" {
-			t.Fatalf("skill slash event = %+v, want selected skill dispatched as its slash command text", ev)
+		if ev.Kind != gateway.EventSubmit || ev.Text != "/deploy-prod ship now" || ev.Platform != "discord" || ev.ChatID != "chan-1" {
+			t.Fatalf("skill slash event = %+v, want selected skill dispatched as its slash command text with args", ev)
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("no skill event dispatched")

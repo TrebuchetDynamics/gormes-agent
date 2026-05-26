@@ -1,11 +1,14 @@
 package gormescli
 
 import (
+	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
 func CheckDiscordSession(token string) error {
@@ -33,5 +36,24 @@ func NewDiscordGatewayChannel(cfg config.Config, log *slog.Logger) (gateway.Chan
 		AllowBots:              cfg.Discord.AllowBotsValue(),
 		ReplyToMode:            cfg.Discord.ReplyToModeValue(),
 		FirstRunDiscovery:      cfg.Discord.FirstRunDiscovery,
+		SkillCollector: func(ctx context.Context) ([]gateway.PlatformCommand, error) {
+			return discordGatewaySkillCommands(ctx, cfg)
+		},
 	}, ds, log), nil
+}
+
+func discordGatewaySkillCommands(ctx context.Context, cfg config.Config) ([]gateway.PlatformCommand, error) {
+	runtime := skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
+	skillCommands, _, err := runtime.SkillSlashCommands(ctx, skills.RuntimeOptions{})
+	if err != nil || len(skillCommands) == 0 {
+		return nil, err
+	}
+	commands := make([]gateway.PlatformCommand, 0, len(skillCommands))
+	for _, cmd := range skillCommands {
+		commands = append(commands, gateway.PlatformCommand{
+			Name:        strings.TrimPrefix(cmd.Command, "/"),
+			Description: cmd.Description,
+		})
+	}
+	return commands, nil
 }

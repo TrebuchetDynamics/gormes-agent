@@ -134,13 +134,21 @@ func discordSkillCommand() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Name:        "skill",
 		Description: "Run an enabled skill command",
-		Options: []*discordgo.ApplicationCommandOption{{
-			Type:         discordgo.ApplicationCommandOptionString,
-			Name:         "name",
-			Description:  "Skill command name",
-			Required:     true,
-			Autocomplete: true,
-		}},
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:         discordgo.ApplicationCommandOptionString,
+				Name:         "name",
+				Description:  "Skill command name",
+				Required:     true,
+				Autocomplete: true,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "args",
+				Description: "Optional skill instruction",
+				Required:    false,
+			},
+		},
 	}
 }
 
@@ -253,9 +261,13 @@ func (b *Bot) handleSkillSlash(ctx context.Context, inbox chan<- gateway.Inbound
 		_ = b.respondEphemeral(session, i.Interaction, "unknown skill `"+name+"`. Use `/skill` autocomplete to choose an enabled skill.")
 		return
 	}
-	ev := b.inboundEventFromInteraction(i, "/"+name)
+	text := "/" + name
+	if args := strings.TrimSpace(discordOptionString(data, "args")); args != "" {
+		text += " " + args
+	}
+	ev := b.inboundEventFromInteraction(i, text)
 	ev.Kind = gateway.EventSubmit
-	ev.Text = "/" + name
+	ev.Text = text
 	b.enqueueInteraction(ctx, inbox, ev)
 	_ = b.respondEphemeral(session, i.Interaction, "Skill queued.")
 }
@@ -301,7 +313,7 @@ func (b *Bot) discordSlashText(data discordgo.ApplicationCommandInteractionData)
 }
 
 func (b *Bot) inboundEventFromInteraction(i *discordgo.InteractionCreate, text string) gateway.InboundEvent {
-	kind, body := gateway.ParseInboundText(text)
+	kind, body := gateway.ParseInboundTextPreserveUnknown(text)
 	chatID := strings.TrimSpace(i.ChannelID)
 	threadID := ""
 	parentChatID := ""
