@@ -864,6 +864,135 @@
   },
   {
     "phase": "5",
+    "subphase": "5.F",
+    "pos": 11,
+    "item": {
+      "name": "Gateway/TUI dynamic skill slash invocation parity",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Hermes-compatible /skill-name args invocations work through native TUI and manager-backed gateway channels by resolving enabled SKILL.md commands before unknown-command guidance, expanding to the reviewed skill invocation message, and never submitting the raw slash text to the model.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "skills",
+      "degraded_mode": "Unknown or scan-failed slash commands remain consumed with visible unknown/unavailable guidance; built-in slash commands keep precedence; legacy ParseInboundText callers still receive empty EventUnknown bodies so slash text is not accidentally submitted.",
+      "fixture": "Hermes agent/skill_commands.py resolve_skill_command_key and build_skill_invocation_message; Gormes gateway/TUI fixtures invoke /skill-name args and assert expanded content plus no raw slash leakage.",
+      "source_refs": [
+        "hermes-agent/agent/skill_commands.py:resolve_skill_command_key",
+        "hermes-agent/agent/skill_commands.py:build_skill_invocation_message",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#prompt-context-compression-and-skills-in-prompt",
+        "internal/skills/commands.go:BuildSkillSlashCommandMessage",
+        "internal/gateway/skill_slash.go",
+        "internal/tui/slash_dispatch.go"
+      ],
+      "ready_when": [
+        "Existing internal/skills.Runtime can list enabled SkillSlashCommands from active SKILL.md files.",
+        "No in-repo builder-ready row existed; the feature map already identifies skill preprocessing and slash skills as the Hermes Phase 5.F/6.F contract."
+      ],
+      "not_ready_when": [
+        "A built-in or recognized-unavailable slash command can be shadowed by a skill or prompt template.",
+        "The raw /skill-name invocation can reach kernel submit/model history unchanged.",
+        "Telegram, Discord, or Slack manager-backed adapters discard unknown slash text before the manager can resolve dynamic skill commands."
+      ],
+      "acceptance": [
+        "Native TUI /skill-name args expands to BuildSkillSlashCommandMessage and submits transformed skill content with a native-tui runtime note instead of the raw slash text.",
+        "Gateway EventSubmit and preserved EventUnknown slash inputs resolve enabled skills before unknown guidance and submit expanded skill content with the calling platform runtime note.",
+        "Built-in and recognized-unavailable slash commands keep precedence over dynamic skills, and prompt templates cannot shadow dynamic skill commands.",
+        "Telegram, Discord, and Slack manager-backed adapters preserve unknown slash text for manager dynamic resolution without changing legacy ParseInboundText's empty unknown body contract.",
+        "Discord /skill autocomplete accepts optional args and the live Discord gateway channel wires a skill collector from the configured skills root."
+      ],
+      "write_scope": [
+        "internal/gateway/skill_slash.go",
+        "internal/gateway/manager.go",
+        "internal/gateway/event.go",
+        "internal/gateway/commands.go",
+        "internal/channels/telegram/bot.go",
+        "internal/channels/discord/**",
+        "internal/channels/slack/channel.go",
+        "internal/cli/gormescli/discord_channel.go",
+        "internal/tui/**",
+        "cmd/gormes/**",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/**"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestManager_DynamicSkillSlash|TestManager_ActiveTurnSlashCommand|TestParseInboundText' -count=1",
+        "go test ./internal/tui -run 'TestSkillSlashDispatch|TestPromptTemplateSlash|TestHermesSlashDispatchBehavior' -count=1",
+        "go test ./internal/channels/discord -run 'TestDiscordSlashCommandsExposeRegistry|TestDiscordSkillSlashDispatches|TestDiscordSlashSourcePreservesThreadContext' -count=1",
+        "go test ./internal/channels/telegram ./internal/channels/slack ./internal/cli/gormescli -count=1",
+        "go test ./cmd/gormes -run 'TestTUIWiresPromptTemplate|TestGatewayTelegramDynamicCommands|Test.*Skill' -count=1"
+      ],
+      "done_signal": [
+        "Focused gateway/TUI/channel tests pass with fixtures proving expanded skill invocation content and no raw slash leakage.",
+        "Progress docs regenerate and progress validation remains green."
+      ]
+    }
+  },
+  {
+    "phase": "5",
+    "subphase": "5.F",
+    "pos": 12,
+    "item": {
+      "name": "TUI/gateway reload-skills command refresh binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port the model-free `/reload-skills` / `/reload_skills` control path enough for Gormes dynamic skill invocation: native TUI reloads its in-memory skill slash registry from the configured skills root, and the gateway refreshes adapter-owned skill autocomplete/cache state while reporting the current enabled skill count without submitting slash text to the model.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "skills",
+      "degraded_mode": "If skill runtime or reload adapter state is unavailable, the command remains consumed with visible degraded evidence; skill scan failures do not submit slash text to the model or break existing commands.",
+      "fixture": "Hermes gateway/run.py:_handle_reload_skills_command rescans skills and refreshes adapter skill groups; Hermes ui-tui reload-skills calls skills.reload then commands.catalog to refresh local command catalog. Gormes Runtime scans active SKILL.md on demand, so this slice focuses on TUI registry refresh and gateway adapter cache refresh/count evidence rather than full Hermes added/removed pending-note parity.",
+      "source_refs": [
+        "hermes-agent/gateway/run.py:_handle_reload_skills_command",
+        "hermes-agent/ui-tui/src/app/slash/commands/ops.ts:reload-skills",
+        "hermes-agent/tests/gateway/test_reload_skills_command.py",
+        "hermes-agent/tests/gateway/test_reload_skills_discord_resync.py",
+        "internal/gateway/channel_scope.go:RefreshSkillGroups",
+        "internal/tui/slash_dispatch.go:RegisterSkillSlashCommands"
+      ],
+      "ready_when": [
+        "Gateway already has RefreshSkillGroups for Discord-style adapter cache refresh.",
+        "Native TUI already registers dynamic SkillSlashCommands at startup and can rebuild the slash registry from a new command slice.",
+        "Hermes source makes /reload-skills model-free and alias-compatible with /reload_skills."
+      ],
+      "not_ready_when": [
+        "The slice tries to implement full Hermes added/removed one-shot prompt notes before a Gormes skill-command cache exists.",
+        "The command can interrupt active turns or leak `/reload-skills` as a normal prompt.",
+        "TUI reload requires live private home state instead of the injected config-backed skills root."
+      ],
+      "acceptance": [
+        "Native TUI /reload-skills and /reload_skills consume the slash command, call an injected reload seam, rebuild dynamic skill slash handlers, and show visible count/error evidence.",
+        "After TUI reload, a newly returned /skill-name command can be invoked without restarting the TUI and without prompt-template/built-in shadowing.",
+        "Gateway /reload-skills and /reload_skills are recognized as immediate model-free commands, report enabled skill count, call RefreshSkillGroups, surface adapter errors as degraded evidence, and do not submit raw slash text during active turns.",
+        "cmd/gormes wires the native TUI reload seam to the configured skills root with hermetic tests."
+      ],
+      "note": "Completed 2026-05-26: native TUI /reload-skills rebuilds the dynamic skill slash registry from the injected skills root; gateway /reload-skills reports enabled count, refreshes adapter skill groups, and stays model-free with /reload_skills alias support. Full Hermes added/removed one-shot prompt notes remain intentionally out of this bounded cache-refresh slice.",
+      "write_scope": [
+        "internal/cli/command_registry.go",
+        "internal/gateway/commands.go",
+        "internal/gateway/event.go",
+        "internal/gateway/manager.go",
+        "internal/gateway/*skill*_test.go",
+        "internal/tui/**",
+        "cmd/gormes/**",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/**"
+      ],
+      "test_commands": [
+        "go test ./internal/tui -run 'TestReloadSkillsSlash' -count=1",
+        "go test ./internal/gateway -run 'TestManagerReloadSkillsCommand|TestReloadSkillsRefreshesSkillGroupAdapters|TestManager_ActiveTurnSlashCommand' -count=1",
+        "go test ./cmd/gormes -run 'TestTUIWiresSkillSlashReload' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/tui/reload_skills_slash_test.go proves /reload-skills reloads dynamic skill commands and consumes unavailable/error states without model submission.",
+        "internal/gateway/reload_skills_command_test.go proves gateway /reload-skills and /reload_skills refresh adapter groups, report degraded evidence, and avoid model leakage during active turns.",
+        "cmd/gormes/skill_slash_test.go proves production TUI reload wiring reads the configured skills root."
+      ]
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.I",
     "pos": 0,
     "item": {
@@ -3304,6 +3433,155 @@
         "origin_type": "hybrid",
         "upstream_ref": "hermes:43e566f77 skills.external_dirs + Pi coding-agent 0.75.5 skills/package location model",
         "note": "Hermes defines the compatibility contract; Pi supplies a donor rationale for multi-location skill discovery and package-sourced skill roots without importing Pi packages."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.F",
+    "pos": 7,
+    "item": {
+      "name": "Pi-style prompt template TUI expansion seam",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Add a Gormes-owned prompt-template catalog and native TUI slash expansion path inspired by Pi prompt templates while preserving Hermes slash-command and skill-invocation precedence. Markdown templates discovered from Gormes-controlled prompt roots expand `/name args...` into editable prompt text, support frontmatter `description` and `argument-hint`, perform deterministic positional substitution, and never execute code, install packages, read live Pi homes, or submit expanded text to the model until the operator confirms with a normal Enter.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "skills",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing prompt roots, unreadable files, malformed frontmatter, unsafe filenames, templates that collide with built-in slash commands, and invalid argument placeholders are skipped or rendered as prompt_template_* evidence without leaking absolute paths or submitting slash text to the model.",
+      "fixture": "internal/tui/prompttemplates/catalog_test.go::TestPromptTemplateDiscoveryAndExpansion; internal/tui/prompt_template_slash_test.go::TestPromptTemplateSlashExpansionSeedsEditorWithoutSubmit",
+      "source_refs": [
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/prompt-templates.md@0.75.5:Locations, Format, Argument Hints, Arguments, Loading Rules",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/README.md@0.75.5:Prompt Templates and startup header/slash expansion notes",
+        "./hermes-agent/agent/skill_commands.py@43e566f77:scan_skill_commands,resolve_skill_command_key,build_skill_invocation_message",
+        "./hermes-agent/tests/agent/test_skill_commands.py@43e566f77:slash skill command precedence and unavailable-skill fixtures",
+        "internal/tui/slash_dispatch.go:SlashRegistry, SlashResult.EditorText, slashFallbackResult",
+        "internal/tui/slash_completion.go:HermesSlashCommandCompletions and renderSlashCompletionMenu",
+        "internal/cli/command_registry.go:CommandRegistry and SlashLeaksToModelPrompt",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+      ],
+      "ready_when": [
+        "The completed TUI slash-dispatch rows already consume local slash commands without submitting them to the kernel/model, and SlashResult.EditorText can seed editable text after a local command.",
+        "The completed skills external-roots and direct-URL install rows establish source/trust vocabulary and command precedence for operator-provided markdown resources.",
+        "The builder keeps this first Pi donor slice to non-recursive Markdown prompt templates under Gormes-controlled roots; package resources, executable Pi extensions, prompt-template installation, and gateway/Telegram expansion are future rows."
+      ],
+      "not_ready_when": [
+        "The implementation would read `~/.pi`, `.pi`, package manifests, npm/git packages, live sessions, or any private home/config outside explicit Gormes temp fixtures.",
+        "A template command shadows an existing Gormes/Hermes slash command such as `/skills`, `/model`, `/tree`, `/kanban`, or a future skill invocation instead of being skipped with collision evidence.",
+        "Expanded template text is submitted to the provider immediately, executes shell/code, or can mutate files without the operator seeing/editing the expanded prompt first."
+      ],
+      "blocked_by": [
+        "TUI and gateway direct URL skill install binding",
+        "Hermes/Pi external skill directories config binding"
+      ],
+      "acceptance": [
+        "A pure catalog discovers `*.md` templates non-recursively from injected Gormes prompt roots, parses optional YAML frontmatter `description` and `argument-hint`, derives a safe slash name from the filename, skips collisions with the built-in slash registry, and reports bounded prompt_template_skipped evidence without absolute-path leakage.",
+        "The expander supports `$1`, `$2`, `$@`, `$ARGUMENTS`, `${@:N}`, and `${@:N:L}` using deterministic quoted-argument parsing; missing arguments become empty strings and malformed placeholders remain literal with evidence rather than panicking.",
+        "Native TUI `/template-name args...` is consumed locally, clears the slash command, seeds the editor with the expanded prompt text via `SlashResult.EditorText`, updates status with `prompt_template_expanded`, and never calls the model submitter until the operator presses Enter again.",
+        "Slash completion includes template commands with description and argument hint, while built-in/unavailable Hermes commands keep precedence and display behavior unchanged.",
+        "Tests use temp GORMES_HOME/project roots only; no live Pi home, package manifest, network, provider, gateway, or session DB is required."
+      ],
+      "note": "Planner 2026-05-26: Pi coding-agent prompt templates provide a useful harness pattern (Markdown snippets, frontmatter descriptions, argument hints, positional expansion, non-recursive discovery). Hermes remains the compatibility boundary: Gormes must not weaken existing slash command, skill command, or no-leak-to-model behavior. This row adopts only the local TUI expansion seam as a Gormes-owned operator convenience; Pi packages, executable extensions, global ~/.pi discovery, CLI --prompt-template flags, and gateway/Telegram template expansion stay out of scope. Builder 2026-05-26: shipped internal/tui/prompttemplates discovery and expansion fixtures, native TUI prompt-template slash handlers that seed editable composer text without model submission, dynamic completion menu entries with argument hints, built-in slash-command collision precedence, and cmd/gormes local TUI discovery from GORMES_HOME/prompts plus project .gormes/prompts. Row-local gates passed.",
+      "write_scope": [
+        "internal/tui/prompttemplates/",
+        "internal/tui/model.go",
+        "internal/tui/slash_dispatch.go",
+        "internal/tui/slash_completion.go",
+        "internal/tui/prompt_template_slash_test.go",
+        "cmd/gormes/main.go",
+        "cmd/gormes/prompt_templates.go",
+        "cmd/gormes/prompt_templates_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/tui/prompt_templates.go"
+      ],
+      "test_commands": [
+        "go test ./internal/tui/prompttemplates -count=1",
+        "go test ./internal/tui -run 'TestPromptTemplateSlash(Expansion|Completions)' -count=1",
+        "go test ./cmd/gormes -run TestTUIWiresPromptTemplateDiscovery -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report prompt-template discovery/skip fixtures, argument-expansion fixtures, TUI editor-seeding without submitter calls, completion precedence fixtures, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Pi coding-agent 0.75.5 docs/prompt-templates.md + Hermes 43e566f77 agent/skill_commands.py slash-command precedence",
+        "note": "Pi supplies the prompt-template harness pattern; Hermes supplies the slash-command/skill precedence boundary that Gormes must preserve."
+      }
+    }
+  },
+  {
+    "phase": "6",
+    "subphase": "6.F",
+    "pos": 8,
+    "item": {
+      "name": "Prompt template CLI explicit roots and opt-out binding",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Extend the Pi-style prompt-template donor slice with CLI startup controls for the native TUI: `--prompt-template <path>` may be repeated with Markdown files or non-recursive directories, and `--no-prompt-templates` disables default and explicit prompt-template discovery for that TUI session. The flags must affect only local native TUI prompt-template expansion, not oneshot prompts, skills, gateway/Telegram slash commands, or Pi package/extension loading.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "skills",
+      "module": "skills",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Missing or unreadable explicit paths produce prompt_template_skipped evidence in the catalog and do not fail TUI startup; --no-prompt-templates returns an empty catalog even when explicit paths are supplied.",
+      "fixture": "cmd/gormes/prompt_templates_test.go::TestTUIWiresPromptTemplateFlags; internal/tui/prompttemplates/catalog_test.go::TestPromptTemplateDiscoveryAndExpansion",
+      "source_refs": [
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/prompt-templates.md@0.75.5:Locations CLI --prompt-template repeatable and --no-prompt-templates disable discovery",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/README.md@0.75.5:CLI flags --prompt-template <path> and --no-prompt-templates",
+        "internal/tui/prompttemplates/catalog.go:Discover supports directory and explicit file paths",
+        "cmd/gormes/main.go:installRootRPCModeFlags and resolveTUIInvocation",
+        "cmd/gormes/prompt_templates.go:tuiPromptTemplateCatalog",
+        "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Prompt, Context, Compression, And Skills-In-Prompt / Skill preprocessing and slash skills"
+      ],
+      "ready_when": [
+        "The completed `Pi-style prompt template TUI expansion seam` row provides the catalog, slash expansion, completion, and built-in command precedence behavior.",
+        "The CLI startup path already resolves TUI invocation flags before constructing the native Bubble Tea model."
+      ],
+      "not_ready_when": [
+        "The implementation would add Pi package manifest discovery, read ~/.pi, execute templates, or wire prompt templates into gateway/Telegram/model-submitted slash commands.",
+        "The flags would mutate persistent config or affect oneshot `gormes chat -q` prompts instead of one native TUI session."
+      ],
+      "blocked_by": [
+        "Pi-style prompt template TUI expansion seam"
+      ],
+      "acceptance": [
+        "Root/native TUI startup accepts repeatable `--prompt-template` flags, carries their exact paths in tuiInvocation, and discovers templates from both explicit directories and explicit Markdown files.",
+        "`--no-prompt-templates` carries a disabled flag in tuiInvocation and makes tuiPromptTemplateCatalog return no templates even when `--prompt-template` is also supplied.",
+        "Default GORMES_HOME/prompts and project .gormes/prompts discovery from the prior row still works when the disable flag is absent, and built-in slash-command collision skipping remains intact.",
+        "No live Pi home, package manifest, network, provider, gateway, or session DB is used in tests."
+      ],
+      "note": "Planner/Builder 2026-05-26: completed as the second bounded Pi prompt-template donor slice after the TUI expansion seam. Added persistent root flags, tuiInvocation fields, file-or-directory catalog discovery, disable behavior, and cmd/gormes fixtures. Hermes boundary unchanged: this is Gormes-owned native TUI harness UX and does not alter Hermes slash/skill precedence or channel behavior.",
+      "write_scope": [
+        "cmd/gormes/main.go",
+        "cmd/gormes/prompt_templates.go",
+        "cmd/gormes/prompt_templates_test.go",
+        "internal/tui/prompttemplates/catalog.go",
+        "internal/tui/prompttemplates/catalog_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui/prompttemplates -count=1",
+        "go test ./cmd/gormes -run 'TestTUIWiresPromptTemplate(Discovery|Flags)' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Report repeatable --prompt-template directory/file fixtures, --no-prompt-templates empty-catalog fixture, unchanged default discovery/collision fixture, and progress validation."
+      ],
+      "provenance": {
+        "origin_type": "hybrid",
+        "upstream_ref": "Pi coding-agent 0.75.5 docs/prompt-templates.md CLI flag surface + Hermes slash-command precedence boundary",
+        "note": "Pi supplies the CLI flag pattern; Hermes supplies the boundary that Gormes slash/skill behavior must not be weakened."
       }
     }
   },

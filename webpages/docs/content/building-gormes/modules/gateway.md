@@ -7,9 +7,9 @@ title: "Gateway Module Roadmap"
 Generated from the single logical backlog. This page is a scoped review view; `progress.json` remains canonical.
 
 **Module:** `gateway`
-**Rows:** 159
-**Status counts:** `complete`: 159 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 14 · `P1`: 50 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 160
+**Status counts:** `complete`: 160 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 14 · `P1`: 51 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -134,6 +134,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `gateway` | Canonical CommandDef registry |
 | `complete` | `unset` | `gateway` | Gateway slash dispatch + per-platform exposure |
 | `complete` | `P2` | `gateway` | Gateway slash registry parity sweep (recognized-name expansion) |
+| `complete` | `P1` | `gateway` | Gateway /commands paginated command and skill catalog |
 
 ### 2.F.2 — Hook Registry + BOOT.md
 

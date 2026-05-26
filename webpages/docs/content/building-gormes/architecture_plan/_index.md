@@ -371,6 +371,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Canonical CommandDef registry
 - [x] `gateway` Gateway slash dispatch + per-platform exposure
 - [x] `gateway` Gateway slash registry parity sweep (recognized-name expansion)
+- [x] `gateway` Gateway /commands paginated command and skill catalog
 
 ### 2.F.2 — Hook Registry + BOOT.md ✅
 
@@ -856,6 +857,8 @@ classification and row-backed implementation queue.
 - [x] `profiles` Update bundled skills across active and named profiles
 - [x] `skills` Bundled Airtable productivity skill contract
 - [x] `skills` Bundled TouchDesigner MCP skill catalog contract
+- [x] `skills` Gateway/TUI dynamic skill slash invocation parity
+- [x] `skills` TUI/gateway reload-skills command refresh binding
 
 ### 5.G — MCP Integration ✅
 
@@ -1392,6 +1395,8 @@ classification and row-backed implementation queue.
 - [x] `skills` Native skills list/view tool surface
 - [x] `skills` TUI and gateway direct URL skill install binding
 - [x] `skills` Hermes/Pi external skill directories config binding
+- [x] `skills` Pi-style prompt template TUI expansion seam
+- [x] `skills` Prompt template CLI explicit roots and opt-out binding
 
 ### 6.G — Structured Memory Types ✅
 

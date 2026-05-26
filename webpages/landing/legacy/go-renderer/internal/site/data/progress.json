@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-25",
+    "last_updated": "2026-05-26",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -945,6 +945,10 @@
           "name": "Slash Command Registry + Gateway Dispatch",
           "priority": "P1",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"
@@ -2655,6 +2659,14 @@
         "5.F": {
           "name": "Skills System (Remaining)",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"
@@ -4699,6 +4711,14 @@
         "6.F": {
           "name": "Skill Surface",
           "items": [
+            {
+              "name": "",
+              "status": "complete"
+            },
+            {
+              "name": "",
+              "status": "complete"
+            },
             {
               "name": "",
               "status": "complete"

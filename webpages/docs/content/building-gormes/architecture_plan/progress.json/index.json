@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-25",
+    "last_updated": "2026-05-26",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -196,7 +196,7 @@
           "id": "2.F.1",
           "name": "Slash Command Registry + Gateway Dispatch",
           "priority": "P1",
-          "item_count": 3
+          "item_count": 4
         },
         {
           "id": "2.F.2",
@@ -552,7 +552,7 @@
             "last_upstream_check": "2026-04-28T01:55:00Z",
             "origin_decision": "Hermes 93977675 removed the empty skills/feeds category and its static website label. Recent Hermes windows added a bundled Airtable productivity skill plus optional-env registration, direct SKILL.md URL install behavior with name/category guards, and 853ed609 moved touchdesigner-mcp from optional to bundled creative skills. Gormes tracks Airtable and TouchDesigner as credential/prerequisite-evidence SKILL.md rows rather than live external integrations, and tracks direct URL install as a pure candidate parser plus dependent install-binding row behind SKILL.md frontmatter validation. The skills surface remains upstream-led for hub search/list/install parity and reviewed bundled-skill content."
           },
-          "item_count": 11
+          "item_count": 13
         },
         {
           "id": "5.G",
@@ -787,7 +787,7 @@
         {
           "id": "6.F",
           "name": "Skill Surface",
-          "item_count": 7
+          "item_count": 9
         },
         {
           "id": "6.G",

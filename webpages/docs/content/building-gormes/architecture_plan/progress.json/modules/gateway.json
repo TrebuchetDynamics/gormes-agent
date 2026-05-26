@@ -3746,6 +3746,67 @@
   },
   {
     "phase": "2",
+    "subphase": "2.F.1",
+    "pos": 3,
+    "item": {
+      "name": "Gateway /commands paginated command and skill catalog",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Port Hermes gateway `/commands [page]` as a channel-native, model-free catalog that lists available gateway commands plus enabled dynamic skill commands with pagination and usage/out-of-range guidance.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "degraded_mode": "Skill catalog scan failures must not break the built-in command catalog; invalid page arguments return usage guidance; built-in slash dispatch and unknown-command protection continue to consume slash text without model leakage.",
+      "fixture": "Hermes gateway/run.py:_handle_commands_command combines gateway_help_lines with agent.skill_commands.get_skill_commands, uses 15-entry Telegram pages and 20-entry non-Telegram pages, clamps out-of-range page requests, and returns usage for non-numeric args. Pi contributes only the harness lesson that command catalogs should expose source/provenance from a single command inventory; it is not parity.",
+      "source_refs": [
+        "hermes-agent/gateway/run.py:_handle_commands_command",
+        "hermes-agent/gateway/run.py:_handle_help_command",
+        "hermes-agent/hermes_cli/commands.py:CommandDef(\"commands\")",
+        "internal/gateway/commands.go:CommandRegistry",
+        "internal/gateway/commands.go:GatewayHelpLines",
+        "internal/skills/commands.go:Runtime.SkillSlashCommands",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/docs/extensions.md#pigetcommands",
+        "/home/xel/.nvm/versions/node/v22.21.1/lib/node_modules/@earendil-works/pi-coding-agent/examples/extensions/commands.ts"
+      ],
+      "ready_when": [
+        "Gateway CommandRegistry already recognizes /commands but marks it unavailable, so no command spelling or parser discovery is needed.",
+        "Dynamic SkillSlashCommands are available from the configured SkillRuntime and were validated in the Gateway/TUI dynamic skill slash invocation parity row.",
+        "Hermes source specifies pagination, invalid-argument, command+skill ordering, and page-size behavior."
+      ],
+      "not_ready_when": [
+        "The implementation would require reading live private homes/configs instead of the manager's injected SkillRuntime.",
+        "The row is expanded into plugin command catalogs, admin-TUI catalogs, or Pi extension APIs beyond the /commands channel catalog slice.",
+        "Raw /commands text can reach kernel.PlatformEventSubmit/model history."
+      ],
+      "acceptance": [
+        "/commands and /commands <page> dispatch through the gateway manager as EventCommands or an equivalent model-free handler and never submit slash text to the kernel.",
+        "Catalog output includes the same built-in command lines as GatewayHelpLines plus enabled dynamic skill commands from SkillRuntime, with skill descriptions and deterministic ordering.",
+        "Telegram callers receive 15 entries per page; non-Telegram gateway callers receive 20 entries per page; page navigation and out-of-range clamping are visible in the reply.",
+        "Non-numeric page args return usage guidance without model submission, and skill scan errors degrade to the built-in command list without failing the command.",
+        "Tests prove built-in command precedence, skill catalog inclusion, invalid page guidance, out-of-range page notice, and no raw slash leakage while an active turn is present."
+      ],
+      "note": "Completed 2026-05-26: /commands is now a gateway EventCommands handler over GatewayHelpLines plus enabled SkillRuntime slash commands; CLI command policy marks /commands ported/bypass so slash recognition stays parity-safe.",
+      "write_scope": [
+        "internal/gateway/commands.go",
+        "internal/gateway/manager.go",
+        "internal/gateway/*commands*_test.go",
+        "internal/gateway/*skill*_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/**"
+      ],
+      "test_commands": [
+        "go test ./internal/gateway -run 'TestRenderCommandsCatalog|TestManagerCommandsCommand|TestManager_ActiveTurnSlashCommand' -count=1",
+        "go test ./internal/gateway -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "internal/gateway/commands_catalog_test.go covers /commands catalog rendering, pagination, skill inclusion, invalid/out-of-range page handling, skill-scan degradation, and no model leakage during active turns.",
+        "internal/gateway -count=1 and progress validation pass after generated docs/data refresh."
+      ]
+    }
+  },
+  {
+    "phase": "2",
     "subphase": "2.F.2",
     "pos": 0,
     "item": {
