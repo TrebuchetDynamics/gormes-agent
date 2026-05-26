@@ -54,6 +54,7 @@ gormes <command> --help
 | [`gormes model`](model/) | Interactively select the active model/provider |
 | [`gormes navivox`](navivox/) | Navivox HTTP channel utilities |
 | [`gormes plugins`](plugins/) | Manage Hermes-compatible plugins |
+| [`gormes providers`](providers/) | Show provider setup commands |
 | [`gormes profile`](profile/) | Inspect and switch the active Gormes profile |
 | [`gormes restore`](restore/) | Discover and restore from a pre-update backup zip |
 | [`gormes secrets`](secrets/) | Apply, audit, configure, and reload SecretRef-backed runtime secrets |

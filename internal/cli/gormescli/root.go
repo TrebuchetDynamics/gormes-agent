@@ -37,6 +37,7 @@ var RootCommandOrder = []string{
 	"usage",
 	"status",
 	"auth",
+	"providers",
 	"logout",
 	"config",
 	"fallback",
@@ -101,6 +102,7 @@ Operator workflows:
     gormes config check --json        machine-check config and dotenv readiness
     gormes config edit                open config.toml in your editor
     gormes auth add <provider>        add provider credentials
+    gormes providers setup <provider> show provider-specific setup commands
     gormes logout <provider>          clear stored provider auth
     gormes usage                      show provider account usage
     gormes router --dry-run           inspect local OpenAI-compatible Router config

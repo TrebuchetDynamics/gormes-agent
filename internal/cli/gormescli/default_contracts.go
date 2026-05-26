@@ -129,6 +129,7 @@ func DefaultContracts() []ModuleContract {
 			Module: progress.ModuleProviders,
 			Commands: commands(
 				"auth",
+				"providers",
 				"fallback",
 				"insights",
 				"logout",
