@@ -45,7 +45,7 @@ const organizationSchema = {
   title={page.title}
   description={page.description}
   canonicalUrl={page.siteUrl}
-  keywords="Go AI agent runtime, Hermes agent alternative, single binary AI agent, offline AI agent runtime, AI agent gateway, Termux AI agent, Navivox private agent chat"
+  keywords="Go AI agent runtime, local AI agent runtime, single binary AI agent, offline AI runtime, AI agent memory, AI gateway runtime, Hermes agent alternative, Android Termux AI agent"
   socialUrl={page.siteUrl}
   socialImageAlt="Gormes Go-native AI agent runtime without Python or Docker"
   structuredData={[softwareSchema, organizationSchema]}
@@ -95,9 +95,10 @@ const organizationSchema = {
             <div class="hero-subhead max-w-2xl text-pretty text-base leading-7 text-[#eeece5]/[0.76] sm:text-lg">
               {page.heroLines.map((line) => <p>{line}</p>)}
             </div>
-            <div class="hero-ctas mt-7 flex flex-col gap-3 sm:flex-row">
+            <div class="hero-ctas mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a class={buttonPrimary} href={page.primaryCta.href}>{page.primaryCta.label}</a>
               <a class={buttonSecondary} href={page.secondaryCta.href}>{page.secondaryCta.label}</a>
+              <a class="inline-flex min-h-11 items-center justify-center rounded-full px-2 py-2 text-sm font-bold text-[#f0c84b] hover:text-[#ffd968] sm:justify-start" href={page.tertiaryCta.href}>{page.tertiaryCta.label}</a>
             </div>
             <div class="proof-strip mt-6 flex flex-wrap gap-2">
               {page.proofStrip.map((item) => (
@@ -126,7 +127,10 @@ const organizationSchema = {
                   <span class="rounded-full bg-[#f0c84b]/12 px-2 py-1 text-center font-mono text-xs font-bold text-[#f0c84b]">
                     {String(index + 1).padStart(2, '0')}
                   </span>
-                  <code class="break-words font-mono text-sm leading-6 text-[#eeece5]/85">{step}</code>
+                  <div class="min-w-0">
+                    <code class="break-words font-mono text-sm leading-6 text-[#eeece5]/85">{step.command}</code>
+                    <p class="mt-1 text-xs leading-5 text-[#eeece5]/55">{step.note}</p>
+                  </div>
                 </li>
               ))}
             </ol>
@@ -160,6 +164,15 @@ const organizationSchema = {
               </article>
             ))}
           </div>
+          <aside class="mt-8 rounded-3xl border border-[#73cedd]/20 bg-[#73cedd]/[0.055] p-5 sm:p-6" aria-labelledby="saas-heading">
+            <h3 id="saas-heading" class="text-xl font-bold text-[#eeece5]">{page.saasHeadline}</h3>
+            <p class="mt-3 max-w-3xl text-sm leading-6 text-[#eeece5]/70">{page.saasIntro}</p>
+            <ul class="mt-5 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2 text-sm font-bold text-[#d7f7ff]/80" role="list">
+              {page.saasItems.map((item) => (
+                <li class="rounded-full border border-white/[0.08] bg-black/15 px-3 py-2">{item}</li>
+              ))}
+            </ul>
+          </aside>
         </div>
       </section>
 
@@ -167,12 +180,59 @@ const organizationSchema = {
         <div class={`${sectionShell} built-for-inner`}>
           <h2 class="section-title mb-4 text-2xl font-bold text-[#eeece5]">{page.worksHeadline}</h2>
           <p class="max-w-2xl text-base leading-7 text-[#eeece5]/70">{page.worksIntro}</p>
+          <p class="mt-4 max-w-3xl rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm leading-6 text-[#eeece5]/72">
+            {page.localRemoteCopy}
+          </p>
           <div class="works-grid mt-8 grid grid-cols-[repeat(auto-fit,minmax(165px,1fr))] gap-3">
             {page.worksItems.map((item) => (
               <article class="works-card rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-bold text-[#eeece5]/80 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
                 {item}
               </article>
             ))}
+          </div>
+          <div class="mt-8 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <article class={`${cardShell} min-w-0`}>
+              <h3 class="text-lg font-bold text-[#eeece5]">Where can Gormes run?</h3>
+              <ul class="mt-4 flex flex-wrap gap-2 text-sm font-bold text-[#eeece5]/75" role="list">
+                {page.runTargets.map((target) => (
+                  <li class="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5">{target}</li>
+                ))}
+              </ul>
+              <p class="mt-5 text-sm leading-6 text-[#eeece5]/65">{page.navivoxCopy}</p>
+            </article>
+            <article class={`${cardShell} min-w-0`}>
+              <h3 class="text-lg font-bold text-[#eeece5]">First useful workflows</h3>
+              <ul class="mt-4 grid gap-2 text-sm leading-6 text-[#eeece5]/75 sm:grid-cols-2" role="list">
+                {page.workflowExamples.map((item) => (
+                  <li class="rounded-2xl border border-white/[0.08] bg-black/15 px-3 py-2">{item}</li>
+                ))}
+              </ul>
+            </article>
+          </div>
+          <div class="mt-8">
+            <div class="mb-4 max-w-2xl">
+              <h3 class="text-lg font-bold text-[#eeece5]">{page.runtimeVisualHeadline}</h3>
+              <p class="mt-2 text-sm leading-6 text-[#eeece5]/65">{page.runtimeVisualIntro}</p>
+            </div>
+            <div class="grid gap-4">
+              {page.runtimeVisuals.map((visual) => (
+                <figure class={`${cardShell} overflow-hidden p-0`}>
+                  <img
+                    class="h-auto w-full rounded-t-2xl border-b border-white/10 bg-[#05070a]"
+                    src={visual.image}
+                    alt={visual.alt}
+                    width={visual.width}
+                    height={visual.height}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <figcaption class="p-5">
+                    <h4 class="text-base font-bold text-[#eeece5]">{visual.title}</h4>
+                    <p class="mt-2 text-sm leading-6 text-[#eeece5]/65">{visual.body}</p>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -220,6 +280,11 @@ const organizationSchema = {
               </article>
             ))}
           </div>
+          <nav class="mt-6 flex flex-wrap gap-2" aria-label="Trust evidence">
+            {page.proofLinks.map((link) => (
+              <a class="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-sm font-bold text-[#f0c84b] hover:border-[#f0c84b]/60 hover:text-[#ffd968]" href={link.href}>{link.label}</a>
+            ))}
+          </nav>
         </div>
       </section>
 

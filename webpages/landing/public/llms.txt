@@ -1,20 +1,20 @@
 # Gormes
 
-Gormes is a Go-native AI agent runtime for running local and server-side AI
-agents from one static Go binary, with Hermes-style skills, local memory,
-Telegram/Discord/Slack gateways, and an experimental Navivox app channel for
-trusted phone access without a hosted bot layer.
+Gormes is a local-first Go AI agent runtime for running local or server-side
+agents from one static binary with offline diagnostics, SQLite memory, provider
+chat, trusted gateways, and optional Navivox mobile pairing.
 
 ## Core Positioning
 
 - Go-native AI agent runtime
 - Go AI agent runtime
-- Hermes agent alternative
+- Local AI agent runtime
 - Single binary AI agent
-- Offline AI agent runtime
-- AI agent gateway for Telegram, Discord, and Slack
-- Navivox private agent chat
-- Termux AI agent runtime
+- Offline AI runtime
+- AI agent memory
+- AI gateway runtime
+- Hermes agent alternative
+- Android/Termux AI agent runtime
 
 ## Current Capabilities
 
@@ -23,9 +23,9 @@ trusted phone access without a hosted bot layer.
 - Provider-backed chat
 - Local SQLite memory and sessions
 - Dashboard
-- Skills and tools in the Go runtime
+- Hermes-style skills and tools in the Go runtime
 - Telegram, Discord, and Slack gateways
-- Experimental Navivox HTTP/WebSocket app channel for trusted local/VPN/tailnet pairing
+- Experimental Navivox mobile control app for local or remote Gormes runtimes
 
 ## Install
 
@@ -41,6 +41,13 @@ gormes chat
 - Homepage: https://gormes.ai/
 - Docs: https://docs.gormes.ai/
 - GitHub: https://github.com/TrebuchetDynamics/gormes-agent
+- Latest release: https://github.com/TrebuchetDynamics/gormes-agent/releases/latest
+- Package docs: https://pkg.go.dev/github.com/TrebuchetDynamics/gormes-agent/pkg/gormes
+- Install docs: https://docs.gormes.ai/install/
+- Benchmark data: https://github.com/TrebuchetDynamics/gormes-agent/blob/development/benchmarks.json
+- Memory and retrieval docs: https://docs.gormes.ai/architecture/memory-and-sessions/
+- Goncho retrieval benchmark evidence: https://docs.gormes.ai/building-gormes/architecture_plan/#goncho-retrieval-benchmark-corpus
+- Comparison matrix: https://docs.gormes.ai/why-gormes/#public-comparison-matrix
 - Roadmap: https://docs.gormes.ai/building-gormes/architecture_plan/
 - Install shortlink: https://gormes.ai/install
 - Docs shortlink: https://gormes.ai/docs
