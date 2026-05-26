@@ -12,6 +12,53 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func TestSetupTelegramSectionRunsTelegramWizardDirectly(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	clearSetupGatewayTelegramEnv(t)
+	token := "123456:abcdefghijklmnopqrstuvwxyzABCDE"
+
+	wizardCalls := 0
+	fake := &setupCommandFakeSeams{isTTY: true}
+	seams := fake.seams()
+	seams.RunTelegramGatewayWizard = func(*cobra.Command, config.TelegramCfg) (setupTelegramGatewayAnswers, error) {
+		wizardCalls++
+		return setupTelegramGatewayAnswers{
+			Token:        token,
+			AccessPolicy: "pairing",
+			Apply:        true,
+		}, nil
+	}
+	seams.RunSetupGateway = func(*cobra.Command, bool) error {
+		t.Fatal("gormes setup telegram should not open the generic gateway platform setup")
+		return nil
+	}
+	seams.RunGatewayPlatform = func(*cobra.Command, string) error {
+		t.Fatal("gormes setup telegram should use the Telegram Bubble Tea wizard path")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "telegram")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if wizardCalls != 1 {
+		t.Fatalf("telegram wizard calls = %d, want 1", wizardCalls)
+	}
+	for _, want := range []string{
+		"Gormes Setup — Telegram",
+		"Review Telegram gateway changes",
+		"Telegram gateway channel configured.",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "Messaging Platforms") {
+		t.Fatalf("gormes setup telegram rendered generic gateway picker/plan:\n%s", stdout)
+	}
+}
+
 func TestSetupGatewayChecklistShowsCorePlatforms(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

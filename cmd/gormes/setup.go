@@ -58,6 +58,7 @@ func defaultSetupSections() []gormescli.SetupSection {
 		gormescli.SetupSection{Name: "tts", Label: "Text-to-Speech", Module: gormescli.SetupModuleTTS},
 		gormescli.SetupSection{Name: "terminal", Label: "Terminal Backend", Module: gormescli.SetupModuleTUI},
 		gormescli.SetupSection{Name: "gateway", Label: "Messaging Gateway", Module: gormescli.SetupModuleGateway},
+		gormescli.SetupSection{Name: "telegram", Label: "Telegram", Module: gormescli.SetupModuleGateway},
 		gormescli.SetupSection{Name: "navivox", Label: "Navivox", Module: gormescli.SetupModuleNavivox},
 		gormescli.SetupSection{Name: "tools", Label: "Tools", Module: gormescli.SetupModuleTools},
 		gormescli.SetupSection{Name: "router", Label: "Router", Module: gormescli.SetupModuleProviders},
@@ -70,11 +71,16 @@ func setupCanonicalSection(section string) string {
 	switch section {
 	case "providers":
 		return "provider"
-	case "channel", "channels", "messaging", "messaging_platform", "messaging_platforms", "telegram", "discord", "slack", "whatsapp":
+	case "channel", "channels", "messaging", "messaging_platform", "messaging_platforms", "discord", "slack", "whatsapp":
 		return "gateway"
 	default:
 		return section
 	}
+}
+
+func setupKnownSection(section string) bool {
+	_, ok := setupSectionLabels[section]
+	return ok
 }
 
 func setupSectionLabel(section string) string {
@@ -471,6 +477,7 @@ func printSetupSections(cmd *cobra.Command) {
 	fmt.Fprintln(out, "  Interactive menu: gormes setup")
 	fmt.Fprintln(out, "  Terminal/TUI quick setup: gormes setup --quick --target tui")
 	fmt.Fprintln(out, "  Provider setup: gormes setup provider")
+	fmt.Fprintln(out, "  Telegram setup: gormes setup telegram")
 	fmt.Fprintln(out, "  Router setup:   gormes setup router")
 }
 
@@ -600,7 +607,7 @@ func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInt
 // Section prompts/logic are unchanged.
 func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string, nonInteractive bool) error {
 	section = setupCanonicalSection(section)
-	if _, known := setupSectionLabels[section]; !known {
+	if !setupKnownSection(section) {
 		return setupSectionUnsupported(cmd, section)
 	}
 	label := setupSectionLabel(section)
@@ -680,6 +687,8 @@ func dispatchSetupSection(cmd *cobra.Command, seams setupCommandSeams, section s
 		return runSetupTerminalSection(cmd, nonInteractive)
 	case "gateway":
 		return seams.RunSetupGateway(cmd, nonInteractive || !seams.IsTTY())
+	case "telegram":
+		return runSetupTelegramSection(cmd, seams, nonInteractive)
 	case "navivox":
 		if nonInteractive || !seams.IsTTY() {
 			return errSetupRequiresTTY
@@ -1328,6 +1337,7 @@ func printSetupSummary(cmd *cobra.Command) {
 	fmt.Fprintln(out, "   gormes setup fallback Add fallback providers")
 	fmt.Fprintln(out, "   gormes setup terminal Change terminal backend")
 	fmt.Fprintln(out, "   gormes setup gateway  Configure messaging")
+	fmt.Fprintln(out, "   gormes setup telegram Configure Telegram")
 	fmt.Fprintln(out, "   gormes setup tools    Configure tool providers")
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "   gormes config         View current settings")
@@ -2412,6 +2422,24 @@ func runSetupTerminalSection(cmd *cobra.Command, nonInteractive bool) error {
 	}
 }
 
+func runSetupTelegramSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
+	if nonInteractive || !seams.IsTTY() {
+		return newExitCodeError(2, fmt.Errorf("setup_telegram_requires_tty: run `gormes setup gateway --plan` for offline guidance, or run `gormes setup telegram` in a terminal"))
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("setup telegram: load config: %w", err)
+	}
+	answers, err := seams.RunTelegramGatewayWizard(cmd, cfg.Telegram)
+	if err != nil {
+		if errors.Is(err, setupwizard.ErrRequiresTTY) {
+			return newExitCodeError(2, fmt.Errorf("setup_telegram_requires_tty: run `gormes setup gateway --plan` for offline guidance, or run `gormes setup telegram` in a terminal"))
+		}
+		return err
+	}
+	return applySetupTelegramGatewayAnswers(cmd, cfg.Telegram, answers)
+}
+
 func runSetupGatewaySection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
 	out := cmd.OutOrStdout()
 	cfg, err := config.Load(nil)
@@ -2638,27 +2666,10 @@ func runSetupGatewayBubbleTeaWizard(cmd *cobra.Command, cfg config.Config) (setu
 }
 
 func runSetupTelegramBubbleTeaWizard(cmd *cobra.Command, cfg config.TelegramCfg) (setupTelegramGatewayAnswers, error) {
-	defaultPolicy := "allowlist"
-	if cfg.GuestMode {
-		defaultPolicy = "open"
-	} else if len(cfg.AllowedUserIDs) == 0 && cfg.FirstRunDiscovery {
-		defaultPolicy = "pairing"
-	}
 	result, err := setupwizard.New(
 		setupwizard.WithInput(os.Stdin),
 		setupwizard.WithOutput(cmd.OutOrStdout()),
-	).Run(cmd.Context(),
-		setupwizard.Password("token", "Telegram bot token from BotFather (blank keeps current)", setupwizard.WithPlaceholder("123456:...")),
-		setupwizard.Pick("access_policy", "Telegram access policy", []setupwizard.Choice{
-			{ID: "allowlist", Label: "Allowlisted Telegram user IDs"},
-			{ID: "pairing", Label: "Pairing/first-run discovery"},
-			{ID: "open", Label: "Open access (risky)"},
-		}, setupwizard.WithDefaultChoice(defaultPolicy)),
-		setupwizard.Text("allowed_users", "Allowed Telegram user IDs (comma-separated; used for allowlist)", setupwizard.WithPlaceholder("6586915095,12345")),
-		setupwizard.Text("home_chat_id", "Home channel chat ID (blank to set later with /set-home)", setupwizard.WithPlaceholder("-1001234567890")),
-		setupwizard.Text("home_thread_id", "Home channel thread ID (optional)", setupwizard.WithPlaceholder("42")),
-		setupwizard.Confirm("apply", "Write these Telegram settings now?"),
-	)
+	).Run(cmd.Context(), setupTelegramGatewayWizardSteps(cfg)...)
 	if errors.Is(err, setupwizard.ErrAbort) {
 		return setupTelegramGatewayAnswers{Apply: false}, nil
 	}
@@ -2671,8 +2682,28 @@ func runSetupTelegramBubbleTeaWizard(cmd *cobra.Command, cfg config.TelegramCfg)
 		AllowedUsers: strings.TrimSpace(result.String("allowed_users")),
 		HomeChatID:   strings.TrimSpace(result.String("home_chat_id")),
 		HomeThreadID: strings.TrimSpace(result.String("home_thread_id")),
-		Apply:        result.Bool("apply"),
+		Apply:        true,
 	}, nil
+}
+
+func setupTelegramGatewayWizardSteps(cfg config.TelegramCfg) []setupwizard.Step {
+	defaultPolicy := "allowlist"
+	if cfg.GuestMode {
+		defaultPolicy = "open"
+	} else if len(cfg.AllowedUserIDs) == 0 && cfg.FirstRunDiscovery {
+		defaultPolicy = "pairing"
+	}
+	return []setupwizard.Step{
+		setupwizard.Password("token", "Telegram bot token from BotFather (blank keeps current)", setupwizard.WithPlaceholder("123456:...")),
+		setupwizard.Pick("access_policy", "Telegram access policy", []setupwizard.Choice{
+			{ID: "allowlist", Label: "Allowlisted Telegram user IDs"},
+			{ID: "pairing", Label: "Pairing/first-run discovery"},
+			{ID: "open", Label: "Open access (risky)"},
+		}, setupwizard.WithDefaultChoice(defaultPolicy)),
+		setupwizard.Text("allowed_users", "Allowed Telegram user IDs (comma-separated; used for allowlist)", setupwizard.WithPlaceholder("6586915095,12345")),
+		setupwizard.Text("home_chat_id", "Home channel chat ID (blank to set later with /set-home)", setupwizard.WithPlaceholder("-1001234567890")),
+		setupwizard.Text("home_thread_id", "Home channel thread ID (optional)", setupwizard.WithPlaceholder("42")),
+	}
 }
 
 func applySetupTelegramGatewayAnswers(cmd *cobra.Command, cfg config.TelegramCfg, answers setupTelegramGatewayAnswers) error {
@@ -3649,7 +3680,7 @@ func setupSectionList() string {
 
 func setupSectionOwnership(section string) string {
 	switch normalizeSetupChoice(section) {
-	case "model", "tts", "terminal", "gateway", "tools", "agent":
+	case "model", "tts", "terminal", "gateway", "telegram", "tools", "agent":
 		return "hermes_owned"
 	case "provider", "workspace", "bindings", "navivox", "router":
 		return "gormes_owned_extension"

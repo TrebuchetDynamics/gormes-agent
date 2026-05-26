@@ -77,7 +77,7 @@ func DefaultContracts() []ModuleContract {
 				"pairing",
 				"webhook",
 			),
-			SetupSections: setupSections("agent", "bindings", "gateway", "workspace"),
+			SetupSections: setupSections("agent", "bindings", "gateway", "telegram", "workspace"),
 			SlashCommands: slashCommands(
 				"approve",
 				"deny",

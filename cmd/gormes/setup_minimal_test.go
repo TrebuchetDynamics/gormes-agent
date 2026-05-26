@@ -204,11 +204,13 @@ func TestSetupNoSectionNonTTYPrintsSectionList(t *testing.T) {
 		"tts", "Text-to-Speech",
 		"terminal", "Terminal Backend",
 		"gateway", "Messaging Gateway",
+		"telegram", "Telegram",
 		"navivox", "Navivox",
 		"tools", "Tools",
 		"Interactive menu: gormes setup",
 		"Terminal/TUI quick setup: gormes setup --quick --target tui",
 		"Provider setup: gormes setup provider",
+		"Telegram setup: gormes setup telegram",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -270,7 +272,7 @@ func TestSetupReconfigureTipListsEverySection(t *testing.T) {
 	cmd.SetOut(&stdout)
 	printSetupReconfigureBlock(cmd)
 	out := stdout.String()
-	for _, want := range []string{"provider", "model", "fallback", "profiles", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "navivox", "tools"} {
+	for _, want := range []string{"provider", "model", "fallback", "profiles", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "telegram", "navivox", "tools"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("reconfigure tip missing setup section %q:\n%s", want, out)
 		}
@@ -341,7 +343,7 @@ func TestSetupFullWizardOffersGormesLaunchPromptAfterSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Setup Complete", "🚀 Ready to go!", "Launch gormes chat now? [Y/n]: "} {
+	for _, want := range []string{"Setup Complete", "🚀 Ready to go!", "gormes setup telegram Configure Telegram", "Launch gormes chat now? [Y/n]: "} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -373,7 +375,7 @@ func TestSetupFullWizardPrintsReconfigureAndProviderPrelude(t *testing.T) {
 		"Running the full wizard - each prompt shows your current value.",
 		"Tip: jump straight to any focused setup section:",
 		"gormes setup provider|model|fallback|agent|workspace|profiles",
-		"bindings|tts|terminal|gateway|navivox|tools",
+		"bindings|tts|terminal|gateway|telegram|navivox|tools",
 		"◆ Configuration Location",
 		"Config file:  " + config.ConfigPath(),
 		"Secrets file: " + config.EnvPath(),
@@ -1606,7 +1608,7 @@ func TestSetupProviderRequiresTTYUsesOAuthGuidance(t *testing.T) {
 }
 
 func TestSetupChannelAliasesRouteToGatewaySection(t *testing.T) {
-	for _, section := range []string{"channel", "channels", "telegram"} {
+	for _, section := range []string{"channel", "channels"} {
 		t.Run(section, func(t *testing.T) {
 			calledGateway := false
 			fake := &setupCommandFakeSeams{

@@ -601,7 +601,7 @@ func TestSetupEntryMode_NoTTYAndNonInteractiveNeverPrompt(t *testing.T) {
 }
 
 func TestSetupSections_HermesOwnedVsGormesOwned(t *testing.T) {
-	for _, section := range []string{"model", "tts", "terminal", "gateway", "tools", "agent"} {
+	for _, section := range []string{"model", "tts", "terminal", "gateway", "telegram", "tools", "agent"} {
 		if got := setupSectionOwnership(section); got != "hermes_owned" {
 			t.Fatalf("setupSectionOwnership(%q) = %q, want hermes_owned", section, got)
 		}
