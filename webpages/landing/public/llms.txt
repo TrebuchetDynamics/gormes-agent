@@ -1,8 +1,9 @@
 # Gormes
 
 Gormes is a Go-native AI agent runtime for running local and server-side AI
-agents from one static Go binary, with Hermes-style skills and no Python,
-Docker, virtualenv drift, or separate runtime sidecar.
+agents from one static Go binary, with Hermes-style skills, local memory,
+Telegram/Discord/Slack gateways, and an experimental Navivox app channel for
+trusted phone access without a hosted bot layer.
 
 ## Core Positioning
 
@@ -12,6 +13,7 @@ Docker, virtualenv drift, or separate runtime sidecar.
 - Single binary AI agent
 - Offline AI agent runtime
 - AI agent gateway for Telegram, Discord, and Slack
+- Navivox private agent chat
 - Termux AI agent runtime
 
 ## Current Capabilities
@@ -23,6 +25,7 @@ Docker, virtualenv drift, or separate runtime sidecar.
 - Dashboard
 - Skills and tools in the Go runtime
 - Telegram, Discord, and Slack gateways
+- Experimental Navivox HTTP/WebSocket app channel for trusted local/VPN/tailnet pairing
 
 ## Install
 

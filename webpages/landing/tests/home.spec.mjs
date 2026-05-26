@@ -25,13 +25,14 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
 
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     'content',
-    'Gormes runs AI agents from one static Go binary with offline diagnostics, SQLite memory, provider chat, skills, dashboard, and Telegram/Discord/Slack gateways.',
+    'Gormes runs AI agents from one static Go binary with offline diagnostics, SQLite memory, provider chat, skills, dashboard, Telegram/Discord/Slack gateways, and an experimental Navivox app channel.',
   );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://gormes.ai/');
   await expect(page.locator('link[rel="sitemap"]')).toHaveAttribute('href', '/sitemap.xml');
   await expect(page.locator('meta[name="keywords"]')).toHaveAttribute('content', /Go AI agent runtime/);
   await expect(page.locator('meta[name="keywords"]')).toHaveAttribute('content', /Hermes agent alternative/);
   await expect(page.locator('meta[name="keywords"]')).toHaveAttribute('content', /Termux AI agent/);
+  await expect(page.locator('meta[name="keywords"]')).toHaveAttribute('content', /Navivox private agent chat/);
 
   const schema = await page.locator('script[type="application/ld+json"]').textContent();
   expect(schema).toContain('"@type":"SoftwareApplication"');
@@ -49,12 +50,13 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expectMainHeading(page, 'Go-native AI agent runtime without Python or Docker.');
   await expect(page.getByText('Run local and server-side AI agents from one static binary')).toBeVisible();
   await expect(page.getByText('with Hermes-style skills, offline diagnostics, SQLite memory')).toBeVisible();
+  await expect(page.getByText('experimental Navivox app channel for trusted phone access')).toBeVisible();
   await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Install Gormes');
   await expect(page.locator('.hero-ctas .btn-secondary')).toHaveText('View GitHub');
   await expect(page.locator('.proof-item-pop').getByText('Static Go binary', { exact: true })).toBeVisible();
   await expect(page.locator('.proof-item-pop').getByText('No venv drift', { exact: true })).toBeVisible();
   await expect(page.locator('.proof-item').getByText('Offline doctor', { exact: true })).toBeVisible();
-  await expect(page.locator('.proof-item').getByText('Termux fix pending release', { exact: true })).toBeVisible();
+  await expect(page.locator('.proof-item').getByText('Termux-ready release', { exact: true })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Python agents break for boring reasons.' })).toBeVisible();
   await expect(page.getByText('Venvs drift, installs fail, streams drop, tools miswire, and servers rot.')).toBeVisible();
@@ -73,7 +75,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(page.getByText('Provider-backed chat', { exact: true })).toBeVisible();
   await expect(page.getByText('SQLite memory and sessions', { exact: true })).toBeVisible();
   await expect(page.getByText('Local dashboard', { exact: true })).toBeVisible();
-  await expect(page.getByText('Telegram, Discord, and Slack gateways', { exact: true })).toBeVisible();
+  await expect(page.getByText('Telegram, Discord, Slack, and experimental Navivox channel', { exact: true })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Install Gormes' })).toBeVisible();
   const installCommand = page.locator('#install pre code');
@@ -84,7 +86,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(installCommand).toContainText('gormes chat');
   await expect(installCommand).not.toContainText('raw.githubusercontent.com');
   await expect(page.locator('button.copy-btn')).toHaveCount(1);
-  await expect(page.getByText('Termux/Android status: v0.2.22 carries forward the installer recovery')).toBeVisible();
+  await expect(page.getByText('Termux/Android status: v0.2.23 carries forward the installer recovery')).toBeVisible();
   await expect(page.getByText('v0.2.20 executable-argument bug')).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Evidence, not a sidecar stack' })).toBeVisible();
@@ -100,6 +102,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
   await expect(page.getByText('MCP/plugin support', { exact: true })).toBeVisible();
   await expect(page.getByText('Package-manager installs', { exact: true })).toBeVisible();
   await expect(page.getByText('More gateways', { exact: true })).toBeVisible();
+  await expect(page.getByText('Navivox pairing', { exact: true })).toBeVisible();
   await expect(page.getByText('Full Hermes parity', { exact: true })).toHaveCount(0);
 
   await expect(page.getByRole('heading', { name: 'Run the offline doctor before you spend a token.' })).toBeVisible();
@@ -161,6 +164,7 @@ test('static SEO helper files are shipped', async ({ page }) => {
   expect(llmsText).toContain('Go-native AI agent runtime');
   expect(llmsText).toContain('Hermes agent alternative');
   expect(llmsText).toContain('Termux AI agent runtime');
+  expect(llmsText).toContain('Navivox private agent chat');
 
   const redirects = readFileSync(new URL('../public/_redirects', import.meta.url), 'utf8');
   expect(redirects).toContain('/install https://docs.gormes.ai/install/ 302');

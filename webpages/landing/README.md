@@ -3,9 +3,10 @@
 Astro + Tailwind landing page for current Gormes trunk.
 
 The site should reflect the shipped moat layers truthfully: the single-binary Go
-runtime, the Go-native tool registry, Telegram/Discord on the shared gateway,
-Route-B resilience, and the progress-driven Phase-2 shipping boundary. It
-should not regress into a Phase-1-only story or hardcode stale proof claims.
+runtime, the Go-native tool registry, Telegram/Discord/Slack on the shared
+gateway, the experimental Navivox app channel for trusted phone access, Route-B
+resilience, and the current progress-driven shipping boundary. It should not
+regress into a Phase-1-only story or hardcode stale proof claims.
 
 Astro owns the public homepage at `/`, static assets at `/static/*`, and
 Windows installer aliases at `/install.ps1` and `/install.cmd`.

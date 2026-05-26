@@ -16,7 +16,7 @@ export const page = {
   siteUrl: site.url,
   title: 'Gormes — Go-Native AI Agent Runtime Without Python or Docker',
   description:
-    'Gormes runs AI agents from one static Go binary with offline diagnostics, SQLite memory, provider chat, skills, dashboard, and Telegram/Discord/Slack gateways.',
+    'Gormes runs AI agents from one static Go binary with offline diagnostics, SQLite memory, provider chat, skills, dashboard, Telegram/Discord/Slack gateways, and an experimental Navivox app channel.',
   nav: [
     { label: 'Install', href: '/install' },
     { label: 'Docs', href: '/docs' },
@@ -26,7 +26,7 @@ export const page = {
   heroKicker: 'SINGLE BINARY AI AGENT RUNTIME',
   heroHeadline: 'Go-native AI agent runtime without Python or Docker.',
   heroLines: [
-    'Run local and server-side AI agents from one static binary, with Hermes-style skills, offline diagnostics, SQLite memory, provider chat, dashboard, and Telegram/Discord/Slack gateways.',
+    'Run local and server-side AI agents from one static binary, with Hermes-style skills, offline diagnostics, SQLite memory, provider chat, dashboard, Telegram/Discord/Slack gateways, and an experimental Navivox app channel for trusted phone access.',
   ],
   primaryCta: { label: 'Install Gormes', href: '#install' },
   secondaryCta: {
@@ -37,7 +37,7 @@ export const page = {
     { label: 'Static Go binary', kind: 'pop' },
     { label: 'No venv drift', kind: 'pop' },
     { label: 'Offline doctor' },
-    { label: 'Termux fix pending release' },
+    { label: 'Termux-ready release' },
   ],
   whyLabel: 'WHY GORMES',
   whyPainHeadline: 'Python agents break for boring reasons.',
@@ -58,7 +58,7 @@ export const page = {
     },
     {
       title: 'One gateway process',
-      body: 'Telegram, Discord, and Slack use the same Go runtime and kernel path as local chat.',
+      body: 'Telegram, Discord, Slack, and the experimental Navivox app channel use the same Go runtime and kernel path as local chat.',
     },
     {
       title: 'Static Go binary',
@@ -79,7 +79,7 @@ export const page = {
     'Provider-backed chat',
     'SQLite memory and sessions',
     'Local dashboard',
-    'Telegram, Discord, and Slack gateways',
+    'Telegram, Discord, Slack, and experimental Navivox channel',
   ],
   installHeadline: 'Install Gormes',
   installIntro:
@@ -87,7 +87,7 @@ export const page = {
   installCommand:
     'curl -fsSL https://gormes.ai/install.sh | bash\ngormes version\ngormes doctor --offline\ngormes setup\ngormes chat',
   installFootnote:
-    'Termux/Android status: v0.2.22 carries forward the installer recovery for the v0.2.20 executable-argument bug; Windows, source builds, and advanced installer flags are covered in the install docs.',
+    'Termux/Android status: v0.2.23 carries forward the installer recovery for the v0.2.20 executable-argument bug; affected users should reinstall the latest release, then verify with gormes version and gormes doctor --offline. Windows, source builds, and advanced installer flags are covered in the install docs.',
   installFootnoteLink: {
     label: 'Read install docs',
     href: '/install',
@@ -125,6 +125,7 @@ export const page = {
     'SQLite memory',
     'Dashboard',
     'Telegram/Discord/Slack',
+    'Navivox pairing',
   ],
   roadmapNext: [
     'More Hermes compatibility',

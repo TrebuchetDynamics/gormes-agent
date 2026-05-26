@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Run Hermes-compatible agents from one Go binary.</strong><br>
-  Gormes is a Go-native runtime for agents: providers, tools, skills, local SQLite memory, sessions, dashboard, and chat gateways are packaged as one static binary. It brings the durable parts of Hermes — terminal UX, gateway conversations, reusable skills, persistent state, and provider/model choice — to Termux, Windows-without-Python, and locked-down Linux hosts: no pip, no venv, no Docker daemon. The bundled skill set covers the 30 most-used Hermes skills, including coding, GitHub, browser/web tools, research, productivity, and media workflows.
+  Gormes is a Go-native runtime for agents: providers, tools, skills, local SQLite memory, sessions, dashboard, chat gateways, and a Navivox HTTP/WebSocket app channel are packaged as one static binary. It brings the durable parts of Hermes — terminal UX, gateway conversations, reusable skills, persistent state, and provider/model choice — to Termux, Windows-without-Python, and locked-down Linux hosts: no pip, no venv, no Docker daemon. The bundled skill set covers the 30 most-used Hermes skills, including coding, GitHub, browser/web tools, research, productivity, and media workflows.
 </p>
 
 <p align="center">
@@ -25,6 +25,8 @@ Gormes is not a micro-agent or a prompt-wrapper app. It is runtime plumbing for 
 
 The demo above is a real operator path: install, setup, provider setup, first task, web tools, Termux, and gateway.
 
+Navivox adds the phone path: a trusted local or self-hosted app channel so operators can talk to Gormes profiles from Android/Termux without putting Telegram's bot cloud in the middle.
+
 ## At A Glance
 
 | Signal | Current evidence |
@@ -35,7 +37,8 @@ The demo above is a real operator path: install, setup, provider setup, first ta
 | Bundled skills | 30 Hermes skills across coding, GitHub, browser/web, research, productivity, and media workflows |
 | Local state | SQLite under `~/.gormes`; no Redis, vector DB, Python service, or Node service on the local path |
 | Stable channels | Telegram, Discord, and Slack through one gateway process |
-| Release posture | Useful today for CLI/TUI, provider turns, local state, and Telegram/Discord/Slack; voice/TTS, release signing, package-manager lanes, and remaining parity gaps are on the roadmap |
+| Navivox app path | HTTP/WebSocket pairing with `gormes navivox pair` for trusted Android/Termux operators; local/VPN/tailnet deployment is preferred and public exposure is discouraged |
+| Release posture | Useful today for CLI/TUI, provider turns, local state, Telegram/Discord/Slack, and experimental Navivox pairing; voice/TTS, release signing, package-manager lanes, and remaining parity gaps are on the roadmap |
 
 ## Quick Install
 
@@ -84,9 +87,10 @@ If `gormes chat` opens, the TUI and gateway have a model to use.
 - Small servers, Termux/Android, WSL2, and locked-down Linux hosts where Docker or venv repair is friction.
 - Termux can be the controller while a remote SSH host handles Docker, browser automation, GPU/local models, and large builds.
 - Long-running personal or team agents that need local sessions, memory, tools, and chat gateways.
+- Mobile operators who want voice/text access to their own agents without routing through Telegram bots when Navivox fits their deployment.
 - Builders who care less about one-off model outputs and more about reusable structure: skills, policies, profiles, memories, logs, and repeatable workflows.
 
-Not yet for teams that require signed enterprise releases, voice/TTS parity, or every Hermes channel on day one.
+Not yet for teams that require signed enterprise releases, voice/TTS parity, app-store Navivox polish, or every Hermes channel on day one.
 
 ## What Works Today
 
@@ -97,6 +101,7 @@ Not yet for teams that require signed enterprise releases, voice/TTS parity, or 
 | Providers: OpenAI, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, custom endpoints | **Supported** |
 | Local SQLite memory (Goncho), session state | **Supported** |
 | Gateways: Telegram, Discord, Slack | **Supported** |
+| Navivox HTTP/WebSocket app channel and pairing QR/deep-link handoff | **Experimental** |
 | Profiles, local Kanban board, skills/plugins inventory, security/secret audits | **Supported** |
 | Hermes / OpenClaw migration with dry-run | **Supported** |
 | Gateways: WhatsApp, Teams, Yuanbao | **Experimental** |
@@ -151,6 +156,7 @@ gormes config show              # inspect config with secrets redacted
 gormes profile use <name>       # switch isolated profile homes
 gormes gateway                  # run the configured messaging gateway
 gormes gateway status --json    # inspect gateway runtime state
+gormes navivox pair             # pair the Navivox app over local/VPN/tailnet HTTP/WebSocket
 gormes logs                     # read recent gateway logs
 ```
 
@@ -204,6 +210,7 @@ gormes doctor --offline
 | [Providers](https://docs.gormes.ai/reference/providers/) | Supported provider config and credential paths. |
 | [Configuration](https://docs.gormes.ai/reference/config/) | `~/.gormes/config.toml`, `.env`, agents, workspaces, and bindings. |
 | [Gateway](https://docs.gormes.ai/building-gormes/core-systems/gateway/) | Channel runtime, status checks, reloads, and troubleshooting evidence. |
+| [Navivox channel](https://docs.gormes.ai/cli/navivox/) | App pairing, endpoint contract, trust boundaries, and mobile operator setup. |
 | [Troubleshooting](https://docs.gormes.ai/getting-started/troubleshooting/) | Common install, provider, gateway, and browser-tool failures. |
 | [Roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/) | Hermes parity phases, status labels, and progress evidence. |
 
@@ -211,6 +218,7 @@ gormes doctor --offline
 
 - `gormes doctor --offline` and `gormes --offline` prove local readiness before any token spend.
 - Provider secrets stay local under `~/.gormes/.env`; config under `~/.gormes/config.toml`.
+- The Navivox app channel is disabled unless configured, prefers local/VPN/tailnet exposure, and treats pairing tokens, deep links, terminal QRs, and QR PNGs as secret material; public exposure requires explicit confirmation.
 - Tagged releases publish a single static binary per target plus SHA-256 checksums and SBOMs. Release signing and package-manager lanes remain on the roadmap.
 - The `curl … | sh` install path is validated by an end-to-end suite ([`tests/install/e2e.sh`](tests/install/e2e.sh)) covering API outage with redirect fallback, SHA-256 mismatch abort, SSH-origin update fallback to public HTTPS, hosts without Go/curl/wget/systemd, Termux detection, sudo'd root install, and `--uninstall --dry-run` preview. Runnable locally or via the [`install-e2e`](.github/workflows/install-e2e.yml) workflow on demand.
 
