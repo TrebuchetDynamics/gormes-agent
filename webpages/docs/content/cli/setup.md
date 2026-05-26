@@ -25,6 +25,11 @@ positional argument, or run `gormes setup` to walk the full wizard.
 | `gateway` | Configure messaging gateways |
 | `tools` | Configure tool groups |
 
+`gormes setup gateway` writes channel credentials and allowlists as profile-owned
+bindings (`profiles.<id>.channels.<channel>` plus `credentials.<id>`) so
+Telegram, Discord, Slack, WhatsApp, and Navivox setup follows the active
+profile instead of becoming shared global state.
+
 `gormes setup profiles` writes `agents.defaults.workspaces` into the selected
 profile's own `config.toml`. An empty list means the operator home is the
 default project workspace, while a non-empty list restricts model-facing

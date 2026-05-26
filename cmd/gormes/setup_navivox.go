@@ -197,8 +197,12 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	if err := config.WriteTOMLValue(config.ConfigPath(), "navivox.allowed_tailnet_identities", allowedIdentities); err != nil {
 		return err
 	}
+	profileBinding, err := writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "navivox"})
+	if err != nil {
+		return fmt.Errorf("setup navivox: write profile channel binding: %w", err)
+	}
 	if token != "" {
-		if err := config.WriteEnvValue(config.EnvPath(), "GORMES_NAVIVOX_TOKEN", token); err != nil {
+		if err := writeSetupGatewayTokenEnv(profileBinding, "GORMES_NAVIVOX_TOKEN", token); err != nil {
 			return err
 		}
 	}
@@ -225,7 +229,9 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	if token != "" {
 		fmt.Fprintln(out, "  Token: generated and stored as GORMES_NAVIVOX_TOKEN in:")
 		fmt.Fprintf(out, "  %s\n", config.EnvPath())
+		fmt.Fprintf(out, "  Profile token: %s\n", profileBinding.SecretEnvName)
 	}
+	fmt.Fprintf(out, "  Profile channel: profiles.%s.channels.navivox\n", profileBinding.ProfileID)
 	fmt.Fprintln(out, "  Pairing QR image:")
 	fmt.Fprintf(out, "  %s\n", qrPath)
 	fmt.Fprintln(out, "  Scan this QR from Navivox:")

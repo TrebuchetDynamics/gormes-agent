@@ -28,7 +28,7 @@ printf '%s\n' "$@"
 	t.Setenv("PATH", fakeDir)
 
 	port := freeLocalTCPPort(t)
-	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--port", strconv.Itoa(port), "--no-wait", "--open-navivox")
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--host", "127.0.0.1", "--port", strconv.Itoa(port), "--no-wait", "--open-navivox")
 	if err != nil {
 		t.Fatalf("navivox pair --open-navivox --no-wait: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
@@ -65,15 +65,16 @@ printf '%s\n' "$@"
 		}
 	}
 	combined := stdout + stderr
-	for _, forbidden := range []string{"nvbx_pair_open_token", "rest_token=", descriptor} {
+	for _, forbidden := range []string{"rest_token=", descriptor} {
 		if strings.Contains(combined, forbidden) {
-			t.Fatalf("pair output leaked %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
+			t.Fatalf("pair output leaked descriptor material %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
 	}
 	for _, want := range []string{
 		"Navivox pairing ready.",
+		"Token: nvbx_pair_open_token",
 		"Handoff: opened Navivox directly",
-		"Keep this terminal open for the local bridge.",
+		"Keep this terminal open for this bridge.",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -171,21 +172,22 @@ func TestNavivoxPairOpenNavivoxMissingAMFallsBackToQR(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 
 	port := freeLocalTCPPort(t)
-	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--port", strconv.Itoa(port), "--no-wait", "--open-navivox")
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--host", "127.0.0.1", "--port", strconv.Itoa(port), "--no-wait", "--open-navivox")
 	if err != nil {
 		t.Fatalf("navivox pair with missing am should keep QR fallback: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
 		"Handoff: direct open failed (navivox open: Android activity manager not found); QR fallback saved:",
-		"Secret: QR embeds the local bridge URL and Navivox token.",
+		"Secret: QR embeds the network bridge URL and Navivox token.",
+		"Token: nvbx_missing_am_token",
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	if strings.Contains(stdout+stderr, "nvbx_missing_am_token") || strings.Contains(stdout+stderr, "rest_token=") {
-		t.Fatalf("fallback output leaked token material:\nstdout=%s\nstderr=%s", stdout, stderr)
+	if strings.Contains(stderr, "nvbx_missing_am_token") || strings.Contains(stdout+stderr, "rest_token=") {
+		t.Fatalf("fallback output leaked descriptor token material:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 
@@ -195,18 +197,21 @@ func TestNavivoxPairPrintDeeplinkRequiresExplicitFlag(t *testing.T) {
 	t.Setenv("GORMES_NAVIVOX_TOKEN", "nvbx_print_deeplink_token")
 
 	port := freeLocalTCPPort(t)
-	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--port", strconv.Itoa(port), "--no-wait")
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--host", "127.0.0.1", "--port", strconv.Itoa(port), "--no-wait")
 	if err != nil {
 		t.Fatalf("navivox pair default: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	for _, forbidden := range []string{"navivox://connect?", "rest_token=", "nvbx_print_deeplink_token"} {
+	if !strings.Contains(stdout, "Token: nvbx_print_deeplink_token") {
+		t.Fatalf("default pair output should print token for manual entry:\nstdout=%s", stdout)
+	}
+	for _, forbidden := range []string{"navivox://connect?", "rest_token="} {
 		if strings.Contains(stdout+stderr, forbidden) {
 			t.Fatalf("default pair output leaked %q:\nstdout=%s\nstderr=%s", forbidden, stdout, stderr)
 		}
 	}
 
 	port = freeLocalTCPPort(t)
-	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--port", strconv.Itoa(port), "--no-wait", "--print-deeplink")
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--host", "127.0.0.1", "--port", strconv.Itoa(port), "--no-wait", "--print-deeplink")
 	if err != nil {
 		t.Fatalf("navivox pair --print-deeplink: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}

@@ -41,16 +41,19 @@ selected, so treat the PNG like a secret and avoid screenshots or support
 bundles that include it.
 
 For the one-terminal Android/Termux handoff, use `gormes navivox pair`. It
-starts the local bridge, prints a terminal QR when the screen is wide enough,
-and opens the Navivox app directly with `--open-navivox` when available. If the
-deep-link VIEW intent fails, it retries with an Android text-share payload. It
-does not print the secret descriptor unless `--print-deeplink` is explicitly
-provided.
+starts a network-reachable bridge, preferring a detected Tailscale IPv4 address
+before other VPN/LAN addresses, and prints the token for manual fallback entry.
+It prints a terminal QR when the screen is wide enough and opens the Navivox app
+directly with `--open-navivox` when available. If the deep-link VIEW intent
+fails, it retries with an Android text-share payload. Treat the printed token
+and QR like a WhatsApp Web QR: anyone with them can connect while the bridge is
+online. It does not print the full secret descriptor unless `--print-deeplink`
+is explicitly provided.
 
 In the Flutter Navivox app setup screen, scan the QR image when available. If
-QR scanning is unavailable, enter the gateway base URL, for example
-`http://127.0.0.1:8765` or the Tailscale host URL, then enter the pairing
-token manually. After connection, chat messages use the WebSocket stream.
+QR scanning is unavailable, enter the printed gateway base URL (for example the
+Tailscale host URL) and the printed pairing token manually. After connection,
+chat messages use the WebSocket stream.
 
 ## Config Keys
 

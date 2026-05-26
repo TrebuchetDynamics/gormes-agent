@@ -140,21 +140,91 @@ func newChannelSetupGuidanceCommand() *cobra.Command {
 		SilenceUsage: true,
 		Args:         cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := cmd.OutOrStdout()
 			if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
-				channel := strings.ToLower(strings.TrimSpace(args[0]))
-				fmt.Fprintln(out, "Channel setup command:")
-				fmt.Fprintf(out, "  gormes setup --quick --target %s\n", channel)
-				fmt.Fprintln(out, "  gormes setup gateway")
-				return nil
+				return renderChannelSetupGuidance(cmd, args[0])
 			}
-			fmt.Fprintln(out, "Channel setup command:")
-			fmt.Fprintln(out, "  gormes setup gateway")
-			fmt.Fprintln(out, "  gormes setup --quick --target telegram")
-			return nil
+			return renderAllChannelSetupGuidance(cmd)
 		},
 	}
 	return cmd
+}
+
+func renderAllChannelSetupGuidance(cmd *cobra.Command) error {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Channel setup commands:")
+	fmt.Fprintln(out, "Profile scope: setup writes profiles.<id>.channels.<channel> plus profile-owned credential SecretRefs.")
+	for _, channel := range []string{"telegram", "discord", "slack", "whatsapp", "navivox"} {
+		fmt.Fprintf(out, "  %s: gormes setup %s", channel, channel)
+		if isQuickSetupChannel(channel) {
+			fmt.Fprintf(out, " (or gormes setup --quick --target %s)", channel)
+		}
+		fmt.Fprintln(out)
+	}
+	fmt.Fprintln(out, "Other channels: run `gormes channels setup <channel>` for row-backed guidance.")
+	reports, err := channelcaps.BuildCapabilityReports(channelcaps.CapabilityOptions{})
+	if err != nil {
+		return gormescli.NewExitCodeError(1, err)
+	}
+	other := make([]string, 0, len(reports))
+	for _, report := range reports {
+		if !isQuickSetupChannel(report.Channel) {
+			other = append(other, report.Channel)
+		}
+	}
+	if len(other) > 0 {
+		fmt.Fprintf(out, "Known manifest channels: %s\n", strings.Join(other, ", "))
+	}
+	return nil
+}
+
+func renderChannelSetupGuidance(cmd *cobra.Command, rawChannel string) error {
+	channel := strings.ToLower(strings.TrimSpace(rawChannel))
+	if channel == "navivox" {
+		out := cmd.OutOrStdout()
+		fmt.Fprintln(out, "Channel setup commands for Navivox (navivox):")
+		fmt.Fprintln(out, "  Profile scope: profiles.<id>.channels.navivox")
+		fmt.Fprintln(out, "  gormes setup navivox")
+		fmt.Fprintln(out, "  gormes setup --quick --target navivox")
+		fmt.Fprintln(out, "  gormes navivox pair")
+		fmt.Fprintln(out, "  gormes channels")
+		return nil
+	}
+	reports, err := channelcaps.BuildCapabilityReports(channelcaps.CapabilityOptions{Channel: channel})
+	if err != nil {
+		return gormescli.NewExitCodeError(1, err)
+	}
+	if len(reports) == 0 {
+		return gormescli.NewExitCodeError(1, channelcaps.UnknownChannelError{Channel: channel})
+	}
+	report := reports[0]
+	out := cmd.OutOrStdout()
+	fmt.Fprintf(out, "Channel setup commands for %s (%s):\n", report.DisplayName, report.Channel)
+	fmt.Fprintf(out, "  Profile scope: profiles.<id>.channels.%s\n", report.Channel)
+	if isQuickSetupChannel(report.Channel) {
+		fmt.Fprintf(out, "  gormes setup %s\n", report.Channel)
+		fmt.Fprintf(out, "  gormes setup --quick --target %s\n", report.Channel)
+		fmt.Fprintln(out, "  gormes setup gateway --plan")
+	} else {
+		fmt.Fprintln(out, "  gormes setup gateway --plan")
+		fmt.Fprintln(out, "  gormes config edit")
+	}
+	fmt.Fprintf(out, "  gormes channels %s\n", report.Channel)
+	if strings.TrimSpace(report.BacklogOwner) != "" {
+		fmt.Fprintf(out, "  Backlog: %s\n", report.BacklogOwner)
+	}
+	if strings.TrimSpace(report.Notes) != "" {
+		fmt.Fprintf(out, "  Note: %s\n", report.Notes)
+	}
+	return nil
+}
+
+func isQuickSetupChannel(channel string) bool {
+	switch strings.ToLower(strings.TrimSpace(channel)) {
+	case "telegram", "discord", "slack", "whatsapp", "navivox":
+		return true
+	default:
+		return false
+	}
 }
 
 func runCapabilitiesCommand(cmd *cobra.Command, seams Seams, opts Options, channel string, jsonOutput bool) error {

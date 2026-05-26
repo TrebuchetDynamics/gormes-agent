@@ -52,6 +52,25 @@ func TestChannelSetupTelegramStatusAndRedaction(t *testing.T) {
 	}
 }
 
+func TestChannelSetupPlanCoreChannelsAdvertiseProfileScopedWrites(t *testing.T) {
+	plan := BuildChannelSetupPlan(config.Config{})
+	checks := map[string][]string{
+		"telegram": {"profiles.<id>.channels.telegram.credential", "credentials.<id>.secret_ref", "profile-scoped .env"},
+		"discord":  {"profiles.<id>.channels.discord.credential", "credentials.<id>.secret_ref", "profile-scoped .env"},
+		"slack":    {"profiles.<id>.channels.slack.credential", "credentials.<id>.secret_ref", "profile-scoped .env"},
+		"navivox":  {"profiles.<id>.channels.navivox.credential", "credentials.<id>.secret_ref", "profile-scoped .env"},
+	}
+	for channel, wants := range checks {
+		entry := findChannelSetupEntry(t, plan, channel)
+		rendered := strings.Join(append(append([]string{}, entry.RequiredFields...), entry.PlannedWrites...), "\n")
+		for _, want := range wants {
+			if !strings.Contains(rendered, want) {
+				t.Fatalf("%s setup guidance missing %q:\n%s", channel, want, rendered)
+			}
+		}
+	}
+}
+
 func TestProfileChannelSetupPlanWhatsAppUsesReadinessAndRedactsScopes(t *testing.T) {
 	cfg := config.Config{
 		Profiles: map[string]config.ProfileCfg{

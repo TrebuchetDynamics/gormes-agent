@@ -200,8 +200,9 @@ func buildTelegramSetupEntry(cfg config.TelegramCfg) ChannelSetupEntry {
 		ID:          "telegram",
 		DisplayName: "Telegram",
 		RequiredFields: []string{
-			"telegram.bot_token",
-			"telegram.allowed_user_ids or explicit open access",
+			"profiles.<id>.channels.telegram.credential",
+			"credentials.<id>.secret_ref",
+			"profiles.<id>.channels.telegram.allowed_users/allowed_chats or explicit open access",
 			"telegram.home_channel.chat_id",
 		},
 		NextCommand: "gormes setup gateway",
@@ -222,12 +223,12 @@ func buildTelegramSetupEntry(cfg config.TelegramCfg) ChannelSetupEntry {
 	if tokenConfigured {
 		entry.CurrentValues = append(entry.CurrentValues, "telegram.bot_token=[REDACTED]")
 	} else {
-		entry.PlannedWrites = append(entry.PlannedWrites, "telegram.bot_token -> .env")
+		entry.PlannedWrites = append(entry.PlannedWrites, "profiles.<id>.channels.telegram.credential -> config.toml", "credentials.<id>.secret_ref -> profile-scoped .env", "telegram.bot_token_ref -> config.toml")
 	}
 	if len(cfg.AllowedUserIDs) > 0 {
 		entry.CurrentValues = append(entry.CurrentValues, "telegram.allowed_user_ids="+strconv.Itoa(len(cfg.AllowedUserIDs)))
 	} else if !cfg.GuestMode {
-		entry.PlannedWrites = append(entry.PlannedWrites, "telegram.allowed_user_ids or explicit open access -> config.toml")
+		entry.PlannedWrites = append(entry.PlannedWrites, "profiles.<id>.channels.telegram.allowed_users/allowed_chats or explicit open access -> config.toml")
 	}
 	if cfg.GuestMode {
 		entry.CurrentValues = append(entry.CurrentValues, "telegram.access_policy=open")
@@ -257,7 +258,7 @@ func buildDiscordSetupEntry(cfg config.DiscordCfg) ChannelSetupEntry {
 	entry := ChannelSetupEntry{
 		ID:             "discord",
 		DisplayName:    "Discord",
-		RequiredFields: []string{"discord.token", "discord.allowed_channel_id or first_run_discovery"},
+		RequiredFields: []string{"profiles.<id>.channels.discord.credential", "credentials.<id>.secret_ref", "profiles.<id>.channels.discord.allowed_chats or first_run_discovery"},
 		NextCommand:    "gormes setup gateway",
 	}
 	if cfg.Enabled() {
@@ -269,7 +270,7 @@ func buildDiscordSetupEntry(cfg config.DiscordCfg) ChannelSetupEntry {
 		return entry
 	}
 	entry.Status = ChannelSetupStatusUnconfigured
-	entry.PlannedWrites = []string{"discord.token -> .env", "discord.allowed_channel_id -> config.toml"}
+	entry.PlannedWrites = []string{"profiles.<id>.channels.discord.credential -> config.toml", "credentials.<id>.secret_ref -> profile-scoped .env", "discord.token_ref -> config.toml", "discord.allowed_channel_id -> config.toml"}
 	return entry
 }
 
@@ -277,7 +278,7 @@ func buildSlackSetupEntry(cfg config.SlackCfg) ChannelSetupEntry {
 	entry := ChannelSetupEntry{
 		ID:             "slack",
 		DisplayName:    "Slack",
-		RequiredFields: []string{"slack.bot_token", "slack.app_token", "slack.allowed_channel_id or first_run_discovery"},
+		RequiredFields: []string{"profiles.<id>.channels.slack.credential", "credentials.<id>.secret_ref", "credentials.<id>-slack_app.secret_ref", "profiles.<id>.channels.slack.allowed_chats or first_run_discovery"},
 		NextCommand:    "gormes setup gateway",
 	}
 	if cfg.Enabled {
@@ -289,7 +290,7 @@ func buildSlackSetupEntry(cfg config.SlackCfg) ChannelSetupEntry {
 		return entry
 	}
 	entry.Status = ChannelSetupStatusUnconfigured
-	entry.PlannedWrites = []string{"slack.bot_token -> .env", "slack.app_token -> .env", "slack.allowed_channel_id -> config.toml"}
+	entry.PlannedWrites = []string{"profiles.<id>.channels.slack.credential -> config.toml", "credentials.<id>.secret_ref -> profile-scoped .env", "credentials.<id>-slack_app.secret_ref -> profile-scoped .env", "slack.bot_token_ref -> config.toml", "slack.app_token_ref -> config.toml", "slack.allowed_channel_id -> config.toml"}
 	return entry
 }
 
@@ -297,7 +298,7 @@ func buildNavivoxSetupEntry(cfg config.NavivoxCfg) ChannelSetupEntry {
 	entry := ChannelSetupEntry{
 		ID:             "navivox",
 		DisplayName:    "Navivox",
-		RequiredFields: []string{"navivox.enabled", "navivox.bind_host", "navivox.auth_mode"},
+		RequiredFields: []string{"profiles.<id>.channels.navivox.credential", "credentials.<id>.secret_ref when token auth is enabled", "navivox.enabled", "navivox.bind_host", "navivox.auth_mode"},
 		NextCommand:    "gormes setup gateway",
 	}
 	if cfg.Enabled {
@@ -306,7 +307,7 @@ func buildNavivoxSetupEntry(cfg config.NavivoxCfg) ChannelSetupEntry {
 		return entry
 	}
 	entry.Status = ChannelSetupStatusUnconfigured
-	entry.PlannedWrites = []string{"navivox.enabled -> config.toml"}
+	entry.PlannedWrites = []string{"profiles.<id>.channels.navivox.credential -> config.toml", "credentials.<id>.secret_ref -> profile-scoped .env when token auth is enabled", "navivox.enabled -> config.toml"}
 	return entry
 }
 

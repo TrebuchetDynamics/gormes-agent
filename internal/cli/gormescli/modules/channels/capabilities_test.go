@@ -74,7 +74,68 @@ func TestChannelsSetupSubcommandPrintsSetupGuidance(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("channels setup telegram: %v\nstdout=%s", err, stdout.String())
 	}
-	for _, want := range []string{"Channel setup command:", "gormes setup --quick --target telegram", "gormes setup gateway"} {
+	for _, want := range []string{
+		"Channel setup commands for Telegram (telegram):",
+		"gormes setup telegram",
+		"gormes setup --quick --target telegram",
+		"gormes setup gateway --plan",
+		"gormes channels telegram",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
+func TestChannelsSetupSubcommandSupportsEveryManifestChannel(t *testing.T) {
+	reports, err := channelcaps.BuildCapabilityReports(channelcaps.CapabilityOptions{})
+	if err != nil {
+		t.Fatalf("BuildCapabilityReports: %v", err)
+	}
+	for _, report := range reports {
+		t.Run(report.Channel, func(t *testing.T) {
+			cmd := NewCommandWithSeams(Seams{}, Options{})
+			var stdout bytes.Buffer
+			cmd.SetOut(&stdout)
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			cmd.SetArgs([]string{"setup", report.Channel})
+
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("channels setup %s: %v\nstdout=%s", report.Channel, err, stdout.String())
+			}
+			for _, want := range []string{"Channel setup commands for", "gormes setup gateway --plan", "gormes channels " + report.Channel} {
+				if !strings.Contains(stdout.String(), want) {
+					t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+				}
+			}
+			if !isQuickSetupChannel(report.Channel) && strings.Contains(stdout.String(), "gormes setup --quick --target "+report.Channel) {
+				t.Fatalf("row-backed channel %s should not advertise unsupported quick target:\n%s", report.Channel, stdout.String())
+			}
+		})
+	}
+}
+
+func TestChannelsSetupSubcommandListsAllSetupEntrypoints(t *testing.T) {
+	cmd := NewCommandWithSeams(Seams{}, Options{})
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"setup"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("channels setup: %v\nstdout=%s", err, stdout.String())
+	}
+	for _, want := range []string{
+		"Channel setup commands:",
+		"telegram: gormes setup telegram",
+		"discord: gormes setup discord",
+		"slack: gormes setup slack",
+		"whatsapp: gormes setup whatsapp",
+		"navivox: gormes setup navivox",
+		"Other channels: run `gormes channels setup <channel>` for row-backed guidance.",
+	} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
 		}

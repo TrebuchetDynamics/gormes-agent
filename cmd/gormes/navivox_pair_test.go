@@ -18,8 +18,11 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
 )
 
 func TestNavivoxPairHelpExplainsOneTerminalFlow(t *testing.T) {
@@ -29,8 +32,8 @@ func TestNavivoxPairHelpExplainsOneTerminalFlow(t *testing.T) {
 		t.Fatalf("navivox pair --help: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"Start a local Navivox bridge, generate a pairing token, write a QR image,",
-		"open Navivox directly on Android when available, then wait for the app to connect.",
+		"Start a network-reachable Navivox bridge, generate or reuse a pairing token,",
+		"print the token for manual entry, open Navivox directly on",
 		"Use this after the installer recommends Navivox setup:",
 		"gormes navivox pair",
 		"Keep the Termux session open after Navivox connects; it owns the local bridge.",
@@ -77,6 +80,25 @@ func TestNavivoxPairDescriptorIncludesSetupContinuationHints(t *testing.T) {
 	}
 }
 
+func TestNavivoxPairAutoTargetPrefersTailscaleNetworkIP(t *testing.T) {
+	prev := vpnhostList
+	t.Cleanup(func() { vpnhostList = prev })
+	vpnhostList = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{
+			{Iface: "wg0", Kind: vpnhost.KindWireGuard, IPv4: "10.0.0.4"},
+			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+		}, nil
+	}
+
+	target, err := resolveNavivoxPairTarget(context.Background(), "")
+	if err != nil {
+		t.Fatalf("resolveNavivoxPairTarget: %v", err)
+	}
+	if target.Host != "100.64.1.2" || target.ExposureMode != config.NavivoxExposureTailscale || target.Source != "tailscale auto-detected" {
+		t.Fatalf("target = %+v, want tailscale network IP", target)
+	}
+}
+
 func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -94,7 +116,7 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	})
 
 	port := freeLocalTCPPort(t)
-	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--port", strconv.Itoa(port), "--no-wait")
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--host", "127.0.0.1", "--port", strconv.Itoa(port), "--no-wait")
 	if err != nil {
 		t.Fatalf("navivox pair --no-wait: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
@@ -103,13 +125,16 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 		"Navivox pairing ready.",
 		fmt.Sprintf("  Bridge: http://127.0.0.1:%d", port),
 		fmt.Sprintf("  Stream: ws://127.0.0.1:%d/v1/navivox/stream", port),
+		"  Network: operator override",
 		"  Handoff: QR fallback saved:\n    " + qrPath,
 		"  Scan this QR from Navivox:",
-		"  QR payload includes the local bridge URL and Navivox token.",
-		"  Raw token is not printed.",
-		"  Secret: QR embeds the local bridge URL and Navivox token.",
-		"  Token: generated and stored in " + config.EnvPath(),
-		"  Keep this terminal open for the local bridge.",
+		"  QR payload includes the network bridge URL and pairing token.",
+		"  Manual token is printed above for fallback entry.",
+		"  Secret: QR embeds the network bridge URL and Navivox token.",
+		"  Token source: generated and stored in:\n  " + config.EnvPath(),
+		"  Treat token/QR like WhatsApp Web:",
+		"  anyone with it can connect while this bridge is online.",
+		"  Keep this terminal open for this bridge.",
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -135,8 +160,11 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	if cfg.Navivox.Token == "" {
 		t.Fatal("navivox token was not generated")
 	}
-	if strings.Contains(stdout+stderr, cfg.Navivox.Token) {
-		t.Fatalf("navivox pair leaked generated token:\nstdout=%s\nstderr=%s", stdout, stderr)
+	if !strings.Contains(stdout, "  Token: "+cfg.Navivox.Token) {
+		t.Fatalf("navivox pair should print generated token for manual entry:\nstdout=%s", stdout)
+	}
+	if strings.Contains(stderr, cfg.Navivox.Token) {
+		t.Fatalf("navivox pair leaked generated token to stderr:\nstderr=%s", stderr)
 	}
 
 	info, err := os.Stat(qrPath)
@@ -148,6 +176,96 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	}
 }
 
+func TestNavivoxPairRefusesWhenLiveGatewayRuntimeExists(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	previous := newNavivoxPairRuntimeStore
+	t.Cleanup(func() { newNavivoxPairRuntimeStore = previous })
+	newNavivoxPairRuntimeStore = func(string) navivoxPairRuntimeStore {
+		return fakeNavivoxPairRuntimeStore{snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{PID: 1234},
+			Validation: gateway.RuntimeProcessValidation{
+				Live: true,
+				PID:  1234,
+			},
+		}}
+	}
+
+	cmd := &cobra.Command{Use: "test"}
+	cmd.SetContext(context.Background())
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	err := runNavivoxPair(cmd, navivoxPairOptions{host: "127.0.0.1", port: freeLocalTCPPort(t), noWait: true})
+	if err == nil {
+		t.Fatalf("runNavivoxPair err = nil, want live gateway refusal")
+	}
+	for _, want := range []string{"live Gormes gateway already running pid=1234", "only one gateway can run at a time", "gormes gateway stop"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error missing %q: %v", want, err)
+		}
+	}
+	if stdout.Len() != 0 || stderr.Len() != 0 {
+		t.Fatalf("live gateway refusal should not start or print pairing output\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+	}
+}
+
+type fakeNavivoxPairRuntimeStore struct {
+	snapshot gateway.RuntimeStatusSnapshot
+	err      error
+}
+
+func (s fakeNavivoxPairRuntimeStore) ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error) {
+	return s.snapshot, s.err
+}
+
+func TestNavivoxPairAutoPortsWhenDefaultPortBusy(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("COLUMNS", "120")
+	previousToken, hadPreviousToken := os.LookupEnv("GORMES_NAVIVOX_TOKEN")
+	if err := os.Unsetenv("GORMES_NAVIVOX_TOKEN"); err != nil {
+		t.Fatalf("unset GORMES_NAVIVOX_TOKEN: %v", err)
+	}
+	t.Cleanup(func() {
+		if hadPreviousToken {
+			_ = os.Setenv("GORMES_NAVIVOX_TOKEN", previousToken)
+		} else {
+			_ = os.Unsetenv("GORMES_NAVIVOX_TOKEN")
+		}
+	})
+
+	occupied, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("occupy local port: %v", err)
+	}
+	defer occupied.Close()
+	occupiedPort := occupied.Addr().(*net.TCPAddr).Port
+
+	cmd := &cobra.Command{Use: "test"}
+	cmd.SetContext(context.Background())
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	if err := runNavivoxPair(cmd, navivoxPairOptions{host: "127.0.0.1", port: occupiedPort, noWait: true}); err != nil {
+		t.Fatalf("runNavivoxPair auto-port fallback: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, fmt.Sprintf("port %d busy, using", occupiedPort)) {
+		t.Fatalf("stdout missing auto-port fallback evidence for occupied port %d:\n%s", occupiedPort, out)
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Navivox.Port == occupiedPort || cfg.Navivox.Port == 0 {
+		t.Fatalf("persisted navivox port = %d, want fallback port different from occupied %d", cfg.Navivox.Port, occupiedPort)
+	}
+	if !strings.Contains(out, fmt.Sprintf("Bridge: http://127.0.0.1:%d", cfg.Navivox.Port)) {
+		t.Fatalf("stdout bridge did not use persisted fallback port %d:\n%s", cfg.Navivox.Port, out)
+	}
+}
+
 func TestNavivoxPairNarrowTermuxFallsBackToPNGQRCode(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -155,7 +273,7 @@ func TestNavivoxPairNarrowTermuxFallsBackToPNGQRCode(t *testing.T) {
 	t.Setenv("COLUMNS", "48")
 
 	port := freeLocalTCPPort(t)
-	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--port", strconv.Itoa(port), "--no-wait")
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "navivox", "pair", "--host", "127.0.0.1", "--port", strconv.Itoa(port), "--no-wait")
 	if err != nil {
 		t.Fatalf("navivox pair --no-wait narrow: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
@@ -174,8 +292,11 @@ func TestNavivoxPairNarrowTermuxFallsBackToPNGQRCode(t *testing.T) {
 	if strings.ContainsAny(stdout, "▀▄█") {
 		t.Fatalf("narrow-terminal fallback should not print a wrapped QR block:\n%s", stdout)
 	}
-	if strings.Contains(stdout+stderr, "nvbx_narrow_termux_token") || strings.Contains(stdout+stderr, "rest_token=") {
-		t.Fatalf("narrow-terminal fallback leaked token material:\nstdout=%s\nstderr=%s", stdout, stderr)
+	if !strings.Contains(stdout, "  Token: nvbx_narrow_termux_token") {
+		t.Fatalf("narrow-terminal fallback should print token for manual entry:\nstdout=%s", stdout)
+	}
+	if strings.Contains(stderr, "nvbx_narrow_termux_token") || strings.Contains(stdout+stderr, "rest_token=") {
+		t.Fatalf("narrow-terminal fallback leaked descriptor token material:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 
@@ -227,7 +348,7 @@ func TestNavivoxPairWaitStartsLocalBridgeUntilContextCanceled(t *testing.T) {
 	out := stdout.String()
 	for _, want := range []string{
 		fmt.Sprintf("Bridge: http://127.0.0.1:%d", port),
-		"Keep this terminal open for the local bridge.",
+		"Keep this terminal open for this bridge.",
 		"Waiting for Navivox connection... Press Ctrl-C to stop.",
 	} {
 		if !strings.Contains(out, want) {

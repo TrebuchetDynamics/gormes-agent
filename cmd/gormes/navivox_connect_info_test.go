@@ -32,7 +32,7 @@ func TestNavivoxCommandHelpShowsPairOnly(t *testing.T) {
 		t.Fatalf("navivox help: %v", err)
 	}
 	help := buf.String()
-	if !strings.Contains(help, "pair") || !strings.Contains(help, "Create a local Navivox pairing handoff") {
+	if !strings.Contains(help, "pair") || !strings.Contains(help, "Create a network Navivox pairing handoff") {
 		t.Fatalf("navivox help must advertise pair command:\n%s", help)
 	}
 	for _, removed := range []string{"connect", "connect-info", "Print Navivox connect URLs"} {

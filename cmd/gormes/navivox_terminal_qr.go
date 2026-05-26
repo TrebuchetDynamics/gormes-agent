@@ -43,8 +43,8 @@ func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, 
 	if terminalQR.LevelName == "low" {
 		fmt.Fprintln(out, "  Terminal QR uses compact error correction to fit this terminal.")
 	}
-	fmt.Fprintln(out, "  QR payload includes the local bridge URL and Navivox token.")
-	fmt.Fprintln(out, "  Raw token is not printed.")
+	fmt.Fprintln(out, "  QR payload includes the network bridge URL and pairing token.")
+	fmt.Fprintln(out, "  Manual token is printed above for fallback entry.")
 	return nil
 }
 

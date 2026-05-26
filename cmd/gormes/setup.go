@@ -2697,9 +2697,12 @@ func applySetupTelegramGatewayAnswers(cmd *cobra.Command, cfg config.TelegramCfg
 	if err != nil {
 		return err
 	}
+	profileBinding := setupGatewayProfileChannelPreview("telegram")
 
 	fmt.Fprintln(out, "Review Telegram gateway changes")
+	fmt.Fprintf(out, "  profiles.%s.channels.telegram.credential=%s\n", profileBinding.ProfileID, profileBinding.CredentialID)
 	if token != "" {
+		fmt.Fprintf(out, "  .env %s=[REDACTED]\n", profileBinding.SecretEnvName)
 		fmt.Fprintln(out, "  .env GORMES_TELEGRAM_BOT_TOKEN=[REDACTED]")
 	}
 	switch accessPolicy {
@@ -2724,13 +2727,24 @@ func applySetupTelegramGatewayAnswers(cmd *cobra.Command, cfg config.TelegramCfg
 		return nil
 	}
 
+	allowedProfileChats := []string(nil)
+	if chatID := strings.TrimSpace(answers.HomeChatID); chatID != "" {
+		allowedProfileChats = []string{chatID}
+	}
+	profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{
+		ChannelID:    "telegram",
+		AllowedChats: allowedProfileChats,
+		AllowedUsers: setupInt64Strings(allowedUsers),
+	})
+	if err != nil {
+		return fmt.Errorf("setup telegram: write profile channel binding: %w", err)
+	}
 	if token != "" {
-		envName := config.SecretEnvName("telegram.bot_token")
-		if err := config.WriteEnvValue(config.EnvPath(), envName, token); err != nil {
+		if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("telegram.bot_token"), token); err != nil {
 			return fmt.Errorf("setup telegram: write token: %w", err)
 		}
-		if err := os.Setenv(envName, token); err != nil {
-			return fmt.Errorf("setup telegram: activate token: %w", err)
+		if err := writeSetupGatewayRuntimeSecretRef("telegram.bot_token_ref", profileBinding.SecretEnvName); err != nil {
+			return fmt.Errorf("setup telegram: write token ref: %w", err)
 		}
 	}
 	switch accessPolicy {
@@ -2857,15 +2871,7 @@ func runSetupTelegramGatewayPlatform(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	if token != "" {
-		envName := config.SecretEnvName("telegram.bot_token")
-		if err := config.WriteEnvValue(config.EnvPath(), envName, token); err != nil {
-			return fmt.Errorf("setup telegram: write token: %w", err)
-		}
-		if err := os.Setenv(envName, token); err != nil {
-			return fmt.Errorf("setup telegram: activate token: %w", err)
-		}
-	}
+	profileBinding := setupGatewayProfileChannelPreview("telegram")
 	if strings.TrimSpace(token) == "" && strings.TrimSpace(cfg.Telegram.BotToken) == "" {
 		return newExitCodeError(2, fmt.Errorf("setup telegram: missing bot token; enter a Telegram bot token or configure one before enabling Telegram"))
 	}
@@ -2876,14 +2882,39 @@ func runSetupTelegramGatewayPlatform(cmd *cobra.Command) error {
 	}
 	chatID = strings.TrimSpace(chatID)
 	if chatID == "" {
+		profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "telegram"})
+		if err != nil {
+			return fmt.Errorf("setup telegram: write profile channel binding: %w", err)
+		}
+		if token != "" {
+			if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("telegram.bot_token"), token); err != nil {
+				return fmt.Errorf("setup telegram: write token: %w", err)
+			}
+			if err := writeSetupGatewayRuntimeSecretRef("telegram.bot_token_ref", profileBinding.SecretEnvName); err != nil {
+				return fmt.Errorf("setup telegram: write token ref: %w", err)
+			}
+		}
 		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.first_run_discovery", "true"); err != nil {
 			return fmt.Errorf("setup telegram: write discovery config: %w", err)
 		}
+		fmt.Fprintf(out, "Telegram profile channel configured: profiles.%s.channels.telegram\n", profileBinding.ProfileID)
 		fmt.Fprintln(out, "Telegram gateway channel configured for first-run discovery.")
 		return nil
 	}
 	if _, err := strconv.ParseInt(chatID, 10, 64); err != nil {
 		return newExitCodeError(2, fmt.Errorf("setup telegram: invalid allowed chat ID"))
+	}
+	profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "telegram", AllowedChats: []string{chatID}})
+	if err != nil {
+		return fmt.Errorf("setup telegram: write profile channel binding: %w", err)
+	}
+	if token != "" {
+		if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("telegram.bot_token"), token); err != nil {
+			return fmt.Errorf("setup telegram: write token: %w", err)
+		}
+		if err := writeSetupGatewayRuntimeSecretRef("telegram.bot_token_ref", profileBinding.SecretEnvName); err != nil {
+			return fmt.Errorf("setup telegram: write token ref: %w", err)
+		}
 	}
 	if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.allowed_chat_id", chatID); err != nil {
 		return fmt.Errorf("setup telegram: write allowed chat ID: %w", err)
@@ -2891,6 +2922,7 @@ func runSetupTelegramGatewayPlatform(cmd *cobra.Command) error {
 	if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.first_run_discovery", "false"); err != nil {
 		return fmt.Errorf("setup telegram: write discovery config: %w", err)
 	}
+	fmt.Fprintf(out, "Telegram profile channel configured: profiles.%s.channels.telegram\n", profileBinding.ProfileID)
 	fmt.Fprintln(out, "Telegram gateway channel configured.")
 	return nil
 }
@@ -2905,15 +2937,7 @@ func runSetupDiscordGatewayPlatform(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	if token != "" {
-		envName := config.SecretEnvName("discord.token")
-		if err := config.WriteEnvValue(config.EnvPath(), envName, token); err != nil {
-			return fmt.Errorf("setup discord: write token: %w", err)
-		}
-		if err := os.Setenv(envName, token); err != nil {
-			return fmt.Errorf("setup discord: activate token: %w", err)
-		}
-	}
+	profileBinding := setupGatewayProfileChannelPreview("discord")
 	if strings.TrimSpace(token) == "" && strings.TrimSpace(cfg.Discord.Token) == "" {
 		return newExitCodeError(2, fmt.Errorf("setup discord: missing bot token; enter a Discord bot token or configure one before enabling Discord"))
 	}
@@ -2924,11 +2948,36 @@ func runSetupDiscordGatewayPlatform(cmd *cobra.Command) error {
 	}
 	channelID = strings.TrimSpace(channelID)
 	if channelID == "" {
+		profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "discord"})
+		if err != nil {
+			return fmt.Errorf("setup discord: write profile channel binding: %w", err)
+		}
+		if token != "" {
+			if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("discord.token"), token); err != nil {
+				return fmt.Errorf("setup discord: write token: %w", err)
+			}
+			if err := writeSetupGatewayRuntimeSecretRef("discord.token_ref", profileBinding.SecretEnvName); err != nil {
+				return fmt.Errorf("setup discord: write token ref: %w", err)
+			}
+		}
 		if err := config.WriteTOMLValue(config.ConfigPath(), "discord.first_run_discovery", "true"); err != nil {
 			return fmt.Errorf("setup discord: write discovery config: %w", err)
 		}
+		fmt.Fprintf(out, "Discord profile channel configured: profiles.%s.channels.discord\n", profileBinding.ProfileID)
 		fmt.Fprintln(out, "Discord gateway channel configured for first-run discovery.")
 		return nil
+	}
+	profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "discord", AllowedChats: []string{channelID}})
+	if err != nil {
+		return fmt.Errorf("setup discord: write profile channel binding: %w", err)
+	}
+	if token != "" {
+		if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("discord.token"), token); err != nil {
+			return fmt.Errorf("setup discord: write token: %w", err)
+		}
+		if err := writeSetupGatewayRuntimeSecretRef("discord.token_ref", profileBinding.SecretEnvName); err != nil {
+			return fmt.Errorf("setup discord: write token ref: %w", err)
+		}
 	}
 	if err := config.WriteTOMLValue(config.ConfigPath(), "discord.allowed_channel_id", channelID); err != nil {
 		return fmt.Errorf("setup discord: write allowed channel ID: %w", err)
@@ -2936,6 +2985,7 @@ func runSetupDiscordGatewayPlatform(cmd *cobra.Command) error {
 	if err := config.WriteTOMLValue(config.ConfigPath(), "discord.first_run_discovery", "false"); err != nil {
 		return fmt.Errorf("setup discord: write discovery config: %w", err)
 	}
+	fmt.Fprintf(out, "Discord profile channel configured: profiles.%s.channels.discord\n", profileBinding.ProfileID)
 	fmt.Fprintln(out, "Discord gateway channel configured.")
 	return nil
 }
@@ -2950,28 +3000,12 @@ func runSetupSlackGatewayPlatform(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	if botToken != "" {
-		envName := config.SecretEnvName("slack.bot_token")
-		if err := config.WriteEnvValue(config.EnvPath(), envName, botToken); err != nil {
-			return fmt.Errorf("setup slack: write bot token: %w", err)
-		}
-		if err := os.Setenv(envName, botToken); err != nil {
-			return fmt.Errorf("setup slack: activate bot token: %w", err)
-		}
-	}
+	profileBinding := setupGatewayProfileChannelPreview("slack")
 	appToken, err := promptSecret(cmd, "Slack app token (xapp, stored in .env, blank to keep current): ")
 	if err != nil {
 		return err
 	}
-	if appToken != "" {
-		envName := config.SecretEnvName("slack.app_token")
-		if err := config.WriteEnvValue(config.EnvPath(), envName, appToken); err != nil {
-			return fmt.Errorf("setup slack: write app token: %w", err)
-		}
-		if err := os.Setenv(envName, appToken); err != nil {
-			return fmt.Errorf("setup slack: activate app token: %w", err)
-		}
-	}
+	appBinding := setupGatewayProfileChannelPreview("slack_app")
 
 	effectiveBotToken := strings.TrimSpace(botToken)
 	if effectiveBotToken == "" {
@@ -2992,10 +3026,39 @@ func runSetupSlackGatewayPlatform(cmd *cobra.Command) error {
 		return err
 	}
 	channelID = strings.TrimSpace(channelID)
+	allowedSlackChats := []string(nil)
+	if channelID != "" {
+		allowedSlackChats = []string{channelID}
+	}
+	profileBinding, err = writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "slack", AllowedChats: allowedSlackChats})
+	if err != nil {
+		return fmt.Errorf("setup slack: write profile channel binding: %w", err)
+	}
+	appBinding, err = writeSetupGatewayProfileChannelCredential("slack_app")
+	if err != nil {
+		return fmt.Errorf("setup slack: write profile app credential: %w", err)
+	}
+	if botToken != "" {
+		if err := writeSetupGatewayTokenEnv(profileBinding, config.SecretEnvName("slack.bot_token"), botToken); err != nil {
+			return fmt.Errorf("setup slack: write bot token: %w", err)
+		}
+		if err := writeSetupGatewayRuntimeSecretRef("slack.bot_token_ref", profileBinding.SecretEnvName); err != nil {
+			return fmt.Errorf("setup slack: write bot token ref: %w", err)
+		}
+	}
+	if appToken != "" {
+		if err := writeSetupGatewayTokenEnv(appBinding, config.SecretEnvName("slack.app_token"), appToken); err != nil {
+			return fmt.Errorf("setup slack: write app token: %w", err)
+		}
+		if err := writeSetupGatewayRuntimeSecretRef("slack.app_token_ref", appBinding.SecretEnvName); err != nil {
+			return fmt.Errorf("setup slack: write app token ref: %w", err)
+		}
+	}
 	if channelID == "" {
 		if err := config.WriteTOMLValue(config.ConfigPath(), "slack.first_run_discovery", "true"); err != nil {
 			return fmt.Errorf("setup slack: write discovery config: %w", err)
 		}
+		fmt.Fprintf(out, "Slack profile channel configured: profiles.%s.channels.slack\n", profileBinding.ProfileID)
 		fmt.Fprintln(out, "Slack gateway channel configured for first-run discovery.")
 		return nil
 	}
@@ -3005,6 +3068,7 @@ func runSetupSlackGatewayPlatform(cmd *cobra.Command) error {
 	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.first_run_discovery", "false"); err != nil {
 		return fmt.Errorf("setup slack: write discovery config: %w", err)
 	}
+	fmt.Fprintf(out, "Slack profile channel configured: profiles.%s.channels.slack\n", profileBinding.ProfileID)
 	fmt.Fprintln(out, "Slack gateway channel configured.")
 	return nil
 }

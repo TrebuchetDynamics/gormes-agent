@@ -168,6 +168,88 @@ func TestSetupGatewayTelegramWritesTokenAndAllowedChatWithoutLeakingSecret(t *te
 	}
 }
 
+func TestSetupGatewayTelegramBubbleTeaWritesProfileChannelBinding(t *testing.T) {
+	home := t.TempDir()
+	profileRoot := filepath.Join(home, "profiles", "work")
+	if err := os.MkdirAll(profileRoot, 0o700); err != nil {
+		t.Fatalf("mkdir profile root: %v", err)
+	}
+	t.Setenv("GORMES_HOME", profileRoot)
+	clearSetupGatewayTelegramEnv(t)
+
+	const token = "123456:abcdefghijklmnopqrstuvwxyzABCDE"
+	fake := &setupCommandFakeSeams{isTTY: true}
+	seams := fake.seams()
+	seams.RunGatewaySetupWizard = func(*cobra.Command, config.Config) (setupGatewayWizardResult, error) {
+		return setupGatewayWizardResult{
+			SelectedPlatforms: []string{"telegram"},
+			BubbleTea:         true,
+			Telegram: &setupTelegramGatewayAnswers{
+				Token:        token,
+				AccessPolicy: "allowlist",
+				AllowedUsers: "6586915095,12345",
+				HomeChatID:   "-1001234567890",
+				Apply:        true,
+			},
+		}, nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "gateway")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, token) {
+		t.Fatalf("setup gateway leaked Telegram token:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "profiles.work.channels.telegram") || !strings.Contains(stdout, "GORMES_WORK_TELEGRAM_BOT_TOKEN=[REDACTED]") {
+		t.Fatalf("Telegram setup must preview profile-scoped channel writes:\n%s", stdout)
+	}
+
+	profileEnv, err := os.ReadFile(filepath.Join(profileRoot, ".env"))
+	if err != nil {
+		t.Fatalf("read profile .env: %v", err)
+	}
+	if !strings.Contains(string(profileEnv), "GORMES_WORK_TELEGRAM_BOT_TOKEN="+token) {
+		t.Fatalf("profile .env missing profile-scoped Telegram token:\n%s", profileEnv)
+	}
+
+	baseConfig, err := os.ReadFile(filepath.Join(home, "config.toml"))
+	if err != nil {
+		t.Fatalf("read base profile registry config: %v", err)
+	}
+	for _, want := range []string{
+		"[profiles.work.channels.telegram]",
+		"credential = 'work-telegram'",
+		"allowed_users = ['6586915095', '12345']",
+		"[credentials.work-telegram.secret_ref]",
+		"id = 'GORMES_WORK_TELEGRAM_BOT_TOKEN'",
+	} {
+		if !strings.Contains(string(baseConfig), want) {
+			t.Fatalf("base config missing %q:\n%s", want, baseConfig)
+		}
+	}
+	if strings.Contains(string(baseConfig), token) {
+		t.Fatalf("base profile registry leaked Telegram token:\n%s", baseConfig)
+	}
+
+	profileConfig, err := os.ReadFile(filepath.Join(profileRoot, "config.toml"))
+	if err != nil {
+		t.Fatalf("read profile runtime config: %v", err)
+	}
+	for _, want := range []string{
+		"[telegram.bot_token_ref]",
+		"id = 'GORMES_WORK_TELEGRAM_BOT_TOKEN'",
+		`allowed_user_ids = [6586915095, 12345]`,
+	} {
+		if !strings.Contains(string(profileConfig), want) {
+			t.Fatalf("profile runtime config missing %q:\n%s", want, profileConfig)
+		}
+	}
+	if strings.Contains(string(profileConfig), token) {
+		t.Fatalf("profile runtime config leaked Telegram token:\n%s", profileConfig)
+	}
+}
+
 func TestSetupGatewayTelegramBlankFreshTokenFailsWithoutWritingChannelConfig(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
