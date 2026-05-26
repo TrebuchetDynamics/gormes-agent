@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -65,6 +68,21 @@ func TestSkinStylesSharedAcrossBubbleInputs(t *testing.T) {
 	}
 	if got, want := shared.FocusLine.GetBackground(), lipgloss.Color(skin.Colors.StatusBarBackground); got != want {
 		t.Fatalf("shared focus line background = %v, want %v", got, want)
+	}
+	if got, want := shared.ActivePill.GetForeground(), lipgloss.Color(skin.Colors.StatusBarBackground); got != want {
+		t.Fatalf("shared active pill foreground = %v, want %v", got, want)
+	}
+	if got, want := shared.ActivePill.GetBackground(), lipgloss.Color(skin.Colors.UIAcent); got != want {
+		t.Fatalf("shared active pill background = %v, want %v", got, want)
+	}
+	if got, want := shared.BannerBorder.GetForeground(), lipgloss.Color(skin.Colors.BannerBorder); got != want {
+		t.Fatalf("shared banner border foreground = %v, want %v", got, want)
+	}
+	if got, want := shared.BannerAccent.GetForeground(), lipgloss.Color(skin.Colors.BannerAccent); got != want {
+		t.Fatalf("shared banner accent foreground = %v, want %v", got, want)
+	}
+	if got, want := shared.BannerDim.GetForeground(), lipgloss.Color(skin.Colors.BannerDim); got != want {
+		t.Fatalf("shared banner dim foreground = %v, want %v", got, want)
 	}
 
 	input := textinput.New()
@@ -138,6 +156,98 @@ func TestComposerFocusDimsWhenOverlayOwnsFocus(t *testing.T) {
 	}
 	if strings.Contains(blurred, "48;2") {
 		t.Fatalf("overlay-blurred composer should not keep active focus-line background:\n%s", blurred)
+	}
+}
+
+func TestModelViewGlobalChromeSmokeAcrossBuiltInSkins(t *testing.T) {
+	forceLipglossTrueColor(t)
+	frame := kernel.RenderFrame{
+		Phase:     kernel.PhaseStreaming,
+		Model:     "anthropic/claude-sonnet-4-20250514",
+		SessionID: "sess-global-skin-smoke",
+		History: []hermes.Message{
+			{Role: "user", Content: "please improve the global TUI styling"},
+			{Role: "assistant", Content: "# Styling pass\n\nUse shared skin tokens for `gormes` chrome."},
+			{Role: "tool", Name: "bash", Content: "go test ./internal/tui -count=1"},
+		},
+		ContextStatus: &hermes.ContextStatus{ContextLength: 200_000, LastTotalTokens: 123_456},
+	}
+	skins := BuiltinSkins()
+	names := make([]string, 0, len(skins))
+	for name := range skins {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		skin := skins[name]
+		t.Run(name, func(t *testing.T) {
+			frames := make(chan kernel.RenderFrame, 1)
+			m := NewModelWithOptions(frames, func(string) {}, func() {}, Options{MouseTracking: true, SkinName: name})
+			m.width = 96
+			m.height = 28
+			m.frame = frame
+			m.editor.SetValue("/skin")
+			m.todoReader = func(string) []TodoItem {
+				return []TodoItem{
+					{Text: "route chrome through shared styles", Status: TodoStatusDone},
+					{Text: "smoke active skin focus and completions", Status: TodoStatusPending},
+				}
+			}
+
+			got := m.View()
+			plain := StripANSIForTUI(got)
+			promptSymbol, _ := skin.PromptSymbols("default")
+			for _, want := range []string{
+				"─ running",
+				"Search /skin",
+				strings.TrimSpace(promptSymbol),
+				"route chrome through shared styles",
+				"please improve the global TUI styling",
+				"Styling pass",
+			} {
+				if !strings.Contains(plain, want) {
+					t.Fatalf("global skin smoke missing %q for skin %s:\n%s", want, name, plain)
+				}
+			}
+			if !strings.Contains(got, "\x1b[") {
+				t.Fatalf("global skin smoke for skin %s rendered no ANSI styling:\n%s", name, got)
+			}
+			assertRenderedWidthAtMost(t, got, m.width)
+		})
+	}
+}
+
+func TestTUISurfaceColorsRouteThroughSharedStyles(t *testing.T) {
+	var offenders []string
+	err := filepath.WalkDir(".", func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		switch filepath.Base(path) {
+		case "styles.go", "hermes_skin.go":
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(data), "lipgloss.Color(") {
+			offenders = append(offenders, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("scan TUI style files: %v", err)
+	}
+	if len(offenders) > 0 {
+		t.Fatalf("TUI component files must route colors through SkinStyles/styles.go, found direct lipgloss.Color use in: %s", strings.Join(offenders, ", "))
 	}
 }
 

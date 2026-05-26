@@ -27,28 +27,32 @@ type chatPalette struct {
 // surfaces. Chat, admin, and setup wizard code should derive local component
 // chrome from this seam instead of rebuilding token mappings independently.
 type SkinStyles struct {
-	User        lipgloss.Style
-	Assistant   lipgloss.Style
-	ToolName    lipgloss.Style
-	ToolOutput  lipgloss.Style
-	Error       lipgloss.Style
-	Prompt      lipgloss.Style
-	Placeholder lipgloss.Style
-	Text        lipgloss.Style
-	Selected    lipgloss.Style
-	Normal      lipgloss.Style
-	Dim         lipgloss.Style
-	Separator   lipgloss.Style
-	Status      lipgloss.Style
-	Title       lipgloss.Style
-	Label       lipgloss.Style
-	Accent      lipgloss.Style
-	Good        lipgloss.Style
-	Warn        lipgloss.Style
-	Bad         lipgloss.Style
-	Critical    lipgloss.Style
-	Cursor      lipgloss.Style
-	FocusLine   lipgloss.Style
+	User         lipgloss.Style
+	Assistant    lipgloss.Style
+	ToolName     lipgloss.Style
+	ToolOutput   lipgloss.Style
+	Error        lipgloss.Style
+	Prompt       lipgloss.Style
+	Placeholder  lipgloss.Style
+	Text         lipgloss.Style
+	Selected     lipgloss.Style
+	Normal       lipgloss.Style
+	Dim          lipgloss.Style
+	Separator    lipgloss.Style
+	Status       lipgloss.Style
+	Title        lipgloss.Style
+	Label        lipgloss.Style
+	Accent       lipgloss.Style
+	BannerBorder lipgloss.Style
+	BannerAccent lipgloss.Style
+	BannerDim    lipgloss.Style
+	ActivePill   lipgloss.Style
+	Good         lipgloss.Style
+	Warn         lipgloss.Style
+	Bad          lipgloss.Style
+	Critical     lipgloss.Style
+	Cursor       lipgloss.Style
+	FocusLine    lipgloss.Style
 }
 
 // NormalizeStyleSkin returns the default Hermes/Gormes skin when callers pass
@@ -94,28 +98,32 @@ func SkinStylesFor(skin HermesSkin) SkinStyles {
 	p := chatPaletteFor(skin)
 	c := skin.Colors
 	return SkinStyles{
-		User:        skinForeground(p.user).Bold(true),
-		Assistant:   skinForeground(p.assistant),
-		ToolName:    skinForeground(p.toolName).Bold(true),
-		ToolOutput:  skinForeground(p.toolOutput),
-		Error:       skinForeground(p.errorc).Bold(true),
-		Prompt:      skinForeground(p.prompt).Bold(true),
-		Placeholder: skinForeground(c.Placeholder).Italic(true),
-		Text:        skinForeground(c.BannerText),
-		Selected:    skinForeground(c.UIAcent).Bold(true),
-		Normal:      skinForeground(c.BannerText),
-		Dim:         skinForeground(c.StatusBarDim),
-		Separator:   skinForeground(p.separator),
-		Status:      skinForeground(c.StatusBarText).Background(lipgloss.Color(c.StatusBarBackground)),
-		Title:       skinForeground(c.BannerTitle).Bold(true),
-		Label:       skinForeground(c.UILabel).Bold(true),
-		Accent:      skinForeground(c.UIAcent).Bold(true),
-		Good:        skinForeground(c.StatusBarGood).Bold(true),
-		Warn:        skinForeground(c.StatusBarWarn).Bold(true),
-		Bad:         skinForeground(c.StatusBarBad).Bold(true),
-		Critical:    skinForeground(c.StatusBarCritical).Bold(true),
-		Cursor:      skinForeground(c.UIAcent).Reverse(true),
-		FocusLine:   skinForeground(c.BannerText).Background(lipgloss.Color(c.StatusBarBackground)),
+		User:         skinForeground(p.user).Bold(true),
+		Assistant:    skinForeground(p.assistant),
+		ToolName:     skinForeground(p.toolName).Bold(true),
+		ToolOutput:   skinForeground(p.toolOutput),
+		Error:        skinForeground(p.errorc).Bold(true),
+		Prompt:       skinForeground(p.prompt).Bold(true),
+		Placeholder:  skinForeground(c.Placeholder).Italic(true),
+		Text:         skinForeground(c.BannerText),
+		Selected:     skinForeground(c.UIAcent).Bold(true),
+		Normal:       skinForeground(c.BannerText),
+		Dim:          skinForeground(c.StatusBarDim),
+		Separator:    skinForeground(p.separator),
+		Status:       skinForeground(c.StatusBarText).Background(lipgloss.Color(c.StatusBarBackground)),
+		Title:        skinForeground(c.BannerTitle).Bold(true),
+		Label:        skinForeground(c.UILabel).Bold(true),
+		Accent:       skinForeground(c.UIAcent).Bold(true),
+		BannerBorder: skinForeground(c.BannerBorder),
+		BannerAccent: skinForeground(c.BannerAccent).Bold(true),
+		BannerDim:    skinForeground(c.BannerDim),
+		ActivePill:   skinForeground(c.StatusBarBackground).Background(lipgloss.Color(c.UIAcent)).Bold(true),
+		Good:         skinForeground(c.StatusBarGood).Bold(true),
+		Warn:         skinForeground(c.StatusBarWarn).Bold(true),
+		Bad:          skinForeground(c.StatusBarBad).Bold(true),
+		Critical:     skinForeground(c.StatusBarCritical).Bold(true),
+		Cursor:       skinForeground(c.UIAcent).Reverse(true),
+		FocusLine:    skinForeground(c.BannerText).Background(lipgloss.Color(c.StatusBarBackground)),
 	}
 }
 

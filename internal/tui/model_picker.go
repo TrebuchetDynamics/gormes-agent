@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // ProviderEntry is one provider option in the picker.
@@ -97,17 +96,11 @@ func RenderModelPickerWithSkin(state ModelPickerState, skin HermesSkin) string {
 
 func renderModelPickerWide(state ModelPickerState, skin HermesSkin) string {
 	styles := SkinStylesFor(skin)
-	resolved := NormalizeStyleSkin(skin)
 	var b strings.Builder
 
 	// Title
 	title := "  Select Model  "
-	b.WriteString(styles.Status.
-		Foreground(lipgloss.Color(resolved.Colors.StatusBarBackground)).
-		Background(lipgloss.Color(resolved.Colors.UIAcent)).
-		Bold(true).
-		Width(state.Width).
-		Render(title))
+	b.WriteString(styles.ActivePill.Width(state.Width).Render(title))
 	b.WriteString("\n\n")
 
 	// Provider section header (only show when providers exist)
@@ -223,16 +216,10 @@ func renderModelPickerWide(state ModelPickerState, skin HermesSkin) string {
 
 func renderModelPickerNarrow(state ModelPickerState, skin HermesSkin) string {
 	styles := SkinStylesFor(skin)
-	resolved := NormalizeStyleSkin(skin)
 	var b strings.Builder
 
 	title := "  Select Model  "
-	b.WriteString(styles.Status.
-		Foreground(lipgloss.Color(resolved.Colors.StatusBarBackground)).
-		Background(lipgloss.Color(resolved.Colors.UIAcent)).
-		Bold(true).
-		Width(state.Width).
-		Render(title))
+	b.WriteString(styles.ActivePill.Width(state.Width).Render(title))
 	b.WriteString("\n\n")
 
 	selectedStyle := styles.Selected

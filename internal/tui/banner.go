@@ -148,10 +148,10 @@ func welcomePaletteFor(skin HermesSkin) welcomePalette {
 // non-bordered form. Layout/composition is patterned after ccx-go's
 // RenderWelcomeInline; no code is copied and colors come from the skin.
 func welcomePanel(skin HermesSkin, ctx welcomeContext, width int) string {
-	pal := welcomePaletteFor(skin)
-	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.title)).Bold(true)
-	accentStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.accent))
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.dim))
+	styles := SkinStylesFor(skin)
+	titleStyle := styles.Title
+	accentStyle := styles.BannerAccent
+	dimStyle := styles.BannerDim
 	contentWidth := welcomeContentWidth(width)
 
 	var body []string
@@ -329,10 +329,10 @@ func wrapWelcomeWords(text string, width int) []string {
 }
 
 func welcomeBannerBox(skin HermesSkin, version string, width int) string {
-	pal := welcomePaletteFor(skin)
-	border := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.border))
-	title := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.title)).Bold(true)
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.dim))
+	styles := SkinStylesFor(skin)
+	border := styles.BannerBorder
+	title := styles.Title
+	dim := styles.BannerDim
 
 	innerW := width - 4
 	if innerW < 36 {

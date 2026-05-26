@@ -28,6 +28,12 @@ func TestModelPicker_UsesSharedSkinStyles(t *testing.T) {
 	if bg := shared.Status.GetBackground(); bg != lipgloss.Color(skin.Colors.StatusBarBackground) {
 		t.Fatalf("shared status background = %v, want %v", bg, lipgloss.Color(skin.Colors.StatusBarBackground))
 	}
+	if fg := shared.ActivePill.GetForeground(); fg != lipgloss.Color(skin.Colors.StatusBarBackground) {
+		t.Fatalf("shared active pill foreground = %v, want %v", fg, lipgloss.Color(skin.Colors.StatusBarBackground))
+	}
+	if bg := shared.ActivePill.GetBackground(); bg != lipgloss.Color(skin.Colors.UIAcent) {
+		t.Fatalf("shared active pill background = %v, want %v", bg, lipgloss.Color(skin.Colors.UIAcent))
+	}
 }
 
 // TestModelPicker_RenderProviderList proves the renderer shows all providers

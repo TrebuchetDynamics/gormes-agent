@@ -120,6 +120,8 @@ func TestWelcomePanel_SessionContextAndIdentity(t *testing.T) {
 func TestWelcomePanel_SkinDerivedPalette(t *testing.T) {
 	def := BuiltinSkins()["default"]
 	pos := BuiltinSkins()["poseidon"]
+	defShared := SkinStylesFor(def)
+	posShared := SkinStylesFor(pos)
 
 	dp := welcomePaletteFor(def)
 	pp := welcomePaletteFor(pos)
@@ -133,6 +135,12 @@ func TestWelcomePanel_SkinDerivedPalette(t *testing.T) {
 	}
 	if dp.border == pp.border {
 		t.Fatalf("switching skin did not re-theme border (%q == %q)", dp.border, pp.border)
+	}
+	if got := defShared.BannerBorder.GetForeground(); got != lipgloss.Color(dp.border) {
+		t.Fatalf("default welcome border does not use shared banner border style: %v vs %v", got, dp.border)
+	}
+	if got := posShared.BannerAccent.GetForeground(); got != lipgloss.Color(pp.accent) {
+		t.Fatalf("poseidon welcome accent does not use shared banner accent style: %v vs %v", got, pp.accent)
 	}
 
 	// Both skins still render the stable identity structure.

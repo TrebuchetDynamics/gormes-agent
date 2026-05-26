@@ -66,7 +66,7 @@ func (m Model) View() string {
 	statusBar := ""
 	statusBarMode := normalizeStatusBarMode(m.statusBarMode)
 	if statusBarMode != StatusBarModeOff {
-		statusBar = RenderHermesStatusBar(hermesStatusModelFromFrame(m.frame), m.width)
+		statusBar = RenderHermesStatusBarWithSkin(hermesStatusModelFromFrame(m.frame), m.width, m.currentSkin())
 		if footer, ok := m.renderExtensionFooter(m.width); ok {
 			statusBar = footer
 		} else {

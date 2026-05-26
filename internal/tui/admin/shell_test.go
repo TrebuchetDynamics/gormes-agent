@@ -89,11 +89,11 @@ func TestAdminShell_GlobalChromeUsesSkinStyles(t *testing.T) {
 	shared := basetui.SkinStylesFor(skin)
 	styles := adminShellStylesForSkin(skin)
 
-	if got, want := styles.ActiveTab.GetForeground(), lipgloss.Color(skin.Colors.StatusBarBackground); got != want {
-		t.Fatalf("active tab foreground = %v, want %v", got, want)
+	if got, want := styles.ActiveTab.GetForeground(), shared.ActivePill.GetForeground(); got != want {
+		t.Fatalf("active tab foreground = %v, want shared active pill %v", got, want)
 	}
-	if got, want := styles.ActiveTab.GetBackground(), lipgloss.Color(skin.Colors.UIAcent); got != want {
-		t.Fatalf("active tab background = %v, want %v", got, want)
+	if got, want := styles.ActiveTab.GetBackground(), shared.ActivePill.GetBackground(); got != want {
+		t.Fatalf("active tab background = %v, want shared active pill %v", got, want)
 	}
 	if got, want := styles.Status.GetForeground(), shared.Status.GetForeground(); got != want {
 		t.Fatalf("status foreground = %v, want shared %v", got, want)

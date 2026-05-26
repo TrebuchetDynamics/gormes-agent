@@ -65,6 +65,57 @@ func HermesStatusBarContextSeverity(percent *int) HermesStatusContextSeverity {
 // optional cwd label on the right. Width tiers keep the row readable on small
 // terminals and output is trimmed with an ellipsis so it never wraps.
 func RenderHermesStatusBar(model HermesStatusModel, width int) string {
+	return renderHermesStatusBar(model, width)
+}
+
+func RenderHermesStatusBarWithSkin(model HermesStatusModel, width int, skin HermesSkin) string {
+	line := renderHermesStatusBar(model, width)
+	if line == "" {
+		return ""
+	}
+	styles := SkinStylesFor(skin)
+	line = styleHermesStatusBarSegments(line, model, width, styles)
+	return styles.Status.Width(width).Render(line)
+}
+
+func styleHermesStatusBarSegments(line string, model HermesStatusModel, width int, styles SkinStyles) string {
+	percent := hermesStatusPercent(model.ContextTokens, model.ContextLength)
+	if percent != nil {
+		percentLabel := fmt.Sprintf("%d%%", *percent)
+		segment := percentLabel
+		if width >= 76 {
+			segment = fmt.Sprintf("[%s] %s", hermesStatusContextBar(*percent), percentLabel)
+		}
+		line = strings.Replace(line, segment, hermesStatusContextStyle(styles, percent).Render(segment), 1)
+	}
+	if model.HasPromptElapsed && width >= 76 {
+		elapsed := hermesStatusPromptElapsed(model.PromptElapsed, model.PromptLive)
+		line = strings.Replace(line, elapsed, styles.Warn.Background(styles.Status.GetBackground()).Render(elapsed), 1)
+	}
+	if cwd := strings.TrimSpace(model.CWDLabel); cwd != "" && width >= 76 {
+		line = strings.Replace(line, cwd, styles.Dim.Background(styles.Status.GetBackground()).Render(cwd), 1)
+	}
+	return line
+}
+
+func hermesStatusContextStyle(styles SkinStyles, percent *int) lipgloss.Style {
+	var style lipgloss.Style
+	switch HermesStatusBarContextSeverity(percent) {
+	case HermesStatusContextGood:
+		style = styles.Good
+	case HermesStatusContextWarn:
+		style = styles.Warn
+	case HermesStatusContextBad:
+		style = styles.Bad
+	case HermesStatusContextCritical:
+		style = styles.Critical
+	default:
+		style = styles.Dim
+	}
+	return style.Background(styles.Status.GetBackground())
+}
+
+func renderHermesStatusBar(model HermesStatusModel, width int) string {
 	if width <= 0 {
 		return ""
 	}

@@ -38,13 +38,9 @@ type adminShellStyles struct {
 }
 
 func adminShellStylesForSkin(skin basetui.HermesSkin) adminShellStyles {
-	skin = basetui.NormalizeStyleSkin(skin)
 	shared := basetui.SkinStylesFor(skin)
 	return adminShellStyles{
-		ActiveTab: shared.Status.
-			Foreground(lipgloss.Color(skin.Colors.StatusBarBackground)).
-			Background(lipgloss.Color(skin.Colors.UIAcent)).
-			Bold(true),
+		ActiveTab:   shared.ActivePill,
 		InactiveTab: shared.Dim,
 		Separator:   shared.Separator,
 		Status:      shared.Status,
