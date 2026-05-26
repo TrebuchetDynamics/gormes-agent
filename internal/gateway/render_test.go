@@ -108,19 +108,19 @@ func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 		event string
 		want  string
 	}{
-		{name: "memory", event: "tool: memory: recall Juan context", want: `INFO   [memory] Loading session memory`},
+		{name: "memory", event: "tool: memory: recall Juan context", want: `🧠 [memory] Loading session memory`},
 		{name: "read", event: "tool: read_file: internal/gateway/render.go", want: `📖 read_file: "internal/gateway/render.go"`},
 		{name: "patch", event: "tool: patch: replace render tail", want: `🔧 patch: "replace render tail"`},
-		{name: "terminal", event: "tool: terminal: go test ./internal/gateway", want: `ACTION [runtime] Running test suite`},
+		{name: "terminal", event: "tool: terminal: go test ./internal/gateway", want: `⚙️ [runtime] Running test suite`},
 		{name: "browser", event: "tool: browser_navigate: https://gormes.ai", want: `🌐 browser_navigate: "https://gormes.ai"`},
 		{name: "snapshot", event: "tool: browser_snapshot", want: `📸 browser_snapshot...`},
 		{name: "skill_view", event: "tool: skill_view: gormes-hermes-parity", want: `📚 skill_view: "gormes-hermes-parity"`},
 		{name: "skills_list", event: "tool: skills_list", want: `📚 skills_list...`},
 		{name: "todo", event: "tool: todo: planning 5 task(s)", want: `📋 todo: "planning 5 task(s)"`},
-		{name: "execute_code", event: "tool: execute_code: printf shell-output", want: `ACTION [runtime] Running code block`},
+		{name: "execute_code", event: "tool: execute_code: printf shell-output", want: `⚙️ [runtime] Running code block`},
 		{name: "cronjob", event: "tool: cronjob: run", want: `⏰ cronjob: "run"`},
-		{name: "transcribe_audio", event: "tool: transcribe_audio: audio_path=/tmp/voice.ogg", want: `ACTION [audio] Transcribing voice input`},
-		{name: "text_to_speech", event: "tool: text_to_speech: voice reply", want: `ACTION [audio] Generating voice reply`},
+		{name: "transcribe_audio", event: "tool: transcribe_audio: audio_path=/tmp/voice.ogg", want: `🎙️ [audio] Transcribing voice input`},
+		{name: "text_to_speech", event: "tool: text_to_speech: voice reply", want: `🎙️ [audio] Generating voice reply`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -129,6 +129,27 @@ func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 				t.Fatalf("FormatToolProgressPlain(%q) = %q, want %q", tt.event, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestFormatToolProgressPlain_SemanticProgressLinesHaveIcons(t *testing.T) {
+	got := FormatToolProgressPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{
+		{At: time.Now(), Text: "tool: memory"},
+		{At: time.Now(), Text: "tool: terminal: test -f ~/.gormes/config.toml"},
+	}})
+
+	for _, want := range []string{
+		`🧠 [memory] Loading session memory`,
+		`⚙️ [runtime] Running system check`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatToolProgressPlain missing icon-bearing semantic progress %q in:\n%s", want, got)
+		}
+	}
+	for _, forbidden := range []string{" INFO ", "ACTION "} {
+		if strings.Contains("\n"+got, forbidden) {
+			t.Fatalf("FormatToolProgressPlain rendered semantic progress without an icon (%q):\n%s", forbidden, got)
+		}
 	}
 }
 
@@ -153,7 +174,7 @@ func TestFormatToolProgressPlain_TruncatedWebPreviewsKeepLeftEdge(t *testing.T) 
 
 func TestFormatToolProgressPlain_UnknownToolUsesGenericBoundedEvidence(t *testing.T) {
 	got := FormatToolProgressPlain(kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{{At: time.Now(), Text: "tool: custom_provider_debug: " + strings.Repeat("payload ", 40)}}})
-	if !strings.Contains(got, `ACTION [tool] Running tool task`) {
+	if !strings.Contains(got, `🔧 [tool] Running tool task`) {
 		t.Fatalf("FormatToolProgressPlain unknown tool = %q, want generic operator progress", got)
 	}
 	for _, forbidden := range []string{"custom_provider_debug", "payload", "tool_progress"} {
@@ -171,7 +192,7 @@ func TestFormatToolProgressPlain_SuppressesLegacyCompletionNoise(t *testing.T) {
 		{At: time.Now(), Text: "tool: execute_code: printf hi"},
 		{At: time.Now(), Text: "tool done: execute_code"},
 	}})
-	if !strings.Contains(got, `ACTION [runtime] Running code block`) {
+	if !strings.Contains(got, `⚙️ [runtime] Running code block`) {
 		t.Fatalf("FormatToolProgressPlain = %q, want execute_code start event", got)
 	}
 	if strings.Contains(got, "tool done") || strings.Contains(got, `🔧 tool done`) {
@@ -197,9 +218,9 @@ func TestFormatToolProgressPlain_MineruGatewayTranscriptShape(t *testing.T) {
 		`⏰ cronjob: "list"`,
 		`🌐 browser_navigate: "https://www.reddit.com/r/WebAfterAI/s..."`,
 		`🌐 browser_navigate: "https://old.reddit.com/r/WebAfterAI/s..."`,
-		`ACTION [network] Fetching remote content`,
+		`🌐 [network] Fetching remote content`,
 		`📸 browser_snapshot...`,
-		`ACTION [network] Fetching remote content (×2)`,
+		`🌐 [network] Fetching remote content (×2)`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("FormatToolProgressPlain missing %q in:\n%s", want, got)

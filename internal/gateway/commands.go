@@ -202,6 +202,9 @@ func slashCommandName(name string) string {
 	if i := strings.IndexAny(key, " \t\r\n"); i >= 0 {
 		key = key[:i]
 	}
+	if i := strings.IndexByte(key, '@'); i >= 0 {
+		key = key[:i]
+	}
 	return key
 }
 
@@ -239,7 +242,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventQueue || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventCommands || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventReloadSkills || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn || cmd.Kind == EventPlatformControl {
+	if slashCommandKindCarriesBody(cmd.Kind) {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""
@@ -405,9 +408,30 @@ func sortedPlatformCommands(commands []PlatformCommand) []PlatformCommand {
 }
 
 func normalizeTelegramCommandName(name string) string {
+	const maxTelegramCommandNameLen = 32
 	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
-	name = strings.ReplaceAll(name, "-", "_")
-	return strings.Trim(name, "_")
+	var b strings.Builder
+	lastSeparator := false
+	for _, r := range name {
+		valid := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if valid {
+			if b.Len() >= maxTelegramCommandNameLen {
+				break
+			}
+			b.WriteRune(r)
+			lastSeparator = false
+			continue
+		}
+		if b.Len() == 0 || lastSeparator {
+			continue
+		}
+		if b.Len() >= maxTelegramCommandNameLen {
+			break
+		}
+		b.WriteByte('_')
+		lastSeparator = true
+	}
+	return strings.Trim(b.String(), "_")
 }
 
 func normalizeSlackCommandName(name string) string {

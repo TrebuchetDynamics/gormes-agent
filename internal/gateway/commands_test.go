@@ -60,6 +60,18 @@ func TestResolveCommand(t *testing.T) {
 	}
 }
 
+func TestGatewayCommandTelegramBotMentionSuffix(t *testing.T) {
+	got, ok := ResolveCommand("/status@GormesBot")
+	if !ok || got.Kind != EventStatus {
+		t.Fatalf("ResolveCommand(/status@GormesBot) = (%+v, %v), want status command", got, ok)
+	}
+
+	kind, body := ParseInboundText("/tts@GormesBot on")
+	if kind != EventTTS || body != "/tts@GormesBot on" {
+		t.Fatalf("ParseInboundText(/tts@GormesBot on) = (%v, %q), want EventTTS with raw body", kind, body)
+	}
+}
+
 func TestGatewayCommandAliasFidelity_CanonicalHooksKeepRawCommand(t *testing.T) {
 	got := ResolveGatewayCommandDispatch("/provider openrouter --global")
 	if !got.Known {
@@ -134,6 +146,29 @@ func TestParseInboundText(t *testing.T) {
 				t.Fatalf("ParseInboundText(%q) = (%v, %q), want (%v, %q)", tt.text, gotKind, gotBody, tt.wantKind, tt.wantBody)
 			}
 		})
+	}
+}
+
+func TestParseInboundTextBodyPolicyMatchesSlashDispatch(t *testing.T) {
+	for _, cmd := range CommandRegistry {
+		raw := "/" + cmd.Name + " sample"
+		gotKind, gotBody := ParseInboundText(raw)
+		if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
+			if gotKind != EventSubmit || gotBody != raw {
+				t.Fatalf("ParseInboundText(%q) = (%v, %q), want unavailable command preserved as submit body", raw, gotKind, gotBody)
+			}
+			continue
+		}
+		if gotKind != cmd.Kind {
+			t.Fatalf("ParseInboundText(%q) kind = %v, want %v", raw, gotKind, cmd.Kind)
+		}
+		if slashCommandKindCarriesBody(cmd.Kind) {
+			if gotBody != raw {
+				t.Fatalf("ParseInboundText(%q) body = %q, want raw body for %v", raw, gotBody, cmd.Kind)
+			}
+		} else if gotBody != "" {
+			t.Fatalf("ParseInboundText(%q) body = %q, want empty body for %v", raw, gotBody, cmd.Kind)
+		}
 	}
 }
 
@@ -278,6 +313,26 @@ func TestTelegramBotCommandsExposeHermesGatewayMenu(t *testing.T) {
 		if _, ok := seen[want]; !ok {
 			t.Fatalf("TelegramBotCommands missing Hermes gateway command %q; got %#v", want, commands)
 		}
+	}
+}
+
+func TestNormalizeTelegramDynamicCommandNameKeepsPlatformSafeShape(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{name: "punctuation", raw: "/Planner.Pro_[SAFE]!", want: "planner_pro_safe"},
+		{name: "collapse separators", raw: "---bad...skill---", want: "bad_skill"},
+		{name: "empty after sanitize", raw: "!!!", want: ""},
+		{name: "telegram max length", raw: "skill-abcdefghijklmnopqrstuvwxyz-0123456789", want: "skill_abcdefghijklmnopqrstuvwxyz"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := normalizeTelegramCommandName(tt.raw); got != tt.want {
+				t.Fatalf("normalizeTelegramCommandName(%q) = %q, want %q", tt.raw, got, tt.want)
+			}
+		})
 	}
 }
 

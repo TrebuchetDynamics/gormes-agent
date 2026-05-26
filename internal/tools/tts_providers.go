@@ -314,13 +314,14 @@ func (p *TTSEdgeProvider) Synthesize(ctx context.Context, req TTSProviderRequest
 		return TTSProviderResult{}, errors.New("Edge TTS API key not configured")
 	}
 
-	voice := p.config.Voice
-	if voice == "" {
-		voice = DefaultEdgeTTSVoice
+	voice := firstNonEmptyTTS(req.Voice, p.config.Voice, DefaultEdgeTTSVoice)
+	speed := req.Speed
+	if speed <= 0 {
+		speed = p.config.Speed
 	}
 
 	// Build SSML document
-	ssml := buildEdgeTTSSSML(req.Text, voice, p.config.Speed)
+	ssml := buildEdgeTTSSSML(req.Text, voice, speed)
 
 	baseURL := p.config.edgeTTSBaseURL()
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL, strings.NewReader(ssml))
@@ -429,10 +430,7 @@ func (p *TTSOpenAIProvider) Synthesize(ctx context.Context, req TTSProviderReque
 	}
 
 	model := DefaultOpenAIModel
-	voice := p.config.Voice
-	if voice == "" {
-		voice = DefaultOpenAIVoice
-	}
+	voice := firstNonEmptyTTS(req.Voice, p.config.Voice, DefaultOpenAIVoice)
 
 	// Determine output format from file extension
 	format := "mp3"
@@ -447,7 +445,11 @@ func (p *TTSOpenAIProvider) Synthesize(ctx context.Context, req TTSProviderReque
 		"voice":           voice,
 		"response_format": format,
 	}
-	speed := OpenAITTSSpeed(p.config.Speed)
+	speed := req.Speed
+	if speed <= 0 {
+		speed = p.config.Speed
+	}
+	speed = OpenAITTSSpeed(speed)
 	if speed != 1.0 {
 		payload["speed"] = speed
 	}
@@ -559,7 +561,7 @@ func (p *TTSMiniMaxProvider) Synthesize(ctx context.Context, req TTSProviderRequ
 	payload := map[string]any{
 		"model":    settings.Model,
 		"text":     req.Text,
-		"voice_id": settings.VoiceID,
+		"voice_id": firstNonEmptyTTS(req.Voice, settings.VoiceID),
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -698,7 +700,7 @@ func ValidateTTSProviderConfig(provider string, cfg TTSProviderConfig) error {
 		}
 		return nil
 
-	case ProviderNameNeuTTS, ProviderNameKittenTTS, ProviderNamePiper:
+	case ProviderNameNeuTTS, ProviderNameKittenTTS, ProviderNamePiper, "local":
 		return nil
 
 	case "auto", "":

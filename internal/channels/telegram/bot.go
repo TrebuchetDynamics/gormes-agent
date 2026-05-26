@@ -622,95 +622,50 @@ func telegramAudioMarker(kind string, duration int, mediaType, fileName string) 
 }
 
 func (b *Bot) Send(ctx context.Context, chatID, text string) (string, error) {
-	_ = ctx
-	id, err := parseChatID(chatID)
-	if err != nil {
-		return "", err
-	}
-	msgCfg := tgbotapi.NewMessage(id, text)
-	msgCfg.ParseMode = tgbotapi.ModeMarkdownV2
-	msg, err := b.sendWithParseFallback(msgCfg)
-	if err != nil {
-		return "", err
-	}
-	return strconv.Itoa(msg.MessageID), nil
+	return b.sendTelegramText(ctx, telegramTextSendRequest{
+		ChatID:    chatID,
+		Text:      text,
+		ParseMode: tgbotapi.ModeMarkdownV2,
+	})
 }
 
 // SendPlain sends text without any parse mode — no MarkdownV2, no HTML.
 // Use for raw tool output, file paths, and URLs where MarkdownV2 escaping
 // would break the content (underscores in URLs, dashes in paths, etc.).
 func (b *Bot) SendPlain(ctx context.Context, chatID, text string) (string, error) {
-	id, err := parseChatID(chatID)
-	if err != nil {
-		return "", err
-	}
-	msg := tgbotapi.NewMessage(id, text)
-	msg.ParseMode = "" // no parse mode — plain text
-	sent, err := b.client.Send(msg)
-	if err != nil {
-		return "", err
-	}
-	return strconv.Itoa(sent.MessageID), nil
+	return b.sendTelegramText(ctx, telegramTextSendRequest{
+		ChatID: chatID,
+		Text:   text,
+	})
 }
 
 // SendPlainReply sends a plain-text reply without any parse mode.
 func (b *Bot) SendPlainReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
-	id, err := parseChatID(chatID)
-	if err != nil {
-		return "", err
-	}
-	replyID, err := strconv.Atoi(replyToMsgID)
-	if err != nil {
-		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
-	}
-	msg := tgbotapi.NewMessage(id, text)
-	msg.ParseMode = ""
-	msg.ReplyToMessageID = replyID
-	sent, err := b.client.Send(msg)
-	if err != nil {
-		return "", err
-	}
-	return strconv.Itoa(sent.MessageID), nil
+	return b.sendTelegramText(ctx, telegramTextSendRequest{
+		ChatID:       chatID,
+		ReplyToMsgID: replyToMsgID,
+		RequireReply: true,
+		Text:         text,
+	})
 }
 
 func (b *Bot) SendReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
-	_ = ctx
-	id, err := parseChatID(chatID)
-	if err != nil {
-		return "", err
-	}
-	replyID, err := strconv.Atoi(replyToMsgID)
-	if err != nil {
-		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
-	}
-	msgCfg := tgbotapi.NewMessage(id, text)
-	msgCfg.ParseMode = tgbotapi.ModeMarkdownV2
-	msgCfg.ReplyToMessageID = replyID
-	msg, err := b.sendWithParseFallback(msgCfg)
-	if err != nil {
-		return "", err
-	}
-	return strconv.Itoa(msg.MessageID), nil
+	return b.sendTelegramText(ctx, telegramTextSendRequest{
+		ChatID:       chatID,
+		ReplyToMsgID: replyToMsgID,
+		RequireReply: true,
+		Text:         text,
+		ParseMode:    tgbotapi.ModeMarkdownV2,
+	})
 }
 
 func (b *Bot) SendThread(ctx context.Context, chatID, threadID, text string) (string, error) {
-	if strings.TrimSpace(threadID) == "" {
-		return b.Send(ctx, chatID, text)
-	}
-	id, err := parseChatID(chatID)
-	if err != nil {
-		return "", err
-	}
-	thread, includeThread, err := telegramThreadIDForTextSend(threadID)
-	if err != nil {
-		return "", err
-	}
-	params := telegramSendMessageParams(id, 0, text, tgbotapi.ModeMarkdownV2)
-	if includeThread {
-		params.AddNonZero("message_thread_id", thread)
-	}
-
-	return b.sendThreadParamsWithRetry(ctx, params, includeThread)
+	return b.sendTelegramText(ctx, telegramTextSendRequest{
+		ChatID:    chatID,
+		ThreadID:  threadID,
+		Text:      text,
+		ParseMode: tgbotapi.ModeMarkdownV2,
+	})
 }
 
 func (b *Bot) sendThreadParamsWithRetry(ctx context.Context, params tgbotapi.Params, includeThread bool) (string, error) {
@@ -738,27 +693,14 @@ func (b *Bot) sendThreadParamsWithRetry(ctx context.Context, params tgbotapi.Par
 }
 
 func (b *Bot) SendThreadReply(ctx context.Context, chatID, threadID, replyToMsgID, text string) (string, error) {
-	if strings.TrimSpace(threadID) == "" {
-		return b.SendReply(ctx, chatID, replyToMsgID, text)
-	}
-	id, err := parseChatID(chatID)
-	if err != nil {
-		return "", err
-	}
-	replyID, err := strconv.Atoi(replyToMsgID)
-	if err != nil {
-		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
-	}
-	thread, includeThread, err := telegramThreadIDForTextSend(threadID)
-	if err != nil {
-		return "", err
-	}
-	params := telegramSendMessageParams(id, replyID, text, tgbotapi.ModeMarkdownV2)
-	if includeThread {
-		params.AddNonZero("message_thread_id", thread)
-	}
-
-	return b.sendThreadParamsWithRetry(ctx, params, includeThread)
+	return b.sendTelegramText(ctx, telegramTextSendRequest{
+		ChatID:       chatID,
+		ReplyToMsgID: replyToMsgID,
+		RequireReply: true,
+		ThreadID:     threadID,
+		Text:         text,
+		ParseMode:    tgbotapi.ModeMarkdownV2,
+	})
 }
 
 func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {

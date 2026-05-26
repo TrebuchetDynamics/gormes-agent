@@ -96,6 +96,33 @@ func TestTextToSpeechValidationAndRedaction(t *testing.T) {
 	}
 }
 
+func TestTextToSpeechToolExecuteHonorsProviderOverride(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "voice.mp3")
+	edge := &fakeTTSProvider{available: true}
+	openai := &fakeTTSProvider{available: true}
+	tool := NewTextToSpeechTool(NewTTSRunner(TTSConfig{Provider: "edge"}, map[string]TTSProvider{
+		"edge":   edge,
+		"openai": openai,
+	}))
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"text":"Hello","output_path":`+strconvQuote(output)+`,"provider":"openai","platform":"telegram","voice":"nova","speed":"fast"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	var result TTSResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		t.Fatalf("result JSON: %v", err)
+	}
+	if !result.Success || result.Provider != "openai" {
+		t.Fatalf("result = %+v, want openai provider success", result)
+	}
+	if edge.calls != 0 || openai.calls != 1 {
+		t.Fatalf("provider calls edge/openai = %d/%d, want 0/1", edge.calls, openai.calls)
+	}
+	if openai.last.Platform != "telegram" || openai.last.Provider != "openai" || openai.last.Voice != "nova" || openai.last.Speed != 1.25 {
+		t.Fatalf("openai request = %+v, want provider/platform/voice/speed override", openai.last)
+	}
+}
+
 func TestTextToSpeechToolExecute(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "voice.mp3")
 	tool := NewTextToSpeechTool(NewTTSRunner(TTSConfig{Provider: "edge"}, map[string]TTSProvider{

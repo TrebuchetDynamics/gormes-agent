@@ -47,8 +47,9 @@ func (c TTSConfig) String() string {
 }
 
 var defaultTTSConfig = TTSConfig{
-	Engine:   TTSEngineDisabled,
-	Voice:    "alloy",
+	Enabled:  true,
+	Engine:   TTSEngineEdge,
+	Voice:    "en-US-AriaNeural",
 	Speed:    TTSSpeedNormal,
 	Language: "auto",
 }
@@ -124,19 +125,20 @@ func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEv
 			}
 			return
 		}
-		name := strings.ToLower(strings.Join(args[2:], " "))
+		name := strings.TrimSpace(strings.Join(args[2:], " "))
 		if len(ttsVoices[cfg.Engine]) > 0 {
-			found := false
+			canonical := ""
 			for _, v := range ttsVoices[cfg.Engine] {
 				if strings.EqualFold(v, name) {
-					found = true
+					canonical = v
 					break
 				}
 			}
-			if !found {
+			if canonical == "" {
 				_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("Unknown voice: %s\nAvailable: %s", name, strings.Join(ttsVoices[cfg.Engine], ", ")))
 				return
 			}
+			name = canonical
 		}
 		cfg.Voice = name
 		m.setTTSConfig(ev.ChatKey(), cfg)
@@ -164,6 +166,7 @@ func (m *Manager) handleTTSCommand(ctx context.Context, ch Channel, ev InboundEv
 		}
 		cfg.Engine = found
 		cfg.Voice = defaultVoiceForEngine(found)
+		cfg.Enabled = found != TTSEngineDisabled
 		m.setTTSConfig(ev.ChatKey(), cfg)
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("TTS engine set to: %s", found))
 	case "language":

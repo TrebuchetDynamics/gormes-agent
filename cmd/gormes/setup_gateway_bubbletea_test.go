@@ -94,12 +94,25 @@ func TestSetupGatewayInteractiveUsesBubbleTeaWizard(t *testing.T) {
 	}
 }
 
-func TestSetupTelegramBubbleTeaWizardWritesWithoutApplyConfirmation(t *testing.T) {
+func TestSetupTelegramBubbleTeaWizardAvoidsRepeatedIDPrompts(t *testing.T) {
 	steps := setupTelegramGatewayWizardSteps(config.TelegramCfg{})
+	if got := len(steps); got != 2 {
+		t.Fatalf("Telegram setup first screen has %d steps, want token + access policy only", got)
+	}
 	for _, step := range steps {
 		if step.ID == "apply" || step.Kind == setupwizard.KindConfirm || strings.Contains(step.Prompt, "Write these Telegram settings now") {
 			t.Fatalf("Telegram setup wizard step %+v should not ask for a second write confirmation", step)
 		}
+		for _, forbidden := range []string{"Allowed Telegram user IDs", "Home channel chat ID", "Home channel thread ID"} {
+			if strings.Contains(step.Prompt, forbidden) {
+				t.Fatalf("Telegram setup first screen prompt %q should not ask optional IDs", step.Prompt)
+			}
+		}
+	}
+
+	followup := setupTelegramGatewayAllowedUsersSteps()
+	if len(followup) != 1 || followup[0].ID != "allowed_users" {
+		t.Fatalf("allowlist follow-up steps = %+v, want exactly allowed_users", followup)
 	}
 }
 

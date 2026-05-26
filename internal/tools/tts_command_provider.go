@@ -117,6 +117,9 @@ func (p *TTSCommandProvider) Synthesize(ctx context.Context, req TTSProviderRequ
 
 	outputFormat := commandTTSOutputFormat(p.cfg, outputPath)
 	speed := strings.TrimSpace(p.cfg.Speed)
+	if req.Speed > 0 {
+		speed = fmt.Sprintf("%.2f", req.Speed)
+	}
 	if speed == "" {
 		speed = "1.0"
 	}
@@ -125,7 +128,7 @@ func (p *TTSCommandProvider) Synthesize(ctx context.Context, req TTSProviderRequ
 		"text_path":   inputPath,
 		"output_path": outputPath,
 		"format":      outputFormat,
-		"voice":       p.cfg.Voice,
+		"voice":       firstNonEmptyTTS(req.Voice, p.cfg.Voice),
 		"model":       p.cfg.Model,
 		"speed":       speed,
 	})
@@ -531,7 +534,7 @@ func (p EdgeTTSCommandProvider) Synthesize(ctx context.Context, req TTSProviderR
 	defer cancel()
 
 	args := []string{"--text", req.Text, "--write-media", req.OutputPath}
-	if voice := strings.TrimSpace(p.Voice); voice != "" {
+	if voice := firstNonEmptyTTS(req.Voice, p.Voice); voice != "" {
 		args = append(args, "--voice", voice)
 	}
 	cmd := exec.CommandContext(ctx, cmdPath, args...)

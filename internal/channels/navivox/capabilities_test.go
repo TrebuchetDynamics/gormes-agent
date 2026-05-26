@@ -15,6 +15,7 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 	ch := newTestChannel(t)
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
 	unauth, err := http.Get(server.URL + "/v1/navivox/capabilities")
 	if err != nil {
@@ -23,20 +24,6 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 	defer unauth.Body.Close()
 	if unauth.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("unauthorized capabilities status = %d, want 401", unauth.StatusCode)
-	}
-
-	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/capabilities", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("capabilities status = %d, want 200", resp.StatusCode)
 	}
 
 	var got struct {
@@ -88,9 +75,7 @@ func TestNavivoxCapabilitiesEndpointAdvertisesStableContract(t *testing.T) {
 			RunsBridge        *string  `json:"runs_bridge"`
 		} `json:"streams"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
-		t.Fatalf("decode capabilities: %v", err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/capabilities", "", http.StatusOK, &got)
 
 	if got.Object != "gormes.navivox.capabilities" || got.ProtocolVersion != navivoxWebSocketProtocol {
 		t.Fatalf("capability identity = object %q protocol %q", got.Object, got.ProtocolVersion)
@@ -213,27 +198,13 @@ func TestNavivoxStatusLinksCapabilitiesDocument(t *testing.T) {
 	ch := newTestChannel(t)
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
-	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want 200", resp.StatusCode)
-	}
 	var payload struct {
 		CapabilitiesURL string   `json:"capabilities_url"`
 		Capabilities    []string `json:"capabilities"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/status", "", http.StatusOK, &payload)
 	if payload.CapabilitiesURL != "/v1/navivox/capabilities" || !containsNavivoxCapabilityString(payload.Capabilities, "profile_contacts") || containsNavivoxCapabilityString(payload.Capabilities, "capability_document") || containsNavivoxCapabilityString(payload.Capabilities, "setup_handoff") {
 		t.Fatalf("status capabilities = url %q list %v, want capability link plus feature summary", payload.CapabilitiesURL, payload.Capabilities)
 	}
@@ -243,21 +214,10 @@ func TestNavivoxCapabilitiesRedactsSecretsAndLocalPaths(t *testing.T) {
 	ch := newTestChannel(t)
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
-	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/capabilities", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
 	var payload map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/capabilities", "", http.StatusOK, &payload)
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatal(err)

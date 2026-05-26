@@ -50,6 +50,7 @@ workspace = "`+filepath.Join(workRoot, "workspace")+`"
 	ch.now = func() time.Time { return time.Date(2026, 5, 18, 6, 30, 0, 0, time.UTC) }
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
 	unauth, err := http.Get(server.URL + "/v1/navivox/profile-contacts")
 	if err != nil {
@@ -60,23 +61,8 @@ workspace = "`+filepath.Join(workRoot, "workspace")+`"
 		t.Fatalf("unauthorized contacts status = %d, want 401", unauth.StatusCode)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/profile-contacts", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("contacts status = %d, want 200", resp.StatusCode)
-	}
 	var snapshot profileContactSnapshot
-	if err := json.NewDecoder(resp.Body).Decode(&snapshot); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/profile-contacts", "", http.StatusOK, &snapshot)
 	if got := profileContactIDs(snapshot.Contacts); !slices.Equal(got, []string{"default", "work"}) {
 		t.Fatalf("contact IDs = %v, want default/work", got)
 	}

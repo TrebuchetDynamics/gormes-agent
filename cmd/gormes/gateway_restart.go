@@ -113,38 +113,21 @@ func runGatewayRestart(cmd *cobra.Command, _ []string) error {
 	}
 
 	var serviceErr error
+	var initial gatewayRestartInitialSnapshot
 	if manager := newGatewayRestartServiceManager(); manager != nil {
-		restartCtx := ctx
-		cancelRestart := func() {}
-		if timeout > 0 {
-			restartCtx, cancelRestart = context.WithTimeout(ctx, timeout)
-		}
-		if err := manager.Restart(restartCtx, service); err == nil {
-			cancelRestart()
-			report := cli.PollServiceRestartActive(cli.ServiceRestartPollOptions{
-				Service:      service,
-				Runner:       manager,
-				BaseTimeout:  timeout,
-				PollInterval: gatewayRestartPollInterval,
-			})
-			if report.Outcome == cli.ServiceRestartPollRestarted {
-				return writeGatewayRestartSuccess(cmd, asJSON, gatewayRestartReportJSON{
-					Build:   newBuildProvenance(),
-					Action:  "restarted",
-					Mode:    "service",
-					Manager: gatewayRestartServiceManagerName(),
-					Service: service,
-					Outcome: string(report.Outcome),
-				})
+		initial = readGatewayRestartInitialSnapshot(ctx)
+		report, err := restartGatewayViaServiceManager(ctx, timeout, manager, service)
+		if err == nil {
+			report, err = ensureServiceRestartTookOverRecordedRuntime(ctx, timeout, manager, service, initial, report)
+			if err != nil {
+				return err
 			}
-			return fmt.Errorf("gateway restart: service %s did not become active (outcome=%s)", service, report.Outcome)
-		} else {
-			cancelRestart()
-			serviceErr = err
+			return writeGatewayRestartSuccess(cmd, asJSON, report)
 		}
+		serviceErr = err
 	}
 
-	report, err := restartRecordedGatewayRuntime(ctx, timeout)
+	report, err := restartRecordedGatewayRuntimeAfterServiceFailure(ctx, timeout, initial)
 	if err != nil {
 		if serviceErr != nil {
 			return fmt.Errorf("gateway restart: service-manager restart failed: %v; runtime fallback failed: %w", serviceErr, err)
@@ -178,12 +161,68 @@ func writeGatewayRestartSuccess(cmd *cobra.Command, asJSON bool, report gatewayR
 	return nil
 }
 
+type gatewayRestartInitialSnapshot struct {
+	store    gatewayRestartRuntimeStore
+	snapshot gateway.RuntimeStatusSnapshot
+	ok       bool
+}
+
+func readGatewayRestartInitialSnapshot(ctx context.Context) gatewayRestartInitialSnapshot {
+	store := newGatewayRestartRuntimeStore(config.GatewayRuntimeStatusPath())
+	snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(ctx)
+	if err != nil {
+		return gatewayRestartInitialSnapshot{store: store}
+	}
+	return gatewayRestartInitialSnapshot{store: store, snapshot: snapshot, ok: true}
+}
+
+func restartGatewayViaServiceManager(ctx context.Context, timeout time.Duration, manager gatewayRestartServiceManager, service string) (gatewayRestartReportJSON, error) {
+	restartCtx := ctx
+	cancelRestart := func() {}
+	if timeout > 0 {
+		restartCtx, cancelRestart = context.WithTimeout(ctx, timeout)
+	}
+	if err := manager.Restart(restartCtx, service); err != nil {
+		cancelRestart()
+		return gatewayRestartReportJSON{}, err
+	}
+	cancelRestart()
+	report := cli.PollServiceRestartActive(cli.ServiceRestartPollOptions{
+		Service:      service,
+		Runner:       manager,
+		BaseTimeout:  timeout,
+		PollInterval: gatewayRestartPollInterval,
+	})
+	if report.Outcome != cli.ServiceRestartPollRestarted {
+		return gatewayRestartReportJSON{}, fmt.Errorf("gateway restart: service %s did not become active (outcome=%s)", service, report.Outcome)
+	}
+	return gatewayRestartReportJSON{
+		Build:   newBuildProvenance(),
+		Action:  "restarted",
+		Mode:    "service",
+		Manager: gatewayRestartServiceManagerName(),
+		Service: service,
+		Outcome: string(report.Outcome),
+	}, nil
+}
+
+func restartRecordedGatewayRuntimeAfterServiceFailure(ctx context.Context, timeout time.Duration, initial gatewayRestartInitialSnapshot) (gatewayRestartReportJSON, error) {
+	if initial.ok && initial.store != nil {
+		return restartRecordedGatewayRuntimeFromSnapshot(ctx, timeout, initial.store, initial.snapshot)
+	}
+	return restartRecordedGatewayRuntime(ctx, timeout)
+}
+
 func restartRecordedGatewayRuntime(ctx context.Context, timeout time.Duration) (gatewayRestartReportJSON, error) {
 	store := newGatewayRestartRuntimeStore(config.GatewayRuntimeStatusPath())
 	snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(ctx)
 	if err != nil {
 		return gatewayRestartReportJSON{}, fmt.Errorf("runtime status: %w", err)
 	}
+	return restartRecordedGatewayRuntimeFromSnapshot(ctx, timeout, store, snapshot)
+}
+
+func restartRecordedGatewayRuntimeFromSnapshot(ctx context.Context, timeout time.Duration, store gatewayRestartRuntimeStore, snapshot gateway.RuntimeStatusSnapshot) (gatewayRestartReportJSON, error) {
 	pid := gatewayStopPID(snapshot)
 	validation := snapshot.Validation
 	if !validation.Live {
@@ -240,6 +279,74 @@ func restartRecordedGatewayRuntime(ctx context.Context, timeout time.Duration) (
 		InitialStatus: string(validation.Status),
 		FinalStatus:   string(finalStop.Status),
 	}, nil
+}
+
+func ensureServiceRestartTookOverRecordedRuntime(ctx context.Context, timeout time.Duration, manager gatewayRestartServiceManager, service string, initial gatewayRestartInitialSnapshot, report gatewayRestartReportJSON) (gatewayRestartReportJSON, error) {
+	if !initial.ok || initial.store == nil || !initial.snapshot.Validation.Live {
+		return report, nil
+	}
+	current, err := initial.store.ReadValidatedRuntimeStatusSnapshot(ctx)
+	if err != nil {
+		return gatewayRestartReportJSON{}, fmt.Errorf("gateway restart: verify service takeover runtime status: %w", err)
+	}
+	if !sameLiveGatewayRestartRuntime(initial.snapshot, current) {
+		return report, nil
+	}
+	pid := gatewayStopPID(current)
+	if pid <= 0 {
+		return gatewayRestartReportJSON{}, fmt.Errorf("gateway restart: service reported active but recorded runtime owner did not include a pid")
+	}
+	if current.Status.ActiveAgents > 0 {
+		return gatewayRestartReportJSON{}, fmt.Errorf("gateway restart: service reported active but previous runtime pid=%d still owns active_agents=%d", pid, current.Status.ActiveAgents)
+	}
+
+	markerStore := gateway.NewPlannedStopStore(gateway.DefaultPlannedStopMarkerPath(config.GatewayRuntimeStatusPath()))
+	_ = markerStore.Write(ctx, gateway.PlannedStopMarker{
+		TargetPID:       pid,
+		TargetStartTime: gatewayStopStartTime(current),
+		Generation:      current.Status.Generation,
+		Reason:          "gateway service-manager restart takeover",
+	})
+	if err := signalGatewayRestartProcess(pid, os.Interrupt); err != nil {
+		return gatewayRestartReportJSON{}, fmt.Errorf("gateway restart: stop previous recorded runtime pid %d: %w", pid, err)
+	}
+
+	waitCtx, cancelWait := context.WithTimeout(ctx, timeout)
+	defer cancelWait()
+	if _, err := waitForGatewayRestartStop(waitCtx, initial.store, pid); err != nil {
+		return gatewayRestartReportJSON{}, err
+	}
+
+	retried, err := restartGatewayViaServiceManager(ctx, timeout, manager, service)
+	if err != nil {
+		return gatewayRestartReportJSON{}, fmt.Errorf("gateway restart: retry service-manager restart after stopping previous runtime: %w", err)
+	}
+	startCtx, cancelStart := context.WithTimeout(ctx, timeout)
+	defer cancelStart()
+	newSnapshot, err := waitForGatewayRestartStart(startCtx, initial.store, pid)
+	if err != nil {
+		return gatewayRestartReportJSON{}, err
+	}
+	retried.OldPID = pid
+	retried.NewPID = gatewayStopPID(newSnapshot)
+	retried.InitialStatus = string(current.Validation.Status)
+	retried.FinalStatus = string(newSnapshot.Validation.Status)
+	retried.Message = fmt.Sprintf("service-manager restart did not stop previous recorded runtime; stopped previous live runtime pid=%d and retried service restart", pid)
+	return retried, nil
+}
+
+func sameLiveGatewayRestartRuntime(first, second gateway.RuntimeStatusSnapshot) bool {
+	if !first.Validation.Live || !second.Validation.Live {
+		return false
+	}
+	firstPID := gatewayStopPID(first)
+	secondPID := gatewayStopPID(second)
+	if firstPID <= 0 || secondPID != firstPID {
+		return false
+	}
+	firstStart := gatewayStopStartTime(first)
+	secondStart := gatewayStopStartTime(second)
+	return firstStart == 0 || secondStart == 0 || firstStart == secondStart
 }
 
 func canStartGatewayRuntimeWithoutLiveProcess(snapshot gateway.RuntimeStatusSnapshot) bool {

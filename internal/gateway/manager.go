@@ -1007,6 +1007,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventSkills:
 		m.handleSkillsCommand(ctx, ch, ev)
 		return nil
+	case EventCommands:
+		m.handleCommandsCommand(ctx, ch, ev)
+		return nil
 	case EventVerbose:
 		m.handleVerboseCommand(ctx, ch, ev)
 		return nil
@@ -1048,6 +1051,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 		return nil
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
+		return nil
+	case EventReloadSkills:
+		m.handleReloadSkillsCommand(ctx, ch, ev)
 		return nil
 	case EventRetry:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
@@ -2896,7 +2902,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
-	sessionBlock = appendAudioDeliveryGuidance(sessionBlock, audioRequested || m.getTTSConfig(sessionKey).Enabled)
+	sessionBlock = appendAudioDeliveryGuidance(sessionBlock, audioRequested)
 	sessionBlock = prependChannelPromptBlock(sessionBlock, ev.ChannelPrompt)
 	seams := m.liveTurnPromptSeamsForAgent(route)
 	sessionContext, _, _ := assembleLiveTurnPrompt(seams, submitText, resolved.SessionID, sessionBlock)

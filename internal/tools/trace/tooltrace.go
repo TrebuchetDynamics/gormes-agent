@@ -216,7 +216,35 @@ func semanticProgressLine(name, arg string) (string, bool) {
 }
 
 func progressLine(level, subsystem, message string) string {
-	return fmt.Sprintf("%-6s [%s] %s", level, subsystem, message)
+	return fmt.Sprintf("%s [%s] %s", semanticProgressIcon(level, subsystem), subsystem, message)
+}
+
+func semanticProgressIcon(level, subsystem string) string {
+	switch strings.TrimSpace(subsystem) {
+	case "memory":
+		return "🧠"
+	case "repo":
+		return "📁"
+	case "skills":
+		return "📚"
+	case "profile":
+		return "👤"
+	case "config":
+		return "⚙️"
+	case "network":
+		return "🌐"
+	case "audio":
+		return "🎙️"
+	case "runtime":
+		return "⚙️"
+	case "tool":
+		return "🔧"
+	default:
+		if strings.EqualFold(strings.TrimSpace(level), "INFO") {
+			return "ℹ️"
+		}
+		return "⚙️"
+	}
 }
 
 func semanticMemoryProgress(arg string) string {

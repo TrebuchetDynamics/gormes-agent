@@ -2666,44 +2666,63 @@ func runSetupGatewayBubbleTeaWizard(cmd *cobra.Command, cfg config.Config) (setu
 }
 
 func runSetupTelegramBubbleTeaWizard(cmd *cobra.Command, cfg config.TelegramCfg) (setupTelegramGatewayAnswers, error) {
-	result, err := setupwizard.New(
+	runner := setupwizard.New(
 		setupwizard.WithInput(os.Stdin),
 		setupwizard.WithOutput(cmd.OutOrStdout()),
-	).Run(cmd.Context(), setupTelegramGatewayWizardSteps(cfg)...)
+	)
+	result, err := runner.Run(cmd.Context(), setupTelegramGatewayWizardSteps(cfg)...)
 	if errors.Is(err, setupwizard.ErrAbort) {
 		return setupTelegramGatewayAnswers{Apply: false}, nil
 	}
 	if err != nil {
 		return setupTelegramGatewayAnswers{}, err
 	}
-	return setupTelegramGatewayAnswers{
+	answers := setupTelegramGatewayAnswers{
 		Token:        strings.TrimSpace(result.String("token")),
 		AccessPolicy: normalizeSetupChoice(result.Choice("access_policy")),
-		AllowedUsers: strings.TrimSpace(result.String("allowed_users")),
-		HomeChatID:   strings.TrimSpace(result.String("home_chat_id")),
-		HomeThreadID: strings.TrimSpace(result.String("home_thread_id")),
 		Apply:        true,
-	}, nil
+	}
+	if answers.AccessPolicy == "" {
+		answers.AccessPolicy = setupTelegramDefaultAccessPolicy(cfg)
+	}
+	if answers.AccessPolicy == "allowlist" {
+		allowedResult, err := runner.Run(cmd.Context(), setupTelegramGatewayAllowedUsersSteps()...)
+		if errors.Is(err, setupwizard.ErrAbort) {
+			return setupTelegramGatewayAnswers{Apply: false}, nil
+		}
+		if err != nil {
+			return setupTelegramGatewayAnswers{}, err
+		}
+		answers.AllowedUsers = strings.TrimSpace(allowedResult.String("allowed_users"))
+	}
+	return answers, nil
 }
 
 func setupTelegramGatewayWizardSteps(cfg config.TelegramCfg) []setupwizard.Step {
-	defaultPolicy := "allowlist"
-	if cfg.GuestMode {
-		defaultPolicy = "open"
-	} else if len(cfg.AllowedUserIDs) == 0 && cfg.FirstRunDiscovery {
-		defaultPolicy = "pairing"
-	}
 	return []setupwizard.Step{
 		setupwizard.Password("token", "Telegram bot token from BotFather (blank keeps current)", setupwizard.WithPlaceholder("123456:...")),
 		setupwizard.Pick("access_policy", "Telegram access policy", []setupwizard.Choice{
 			{ID: "allowlist", Label: "Allowlisted Telegram user IDs"},
 			{ID: "pairing", Label: "Pairing/first-run discovery"},
 			{ID: "open", Label: "Open access (risky)"},
-		}, setupwizard.WithDefaultChoice(defaultPolicy)),
-		setupwizard.Text("allowed_users", "Allowed Telegram user IDs (comma-separated; used for allowlist)", setupwizard.WithPlaceholder("6586915095,12345")),
-		setupwizard.Text("home_chat_id", "Home channel chat ID (blank to set later with /set-home)", setupwizard.WithPlaceholder("-1001234567890")),
-		setupwizard.Text("home_thread_id", "Home channel thread ID (optional)", setupwizard.WithPlaceholder("42")),
+		}, setupwizard.WithDefaultChoice(setupTelegramDefaultAccessPolicy(cfg))),
 	}
+}
+
+func setupTelegramGatewayAllowedUsersSteps() []setupwizard.Step {
+	return []setupwizard.Step{
+		setupwizard.Text("allowed_users", "Allowed Telegram user IDs (comma-separated)", setupwizard.WithPlaceholder("6586915095,12345")),
+	}
+}
+
+func setupTelegramDefaultAccessPolicy(cfg config.TelegramCfg) string {
+	if cfg.GuestMode {
+		return "open"
+	}
+	if len(cfg.AllowedUserIDs) == 0 && cfg.FirstRunDiscovery {
+		return "pairing"
+	}
+	return "allowlist"
 }
 
 func applySetupTelegramGatewayAnswers(cmd *cobra.Command, cfg config.TelegramCfg, answers setupTelegramGatewayAnswers) error {

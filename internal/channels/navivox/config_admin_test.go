@@ -39,6 +39,7 @@ allow_origins = ["http://localhost:3000"]
 	ch := newTestChannel(t)
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
 	unauth, err := http.Get(server.URL + "/v1/navivox/config-admin/schema")
 	if err != nil {
@@ -49,18 +50,11 @@ allow_origins = ["http://localhost:3000"]
 		t.Fatalf("unauthorized config-admin schema status = %d, want 401", unauth.StatusCode)
 	}
 
-	schemaResp := doNavivoxConfigAdminRequest(t, server.URL, http.MethodGet, "/v1/navivox/config-admin/schema", "")
-	defer schemaResp.Body.Close()
-	if schemaResp.StatusCode != http.StatusOK {
-		t.Fatalf("schema status = %d, want 200", schemaResp.StatusCode)
-	}
 	var schema struct {
 		Action string                       `json:"action"`
 		Fields []configAdminSchemaFieldTest `json:"fields"`
 	}
-	if err := json.NewDecoder(schemaResp.Body).Decode(&schema); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/config-admin/schema", "", http.StatusOK, &schema)
 	if schema.Action != "config.schema" || !configAdminTestFieldPresent(schema.Fields, "navivox.port") {
 		t.Fatalf("schema payload = %+v, want config.schema with navivox.port", schema)
 	}
@@ -69,16 +63,8 @@ allow_origins = ["http://localhost:3000"]
 		t.Fatalf("navivox.token schema = %+v, want secret set/delete actions", secretField)
 	}
 
-	getResp := doNavivoxConfigAdminRequest(t, server.URL, http.MethodGet, "/v1/navivox/config-admin", "")
-	defer getResp.Body.Close()
-	if getResp.StatusCode != http.StatusOK {
-		t.Fatalf("get status = %d, want 200", getResp.StatusCode)
-	}
-	var raw bytes.Buffer
-	if _, err := raw.ReadFrom(getResp.Body); err != nil {
-		t.Fatal(err)
-	}
-	body := raw.String()
+	raw := httpc.Raw(http.MethodGet, "/v1/navivox/config-admin", "", http.StatusOK)
+	body := string(raw)
 	for _, forbidden := range []string{"super-secret-navivox-token", "raw-config-token-should-not-leak"} {
 		if strings.Contains(body, forbidden) {
 			t.Fatalf("config-admin get leaked secret %q in %s", forbidden, body)
@@ -88,7 +74,7 @@ allow_origins = ["http://localhost:3000"]
 		Action string                      `json:"action"`
 		Values []configAdminValueStateTest `json:"values"`
 	}
-	if err := json.Unmarshal(raw.Bytes(), &got); err != nil {
+	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatal(err)
 	}
 	if got.Action != "config.get" {
@@ -127,12 +113,8 @@ auth_mode = "pairing_token"
 	ch := newTestChannel(t)
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
-	validateResp := doNavivoxConfigAdminRequest(t, server.URL, http.MethodPost, "/v1/navivox/config-admin/validate", `{"changes":[{"key":"navivox.bind_host","value":"0.0.0.0"}]}`)
-	defer validateResp.Body.Close()
-	if validateResp.StatusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("validate status = %d, want 422", validateResp.StatusCode)
-	}
 	var validation struct {
 		Action string `json:"action"`
 		Valid  bool   `json:"valid"`
@@ -141,9 +123,7 @@ auth_mode = "pairing_token"
 			Message string `json:"message"`
 		} `json:"errors"`
 	}
-	if err := json.NewDecoder(validateResp.Body).Decode(&validation); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodPost, "/v1/navivox/config-admin/validate", `{"changes":[{"key":"navivox.bind_host","value":"0.0.0.0"}]}`, http.StatusUnprocessableEntity, &validation)
 	if validation.Action != "config.validate" || validation.Valid || len(validation.Errors) == 0 || validation.Errors[0].Key != "navivox.bind_host" {
 		t.Fatalf("validation payload = %+v, want field-scoped bind_host error", validation)
 	}
@@ -151,11 +131,7 @@ auth_mode = "pairing_token"
 		t.Fatalf("config changed after validate failure: err=%v body=%q", err, string(body))
 	}
 
-	applyResp := doNavivoxConfigAdminRequest(t, server.URL, http.MethodPost, "/v1/navivox/config-admin/apply", `{"changes":[{"key":"navivox.bind_host","value":"0.0.0.0"}]}`)
-	defer applyResp.Body.Close()
-	if applyResp.StatusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("apply-invalid status = %d, want 422", applyResp.StatusCode)
-	}
+	httpc.Raw(http.MethodPost, "/v1/navivox/config-admin/apply", `{"changes":[{"key":"navivox.bind_host","value":"0.0.0.0"}]}`, http.StatusUnprocessableEntity)
 	if body, err := os.ReadFile(configPath); err != nil || !bytes.Equal(body, original) {
 		t.Fatalf("config changed after apply failure: err=%v body=%q", err, string(body))
 	}
@@ -198,21 +174,15 @@ auth_mode = "pairing_token"
 	}
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
 	payload := `{"changes":[{"key":"navivox.port","value":"8766"}]}`
-	diffResp := doNavivoxConfigAdminRequest(t, server.URL, http.MethodPost, "/v1/navivox/config-admin/diff", payload)
-	defer diffResp.Body.Close()
-	if diffResp.StatusCode != http.StatusOK {
-		t.Fatalf("diff status = %d, want 200", diffResp.StatusCode)
-	}
 	var diffed struct {
 		Action  string                     `json:"action"`
 		Valid   bool                       `json:"valid"`
 		Changes []configAdminDiffEntryTest `json:"changes"`
 	}
-	if err := json.NewDecoder(diffResp.Body).Decode(&diffed); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodPost, "/v1/navivox/config-admin/diff", payload, http.StatusOK, &diffed)
 	portDiff := configAdminDiffByKey(diffed.Changes, "navivox.port")
 	if diffed.Action != "config.diff" || !diffed.Valid || portDiff.Before == nil || portDiff.After == nil {
 		t.Fatalf("diff payload = %+v, want port before/after", diffed)
@@ -221,20 +191,13 @@ auth_mode = "pairing_token"
 		t.Fatalf("config changed after diff: err=%v body=%q", err, string(body))
 	}
 
-	applyResp := doNavivoxConfigAdminRequest(t, server.URL, http.MethodPost, "/v1/navivox/config-admin/apply", payload)
-	defer applyResp.Body.Close()
-	if applyResp.StatusCode != http.StatusOK {
-		t.Fatalf("apply status = %d, want 200", applyResp.StatusCode)
-	}
 	var applied struct {
 		Action         string `json:"action"`
 		Applied        bool   `json:"applied"`
 		ReloadApplied  bool   `json:"reload_applied"`
 		PendingRestart bool   `json:"pending_restart"`
 	}
-	if err := json.NewDecoder(applyResp.Body).Decode(&applied); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodPost, "/v1/navivox/config-admin/apply", payload, http.StatusOK, &applied)
 	if applied.Action != "config.apply" || !applied.Applied || !applied.ReloadApplied || applied.PendingRestart || reloadCalls != 1 {
 		t.Fatalf("apply payload = %+v reloadCalls=%d, want reload_applied", applied, reloadCalls)
 	}
@@ -261,19 +224,12 @@ auth_mode = "pairing_token"
 	ch := newTestChannel(t)
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
 	payload := `{"changes":[{"key":"navivox.port","value":"8766"},{"key":"navivox.token","value":"new-secret-token"}]}`
-	applyResp := doNavivoxConfigAdminRequest(t, server.URL, http.MethodPost, "/v1/navivox/config-admin/apply", payload)
-	defer applyResp.Body.Close()
-	if applyResp.StatusCode != http.StatusOK {
-		t.Fatalf("apply status = %d, want 200", applyResp.StatusCode)
-	}
-	var raw bytes.Buffer
-	if _, err := raw.ReadFrom(applyResp.Body); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(raw.String(), "new-secret-token") {
-		t.Fatalf("apply response leaked secret: %s", raw.String())
+	raw := httpc.Raw(http.MethodPost, "/v1/navivox/config-admin/apply", payload, http.StatusOK)
+	if strings.Contains(string(raw), "new-secret-token") {
+		t.Fatalf("apply response leaked secret: %s", raw)
 	}
 	var applied struct {
 		Action         string                     `json:"action"`
@@ -282,7 +238,7 @@ auth_mode = "pairing_token"
 		PendingRestart bool                       `json:"pending_restart"`
 		Changes        []configAdminDiffEntryTest `json:"changes"`
 	}
-	if err := json.Unmarshal(raw.Bytes(), &applied); err != nil {
+	if err := json.Unmarshal(raw, &applied); err != nil {
 		t.Fatal(err)
 	}
 	if applied.Action != "config.apply" || !applied.Applied || applied.ReloadApplied || !applied.PendingRestart {
@@ -306,25 +262,6 @@ auth_mode = "pairing_token"
 	if !strings.Contains(string(envBody), "GORMES_NAVIVOX_TOKEN=new-secret-token") {
 		t.Fatalf(".env after apply = %q, want navivox token", string(envBody))
 	}
-}
-
-func doNavivoxConfigAdminRequest(t *testing.T, baseURL, method, path, body string) *http.Response {
-	t.Helper()
-	var reader *strings.Reader
-	reader = strings.NewReader(body)
-	req, err := http.NewRequest(method, baseURL+path, reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
-	if body != "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return resp
 }
 
 type configAdminSchemaFieldTest struct {

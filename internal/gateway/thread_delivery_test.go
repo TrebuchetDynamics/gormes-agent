@@ -235,7 +235,7 @@ func TestThreadAwareToolProgressUsesPinnedTurnThread(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("thread sends = %+v, want one tool-progress send", got)
 	}
-	if got[0].ChatID != "-10042" || got[0].ThreadID != "888" || !strings.Contains(got[0].Text, "ACTION [runtime] Running test suite") {
+	if got[0].ChatID != "-10042" || got[0].ThreadID != "888" || !strings.Contains(got[0].Text, "⚙️ [runtime] Running test suite") {
 		t.Fatalf("thread send = %+v, want threaded tool progress", got[0])
 	}
 }

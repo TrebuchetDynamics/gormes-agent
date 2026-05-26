@@ -1,7 +1,6 @@
 package navivox
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -28,6 +27,7 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 	inbox := make(chan gateway.InboundEvent, 1)
 	server := httptest.NewServer(ch.Handler(inbox))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
 	healthResp, err := http.Get(server.URL + "/healthz")
 	if err != nil {
@@ -47,23 +47,8 @@ func TestNavivoxStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
 		t.Fatalf("unauthorized status = %d, want 401", statusResp.StatusCode)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/status", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
-	authStatus, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer authStatus.Body.Close()
-	if authStatus.StatusCode != http.StatusOK {
-		t.Fatalf("authorized status = %d, want 200", authStatus.StatusCode)
-	}
 	var payload map[string]any
-	if err := json.NewDecoder(authStatus.Body).Decode(&payload); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/status", "", http.StatusOK, &payload)
 	if payload["protocol_version"] != "navivox.v1" {
 		t.Fatalf("protocol_version = %v, want navivox.v1", payload["protocol_version"])
 	}
@@ -86,6 +71,7 @@ func TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact(t *testing.T
 	ch := newTestChannel(t)
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
 	unauth, err := http.Post(server.URL+"/v1/navivox/profile-seed", "application/json", strings.NewReader(`{"seed":"work on mineru repo"}`))
 	if err != nil {
@@ -96,20 +82,6 @@ func TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact(t *testing.T
 		t.Fatalf("unauthorized profile-seed status = %d, want 401", unauth.StatusCode)
 	}
 
-	draftReq, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/profile-seed", bytes.NewBufferString(`{"seed":"work on mineru repo"}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	draftReq.Header.Set("Authorization", "Bearer nvbx_test_token")
-	draftReq.Header.Set("Content-Type", "application/json")
-	draftResp, err := http.DefaultClient.Do(draftReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer draftResp.Body.Close()
-	if draftResp.StatusCode != http.StatusOK {
-		t.Fatalf("draft profile-seed status = %d, want 200", draftResp.StatusCode)
-	}
 	var draftPayload struct {
 		Action string `json:"action"`
 		Status string `json:"status"`
@@ -121,9 +93,7 @@ func TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact(t *testing.T
 			} `json:"workspace_root_suggestions"`
 		} `json:"draft"`
 	}
-	if err := json.NewDecoder(draftResp.Body).Decode(&draftPayload); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodPost, "/v1/navivox/profile-seed", `{"seed":"work on mineru repo"}`, http.StatusOK, &draftPayload)
 	if draftPayload.Action != "profile_seed_draft" || draftPayload.Draft.ProfileID != "work-mineru-repo" || draftPayload.Draft.GenerationSource != "template" {
 		t.Fatalf("draft payload = %+v, want template work-mineru-repo", draftPayload)
 	}
@@ -134,20 +104,6 @@ func TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact(t *testing.T
 		t.Fatalf("dry-run should not create profile root; stat err=%v", err)
 	}
 
-	applyReq, err := http.NewRequest(http.MethodPost, server.URL+"/v1/navivox/profile-seed", bytes.NewBufferString(`{"seed":"work on mineru repo","apply":true}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	applyReq.Header.Set("Authorization", "Bearer nvbx_test_token")
-	applyReq.Header.Set("Content-Type", "application/json")
-	applyResp, err := http.DefaultClient.Do(applyReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer applyResp.Body.Close()
-	if applyResp.StatusCode != http.StatusOK {
-		t.Fatalf("apply profile-seed status = %d, want 200", applyResp.StatusCode)
-	}
 	var applied struct {
 		Action         string          `json:"action"`
 		Applied        bool            `json:"applied"`
@@ -155,9 +111,7 @@ func TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact(t *testing.T
 		WorkspaceCount int             `json:"workspace_count"`
 		Contact        *ProfileContact `json:"contact"`
 	}
-	if err := json.NewDecoder(applyResp.Body).Decode(&applied); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodPost, "/v1/navivox/profile-seed", `{"seed":"work on mineru repo","apply":true}`, http.StatusOK, &applied)
 	if applied.Action != "profile_seed_applied" || !applied.Applied || applied.ProfileID != "work-mineru-repo" || applied.WorkspaceCount != 0 {
 		t.Fatalf("apply payload = %+v, want applied profile with no implicit workspaces", applied)
 	}
@@ -165,20 +119,8 @@ func TestNavivoxProfileSeedEndpointCreatesDraftAndApplyShowsContact(t *testing.T
 		t.Fatalf("contact = %+v, want seeded profile contact", applied.Contact)
 	}
 
-	contactsReq, err := http.NewRequest(http.MethodGet, server.URL+"/v1/navivox/profile-contacts", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	contactsReq.Header.Set("Authorization", "Bearer nvbx_test_token")
-	contactsResp, err := http.DefaultClient.Do(contactsReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer contactsResp.Body.Close()
 	var snapshot profileContactSnapshot
-	if err := json.NewDecoder(contactsResp.Body).Decode(&snapshot); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/profile-contacts", "", http.StatusOK, &snapshot)
 	ids := profileContactIDs(snapshot.Contacts)
 	if !slices.Contains(ids, "work-mineru-repo") {
 		t.Fatalf("contact IDs = %v, want seeded profile", ids)
@@ -1097,7 +1039,12 @@ func dialTestWebSocket(t *testing.T, httpURL string) *websocket.Conn {
 
 func readNonProfileContactEvent(t *testing.T, conn *websocket.Conn) ServerEvent {
 	t.Helper()
-	for i := 0; i < 8; i++ {
+	deadline := time.Now().Add(time.Second)
+	defer func() { _ = conn.SetReadDeadline(time.Time{}) }()
+	for {
+		if err := conn.SetReadDeadline(deadline); err != nil {
+			t.Fatal(err)
+		}
 		var event ServerEvent
 		if err := conn.ReadJSON(&event); err != nil {
 			t.Fatal(err)
@@ -1105,9 +1052,34 @@ func readNonProfileContactEvent(t *testing.T, conn *websocket.Conn) ServerEvent 
 		if event.Type != "profile_contact_update" {
 			return event
 		}
+		if time.Now().After(deadline) {
+			t.Fatal("only received profile_contact_update events")
+		}
 	}
-	t.Fatal("only received profile_contact_update events")
-	return ServerEvent{}
+}
+
+func waitForSessionSubscribers(t *testing.T, ch *Channel, sessionID string, want int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for {
+		ch.mu.Lock()
+		state := ch.sessions[sessionID]
+		got := -1
+		if state != nil {
+			got = state.Subscribers
+		}
+		ch.mu.Unlock()
+		if state != nil && got == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			if state == nil {
+				t.Fatalf("session %q not found", sessionID)
+			}
+			t.Fatalf("subscribers for %s = %d, want %d", sessionID, got, want)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 func TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed(t *testing.T) {
@@ -1248,6 +1220,9 @@ func TestNavivoxCORSPreflightAndActualRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer actualResp.Body.Close()
+	if actualResp.StatusCode != http.StatusOK {
+		t.Fatalf("CORS actual status = %d, want 200", actualResp.StatusCode)
+	}
 	if got := actualResp.Header.Get("Access-Control-Allow-Origin"); got != origin {
 		t.Fatalf("CORS Allow-Origin on actual request = %q, want %q", got, origin)
 	}
@@ -1306,15 +1281,7 @@ func TestNavivoxSubscriberLifecycleAndBroadcast(t *testing.T) {
 		t.Fatalf("subscribe response = %+v", subscribed)
 	}
 
-	ch.mu.Lock()
-	state := ch.sessions["s-sub"]
-	if state == nil {
-		t.Fatal("session not created after subscribe")
-	}
-	if state.Subscribers != 1 {
-		t.Fatalf("subscribers = %d, want 1 after first subscribe", state.Subscribers)
-	}
-	ch.mu.Unlock()
+	waitForSessionSubscribers(t, ch, "s-sub", 1)
 
 	if err := conn1.WriteJSON(ClientMessage{Type: "subscribe_session", RequestID: "req-sub2", SessionID: "s-sub"}); err != nil {
 		t.Fatal(err)
@@ -1327,22 +1294,10 @@ func TestNavivoxSubscriberLifecycleAndBroadcast(t *testing.T) {
 		t.Fatalf("second subscribe response = %+v", subscribed2)
 	}
 
-	ch.mu.Lock()
-	state = ch.sessions["s-sub"]
-	if state.Subscribers != 1 {
-		t.Fatalf("subscribers = %d, want 1 (deduplicated re-subscribe)", state.Subscribers)
-	}
-	ch.mu.Unlock()
+	waitForSessionSubscribers(t, ch, "s-sub", 1)
 
 	conn1.Close()
-	time.Sleep(100 * time.Millisecond)
-
-	ch.mu.Lock()
-	state = ch.sessions["s-sub"]
-	if state.Subscribers != 0 {
-		t.Fatalf("subscribers after disconnect = %d, want 0", state.Subscribers)
-	}
-	ch.mu.Unlock()
+	waitForSessionSubscribers(t, ch, "s-sub", 0)
 }
 
 func TestNavivoxSessionSweepEvictsOldSessions(t *testing.T) {

@@ -20,7 +20,7 @@ func TestFormatBlock_HermesTranscriptShapeAndDedup(t *testing.T) {
 		`📚 skill_view: "plan"`,
 		`📋 todo: "planning 5 task(s)"`,
 		`🔎 search_files: "chrono|cron"`,
-		`ACTION [repo] Inspecting repository status (×2)`,
+		`📁 [repo] Inspecting repository status (×2)`,
 		`📖 read_file: "/tmp/example.go"`,
 	} {
 		if !strings.Contains(got, want) {
@@ -68,13 +68,13 @@ PY`,
 	})
 
 	for _, want := range []string{
-		`INFO   [memory] Loading session memory (×2)`,
-		`ACTION [profile] Inspecting Gormes profile state`,
-		`ACTION [skills] Checking oversized skill events`,
-		`ACTION [profile] Inspecting active Gormes profile`,
-		`ACTION [config] Verifying profile config candidates`,
-		`ACTION [profile] Measuring profile state size`,
-		`ACTION [profile] Parsing profile state`,
+		`🧠 [memory] Loading session memory (×2)`,
+		`👤 [profile] Inspecting Gormes profile state`,
+		`📚 [skills] Checking oversized skill events`,
+		`👤 [profile] Inspecting active Gormes profile`,
+		`⚙️ [config] Verifying profile config candidates`,
+		`👤 [profile] Measuring profile state size`,
+		`👤 [profile] Parsing profile state`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("FormatBlock missing semantic progress %q in:\n%s", want, got)

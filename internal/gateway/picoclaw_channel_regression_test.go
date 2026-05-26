@@ -272,7 +272,7 @@ func TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete(t *testi
 		sent := ch.sentSnapshot()
 		return len(sent) >= 2 &&
 			strings.Contains(sent[0].Text, "browser") &&
-			strings.Contains(sent[0].Text, "ACTION [network] Fetching remote content") &&
+			strings.Contains(sent[0].Text, "🌐 [network] Fetching remote content") &&
 			sent[len(sent)-1].Text == "Inspection complete."
 	})
 	sent := ch.sentSnapshot()

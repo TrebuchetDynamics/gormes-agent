@@ -22,7 +22,7 @@ func TestFormatStream_RendersHermesToolProgressBlock(t *testing.T) {
 	for _, want := range []string{
 		`📚 skill_view: "plan"`,
 		`🔎 search_files: "chrono|cron"`,
-		`ACTION [repo] Inspecting repository status (×2)`,
+		`📁 [repo] Inspecting repository status (×2)`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("formatStream missing %q in:\n%s", want, got)

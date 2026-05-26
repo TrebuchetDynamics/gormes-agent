@@ -49,6 +49,40 @@ func TestManagerReloadSkillsCommandRefreshesAdaptersAndDoesNotLeak(t *testing.T)
 	}
 }
 
+func TestManagerReloadSkillsCommandHandlesParsedGatewayEvent(t *testing.T) {
+	root := writeReloadSkillsCommandSkill(t, "ops-skill", "Operate safely.")
+	ch := &refreshableGatewayChannel{fakeChannel: newFakeChannel("discord")}
+	fk := &fakeKernel{}
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats: map[string]string{"discord": "C42"},
+		SkillRuntime: skills.NewRuntime(root, 8*1024, 5, ""),
+	}, fk, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.pushInbound(InboundEvent{Platform: "discord", ChatID: "C42", UserID: "u", MsgID: "m1", Kind: EventReloadSkills, Text: "/reload-skills"})
+
+	waitFor(t, 300*time.Millisecond, func() bool {
+		for _, sent := range ch.sentSnapshot() {
+			if strings.Contains(sent.Text, "Skills Reloaded") && strings.Contains(sent.Text, "1 skill(s) available") && strings.Contains(sent.Text, "discord: refreshed") {
+				return true
+			}
+		}
+		return false
+	})
+	if ch.calls != 1 {
+		t.Fatalf("refresh calls = %d, want 1", ch.calls)
+	}
+	if got := len(fk.submitsSnapshot()); got != 0 {
+		t.Fatalf("kernel submits = %d, want no model submission for parsed /reload-skills", got)
+	}
+}
+
 func TestManagerReloadSkillsCommandReportsScanAndAdapterErrors(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "active"), []byte("not a dir"), 0o644); err != nil {

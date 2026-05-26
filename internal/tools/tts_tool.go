@@ -49,6 +49,8 @@ type TTSRequest struct {
 	OutputPath string
 	Provider   string
 	Platform   string
+	Voice      string
+	Speed      float64
 }
 
 // TTSResult is the redacted helper/tool result envelope.
@@ -69,6 +71,8 @@ type TTSProviderRequest struct {
 	OutputPath string
 	Provider   string
 	Platform   string
+	Voice      string
+	Speed      float64
 }
 
 // TTSProviderResult is the provider-specific response before the runner
@@ -137,6 +141,8 @@ func (r *TTSRunner) Synthesize(ctx context.Context, req TTSRequest) TTSResult {
 		OutputPath: outputPath,
 		Provider:   providerName,
 		Platform:   strings.ToLower(strings.TrimSpace(req.Platform)),
+		Voice:      strings.TrimSpace(req.Voice),
+		Speed:      req.Speed,
 	})
 	if err != nil {
 		return ttsFailure(providerName, TTSEvidenceAPIError, redactTTSText(err.Error()))
@@ -175,6 +181,9 @@ func (c TTSConfig) maxTextLength(providerName string, provider TTSProvider) int 
 
 func (r *TTSRunner) selectProvider(ctx context.Context, requested string) (string, TTSProvider, TTSEvidence) {
 	explicit := normalizeTTSProviderName(firstNonEmptyTTS(requested, r.cfg.Provider, defaultTTSProvider))
+	if explicit == "local" {
+		return r.selectAvailableProvider(ctx, []string{"neutts", "kittentts", "piper"})
+	}
 	if explicit != "" && explicit != "auto" {
 		provider := r.providers[explicit]
 		if provider == nil || !provider.Available(ctx) {
@@ -192,6 +201,16 @@ func (r *TTSRunner) selectProvider(ctx context.Context, requested string) (strin
 		if isBuiltinTTSProviderName(name) {
 			continue
 		}
+		if provider != nil && provider.Available(ctx) {
+			return name, provider, ""
+		}
+	}
+	return "", nil, TTSEvidenceProviderUnavailable
+}
+
+func (r *TTSRunner) selectAvailableProvider(ctx context.Context, names []string) (string, TTSProvider, TTSEvidence) {
+	for _, name := range names {
+		provider := r.providers[name]
 		if provider != nil && provider.Available(ctx) {
 			return name, provider, ""
 		}
@@ -298,6 +317,32 @@ func normalizeTTSProviderName(provider string) string {
 	return strings.ToLower(strings.TrimSpace(provider))
 }
 
+func parseTTSRequestSpeed(raw json.RawMessage) float64 {
+	if len(raw) == 0 || string(raw) == "null" {
+		return 0
+	}
+	var numeric float64
+	if err := json.Unmarshal(raw, &numeric); err == nil && numeric > 0 {
+		return numeric
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err != nil {
+		return 0
+	}
+	switch strings.ToLower(strings.TrimSpace(text)) {
+	case "slow":
+		return 0.75
+	case "normal":
+		return 1.0
+	case "fast":
+		return 1.25
+	case "very-fast", "veryfast", "very_fast", "very fast":
+		return 1.5
+	default:
+		return parseSpeed(text)
+	}
+}
+
 func ttsFailure(provider string, evidence TTSEvidence, message string) TTSResult {
 	return TTSResult{
 		Success:  false,
@@ -360,8 +405,12 @@ func (*TextToSpeechTool) Timeout() time.Duration { return 90 * time.Second }
 
 func (t *TextToSpeechTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
 	var in struct {
-		Text       string `json:"text"`
-		OutputPath string `json:"output_path"`
+		Text       string          `json:"text"`
+		OutputPath string          `json:"output_path"`
+		Provider   string          `json:"provider"`
+		Platform   string          `json:"platform"`
+		Voice      string          `json:"voice"`
+		Speed      json.RawMessage `json:"speed"`
 	}
 	if err := json.Unmarshal(args, &in); err != nil {
 		result := ttsFailure("", TTSEvidenceInvalidArguments, "invalid TTS args: "+err.Error())
@@ -370,6 +419,10 @@ func (t *TextToSpeechTool) Execute(ctx context.Context, args json.RawMessage) (j
 	result := t.runner.Synthesize(ctx, TTSRequest{
 		Text:       in.Text,
 		OutputPath: in.OutputPath,
+		Provider:   in.Provider,
+		Platform:   in.Platform,
+		Voice:      in.Voice,
+		Speed:      parseTTSRequestSpeed(in.Speed),
 	})
 	return json.Marshal(result)
 }

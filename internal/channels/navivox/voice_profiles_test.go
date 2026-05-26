@@ -49,12 +49,8 @@ tts_credential = "private-tts-ref"
 	ch := newTestChannel(t)
 	server := httptest.NewServer(ch.Handler(make(chan gateway.InboundEvent, 1)))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
-	getResp := doNavivoxVoiceProfileRequest(t, server.URL, http.MethodGet, "/v1/navivox/voice-profiles", "")
-	defer getResp.Body.Close()
-	if getResp.StatusCode != http.StatusOK {
-		t.Fatalf("voice profiles get status = %d, want 200", getResp.StatusCode)
-	}
 	var got struct {
 		Action   string `json:"action"`
 		Profiles []struct {
@@ -77,9 +73,7 @@ tts_credential = "private-tts-ref"
 			TTS []string `json:"tts"`
 		} `json:"provider_matrix"`
 	}
-	if err := json.NewDecoder(getResp.Body).Decode(&got); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/voice-profiles", "", http.StatusOK, &got)
 	if got.Action != "voice_profiles.get" || len(got.Profiles) != 1 || got.Profiles[0].ProfileID != "main" {
 		t.Fatalf("voice profile payload = %+v", got)
 	}
@@ -102,11 +96,6 @@ tts_credential = "private-tts-ref"
 		}
 	}
 
-	invalidResp := doNavivoxVoiceProfileRequest(t, server.URL, http.MethodPost, "/v1/navivox/voice-profiles/validate", `{"profile_id":"main","voice_profile":{"stt_provider":"bogus","tts_provider":"piper","fallback_voice":"text_only"}}`)
-	defer invalidResp.Body.Close()
-	if invalidResp.StatusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("invalid validate status = %d, want 422", invalidResp.StatusCode)
-	}
 	var invalid struct {
 		Action string `json:"action"`
 		Valid  bool   `json:"valid"`
@@ -115,18 +104,12 @@ tts_credential = "private-tts-ref"
 			Code  string `json:"code"`
 		} `json:"errors"`
 	}
-	if err := json.NewDecoder(invalidResp.Body).Decode(&invalid); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodPost, "/v1/navivox/voice-profiles/validate", `{"profile_id":"main","voice_profile":{"stt_provider":"bogus","tts_provider":"piper","fallback_voice":"text_only"}}`, http.StatusUnprocessableEntity, &invalid)
 	if invalid.Action != "voice_profiles.validate" || invalid.Valid || len(invalid.Errors) == 0 || invalid.Errors[0].Field != "stt_provider" {
 		t.Fatalf("invalid response = %+v, want field scoped stt error", invalid)
 	}
 
-	validResp := doNavivoxVoiceProfileRequest(t, server.URL, http.MethodPost, "/v1/navivox/voice-profiles/validate", `{"profile_id":"main","voice_profile":{"stt_provider":"local","tts_provider":"piper","voice_id":"amy","language_policy":"match_user_language","fallback_voice":"text_only"}}`)
-	defer validResp.Body.Close()
-	if validResp.StatusCode != http.StatusOK {
-		t.Fatalf("valid validate status = %d, want 200", validResp.StatusCode)
-	}
+	httpc.Raw(http.MethodPost, "/v1/navivox/voice-profiles/validate", `{"profile_id":"main","voice_profile":{"stt_provider":"local","tts_provider":"piper","voice_id":"amy","language_policy":"match_user_language","fallback_voice":"text_only"}}`, http.StatusOK)
 }
 
 func TestNavivoxVoiceTurnResolvesProfileVoiceFallbackEvidence(t *testing.T) {
@@ -164,24 +147,16 @@ fallback_voice = "text_only"
 	inbox := make(chan gateway.InboundEvent, 1)
 	server := httptest.NewServer(ch.Handler(inbox))
 	defer server.Close()
+	httpc := newNavivoxHTTPContract(t, server.URL)
 
 	turn := `{"request_id":"req-profile-voice","session_id":"s-profile-voice","text":"hello by voice","metadata":{"input_kind":"voice","profile_id":"main","server_id":"local","audio_duration_ms":900}}`
-	turnResp := doNavivoxVoiceProfileRequest(t, server.URL, http.MethodPost, "/v1/navivox/turn", turn)
-	defer turnResp.Body.Close()
-	if turnResp.StatusCode != http.StatusAccepted {
-		t.Fatalf("turn status = %d, want 202", turnResp.StatusCode)
-	}
+	httpc.Raw(http.MethodPost, "/v1/navivox/turn", turn, http.StatusAccepted)
 	select {
 	case <-inbox:
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for queued voice turn")
 	}
 
-	getResp := doNavivoxVoiceProfileRequest(t, server.URL, http.MethodGet, "/v1/navivox/run-records/req-profile-voice", "")
-	defer getResp.Body.Close()
-	if getResp.StatusCode != http.StatusOK {
-		t.Fatalf("run-record status = %d, want 200", getResp.StatusCode)
-	}
 	var got struct {
 		Record struct {
 			Voice struct {
@@ -197,38 +172,13 @@ fallback_voice = "text_only"
 			} `json:"voice"`
 		} `json:"run_record"`
 	}
-	if err := json.NewDecoder(getResp.Body).Decode(&got); err != nil {
-		t.Fatal(err)
-	}
+	httpc.JSON(http.MethodGet, "/v1/navivox/run-records/req-profile-voice", "", http.StatusOK, &got)
 	if got.Record.Voice.ServerSTT.Provider != "local" || got.Record.Voice.ServerSTT.Status != "available" {
 		t.Fatalf("server STT evidence = %+v, want local available", got.Record.Voice.ServerSTT)
 	}
 	if got.Record.Voice.TTS.Provider != "text_only" || got.Record.Voice.TTS.Status != "fallback" || got.Record.Voice.TTS.VoiceID != "text_only" {
 		t.Fatalf("TTS evidence = %+v, want text_only fallback", got.Record.Voice.TTS)
 	}
-}
-
-func doNavivoxVoiceProfileRequest(t *testing.T, baseURL, method, path, body string) *http.Response {
-	t.Helper()
-	var reader *strings.Reader
-	if body == "" {
-		reader = strings.NewReader("")
-	} else {
-		reader = strings.NewReader(body)
-	}
-	req, err := http.NewRequest(method, baseURL+path, reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer nvbx_test_token")
-	if body != "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return resp
 }
 
 func stringListContains(values []string, want string) bool {

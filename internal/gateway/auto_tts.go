@@ -75,7 +75,7 @@ func appendAudioDeliveryGuidance(sessionBlock string, enabled bool) string {
 func (m *Manager) formatFinalDeliveryForTurn(ctx context.Context, platform string, f kernel.RenderFrame, sessionKey string, audioRequested bool) (string, []OutboundMedia) {
 	content := PrepareMediaDeliveryContent(FinalAssistantText(f))
 	text := content.Text
-	media := m.appendAutoTTSMedia(ctx, sessionKey, text, content.Media, audioRequested)
+	media := m.appendAutoTTSMedia(ctx, platform, sessionKey, text, content.Media, audioRequested)
 	if strings.TrimSpace(text) == "" && len(media) > 0 {
 		text = "Media attached."
 	}
@@ -93,7 +93,7 @@ func (m *Manager) formatFinalDeliveryPagesForTurn(ctx context.Context, platform 
 	return paginatePlainText(text), media
 }
 
-func (m *Manager) appendAutoTTSMedia(ctx context.Context, sessionKey, text string, media []OutboundMedia, audioRequested bool) []OutboundMedia {
+func (m *Manager) appendAutoTTSMedia(ctx context.Context, platform, sessionKey, text string, media []OutboundMedia, audioRequested bool) []OutboundMedia {
 	if strings.TrimSpace(text) == "" || hasAudioMedia(media) {
 		return media
 	}
@@ -101,6 +101,9 @@ func (m *Manager) appendAutoTTSMedia(ctx context.Context, sessionKey, text strin
 		return media
 	}
 	cfg := m.getTTSConfig(sessionKey)
+	if cfg.Engine == TTSEngineDisabled {
+		return media
+	}
 	if !audioRequested && !cfg.Enabled {
 		return media
 	}
@@ -108,7 +111,20 @@ func (m *Manager) appendAutoTTSMedia(ctx context.Context, sessionKey, text strin
 	if !ok || tool == nil {
 		return media
 	}
-	args, err := json.Marshal(map[string]string{"text": text})
+	toolArgs := map[string]string{
+		"text":     text,
+		"platform": platform,
+	}
+	if cfg.Engine != "" {
+		toolArgs["provider"] = string(cfg.Engine)
+	}
+	if strings.TrimSpace(cfg.Voice) != "" {
+		toolArgs["voice"] = cfg.Voice
+	}
+	if cfg.Speed != "" {
+		toolArgs["speed"] = string(cfg.Speed)
+	}
+	args, err := json.Marshal(toolArgs)
 	if err != nil {
 		return media
 	}

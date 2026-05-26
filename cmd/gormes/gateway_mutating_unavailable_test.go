@@ -133,6 +133,120 @@ func TestGatewayRestartUsesServiceManagerOnLinux(t *testing.T) {
 	}
 }
 
+func TestGatewayRestartServiceManagerTakesOverRecordedRuntimeOwner(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")
+	defer restoreGOOS()
+	runner := &fakeGatewayRestartServiceManager{
+		statuses: []cli.ServiceActiveStatusCheck{
+			{Status: cli.ServiceActiveStatusActive, Raw: "active\n"},
+			{Status: cli.ServiceActiveStatusActive, Raw: "active\n"},
+		},
+	}
+	restoreService := gatewayRestartServiceManagerForTest(t, runner)
+	defer restoreService()
+	store := &fakeGatewayRestartRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					StartTime:    100,
+					Generation:   7,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:            gateway.RuntimeProcessValidationLive,
+					Live:              true,
+					PID:               4242,
+					ExpectedStartTime: 100,
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					StartTime:    100,
+					Generation:   7,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:            gateway.RuntimeProcessValidationLive,
+					Live:              true,
+					PID:               4242,
+					ExpectedStartTime: 100,
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					GatewayState: gateway.GatewayStateStopped,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:  gateway.RuntimeProcessValidationStalePID,
+					Live:    false,
+					PID:     4242,
+					Message: "process is not running",
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          5151,
+					StartTime:    200,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:            gateway.RuntimeProcessValidationLive,
+					Live:              true,
+					PID:               5151,
+					ExpectedStartTime: 200,
+				},
+			},
+		},
+	}
+	restoreStore := gatewayRestartRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayRestartSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+	starts := 0
+	restoreStarter := gatewayRestartStarterForTest(t, func(context.Context, gatewayRestartStartConfig) error {
+		starts++
+		return nil
+	})
+	defer restoreStarter()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "restart", "--timeout=100ms", "--json")
+	if err != nil {
+		t.Fatalf("gateway restart service takeover: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(runner.restarts) != 2 {
+		t.Fatalf("service restarts = %v, want initial restart plus retry after recorded owner stop", runner.restarts)
+	}
+	if len(signals) != 1 || signals[0].pid != 4242 || signals[0].signal != os.Interrupt {
+		t.Fatalf("signals = %+v, want one interrupt for recorded owner pid 4242", signals)
+	}
+	if starts != 0 {
+		t.Fatalf("detached starts = %d, want service-manager takeover without detached fallback", starts)
+	}
+
+	var got gatewayRestartReportJSON
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("gateway restart takeover output must be valid JSON: %v\nstdout=%s", err, stdout)
+	}
+	if got.Action != "restarted" || got.Mode != "service" || got.Manager != "systemd" || got.Service != defaultGatewayServiceName {
+		t.Fatalf("restart takeover json = %+v, want service restarted evidence", got)
+	}
+	if !strings.Contains(got.Message, "stopped previous live runtime pid=4242") {
+		t.Fatalf("restart takeover message = %q, want recorded-owner cleanup evidence", got.Message)
+	}
+}
+
 func TestGatewayRestartServiceManagerUsesTimeoutContext(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")

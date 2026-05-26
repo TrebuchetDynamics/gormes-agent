@@ -214,6 +214,27 @@ func TestTTSSpeedAndCapMatrix(t *testing.T) {
 	}
 }
 
+func TestTTSLocalProviderAliasSelectsAvailableLocalBackend(t *testing.T) {
+	local := &fakeTTSProvider{available: true}
+	edge := &fakeTTSProvider{available: true}
+	output := filepath.Join(t.TempDir(), "local.mp3")
+
+	result := NewTTSRunner(TTSConfig{Provider: "local"}, map[string]TTSProvider{
+		"edge":      edge,
+		"kittentts": local,
+	}).Synthesize(context.Background(), TTSRequest{Text: "hello", OutputPath: output})
+
+	if !result.Success || result.Provider != "kittentts" {
+		t.Fatalf("local alias result = %+v, want kittentts success", result)
+	}
+	if edge.calls != 0 || local.calls != 1 {
+		t.Fatalf("provider calls edge/local = %d/%d, want 0/1", edge.calls, local.calls)
+	}
+	if local.last.Provider != "kittentts" {
+		t.Fatalf("local provider request = %+v, want concrete provider name", local.last)
+	}
+}
+
 func TestTTSLocalProviderLazyDependencyEvidence(t *testing.T) {
 	ctx := context.Background()
 	probes := 0

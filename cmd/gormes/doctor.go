@@ -332,7 +332,9 @@ func buildDoctorCmd() *cobra.Command {
 				reporter.Add(doctor.CheckResult{Name: "gateway", Status: doctor.StatusWarn, Summary: "no channels configured ([telegram], [discord], or [slack])"})
 			} else {
 				if cfg.Telegram.BotToken != "" {
-					if offline {
+					if runtimeWarning, ok := doctorTelegramGatewayRuntimeWarning(cfg.Telegram, runtimeStatus); ok {
+						reporter.Add(runtimeWarning)
+					} else if offline {
 						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram) + " (network validation skipped --offline)"})
 					} else if err := doctorNewTelegramClient(cfg.Telegram.BotToken); err != nil {
 						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Telegram.BotToken)
@@ -863,6 +865,52 @@ func doctorSecretRuntimeStatus(snapshot gormesruntime.SecretRuntimeSnapshot, act
 		Summary: fmt.Sprintf("resolved=%d inactive=%d unavailable=%d", resolved, inactive, unavailable),
 		Items:   items,
 	}
+}
+
+func doctorTelegramGatewayRuntimeWarning(cfg config.TelegramCfg, runtime gateway.RuntimeStatus) (doctor.CheckResult, bool) {
+	if strings.TrimSpace(cfg.BotToken) == "" {
+		return doctor.CheckResult{}, false
+	}
+	if runtime.Kind == "" && runtime.GatewayState == "" && len(runtime.Platforms) == 0 {
+		return doctor.CheckResult{}, false
+	}
+	detail := configuredTelegramGatewayStatusDetail(cfg)
+	if runtime.GatewayState != "" && runtime.GatewayState != gateway.GatewayStateRunning {
+		return doctor.CheckResult{
+			Name:    "gateway/telegram",
+			Status:  doctor.StatusWarn,
+			Summary: fmt.Sprintf("%s; gateway runtime=%s; run `gormes gateway` or `gormes gateway restart` to activate Telegram", detail, runtime.GatewayState),
+		}, true
+	}
+	if runtime.GatewayState != gateway.GatewayStateRunning {
+		return doctor.CheckResult{}, false
+	}
+	platform, ok := runtime.Platforms["telegram"]
+	if !ok {
+		return doctor.CheckResult{
+			Name:    "gateway/telegram",
+			Status:  doctor.StatusWarn,
+			Summary: detail + "; live gateway has not registered telegram; run `gormes gateway restart` to load new channel config",
+		}, true
+	}
+	if platform.State == gateway.PlatformStateRunning {
+		return doctor.CheckResult{}, false
+	}
+	note := "state=" + string(platform.State)
+	if strings.TrimSpace(platform.ErrorMessage) != "" {
+		note += " error=" + platform.ErrorMessage
+	}
+	items := []doctor.ItemInfo{{
+		Name:   "runtime",
+		Status: doctor.StatusWarn,
+		Note:   note,
+	}}
+	return doctor.CheckResult{
+		Name:    "gateway/telegram",
+		Status:  doctor.StatusWarn,
+		Summary: fmt.Sprintf("%s; live gateway telegram lifecycle=%s; run `gormes gateway restart` to activate channel", detail, platform.State),
+		Items:   items,
+	}, true
 }
 
 func doctorSlackGatewayConfig(cfg config.Config, runtime gateway.RuntimeStatus) doctor.CheckResult {
