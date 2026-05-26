@@ -1459,9 +1459,9 @@
     "item": {
       "name": "Navivox natural-language profile seed Flutter UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add the sibling Navivox Flutter profile seed UI that calls the Gormes backend profile-seed API, offers Create from seed in the chat/profile flow, renders the returned editable draft fields, requires explicit workspace path entry or confirmation, applies only through the backend, and then shows the new profile as a contact. The Flutter app must not write TOML or infer/grant workspace roots on its own.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1503,12 +1503,15 @@
         "After apply, the newly seeded profile appears in the profile/contact list and can be selected for a first chat turn.",
         "Provider-unconfigured backend responses render generation_source=template and redacted evidence without blocking first-run use."
       ],
-      "note": "Planner split 2026-05-23 iteration 61: this child owns only the sibling Flutter UI; the in-repo Gormes backend is tracked by `Navivox natural-language profile seed backend API`.",
+      "note": "Planner split 2026-05-23 iteration 61: this child owns only the sibling Flutter UI; the in-repo Gormes backend is tracked by `Navivox natural-language profile seed backend API`. Complete 2026-05-25: wired the sibling Navivox Flutter Create from seed flow through NavivoxChannel.profileSeed/GatewayNavivoxChannel.profileSeed, added an operator-facing seed draft/apply bottom sheet, rendered editable draft fields plus generation_source/evidence/provider state/workspace suggestions, required explicit workspace path entry or no-workspace confirmation before apply, applied only through the Gormes backend API, and updated the test channel to surface the returned contact. Validation: `cd ../navivox-app && flutter test test/features/profiles test/features/chat/profile_contact_list_test.dart`; `go run ./cmd/progress validate`; `git diff --check`.",
       "write_scope": [
+        "../navivox-app/lib/core/channel/navivox_channel.dart",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
         "../navivox-app/lib/features/chat/",
         "../navivox-app/lib/features/profiles/",
         "../navivox-app/test/features/chat/",
         "../navivox-app/test/features/profiles/",
+        "../navivox-app/test/support/test_navivox_channel.dart",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
@@ -1629,7 +1632,8 @@
         "docs/content/building-gormes/architecture_plan/progress.json:Navivox structured tool event cards backend API",
         "../navivox-app/lib/core/protocol/navivox_event.dart:NavivoxToolCall",
         "../navivox-app/lib/core/channel/gateway_navivox_channel.dart:_upsertToolCall",
-        "../navivox-app/lib/features/chat/widgets/simple_chat_adapter.dart:_ToolCallBody"
+        "../navivox-app/lib/features/chat/widgets/transcript_bubble.dart:_ToolCallBody",
+        "../navivox-app/lib/features/chat/transcript_tool_call_presentation.dart:TranscriptToolCallPresentation"
       ],
       "ready_when": [
         "`Navivox structured tool event cards backend API` is complete and exposes started/updated/finished backend fixtures.",
@@ -1649,7 +1653,7 @@
         "Malformed or oversized event metadata is truncated/redacted in UI fixtures and never becomes assistant prose.",
         "Existing chat fixtures remain green for normal assistant streaming and final messages."
       ],
-      "note": "planner_split: 2026-05-23 iteration 66; sibling Flutter child row, intentionally out of repo-only scope unless Juan expands scope.",
+      "note": "planner_split: 2026-05-23 iteration 66; sibling Flutter child row, intentionally out of repo-only scope unless Juan expands scope. source_ref repair 2026-05-25: current Navivox chat tool-card renderer lives in transcript_bubble.dart and transcript_tool_call_presentation.dart; historical simple_chat_adapter.dart source ref is obsolete.",
       "write_scope": [
         "../navivox-app/lib/core/gateway/navivox_gateway_protocol.dart",
         "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
@@ -1657,7 +1661,10 @@
         "../navivox-app/lib/features/chat/widgets/simple_chat_adapter.dart",
         "../navivox-app/test/core/channel/gateway_navivox_channel_test.dart",
         "../navivox-app/test/features/chat/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "../navivox-app/lib/features/chat/transcript_tool_call_presentation.dart",
+        "../navivox-app/test/features/chat/transcript_tool_call_presentation_test.dart",
+        "../navivox-app/test/features/chat/tool_artifacts_render_test.dart"
       ],
       "test_commands": [
         "sh -c 'cd ../navivox-app && flutter test test/core/channel/gateway_navivox_channel_test.dart test/features/chat'",
@@ -1769,9 +1776,9 @@
     "item": {
       "name": "Navivox safe config admin Flutter UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Render the Navivox config admin backend contract in the sibling Flutter app: schema-driven controls, redacted current values, diff/validate/apply confirmation, secret set/rotate/delete/test actions, and reload-or-pending-restart status. Flutter consumes backend schema and actions only; it never edits config.toml, .env, or raw secret values directly.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -1812,16 +1819,20 @@
         "Secret controls render set/rotate/delete/test actions and status/source evidence without reading or storing raw secret values.",
         "Apply success renders reload_applied or pending_restart evidence from the backend."
       ],
-      "note": "planner_split: 2026-05-23 iteration 63 separated sibling Flutter controls from the in-repo config-admin backend API row.",
+      "note": "planner_split: 2026-05-23 iteration 63 separated sibling Flutter controls from the in-repo config-admin backend API row. Complete 2026-05-25: wired the sibling Navivox Flutter config screen through typed config-admin gateway client/channel methods for schema/get/diff/validate/apply, including capability-gated loading, backend field-error rendering, non-secret before/after diff confirmation, reload_applied/pending_restart result evidence, and schema-provided secret status/source/action metadata. Flutter still never edits config.toml/.env directly; raw current secrets are not kept in state or rendered, and write-only secret changes only travel to the authenticated backend apply route. Validation: RED compile failures for missing config-admin client/channel/UI symbols; `cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/config`; `cd ../navivox-app && flutter analyze`.",
       "write_scope": [
         "../navivox-app/lib/core/channel/navivox_channel.dart",
         "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
         "../navivox-app/lib/features/config/",
         "../navivox-app/test/features/config/",
-        "docs/content/building-gormes/architecture_plan/progress.json"
+        "docs/content/building-gormes/architecture_plan/progress.json",
+        "../navivox-app/lib/core/gateway/navivox_gateway_client.dart",
+        "../navivox-app/lib/core/gateway/navivox_gateway_protocol.dart",
+        "../navivox-app/test/core/gateway/navivox_gateway_protocol_test.dart",
+        "../navivox-app/test/support/test_navivox_channel.dart"
       ],
       "test_commands": [
-        "sh -c 'cd ../navivox-app && flutter test test/features/config'",
+        "sh -c 'cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/config'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
@@ -2097,9 +2108,9 @@
     "item": {
       "name": "Navivox per-profile BYO voice profiles Flutter UI",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add the sibling Navivox Flutter profile/config controls that consume the backend voice-profile contract without writing config files or storing raw secrets.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "navivox",
@@ -2128,16 +2139,22 @@
         "Voice provider fallback evidence from run records is visible after a fake or real voice turn.",
         "Text chat remains usable when voice providers are unavailable."
       ],
-      "note": "planner_split: 2026-05-23 iteration 65; sibling UI child row, intentionally out of repo-only scope unless Juan expands scope.",
+      "note": "planner_split: 2026-05-23 iteration 65; sibling UI child row, intentionally out of repo-only scope unless Juan expands scope. Complete 2026-05-25: wired the sibling Navivox Flutter voice-profile UI through typed NavivoxGatewayClient/NavivoxChannel read/validate/run-record methods, added a profile-scoped Config voice-profile card with editable STT/TTS/voice/language/fallback fields, write-only credential controls routed to backend safe config/admin calls, and run-record STT/TTS fallback evidence rendering. Secrets remain absent from backend validate payloads and display surfaces; invalid provider validation blocks config dispatch while keeping text chat available. Validation: `cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/profiles test/features/config test/features/voice`; `go run ./cmd/progress validate`; `git diff --check`.",
       "write_scope": [
+        "../navivox-app/lib/core/channel/navivox_channel.dart",
+        "../navivox-app/lib/core/channel/gateway_navivox_channel.dart",
+        "../navivox-app/lib/core/gateway/navivox_gateway_client.dart",
+        "../navivox-app/lib/core/gateway/navivox_gateway_protocol.dart",
         "../navivox-app/lib/features/profiles/",
         "../navivox-app/lib/features/config/",
+        "../navivox-app/test/core/gateway/",
         "../navivox-app/test/features/profiles/",
         "../navivox-app/test/features/config/",
+        "../navivox-app/test/support/test_navivox_channel.dart",
         "docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "sh -c 'cd ../navivox-app && flutter test test/features/profiles test/features/config test/features/voice'",
+        "sh -c 'cd ../navivox-app && flutter test test/core/gateway/navivox_gateway_protocol_test.dart test/features/profiles test/features/config test/features/voice'",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],

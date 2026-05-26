@@ -25,7 +25,7 @@ Generated from the single logical backlog. These pages are scoped review views; 
 | [Landing](landing/) | 4 | 4 | 0 | 0 | `P1`: 2 · `P2`: 2 |
 | [Learning Loop](learning-loop/) | 6 | 6 | 0 | 0 | `P1`: 3 · `P2`: 2 · `P3`: 1 |
 | [Memory](memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
-| [Navivox](navivox/) | 28 | 23 | 0 | 5 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
+| [Navivox](navivox/) | 28 | 26 | 0 | 2 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
 | [Planner](planner/) | 10 | 10 | 0 | 0 | `P0`: 1 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Profiles](profiles/) | 24 | 24 | 0 | 0 | `P0`: 2 · `P1`: 12 · `P2`: 4 · `unset`: 6 |
 | [Progress](progress/) | 26 | 26 | 0 | 0 | `P1`: 11 · `P2`: 15 |

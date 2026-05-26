@@ -1627,15 +1627,15 @@ classification and row-backed implementation queue.
 - [x] `navivox` Navivox continuous voice command mode
 - [x] `navivox` Navivox Telegram-inspired chat polish
 - [x] `navivox` Navivox natural-language profile seed backend API
-- [ ] `navivox` Navivox natural-language profile seed Flutter UI
+- [x] `navivox` Navivox natural-language profile seed Flutter UI
 - [x] `navivox` Navivox structured tool event cards backend API
 - [ ] `navivox` Navivox structured tool event cards Flutter UI
 - [x] `navivox` Navivox safe config admin backend API
-- [ ] `navivox` Navivox safe config admin Flutter UI
+- [x] `navivox` Navivox safe config admin Flutter UI
 - [x] `navivox` Navivox voice run records backend API
 - [ ] `navivox` Navivox voice run records Flutter inspection UI
 - [x] `navivox` Navivox per-profile BYO voice profiles backend API
-- [ ] `navivox` Navivox per-profile BYO voice profiles Flutter UI
+- [x] `navivox` Navivox per-profile BYO voice profiles Flutter UI
 
 ### 9.G — External Issue Radar Regression Guards ✅
 

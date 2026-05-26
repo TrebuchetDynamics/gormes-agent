@@ -8,7 +8,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module:** `navivox`
 **Rows:** 28
-**Status counts:** `complete`: 23 · `in_progress`: 0 · `planned`: 5
+**Status counts:** `complete`: 26 · `in_progress`: 0 · `planned`: 2
 **Priority counts:** `P0`: 3 · `P1`: 19 · `unset`: 6
 
 ## Phase 2 — The Gateway
@@ -60,12 +60,12 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `navivox` | Navivox continuous voice command mode |
 | `complete` | `P1` | `navivox` | Navivox Telegram-inspired chat polish |
 | `complete` | `P1` | `navivox` | Navivox natural-language profile seed backend API |
-| `planned` | `P1` | `navivox` | Navivox natural-language profile seed Flutter UI |
+| `complete` | `P1` | `navivox` | Navivox natural-language profile seed Flutter UI |
 | `complete` | `P1` | `navivox` | Navivox structured tool event cards backend API |
 | `planned` | `P1` | `navivox` | Navivox structured tool event cards Flutter UI |
 | `complete` | `P1` | `navivox` | Navivox safe config admin backend API |
-| `planned` | `P1` | `navivox` | Navivox safe config admin Flutter UI |
+| `complete` | `P1` | `navivox` | Navivox safe config admin Flutter UI |
 | `complete` | `P1` | `navivox` | Navivox voice run records backend API |
 | `planned` | `P1` | `navivox` | Navivox voice run records Flutter inspection UI |
 | `complete` | `P1` | `navivox` | Navivox per-profile BYO voice profiles backend API |
-| `planned` | `P1` | `navivox` | Navivox per-profile BYO voice profiles Flutter UI |
+| `complete` | `P1` | `navivox` | Navivox per-profile BYO voice profiles Flutter UI |
