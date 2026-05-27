@@ -45,15 +45,24 @@ func NewHTTPClientWithProvider(baseURL, apiKey, provider string) Client {
 	// Clone the default transport and enforce the header-phase budget via
 	// ResponseHeaderTimeout. This caps time-to-first-byte WITHOUT affecting
 	// the streaming body read afterwards — unlike wrapping the request
-	// context, which would cancel body reads mid-stream.
+	// context, which would cancel body reads mid-stream. Keep the budget
+	// provider-friendly because routers such as OpenRouter can spend more than
+	// a few seconds selecting an upstream before the first SSE byte arrives.
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.ResponseHeaderTimeout = 5 * time.Second
+	transport.ResponseHeaderTimeout = defaultProviderResponseHeaderTimeout(provider, baseURL)
 	return &httpClient{
 		baseURL:  baseURL,
 		apiKey:   apiKey,
 		provider: strings.TrimSpace(provider),
 		http:     &http.Client{Timeout: 0, Transport: transport},
 	}
+}
+
+func defaultProviderResponseHeaderTimeout(provider, baseURL string) time.Duration {
+	if IsOpenRouterRoute(provider, baseURL) {
+		return 60 * time.Second
+	}
+	return 30 * time.Second
 }
 
 func (c *httpClient) ProviderStatus() ProviderStatus {
