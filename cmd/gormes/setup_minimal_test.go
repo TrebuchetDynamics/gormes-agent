@@ -1672,7 +1672,7 @@ func TestSetupHermesParitySectionsAreImplementedNonInteractive(t *testing.T) {
 		section string
 		want    []string
 	}{
-		{section: "tts", want: []string{"Text-to-Speech Provider", "Edge TTS", "OpenAI TTS", "Keep current"}},
+		{section: "tts", want: []string{"Text-to-Speech Provider", "Default provider: Edge TTS", "Default voice/model", "Built-in/default TTS: Edge TTS", "test a voice", "OpenAI TTS", "Keep current"}},
 		{section: "terminal", want: []string{"Terminal Backend", "Local", "Docker", "Modal", "SSH", "Daytona", "Singularity/Apptainer", "Keep current"}},
 		{section: "gateway", want: []string{"Messaging Platforms", "Telegram", "Discord", "Slack", "gormes gateway"}},
 		{section: "tools", want: []string{"Tools for CLI", "Web Search & Scraping", "Browser Automation", "Terminal & Processes", "File Operations"}},
@@ -1693,6 +1693,25 @@ func TestSetupHermesParitySectionsAreImplementedNonInteractive(t *testing.T) {
 				t.Fatalf("implemented section returned unsupported evidence:\nstdout=%s\nstderr=%s", stdout, stderr)
 			}
 		})
+	}
+}
+
+func TestSetupTTSInteractivePersistsListedProvidersWithoutRowBackedError(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "minimax\nn\n", "tts")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{"Default provider: Edge TTS", "Built-in/default TTS: Edge TTS", "Selected provider: MiniMax TTS", "TTS provider set to: MiniMax TTS"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout+stderr, "setup_tts_provider_row_backed") || strings.Contains(stdout+stderr, "Robot") {
+		t.Fatalf("TTS setup leaked confusing row-backed/Robot error:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 

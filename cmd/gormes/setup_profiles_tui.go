@@ -913,7 +913,7 @@ func (m setupProfilesModel) View() string {
 	if profile.Root != "" {
 		fmt.Fprintf(&b, "Root: %s\n", setupRedactedProfileRoot(profile.Root))
 	}
-	fmt.Fprintf(&b, "Workspaces: %s\n", setupProfilesListOrEmpty(profile.Workspaces))
+	fmt.Fprintf(&b, "Workspaces: %s\n", setupProfilesWorkspaceListOrEmpty(profile.Workspaces))
 	fmt.Fprintf(&b, "Channels: %s\n", setupProfilesListOrEmpty(profile.Channels))
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Details")
@@ -964,7 +964,7 @@ func (m setupProfilesModel) controlCenterView() string {
 		return m.controlCenterMigrationView()
 	}
 	var b strings.Builder
-	fmt.Fprintln(&b, "Setup profiles")
+	fmt.Fprintln(&b, "Profile Control Center (Setup profiles)")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Profiles")
 	for i, profile := range m.state.Profiles {
@@ -979,7 +979,7 @@ func (m setupProfilesModel) controlCenterView() string {
 	fmt.Fprintln(&b, "Selected profile")
 	fmt.Fprintf(&b, "ID: %s\n", profile.Name)
 	fmt.Fprintf(&b, "Display name: %s\n", setupProfilesDisplayName(profile))
-	fmt.Fprintf(&b, "Workspaces: %s\n", setupProfilesListOrEmpty(profile.Workspaces))
+	fmt.Fprintf(&b, "Workspaces: %s\n", setupProfilesWorkspaceListOrEmpty(profile.Workspaces))
 	fmt.Fprintf(&b, "Channels: %s\n", setupProfilesChannelsListOrEmpty(profile.ChannelDetails, profile.Channels))
 	fmt.Fprintf(&b, "Providers: %s\n", setupProfilesProvidersListOrEmpty(profile.Providers))
 	for _, provider := range profile.Providers {
@@ -987,6 +987,10 @@ func (m setupProfilesModel) controlCenterView() string {
 			fmt.Fprintf(&b, "provider models %s: %s\n", provider.ID, strings.Join(provider.Models, ", "))
 		}
 	}
+	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, "Help")
+	fmt.Fprintln(&b, "  Here you can create multiple Gormes profiles. Each profile is an agent with its own display name, workspace list, and channels.")
+	fmt.Fprintln(&b, "  Select a profile to edit its Display name, add workspaces, choose the primary workspace, or connect channels like Telegram and WhatsApp.")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Details")
 	fmt.Fprintln(&b, "  draft changes stay in memory until Apply")
@@ -1011,6 +1015,7 @@ func (m setupProfilesModel) controlCenterView() string {
 	fmt.Fprintln(&b, "c edit channels")
 	fmt.Fprintln(&b, "p assign provider credential/model")
 	fmt.Fprintln(&b, "t assign channel credential/policy")
+	fmt.Fprintln(&b, "Enter save selected profile")
 	if m.state.MigrationAvailable {
 		fmt.Fprintln(&b, "m stage legacy migration")
 	}
@@ -1023,7 +1028,9 @@ func (m setupProfilesModel) controlCenterView() string {
 	case setupProfilesModeDisplayName:
 		fmt.Fprintf(&b, "\nDisplay name: %s", m.input)
 	case setupProfilesModeWorkspaces:
-		fmt.Fprintf(&b, "\nWorkspace directories: %s", m.input)
+		fmt.Fprintln(&b, "\nWorkspace editor")
+		fmt.Fprintln(&b, "A workspace is a project folder this profile can use. Enter one or more paths separated by commas; the first path is the primary workspace.")
+		fmt.Fprintf(&b, "Workspace directories: %s", m.input)
 	case setupProfilesModeProviderCredential:
 		fmt.Fprintf(&b, "\nProvider credential/model provider|credential_id|default_model|allowed_models: %s", m.input)
 	case setupProfilesModeChannelCredential:
@@ -1048,7 +1055,7 @@ func (m setupProfilesModel) controlCenterView() string {
 
 func (m setupProfilesModel) controlCenterMigrationView() string {
 	var b strings.Builder
-	fmt.Fprintln(&b, "Setup profiles")
+	fmt.Fprintln(&b, "Profile Control Center")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Migration preview")
 	for _, line := range m.state.MigrationPreviewLines {
@@ -1078,10 +1085,14 @@ func setupProfilesDisplayName(profile setupProfileView) string {
 	if name != "" {
 		return name
 	}
-	if strings.TrimSpace(profile.Name) == "" {
+	switch strings.ToLower(strings.TrimSpace(profile.Name)) {
+	case "default", "main", "gormes":
+		return "Gormes"
+	case "":
 		return "(unnamed)"
+	default:
+		return strings.TrimSpace(profile.Name)
 	}
-	return "(unnamed)"
 }
 
 func parseSetupProfilesNewProfileInput(value string) (string, string) {
@@ -1373,6 +1384,27 @@ func setupProfilesListOrEmpty(values []string) string {
 		return "(none)"
 	}
 	return strings.Join(values, ", ")
+}
+
+func setupProfilesWorkspaceListOrEmpty(values []string) string {
+	if len(values) == 0 {
+		return "(none)"
+	}
+	out := make([]string, 0, len(values))
+	for i, value := range values {
+		label := strings.TrimSpace(value)
+		if label == "" {
+			continue
+		}
+		if i == 0 {
+			label += " (primary)"
+		}
+		out = append(out, label)
+	}
+	if len(out) == 0 {
+		return "(none)"
+	}
+	return strings.Join(out, ", ")
 }
 
 func setupProfilesChannelsListOrEmpty(channelDetails []setupChannelView, fallback []string) string {

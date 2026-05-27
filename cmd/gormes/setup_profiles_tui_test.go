@@ -42,7 +42,7 @@ func TestSetupProfilesTUIRendersManagerSurface(t *testing.T) {
 		"Profiles",
 		"Selected profile",
 		"default",
-		"/srv/alpha",
+		"/srv/alpha (primary)",
 		"telegram",
 		"n add profile",
 		"w edit workspaces",
@@ -53,6 +53,38 @@ func TestSetupProfilesTUIRendersManagerSurface(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Fatalf("profile TUI view missing %q:\n%s", want, view)
 		}
+	}
+}
+
+func TestSetupProfilesControlCenterShowsDefaultDisplayNameAndHelp(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Profiles: []setupProfileView{{
+			Name:       "main",
+			Workspaces: []string{"/srv/gormes", "/srv/salma"},
+			Channels:   []string{"telegram", "whatsapp"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 50})
+	m = updated.(setupProfilesModel)
+
+	view := m.View()
+	for _, want := range []string{
+		"Profile Control Center",
+		"main — Gormes",
+		"Display name: Gormes",
+		"/srv/gormes (primary)",
+		"Here you can create multiple Gormes profiles",
+		"Each profile is an agent",
+		"Display name",
+		"Telegram and WhatsApp",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("control center view missing %q:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "Profile services") {
+		t.Fatalf("control center view used confusing Profile services wording:\n%s", view)
 	}
 }
 

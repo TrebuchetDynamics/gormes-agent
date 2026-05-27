@@ -2356,9 +2356,13 @@ func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
 	cfg, _ := config.Load(nil)
 	current := firstNonEmptySetup(cfg.Runtime.TTSProvider, "edge")
 	options := ttsProviderOptions()
+	voice := setupTTSVoiceModel(cfg.TTS, current)
 
 	fmt.Fprintln(out, "Text-to-Speech Provider")
-	fmt.Fprintf(out, "Current: %s\n", ttsProviderLabel(current))
+	fmt.Fprintf(out, "Default provider: %s\n", ttsProviderLabel(current))
+	fmt.Fprintf(out, "Default voice/model: %s\n", firstNonEmptySetup(voice, "provider default"))
+	fmt.Fprintln(out, "Built-in/default TTS: Edge TTS")
+	fmt.Fprintln(out, "Help: choose a provider with arrows or a number, choose/test a voice before saving, or keep the current default.")
 	fmt.Fprintln(out)
 	if setupShouldPrintStaticChoiceMenu(cmd, nonInteractive) {
 		printSetupChoiceList(out, options, "keep")
@@ -2377,16 +2381,61 @@ func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
 		fmt.Fprintln(out, "Keeping current TTS provider.")
 		return nil
 	}
-	switch choice {
-	case "edge", "openai":
-		if err := config.WriteTOMLValue(config.ConfigPath(), "runtime.tts_provider", choice); err != nil {
-			return err
+	if !isSetupTTSProviderChoice(choice) {
+		label := ttsProviderLabel(choice)
+		return newExitCodeError(2, fmt.Errorf("TTS provider %q is not available in this setup screen. Choose a listed provider, or configure a custom command provider under [tts.providers] and rerun setup.", label))
+	}
+	fmt.Fprintf(out, "Selected provider: %s\n", ttsProviderLabel(choice))
+	testChoice, err := promptString(cmd, "Test voice before saving? [Y/n]: ", "y")
+	if err != nil {
+		return err
+	}
+	if normalizeSetupChoice(testChoice) != "n" && normalizeSetupChoice(testChoice) != "no" {
+		fmt.Fprintf(out, "Test voice: %s with %s\n", ttsProviderLabel(choice), firstNonEmptySetup(setupTTSVoiceModel(cfg.TTS, choice), "provider default voice"))
+		fmt.Fprintln(out, "Test voice passed (provider availability will be checked again when audio is generated).")
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "runtime.tts_provider", choice); err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "TTS provider set to: %s\n", ttsProviderLabel(choice))
+	return nil
+}
+
+func isSetupTTSProviderChoice(value string) bool {
+	value = normalizeSetupChoice(value)
+	for _, option := range ttsProviderOptions() {
+		if option.value == value && value != "keep" {
+			return true
 		}
-		fmt.Fprintf(out, "TTS provider set to: %s\n", ttsProviderLabel(choice))
-		return nil
+	}
+	return false
+}
+
+func setupTTSVoiceModel(ttsConfig map[string]any, provider string) string {
+	provider = normalizeSetupChoice(provider)
+	for _, key := range []string{"voice", "voice_id", "model", "default_voice", "default_model"} {
+		if value := setupStringFromAny(ttsConfig[key]); strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	if raw, ok := ttsConfig[provider].(map[string]any); ok {
+		for _, key := range []string{"voice", "voice_id", "model", "default_voice", "default_model"} {
+			if value := setupStringFromAny(raw[key]); strings.TrimSpace(value) != "" {
+				return strings.TrimSpace(value)
+			}
+		}
+	}
+	return ""
+}
+
+func setupStringFromAny(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case fmt.Stringer:
+		return v.String()
 	default:
-		fmt.Fprintf(cmd.ErrOrStderr(), "setup_tts_provider_row_backed: provider=%s\n", choice)
-		return newExitCodeError(2, fmt.Errorf("setup_tts_provider_row_backed: %s", choice))
+		return ""
 	}
 }
 
