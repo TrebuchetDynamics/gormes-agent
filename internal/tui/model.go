@@ -339,7 +339,8 @@ type Model struct {
 
 	editor textarea.Model
 
-	inputHistory *HermesHistory
+	inputHistory    *HermesHistory
+	slashCompletion slashCompletionState
 
 	// frame is the latest RenderFrame received from the kernel. View() renders
 	// this snapshot; Update() replaces it on every frameMsg.

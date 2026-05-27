@@ -176,7 +176,7 @@ func TestRenderSlashCompletionMenu_Subcommands(t *testing.T) {
 
 func TestRenderSlashCompletionMenu_SearchListChrome(t *testing.T) {
 	got := renderSlashCompletionMenuWithSkin("/sta", 52, BuiltinSkins()["poseidon"])
-	for _, want := range []string{"Search /sta", "❯", "/status", "type to search", "Enter run"} {
+	for _, want := range []string{"Search /sta", "❯", "/status", "↑/↓ select", "Enter complete"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("search completion menu missing %q:\n%s", want, got)
 		}

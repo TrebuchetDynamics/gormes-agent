@@ -37,6 +37,26 @@ type SlashCompletion struct {
 	Available bool
 }
 
+type slashCompletionState struct {
+	key          string
+	index        int
+	dismissedFor string
+}
+
+type slashCompletionMenu struct {
+	request     TUICompletionRequest
+	completions []SlashCompletion
+	total       int
+	key         string
+}
+
+type slashCompletionAcceptTrigger int
+
+const (
+	slashCompletionAcceptEnter slashCompletionAcceptTrigger = iota
+	slashCompletionAcceptTab
+)
+
 // HermesSlashCommandCompletions returns the slash-command completions a Hermes
 // prompt_toolkit completer would surface for the given editor buffer text. The
 // helper is pure, deterministic, and case-insensitive on the typed prefix.
@@ -225,6 +245,44 @@ func HermesSlashSubcommandCompletions(input string) []SlashCompletion {
 	return out
 }
 
+func (m Model) renderActiveSlashCompletionMenu(input string) string {
+	if m.slashCompletion.dismissedFor == input {
+		return ""
+	}
+	menu, ok := slashCompletionMenuForInput(input, m.width, m.skillSlashCommands, m.promptTemplates)
+	if !ok {
+		return ""
+	}
+	selected := 0
+	if m.slashCompletion.key == menu.key {
+		selected = clampSlashCompletionIndex(m.slashCompletion.index, len(menu.completions))
+	}
+	return renderSlashCompletionMenuWithDynamicSelected(input, m.width, m.currentSkin(), m.skillSlashCommands, m.promptTemplates, selected)
+}
+
+func (m *Model) activeSlashCompletionMenu() (slashCompletionMenu, bool) {
+	input := m.editor.Value()
+	if m.slashCompletion.dismissedFor == input {
+		return slashCompletionMenu{}, false
+	}
+	return slashCompletionMenuForInput(input, m.width, m.skillSlashCommands, m.promptTemplates)
+}
+
+func (m *Model) ensureSlashCompletionSelection(menu slashCompletionMenu) int {
+	if m.slashCompletion.key != menu.key {
+		m.slashCompletion.key = menu.key
+		m.slashCompletion.index = 0
+	}
+	m.slashCompletion.index = clampSlashCompletionIndex(m.slashCompletion.index, len(menu.completions))
+	return m.slashCompletion.index
+}
+
+func (m *Model) resetSlashCompletionDismissalForInput(input string) {
+	if m.slashCompletion.dismissedFor != "" && m.slashCompletion.dismissedFor != input {
+		m.slashCompletion.dismissedFor = ""
+	}
+}
+
 func renderSlashCompletionMenu(input string, width int) string {
 	return renderSlashCompletionMenuWithSkin(input, width, DefaultHermesSkin())
 }
@@ -238,28 +296,22 @@ func renderSlashCompletionMenuWithTemplates(input string, width int, skin Hermes
 }
 
 func renderSlashCompletionMenuWithDynamic(input string, width int, skin HermesSkin, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) string {
-	req, ok := CompletionRequestForInput(input)
-	if !ok || req.Method != TUICompletionSlash {
+	return renderSlashCompletionMenuWithDynamicSelected(input, width, skin, commands, catalog, 0)
+}
+
+func renderSlashCompletionMenuWithDynamicSelected(input string, width int, skin HermesSkin, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog, selected int) string {
+	menu, ok := slashCompletionMenuForInput(input, width, commands, catalog)
+	if !ok {
 		return ""
 	}
-	completions := HermesSlashSubcommandCompletions(input)
-	if len(completions) == 0 {
-		completions = SlashCompletionsWithDynamic(input, commands, catalog)
-	}
-	if len(completions) == 0 {
-		return ""
-	}
-	limit := len(completions)
-	if limit > slashCompletionVisibleLimit(width) {
-		limit = slashCompletionVisibleLimit(width)
-	}
+	selected = clampSlashCompletionIndex(selected, len(menu.completions))
 	styles := SkinStylesFor(skin)
 	bodyWidth := width - 4
 	if bodyWidth < 20 {
 		bodyWidth = 20
 	}
 	nameW := 0
-	for _, c := range completions[:limit] {
+	for _, c := range menu.completions {
 		display := slashCompletionDisplay(c)
 		if w := len([]rune(display)); w > nameW {
 			nameW = w
@@ -275,16 +327,16 @@ func renderSlashCompletionMenuWithDynamic(input string, width int, skin HermesSk
 	if descW < 8 {
 		descW = 8
 	}
-	lines := make([]string, 0, limit+3)
-	query := strings.TrimSpace(req.Text)
+	lines := make([]string, 0, len(menu.completions)+3)
+	query := strings.TrimSpace(menu.request.Text)
 	if query == "" {
 		query = input
 	}
 	lines = append(lines, styles.Accent.Render(truncateEllipsis("╭─ Search "+query, bodyWidth)))
-	for idx, c := range completions[:limit] {
+	for idx, c := range menu.completions {
 		marker := "  "
 		rowStyle := styles.Normal
-		if idx == 0 {
+		if idx == selected {
 			marker = "❯ "
 			rowStyle = styles.Selected
 		}
@@ -306,12 +358,58 @@ func renderSlashCompletionMenuWithDynamic(input string, width int, skin HermesSk
 		}
 		lines = append(lines, line)
 	}
-	if extra := len(completions) - limit; extra > 0 {
+	if extra := menu.total - len(menu.completions); extra > 0 {
 		lines = append(lines, styles.Dim.Render(fmt.Sprintf("│ … +%d more matches", extra)))
 	}
-	footer := "╰─ type to search · Enter run"
+	footer := "╰─ ↑/↓ select · Enter complete · Esc close"
 	lines = append(lines, styles.Dim.Render(truncateEllipsis(footer, bodyWidth)))
 	return strings.Join(lines, "\n")
+}
+
+func slashCompletionMenuForInput(input string, width int, commands []skills.SkillSlashCommand, catalog prompttemplates.Catalog) (slashCompletionMenu, bool) {
+	req, ok := CompletionRequestForInput(input)
+	if !ok || req.Method != TUICompletionSlash {
+		return slashCompletionMenu{}, false
+	}
+	completions := HermesSlashSubcommandCompletions(input)
+	if len(completions) == 0 {
+		completions = SlashCompletionsWithDynamic(input, commands, catalog)
+	}
+	if len(completions) == 0 {
+		return slashCompletionMenu{}, false
+	}
+	limit := len(completions)
+	if visible := slashCompletionVisibleLimit(width); limit > visible {
+		limit = visible
+	}
+	visible := append([]SlashCompletion(nil), completions[:limit]...)
+	return slashCompletionMenu{
+		request:     req,
+		completions: visible,
+		total:       len(completions),
+		key:         slashCompletionCandidateKey(req, visible),
+	}, true
+}
+
+func slashCompletionCandidateKey(req TUICompletionRequest, completions []SlashCompletion) string {
+	var b strings.Builder
+	b.WriteString(string(req.Method))
+	b.WriteByte('|')
+	for _, c := range completions {
+		b.WriteString(c.Name)
+		b.WriteByte('\x00')
+		b.WriteString(c.Display)
+		b.WriteByte('\x00')
+		b.WriteString(c.ArgumentHint)
+		b.WriteByte('\x00')
+		if c.Available {
+			b.WriteByte('1')
+		} else {
+			b.WriteByte('0')
+		}
+		b.WriteByte('|')
+	}
+	return b.String()
 }
 
 func slashCompletionVisibleLimit(width int) int {
@@ -323,6 +421,118 @@ func slashCompletionVisibleLimit(width int) int {
 	default:
 		return 8
 	}
+}
+
+func clampSlashCompletionIndex(index, count int) int {
+	if count <= 0 || index < 0 {
+		return 0
+	}
+	if index >= count {
+		return count - 1
+	}
+	return index
+}
+
+func wrapSlashCompletionIndex(index, delta, count int) int {
+	if count <= 0 {
+		return 0
+	}
+	return (index + delta + count) % count
+}
+
+func slashCompletionAcceptedText(input string, completion SlashCompletion, trigger slashCompletionAcceptTrigger) (string, bool) {
+	name := strings.TrimSpace(strings.TrimPrefix(completion.Name, "/"))
+	if name == "" {
+		return input, false
+	}
+	if base, ok := slashCompletionSubcommandBase(input); ok {
+		next := base + " " + name
+		return next, next != input
+	}
+
+	next := "/" + name
+	exact := strings.TrimSpace(input) == next
+	if trigger == slashCompletionAcceptEnter && exact {
+		return input, false
+	}
+	if slashCompletionShouldAppendSpace(completion) && (trigger == slashCompletionAcceptTab || !exact) {
+		next += " "
+	}
+	return next, next != input
+}
+
+func slashCompletionSubcommandBase(input string) (string, bool) {
+	parts := strings.SplitN(input, " ", 2)
+	if len(parts) != 2 {
+		return "", false
+	}
+	policy, ok := cli.ResolveCommandPolicy(parts[0])
+	if !ok || len(policy.Subcommands) == 0 {
+		return "", false
+	}
+	if strings.ContainsAny(parts[1], " \t") {
+		return "", false
+	}
+	return parts[0], true
+}
+
+func slashCompletionShouldAppendSpace(completion SlashCompletion) bool {
+	name := strings.TrimSpace(strings.TrimPrefix(completion.Name, "/"))
+	if name == "" {
+		return false
+	}
+	if _, ok := slashCompletionNoTrailingSpaceCommands[name]; ok {
+		return false
+	}
+	if strings.TrimSpace(completion.ArgumentHint) != "" {
+		return true
+	}
+	policy, ok := cli.ResolveCommandPolicy(name)
+	if !ok {
+		return false
+	}
+	if _, ok := slashCompletionNoTrailingSpaceCommands[policy.Name]; ok {
+		return false
+	}
+	if len(policy.Subcommands) > 0 {
+		return true
+	}
+	_, ok = slashCompletionArgumentCommandNames[policy.Name]
+	return ok
+}
+
+var slashCompletionNoTrailingSpaceCommands = map[string]struct{}{
+	"model":       {},
+	"personality": {},
+	"provider":    {},
+	"skin":        {},
+}
+
+var slashCompletionArgumentCommandNames = map[string]struct{}{
+	"approve":    {},
+	"background": {},
+	"branch":     {},
+	"commands":   {},
+	"compress":   {},
+	"copy":       {},
+	"cron":       {},
+	"curator":    {},
+	"goal":       {},
+	"image":      {},
+	"insights":   {},
+	"new":        {},
+	"platform":   {},
+	"queue":      {},
+	"quit":       {},
+	"resume":     {},
+	"rollback":   {},
+	"sessions":   {},
+	"snapshot":   {},
+	"steer":      {},
+	"subgoal":    {},
+	"title":      {},
+	"topic":      {},
+	"tools":      {},
 }
 
 func slashCompletionDisplay(c SlashCompletion) string {

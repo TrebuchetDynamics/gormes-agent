@@ -186,17 +186,25 @@ func TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit(t *testin
 
 func TestHermesSlashDispatchBehavior_UnknownAndAmbiguousSlashGuidance(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
-		wantStatus string
+		name              string
+		input             string
+		wantStatus        string
+		dismissCompletion bool
 	}{
 		{name: "unknown", input: "/no-such-command-xyzzy", wantStatus: "unknown command"},
-		{name: "ambiguous", input: "/s", wantStatus: "ambiguous command"},
+		{name: "ambiguous", input: "/s", wantStatus: "ambiguous command", dismissCompletion: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sub := &nopSubmitter{}
-			m := enterSlashDispatchBehavior(t, newSlashDispatchBehaviorModel(sub), tt.input)
+			m := newSlashDispatchBehaviorModel(sub)
+			if tt.dismissCompletion {
+				m.editor.SetValue(tt.input)
+				m = updateModelSlashKey(t, m, tea.KeyMsg{Type: tea.KeyEscape})
+				m = updateModelSlashKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+			} else {
+				m = enterSlashDispatchBehavior(t, m, tt.input)
+			}
 
 			if sub.calls != 0 {
 				t.Fatalf("%s reached Submitter %d time(s), want 0", tt.input, sub.calls)

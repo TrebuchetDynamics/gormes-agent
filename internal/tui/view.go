@@ -43,8 +43,13 @@ func (m Model) View() string {
 		editorHeight = 1
 	}
 	editorBlockH := editorHeight
-	chromeOverhead := 1                                   // status rule
-	convH := m.height - editorBlockH - chromeOverhead - 1 // -1 for spinner/hint reserve
+	hint := m.renderHermesHint()
+	hintOverhead := 0
+	if hint != "" {
+		hintOverhead = 1
+	}
+	chromeOverhead := 1 // status rule
+	convH := m.height - editorBlockH - chromeOverhead - hintOverhead
 	if convH < 3 {
 		convH = 3
 	}
@@ -74,8 +79,7 @@ func (m Model) View() string {
 		}
 	}
 
-	hint := m.renderHermesHint()
-	completions := renderSlashCompletionMenuWithDynamic(editor.Value(), m.width, m.currentSkin(), m.skillSlashCommands, m.promptTemplates)
+	completions := m.renderActiveSlashCompletionMenu(editor.Value())
 
 	// Render the active modal panel if one is present.
 	panel := m.RenderActivePanel(m.width, m.height)

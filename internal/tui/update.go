@@ -442,6 +442,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 		}
+		if handled := m.handleSlashCompletionKey(msg); handled {
+			return m, tea.Batch(cmds...)
+		}
 		if got, ok := resolveVoiceRecordTeaKey(msg, m.voiceRecordKey); ok && got.Action == HermesActionToggleVoiceRecording {
 			key := tools.ResolveVoiceRecordKey(m.voiceRecordKey, tools.VoiceRecordKeyOptions{})
 			m.statusMessage = "voice recording toggle unavailable in native TUI (" + string(key.Evidence) + "; key " + key.Display + ")"
@@ -600,9 +603,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.editor, cmd = m.editor.Update(msg)
 	if m.editor.Value() != beforeEditorValue {
 		m.resetInputHistoryNavigation()
+		m.resetSlashCompletionDismissalForInput(m.editor.Value())
 	}
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) handleSlashCompletionKey(msg tea.KeyMsg) bool {
+	if msg.Alt {
+		return false
+	}
+	menu, ok := m.activeSlashCompletionMenu()
+	if !ok {
+		return false
+	}
+	switch msg.Type {
+	case tea.KeyUp:
+		idx := m.ensureSlashCompletionSelection(menu)
+		m.slashCompletion.index = wrapSlashCompletionIndex(idx, -1, len(menu.completions))
+		return true
+	case tea.KeyDown:
+		idx := m.ensureSlashCompletionSelection(menu)
+		m.slashCompletion.index = wrapSlashCompletionIndex(idx, 1, len(menu.completions))
+		return true
+	case tea.KeyEscape:
+		m.slashCompletion.dismissedFor = m.editor.Value()
+		return true
+	case tea.KeyTab:
+		m.acceptSlashCompletion(menu, slashCompletionAcceptTab)
+		return true
+	case tea.KeyEnter:
+		return m.acceptSlashCompletion(menu, slashCompletionAcceptEnter)
+	default:
+		return false
+	}
+}
+
+func (m *Model) acceptSlashCompletion(menu slashCompletionMenu, trigger slashCompletionAcceptTrigger) bool {
+	idx := m.ensureSlashCompletionSelection(menu)
+	if idx < 0 || idx >= len(menu.completions) {
+		return false
+	}
+	next, changed := slashCompletionAcceptedText(m.editor.Value(), menu.completions[idx], trigger)
+	if !changed {
+		return false
+	}
+	m.editor.SetValue(next)
+	m.slashCompletion.dismissedFor = next
+	m.slashCompletion.key = ""
+	m.slashCompletion.index = 0
+	m.resetInputHistoryNavigation()
+	return true
 }
 
 func (m *Model) handleHistoryNavigationKey(key tea.KeyType) bool {
