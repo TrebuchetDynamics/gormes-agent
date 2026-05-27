@@ -78,6 +78,10 @@ _Avoid_: Pi parity, arbitrary TUI redesign
 Optional Gormes-owned terminal chat ergonomics adapted from Pi when they improve operator flow without weakening the Hermes TUI Contract.
 _Avoid_: Pi parity, dual parity target, Pi compatibility contract
 
+**TUI Input History**:
+The composer recall surface for submitted operator inputs; it is distinct from transcript viewing and never means browsing assistant messages.
+_Avoid_: transcript history, message history, shell history
+
 ### Navivox Channel Contract
 
 **Navivox Capability Gate**:
@@ -158,3 +162,6 @@ Domain expert: "Use a Staged Deepening Program. First make row selection consist
 
 Developer: "Should the TUI match Pi now?"
 Domain expert: "No. Preserve the Hermes TUI Contract, then adopt Pi-Inspired TUI Donor UX only where it improves Gormes without becoming a second parity target."
+
+Developer: "Can Up arrow browse assistant replies?"
+Domain expert: "No. Up and Down operate on TUI Input History; transcript viewing stays in the conversation viewport or slash surfaces."

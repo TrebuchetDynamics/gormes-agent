@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 )
 
 func TestSetupInteractiveMenusUseBubbleTeaPicker(t *testing.T) {
@@ -81,6 +82,37 @@ func TestSetupProviderPickerChoicesUseStableIndices(t *testing.T) {
 	}
 	if choices[1] != (tuiPickChoice{ID: "1", Label: "OpenAI Codex"}) {
 		t.Fatalf("choice[1] = %#v", choices[1])
+	}
+}
+
+func TestSetupProviderPickerCodexFilterKeepsProviderLabelsSeparate(t *testing.T) {
+	entries, _ := cli.HermesProviderCatalogMenu("")
+	byID := make(map[string]string, len(entries))
+	choices := setupProviderPickerChoices(entries)
+	wizardChoices := make([]setupwizard.Choice, len(choices))
+	for i, entry := range entries {
+		byID[entry.ID] = entry.Label
+		wizardChoices[i] = setupwizard.Choice{ID: entry.ID, Label: choices[i].Label}
+		for _, forbidden := range []string{"Codex" + "laude", "OpenAI Codex" + "laude", "OpenAI Codex" + "100+"} {
+			if strings.Contains(entry.Label, forbidden) || strings.Contains(choices[i].Label, forbidden) {
+				t.Fatalf("provider label for %s contains concatenated stale text %q: entry=%q choice=%q", entry.ID, forbidden, entry.Label, choices[i].Label)
+			}
+		}
+	}
+
+	if got := byID["openai-codex"]; got != "OpenAI Codex" || strings.Contains(got, "Claude") || strings.Contains(got, "100+ models") {
+		t.Fatalf("openai-codex label = %q, want clean Codex-only label", got)
+	}
+	if got := byID["openrouter"]; !strings.HasPrefix(got, "OpenRouter (100+ models") {
+		t.Fatalf("openrouter label = %q, want separate OpenRouter row", got)
+	}
+	if got := byID["anthropic"]; !strings.Contains(got, "Claude Code") {
+		t.Fatalf("anthropic label = %q, want Claude Code mentioned only on Anthropic row", got)
+	}
+
+	filtered, _ := setupwizard.FilterChoices(wizardChoices, "codex")
+	if len(filtered) != 1 || filtered[0].ID != "openai-codex" || filtered[0].Label != "OpenAI Codex" {
+		t.Fatalf("codex filter = %#v, want only clean OpenAI Codex row", filtered)
 	}
 }
 

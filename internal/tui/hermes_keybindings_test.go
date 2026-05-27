@@ -380,7 +380,8 @@ func TestHermesKeybindings_HistoryRingPrevNextWraps(t *testing.T) {
 	r.Append("first")
 	r.Append("second")
 	r.Append("third")
-	r.Append("") // empty must be ignored
+	r.Append("third") // consecutive duplicate must be ignored
+	r.Append("")      // empty must be ignored
 
 	if got, ok := r.Prev(); !ok || got != "third" {
 		t.Fatalf("Prev() = (%q, %v), want (\"third\", true)", got, ok)
@@ -450,12 +451,14 @@ func TestHermesKeybindings_ModelHistoryRecordsSlashCommandsAndIgnoresEmpty(t *te
 
 	m.editor.SetValue("/help")
 	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m.editor.SetValue("/help")
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyEnter})
 	m.editor.SetValue("   ")
 	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyEnter})
 
 	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyUp})
 	if got := m.editor.Value(); got != "/help" {
-		t.Fatalf("Up after empty submission recalled %q, want /help", got)
+		t.Fatalf("Up after duplicate and empty submissions recalled %q, want /help", got)
 	}
 	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyUp})
 	if got := m.editor.Value(); got != "/help" {

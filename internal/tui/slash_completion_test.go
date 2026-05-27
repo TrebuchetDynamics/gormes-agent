@@ -188,6 +188,19 @@ func TestRenderSlashCompletionMenu_SearchListChrome(t *testing.T) {
 	}
 }
 
+func TestRenderSlashCompletionMenu_NarrowWidthKeepsChromeCompact(t *testing.T) {
+	got := renderSlashCompletionMenu("/", 36)
+	lines := strings.Split(got, "\n")
+	if len(lines) > 6 {
+		t.Fatalf("narrow slash completion menu rendered %d lines, want at most 6 to avoid swallowing the chat UI:\n%s", len(lines), got)
+	}
+	for _, line := range lines {
+		if w := lipgloss.Width(line); w > 36 {
+			t.Fatalf("narrow completion line width %d exceeds 36:\n%q\n\n%s", w, line, got)
+		}
+	}
+}
+
 // TestHermesSlashCompletion_AutoSuggest proves the inline ghost suffix matches
 // what Hermes' SlashCommandAutoSuggest returns: the unique remaining tail of a
 // command or subcommand name, or empty when ambiguous, unknown, or already

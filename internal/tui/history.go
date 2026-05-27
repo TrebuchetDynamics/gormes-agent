@@ -1,5 +1,7 @@
 package tui
 
+import "strings"
+
 // HermesHistory is the in-memory draft history that backs ResolveHermesKey's
 // HermesActionHistoryPrev / HermesActionHistoryNext decisions. It mirrors the
 // current Hermes composer behavior with Pi-inspired editor-history UX: every
@@ -27,9 +29,14 @@ func NewHermesHistory() *HermesHistory {
 
 // Append records a submitted draft and resets the navigation cursor to the
 // fresh-draft slot so the next Prev returns the just-appended entry. Empty
-// drafts are ignored.
+// drafts and consecutive duplicates are ignored.
 func (h *HermesHistory) Append(text string) {
+	text = strings.TrimSpace(text)
 	if text == "" {
+		return
+	}
+	if len(h.entries) > 0 && h.entries[len(h.entries)-1] == text {
+		h.ResetNavigation()
 		return
 	}
 	h.entries = append(h.entries, text)

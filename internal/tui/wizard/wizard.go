@@ -29,6 +29,8 @@ var (
 	ErrAbort = errors.New("wizard_aborted")
 )
 
+const setupClearLineTail = "\x1b[K"
+
 // Wizard runs a sequence of step prompts and returns their typed answers.
 type Wizard interface {
 	Run(ctx context.Context, steps ...Step) (Result, error)
@@ -597,6 +599,7 @@ func (m model) renderSearchPick(step Step) string {
 	if len(m.pickFiltered) == 0 && m.searchInput.Value() != "" {
 		b.WriteString(styles.Dim.Render("  (no matches)"))
 	}
+	b.WriteString(setupClearLineTail)
 	b.WriteString("\n")
 
 	// Separator
@@ -638,14 +641,14 @@ func (m model) renderSearchPick(step Step) string {
 		if maxLabelWidth > 0 && lipgloss.Width(label) > maxLabelWidth {
 			label = setupTrimToWidth(label, maxLabelWidth)
 		}
-		b.WriteString(prefix + idxStr + style.Render(label) + "\n")
+		b.WriteString(prefix + idxStr + style.Render(label) + setupClearLineTail + "\n")
 	}
 
 	// Scroll indicator
 	total := len(m.pickFiltered)
 	if total > visibleHeight {
 		indicator := fmt.Sprintf("  %d/%d", m.pickCursor+1, total)
-		b.WriteString(styles.Dim.Render(indicator))
+		b.WriteString(styles.Dim.Render(indicator) + setupClearLineTail)
 	}
 
 	return strings.TrimRight(b.String(), "\n")

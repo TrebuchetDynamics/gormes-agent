@@ -106,6 +106,42 @@ func TestSearchPick_RenderShowsFilterAndChoices(t *testing.T) {
 	}
 }
 
+func TestSearchPick_FilteredRowsClearStaleTerminalTails(t *testing.T) {
+	m := newModel([]Step{
+		Pick("provider", "Select provider", []Choice{
+			{ID: "openrouter", Label: "OpenRouter (100+ models, pay-per-use)"},
+			{ID: "anthropic", Label: "Anthropic (Claude models - API key or Claude Code)"},
+			{ID: "openai-codex", Label: "OpenAI Codex"},
+		}, WithSearchChoices()),
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 16})
+	m = updated.(model)
+	for _, r := range "codex" {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = updated.(model)
+	}
+
+	got := m.View()
+	for _, forbidden := range []string{"Codex" + "laude", "Codex" + "100+", "OpenAI Codex" + "laude", "OpenAI Codex" + "100+"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("filtered provider view has stale concatenated tail %q:\n%s", forbidden, got)
+		}
+	}
+	var codexRow string
+	for _, line := range strings.Split(got, "\n") {
+		if strings.Contains(line, "OpenAI Codex") {
+			codexRow = line
+			break
+		}
+	}
+	if codexRow == "" {
+		t.Fatalf("filtered provider view missing OpenAI Codex row:\n%s", got)
+	}
+	if !strings.Contains(codexRow, "\x1b[K") {
+		t.Fatalf("filtered choice row %q does not clear stale terminal tails", codexRow)
+	}
+}
+
 func TestSearchPick_TypingFiltersChoices(t *testing.T) {
 	m := newModel([]Step{
 		Pick("model", "Select model", []Choice{

@@ -250,8 +250,8 @@ func renderSlashCompletionMenuWithDynamic(input string, width int, skin HermesSk
 		return ""
 	}
 	limit := len(completions)
-	if limit > 8 {
-		limit = 8
+	if limit > slashCompletionVisibleLimit(width) {
+		limit = slashCompletionVisibleLimit(width)
 	}
 	styles := SkinStylesFor(skin)
 	bodyWidth := width - 4
@@ -312,6 +312,17 @@ func renderSlashCompletionMenuWithDynamic(input string, width int, skin HermesSk
 	footer := "╰─ type to search · Enter run"
 	lines = append(lines, styles.Dim.Render(truncateEllipsis(footer, bodyWidth)))
 	return strings.Join(lines, "\n")
+}
+
+func slashCompletionVisibleLimit(width int) int {
+	switch {
+	case width < 40:
+		return 3
+	case width < 64:
+		return 5
+	default:
+		return 8
+	}
 }
 
 func slashCompletionDisplay(c SlashCompletion) string {
