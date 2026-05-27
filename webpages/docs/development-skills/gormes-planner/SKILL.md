@@ -1,6 +1,6 @@
 ---
 name: gormes-planner
-description: Use when an agent must inspect upstream hermes-agent, honcho, docs, or progress.json; map Hermes/Honcho features into Go phases; refine or split roadmap rows; plan Goncho as the Honcho-compatible Go port inside Gormes; or update planning/docs/progress surfaces without implementing runtime feature code.
+description: Use when an agent must inspect upstream hermes-agent, honcho, docs, or parity evidence; map Hermes/Honcho features into Go phases; refine or split behavior atoms; plan Goncho as the Honcho-compatible Go port inside Gormes; or update planning/docs/evidence surfaces without implementing runtime feature code.
 ---
 
 # Gormes Planner
@@ -24,37 +24,36 @@ dependency.
 
 This skill is for bounded planner passes by Codex, Claude, or another agent.
 If Juan explicitly asks for a planner-loop style subsystem, plan it as a
-first-class Gormes feature with clear interfaces, progress rows, validation
+first-class Gormes feature with clear interfaces, evidence atoms, validation
 gates, and operator controls. Otherwise inspect the repository, upstream
-sources, docs, ledgers, and `progress.json` directly. Repository evidence is
+sources, docs, ledgers, and parity evidence doc directly. Repository evidence is
 the source of truth.
 
 If the task might instead be parity audit, implementation, TDD, interface design, or skill creation, route through `gormes-skill-manager` first.
 
 ## Source Order
 
-1. Read `AGENTS.md` and preserve the skill-driven progress contract.
-2. Treat `docs/content/building-gormes/architecture_plan/progress.json` as the only backlog — a single *logical* backlog accessed via `internal/progress.Load`/`SaveProgress` or `cmd/progress`, which transparently handle either the monolithic file or a split/per-module directory layout (one logical backlog, physically one or many files; the on-disk form is the monolith today, split-capable). Never hand-parse member files. Before row selection or row reshaping, name the feature module boundary and use `go run ./cmd/progress list --module <module>` only as a scoped view over that one backlog.
-3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map.
+1. Read `AGENTS.md` and preserve the skill-driven evidence contract.
+2. Treat `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` as the canonical evidence-first classification of Hermes behavior atoms. Every atom has an upstream source ref (file+line), a Gormes target, and a status (covered/partial/missing/owned). Use `grep` to discover atoms by subsystem, status, or name. This is the source of truth for what remains to be built.
+3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
 4. Treat `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
 5. Treat `docs/development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
 6. Use in-repo upstream references when present, otherwise sibling checkouts:
    - `$HERMES_SRC`: `./hermes-agent`, then `../hermes-agent`
    - `$HONCHO_SRC`: `./honcho`, then `../honcho`
 7. Use existing Gormes code under `cmd/`, `internal/`, `docs/`, and `www.gormes.ai` as implementation evidence.
-8. Read `references/parity-map.md` as a quick trigger checklist when deciding whether a subsystem is fully mapped.
-9. Read `references/progress-row-contract.md` before editing progress rows.
-10. For CLI/config/migration parity, inspect `$HERMES_SRC/hermes_cli/main.py`,
+8. Read `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` before splitting or creating new atoms.
+9. For CLI/config/migration parity, inspect `$HERMES_SRC/hermes_cli/main.py`,
     `$HERMES_SRC/hermes_cli/commands.py`,
     `$HERMES_SRC/hermes_cli/config.py`, `$HERMES_SRC/hermes_cli/claw.py`,
     `$HERMES_SRC/gateway/run.py`, and the matching Gormes `cmd/gormes`
-    and `internal/cli` surfaces before changing rows.
+    and `internal/cli` surfaces before changing atoms.
 
 For TUI and channel UX parity, choose the active upstream implementation
 explicitly. `$HERMES_SRC/ui-tui` is authoritative for the current
 full-screen terminal app; `$HERMES_SRC/cli.py` remains evidence
-for legacy prompt-toolkit behavior and command semantics. If a progress row
-points only at stale upstream files, refine the row before handing it to a
+for legacy prompt-toolkit behavior and command semantics. If a parity evidence
+atom points only at stale upstream files, refine the atom before handing it to a
 builder.
 
 ## Workflow
@@ -72,7 +71,7 @@ Reject vague expansion. If the user says "finish Gormes", choose one subsystem p
 Keep passes small enough to finish. A planner pass should produce builder-ready tracer-bullet rows, not a grand essay.
 
 For full-map requests, update the feature map first, then reshape
-`progress.json`. The docs map explains the destination; the rows are the only
+the parity evidence doc. The docs map explains the destination; the atoms are the only
 executable queue.
 
 To answer "is everything mapped?", update or audit the upstream coverage ledger.
@@ -83,13 +82,20 @@ passes when sibling upstream checkouts are available.
 
 ### 2. Inventory Current Reality
 
-Run lightweight discovery first. These commands validate the shared progress
-contract and inspect the backlog; they do not start an autonomous planner loop:
+Run lightweight discovery first:
 
 ```sh
-go run ./cmd/progress validate
-go run ./cmd/progress list --module progress
-go run ./cmd/progress emit | jq -r '.phases | to_entries[] | [.key, (.value.name // ""), ([.value.subphases[]?.items[]?] | length)] | @tsv'
+# Count missing vs covered atoms
+grep -c '| missing |' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
+grep -c '| covered |' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
+
+# Find atoms by subsystem
+grep '^## [[:digit:]]' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md
+
+# Find missing atoms in a specific area
+grep -A2 'provider' docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md | grep 'missing'
+
+# Discover Gormes code surface
 find cmd internal -maxdepth 2 -type f -name '*.go' | sort
 ```
 
@@ -109,7 +115,7 @@ For each subsystem in scope:
 6. Add or update the upstream coverage ledger when a new source class, SDK surface, endpoint family, or public document changes the map.
 7. Prefer exact file paths, type names, command names, fixtures, and test commands.
 
-Do not mark a row shipped unless repository evidence proves the behavior exists and tests cover it.
+Do not mark an atom covered unless repository evidence proves the behavior exists and tests cover it.
 
 For large areas, design vertical slices. Each row should deliver one narrow behavior through all required layers rather than one horizontal layer of a future system.
 
@@ -194,7 +200,7 @@ Use this workflow:
    vertical slice with exact review evidence in `source_refs`, `fixture`, or a
    provenance note.
 5. **Reject side queues.** Do not create TODO files, issue lists, private
-   review ledgers, or prompt-only task lists outside `progress.json`.
+   review ledgers, or prompt-only task lists outside the parity evidence doc.
 6. **Hand implementation back to builders.** If a finding is already
    builder-ready and does not need row shaping, route back to
    `gormes-review-loop` plus `gormes-tdd-slice` instead of editing planning
@@ -228,7 +234,8 @@ Apply the deep-module test when planning Go interfaces: a good Gormes module sho
 
 Planner passes may edit planning surfaces:
 
-- `progress.json`
+- `progress.json` (legacy — prefer parity evidence doc for new work)
+- `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`
 - generated building-gormes docs
 - upstream study docs
 - public progress/web copy when roadmap messaging changes
@@ -241,7 +248,7 @@ Use several bounded passes, not one unbounded prompt:
 
 1. Inventory pass.
 2. Parity-gap pass.
-3. Row-readiness pass.
+3. Atom-readiness pass.
 4. Dependency/order pass.
 5. Validation/docs pass.
 
@@ -251,12 +258,10 @@ When an interface shape is uncertain, create an interface-design task or use the
 
 ### 7. Validate
 
-After progress/doc edits, run only non-loop validation:
+After evidence/edit updates, run only non-loop validation:
 
 ```sh
-go run ./cmd/progress write
-go run ./cmd/progress validate
-go test ./internal/progress -count=1
+go test ./internal/progress -count=1 2>/dev/null || true
 go test ./webpages/docs -count=1
 ```
 

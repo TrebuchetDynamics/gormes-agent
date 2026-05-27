@@ -66,7 +66,7 @@ Use `gormes-planner` when the packet changes backlog shape or lacks a builder-re
 
 Rules:
 
-- `progress.json` is the only backlog.
+- `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` is the canonical parity inventory.
 - Use `cmd/progress` / `internal/progress`; do not hand-create side queues.
 - Update existing rows before adding new rows.
 - A row must have concrete `write_scope`, `test_commands`, `ready_when`, and `not_ready_when` before builder work.

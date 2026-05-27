@@ -1,6 +1,6 @@
 ---
 name: gormes-tdd-slice
-description: Use when building or fixing a Gormes feature with tests, when a progress.json row has test_commands, when the user asks for TDD or red-green-refactor, or when implementing Goncho/Hermes parity behavior one vertical slice at a time.
+description: Use when building or fixing a Gormes feature with tests, when a parity evidence atom needs implementation, when the user asks for TDD or red-green-refactor, or when implementing Goncho/Hermes parity behavior one vertical slice at a time.
 ---
 
 # Gormes TDD Slice
@@ -29,15 +29,16 @@ when absent. Resolve it as `$HERMES_SRC` before writing parity tests.
 
 ### 1. Select One Behavior
 
-Use the selected `progress.json` row or choose one builder-ready row. State:
+Use the selected atom from `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` or choose one that is `missing` or `partial`. State:
 
 - public interface under test;
 - feature-map target or upstream concept;
 - behavior to prove;
-- row-local `test_commands`;
+- Hermes source ref (`HERMES` column in the atom);
+- Gormes target package (`GORMES` column in the atom);
 - allowed write scope.
 
-If the row is too broad, split/refine it before coding.
+If the atom is too broad, split it and update the parity evidence doc before coding.
 
 For UI/TUI/channel parity, identify the active upstream implementation before
 writing the test. Current full-screen TUI UX comes from
@@ -129,8 +130,7 @@ Only refactor after tests pass. Prefer deep modules: small interface, substantia
 
 ### 6. Verify
 
-Run row `test_commands`, focused package tests, `go run ./cmd/progress
-validate`, and the gates in `references/gates.md`.
+Run focused package tests, then `go test ./... -count=1` for the affected packages, and the gates in `references/gates.md`.
 
 If the working tree contains unrelated user or parallel-agent changes, do not
 revert them. Run the focused tests for the selected behavior first, then broaden
@@ -139,5 +139,4 @@ gate, report them separately with file paths and failure commands.
 
 ## Final Report
 
-Report red-green cycles, feature-map target, behavior shipped, tests run, and
-any progress row updates needed.
+Report red-green cycles, feature-map target, behavior shipped, tests run, the parity status before/after, and the `HERMES` source ref used to verify the behavior.

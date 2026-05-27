@@ -48,7 +48,7 @@ Default repository: `/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent`
 1. Start every loop with branch/status evidence: `pwd`, `git rev-parse --show-toplevel`, `git rev-parse --abbrev-ref HEAD`, and `git status --short`.
 2. Stay on the existing `development` branch. Do not create feature branches, short-lived branches, or git worktrees.
 3. Route substantive work through the smallest repo-local Gormes skill chain, starting with `gormes-skill-manager` when uncertain.
-4. Use `progress.json` as the only implementation backlog. Do not create side TODO queues.
+4. Use the parity evidence doc (`docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`) as the canonical implementation inventory. Do not create side TODO queues.
 5. Prefer TDD for behavior changes: red proof, minimal green, relevant regression.
 6. Do not claim completion from reasoning. Trust only command output, file contents, git status, commits, pushes, and explicit checklist evidence.
 
@@ -115,7 +115,7 @@ python3 docs/development-skills/gormes-goal/scripts/gormes_goal.py json
 | Completing from vibes | Run the completion audit against artifacts. |
 | Letting `/goal` bypass skill routing | Use `gormes-skill-manager` or the obvious repo-local skill before substantive work. |
 | Treating token budgets as hard limits | Treat them as soft; helpers do not receive reliable live token counters. |
-| Creating a side backlog | Put implementation intent in `progress.json`. |
+| Creating a side backlog | Put implementation intent in the parity evidence doc. |
 | Working on `main` or a worktree | Stop and switch safely to `development` or report the blocker. |
 | Claiming done after one targeted test | Run the agreed evaluator and broader CI gate when relevant. |
 | Development-goal report missing final markers | Put `DEV_GOAL_REPORT`, `DEV_GOAL_VALIDATED`, and `DEV_GOAL_DECISION` as the final lines; no text after them. |

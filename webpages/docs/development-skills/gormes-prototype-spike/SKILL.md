@@ -23,7 +23,7 @@ Do not use this for normal progress-row implementation; use `gormes-tdd-slice` i
 2. **Keep it disposable.** Put files under a clearly named scratch path such as `tmp/`, `artifacts/`, or a `prototype_*.go`/`*_prototype.dart` file excluded from production paths.
 3. **No persistent state by default.** Use in-memory state or temp files only.
 4. **One command to run.** Print the exact command and expected observation.
-5. **No parallel backlog.** If the result implies real work, update `progress.json` through `cmd/progress` or the planner skill; do not leave private TODOs.
+5. **No parallel backlog.** If the result implies real work, update the parity evidence doc or hand to a planner skill; do not leave private TODOs.
 6. **Delete or absorb.** Before completion, either remove prototype files or explicitly mark why they remain as an artifact.
 
 ## Validation

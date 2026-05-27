@@ -32,7 +32,7 @@ symlink loader views.
 Start by locating the work in
 `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`
 and, when implementation intent exists, the matching row in
-`docs/content/building-gormes/architecture_plan/progress.json`.
+`docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`.
 
 Before picking a skill, detect the user's intent from verbs, artifacts, and
 risk. Do not route only by subsystem name.
@@ -354,7 +354,7 @@ new_skill_needed:
 ## Guardrails
 
 - Do not let skill management replace delivery.
-- Do not create side backlogs. Implementation intent goes into `progress.json`, the single logical backlog accessed via `internal/progress.Load`/`cmd/progress` (monolithic file or split/per-module layout, transparently; never hand-parse member files).
+- Do not create side backlogs. Implementation intent goes into `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`, the single canonical parity inventory. Update it by editing the file directly (atoms are plain markdown, not a JSON schema).
 - Loop/orchestrator commands require explicit user intent, progress-row-backed scope, validation gates, and operator controls; otherwise prefer bounded skill-driven passes.
 - Use Context7 for external library/framework/API docs when required by repo instructions.
 - Preserve dirty user work.

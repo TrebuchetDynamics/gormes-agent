@@ -58,7 +58,7 @@ Hard dependencies block claims of parity:
   or `excluded` classification.
 - Focused validation that exercises real behavior; empty test selectors do not
   count.
-- Canonical `progress.json` for implementation intent.
+- `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` for canonical parity classification.
 
 Soft dependencies sharpen output but do not always block:
 
@@ -262,7 +262,7 @@ on its own without parity evidence; record the upstream sha in
 8. Choose the feedback loop before claiming coverage or handing off.
 9. Route to the smallest subskill chain. One behavior atom should become one
    vertical implementation slice.
-10. Record implementation intent only in `progress.json` — the single logical
+10. Record implementation intent only in `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` — the canonical
     backlog, accessed via `internal/progress.Load`/`cmd/progress` (monolithic
     file or split/per-module layout, transparently; never hand-parse members).
     Do not create side queues.

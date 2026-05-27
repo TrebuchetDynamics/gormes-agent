@@ -45,7 +45,7 @@ sed -n '1,220p' README.md
 go run ./cmd/progress validate
 rg -n "gormes doctor|install|offline|gateway|Goncho|Honcho|Hermes-compatible|single static binary|supported|deferred" README.md cmd internal webpages/docs webpages/landing
 ```
-Use exact source files, tests, generated progress docs, and `progress.json` as
+Use exact source files, tests, generated progress docs, and the parity evidence doc as
 evidence. When checking external project, SDK, CLI, or cloud-service facts, use
 Context7 or official sources as required by repo instructions. Do not rely on
 memory for time-sensitive claims.

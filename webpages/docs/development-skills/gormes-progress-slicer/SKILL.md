@@ -1,13 +1,13 @@
 ---
 name: gormes-progress-slicer
-description: Use when turning a Gormes plan, PRD, parity gap, review finding, or user objective into progress.json-ready vertical slices.
+description: Use when turning a Gormes plan, PRD, parity gap, review finding, or user objective into parity evidence doc atoms.
 ---
 
 # Gormes Progress Slicer
 
 Use this to convert broad work into thin, verifiable Gormes backlog rows without creating side queues.
 
-Inspired by `mattpocock/skills` `to-issues` and `triage`; adapted so `progress.json` remains the only Gormes backlog.
+Inspired by `mattpocock/skills` `to-issues` and `triage`; adapted so the parity evidence doc captures what remains to be built.
 
 ## Inputs
 
@@ -22,13 +22,13 @@ Each slice must be:
 - **Verifiable:** has concrete test, command, fixture, or manual smoke evidence.
 - **Small:** suitable for one `gormes-builder`/`gormes-tdd-slice` pass.
 - **Ordered:** dependencies are explicit.
-- **Backlog-safe:** represented in `progress.json` only, via `internal/progress` or `cmd/progress`; never as private TODO lists.
+- **Backlog-safe:** represented in `docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` only; never as private TODO lists.
 
 ## Workflow
 
 1. **Name the parent objective.** Include source refs and why the work matters.
 2. **Draft slices.** For each: title, behavior, validation, blockers, HITL/AFK.
-3. **Check overlap.** Search existing `progress.json`; update/merge instead of duplicating.
+3. **Check overlap.** Search the existing parity evidence doc by `grep -i <topic> docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`; update/merge instead of duplicating.
 4. **Ask if ambiguity changes scope.** Especially for public contracts, persistence, security, or release promises.
 5. **Write rows through canonical tooling.** Use `gormes-planner` if schema or priorities need edits.
 

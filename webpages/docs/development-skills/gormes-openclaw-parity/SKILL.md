@@ -1,6 +1,6 @@
 ---
 name: gormes-openclaw-parity
-description: Use when discovering useful OpenClaw behavior that Hermes lacks, deciding whether Gormes should adopt it as an owned enhancement, or turning OpenClaw-only feature evidence into progress.json-ready rows without treating OpenClaw as the primary Hermes parity contract.
+description: Use when discovering useful OpenClaw behavior that Hermes lacks, deciding whether Gormes should adopt it as an owned enhancement, or turning OpenClaw-only feature evidence into parity evidence doc atoms without treating OpenClaw as the primary Hermes parity contract.
 ---
 
 # Gormes OpenClaw Parity
@@ -44,7 +44,7 @@ or runtime-home row with sanitized fixtures.
 | Invocation | Behavior |
 |---|---|
 | `gormes-openclaw-parity` | Auto-select one OpenClaw-only candidate by operator value, implementation size, testability, and compatibility risk. |
-| `gormes-openclaw-parity <topic>` | Use `<topic>` as the seed; search OpenClaw, Hermes, Gormes, docs, tests, and `progress.json`, then classify the smallest coherent candidate. |
+| `gormes-openclaw-parity <topic>` | Use `<topic>` as the seed; search OpenClaw, Hermes, Gormes, docs, tests, and the parity evidence doc, then classify the smallest coherent candidate. |
 
 ## Baseline
 
@@ -132,7 +132,7 @@ for implementation, route to `gormes-builder` and `gormes-tdd-slice`.
 
 ### 5. Produce Progress-Ready Work
 
-For `adopt` or `adapt`, add or refine a `progress.json` row only when the user
+For `adopt` or `adapt`, add or refine an atom in the parity evidence doc only when the user
 asked this skill to apply changes. Otherwise, emit a task packet for
 `gormes-planner`.
 
