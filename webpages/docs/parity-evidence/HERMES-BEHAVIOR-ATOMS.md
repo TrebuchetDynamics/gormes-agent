@@ -757,8 +757,12 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Hermes state constants | `hermes_constants.py` | `internal/hermes/` | partial | Not fully ported. |
 | Logging (redacted) | `hermes_logging.py` | `internal/audit/` + `internal/telemetry/` | covered | Audit and telemetry logging. |
-| Time helpers | `hermes_time.py` | → `missing` | missing | Not ported. |
-| Utility helpers | `utils.py` | → `missing` | missing | Not ported. |
+| Timezone resolution | `hermes_time.py` `_resolve_timezone_name` `get_timezone` | → `missing` | missing | Resolve local timezone. |
+| `now()` helper | `hermes_time.py` `now` | → `missing` | missing | Current time with timezone. |
+| `is_truthy_value` | `utils.py` `is_truthy_value` | → `missing` | missing | Boolean coercion for config/env. |
+| `env_var_enabled` | `utils.py` `env_var_enabled` | → `missing` | missing | Check env var enabled. |
+| `atomic_replace` | `utils.py` `atomic_replace` | → `missing` | missing | Atomic file replacement. |
+| `atomic_json_write` | `utils.py` `atomic_json_write` | → `missing` | missing | Atomic JSON file write. |
 
 ---
 
@@ -905,6 +909,11 @@ file+line ref or explicit `missing`, and a classification.
 | Model switch CLI (interactive) | `hermes_cli/model_switch.py` | `cmd/gormes/model.go` + `internal/gateway/model_picker.go` | covered | Interactive provider/model picker. |
 | Model catalog suggestions | `hermes_cli/model_catalog.py` | `internal/hermes/provider_registry_manifest.go` | covered | Provider-specific model catalog. |
 | Model normalize | `hermes_cli/model_normalize.py` | → `missing` | missing | Not ported. |
+| Direct alias resolution | `model_switch.py` `_ensure_direct_aliases` | → `missing` | missing | Resolve provider-specific model aliases. |
+| ModelIdentity parsing | `model_switch.py` `ModelIdentity` | → `missing` | missing | Parse `provider/model` into structured types. |
+| ModelSwitchResult | `model_switch.py` `ModelSwitchResult` | → `missing` | missing | Structured switch result with provider/model/isGlobal. |
+| `--global` flag support | `model_switch.py` `parse_model_flags` | `cmd/gormes/model.go` | partial | Global model override flag. |
+| Model sort key | `model_switch.py` `_model_sort_key` | → `missing` | missing | Deterministic model ordering. |
 
 ---
 
@@ -912,8 +921,13 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Send message CLI | `hermes_cli/send_cmd.py` | → `missing` | missing | Not ported. |
-| Oneshot chat (-q) | `hermes_cli/oneshot.py` | `cmd/gormes/chat.go` `-q` | covered | One-shot message. |
+| Send text message CLI | `hermes_cli/send_cmd.py` `cmd_send` | → `missing` | missing | Send message to a channel. |
+| Oneshot chat (-q) | `hermes_cli/oneshot.py` | `cmd/gormes/chat.go` `-q` | covered | One-shot message to default provider. |
+| Target resolution | `send_cmd.py` `_resolve_target` | → `missing` | missing | Resolve `--to platform:chat` targets. |
+| Platform-aware target listing | `send_cmd.py` `_list_targets` | → `missing` | missing | List available send targets. |
+| Message body reading | `send_cmd.py` `_read_message_body` | → `missing` | missing | Read message body from stdin/file/stdin. |
+| Result formatting | `send_cmd.py` `_emit_result` | → `missing` | missing | Display send result. |
+| Send subcommand registration | `send_cmd.py` `register_send_subparser` | → `missing` | missing | Register `gormes send` subcommand. |
 
 ---
 
@@ -921,8 +935,14 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Webhook CRUD | `hermes_cli/webhook.py` | → `missing` | missing | Not ported. |
-| Webhook delivery | `gateway/platforms/webhook.py` | `internal/channels/webhook/` | covered | Webhook channel. |
+| Webhook subscriptions load | `hermes_cli/webhook.py` `_load_subscriptions` | → `missing` | missing | Load webhook subscriptions. |
+| Webhook subscriptions save | `hermes_cli/webhook.py` `_save_subscriptions` | → `missing` | missing | Persist webhook subscriptions. |
+| Webhook config detection | `hermes_cli/webhook.py` `_get_webhook_config` | → `missing` | missing | Detect webhook config. |
+| Webhook enabled check | `hermes_cli/webhook.py` `_is_webhook_enabled` | → `missing` | missing | Check if webhook is enabled in config. |
+| Webhook base URL | `hermes_cli/webhook.py` `_get_webhook_base_url` | → `missing` | missing | Derive webhook base URL from config. |
+| Webhook setup hint | `hermes_cli/webhook.py` `_setup_hint` | → `missing` | missing | Setup guidance for webhook. |
+| Webhook command dispatch | `hermes_cli/webhook.py` `webhook_command` | → `missing` | missing | CLI entry point. |
+| Webhook channel delivery | `gateway/platforms/webhook.py` | `internal/channels/webhook/` | covered | Webhook channel for outbound. |
 
 ---
 
@@ -930,9 +950,17 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| PTY bridge for terminal tool | `hermes_cli/pty_bridge.py` | → `missing` | missing | Not ported. |
-| Terminal process registry | `tools/code_execution_tool.py` | → `missing` | missing | Not ported. |
-| Terminal size/colour passthrough | `tools/code_execution_tool.py` | → `missing` | missing | Not ported. |
+| PTY bridge spawn | `hermes_cli/pty_bridge.py` `PtyBridge.spawn` | → `missing` | missing | Spawn PTY for interactive terminal. |
+| PTY read | `pty_bridge.py` `read` | → `missing` | missing | Read PTY output with timeout. |
+| PTY write | `pty_bridge.py` `write` | → `missing` | missing | Write to PTY stdin. |
+| PTY resize | `pty_bridge.py` `resize` | → `missing` | missing | Resize PTY dimensions. |
+| PTY close/cleanup | `pty_bridge.py` `close` | → `missing` | missing | Close PTY and release resources. |
+| PTY availability check | `pty_bridge.py` `is_available` | → `missing` | missing | Check if PTY is supported on platform. |
+| PTY process PID | `pty_bridge.py` `pid` | → `missing` | missing | Get PTY child PID. |
+| PTY aliveness check | `pty_bridge.py` `is_alive` | → `missing` | missing | Check if child process is still running. |
+| Terminal process registry | `tools/code_execution_tool.py` | → `missing` | missing | Track active terminal sessions. |
+| Terminal size/colour passthrough | `tools/code_execution_tool.py` | → `missing` | missing | Forward terminal dimensions to PTY. |
+| PTY error handling | `pty_bridge.py` `PtyUnavailableError` | → `missing` | missing | Typed error when PTY not available. |
 
 ---
 
