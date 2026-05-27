@@ -38,6 +38,10 @@ type Channel struct {
 	sessions map[string]*sessionState
 	clients  map[*client]struct{}
 
+	singleUsePairingStream bool
+	pairingStreamReserved  bool
+	pairingStreamConsumed  bool
+
 	profileContacts    map[string]ProfileContact
 	loadContacts       func(context.Context) ([]ProfileContact, error)
 	profileRouting     config.NavivoxProfileRoutingReport
@@ -52,6 +56,12 @@ type ChannelOption func(*Channel)
 func WithProfileRouting(report config.NavivoxProfileRoutingReport) ChannelOption {
 	return func(c *Channel) {
 		c.profileRouting = report
+	}
+}
+
+func WithSingleUsePairingStream() ChannelOption {
+	return func(c *Channel) {
+		c.singleUsePairingStream = true
 	}
 }
 

@@ -52,10 +52,12 @@ func newNavivoxPairCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pair",
 		Short: "Create a network Navivox pairing handoff",
-		Long: `Start a network-reachable Navivox bridge, generate or reuse a pairing token,
+		Long: `Start a network-reachable Navivox bridge, generate a temporary one-device pairing token,
 write a QR image, print the token for manual entry, open Navivox directly on
 Android when available, then wait for the app to connect. The terminal handoff
 also prints a compact QR when it fits the current screen.
+
+The token is not stored in Gormes config; it expires when this command stops.
 
 Use this after the installer recommends Navivox setup:
 
@@ -88,16 +90,9 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	if opts.port <= 0 || opts.port > 65535 {
 		return fmt.Errorf("navivox pair: invalid port %d", opts.port)
 	}
-	cfg, err := config.Load(nil)
+	token, err := generateNavivoxSetupToken()
 	if err != nil {
-		return fmt.Errorf("navivox pair: load config: %w", err)
-	}
-	token := strings.TrimSpace(cfg.Navivox.Token)
-	if token == "" {
-		token, err = generateNavivoxSetupToken()
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	runtimeCfg := config.NavivoxCfg{
 		Enabled:         true,
@@ -123,10 +118,6 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	}
 	portChanged := bridgeCfg.Port != requestedPort
 	runtimeCfg = bridgeCfg
-	if err := persistNavivoxPairConfig(runtimeCfg, token); err != nil {
-		_ = stopNavivoxPairBridge(bridgeStop, bridgeDone)
-		return err
-	}
 	baseURL, wsURL := navivoxConnectInfoURLs(runtimeCfg.BindHost, runtimeCfg.Port)
 	descriptor := navivoxPairDescriptor(runtimeCfg, baseURL, wsURL)
 	qrPath := filepath.Join(config.GormesHome(), "navivox", "pairing.png")
@@ -153,6 +144,7 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 		fmt.Fprintf(out, "  Port: %d busy; using %d\n", requestedPort, runtimeCfg.Port)
 	}
 	fmt.Fprintln(out, "  Keep token/QR private.")
+	fmt.Fprintln(out, "  Temporary: one device; expires when this command stops.")
 	if openSucceeded {
 		fmt.Fprintln(out, "  Opened Navivox.")
 	} else {
@@ -224,25 +216,6 @@ func ensureNoLiveGatewayForNavivoxPair(ctx context.Context) error {
 		return nil
 	}
 	return nil
-}
-
-func persistNavivoxPairConfig(runtimeCfg config.NavivoxCfg, token string) error {
-	for _, write := range []struct {
-		key   string
-		value string
-	}{
-		{"navivox.enabled", "true"},
-		{"navivox.bind_host", runtimeCfg.BindHost},
-		{"navivox.port", strconv.Itoa(runtimeCfg.Port)},
-		{"navivox.exposure_mode", runtimeCfg.ExposureMode},
-		{"navivox.auth_mode", runtimeCfg.AuthMode},
-		{"navivox.public_confirmed", strconv.FormatBool(runtimeCfg.PublicConfirmed)},
-	} {
-		if err := config.WriteTOMLValue(config.ConfigPath(), write.key, write.value); err != nil {
-			return err
-		}
-	}
-	return config.WriteEnvValue(config.EnvPath(), "GORMES_NAVIVOX_TOKEN", token)
 }
 
 type navivoxPairTarget struct {
@@ -442,6 +415,9 @@ func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string 
 	values.Set("bridge_keepalive_required", "true")
 	values.Set("bridge_lifecycle", "termux_pair_command")
 	values.Set("recommended_path", "navivox")
+	values.Set("pairing_token_temporary", "true")
+	values.Set("pairing_token_expires_when", "bridge_stops")
+	values.Set("pairing_device_limit", "1")
 	values.Set("auth_mode", cfg.AuthMode)
 	values.Set("exposure_mode", cfg.ExposureMode)
 	values.Set("token_required", "true")

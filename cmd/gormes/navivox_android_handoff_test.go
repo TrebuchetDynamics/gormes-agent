@@ -32,6 +32,10 @@ printf '%s\n' "$@"
 	if err != nil {
 		t.Fatalf("navivox pair --open-navivox --no-wait: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
+	token := navivoxPairOutputToken(stdout)
+	if token == "" || token == "nvbx_pair_open_token" {
+		t.Fatalf("navivox pair should print a fresh temporary token instead of reusing env token; token=%q stdout=%s", token, stdout)
+	}
 	args := readFakeNavivoxAMArgs(t, argsPath)
 	if len(args) == 0 || args[0] != "start" {
 		t.Fatalf("am args = %#v, want start invocation", args)
@@ -58,7 +62,7 @@ printf '%s\n' "$@"
 		"base_url":         fmt.Sprintf("http://127.0.0.1:%d", port),
 		"websocket_url":    fmt.Sprintf("ws://127.0.0.1:%d/v1/navivox/stream", port),
 		"capabilities_url": fmt.Sprintf("http://127.0.0.1:%d/v1/navivox/capabilities", port),
-		"rest_token":       "nvbx_pair_open_token",
+		"rest_token":       token,
 	} {
 		if got := values.Get(key); got != want {
 			t.Fatalf("descriptor %s = %q, want %q in %s", key, got, want, descriptor)
@@ -72,7 +76,7 @@ printf '%s\n' "$@"
 	}
 	for _, want := range []string{
 		"Navivox pairing ready.",
-		"Token: nvbx_pair_open_token",
+		"Token: " + token,
 		"Opened Navivox.",
 		"Keep this terminal open.",
 	} {
@@ -176,17 +180,21 @@ func TestNavivoxPairOpenNavivoxMissingAMFallsBackToQR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("navivox pair with missing am should keep QR fallback: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
+	token := navivoxPairOutputToken(stdout)
+	if token == "" || token == "nvbx_missing_am_token" {
+		t.Fatalf("navivox pair should print a fresh temporary token instead of reusing env token; token=%q stdout=%s", token, stdout)
+	}
 	for _, want := range []string{
 		"Open failed; use QR.",
 		"QR: " + filepath.Join(home, "navivox", "pairing.png"),
-		"Token: nvbx_missing_am_token",
+		"Token: " + token,
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	if strings.Contains(stderr, "nvbx_missing_am_token") || strings.Contains(stdout+stderr, "rest_token=") {
+	if strings.Contains(stderr, token) || strings.Contains(stdout, "nvbx_missing_am_token") || strings.Contains(stdout+stderr, "rest_token=") {
 		t.Fatalf("fallback output leaked descriptor token material:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
@@ -201,8 +209,9 @@ func TestNavivoxPairPrintDeeplinkRequiresExplicitFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("navivox pair default: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "Token: nvbx_print_deeplink_token") {
-		t.Fatalf("default pair output should print token for manual entry:\nstdout=%s", stdout)
+	token := navivoxPairOutputToken(stdout)
+	if token == "" || token == "nvbx_print_deeplink_token" {
+		t.Fatalf("default pair output should print a fresh temporary token for manual entry; token=%q\nstdout=%s", token, stdout)
 	}
 	for _, forbidden := range []string{"navivox://connect?", "rest_token="} {
 		if strings.Contains(stdout+stderr, forbidden) {
@@ -215,10 +224,14 @@ func TestNavivoxPairPrintDeeplinkRequiresExplicitFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("navivox pair --print-deeplink: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
+	printedToken := navivoxPairOutputToken(stdout)
+	if printedToken == "" || printedToken == "nvbx_print_deeplink_token" {
+		t.Fatalf("--print-deeplink should print a fresh temporary token; token=%q\nstdout=%s", printedToken, stdout)
+	}
 	for _, want := range []string{
 		"Warning: navivox://connect descriptor contains a secret; do not share it.",
 		"navivox://connect?",
-		"rest_token=nvbx_print_deeplink_token",
+		"rest_token=" + printedToken,
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("--print-deeplink stdout missing %q:\n%s", want, stdout)

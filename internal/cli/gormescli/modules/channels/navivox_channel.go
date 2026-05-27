@@ -17,7 +17,7 @@ func NewNavivoxGatewayChannel(cfg config.Config, log *slog.Logger) (gateway.Chan
 }
 
 func NewNavivoxPairBridgeHandler(cfg config.NavivoxCfg, inbox chan gateway.InboundEvent) (http.Handler, error) {
-	ch, err := navivox.NewChannel(cfg, nil)
+	ch, err := navivox.NewChannel(cfg, nil, navivox.WithSingleUsePairingStream())
 	if err != nil {
 		return nil, fmt.Errorf("navivox pair: create local bridge: %w", err)
 	}

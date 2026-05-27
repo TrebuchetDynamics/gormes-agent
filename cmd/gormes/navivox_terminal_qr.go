@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -31,7 +32,7 @@ func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, 
 	}
 	if terminalQR.TooNarrow {
 		fmt.Fprintf(out, "  Terminal QR hidden: %d cols < %d.\n", terminalQR.Columns, terminalQR.RequiredWidth)
-		fmt.Fprintf(out, "  Open: termux-open %s\n", qrPath)
+		fmt.Fprintf(out, "  Open: %s\n", navivoxPairOpenQRCommand(qrPath))
 		return nil
 	}
 	fmt.Fprintln(out, "  Scan QR:")
@@ -42,6 +43,20 @@ func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, 
 		fmt.Fprintln(out, "  QR compacted to fit this terminal.")
 	}
 	return nil
+}
+
+func navivoxPairOpenQRCommand(qrPath string) string {
+	if navivoxAndroidEnvironment() {
+		return "termux-open " + qrPath
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return "open " + qrPath
+	case "windows":
+		return "start " + qrPath
+	default:
+		return "xdg-open " + qrPath
+	}
 }
 
 func navivoxCompactPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string {

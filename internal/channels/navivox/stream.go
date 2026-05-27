@@ -96,6 +96,11 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			writeNavivoxError(w, http.StatusUnauthorized, "", "unauthorized", "Unauthorized")
 			return
 		}
+		releasePairingStream, ok := c.reservePairingStream()
+		if !ok {
+			writeNavivoxError(w, http.StatusConflict, "", "pairing_token_consumed", "Pairing token already claimed")
+			return
+		}
 		upgrader := websocket.Upgrader{
 			Subprotocols: []string{navivoxWebSocketProtocol},
 			CheckOrigin: func(req *http.Request) bool {
@@ -104,8 +109,10 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 		}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
+			releasePairingStream(false)
 			return
 		}
+		releasePairingStream(true)
 		cl := &client{
 			ch:       c,
 			conn:     conn,
@@ -143,6 +150,26 @@ func (c *Channel) handleStream(inbox chan<- gateway.InboundEvent) http.HandlerFu
 			}
 		}
 	}
+}
+
+func (c *Channel) reservePairingStream() (func(bool), bool) {
+	if !c.singleUsePairingStream {
+		return func(bool) {}, true
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.pairingStreamReserved || c.pairingStreamConsumed {
+		return nil, false
+	}
+	c.pairingStreamReserved = true
+	return func(success bool) {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		c.pairingStreamReserved = false
+		if success {
+			c.pairingStreamConsumed = true
+		}
+	}, true
 }
 
 func (cl *client) handle(ctx context.Context, inbox chan<- gateway.InboundEvent, msg ClientMessage) error {
