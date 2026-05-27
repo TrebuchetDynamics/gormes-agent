@@ -3,6 +3,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -514,15 +515,16 @@ type RouterFallbackCfg struct {
 }
 
 type AgentRuntimeCfg struct {
-	ImageInputMode     string            `toml:"image_input_mode" yaml:"image_input_mode"`
-	MaxTurns           int               `toml:"max_turns" yaml:"max_turns"`
-	ReasoningEffort    string            `toml:"reasoning_effort" yaml:"reasoning_effort"`
-	GatewayTimeout     int               `toml:"gateway_timeout" yaml:"gateway_timeout"`
-	GatewayTimeoutWarn int               `toml:"gateway_timeout_warning" yaml:"gateway_timeout_warning"`
-	APIMaxRetries      int               `toml:"api_max_retries" yaml:"api_max_retries"`
-	Verbose            bool              `toml:"verbose" yaml:"verbose"`
-	Personalities      map[string]string `toml:"personalities" yaml:"personalities"`
-	ActivePersonality  string            `toml:"active_personality" yaml:"active_personality"`
+	ImageInputMode      string            `toml:"image_input_mode" yaml:"image_input_mode"`
+	MaxTurns            int               `toml:"max_turns" yaml:"max_turns"`
+	ReasoningEffort     string            `toml:"reasoning_effort" yaml:"reasoning_effort"`
+	GatewayTimeout      int               `toml:"gateway_timeout" yaml:"gateway_timeout"`
+	GatewayTimeoutWarn  int               `toml:"gateway_timeout_warning" yaml:"gateway_timeout_warning"`
+	APIMaxRetries       int               `toml:"api_max_retries" yaml:"api_max_retries"`
+	Verbose             bool              `toml:"verbose" yaml:"verbose"`
+	Personalities       map[string]string `toml:"personalities" yaml:"personalities"`
+	ActivePersonality   string            `toml:"active_personality" yaml:"active_personality"`
+	PrefillMessagesFile string            `toml:"prefill_messages_file" yaml:"prefill_messages_file"`
 }
 
 type AuxiliaryCfg struct {
@@ -1238,6 +1240,9 @@ func loadEnv(cfg *Config) error {
 	}
 	if v := strings.TrimSpace(os.Getenv("GORMES_VOICE_RECORD_KEY")); v != "" {
 		cfg.Voice.RecordKey = v
+	}
+	if v := strings.TrimSpace(firstNonEmpty(os.Getenv("GORMES_PREFILL_MESSAGES_FILE"), os.Getenv("HERMES_PREFILL_MESSAGES_FILE"))); v != "" {
+		cfg.Agent.PrefillMessagesFile = v
 	}
 	if v := firstNonEmpty(
 		os.Getenv("GORMES_TELEGRAM_BOT_TOKEN"),
@@ -2112,6 +2117,49 @@ func SubprocessHomeFor(gormesHome string) (string, bool) {
 // ConfigPath returns the Gormes TOML config file path.
 func ConfigPath() string {
 	return filepath.Join(GormesHome(), "config.toml")
+}
+
+// LoadConfiguredPrefillMessages loads Hermes-compatible ephemeral few-shot
+// prefill messages from the configured agent.prefill_messages_file path. The
+// HERMES_PREFILL_MESSAGES_FILE/GORMES_PREFILL_MESSAGES_FILE environment
+// overrides are applied by Load before this helper is called.
+func LoadConfiguredPrefillMessages(cfg Config) ([]hermes.Message, error) {
+	return LoadPrefillMessages(cfg.Agent.PrefillMessagesFile)
+}
+
+// LoadPrefillMessages loads a JSON array of Hermes messages. Empty, missing,
+// invalid, or non-array files degrade to no prefill messages, matching Hermes'
+// nonfatal behavior. Relative paths resolve from GormesHome, the Go-native
+// equivalent of Hermes resolving from ~/.hermes.
+func LoadPrefillMessages(filePath string) ([]hermes.Message, error) {
+	filePath = strings.TrimSpace(filePath)
+	if filePath == "" {
+		return nil, nil
+	}
+	path := os.ExpandEnv(filePath)
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil && home != "" {
+			path = filepath.Join(home, strings.TrimPrefix(path, "~/"))
+		}
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(GormesHome(), path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, nil
+	}
+	var messages []hermes.Message
+	if err := json.Unmarshal(data, &messages); err != nil {
+		return nil, nil
+	}
+	if messages == nil {
+		return nil, nil
+	}
+	return messages, nil
 }
 
 // YAMLConfigPath returns the YAML variant of the Gormes config file path.

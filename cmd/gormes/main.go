@@ -1032,6 +1032,7 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 		MaxToolIterations: configuredMaxToolIterations(cfg),
 		ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
 		ToolSafety:        toolSafety,
+		PrefillMessages:   configuredPrefillMessages(cfg),
 	}
 	if skillRuntime := newForcedSkillRuntime(cfg, invocation.ForcedSkills); skillRuntime != nil {
 		kernelCfg.Skills = skillRuntime
@@ -1330,6 +1331,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		ToolAudit:         toolAudit,
+		PrefillMessages:   configuredPrefillMessages(cfg),
 	}, c, store.NewNoop(), tm, tuiKernelLogger())
 
 	go k.Run(rootCtx)

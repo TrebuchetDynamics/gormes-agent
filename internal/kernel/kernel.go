@@ -67,6 +67,10 @@ type Config struct {
 	// Skills injects a deterministic procedural block ahead of the user turn.
 	// Nil means no skill runtime.
 	Skills SkillProvider
+	// PrefillMessages are ephemeral few-shot messages inserted into provider
+	// requests after system/context messages and before visible conversation.
+	// They are never appended to kernel history or persisted.
+	PrefillMessages []hermes.Message
 	// SkillUsage records selected skill names for later analysis. Nil disables
 	// usage logging.
 	SkillUsage SkillUsageRecorder
@@ -678,6 +682,9 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 				}
 			}
 		}
+	}
+	if len(k.cfg.PrefillMessages) > 0 {
+		msgs = append(cloneKernelMessages(k.cfg.PrefillMessages), msgs...)
 	}
 	if len(systemMsgs) > 0 {
 		msgs = append(systemMsgs, msgs...)

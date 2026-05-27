@@ -168,6 +168,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		Recall:            recallProv,
 		ChatKey:           key,
 		ToolAudit:         toolAudit,
+		PrefillMessages:   configuredPrefillMessages(cfg),
 	}, hc, mstore, tm, slog.Default())
 
 	// Phase 3.B — async LLM-assisted entity/relationship extractor.

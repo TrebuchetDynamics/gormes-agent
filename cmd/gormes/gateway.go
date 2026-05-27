@@ -327,6 +327,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		MaxToolDuration:   30 * time.Second,
 		ToolAudit:         toolAudit,
 		Goncho:            gonchoStore,
+		PrefillMessages:   configuredPrefillMessages(cfg),
 	}, hc, mstore, telemetry.New(), slog.Default())
 
 	// Phase 2.D — cron scheduler is initialized after channel registration below.
@@ -563,6 +564,7 @@ func newGatewayAgentRuntimeFactory(rootCtx context.Context, cfg config.Config, m
 			ChatKey:           req.SessionKey,
 			ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
 			Goncho:            gonchoStore,
+			PrefillMessages:   configuredPrefillMessages(agentCfg),
 		}, hc, mstore, telemetry.New(), slog.Default())
 		go k.Run(rootCtx)
 		return k, nil

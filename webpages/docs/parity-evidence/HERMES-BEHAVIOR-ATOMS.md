@@ -42,7 +42,7 @@ file+line ref or explicit `missing`, and a classification.
 | Default 90-turn iteration budget | `run_agent.py` `max_iterations=90` | `internal/kernel/kernel.go` | covered | Default 90, toolless summary on exhaustion. |
 | Cancel active turn | `run_agent.py` `cancel()` | `internal/kernel/kernel.go` `cancelCmd` | covered | Context cancellation. |
 | Interrupt and replace draft | `run_agent.py` `interrupt` | `internal/kernel/kernel.go` + `internal/tui/update.go` `HermesActionInterrupt` | covered | TUI interrupt path tested. |
-| Prefill messages injection | `cli.py` `_load_prefill_messages` | → `missing` | missing | Hermes loads prefill messages from env/file. |
+| Prefill messages injection | `cli.py` `_load_prefill_messages`; `gateway/run.py` `_load_prefill_messages` | `internal/config/config.go` `LoadPrefillMessages`; `internal/kernel/kernel.go` `PrefillMessages`; `cmd/gormes/prefill.go` | covered | Loads JSON prefill messages from `agent.prefill_messages_file` or `HERMES_PREFILL_MESSAGES_FILE` / `GORMES_PREFILL_MESSAGES_FILE`, injects them after system/context messages before the current user turn, and keeps them out of visible history; covered by `internal/config/prefill_messages_test.go` and `internal/kernel/prefill_test.go`. |
 
 ### 1.2 Trajectory
 

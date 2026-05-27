@@ -186,6 +186,7 @@ func (r *kernelRPCRuntime) ensureKernelLocked(ctx context.Context) error {
 		MaxToolIterations: configuredMaxToolIterations(cfg),
 		ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
 		ToolSafety:        toolSafety,
+		PrefillMessages:   configuredPrefillMessages(cfg),
 	}
 	if skillRuntime := newForcedSkillRuntime(cfg, r.invocation.ForcedSkills); skillRuntime != nil {
 		kernelCfg.Skills = skillRuntime
