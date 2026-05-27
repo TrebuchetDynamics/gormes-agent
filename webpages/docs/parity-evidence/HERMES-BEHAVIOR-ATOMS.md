@@ -54,9 +54,15 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Context engine | `agent/context_engine.py` | `internal/hermes/` | partial | Hermes has richer context status. |
+| Context engine status | `agent/context_engine.py` | `internal/hermes/context_engine.go` | covered | Context status with token pressure. |
 | Context compression | `agent/context_compressor.py` | → `missing` | missing | Not ported. |
 | Manual compression feedback | `agent/manual_compression_feedback.py` | → `missing` | missing | Not ported. |
+| Token budget | `agent/context_engine.py` | `internal/kernel/` | covered | Token budget tracking. |
+| Protected head/tail | `agent/context_engine.py` | → `missing` | missing | Not ported. |
+| Multimodal length | `agent/context_engine.py` | → `missing` | missing | Not ported. |
+| Image charge | `agent/context_engine.py` | → `missing` | missing | Not ported. |
+| Tool-result pruning | `agent/context_engine.py` | → `missing` | missing | Not ported. |
+| Summary lineage | `agent/context_compressor.py` | → `missing` | missing | Not ported. |
 
 ### 1.4 Prompt builder
 
@@ -239,6 +245,13 @@ file+line ref or explicit `missing`, and a classification.
 | Tool progress rendering | `agent/display.py` `get_tool_emoji` | `internal/tooltrace/` | covered | Shared renderer with emoji icons. |
 | `new/all/off` modes | `gateway/display_config.py` | `internal/config/` + `internal/tooltrace/` | covered | Tool progress display modes. |
 | Duplicate collapse | `agent/display.py` | `internal/tooltrace/` | partial | Collapse for consecutive same-symbol tool traces. |
+| Tool preview truncation | `agent/display.py` `build_tool_preview` | `internal/tooltrace/` | covered | Truncation of long tool args. |
+| `(×N)` collapse | `agent/display.py` | `internal/tooltrace/` | covered | Identical consecutive tool calls collapsed. |
+| `todo merge=true` wording | `agent/display.py` | `internal/tooltrace/` | covered | Special todo merge display. |
+| Unknown-tool degradation | `agent/display.py` | `internal/tooltrace/` | covered | Unknown tools display as generic ⚡. |
+| Tool result error display | `gateway/run.py` `:14716` | `internal/gateway/render.go` | covered | Error tool results rendered distinctly. |
+| Tool progress override per-platform | `gateway/run.py` `display.platforms.<name>.tool_progress` | `internal/config/` | partial | Config exists; per-platform override not proven. |
+| Tool progress env var override | `gateway/run.py` `HERMES_TOOL_PROGRESS` | → `missing` | missing | Hermes env var for tool progress mode. |
 
 ### 4.3 Composer behavior
 
@@ -383,8 +396,28 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| `/v1/chat/completions` | `gateway/platforms/api_server.py` | `internal/apiserver/` | covered | OpenAI-compatible endpoint. |
-| `/healthz` | web docs | `internal/apiserver/` | covered | Health check. |
+| `/health` | `api_server.py` `:3400` | `internal/apiserver/` | covered | Health check. |
+| `/health/detailed` | `api_server.py` `:3401` | → `missing` | missing | Detailed health (not ported). |
+| `/v1/health` | `api_server.py` `:3402` | `internal/apiserver/` | covered | Versioned health. |
+| `/v1/models` | `api_server.py` `:3403` | → `missing` | missing | Model listing. |
+| `/v1/capabilities` | `api_server.py` `:3404` | → `missing` | missing | Server capabilities document. |
+| `/v1/chat/completions` | `api_server.py` `:3405` | `internal/apiserver/` | covered | OpenAI-compatible streaming. |
+| `/v1/responses` (POST) | `api_server.py` `:3406` | → `missing` | missing | New Responses API endpoint. |
+| `/v1/responses/{id}` (GET) | `api_server.py` `:3407` | → `missing` | missing | Fetch stored response. |
+| `/v1/responses/{id}` (DELETE) | `api_server.py` `:3408` | → `missing` | missing | Delete stored response. |
+| `/api/jobs` (GET) | `api_server.py` `:3410` | → `missing` | missing | List scheduled jobs. |
+| `/api/jobs` (POST) | `api_server.py` `:3411` | → `missing` | missing | Create scheduled job. |
+| `/api/jobs/{id}` (GET) | `api_server.py` `:3412` | → `missing` | missing | Get job by ID. |
+| `/api/jobs/{id}` (PATCH) | `api_server.py` `:3413` | → `missing` | missing | Update job. |
+| `/api/jobs/{id}` (DELETE) | `api_server.py` `:3414` | → `missing` | missing | Delete job. |
+| `/api/jobs/{id}/pause` | `api_server.py` `:3415` | → `missing` | missing | Pause job. |
+| `/api/jobs/{id}/resume` | `api_server.py` `:3416` | → `missing` | missing | Resume job. |
+| `/api/jobs/{id}/run` | `api_server.py` `:3417` | → `missing` | missing | Run job immediately. |
+| `/v1/runs` (POST) | `api_server.py` `:3419` | → `missing` | missing | Create assistant run (threads API). |
+| `/v1/runs/{id}` (GET) | `api_server.py` `:3420` | → `missing` | missing | Get run status. |
+| `/v1/runs/{id}/events` (GET) | `api_server.py` `:3421` | → `missing` | missing | Stream run events (SSE). |
+| `/v1/runs/{id}/approval` (POST) | `api_server.py` `:3422` | → `missing` | missing | Approve pending action. |
+| `/v1/runs/{id}/stop` (POST) | `api_server.py` `:3423` | → `missing` | missing | Stop running run. |
 | Dashboard | `hermes_cli/web_server.py` | → `missing` | missing | Dashboard not ported. |
 
 ---
