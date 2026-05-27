@@ -102,7 +102,7 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 			if xdgRoot == "" {
 				return ProfileCreateResult{}, ErrProfileXDGRootRequired
 			}
-			sourceRoot, err = ResolveProfileRoot("default", xdgRoot)
+			sourceRoot, err = ResolveProfileRuntimeRoot(filepath.Join(xdgRoot, "gormes"), "default")
 			if err != nil {
 				return ProfileCreateResult{}, err
 			}

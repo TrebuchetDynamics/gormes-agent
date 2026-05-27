@@ -394,10 +394,11 @@ func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Con
 	if writeSetupProfilesControlCenterConfig == nil {
 		return fmt.Errorf("profile control center root config writer unavailable")
 	}
-	if err := writeSetupProfilesControlCenterConfig(config.ConfigPath(), applied); err != nil {
+	configPath := config.ConfigPath()
+	if err := writeSetupProfilesControlCenterConfig(configPath, applied); err != nil {
 		return fmt.Errorf("apply profile control center draft: %w", err)
 	}
-	fmt.Fprintf(out, "Applied %d profile control center change(s) to %s.\n", len(changes), config.ConfigPath())
+	fmt.Fprintf(out, "Applied %d profile control center change(s) to %s.\n", len(changes), setupRedactedProfileConfigPath(config.GormesHome()))
 	return nil
 }
 
@@ -414,13 +415,13 @@ func applySetupProfilesLegacyMigration(out io.Writer) error {
 		fmt.Fprintf(out, "  - %s\n", line)
 	}
 	if result.NoOp {
-		fmt.Fprintf(out, "No legacy profile config migration needed for %s.\n", result.Path)
+		fmt.Fprintf(out, "No legacy profile config migration needed for %s.\n", setupRedactedFilePath(result.Path))
 		return nil
 	}
 	if result.Wrote {
-		fmt.Fprintf(out, "Applied legacy profile config migration to %s.\n", result.Path)
+		fmt.Fprintf(out, "Applied legacy profile config migration to %s.\n", setupRedactedFilePath(result.Path))
 		if result.BackupPath != "" {
-			fmt.Fprintf(out, "Backup: %s\n", result.BackupPath)
+			fmt.Fprintf(out, "Backup: %s\n", setupRedactedFilePath(result.BackupPath))
 		}
 	}
 	return nil
@@ -475,12 +476,13 @@ func applySetupProfilesTUIResult(cmd *cobra.Command, pseams profileCommandSeams,
 	}
 
 	profileConfigPath := filepath.Join(root, "config.toml")
+	profileConfigDisplayPath := setupRedactedProfileConfigPath(root)
 	if result.WorkspacesSet {
 		workspaces := normalizeSetupProfilesTUIValues(result.Workspaces)
 		if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.workspaces", strings.Join(workspaces, ",")); err != nil {
 			return fmt.Errorf("persist workspaces for profile %q: %w", selected, err)
 		}
-		fmt.Fprintf(out, "Set %d workspace(s) for profile %q in %s.\n", len(workspaces), selected, profileConfigPath)
+		fmt.Fprintf(out, "Set %d workspace(s) for profile %q in %s.\n", len(workspaces), selected, profileConfigDisplayPath)
 	}
 	if result.ChannelsSet {
 		validChannels, unknownChannels := parseSetupChannelList(strings.Join(result.Channels, ","))
@@ -494,7 +496,7 @@ func applySetupProfilesTUIResult(cmd *cobra.Command, pseams profileCommandSeams,
 		if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.channels", strings.Join(validChannels, ",")); err != nil {
 			return fmt.Errorf("persist channels for profile %q: %w", selected, err)
 		}
-		fmt.Fprintf(out, "Set %d channel(s) for profile %q in %s.\n", len(validChannels), selected, profileConfigPath)
+		fmt.Fprintf(out, "Set %d channel(s) for profile %q in %s.\n", len(validChannels), selected, profileConfigDisplayPath)
 	}
 	if createName == "" && !result.SetActive && !result.WorkspacesSet && !result.ChannelsSet {
 		fmt.Fprintln(out, "No profile setup changes selected.")
@@ -515,6 +517,23 @@ func setupRedactedProfileRoot(root string) string {
 		return "..."
 	}
 	return ".../" + base
+}
+
+func setupRedactedProfileConfigPath(root string) string {
+	return filepath.ToSlash(filepath.Join(setupRedactedProfileRoot(root), "config.toml"))
+}
+
+func setupRedactedFilePath(path string) string {
+	cleaned := filepath.Clean(strings.TrimSpace(path))
+	if cleaned == "" || cleaned == "." || cleaned == string(filepath.Separator) {
+		return "..."
+	}
+	parent := filepath.Base(filepath.Dir(cleaned))
+	base := filepath.Base(cleaned)
+	if parent == "." || parent == string(filepath.Separator) || parent == "" {
+		return ".../" + base
+	}
+	return filepath.ToSlash(filepath.Join("...", parent, base))
 }
 
 func setupProfilesProviderCredential(profileID, providerID string) config.CredentialCfg {
@@ -874,7 +893,7 @@ func (m setupProfilesModel) View() string {
 	fmt.Fprintln(&b, "Selected profile")
 	fmt.Fprintf(&b, "Name: %s\n", profile.Name)
 	if profile.Root != "" {
-		fmt.Fprintf(&b, "Root: %s\n", profile.Root)
+		fmt.Fprintf(&b, "Root: %s\n", setupRedactedProfileRoot(profile.Root))
 	}
 	fmt.Fprintf(&b, "Workspaces: %s\n", setupProfilesListOrEmpty(profile.Workspaces))
 	fmt.Fprintf(&b, "Channels: %s\n", setupProfilesListOrEmpty(profile.Channels))

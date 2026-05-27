@@ -1037,13 +1037,14 @@ func promptSetupProviderChoice(cmd *cobra.Command, entries []cli.ProviderMenuEnt
 	}
 
 	if stdin, ok := cmd.InOrStdin().(*os.File); ok && setupInputIsTerminal(stdin) {
-		selected, err := runBubbleTeaPick(
+		selected, err := runBubbleTeaPickWithOptions(
 			cmd.Context(),
 			stdin,
 			cmd.OutOrStdout(),
 			"Select provider",
 			setupProviderPickerChoices(entries),
 			strconv.Itoa(defaultIndex),
+			setupwizard.WithSearchChoices(),
 		)
 		if err == nil {
 			if selected == "" {
@@ -1979,7 +1980,32 @@ func runSetupProfilesSection(cmd *cobra.Command, seams setupCommandSeams, nonInt
 	return runSetupProfilesInteractive(cmd, defaultProfileCommandSeams())
 }
 
+func scopeSetupProfilesBaseHome() (func(), error) {
+	rawHome, hadHome := os.LookupEnv("GORMES_HOME")
+	currentHome := config.GormesHome()
+	baseHome := config.GormesBaseHomeFor(currentHome)
+	if currentHome == baseHome {
+		return func() {}, nil
+	}
+	if err := os.Setenv("GORMES_HOME", baseHome); err != nil {
+		return nil, fmt.Errorf("setup profiles: scope base home: %w", err)
+	}
+	return func() {
+		if hadHome {
+			_ = os.Setenv("GORMES_HOME", rawHome)
+		} else {
+			_ = os.Unsetenv("GORMES_HOME")
+		}
+	}, nil
+}
+
 func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams) error {
+	restoreHome, err := scopeSetupProfilesBaseHome()
+	if err != nil {
+		return err
+	}
+	defer restoreHome()
+
 	out := cmd.OutOrStdout()
 	known, err := pseams.ListKnownProfiles()
 	if err != nil {
@@ -2061,7 +2087,7 @@ func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams)
 			return fmt.Errorf("persist workspaces for profile %q: %w", selected, err)
 		}
 		fmt.Fprintf(out, "Set %d workspace(s) for profile %q in %s.\n",
-			len(parseSetupWorkspaceList(wsInput)), selected, profileConfigPath)
+			len(parseSetupWorkspaceList(wsInput)), selected, setupRedactedProfileConfigPath(root))
 	}
 
 	chInput, err := promptString(cmd, "Messaging channels (comma-separated: telegram,whatsapp,discord,slack — blank to keep): ", "")
@@ -2083,7 +2109,7 @@ func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams)
 	if err := config.WriteTOMLValue(profileConfigPath, "agents.defaults.channels", strings.Join(validChannels, ",")); err != nil {
 		return fmt.Errorf("persist channels for profile %q: %w", selected, err)
 	}
-	fmt.Fprintf(out, "Set %d channel(s) for profile %q in %s.\n", len(validChannels), selected, profileConfigPath)
+	fmt.Fprintf(out, "Set %d channel(s) for profile %q in %s.\n", len(validChannels), selected, setupRedactedProfileConfigPath(root))
 	return nil
 }
 

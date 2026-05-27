@@ -591,14 +591,22 @@ func applyProfileStartupFlag(cmd *cobra.Command) error {
 	if err := cli.ValidateProfileName(name); err != nil {
 		return newExitCodeError(2, fmt.Errorf("profile_name_invalid: %w", err))
 	}
-	root := baseHome
-	if name != "default" {
-		root = filepath.Join(baseHome, "profiles", name)
+	root, err := startupProfileRoot(baseHome, name)
+	if err != nil {
+		return newExitCodeError(2, err)
 	}
 	if err := os.Setenv("GORMES_HOME", root); err != nil {
 		return newExitCodeError(2, fmt.Errorf("profile: set GORMES_HOME: %w", err))
 	}
 	return nil
+}
+
+func startupProfileRoot(baseHome, name string) (string, error) {
+	root, err := cli.ResolveProfileRuntimeRoot(baseHome, name)
+	if err != nil {
+		return "", fmt.Errorf("profile: resolve root: %w", err)
+	}
+	return root, nil
 }
 
 func commandSkipsStickyActiveProfile(cmd *cobra.Command) bool {

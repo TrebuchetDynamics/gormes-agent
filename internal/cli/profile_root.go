@@ -8,14 +8,16 @@ import "errors"
 var ErrProfileXDGRootRequired = errors.New("gormes XDG config home is required")
 
 // ResolveProfileRoot maps a profile name and a caller-supplied XDG config home
-// to the directory that would hold that profile's gormes state. It is a pure
-// string helper: it never reads the environment, never stats, and never
-// creates directories.
+// to the legacy physical directory that currently holds that profile's Gormes
+// state. It is a pure string helper: it never reads the environment, never
+// stats, and never creates directories.
 //
 // For name=="default" it returns gormesXDGConfigHome+"/gormes"; for any other
 // name accepted by ValidateProfileName it returns
 // gormesXDGConfigHome+"/gormes/profiles/"+name. Invalid names propagate the
-// same sentinel errors as ValidateProfileName.
+// same sentinel errors as ValidateProfileName. New migration-aware code should
+// prefer ProfileStorageContract, whose target contract resolves "default" to
+// BaseHome/profiles/default without changing this legacy resolver in-place.
 func ResolveProfileRoot(name string, gormesXDGConfigHome string) (string, error) {
 	if gormesXDGConfigHome == "" {
 		return "", ErrProfileXDGRootRequired

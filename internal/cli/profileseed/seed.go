@@ -216,10 +216,18 @@ func defaultCreateProfile(name string, cloneAll bool) (cli.ProfileCreateResult, 
 		return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
 	}
 	baseHome := config.GormesBaseHome()
+	sourceRoot := ""
+	if cloneAll {
+		var err error
+		sourceRoot, err = cli.ResolveProfileRuntimeRoot(baseHome, "default")
+		if err != nil {
+			return cli.ProfileCreateResult{}, err
+		}
+	}
 	return cli.CreateProfile(cli.ProfileCreateOptions{
 		Name:       name,
 		TargetRoot: filepath.Join(baseHome, "profiles", name),
-		SourceRoot: baseHome,
+		SourceRoot: sourceRoot,
 		CloneAll:   cloneAll,
 	})
 }

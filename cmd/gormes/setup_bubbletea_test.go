@@ -25,19 +25,26 @@ func TestSetupInteractiveMenusUseBubbleTeaPicker(t *testing.T) {
 	}
 }
 
-func TestSetupProviderChoiceUsesBubbleTeaPickerForTTY(t *testing.T) {
+func TestSetupProviderChoiceUsesSearchableBubbleTeaPickerForTTY(t *testing.T) {
 	raw, err := os.ReadFile("setup.go")
 	if err != nil {
 		t.Fatalf("read setup.go: %v", err)
 	}
 	text := string(raw)
+	start := strings.Index(text, "func promptSetupProviderChoice")
+	end := strings.Index(text, "func setupProviderPickerChoices")
+	if start < 0 || end <= start {
+		t.Fatalf("setup.go missing promptSetupProviderChoice function block")
+	}
+	providerChoice := text[start:end]
 	for _, want := range []string{
 		"setupProviderPickerChoices(entries)",
-		"runBubbleTeaPick(",
+		"runBubbleTeaPickWithOptions(",
+		"setupwizard.WithSearchChoices()",
 		"promptSetupProviderChoiceText(cmd, entries, defaultIndex)",
 	} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("setup provider choice missing Bubble Tea routing marker %q", want)
+		if !strings.Contains(providerChoice, want) {
+			t.Fatalf("setup provider choice missing searchable Bubble Tea routing marker %q", want)
 		}
 	}
 }

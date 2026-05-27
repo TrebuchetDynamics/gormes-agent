@@ -175,7 +175,63 @@ func TestSetupProfilesNamedProfileWritesOwnConfigNotDefaultHome(t *testing.T) {
 	if db, derr := os.ReadFile(defaultCfg); derr == nil && strings.Contains(string(db), "/srv/work-a") {
 		t.Fatalf("named profile workspaces must NOT leak into the default-home config:\n%s", db)
 	}
-	_ = stdout
+	out := stdout + stderr
+	if strings.Contains(out, home) {
+		t.Fatalf("setup profiles output leaked raw profile config path rooted at %s:\n%s", home, out)
+	}
+	if !strings.Contains(out, ".../work/config.toml") {
+		t.Fatalf("setup profiles output must identify the redacted profile config path:\n%s", out)
+	}
+}
+
+func TestSetupProfilesFromProfileScopedEnvLoadsBaseControlCenterConfig(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	workRoot := filepath.Join(base, "profiles", "work")
+	if err := os.MkdirAll(workRoot, 0o700); err != nil {
+		t.Fatalf("mkdir active profile root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(base, "config.toml"), []byte(`config_version = 2
+
+[profiles.main]
+enabled = true
+name = "Main desk"
+`), 0o600); err != nil {
+		t.Fatalf("write base v2 config: %v", err)
+	}
+	t.Setenv("GORMES_HOME", workRoot)
+	fake := &setupCommandFakeSeams{isTTY: true}
+
+	oldInputIsTerminal := setupInputIsTerminal
+	oldRunner := runSetupProfilesTUI
+	setupInputIsTerminal = func(*os.File) bool { return true }
+	runSetupProfilesTUI = func(_ context.Context, _ *os.File, _ io.Writer, state setupProfilesTUIState) (setupProfilesTUIResult, error) {
+		if !state.ControlCenter {
+			t.Fatalf("setup profiles loaded legacy state from active profile; want base-home Control Center state: %+v", state)
+		}
+		if len(state.Profiles) != 1 || state.Profiles[0].Name != "main" {
+			t.Fatalf("Control Center profiles = %+v, want root config profiles.main", state.Profiles)
+		}
+		return setupProfilesTUIResult{Discarded: true}, nil
+	}
+	t.Cleanup(func() {
+		setupInputIsTerminal = oldInputIsTerminal
+		runSetupProfilesTUI = oldRunner
+	})
+
+	cmd := newSetupCommandWithSeams(fake.seams())
+	var stdout, stderr strings.Builder
+	cmd.SetIn(os.Stdin)
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"profiles"})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("setup profiles: Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String()+stderr.String(), "Profile Control Center draft discarded") {
+		t.Fatalf("setup profiles did not apply Control Center result:\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+	}
 }
 
 func TestSetupProfilesControlCenterTUIShowsProviderCatalogAndStagesModelConfig(t *testing.T) {
@@ -554,6 +610,12 @@ func TestSetupProfilesLegacyControlCenterMigrationAppliesViaInternalConfig(t *te
 			t.Fatalf("migration output leaked legacy prompt/secret %q:\n%s", forbidden, out)
 		}
 	}
+	if strings.Contains(out, home) {
+		t.Fatalf("migration output leaked raw root path rooted at %s:\n%s", home, out)
+	}
+	if !strings.Contains(out, ".../") || !strings.Contains(out, "config.toml") {
+		t.Fatalf("migration output must include redacted config/backup paths:\n%s", out)
+	}
 	cfg, err := config.Load(nil)
 	if err != nil {
 		t.Fatalf("config.Load migrated: %v", err)
@@ -723,6 +785,12 @@ name = ""
 	}
 	if strings.Contains(out, "Active profile set") || strings.Contains(out, "profiles/tulin/config.toml") {
 		t.Fatalf("v2 setup profiles leaked legacy profile-home/active behavior:\n%s", out)
+	}
+	if strings.Contains(out, home) {
+		t.Fatalf("v2 setup profiles output leaked raw root config path rooted at %s:\n%s", home, out)
+	}
+	if !strings.Contains(out, ".../") || !strings.Contains(out, "config.toml") {
+		t.Fatalf("v2 setup profiles output must identify the redacted root config path:\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(home, "active_profile")); !os.IsNotExist(err) {
 		t.Fatalf("v2 setup profiles must not write active_profile, stat err=%v", err)

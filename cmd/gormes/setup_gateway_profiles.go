@@ -30,8 +30,11 @@ type setupGatewayProfileChannelOptions struct {
 func setupGatewayProfileID() string {
 	home := filepath.Clean(strings.TrimSpace(config.GormesHome()))
 	if home != "" && filepath.Base(filepath.Dir(home)) == "profiles" {
-		if name := strings.TrimSpace(filepath.Base(home)); name != "" {
-			return strings.ToLower(name)
+		if name := strings.ToLower(strings.TrimSpace(filepath.Base(home))); name != "" {
+			if name == "default" {
+				return config.DefaultProfileID
+			}
+			return name
 		}
 	}
 	return config.DefaultProfileID

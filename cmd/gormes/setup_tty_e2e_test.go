@@ -57,9 +57,9 @@ func TestSetupProviderTTYE2EConsumesArrowKeys(t *testing.T) {
 
 	events := readPTY(tty)
 	var transcript bytes.Buffer
-	waitForSetupProviderTTYOutput(t, tty, events, &transcript, "Up/Down or j/k navigate")
-	if !strings.Contains(transcript.String(), "→") {
-		t.Fatalf("setup provider Bubble Tea picker missing polished selected-row cursor:\n%s", transcript.String())
+	waitForSetupProviderTTYOutput(t, tty, events, &transcript, "Type to filter")
+	if !strings.Contains(transcript.String(), "❯") {
+		t.Fatalf("setup provider searchable Bubble Tea picker missing polished selected-row cursor:\n%s", transcript.String())
 	}
 	if strings.Contains(transcript.String(), "Choice [1-40]") {
 		t.Fatalf("setup provider prompt fell back to line input instead of the TTY picker:\n%s", transcript.String())
@@ -68,7 +68,7 @@ func TestSetupProviderTTYE2EConsumesArrowKeys(t *testing.T) {
 	if _, err := tty.Write([]byte("\x1b[B")); err != nil {
 		t.Fatalf("write arrow key to setup provider picker: %v", err)
 	}
-	if _, err := tty.Write([]byte("q")); err != nil {
+	if _, err := tty.Write([]byte("\x1b")); err != nil {
 		t.Fatalf("abort setup provider picker: %v", err)
 	}
 

@@ -242,7 +242,8 @@ func defaultSkillSyncProfiles() ([]skills.SkillProfileRoot, error) {
 	if err != nil {
 		return nil, err
 	}
-	activePath := filepath.Join(config.GormesHome(), "active_profile")
+	baseHome := config.GormesBaseHome()
+	activePath := filepath.Join(baseHome, "active_profile")
 	if active, err := cli.ReadActiveProfile(activePath); err == nil {
 		names = append(names, strings.TrimSpace(active))
 	} else if !errors.Is(err, cli.ErrActiveProfileUnset) {
@@ -251,14 +252,13 @@ func defaultSkillSyncProfiles() ([]skills.SkillProfileRoot, error) {
 
 	seen := map[string]bool{}
 	out := make([]skills.SkillProfileRoot, 0, len(names))
-	xdgRoot := filepath.Dir(config.GormesHome())
 	for _, name := range names {
 		name = strings.TrimSpace(name)
 		if name == "" || seen[name] {
 			continue
 		}
 		seen[name] = true
-		root, err := cli.ResolveProfileRoot(name, xdgRoot)
+		root, err := cli.ResolveProfileRuntimeRoot(baseHome, name)
 		if err != nil {
 			return nil, err
 		}

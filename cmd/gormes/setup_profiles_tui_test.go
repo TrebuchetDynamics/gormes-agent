@@ -31,6 +31,12 @@ func TestSetupProfilesTUIRendersManagerSurface(t *testing.T) {
 	})
 
 	view := m.View()
+	if strings.Contains(view, "/home/operator") {
+		t.Fatalf("profile TUI view leaked raw operator profile root:\n%s", view)
+	}
+	if !strings.Contains(view, "Root: .../.gormes") {
+		t.Fatalf("profile TUI view must show a redacted profile root:\n%s", view)
+	}
 	for _, want := range []string{
 		"Gormes profile setup",
 		"Profiles",

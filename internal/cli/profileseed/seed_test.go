@@ -105,6 +105,32 @@ func TestProfileSeedDefaultCreateProfileUsesBaseHomeFromProfileScopedEnv(t *test
 	}
 }
 
+func TestProfileSeedDefaultCreateProfileCloneAllUsesMaterializedDefaultSource(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	materializedDefault := filepath.Join(base, "profiles", "default")
+	if err := os.MkdirAll(materializedDefault, 0o700); err != nil {
+		t.Fatalf("mkdir materialized default profile: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(materializedDefault, "config.toml"), []byte("model = 'materialized'\n"), 0o600); err != nil {
+		t.Fatalf("write materialized default config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(base, "legacy-only.txt"), []byte("legacy"), 0o600); err != nil {
+		t.Fatalf("write legacy marker: %v", err)
+	}
+	t.Setenv("GORMES_HOME", filepath.Join(base, "profiles", "active"))
+
+	created, err := defaultCreateProfile("seeded", true)
+	if err != nil {
+		t.Fatalf("defaultCreateProfile seeded cloneAll: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(created.Root, "config.toml")); err != nil || !strings.Contains(string(got), "materialized") {
+		t.Fatalf("created profile config = %q, %v; want materialized default config", string(got), err)
+	}
+	if _, err := os.Stat(filepath.Join(created.Root, "legacy-only.txt")); !os.IsNotExist(err) {
+		t.Fatalf("clone_all copied legacy base root despite materialized default, stat err=%v", err)
+	}
+}
+
 func TestProfileSeedApplyCreatesProfileManifestWithoutImplicitWorkspaceGrant(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "profiles", "work-mineru-repo")
 	result, err := Apply("work on mineru repo", ApplyOptions{

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -120,6 +122,38 @@ func TestSkillsSyncCommand_JSONEmitsStructuredReport(t *testing.T) {
 	// Fixture root paths MUST stay out of stdout.
 	if strings.Contains(stdout, "/fixture/") {
 		t.Fatalf("stdout leaked fake roots:\n%s", stdout)
+	}
+}
+
+func TestDefaultSkillSyncProfilesUsesBaseHomeFromProfileScopedProcess(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	defaultRoot := filepath.Join(base, "profiles", "default")
+	workRoot := filepath.Join(base, "profiles", "work")
+	for _, root := range []string{defaultRoot, workRoot} {
+		if err := os.MkdirAll(root, 0o700); err != nil {
+			t.Fatalf("mkdir profile root %s: %v", root, err)
+		}
+	}
+	t.Setenv("GORMES_HOME", workRoot)
+
+	profiles, err := defaultSkillSyncProfiles()
+	if err != nil {
+		t.Fatalf("defaultSkillSyncProfiles(): %v", err)
+	}
+	got := map[string]string{}
+	for _, profile := range profiles {
+		got[profile.Name] = profile.Root
+	}
+	if got["default"] != defaultRoot {
+		t.Fatalf("default skill-sync root = %q, want materialized base-home default root %q; profiles=%+v", got["default"], defaultRoot, profiles)
+	}
+	if got["work"] != workRoot {
+		t.Fatalf("work skill-sync root = %q, want base-home profile root %q; profiles=%+v", got["work"], workRoot, profiles)
+	}
+	for _, root := range got {
+		if strings.Contains(root, filepath.Join("profiles", "gormes", "profiles")) {
+			t.Fatalf("skill sync produced nested profile root %q from profile-scoped process; profiles=%+v", root, profiles)
+		}
 	}
 }
 

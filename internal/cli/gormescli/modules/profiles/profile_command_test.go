@@ -120,6 +120,140 @@ func TestProfileModuleDefaultSeamsUseBaseHomeFromProfileScopedProcess(t *testing
 	}
 }
 
+func TestProfileModuleDefaultListKnownProfilesIncludesConfigV2Profiles(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	if err := os.MkdirAll(base, 0o700); err != nil {
+		t.Fatalf("mkdir base: %v", err)
+	}
+	body := `config_version = 2
+
+[profiles.main]
+enabled = true
+
+[profiles.tulin]
+enabled = true
+`
+	if err := os.WriteFile(filepath.Join(base, "config.toml"), []byte(body), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv("GORMES_HOME", base)
+
+	known, err := DefaultListKnownProfiles()
+	if err != nil {
+		t.Fatalf("DefaultListKnownProfiles: %v", err)
+	}
+	for _, want := range []string{"default", "main", "tulin"} {
+		if !containsString(known, want) {
+			t.Fatalf("known profiles = %v, want %q from config-v2 profile registry", known, want)
+		}
+	}
+}
+
+func TestProfileModuleDefaultSeamsProviderReadinessUsesBaseHomeFromProfileScopedProcess(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	activeRoot := filepath.Join(base, "profiles", "work")
+	if err := os.MkdirAll(activeRoot, 0o700); err != nil {
+		t.Fatalf("mkdir active profile root: %v", err)
+	}
+	rootConfig := `config_version = 2
+
+[profiles.main]
+enabled = true
+
+[profiles.main.providers.openrouter]
+enabled = true
+credential = "main-openrouter"
+default_model = "openai/gpt-5.2"
+allowed_models = ["openai/gpt-5.2"]
+
+[credentials.main-openrouter]
+kind = "provider"
+provider = "openrouter"
+owner_profile = "main"
+
+[credentials.main-openrouter.secret_ref]
+source = "env"
+id = "GORMES_MAIN_OPENROUTER_API_KEY"
+`
+	if err := os.WriteFile(filepath.Join(base, "config.toml"), []byte(rootConfig), 0o600); err != nil {
+		t.Fatalf("write base config: %v", err)
+	}
+	t.Setenv("GORMES_HOME", activeRoot)
+
+	reports, err := DefaultSeams().ProviderReadiness()
+	if err != nil {
+		t.Fatalf("ProviderReadiness: %v", err)
+	}
+	if len(reports) != 1 || reports[0].ProfileID != "main" || reports[0].CredentialID != "main-openrouter" {
+		t.Fatalf("ProviderReadiness = %+v, want base-home profiles.main openrouter readiness", reports)
+	}
+}
+
+func TestProfileModuleDefaultSeamsCreateProfileWithoutCloneAllDoesNotInspectDefaultSource(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	profilesDir := filepath.Join(base, "profiles")
+	if err := os.MkdirAll(profilesDir, 0o700); err != nil {
+		t.Fatalf("mkdir profiles dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(profilesDir, "default"), []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write bad materialized default marker: %v", err)
+	}
+	t.Setenv("GORMES_HOME", base)
+
+	created, err := DefaultSeams().CreateProfile("work", false)
+	if err != nil {
+		t.Fatalf("CreateProfile(work, cloneAll=false) must not inspect default source: %v", err)
+	}
+	if created.Root != filepath.Join(base, "profiles", "work") {
+		t.Fatalf("created root = %q, want base-home work profile", created.Root)
+	}
+}
+
+func TestProfileModuleDefaultSeamsCreateCloneAllUsesMaterializedDefaultProfileSource(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	materializedDefault := filepath.Join(base, "profiles", "default")
+	if err := os.MkdirAll(materializedDefault, 0o700); err != nil {
+		t.Fatalf("mkdir materialized default profile: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(materializedDefault, "config.toml"), []byte("model = 'materialized'\n"), 0o600); err != nil {
+		t.Fatalf("write materialized default config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(base, "legacy-only.txt"), []byte("legacy"), 0o600); err != nil {
+		t.Fatalf("write legacy marker: %v", err)
+	}
+	t.Setenv("GORMES_HOME", base)
+
+	seams := DefaultSeams()
+	created, err := seams.CreateProfile("work", true)
+	if err != nil {
+		t.Fatalf("CreateProfile(work, cloneAll): %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(created.Root, "config.toml")); err != nil || !strings.Contains(string(got), "materialized") {
+		t.Fatalf("created profile config = %q, %v; want materialized default config", string(got), err)
+	}
+	if _, err := os.Stat(filepath.Join(created.Root, "legacy-only.txt")); !os.IsNotExist(err) {
+		t.Fatalf("clone_all copied legacy base root despite materialized default, stat err=%v", err)
+	}
+}
+
+func TestProfileModuleDefaultSeamsUseMaterializedDefaultProfileRoot(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	materializedDefault := filepath.Join(base, "profiles", "default")
+	if err := os.MkdirAll(materializedDefault, 0o700); err != nil {
+		t.Fatalf("mkdir materialized default profile: %v", err)
+	}
+	t.Setenv("GORMES_HOME", base)
+
+	seams := DefaultSeams()
+	root, err := seams.ResolveProfileRoot("default")
+	if err != nil {
+		t.Fatalf("ResolveProfileRoot(default): %v", err)
+	}
+	if root != materializedDefault {
+		t.Fatalf("ResolveProfileRoot(default) = %q, want materialized default root %q", root, materializedDefault)
+	}
+}
+
 func TestProfileModuleProvidersCommandRendersReadiness(t *testing.T) {
 	cmd := NewCommandWithSeams(Seams{
 		ReadActiveProfileName: func() (string, error) { return "main", nil },

@@ -78,6 +78,28 @@ func TestCreateProfileCloneAllExcludesDefaultInfrastructure(t *testing.T) {
 	}
 }
 
+func TestCreateProfileCloneAllUsesMaterializedDefaultProfileSource(t *testing.T) {
+	xdg := t.TempDir()
+	legacyDefaultRoot := filepath.Join(xdg, "gormes")
+	materializedDefaultRoot := filepath.Join(legacyDefaultRoot, "profiles", "default")
+	mustWriteProfileFile(t, filepath.Join(legacyDefaultRoot, "legacy-only.txt"), "legacy")
+	mustWriteProfileFile(t, filepath.Join(materializedDefaultRoot, "config.toml"), "model = \"materialized\"\n")
+
+	result, err := CreateProfile(ProfileCreateOptions{Name: "work", XDGConfigHome: xdg, CloneAll: true})
+	if err != nil {
+		t.Fatalf("CreateProfile clone_all from materialized default: %v", err)
+	}
+	if got, want := result.Root, filepath.Join(legacyDefaultRoot, "profiles", "work"); got != want {
+		t.Fatalf("created root = %q, want %q", got, want)
+	}
+	if got, err := os.ReadFile(filepath.Join(result.Root, "config.toml")); err != nil || !strings.Contains(string(got), "materialized") {
+		t.Fatalf("cloned config = %q, %v; want materialized default config", string(got), err)
+	}
+	if _, err := os.Stat(filepath.Join(result.Root, "legacy-only.txt")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("clone_all copied legacy default root despite materialized default, stat err=%v", err)
+	}
+}
+
 func TestCreateProfileSeedsSubprocessHomeDir(t *testing.T) {
 	xdg := t.TempDir()
 

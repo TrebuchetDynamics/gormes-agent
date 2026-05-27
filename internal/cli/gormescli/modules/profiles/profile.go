@@ -950,10 +950,9 @@ func newProfileSelectorFromSeams(seams Seams) cli.ProfileSelector {
 }
 
 // DefaultSeams wires the production helpers from internal/cli
-// into Seams. The active-profile file lives at
-// GormesHome()/active_profile so the binding inherits whatever GORMES_HOME
-// override is in effect for the process. Tests skip this and inject fakes via
-// NewCommandWithSeams.
+// into Seams. The active-profile file lives at the base Gormes home so
+// profile-scoped processes do not create nested profile trees. Tests skip this
+// and inject fakes via NewCommandWithSeams.
 func DefaultSeams() Seams {
 	baseHome := config.GormesBaseHome()
 	activePath := filepath.Join(baseHome, "active_profile")
@@ -963,13 +962,7 @@ func DefaultSeams() Seams {
 		},
 		ValidateProfileName: cli.ValidateProfileName,
 		ResolveProfileRoot: func(name string) (string, error) {
-			if name == "default" {
-				return baseHome, nil
-			}
-			if err := cli.ValidateProfileName(name); err != nil {
-				return "", err
-			}
-			return filepath.Join(baseHome, "profiles", name), nil
+			return cli.ResolveProfileRuntimeRoot(baseHome, name)
 		},
 		WriteActiveProfile: func(name string) error {
 			return cli.WriteActiveProfile(activePath, name)
@@ -978,10 +971,18 @@ func DefaultSeams() Seams {
 			if name == "default" {
 				return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
 			}
+			sourceRoot := ""
+			if cloneAll {
+				var err error
+				sourceRoot, err = cli.ResolveProfileRuntimeRoot(baseHome, "default")
+				if err != nil {
+					return cli.ProfileCreateResult{}, err
+				}
+			}
 			return cli.CreateProfile(cli.ProfileCreateOptions{
 				Name:       name,
 				TargetRoot: filepath.Join(baseHome, "profiles", name),
-				SourceRoot: baseHome,
+				SourceRoot: sourceRoot,
 				CloneAll:   cloneAll,
 			})
 		},
@@ -990,14 +991,14 @@ func DefaultSeams() Seams {
 		},
 		ReadDistributionManifest: cli.ReadProfileDistributionManifest,
 		ProviderReadiness: func() ([]provider.ProfileProviderReadiness, error) {
-			cfg, err := config.Load(nil)
+			cfg, err := loadConfigFromBaseHome(baseHome)
 			if err != nil {
 				return nil, err
 			}
 			return provider.BuildProfileProviderReadiness(cfg, provider.ProfileProviderReadinessOptions{}), nil
 		},
 		ChannelReadiness: func() (gateway.ProfileChannelReadinessReport, error) {
-			cfg, err := config.Load(nil)
+			cfg, err := loadConfigFromBaseHome(baseHome)
 			if err != nil {
 				return gateway.ProfileChannelReadinessReport{}, err
 			}
@@ -1006,33 +1007,65 @@ func DefaultSeams() Seams {
 	}
 }
 
-// DefaultListKnownProfiles enumerates known profiles by reading the on-disk
-// layout that ResolveProfileRoot produces. The default profile is always
-// reported even if no profile dir exists yet so operators can always orient.
+func loadConfigFromBaseHome(baseHome string) (config.Config, error) {
+	baseHome = strings.TrimSpace(baseHome)
+	if baseHome == "" {
+		return config.Load(nil)
+	}
+	currentHome := config.GormesHome()
+	if filepath.Clean(currentHome) == filepath.Clean(baseHome) {
+		return config.Load(nil)
+	}
+	rawHome, hadHome := os.LookupEnv("GORMES_HOME")
+	if err := os.Setenv("GORMES_HOME", baseHome); err != nil {
+		return config.Config{}, fmt.Errorf("profile config: scope base home: %w", err)
+	}
+	defer func() {
+		if hadHome {
+			_ = os.Setenv("GORMES_HOME", rawHome)
+		} else {
+			_ = os.Unsetenv("GORMES_HOME")
+		}
+	}()
+	return config.Load(nil)
+}
+
+// DefaultListKnownProfiles enumerates known profiles from both the v2 root
+// config registry and the on-disk layout that ResolveProfileRoot produces. The
+// default profile is always reported even if no profile dir exists yet so
+// operators can always orient.
 func DefaultListKnownProfiles() ([]string, error) {
+	baseHome := config.GormesBaseHome()
 	known := []string{"default"}
-	profilesDir := filepath.Join(config.GormesBaseHome(), "profiles")
+	seen := map[string]struct{}{"default": {}}
+	addName := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, dup := seen[name]; dup {
+			return
+		}
+		if err := cli.ValidateProfileName(name); err != nil {
+			return
+		}
+		seen[name] = struct{}{}
+		known = append(known, name)
+	}
+	if cfg, err := loadConfigFromBaseHome(baseHome); err == nil {
+		for name := range cfg.Profiles {
+			addName(name)
+		}
+	}
+	profilesDir := filepath.Join(baseHome, "profiles")
 	entries, err := os.ReadDir(profilesDir)
 	if err != nil {
 		return known, nil
 	}
-	seen := map[string]struct{}{"default": {}}
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+		if entry.IsDir() {
+			addName(entry.Name())
 		}
-		name := strings.TrimSpace(entry.Name())
-		if name == "" {
-			continue
-		}
-		if _, dup := seen[name]; dup {
-			continue
-		}
-		if err := cli.ValidateProfileName(name); err != nil {
-			continue
-		}
-		seen[name] = struct{}{}
-		known = append(known, name)
 	}
 	return known, nil
 }
