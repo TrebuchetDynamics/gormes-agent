@@ -86,14 +86,14 @@ func defaultLiveTurnProfileDir(cwd string) string {
 		return override
 	}
 	gormesHome := config.GormesHome()
+	if root := findLiveTurnAncestorWith(cwd, "SOUL.md"); root != "" {
+		return root
+	}
 	if hasLiveTurnFile(gormesHome, "SOUL.md") {
 		return gormesHome
 	}
 	if migrated := filepath.Join(gormesHome, "memory"); hasLiveTurnFile(migrated, "SOUL.md") {
 		return migrated
-	}
-	if root := findLiveTurnAncestorWith(cwd, "SOUL.md"); root != "" {
-		return root
 	}
 	return gormesHome
 }
@@ -248,9 +248,10 @@ func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, activeSession
 
 	runtimeFactsBlock := buildRuntimeFactsBlock(profileDir, cwd)
 	metadataBlock := buildMetadataFromSeams(seams, activeSessionID)
+	toolEnforcementBlock := buildToolUseEnforcementBlock(seams)
 	selfHelpBlock := buildSelfHelpFromSeams(seams, submitText)
 
-	pieces := make([]string, 0, 6)
+	pieces := make([]string, 0, 7)
 	if strings.TrimSpace(runtimeFactsBlock) != "" {
 		pieces = append(pieces, runtimeFactsBlock)
 	}
@@ -262,6 +263,9 @@ func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, activeSession
 	}
 	if strings.TrimSpace(metadataBlock) != "" {
 		pieces = append(pieces, metadataBlock)
+	}
+	if strings.TrimSpace(toolEnforcementBlock) != "" {
+		pieces = append(pieces, toolEnforcementBlock)
 	}
 	if strings.TrimSpace(selfHelpBlock) != "" {
 		pieces = append(pieces, selfHelpBlock)
@@ -363,4 +367,27 @@ func buildSelfHelpFromSeams(seams liveTurnPromptSeams, submitText string) string
 		return ""
 	}
 	return body
+}
+
+func buildToolUseEnforcementBlock(seams liveTurnPromptSeams) string {
+	if seams.ActiveModel == nil {
+		return ""
+	}
+	model := strings.ToLower(strings.TrimSpace(seams.ActiveModel()))
+	if model == "" {
+		return ""
+	}
+	if !modelMatchesToolUseEnforcement(model) {
+		return ""
+	}
+	return hermes.ToolUseEnforcementGuidance
+}
+
+func modelMatchesToolUseEnforcement(model string) bool {
+	for _, prefix := range hermes.ToolUseEnforcementModels {
+		if strings.Contains(model, strings.ToLower(prefix)) {
+			return true
+		}
+	}
+	return false
 }

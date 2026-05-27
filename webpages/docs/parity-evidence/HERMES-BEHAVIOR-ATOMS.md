@@ -69,7 +69,7 @@ file+line ref or explicit `missing`, and a classification.
 | Timestamp/model/provider metadata | `run_agent.py` `:3770-3779` | `internal/hermes/turn_metadata.go` | covered | Block assembly exists. |
 | Platform/session context | `gateway/run.py` `BuildSessionContextPrompt` | `internal/gateway/` | covered | Session context built. |
 | Developer role swap (GPT-5/Codex) | upstream provider tests | `internal/hermes/model_guidance.go` | partial | Helper exists; no API-boundary test. |
-| Tool-use enforcement guidance | `agent/prompt_builder.py` | → `missing` | missing | Constants in `guidance_constants.go` but not wired into live prompts. |
+| Tool-use enforcement guidance | `agent/system_prompt.py` `build_system_prompt_parts` | `internal/gateway/live_turn_prompt.go` `buildToolUseEnforcementBlock` | covered | Wired into assembleLiveTurnPrompt; injects when model substring matches ToolUseEnforcementModels (gpt, codex, gemini, gemma, grok, glm). |
 | Memory guidance | `agent/prompt_builder.py` `MEMORY_GUIDANCE` | `internal/hermes/guidance_constants.go` | covered | Byte-equivalent constant ported. |
 | Skills guidance constant | `agent/prompt_builder.py` `SKILLS_GUIDANCE` | `internal/hermes/guidance_constants.go` | covered | Byte-equivalent constant ported. |
 
@@ -176,7 +176,7 @@ file+line ref or explicit `missing`, and a classification.
 | `/new` / `/reset` | `hermes_cli/commands.py` | `internal/tui/slash_new.go` + `internal/gateway/` | covered | Session reset. |
 | `/stop` | `hermes_cli/commands.py` | `internal/tui/slash_stop.go` + `internal/gateway/` | covered | Cancel active turn. |
 | `/status` | `gateway/run.py` `_handle_status_command` | `internal/gateway/status_command.go` | partial | Field set same; formatting differs (no bold, no `⚡` on agent running). |
-| `/title` | `gateway/run.py` `_handle_title_command` | → advertised unavailable | missing | Command recognized but no handler. |
+| `/title` | `gateway/run.py` `_handle_title_command` | `internal/gateway/title_command.go` + `title_command_test.go` | covered | Set/show session title with sanitization and persistence. |
 | `/model` | `hermes_cli/main.py` `model_parser` | `internal/tui/slash_model.go` + `internal/gateway/model_picker.go` | covered | Interactive model picker. |
 | `/skin` | `hermes_cli/commands.py` | `internal/tui/slash_skin.go` | covered | Skin switching. |
 | `/compact` | `hermes_cli/commands.py` | `internal/tui/slash_compact.go` | covered | Compact transcript toggle. |
@@ -192,7 +192,7 @@ file+line ref or explicit `missing`, and a classification.
 | `/kanban` | `hermes_cli/kanban.py` | `internal/tui/slash_kanban.go` | covered | Task board. |
 | `/logs` | `hermes_cli/logs.py` | `internal/tui/slash_logs.go` | covered | Gateway log tail. |
 | `/session` | `hermes_cli/main.py` | `internal/tui/slash_sessions.go` | covered | Session browser. |
-| `/reasoning` | `hermes_cli/commands.py` | → advertised unavailable | missing | Recognized, no handler. |
+| `/reasoning` | `gateway/run.py` `_handle_reasoning_command` | `internal/gateway/reasoning_command.go` + `manager.go` | covered | Reasoning effort management with --global support. |
 | `/voice` | `hermes_cli/voice.py` | → advertised unavailable | missing | Recognized, no handler. |
 | `/tools` | `hermes_cli/commands.py` | → advertised unavailable | missing | Recognized, no handler. |
 | `/skills` | `hermes_cli/commands.py` | `internal/tui/slash_skills.go` | covered | Skill install/inspect. |
