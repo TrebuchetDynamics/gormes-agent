@@ -364,8 +364,19 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Cron scheduler | `cron/scheduler.py` | `internal/cron/` | covered | Schedule parser and execution. |
-| Cron job definitions | `cron/jobs.py` | `internal/cron/` | covered | Job store. |
+| Cron job definitions | `cron/jobs.py` | `internal/cron/` | covered | Job store with CRUD. |
 | Cron tool | `tools/cronjob_tools.py` | `internal/tools/` | covered | Cron management tool. |
+| Schedule parser | `cron/jobs.py` `parse_schedule` | `internal/cron/` | covered | Natural language schedule parsing. |
+| Compute next run | `cron/jobs.py` `compute_next_run` | `internal/cron/` | covered | Next execution time calculation. |
+| Grace seconds | `cron/jobs.py` `_compute_grace_seconds` | → `missing` | missing | Grace window after missed schedule. |
+| Delivery target resolution | `cron/scheduler.py` `_resolve_delivery_targets` | → `missing` | missing | Multi-platform delivery routing. |
+| Multi-target delivery | `cron/scheduler.py` `_deliver_result` | → `missing` | missing | Send results to multiple channels. |
+| Script execution | `cron/scheduler.py` `_run_job_script` | `internal/cron/` | covered | Run shell scripts as job actions. |
+| Context_from chaining | `cron/jobs.py` | → `missing` | missing | Chain prompts from previous job output. |
+| Resource release | `cron/jobs.py` | → `missing` | missing | Cleanup after job completion. |
+| Job lock files | `cron/scheduler.py` `_get_lock_paths` | → `missing` | missing | PID-based job locking. |
+| Cron prompt guard | `cron/scheduler.py` `CronPromptInjectionBlocked` | → `missing` | missing | Prevent cron prompt injection. |
+| Recovery from missed schedule | `cron/jobs.py` `_recoverable_oneshot_run_at` | → `missing` | missing | Recover missed one-shot jobs. |
 
 ---
 
@@ -426,8 +437,14 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Learning-loop curator | `agent/curator.py` | → `missing` | missing | Not ported. |
-| Background review | `run_agent.py` background review | → `missing` | missing | Not ported. |
+| Learning-loop curator state machine | `agent/curator.py` | → `missing` | missing | Not ported. |
+| Curator entity discovery | `agent/curator.py` | → `missing` | missing | Discover skills/tools for review. |
+| Curator candidate extraction | `agent/curator.py` | → `missing` | missing | Extract candidates from turn output. |
+| Curator review/promotion | `agent/curator.py` | → `missing` | missing | Queue review → promote to skill. |
+| Background review fork | `run_agent.py` background review | → `missing` | missing | Fork background review agent. |
+| Auxiliary curator model routing | `hermes_cli/config.py` auxiliary.curator | → `missing` | missing | Separate model for curator calls. |
+| Curator CLI commands | `hermes_cli/curator.py` | → `missing` | missing | /curator status, run, pause, pin. |
+| Curator skill state transitions | `tools/skill_manager_tool.py` | → `missing` | missing | Support-file write/patch/remove, absorbed_into, agent-created provenance. |
 
 ---
 
@@ -677,6 +694,12 @@ file+line ref or explicit `missing`, and a classification.
 | Voice mode (TTS/STT toggle) | `tools/voice_mode.py` | → `missing` | missing | Voice toggle not proven. |
 | Voice recording | `hermes_cli/voice.py` | → `missing` | missing | Not ported. |
 | PTY bridge (terminal emulation) | `hermes_cli/pty_bridge.py` | → `missing` | missing | Not ported. |
+| Push-to-talk keybinding | `cli.py` voice.record_key | `internal/tui/` `voiceRecordKey` | covered | Configurable voice key in TUI. |
+| TTS result envelope | `tools/tts_tool.py` | → `missing` | missing | Hermes TTS tool result format. |
+| WASI Whisper STT | `tools/transcription_tools.py` | `internal/tools/whisper/` | covered | Local STT via WASM. |
+| Piper TTS backend | N/A (Gormes-owned) | → `missing` | owned | Gormes-owned TTS backend; not Hermes parity. |
+| Voice mode state machine | `tools/voice_mode.py` | → `missing` | missing | Idle/recording/processing states. |
+| TTS provider abstraction | `tools/tts_tool.py` | → `missing` | missing | Cloud/command/local TTS seam. |
 
 ---
 
