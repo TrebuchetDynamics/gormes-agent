@@ -165,3 +165,37 @@ Domain expert: "No. Preserve the Hermes TUI Contract, then adopt Pi-Inspired TUI
 
 Developer: "Can Up arrow browse assistant replies?"
 Domain expert: "No. Up and Down operate on TUI Input History; transcript viewing stays in the conversation viewport or slash surfaces."
+
+### Home Layout & Profile Storage
+
+**Profile‑Rooted Database Path**:
+The convention for default `memory.db` and `sessions.db` paths: when a `profiles/main/` directory already exists on disk under `$GORMES_HOME`, default-path functions return paths under it (`profiles/main/memory.db`, etc.) instead of the root. This is a filesystem-probe trigger, not a directory-creation trigger, so existing default-profile users see no change until `gormes setup profiles` materialises the profile directory.
+_Avoid_: always-root DB paths, unconditional profile DB paths, automatic profile directory creation
+
+**Profile Storage Contract**:
+The typed path resolver (`ProfileStorageContract`) used by gateway channels and profile commands to compute profile-local paths for memory DBs, session DBs, workspace dirs, cache dirs, and runtime state under `$GORMES_BASE_HOME/profiles/<name>/`. Since all profiles are active simultaneously and `GORMES_HOME` stays at the base home, the resolver is the canonical way to compute per-profile paths. Callers remain responsible for directory existence.
+_Avoid_: hardcoded path strings, per-command path resolution, GORMES_HOME-based profile scoping
+
+**Runtime Subdirectory**:
+`$GORMES_HOME/runtime/` — the canonical subdirectory for gateway lifecycle state (`gateway_state.json`, `gateway.pid`, `gateway-locks/*`, `gateway.log`). Separates transient runtime state from durable config and data.
+_Avoid_: root-level gateway files
+
+**Lifecycle Subdirectory**:
+`$GORMES_HOME/lifecycle/` — the canonical subdirectory for update/install lifecycle artifacts (`update.log`, `install.log.jsonl`, `backups/`). Excluded from pre-update backup to prevent geometric growth.
+_Avoid_: root-level lifecycle logs
+
+**Workspace Context Priority**:
+The CWD workspace takes priority over `$GORMES_HOME` when resolving context files (`SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`). The prompt loader checks workspace ancestors first, then falls back to the Gormes home directory. This ensures an explicitly configured workspace with seeded templates is the canonical context source, while default users (workspace = home) see no change.
+_Avoid_: home-first priority, symlink-based context resolution, dual-source merge confusion
+
+**Profile Workspace List**:
+A profile may declare multiple workspaces: a profile-local default (`$GORMES_HOME/workspace/`) plus zero or more external repo or directory paths. The profile-local workspace is the implicit first entry and never needs explicit configuration. External workspaces are listed in the profile config and may reference repository checkouts or project dirs. The gateway seeds agent context templates into the profile-local workspace; external workspaces are file-access boundaries, not template targets.
+_Avoid_: single-workspace assumption, workspace as config-only path, template seeding into external repos
+
+**Profile Data Boundary**:
+The set of filesystem paths that are scoped per-profile: `memory/`, `sessions/`, `workspace/`, `cache/`, `runtime/`. These directories live under `$GORMES_HOME` (which is `$GORMES_BASE_HOME/profiles/<name>/` for named profiles) and are never shared between profiles.
+_Avoid_: root-level data dirs, cross-profile data sharing
+
+**Credential Ownership Boundary**:
+Provider API keys and generic secrets may be shared across profiles (owned by `"main"`), while channel bot tokens (Telegram token, Discord token, Slack token) are always per-profile (owned by the specific profile id). The runtime credential pool (`auth.json`) lives at `$GORMES_BASE_HOME` so all profiles read from the same store, and each stored entry carries an `owner_profile` field for filtering. The base `.env` holds all secrets with profile-scoped env var names (`GORMES_TULIN_TELEGRAM_BOT_TOKEN`). There is no per-profile `.env`.
+_Avoid_: all-or-nothing credential scoping, per-profile auth.json, shared bot tokens, per-profile .env files
