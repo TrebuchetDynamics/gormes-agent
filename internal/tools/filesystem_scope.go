@@ -11,6 +11,9 @@ type FilesystemScope struct {
 	AllowedReadPaths  []string
 	AllowedWritePaths []string
 	CWDOnly           bool
+	// ReadOnly, when true, denies all write operations regardless of
+	// AllowedWritePaths or CWDOnly.
+	ReadOnly bool
 }
 
 type PathCheckResult struct {
@@ -72,6 +75,18 @@ func (fs *FilesystemScope) CheckRead(path, cwd string) PathCheckResult {
 }
 
 func (fs *FilesystemScope) CheckWrite(path, cwd string) PathCheckResult {
+	if fs.ReadOnly {
+		normalized, err := normalizePath(path, cwd)
+		if err != nil {
+			return PathCheckResult{Allowed: false, Evidence: fmt.Sprintf("path_normalize_error: %v", err)}
+		}
+		return PathCheckResult{
+			Allowed:    false,
+			Normalized: normalized,
+			Evidence:   "filesystem_readonly_mode",
+			Message:    "workspace is in read-only mode: all writes are denied",
+		}
+	}
 	return fs.checkPath(path, cwd, fs.AllowedWritePaths, "filesystem_write_scope_violation")
 }
 
@@ -105,6 +120,7 @@ func (fs *FilesystemScope) GetDoctorReport(cwd string) map[string]interface{} {
 	return map[string]interface{}{
 		"filesystem_scope_config": map[string]interface{}{
 			"cwd_only":            fs.CWDOnly,
+			"read_only":           fs.ReadOnly,
 			"allowed_read_paths":  fs.AllowedReadPaths,
 			"allowed_write_paths": fs.AllowedWritePaths,
 			"cwd":                 cwd,

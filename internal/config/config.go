@@ -58,6 +58,7 @@ type Config struct {
 	Web           WebCfg                   `toml:"web" yaml:"web"`
 	Navivox       NavivoxCfg               `toml:"navivox" yaml:"navivox"`
 	Browser       BrowserCfg               `toml:"browser" yaml:"browser"`
+	Workspace     WorkspaceCfg             `toml:"workspace" yaml:"workspace"`
 	Security      SecurityCfg              `toml:"security" yaml:"security"`
 	Secrets       SecretsCfg               `toml:"secrets" yaml:"secrets"`
 	Agents        AgentsCfg                `toml:"agents" yaml:"agents"`
@@ -335,6 +336,26 @@ type BrowserCfg struct {
 
 // SecurityCfg mirrors Hermes config.yaml security controls that affect native
 // Go tools.
+// WorkspaceCfg configures workspace-level file access policy.
+type WorkspaceCfg struct {
+	// Mode controls file write access for tools operating inside the
+	// workspace. Empty string or "readwrite" allows writes;
+	// "readonly" denies all tool writes regardless of scope.
+	Mode string `toml:"mode" yaml:"mode"`
+}
+
+// WorkspaceModeReadonly is the canonical value for readonly mode.
+const WorkspaceModeReadonly = "readonly"
+
+// WorkspaceModeReadWrite is the canonical value for read-write mode.
+const WorkspaceModeReadWrite = "readwrite"
+
+// IsWorkspaceReadonly returns true when the workspace mode enforces
+// read-only access.
+func (w WorkspaceCfg) IsWorkspaceReadonly() bool {
+	return w.Mode == WorkspaceModeReadonly
+}
+
 type SecurityCfg struct {
 	WebsiteBlocklist WebsiteBlocklistCfg `toml:"website_blocklist" yaml:"website_blocklist"`
 }

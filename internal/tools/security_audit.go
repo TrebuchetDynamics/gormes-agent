@@ -105,6 +105,7 @@ type SecurityAuditFilesystem struct {
 	ReadPaths        []string
 	WritePaths       []string
 	ScopeConfigured  bool
+	ReadOnly         bool
 	ProbeReadPath    string
 	ProbeWritePath   string
 	ExpectDenyProbes bool
@@ -500,6 +501,16 @@ func (b *securityAuditBuilder) auditFilesystemScoping() {
 			Redacted: true,
 		})
 	}
+	if fs.ReadOnly {
+		b.addFinding(SecurityAuditFinding{
+			Category: SecurityAuditCategoryFilesystemScoping,
+			Code:     SecurityAuditFindingFilesystemScopeOpen,
+			Severity: SecurityAuditStatusPass,
+			Message:  "workspace is in read-only mode: all tool writes are denied",
+			Action:   "change workspace mode to readwrite if write access is needed",
+			Redacted: true,
+		})
+	}
 	if !fs.ExpectDenyProbes {
 		return
 	}
@@ -508,6 +519,7 @@ func (b *securityAuditBuilder) auditFilesystemScoping() {
 		cwd = "."
 	}
 	scope := NewFilesystemScope(cwd, fs.ReadPaths, fs.WritePaths)
+	scope.ReadOnly = fs.ReadOnly
 	if strings.TrimSpace(fs.ProbeReadPath) != "" {
 		result := scope.CheckRead(fs.ProbeReadPath, cwd)
 		if result.Allowed {

@@ -112,4 +112,52 @@ func TestFilesystemScope_DoctorReport(t *testing.T) {
 	if config["cwd"].(string) != tmp {
 		t.Fatalf("expected cwd=%s, got %s", tmp, config["cwd"])
 	}
+	if _, exists := config["read_only"]; !exists {
+		t.Fatal("expected read_only field in doctor report")
+	}
+}
+
+func TestFilesystemScope_ReadOnlyDeniesAllWrites(t *testing.T) {
+	tmp := t.TempDir()
+	scope := NewFilesystemScope(tmp, nil, []string{tmp})
+	scope.ReadOnly = true
+
+	// Even writes inside the allowed write path are denied.
+	result := scope.CheckWrite(filepath.Join(tmp, "file.txt"), tmp)
+	if result.Allowed {
+		t.Fatal("expected read-only mode to deny write inside allowed path")
+	}
+	if result.Evidence != "filesystem_readonly_mode" {
+		t.Fatalf("expected filesystem_readonly_mode, got %s", result.Evidence)
+	}
+	if result.Message == "" {
+		t.Fatal("expected non-empty Message")
+	}
+}
+
+func TestFilesystemScope_ReadOnlyDoesNotAffectReads(t *testing.T) {
+	tmp := t.TempDir()
+	scope := NewFilesystemScope(tmp, []string{tmp}, []string{tmp})
+	scope.ReadOnly = true
+
+	// Reads still work normally.
+	result := scope.CheckRead(filepath.Join(tmp, "file.txt"), tmp)
+	if !result.Allowed {
+		t.Fatal("expected read-only mode to allow reads inside allowed path")
+	}
+}
+
+func TestFilesystemScope_ReadOnlyWithCWDOnly(t *testing.T) {
+	tmp := t.TempDir()
+	scope := NewFilesystemScope(tmp, nil, nil)
+	scope.ReadOnly = true
+
+	// CWDOnly write is still denied by read-only mode.
+	result := scope.CheckWrite(filepath.Join(tmp, "file.txt"), tmp)
+	if result.Allowed {
+		t.Fatal("expected read-only mode to deny write in CWDOnly mode")
+	}
+	if result.Evidence != "filesystem_readonly_mode" {
+		t.Fatalf("expected filesystem_readonly_mode, got %s", result.Evidence)
+	}
 }

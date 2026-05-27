@@ -1026,3 +1026,35 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | STDIO mode | `hermes_cli/stdio.py` | → `missing` | missing | Not ported. |
+
+---
+
+## 51. Security & Workspace Permissions (Gormes-owned enhancements)
+
+> These atoms are Gormes-owned enhancements motivated by user pain points (Reddit
+> "containerization is a huge hassle") rather than Hermes parity. Rationale:
+> Hermes leans on Docker and Python venv isolation; Gormes as a single Go binary
+> must provide understandable, container-free file-access safety. Status is
+> `owned` with source-backed evidence.
+
+| Atom | HERMES | GORMES | Status | Notes |
+|---|---|---|---|---|
+| Security Guard (Tirith + path allowlist + URL safety compose) | `agent/file_safety.py` (Hermes write deny list only) | `internal/security/guard.go` `internal/security/tirith.go` | **covered** | Guard composer with deny-wins-over-allow priority. Tests in `internal/security/guard_test.go`. |
+| Profile workspace scope | N/A (Hermes uses `HERMES_WRITE_SAFE_ROOT` env var) | `internal/tools/profile_workspace_scope.go` | **covered** | Project roots, profile roots, access levels (read/write/execute/delegate). Tests in `internal/tools/profile_workspace_scope_test.go`. |
+| Filesystem scope audit | `hermes_cli/doctor.py` (Vercel sandbox scope check) | `internal/tools/security_audit.go` `SecurityAuditCategoryFilesystemScoping` | **covered** | `gormes security audit --json` checks `FilesystemScoping` with read/write probes. Tests in `internal/tools/security_audit_test.go`. |
+| Tool execution audit log (JSONL) | `agent/redact.py` (Hermes redaction only) | `internal/audit/jsonl.go` `internal/kernel/toolexec.go` | **covered** | Per-call audit records with redaction, duration, status. Wired in kernel tool execution. |
+| Security advisory check | `hermes_cli/security_advisories.py` | `internal/doctor/doctor_security_advisories.go` | **covered** | Supply-chain advisory check with ack support. |
+| Shell command blocklist | `tools/path_security.py` (Hermes path guard) | `internal/tools/shell_blocklist.go` `SecurityAuditCategoryShellBlocklist` | **covered** | Blocklist enforcement with destructive/network/privilege/crypto/data-exfil categories. |
+| Doctor command with security fix | `hermes_cli/doctor.py` | `cmd/gormes/doctor.go` | **covered** | `gormes doctor --fix --ack --target --json --offline`. |
+| Workspace guard (deny list + allowed roots) | N/A (Hermes has `is_write_denied()`) | `internal/codingagents/workspace.go` | **covered** | WorkspaceGuard with default deny of .ssh/.aws/.gcloud/.kube/.gormes. |
+| URL safety checker | `tools/url_safety.py` | `internal/tools/url_safety.go` | **covered** | Default allowlist/blocklist policy with URL safety checker. |
+| Browser SSRF guard | N/A (Hermes browser tool) | `internal/tools/browser_ssrf_guard.go` | **covered** | Blocks private/loopback/link-local URLs. |
+| **Configurable workspace read-only mode** | N/A (Gormes-owned) | `internal/config/config.go` `internal/tools/filesystem_scope.go` `internal/tools/security_audit.go` | **covered** | `[workspace] mode = "readonly"` config option. `FilesystemScope.ReadOnly` denies all writes. Security audit reports it. Tests in `filesystem_scope_test.go`. |
+| **`gormes doctor permissions` command** | N/A (Gormes-owned) | → `missing` | **owned** | Show exactly which directories Gormes can read/write, which commands are blocked, and what profiles have access. |
+| **User-configurable path allowlist in config** | N/A (Gormes-owned) | → `missing` | **owned** | TOML `[[paths.allow]]` syntax with `path` and `access` (read/readwrite). Default deny outside configured workspace. |
+| **Pre-tool dry-run explain access** | N/A (Gormes-owned) | → `missing` | **owned** | Before a tool reads/writes outside the active workspace, Gormes explains the access and asks for confirmation. |
+| **macOS-specific permission docs** | N/A (Gormes-owned) | → `missing` | **owned** | Document TCC, Full Disk Access, iCloud folders, Desktop/Documents protections, separate-user setup, and common permission failures. |
+| **Air-gapped-ish profile mode** | N/A (Gormes-owned) | → `missing` | **owned** | `[security] network = "off"`, `workspace_access = "readonly"`, `shell = "restricted"` in config. |
+| **Threat model documentation** | N/A (Gormes-owned) | → `missing` | **owned** | Documented trust modes: convenience, workspace-restricted, read-only review, advanced container. Explain what each protects against. |
+| **Audit log user-facing command** | N/A (Gormes-owned) | → `missing` | **owned** | `gormes audit` or `gormes security audit --recent` to show recent filesystem/tool actions with allow/deny evidence. JSONL already exists. |
+| **Default least-privilege workspace** | N/A (Gormes-owned) | → `missing` | **owned** | Default: read/write only inside active workspace. No credential reads unless explicitly requested. No destructive commands without confirmation.
