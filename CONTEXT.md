@@ -68,6 +68,16 @@ _Avoid_: gateway CLI, gateway process manager, runtime orchestrator
 The Gateway CLI Orchestrator step that inspects configured channel credentials/accounts, invokes the relevant Channel Adapter factories, registers runnable channels with the gateway manager, and records degraded channel evidence for configured-but-unrunnable platforms. It is a startup assembly concern, not message handling or process lifecycle control.
 _Avoid_: channel transport logic, gateway stop/restart logic, provider setup
 
+### TUI Operator Experience
+
+**Hermes TUI Contract**:
+The user-visible terminal chat behavior Gormes treats as the compatibility baseline for interactive agent operation.
+_Avoid_: Pi parity, arbitrary TUI redesign
+
+**Pi-Inspired TUI Donor UX**:
+Optional Gormes-owned terminal chat ergonomics adapted from Pi when they improve operator flow without weakening the Hermes TUI Contract.
+_Avoid_: Pi parity, dual parity target, Pi compatibility contract
+
 ### Navivox Channel Contract
 
 **Navivox Capability Gate**:
@@ -145,3 +155,6 @@ Domain expert: "No. Add or refine a Progress Row in the Logical Backlog. Generat
 
 Developer: "Can we improve all progress tooling at once?"
 Domain expert: "Use a Staged Deepening Program. First make row selection consistent, then hide storage layout, then improve generated views, then revisit projections."
+
+Developer: "Should the TUI match Pi now?"
+Domain expert: "No. Preserve the Hermes TUI Contract, then adopt Pi-Inspired TUI Donor UX only where it improves Gormes without becoming a second parity target."

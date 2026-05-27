@@ -2,10 +2,10 @@ package tui
 
 // HermesHistory is the in-memory draft history that backs ResolveHermesKey's
 // HermesActionHistoryPrev / HermesActionHistoryNext decisions. It mirrors the
-// prompt_toolkit InMemoryHistory used by Hermes: every successful submit is
-// appended; Up walks backward through entries, Down walks forward and returns
-// to a fresh empty draft when it walks past the newest entry. Empty drafts
-// are never stored, matching upstream's `if text:` guard.
+// current Hermes composer behavior with Pi-inspired editor-history UX: every
+// successful submit is appended; Up walks backward through entries, Down walks
+// forward and returns to the draft that was present before browsing history.
+// Empty drafts are never stored, matching upstream's `if text:` guard.
 //
 // HermesHistory is not safe for concurrent use; the Bubble Tea Update loop is
 // the only writer and reader.
@@ -14,6 +14,9 @@ type HermesHistory struct {
 	// pos is the navigation cursor. -1 means "fresh draft below the newest
 	// entry"; values in [0, len(entries)) point at a stored entry.
 	pos int
+	// draft stores the editor value that was present when the operator first
+	// entered history browsing so Down can restore it past the newest entry.
+	draft string
 }
 
 // NewHermesHistory returns an empty history with the navigation cursor parked
@@ -30,7 +33,7 @@ func (h *HermesHistory) Append(text string) {
 		return
 	}
 	h.entries = append(h.entries, text)
-	h.pos = -1
+	h.ResetNavigation()
 }
 
 // Prev walks one step backward and returns the entry now under the cursor.
@@ -39,10 +42,17 @@ func (h *HermesHistory) Append(text string) {
 // cursor in place and return the same entry; ok stays true to communicate
 // that the draft is still under history control.
 func (h *HermesHistory) Prev() (string, bool) {
+	return h.PrevFrom("")
+}
+
+// PrevFrom walks one step backward like Prev, preserving currentDraft when
+// entering history browsing so Next can restore the in-progress editor text.
+func (h *HermesHistory) PrevFrom(currentDraft string) (string, bool) {
 	if len(h.entries) == 0 {
 		return "", false
 	}
 	if h.pos == -1 {
+		h.draft = currentDraft
 		h.pos = len(h.entries) - 1
 		return h.entries[h.pos], true
 	}
@@ -54,7 +64,7 @@ func (h *HermesHistory) Prev() (string, bool) {
 
 // Next walks one step forward and returns the entry now under the cursor.
 // Walking past the newest entry parks the cursor on the fresh-draft slot
-// and returns ("", true) so the editor restores an empty draft.
+// and returns the draft captured by PrevFrom.
 func (h *HermesHistory) Next() (string, bool) {
 	if len(h.entries) == 0 {
 		return "", false
@@ -67,5 +77,13 @@ func (h *HermesHistory) Next() (string, bool) {
 		return h.entries[h.pos], true
 	}
 	h.pos = -1
-	return "", true
+	draft := h.draft
+	h.draft = ""
+	return draft, true
+}
+
+// ResetNavigation exits history browsing without altering stored entries.
+func (h *HermesHistory) ResetNavigation() {
+	h.pos = -1
+	h.draft = ""
 }

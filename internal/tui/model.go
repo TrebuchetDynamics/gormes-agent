@@ -339,6 +339,8 @@ type Model struct {
 
 	editor textarea.Model
 
+	inputHistory *HermesHistory
+
 	// frame is the latest RenderFrame received from the kernel. View() renders
 	// this snapshot; Update() replaces it on every frameMsg.
 	frame kernel.RenderFrame
@@ -445,6 +447,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	ta.Focus()
 	return Model{
 		editor:             ta,
+		inputHistory:       NewHermesHistory(),
 		frames:             frames,
 		submit:             submit,
 		cancel:             cancel,

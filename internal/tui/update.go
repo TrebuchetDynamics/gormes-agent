@@ -447,6 +447,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMessage = "voice recording toggle unavailable in native TUI (" + string(key.Evidence) + "; key " + key.Display + ")"
 			return m, tea.Batch(cmds...)
 		}
+		if msg.Type == tea.KeyUp || msg.Type == tea.KeyDown {
+			if handled := m.handleHistoryNavigationKey(msg.Type); handled {
+				return m, tea.Batch(cmds...)
+			}
+		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			// In-flight: cancel the turn. Idle: quit.
@@ -483,6 +488,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.slashRegistry != nil {
 				if res := m.slashRegistry.Dispatch(text, &m); res.Handled {
+					m.recordInputHistory(text)
 					m.editor.Reset()
 					if res.EditorText != "" {
 						m.editor.SetValue(res.EditorText)
@@ -508,6 +514,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				})
 				switch decision.Action {
 				case HermesActionSubmit:
+					m.recordInputHistory(decision.SubmitText)
 					m.editor.Reset()
 					if m.offlineSmoke {
 						m.applyOfflineSmokeTurn(decision.SubmitText)
@@ -516,15 +523,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inFlight = true
 					cmds = append(cmds, m.submitCmd(decision.SubmitText))
 				case HermesActionQueueForNextTurn:
+					m.recordInputHistory(decision.SubmitText)
 					m.queueFollowUpDraft(decision.SubmitText)
 				case HermesActionSteer:
+					m.recordInputHistory(decision.SubmitText)
 					if cmd := m.queueSteeringDraft(decision.SubmitText); cmd != nil {
 						cmds = append(cmds, cmd)
 					}
 				case HermesActionInterrupt:
+					m.recordInputHistory(decision.SubmitText)
 					m.queueInterruptDraft(decision.SubmitText)
 					cmds = append(cmds, m.cancelCmd())
 				case HermesActionConsumeWithEvidence:
+					m.recordInputHistory(text)
 					m.editor.Reset()
 					m.statusMessage = decision.Evidence
 				}
@@ -584,10 +595,81 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Forward the message to the textarea for cursor / input handling.
+	beforeEditorValue := m.editor.Value()
 	var cmd tea.Cmd
 	m.editor, cmd = m.editor.Update(msg)
+	if m.editor.Value() != beforeEditorValue {
+		m.resetInputHistoryNavigation()
+	}
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) handleHistoryNavigationKey(key tea.KeyType) bool {
+	if m.inputHistory == nil {
+		return false
+	}
+	ev := HermesKeyEvent{}
+	switch key {
+	case tea.KeyUp:
+		ev.Kind = HermesKeyUp
+	case tea.KeyDown:
+		ev.Kind = HermesKeyDown
+	default:
+		return false
+	}
+	decision := ResolveHermesKey(ev, m.currentHermesInputState())
+	switch decision.Action {
+	case HermesActionHistoryPrev:
+		if text, ok := m.inputHistory.PrevFrom(m.editor.Value()); ok {
+			m.editor.SetValue(text)
+		}
+		return true
+	case HermesActionHistoryNext:
+		if text, ok := m.inputHistory.Next(); ok {
+			m.editor.SetValue(text)
+		}
+		return true
+	case HermesActionMoveCursorUp, HermesActionMoveCursorDown, HermesActionNone:
+		return false
+	default:
+		return false
+	}
+}
+
+func (m *Model) currentHermesInputState() HermesInputState {
+	phase := HermesPhaseIdle
+	if m.turnActive() {
+		phase = HermesPhaseRunning
+	}
+	lineCount := m.editor.LineCount()
+	if lineCount < 1 {
+		lineCount = 1
+	}
+	return HermesInputState{
+		Text:          m.editor.Value(),
+		LineCount:     lineCount,
+		CursorRow:     m.editor.Line(),
+		Phase:         phase,
+		BusyInputMode: m.busyInputMode,
+	}
+}
+
+func (m *Model) recordInputHistory(text string) {
+	if m.inputHistory == nil {
+		return
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return
+	}
+	m.inputHistory.Append(text)
+}
+
+func (m *Model) resetInputHistoryNavigation() {
+	if m.inputHistory != nil {
+		m.inputHistory.ResetNavigation()
+	}
 }
 
 func resolveVoiceRecordTeaKey(msg tea.KeyMsg, raw string) (HermesKeyDecision, bool) {
@@ -609,6 +691,10 @@ func hermesKeyEventFromTea(msg tea.KeyMsg) (HermesKeyEvent, bool) {
 		ev.Kind = HermesKeyCtrlD
 	case tea.KeyCtrlL:
 		ev.Kind = HermesKeyCtrlL
+	case tea.KeyUp:
+		ev.Kind = HermesKeyUp
+	case tea.KeyDown:
+		ev.Kind = HermesKeyDown
 	case tea.KeySpace:
 		ev.Kind = HermesKeySpace
 	case tea.KeyEnter:

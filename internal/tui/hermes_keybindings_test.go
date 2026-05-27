@@ -370,10 +370,11 @@ func TestHermesKeybindings_HistoryUpDownOnlyAtLineBoundaries(t *testing.T) {
 }
 
 // TestHermesKeybindings_HistoryRingPrevNextWraps proves the in-memory history
-// ring behaves like prompt_toolkit's draft history: Append records the latest
-// submitted draft, Prev walks backward until exhausted, Next walks forward and
-// returns to an empty draft. Empty submissions are ignored to match Hermes's
-// `if text:` guard.
+// ring behaves like the active Hermes composer history with Pi-inspired
+// editor-history UX: Append records the latest submitted draft, Prev walks
+// backward until exhausted, Next walks forward and restores the partially typed
+// draft captured before browsing. Empty submissions are ignored to match
+// Hermes's `if text:` guard.
 func TestHermesKeybindings_HistoryRingPrevNextWraps(t *testing.T) {
 	r := NewHermesHistory()
 	r.Append("first")
@@ -401,10 +402,76 @@ func TestHermesKeybindings_HistoryRingPrevNextWraps(t *testing.T) {
 	if got, ok := r.Next(); !ok || got != "third" {
 		t.Fatalf("Next() = (%q, %v), want (\"third\", true)", got, ok)
 	}
-	// Walking past the newest entry returns an empty draft (back to "fresh").
+	// The legacy Prev helper has no current draft to restore, so walking past
+	// the newest entry returns an empty fresh draft.
 	if got, _ := r.Next(); got != "" {
 		t.Fatalf("Next() past newest = %q, want \"\" (fresh draft)", got)
 	}
+
+	if got, ok := r.PrevFrom("partially typed draft"); !ok || got != "third" {
+		t.Fatalf("PrevFrom(partial) = (%q, %v), want (\"third\", true)", got, ok)
+	}
+	if got, ok := r.Next(); !ok || got != "partially typed draft" {
+		t.Fatalf("Next() past newest with captured draft = (%q, %v), want partial draft", got, ok)
+	}
+}
+
+func TestHermesKeybindings_ModelHistoryUpDownRestoresPartialDraft(t *testing.T) {
+	m := NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, Options{OfflineSmoke: true})
+	m.frame.Phase = kernel.PhaseIdle
+
+	m.editor.SetValue("first prompt")
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m.editor.SetValue("second prompt")
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	m.editor.SetValue("partially typed")
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	if got := m.editor.Value(); got != "second prompt" {
+		t.Fatalf("Up recalled %q, want newest history entry", got)
+	}
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	if got := m.editor.Value(); got != "first prompt" {
+		t.Fatalf("second Up recalled %q, want older history entry", got)
+	}
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	if got := m.editor.Value(); got != "second prompt" {
+		t.Fatalf("Down recalled %q, want newer history entry", got)
+	}
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	if got := m.editor.Value(); got != "partially typed" {
+		t.Fatalf("Down past newest restored %q, want original partial draft", got)
+	}
+}
+
+func TestHermesKeybindings_ModelHistoryRecordsSlashCommandsAndIgnoresEmpty(t *testing.T) {
+	m := NewModelWithOptions(make(chan kernel.RenderFrame), func(string) {}, func() {}, Options{OfflineSmoke: true})
+	m.frame.Phase = kernel.PhaseIdle
+
+	m.editor.SetValue("/help")
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m.editor.SetValue("   ")
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	if got := m.editor.Value(); got != "/help" {
+		t.Fatalf("Up after empty submission recalled %q, want /help", got)
+	}
+	m = updateModelKeyForHistory(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	if got := m.editor.Value(); got != "/help" {
+		t.Fatalf("second Up should stay on oldest non-empty entry, got %q", got)
+	}
+}
+
+func updateModelKeyForHistory(t *testing.T, m Model, msg tea.KeyMsg) Model {
+	t.Helper()
+	next, cmd := m.Update(msg)
+	runTestCmd(t, cmd)
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatalf("Update returned %T, want tui.Model", next)
+	}
+	return updated
 }
 
 // TestHermesKeybindings_ModalCtrlCCancelsModalNotProcess proves that, when a
