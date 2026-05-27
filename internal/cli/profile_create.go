@@ -65,8 +65,8 @@ var profileCreateDefaultDirs = []string{
 
 func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 	name := strings.TrimSpace(options.Name)
-	if name == "default" {
-		return ProfileCreateResult{}, fmt.Errorf("%w: default profile cannot be created", ErrProfileCreateDefaultReserved)
+	if name == "default" || name == "main" {
+		return ProfileCreateResult{}, fmt.Errorf("%w: %s profile cannot be created", ErrProfileCreateDefaultReserved, name)
 	}
 	if err := ValidateProfileName(name); err != nil {
 		return ProfileCreateResult{}, err

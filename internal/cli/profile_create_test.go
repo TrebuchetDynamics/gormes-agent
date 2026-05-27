@@ -180,6 +180,14 @@ func TestCreateProfileRejectsDefaultAndExistingTargets(t *testing.T) {
 		t.Fatalf("default target should not be created, stat err=%v", err)
 	}
 
+	_, err = CreateProfile(ProfileCreateOptions{Name: "main", XDGConfigHome: xdg, CloneAll: true})
+	if !errors.Is(err, ErrProfileCreateDefaultReserved) {
+		t.Fatalf("CreateProfile(main) err = %v, want ErrProfileCreateDefaultReserved", err)
+	}
+	if _, err := os.Stat(filepath.Join(defaultRoot, "profiles", "main")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("main target should not be created, stat err=%v", err)
+	}
+
 	_, err = CreateProfile(ProfileCreateOptions{Name: "work", XDGConfigHome: xdg, CloneAll: true})
 	if !errors.Is(err, ErrProfileCreateTargetExists) {
 		t.Fatalf("CreateProfile(existing) err = %v, want ErrProfileCreateTargetExists", err)

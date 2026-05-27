@@ -798,6 +798,9 @@ name = ""
 	if _, err := os.Stat(filepath.Join(home, "profiles", "tulin", "config.toml")); !os.IsNotExist(err) {
 		t.Fatalf("v2 setup profiles must not write per-profile config.toml, stat err=%v", err)
 	}
+	if info, err := os.Stat(filepath.Join(home, "profiles", "tulin", "home")); err != nil || !info.IsDir() {
+		t.Fatalf("v2 setup profiles must materialize the new profile runtime home without per-profile config: info=%+v err=%v", info, err)
+	}
 
 	cfg, err := config.Load(nil)
 	if err != nil {

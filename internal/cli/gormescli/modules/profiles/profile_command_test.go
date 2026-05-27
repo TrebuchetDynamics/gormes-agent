@@ -147,6 +147,13 @@ enabled = true
 			t.Fatalf("known profiles = %v, want %q from config-v2 profile registry", known, want)
 		}
 	}
+	root, err := DefaultSeams().ResolveProfileRoot("main")
+	if err != nil {
+		t.Fatalf("ResolveProfileRoot(main): %v", err)
+	}
+	if root != base {
+		t.Fatalf("ResolveProfileRoot(main) = %q, want v2 main base-home root %q", root, base)
+	}
 }
 
 func TestProfileModuleDefaultSeamsProviderReadinessUsesBaseHomeFromProfileScopedProcess(t *testing.T) {

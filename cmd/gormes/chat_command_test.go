@@ -88,6 +88,36 @@ func TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad(t *testing.T) {
 	}
 }
 
+func TestChatCommandProfileFlagMainKeepsBaseRootWithoutMaterializedMain(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	baseHome := config.GormesHome()
+
+	var gotHome string
+	var gotMemoryDB string
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runOneshot: func(_ *cobra.Command, _ oneshotInvocation) error {
+			gotHome = os.Getenv("GORMES_HOME")
+			gotMemoryDB = config.MemoryDBPath()
+			return nil
+		},
+		runResolvedTUI: func(*cobra.Command, tuiInvocation) error {
+			t.Fatal("runResolvedTUI was called for chat -q")
+			return nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-p", "main", "chat", "-q", "use v2 main profile")
+	if err != nil {
+		t.Fatalf("Execute() error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if gotHome != baseHome {
+		t.Fatalf("GORMES_HOME during main-profile chat = %q, want base root %q", gotHome, baseHome)
+	}
+	if want := filepath.Join(baseHome, "memory.db"); gotMemoryDB != want {
+		t.Fatalf("MemoryDBPath during main-profile chat = %q, want base memory db %q", gotMemoryDB, want)
+	}
+}
+
 func TestChatCommandProfileFlagDefaultKeepsLegacyRootWithoutMaterializedDefault(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	baseHome := config.GormesHome()

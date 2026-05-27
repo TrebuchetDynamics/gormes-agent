@@ -968,7 +968,7 @@ func DefaultSeams() Seams {
 			return cli.WriteActiveProfile(activePath, name)
 		},
 		CreateProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
-			if name == "default" {
+			if name == "default" || name == "main" {
 				return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
 			}
 			sourceRoot := ""

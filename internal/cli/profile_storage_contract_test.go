@@ -118,6 +118,29 @@ func TestResolveProfileRuntimeRootDefaultKeepsLegacyUntilMaterialized(t *testing
 	}
 }
 
+func TestResolveProfileRuntimeRootMainKeepsBaseUntilMaterialized(t *testing.T) {
+	base := filepath.Join(t.TempDir(), ".gormes")
+	legacyRoot, err := ResolveProfileRuntimeRoot(base, "main")
+	if err != nil {
+		t.Fatalf("ResolveProfileRuntimeRoot(main) before materialization error = %v, want nil", err)
+	}
+	if legacyRoot != base {
+		t.Fatalf("ResolveProfileRuntimeRoot(main) before materialization = %q, want base root %q", legacyRoot, base)
+	}
+
+	materializedMain := filepath.Join(base, "profiles", "main")
+	if err := os.MkdirAll(materializedMain, 0o700); err != nil {
+		t.Fatalf("mkdir materialized main profile: %v", err)
+	}
+	got, err := ResolveProfileRuntimeRoot(base, "main")
+	if err != nil {
+		t.Fatalf("ResolveProfileRuntimeRoot(main) after materialization error = %v, want nil", err)
+	}
+	if got != materializedMain {
+		t.Fatalf("ResolveProfileRuntimeRoot(main) after materialization = %q, want %q", got, materializedMain)
+	}
+}
+
 func TestResolveProfileRuntimeRootNamedUsesHomogeneousContract(t *testing.T) {
 	base := filepath.Join(t.TempDir(), ".gormes")
 	got, err := ResolveProfileRuntimeRoot(base, "coder")

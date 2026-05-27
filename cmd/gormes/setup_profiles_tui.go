@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/cli/gormescli/modules/profiles"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -394,11 +396,27 @@ func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Con
 	if writeSetupProfilesControlCenterConfig == nil {
 		return fmt.Errorf("profile control center root config writer unavailable")
 	}
+	if createName != "" {
+		if err := materializeSetupProfilesControlCenterProfile(createName); err != nil {
+			return err
+		}
+	}
 	configPath := config.ConfigPath()
 	if err := writeSetupProfilesControlCenterConfig(configPath, applied); err != nil {
 		return fmt.Errorf("apply profile control center draft: %w", err)
 	}
 	fmt.Fprintf(out, "Applied %d profile control center change(s) to %s.\n", len(changes), setupRedactedProfileConfigPath(config.GormesHome()))
+	return nil
+}
+
+func materializeSetupProfilesControlCenterProfile(name string) error {
+	seams := defaultProfileCommandSeams()
+	if seams.CreateProfile == nil {
+		return fmt.Errorf("profile creation seam unavailable")
+	}
+	if _, err := seams.CreateProfile(name, false); err != nil && !errors.Is(err, cli.ErrProfileCreateTargetExists) {
+		return fmt.Errorf("create profile runtime home %q: %w", name, err)
+	}
 	return nil
 }
 

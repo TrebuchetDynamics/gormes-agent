@@ -212,7 +212,7 @@ func Apply(seed string, opts ApplyOptions) (ApplyResult, error) {
 }
 
 func defaultCreateProfile(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
-	if name == "default" {
+	if name == "default" || name == "main" {
 		return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
 	}
 	baseHome := config.GormesBaseHome()

@@ -89,31 +89,33 @@ func (c ProfileStorageContract) ProfileSessionDBPath(name string) (string, error
 }
 
 // ResolveProfileRuntimeRoot returns the runnable profile root for baseHome and
-// name without creating or migrating directories. Named profiles always resolve
-// to the homogeneous contract root. The default profile keeps the legacy
-// baseHome root until BaseHome/profiles/default already exists as a directory,
-// at which point callers honor the materialized homogeneous default root.
+// name without creating or migrating directories. The legacy default profile
+// name and the v2 default profile ID ("main") keep the baseHome root until
+// their homogeneous BaseHome/profiles/<name> root already exists as a
+// directory, at which point callers honor that materialized profile root.
+// Other named profiles always resolve to the homogeneous contract root.
 func ResolveProfileRuntimeRoot(baseHome, name string) (string, error) {
 	contract, err := NewProfileStorageContract(baseHome)
 	if err != nil {
 		return "", err
 	}
+	name = strings.TrimSpace(name)
 	root, err := contract.ProfileRoot(name)
 	if err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(name) != "default" {
+	if name != "default" && name != "main" {
 		return root, nil
 	}
 	info, statErr := os.Stat(root)
 	if statErr == nil {
 		if !info.IsDir() {
-			return "", fmt.Errorf("profile default root is not a directory: %s", root)
+			return "", fmt.Errorf("profile %s root is not a directory: %s", name, root)
 		}
 		return root, nil
 	}
 	if errors.Is(statErr, os.ErrNotExist) {
 		return contract.BaseHome(), nil
 	}
-	return "", fmt.Errorf("inspect profile default root %s: %w", root, statErr)
+	return "", fmt.Errorf("inspect profile %s root %s: %w", name, root, statErr)
 }
