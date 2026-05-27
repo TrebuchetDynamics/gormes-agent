@@ -848,6 +848,11 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Security advisory CLI | `hermes_cli/security_advisories.py` | → `missing` | missing | Not ported. |
 | Supply-chain audit CI | `.github/workflows/supply-chain-audit.yml` | → `missing` | missing | Not ported. |
+| Advisory class/detection | `security_advisories.py` `Advisory` `detect_compromised` | → `missing` | missing | Advisory data model and compromise detection. |
+| Advisory ack/ignore | `security_advisories.py` `ack_advisory` `get_acked_ids` | → `missing` | missing | Persist acknowledged advisories. |
+| Startup banner | `security_advisories.py` `startup_banner` | → `missing` | missing | Show unacknowledged advisories at CLI start. |
+| Doctor section | `security_advisories.py` `render_doctor_section` | → `missing` | missing | Report advisory status in doctor. |
+| Gateway log message | `security_advisories.py` `gateway_log_message` | → `missing` | missing | Log advisory hits on gateway startup. |
 
 ---
 
@@ -881,9 +886,15 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Backup CLI | `hermes_cli/backup.py` | → `missing` | missing | Not ported. |
-| Checkpoint CLI | `hermes_cli/checkpoints.py` | `internal/tui/slash_checkpoint.go` | partial | Checkpoint in TUI; CLI restore not proven. |
-| Rollback CLI | `hermes_cli/checkpoints.py` | `internal/tui/slash_rollback.go` | partial | Rollback in TUI; CLI not proven. |
+| Full backup CLI | `hermes_cli/backup.py` `run_backup` | → `missing` | missing | Full backup of config/sessions/memory. |
+| Import CLI | `hermes_cli/backup.py` `run_import` | → `missing` | missing | Import from backup zip. |
+| Backup validation | `hermes_cli/backup.py` `_validate_backup_zip` | → `missing` | missing | Validate backup integrity. |
+| Quick snapshot create | `hermes_cli/checkpoints.py` `create_quick_snapshot` | → `missing` | missing | Pre-operation snapshot. |
+| Quick snapshot list | `hermes_cli/checkpoints.py` `list_quick_snapshots` | → `missing` | missing | List available snapshots. |
+| Checkpoint TUI | `hermes_cli/checkpoints.py` | `internal/tui/slash_checkpoint.go` | partial | Checkpoint via TUI slash command. |
+| Rollback TUI | `hermes_cli/checkpoints.py` | `internal/tui/slash_rollback.go` | partial | Rollback via TUI slash command. |
+| Snapshot prune | `hermes_cli/checkpoints.py` `cmd_prune` | → `missing` | missing | Remove old snapshots. |
+| Snapshot clear (legacy) | `hermes_cli/checkpoints.py` `cmd_clear_legacy` | → `missing` | missing | Clear legacy checkpoint format. |
 
 ---
 
@@ -929,8 +940,14 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Credential files passthrough | `tools/credential_files.py` | → `missing` | missing | Not ported. |
-| Environment passthrough | `tools/env_passthrough.py` | → `missing` | missing | Not ported. |
+| Credential files registration | `tools/credential_files.py` `register_credential_file` | → `missing` | missing | Register files for credential passthrough. |
+| Credential file mounts | `tools/credential_files.py` `get_credential_file_mounts` | → `missing` | missing | Resolve credential mounts for sandbox. |
+| Skills directory mount | `tools/credential_files.py` `get_skills_directory_mount` | → `missing` | missing | Mount skills dir read-only. |
+| Skills files iterator | `tools/credential_files.py` `iter_skills_files` | → `missing` | missing | Iterate skill files for sandbox. |
+| Env passthrough registration | `tools/env_passthrough.py` `register_env_passthrough` | → `missing` | missing | Allowlist env vars for sandbox passthrough. |
+| Env passthrough check | `tools/env_passthrough.py` `is_env_passthrough` | → `missing` | missing | Check if a var is allowed through. |
+| Config passthrough load | `tools/env_passthrough.py` `_load_config_passthrough` | → `missing` | missing | Load passthrough allowlist from config. |
+| Env passthrough clear | `tools/env_passthrough.py` `clear_env_passthrough` | → `missing` | missing | Reset passthrough state. |
 
 ---
 
@@ -938,8 +955,11 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Personality list/switch | `hermes_cli/commands.py` `/personality` | → advertised unavailable | missing | Recognized, no handler. |
-| Personality prompt injection | `run_agent.py` | → `missing` | missing | Not ported. |
+| Personality list command | `hermes_cli/commands.py` `/personality` | → advertised unavailable | missing | Recognized, no handler. |
+| Personality switch command | `hermes_cli/commands.py` | → advertised unavailable | missing | Switch personality at runtime. |
+| Personality prompt injection | `run_agent.py` | → `missing` | missing | Prepend personality prompt before user message. |
+| Personality source file loading | `hermes_cli/config.py` personalities config | → `missing` | missing | Load from config.yaml personalities block. |
+| Personality `none` clear | `hermes_cli/commands.py` `personality none` | → `missing` | missing | Reset to no personality overlay. |
 
 ---
 
