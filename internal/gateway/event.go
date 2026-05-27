@@ -82,6 +82,8 @@ const (
 	// the operator slash handler for the per-platform circuit breaker
 	// (distinct from EventGateway's read-only /platforms status display).
 	EventPlatformControl
+	// EventPersonality handles `/personality` subcommands (list, switch, none).
+	EventPersonality
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -147,6 +149,8 @@ func (k EventKind) String() string {
 		return "spawn"
 	case EventPlatformControl:
 		return "platform_control"
+	case EventPersonality:
+		return "personality"
 	default:
 		return "unknown"
 	}

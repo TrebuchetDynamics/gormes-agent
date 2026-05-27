@@ -104,7 +104,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "model", Description: "Show current model and provider", Kind: EventModel, Aliases: []string{"provider"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "mouse", Description: "Toggle terminal mouse tracking", Kind: EventUnknown, Aliases: []string{"scroll"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "paste", Description: "Attach clipboard image", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "personality", Description: "Set a predefined personality", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "personality", Description: "Set a predefined personality", Kind: EventPersonality, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "platform", Description: "Pause, resume, or list a failing gateway platform", Kind: EventPlatformControl, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "platforms", Description: "Show gateway/messaging platform status", Kind: EventGateway, Aliases: []string{"gateway"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "plugins", Description: "List installed plugins", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},

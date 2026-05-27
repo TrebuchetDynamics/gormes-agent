@@ -307,6 +307,10 @@ type Manager struct {
 	verboseHintMu   sync.Mutex
 	verboseHintSent map[string]bool
 
+	personalityMu          sync.Mutex
+	personalityPrompts     map[string]string
+	activePersonalityName  string
+
 	kanbanDispatcherMu      sync.Mutex
 	kanbanDispatcherRunning bool
 
@@ -1046,6 +1050,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventKanban:
 		m.handleKanbanCommand(ctx, ch, ev)
 		return nil
+	case EventPersonality:
+		m.handlePersonalityCommand(ctx, ch, ev)
+		return nil
 	case EventSpawn:
 		m.handleSpawnCommand(ctx, ch, ev)
 		return nil
@@ -1169,6 +1176,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventKanban:
 		m.handleKanbanCommand(ctx, ch, ev)
+		return true
+	case EventPersonality:
+		m.handlePersonalityCommand(ctx, ch, ev)
 		return true
 	case EventSpawn:
 		m.handleSpawnCommand(ctx, ch, ev)

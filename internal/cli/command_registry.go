@@ -137,7 +137,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "mouse", Description: "Toggle terminal mouse tracking", Aliases: []string{"scroll"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBusyReject, Ported: true, Subcommands: []string{"on", "off", "toggle"}},
 	{Name: "model", Description: "Switch model for this session", Aliases: []string{"provider"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "paste", Description: "Attach clipboard image", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
-	{Name: "personality", Description: "Set a predefined personality", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "personality", Description: "Set a predefined personality", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "platform", Description: "Pause, resume, or list a failing gateway platform", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"list", "pause", "resume"}},
 	{Name: "platforms", Description: "Show gateway/messaging platform status", Aliases: []string{"gateway"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "plugins", Description: "List installed plugins", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},

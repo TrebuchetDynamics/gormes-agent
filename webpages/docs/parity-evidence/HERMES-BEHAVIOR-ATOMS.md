@@ -983,11 +983,9 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Personality list command | `hermes_cli/commands.py` `/personality` | → advertised unavailable | missing | Recognized, no handler. |
-| Personality switch command | `hermes_cli/commands.py` | → advertised unavailable | missing | Switch personality at runtime. |
-| Personality prompt injection | `run_agent.py` | → `missing` | missing | Prepend personality prompt before user message. |
-| Personality source file loading | `hermes_cli/config.py` personalities config | → `missing` | missing | Load from config.yaml personalities block. |
-| Personality `none` clear | `hermes_cli/commands.py` `personality none` | → `missing` | missing | Reset to no personality overlay. |
+| Personality list command | `hermes_cli/commands.py` `/personality` | `internal/gateway/personality_command.go` `handlePersonalityCommand` | covered | Lists available personalities with descriptions. |
+| Personality switch command | `hermes_cli/commands.py` | `internal/gateway/personality_command.go` | covered | Switches active personality by name. |
+| Personality prompt injection | `run_agent.py` | `internal/hermes/prompt_assembly.go` `PromptAssemblyOptions.Personality` | covered | Injects personality block when ActivePersonality is set. |\n| Personality source file loading | `hermes_cli/config.py` personalities config | `internal/config/config.go` `AgentCfg.Personalities` | covered | Loads personalities from config agent.personalities map. |\n| Personality `none` clear | `hermes_cli/commands.py` `personality none` | `internal/gateway/personality_command.go` | covered | Clears active personality via /personality none. |]
 
 ---
 
