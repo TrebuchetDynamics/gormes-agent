@@ -18,7 +18,9 @@ const (
 type ProviderModelCatalogFunc func() ([]string, error)
 
 type ProfileProviderReadinessOptions struct {
-	Catalogs map[string]ProviderModelCatalogFunc
+	Catalogs             map[string]ProviderModelCatalogFunc
+	SecretEnv            map[string]string
+	SkipSecretValidation bool
 }
 
 type ProfileProviderReadiness struct {
@@ -54,13 +56,13 @@ func BuildProfileProviderReadiness(cfg config.Config, opts ProfileProviderReadin
 			if !providerCfg.Enabled {
 				continue
 			}
-			reports = append(reports, buildProfileProviderReadiness(profileID, providerID, providerCfg, cfg.Credentials, opts))
+			reports = append(reports, buildProfileProviderReadiness(profileID, providerID, providerCfg, cfg.Credentials, cfg.Secrets, opts))
 		}
 	}
 	return reports
 }
 
-func buildProfileProviderReadiness(profileID, providerID string, providerCfg config.ProfileProviderCfg, credentials map[string]config.CredentialCfg, opts ProfileProviderReadinessOptions) ProfileProviderReadiness {
+func buildProfileProviderReadiness(profileID, providerID string, providerCfg config.ProfileProviderCfg, credentials map[string]config.CredentialCfg, secrets config.SecretsCfg, opts ProfileProviderReadinessOptions) ProfileProviderReadiness {
 	providerID = normalizeProviderID(providerID)
 	credentialID := strings.TrimSpace(providerCfg.Credential)
 	report := ProfileProviderReadiness{
@@ -92,8 +94,21 @@ func buildProfileProviderReadiness(profileID, providerID string, providerCfg con
 	}
 	if credential.SecretRef != nil {
 		report.SecretRef = redactedSecretRef(*credential.SecretRef)
+		if !opts.SkipSecretValidation {
+			if evidence, err := validateProfileProviderSecretRef(*credential.SecretRef, secrets, opts); err != nil {
+				report.Status = ProfileProviderCredentialMissing
+				if strings.TrimSpace(evidence.Code) != "" {
+					report.Evidence = append(report.Evidence, evidence.Code)
+				}
+				return report
+			}
+		}
 	} else {
 		report.Evidence = append(report.Evidence, "provider_secret_ref_missing")
+		if !opts.SkipSecretValidation {
+			report.Status = ProfileProviderCredentialMissing
+			return report
+		}
 	}
 
 	models, err := loadProviderModels(providerID, report.AllowedModels, opts)
@@ -104,6 +119,12 @@ func buildProfileProviderReadiness(profileID, providerID string, providerCfg con
 	}
 	report.Models = models
 	return report
+}
+
+func validateProfileProviderSecretRef(ref config.SecretRef, secrets config.SecretsCfg, opts ProfileProviderReadinessOptions) (config.SecretRefEvidence, error) {
+	resolver := config.NewSecretResolver(config.SecretResolverConfig{Secrets: secrets, Env: opts.SecretEnv})
+	_, evidence, err := resolver.ResolveString(ref)
+	return evidence, err
 }
 
 func loadProviderModels(providerID string, allowed []string, opts ProfileProviderReadinessOptions) ([]string, error) {

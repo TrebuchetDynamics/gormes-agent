@@ -235,6 +235,7 @@ name = "Main desk"
 }
 
 func TestSetupProfilesControlCenterTUIShowsProviderCatalogAndStagesModelConfig(t *testing.T) {
+	t.Setenv("GORMES_TULIN_OPENROUTER_API_KEY", "sk-tulin-openrouter")
 	withOpenRouterModelCatalogFetcherForTest(t, func(context.Context) ([]string, error) {
 		return []string{"zai/glm-4.6", "openai/gpt-5.2", "meta-llama/llama-4", "anthropic/claude-sonnet-4.5"}, nil
 	})
