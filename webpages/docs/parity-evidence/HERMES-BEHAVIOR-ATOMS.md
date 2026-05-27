@@ -909,11 +909,11 @@ file+line ref or explicit `missing`, and a classification.
 | Model switch CLI (interactive) | `hermes_cli/model_switch.py` | `cmd/gormes/model.go` + `internal/gateway/model_picker.go` | covered | Interactive provider/model picker. |
 | Model catalog suggestions | `hermes_cli/model_catalog.py` | `internal/hermes/provider_registry_manifest.go` | covered | Provider-specific model catalog. |
 | Model normalize | `hermes_cli/model_normalize.py` | → `missing` | missing | Not ported. |
-| Direct alias resolution | `model_switch.py` `_ensure_direct_aliases` | → `missing` | missing | Resolve provider-specific model aliases. |
-| ModelIdentity parsing | `model_switch.py` `ModelIdentity` | → `missing` | missing | Parse `provider/model` into structured types. |
-| ModelSwitchResult | `model_switch.py` `ModelSwitchResult` | → `missing` | missing | Structured switch result with provider/model/isGlobal. |
-| `--global` flag support | `model_switch.py` `parse_model_flags` | `cmd/gormes/model.go` | partial | Global model override flag. |
-| Model sort key | `model_switch.py` `_model_sort_key` | → `missing` | missing | Deterministic model ordering. |
+| Direct alias resolution | `model_switch.py` `_ensure_direct_aliases` | `internal/hermes/model_switch.go` `DirectAlias` | covered | DirectAlias type with Model/Provider/BaseURL fields. |
+| ModelIdentity parsing | `model_switch.py` `ModelIdentity` | `internal/hermes/model_switch.go` `ModelIdentity` + `ModelAliases` | covered | 22 built-in model aliases with vendor/family. |
+| ModelSwitchResult | `model_switch.py` `ModelSwitchResult` | `internal/hermes/model_switch.go` `ModelSwitchResult` | covered | Structured result with success/newModel/provider/isGlobal/error. |
+| `--global` flag support | `model_switch.py` `parse_model_flags` | `internal/hermes/model_switch.go` `ParseModelFlags` | covered | Parses --provider, --global, unicode dash normalization. |
+| Model sort key | `model_switch.py` `_model_sort_key` | `internal/hermes/model_switch.go` `ModelSortKey` | covered | Deterministic sort key + SortedModelAliases. |
 
 ---
 
