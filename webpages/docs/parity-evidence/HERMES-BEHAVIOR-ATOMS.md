@@ -736,8 +736,8 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Goal set/pause/resume/clear/status | `hermes_cli/goals.py` | `internal/tui/slash_goal.go` + `internal/tools/` | covered | Goal management in TUI and tools. |
-| Goal subgoal add/remove | `hermes_cli/goals.py` | → `missing` | missing | Not ported. |
-| Goal budget enforcement | `hermes_cli/goals.py` | → `missing` | missing | Not ported. |
+| Goal subgoal add/remove/list | `hermes_cli/goals.py` | `internal/gateway/goal_loop.go` `handleSubgoalCommand` | covered | Add/remove/clear subgoals; saves in GoalState.Subgoals. |
+| Goal budget enforcement | `hermes_cli/goals.py` | `internal/session/goal_state.go` `GoalState.MaxTurns` + `goal_loop.go` | covered | Turn budget tracked via MaxTurns; pauses goal when exhausted. |
 
 ---
 
