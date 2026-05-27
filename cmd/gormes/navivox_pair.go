@@ -88,9 +88,6 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	if opts.port <= 0 || opts.port > 65535 {
 		return fmt.Errorf("navivox pair: invalid port %d", opts.port)
 	}
-	if err := ensureNoLiveGatewayForNavivoxPair(cmd.Context()); err != nil {
-		return err
-	}
 	cfg, err := config.Load(nil)
 	if err != nil {
 		return fmt.Errorf("navivox pair: load config: %w", err)
@@ -112,6 +109,11 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 		AuthMode:        config.NavivoxAuthPairingToken,
 		Token:           token,
 		PublicConfirmed: target.PublicConfirmed,
+	}
+	if opts.portExplicit {
+		if err := ensureNoLiveGatewayForNavivoxPair(cmd.Context()); err != nil {
+			return err
+		}
 	}
 	if err := config.ValidateNavivoxForRuntime(&runtimeCfg); err != nil {
 		return err
@@ -179,7 +181,10 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 			return err
 		}
 	}
+	fmt.Fprintln(out, "  Text prompt for Navivox manual registration:")
+	fmt.Fprintf(out, "    %s\n", navivoxPairManualTextPrompt(runtimeCfg, baseURL, wsURL))
 	fmt.Fprintln(out, "  Keep this terminal open for this bridge.")
+
 	if opts.printDeeplink {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "Deeplink")
@@ -237,15 +242,7 @@ func ensureNoLiveGatewayForNavivoxPair(ctx context.Context) error {
 	if !snapshot.Validation.Live {
 		return nil
 	}
-	pid := snapshot.Validation.PID
-	if pid == 0 {
-		pid = snapshot.Status.PID
-	}
-	pidDetail := ""
-	if pid > 0 {
-		pidDetail = fmt.Sprintf(" pid=%d", pid)
-	}
-	return fmt.Errorf("navivox pair: live Gormes gateway already running%s; only one gateway can run at a time. Stop it with `gormes gateway stop`, then rerun `gormes navivox pair`", pidDetail)
+	return nil
 }
 
 func persistNavivoxPairConfig(runtimeCfg config.NavivoxCfg, token string) error {
@@ -469,6 +466,19 @@ func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string 
 	values.Set("token_required", "true")
 	values.Set("rest_token", cfg.Token)
 	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String()
+}
+
+func navivoxPairManualTextPrompt(cfg config.NavivoxCfg, baseURL, wsURL string) string {
+	parts := []string{
+		"Connect Navivox to this Gormes bridge:",
+		"Base URL " + baseURL,
+		"WebSocket " + wsURL,
+		"Status " + strings.TrimRight(baseURL, "/") + "/v1/navivox/status",
+		"Capabilities " + strings.TrimRight(baseURL, "/") + "/v1/navivox/capabilities",
+		"Auth mode " + cfg.AuthMode,
+		"Token " + cfg.Token,
+	}
+	return strings.Join(parts, " ")
 }
 
 func writeNavivoxPairQR(path, descriptor string) error {

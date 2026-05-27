@@ -135,6 +135,12 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 		"  Treat token/QR like WhatsApp Web:",
 		"  anyone with it can connect while this bridge is online.",
 		"  Keep this terminal open for this bridge.",
+		"  Text prompt for Navivox manual registration:",
+		"    Connect Navivox to this Gormes bridge:",
+		"Base URL http://127.0.0.1:",
+		"WebSocket ws://127.0.0.1:",
+		"Auth mode pairing_token",
+		"Token ",
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -176,7 +182,7 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	}
 }
 
-func TestNavivoxPairRefusesWhenLiveGatewayRuntimeExists(t *testing.T) {
+func TestNavivoxPairReusesLiveGatewayRuntimeInsteadOfRefusing(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	previous := newNavivoxPairRuntimeStore
@@ -193,20 +199,9 @@ func TestNavivoxPairRefusesWhenLiveGatewayRuntimeExists(t *testing.T) {
 
 	cmd := &cobra.Command{Use: "test"}
 	cmd.SetContext(context.Background())
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	err := runNavivoxPair(cmd, navivoxPairOptions{host: "127.0.0.1", port: freeLocalTCPPort(t), noWait: true})
-	if err == nil {
-		t.Fatalf("runNavivoxPair err = nil, want live gateway refusal")
-	}
-	for _, want := range []string{"live Gormes gateway already running pid=1234", "only one gateway can run at a time", "gormes gateway stop"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("error missing %q: %v", want, err)
-		}
-	}
-	if stdout.Len() != 0 || stderr.Len() != 0 {
-		t.Fatalf("live gateway refusal should not start or print pairing output\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+	err := ensureNoLiveGatewayForNavivoxPair(cmd.Context())
+	if err != nil {
+		t.Fatalf("ensureNoLiveGatewayForNavivoxPair returned error for reusable live gateway: %v", err)
 	}
 }
 
