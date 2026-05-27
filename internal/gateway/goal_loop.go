@@ -425,7 +425,7 @@ func (m *Manager) handleGoalPostTurnContinuation(ctx context.Context, ch Channel
 		return
 	}
 	_, _ = m.sendWithHooks(ctx, ch, state.ChatID, fmt.Sprintf("↻ Continuing toward goal (%d/%d): %s", goal.TurnsUsed, goal.MaxTurns, verdict.Reason))
-	m.queueGoalContinuation(ctx, ch, state, session.ContinuationPrompt(goal.Goal))
+	m.queueGoalContinuation(ctx, ch, state, session.ContinuationPrompt(goal.Goal, goal.Subgoals))
 }
 
 func (m *Manager) pauseInterruptedGoal(ctx context.Context, ch Channel, state activeTurnSnapshot) {

@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -28,6 +29,7 @@ type GoalState struct {
 	LastVerdict  string     `json:"last_verdict,omitempty"`
 	LastReason   string     `json:"last_reason,omitempty"`
 	PausedReason string     `json:"paused_reason,omitempty"`
+	Subgoals     []string   `json:"subgoals,omitempty"`
 }
 
 type GoalMetadataStore interface {
@@ -35,12 +37,20 @@ type GoalMetadataStore interface {
 	PutMetadata(context.Context, Metadata) error
 }
 
-func ContinuationPrompt(goal string) string {
-	return "[Continuing toward your standing goal]\n" +
-		"Goal: " + strings.TrimSpace(goal) + "\n\n" +
-		"Continue working toward this goal. Take the next concrete step. " +
-		"If you believe the goal is complete, state so explicitly and stop. " +
-		"If you are blocked and need input from the user, say so clearly and stop."
+func ContinuationPrompt(goal string, subgoals []string) string {
+	prompt := "[Continuing toward your standing goal]\n" +
+		"Goal: " + strings.TrimSpace(goal)
+	if len(subgoals) > 0 {
+		prompt += "\n\nSubgoals:\n"
+		for i, sg := range subgoals {
+			prompt += fmt.Sprintf("%d. %s\n", i+1, sg)
+		}
+	}
+	prompt += "\n\n"
+	prompt += "Continue working toward this goal. Take the next concrete step. "
+	prompt += "If you believe the goal is complete, state so explicitly and stop. "
+	prompt += "If you are blocked and need input from the user, say so clearly and stop."
+	return prompt
 }
 
 func NormalizeGoalState(state GoalState) GoalState {
