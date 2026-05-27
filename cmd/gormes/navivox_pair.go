@@ -93,13 +93,11 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 		return fmt.Errorf("navivox pair: load config: %w", err)
 	}
 	token := strings.TrimSpace(cfg.Navivox.Token)
-	generatedToken := false
 	if token == "" {
 		token, err = generateNavivoxSetupToken()
 		if err != nil {
 			return err
 		}
-		generatedToken = true
 	}
 	runtimeCfg := config.NavivoxCfg{
 		Enabled:         true,
@@ -118,13 +116,12 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	if err := config.ValidateNavivoxForRuntime(&runtimeCfg); err != nil {
 		return err
 	}
+	requestedPort := runtimeCfg.Port
 	bridgeCfg, bridgeStop, bridgeDone, err := startNavivoxPairBridge(cmd.Context(), runtimeCfg, !opts.portExplicit)
 	if err != nil {
 		return err
 	}
-	if bridgeCfg.Port != runtimeCfg.Port {
-		target.Source += fmt.Sprintf("; port %d busy, using %d", runtimeCfg.Port, bridgeCfg.Port)
-	}
+	portChanged := bridgeCfg.Port != requestedPort
 	runtimeCfg = bridgeCfg
 	if err := persistNavivoxPairConfig(runtimeCfg, token); err != nil {
 		_ = stopNavivoxPairBridge(bridgeStop, bridgeDone)
@@ -141,49 +138,33 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	out := cmd.OutOrStdout()
 	openAttempted := shouldOpenNavivoxAndroid(opts.openNavivox, opts.noOpenNavivox)
 	openSucceeded := false
-	openFailure := ""
+	openFailed := false
 	if openAttempted {
 		if err := openNavivoxAndroid(cmd.Context(), descriptor, opts.androidPackage); err != nil {
-			openFailure = err.Error()
+			openFailed = true
 		} else {
 			openSucceeded = true
 		}
 	}
 	fmt.Fprintln(out, "Navivox pairing ready.")
-	fmt.Fprintf(out, "  Bridge: %s\n", baseURL)
-	fmt.Fprintf(out, "  Stream: %s\n", wsURL)
-	fmt.Fprintf(out, "  Network: %s\n", target.Source)
+	fmt.Fprintf(out, "  URL: %s\n", baseURL)
 	fmt.Fprintf(out, "  Token: %s\n", token)
-	if generatedToken {
-		fmt.Fprintln(out, "  Token source: generated and stored in:")
-	} else {
-		fmt.Fprintln(out, "  Token source: reused from:")
+	if portChanged {
+		fmt.Fprintf(out, "  Port: %d busy; using %d\n", requestedPort, runtimeCfg.Port)
 	}
-	fmt.Fprintf(out, "  %s\n", config.EnvPath())
-	fmt.Fprintln(out, "  Treat token/QR like WhatsApp Web:")
-	fmt.Fprintln(out, "  anyone with it can connect while this bridge is online.")
-	terminalQRFallback := false
+	fmt.Fprintln(out, "  Keep token/QR private.")
 	if openSucceeded {
-		fmt.Fprintln(out, "  Handoff: opened Navivox directly")
-	} else if openAttempted {
-		fmt.Fprintf(out, "  Handoff: direct open failed (%s); QR fallback saved:\n", openFailure)
-		fmt.Fprintf(out, "    %s\n", qrPath)
-		terminalQRFallback = true
-		fmt.Fprintln(out, "  Secret: QR embeds the network bridge URL and Navivox token.")
+		fmt.Fprintln(out, "  Opened Navivox.")
 	} else {
-		fmt.Fprintln(out, "  Handoff: QR fallback saved:")
-		fmt.Fprintf(out, "    %s\n", qrPath)
-		terminalQRFallback = true
-		fmt.Fprintln(out, "  Secret: QR embeds the network bridge URL and Navivox token.")
-	}
-	if terminalQRFallback {
+		if openFailed {
+			fmt.Fprintln(out, "  Open failed; use QR.")
+		}
+		fmt.Fprintf(out, "  QR: %s\n", qrPath)
 		if err := renderNavivoxPairTerminalQR(out, runtimeCfg, baseURL, wsURL, qrPath); err != nil {
 			return err
 		}
 	}
-	fmt.Fprintln(out, "  Text prompt for Navivox manual registration:")
-	fmt.Fprintf(out, "    %s\n", navivoxPairManualTextPrompt(runtimeCfg, baseURL, wsURL))
-	fmt.Fprintln(out, "  Keep this terminal open for this bridge.")
+	fmt.Fprintln(out, "  Keep this terminal open.")
 
 	if opts.printDeeplink {
 		fmt.Fprintln(out)
@@ -224,9 +205,9 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 				_ = stopNavivoxPairBridge(bridgeStop, bridgeDone)
 				return err
 			}
-			fmt.Fprintln(out, "Navivox connected. Continue setup in Navivox.")
-			fmt.Fprintf(out, "Local bridge remains online: %s\n", baseURL)
-			fmt.Fprintln(out, "Keep this Termux session open to keep the local bridge online.")
+			fmt.Fprintln(out, "Navivox connected.")
+			fmt.Fprintf(out, "Bridge stays online: %s\n", baseURL)
+			fmt.Fprintln(out, "Keep this terminal open.")
 		}
 	}
 }
@@ -466,19 +447,6 @@ func navivoxPairDescriptor(cfg config.NavivoxCfg, baseURL, wsURL string) string 
 	values.Set("token_required", "true")
 	values.Set("rest_token", cfg.Token)
 	return (&url.URL{Scheme: "navivox", Host: "connect", RawQuery: values.Encode()}).String()
-}
-
-func navivoxPairManualTextPrompt(cfg config.NavivoxCfg, baseURL, wsURL string) string {
-	parts := []string{
-		"Connect Navivox to this Gormes bridge:",
-		"Base URL " + baseURL,
-		"WebSocket " + wsURL,
-		"Status " + strings.TrimRight(baseURL, "/") + "/v1/navivox/status",
-		"Capabilities " + strings.TrimRight(baseURL, "/") + "/v1/navivox/capabilities",
-		"Auth mode " + cfg.AuthMode,
-		"Token " + cfg.Token,
-	}
-	return strings.Join(parts, " ")
 }
 
 func writeNavivoxPairQR(path, descriptor string) error {

@@ -73,8 +73,8 @@ printf '%s\n' "$@"
 	for _, want := range []string{
 		"Navivox pairing ready.",
 		"Token: nvbx_pair_open_token",
-		"Handoff: opened Navivox directly",
-		"Keep this terminal open for this bridge.",
+		"Opened Navivox.",
+		"Keep this terminal open.",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -177,8 +177,8 @@ func TestNavivoxPairOpenNavivoxMissingAMFallsBackToQR(t *testing.T) {
 		t.Fatalf("navivox pair with missing am should keep QR fallback: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"Handoff: direct open failed (navivox open: Android activity manager not found); QR fallback saved:",
-		"Secret: QR embeds the network bridge URL and Navivox token.",
+		"Open failed; use QR.",
+		"QR: " + filepath.Join(home, "navivox", "pairing.png"),
 		"Token: nvbx_missing_am_token",
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {

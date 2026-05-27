@@ -80,6 +80,22 @@ func TestNavivoxPairDescriptorIncludesSetupContinuationHints(t *testing.T) {
 	}
 }
 
+func TestGenerateNavivoxSetupTokenUsesRedactablePrefix(t *testing.T) {
+	token, err := generateNavivoxSetupToken()
+	if err != nil {
+		t.Fatalf("generateNavivoxSetupToken: %v", err)
+	}
+	if !strings.HasPrefix(token, "nvbx_") {
+		t.Fatalf("generated Navivox token = %q, want nvbx_ prefix for operator recognition and redaction", token)
+	}
+	if strings.ContainsAny(token, "= \t\n\r") {
+		t.Fatalf("generated Navivox token contains unsafe whitespace/padding: %q", token)
+	}
+	if got := redactNavivoxDescriptor("token=" + token); strings.Contains(got, token) || !strings.Contains(got, "[redacted]") {
+		t.Fatalf("redactNavivoxDescriptor did not redact generated token: %q", got)
+	}
+}
+
 func TestNavivoxPairAutoTargetPrefersTailscaleNetworkIP(t *testing.T) {
 	prev := vpnhostList
 	t.Cleanup(func() { vpnhostList = prev })
@@ -123,31 +139,19 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	qrPath := filepath.Join(home, "navivox", "pairing.png")
 	for _, want := range []string{
 		"Navivox pairing ready.",
-		fmt.Sprintf("  Bridge: http://127.0.0.1:%d", port),
-		fmt.Sprintf("  Stream: ws://127.0.0.1:%d/v1/navivox/stream", port),
-		"  Network: operator override",
-		"  Handoff: QR fallback saved:\n    " + qrPath,
-		"  Scan this QR from Navivox:",
-		"  QR payload includes the network bridge URL and pairing token.",
-		"  Manual token is printed above for fallback entry.",
-		"  Secret: QR embeds the network bridge URL and Navivox token.",
-		"  Token source: generated and stored in:\n  " + config.EnvPath(),
-		"  Treat token/QR like WhatsApp Web:",
-		"  anyone with it can connect while this bridge is online.",
-		"  Keep this terminal open for this bridge.",
-		"  Text prompt for Navivox manual registration:",
-		"    Connect Navivox to this Gormes bridge:",
-		"Base URL http://127.0.0.1:",
-		"WebSocket ws://127.0.0.1:",
-		"Auth mode pairing_token",
-		"Token ",
+		fmt.Sprintf("  URL: http://127.0.0.1:%d", port),
+		"  Token: ",
+		"  Keep token/QR private.",
+		"  QR: " + qrPath,
+		"  Scan QR:",
+		"  Keep this terminal open.",
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	for _, removed := range []string{"Next steps", "scan the QR image", "Connection\n", "Pairing\n", "Local bridge listening"} {
+	for _, removed := range []string{"Next steps", "scan the QR image", "Connection\n", "Pairing\n", "Local bridge listening", "Stream:", "Network:", "Token source:", "Treat token/QR like WhatsApp Web", "Handoff:", "Secret:", "Text prompt for Navivox manual registration", "WebSocket ws://", "Capabilities http://"} {
 		if strings.Contains(stdout, removed) {
 			t.Fatalf("stdout still contains noisy pair output %q:\n%s", removed, stdout)
 		}
@@ -246,7 +250,7 @@ func TestNavivoxPairAutoPortsWhenDefaultPortBusy(t *testing.T) {
 		t.Fatalf("runNavivoxPair auto-port fallback: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
 	}
 	out := stdout.String()
-	if !strings.Contains(out, fmt.Sprintf("port %d busy, using", occupiedPort)) {
+	if !strings.Contains(out, fmt.Sprintf("Port: %d busy; using", occupiedPort)) {
 		t.Fatalf("stdout missing auto-port fallback evidence for occupied port %d:\n%s", occupiedPort, out)
 	}
 	cfg, err := config.Load(nil)
@@ -256,7 +260,7 @@ func TestNavivoxPairAutoPortsWhenDefaultPortBusy(t *testing.T) {
 	if cfg.Navivox.Port == occupiedPort || cfg.Navivox.Port == 0 {
 		t.Fatalf("persisted navivox port = %d, want fallback port different from occupied %d", cfg.Navivox.Port, occupiedPort)
 	}
-	if !strings.Contains(out, fmt.Sprintf("Bridge: http://127.0.0.1:%d", cfg.Navivox.Port)) {
+	if !strings.Contains(out, fmt.Sprintf("URL: http://127.0.0.1:%d", cfg.Navivox.Port)) {
 		t.Fatalf("stdout bridge did not use persisted fallback port %d:\n%s", cfg.Navivox.Port, out)
 	}
 }
@@ -274,11 +278,9 @@ func TestNavivoxPairNarrowTermuxFallsBackToPNGQRCode(t *testing.T) {
 	}
 	qrPath := filepath.Join(home, "navivox", "pairing.png")
 	for _, want := range []string{
-		"  Scan this QR from Navivox:",
-		"  Terminal QR: not printed; terminal is too narrow.",
-		"  Detected columns: 48; QR needs ",
-		"  Termux tip: rotate phone, reduce font size, or open the PNG:",
-		"  termux-open " + qrPath,
+		"  QR: " + qrPath,
+		"  Terminal QR hidden: 48 cols < ",
+		"  Open: termux-open " + qrPath,
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
@@ -342,8 +344,8 @@ func TestNavivoxPairWaitStartsLocalBridgeUntilContextCanceled(t *testing.T) {
 
 	out := stdout.String()
 	for _, want := range []string{
-		fmt.Sprintf("Bridge: http://127.0.0.1:%d", port),
-		"Keep this terminal open for this bridge.",
+		fmt.Sprintf("URL: http://127.0.0.1:%d", port),
+		"Keep this terminal open.",
 		"Waiting for Navivox connection... Press Ctrl-C to stop.",
 	} {
 		if !strings.Contains(out, want) {
@@ -401,12 +403,12 @@ func TestNavivoxPairPrintsConnectedWhenNavivoxStreams(t *testing.T) {
 	conn := dialNavivoxPairWebSocket(t, fmt.Sprintf("ws://127.0.0.1:%d/v1/navivox/stream", port), cfg.Navivox.Token)
 	defer conn.Close()
 
-	if err := waitForOutputContains(&stdout, "Navivox connected. Continue setup in Navivox."); err != nil {
+	if err := waitForOutputContains(&stdout, "Navivox connected."); err != nil {
 		cancel()
 		<-errCh
 		t.Fatalf("navivox pair did not report app connection: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
 	}
-	expectedBridgeLine := fmt.Sprintf("Local bridge remains online: http://127.0.0.1:%d", port)
+	expectedBridgeLine := fmt.Sprintf("Bridge stays online: http://127.0.0.1:%d", port)
 	if err := waitForOutputContains(&stdout, expectedBridgeLine); err != nil {
 		cancel()
 		<-errCh

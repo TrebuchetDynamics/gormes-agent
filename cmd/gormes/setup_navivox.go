@@ -390,7 +390,7 @@ func generateNavivoxSetupToken() (string, error) {
 	if _, err := rand.Read(raw[:]); err != nil {
 		return "", fmt.Errorf("setup navivox: generate token: %w", err)
 	}
-	return base64.RawURLEncoding.EncodeToString(raw[:]), nil
+	return "nvbx_" + base64.RawURLEncoding.EncodeToString(raw[:]), nil
 }
 
 func parseSetupYesNo(value string, defaultValue bool) (bool, bool) {

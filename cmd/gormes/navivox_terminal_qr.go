@@ -29,22 +29,18 @@ func renderNavivoxPairTerminalQR(out io.Writer, cfg config.NavivoxCfg, baseURL, 
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(out, "  Scan this QR from Navivox:")
 	if terminalQR.TooNarrow {
-		fmt.Fprintln(out, "  Terminal QR: not printed; terminal is too narrow.")
-		fmt.Fprintf(out, "  Detected columns: %d; QR needs %d.\n", terminalQR.Columns, terminalQR.RequiredWidth)
-		fmt.Fprintln(out, "  Termux tip: rotate phone, reduce font size, or open the PNG:")
-		fmt.Fprintf(out, "  termux-open %s\n", qrPath)
+		fmt.Fprintf(out, "  Terminal QR hidden: %d cols < %d.\n", terminalQR.Columns, terminalQR.RequiredWidth)
+		fmt.Fprintf(out, "  Open: termux-open %s\n", qrPath)
 		return nil
 	}
+	fmt.Fprintln(out, "  Scan QR:")
 	for _, line := range strings.Split(strings.TrimRight(terminalQR.Text, "\n"), "\n") {
 		fmt.Fprintln(out, line)
 	}
 	if terminalQR.LevelName == "low" {
-		fmt.Fprintln(out, "  Terminal QR uses compact error correction to fit this terminal.")
+		fmt.Fprintln(out, "  QR compacted to fit this terminal.")
 	}
-	fmt.Fprintln(out, "  QR payload includes the network bridge URL and pairing token.")
-	fmt.Fprintln(out, "  Manual token is printed above for fallback entry.")
 	return nil
 }
 
