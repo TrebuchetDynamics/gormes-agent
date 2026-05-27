@@ -843,7 +843,7 @@ classification and row-backed implementation queue.
 - [x] `tts` Go-native OGG/Opus decoder implementation
 - [x] `tts` Pure-Go TTS decision research
 - [x] `tts` Shared speech artifact cache for Go-owned TTS
-- [ ] `tts` Go-owned WASM TTS backend
+- [ ] `tts` Go-owned local TTS runtime seam + fixture fallback
 
 ### 5.F — Skills System (Remaining) ✅
 

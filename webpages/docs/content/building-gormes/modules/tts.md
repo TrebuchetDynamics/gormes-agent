@@ -40,7 +40,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P3` | `tts` | Go-native OGG/Opus decoder implementation |
 | `complete` | `P3` | `tts` | Pure-Go TTS decision research |
 | `complete` | `P1` | `tts` | Shared speech artifact cache for Go-owned TTS |
-| `planned` | `P1` | `tts` | Go-owned WASM TTS backend |
+| `planned` | `P1` | `tts` | Go-owned local TTS runtime seam + fixture fallback |
 
 ### 5.O — Hermes CLI Parity
 

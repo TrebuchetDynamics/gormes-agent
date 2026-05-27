@@ -1663,12 +1663,12 @@
     "subphase": "5.E",
     "pos": 23,
     "item": {
-      "name": "Go-owned WASM TTS backend",
+      "name": "Go-owned local TTS runtime seam + fixture fallback",
       "priority": "P1",
       "status": "planned",
-      "contract": "Implement a Go-owned local TTS backend behind the existing text_to_speech/TTSProvider contract, preferably through a wazero/WASI neural engine with checksum-verified voice/model artifacts. The new provider must require no Python, Node, shell command, live cloud provider, or CGO dependency for synthesis; cloud and command providers remain compatibility fallbacks.",
-      "contract_status": "draft",
-      "slice_size": "large",
+      "contract": "Implement the first Go-owned local TTS backend behind the existing text_to_speech/TTSProvider contract as a fakeable runtime seam plus a deliberately low-quality pure-Go fixture/formant provider. This clears the runtime-source blocker without pretending Piper/ONNX/WASI neural quality is solved: the provider must synthesize a valid WAV through Go code with no Python, Node, shell command, CGO, native ONNX Runtime, browser/Emscripten runtime, or cloud dependency. Neural Piper/WASI work remains a later source-backed upgrade behind the same seam.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
       "execution_owner": "tools",
       "module": "tts",
       "trust_class": [
@@ -1676,33 +1676,32 @@
         "gateway",
         "system"
       ],
-      "degraded_mode": "Missing voice/model artifacts, unsupported platform/build tags, runtime load failures, synthesis errors, and benchmark budget overruns return typed tts_provider_unavailable or tts_api_error evidence without changing gateway delivery, leaking temp paths, or silently shelling out to Python/Node commands.",
-      "fixture": "internal/tools/tts_go_native_provider_test.go; future internal/wasi/piper or internal/speech testdata fixtures",
+      "degraded_mode": "Missing fixture/runtime support, unsupported text, disabled build tags, synthesis errors, and benchmark budget overruns return typed tts_provider_unavailable or tts_api_error evidence without changing gateway delivery, leaking temp paths, or silently shelling out to Python/Node/platform commands. Provider=auto may still use existing cloud/command compatibility fallbacks; explicitly selecting the Go-owned provider must not fall through silently.",
+      "fixture": "internal/tools/tts_go_native_provider_test.go; internal/speech/tts/fixture_test.go",
       "source_refs": [
         "docs/content/building-gormes/strategy/go-native-speech-options.md",
         "docs/content/building-gormes/strategy/tts-decision.md",
+        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
         "internal/tools/tts_tool.go:TTSProvider/TTSRunner",
         "internal/tools/tts_providers.go:LazyLocalTTSProvider",
         "internal/tools/tts_command_provider.go:TTSCommandProvider",
-        "internal/wasi/whisper/model_cache.go:EnsureModel",
-        "internal/wasi/whisper/transcriber.go:NewTranscriber",
+        "internal/speech/artifact/cache.go:Ensure",
         "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Voice, TTS, transcription",
-        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
-        "internal/speech/artifact/cache.go:Ensure"
+        "https://github.com/Mintplex-Labs/piper-tts-web/: browser-only Piper/ONNX WASM reference, not a wazero-ready backend",
+        "https://github.com/shota3506/onnxruntime-purego: purego binding still requires native ONNX Runtime shared library",
+        "https://github.com/second-state/WasmEdge-WASINN-examples/tree/master/wasmedge-piper: WASI-NN/Piper reference tied to WasmEdge host extensions",
+        "https://espeak.sourceforge.net/: compact formant-synthesis reference; C/GPL, use as concept evidence only"
       ],
       "ready_when": [
-        "A context-sourcing pass chooses the concrete Go-owned TTS engine/artifact, license, model/voice cache layout, and package path (`internal/wasi/piper` or `internal/speech`) without relying on a local unpublished checkout.",
-        "The first builder slice can use small fixture artifacts or fakeable runtime seams; it must not require live cloud credentials, microphone/speaker devices, Python, Node, or shell TTS binaries in tests.",
+        "The first slice is explicitly scoped to the runtime interface and a fixture-quality pure-Go synthesizer; it does not claim neural Piper/ONNX/WASI quality.",
+        "Tests can synthesize a small WAV through fakeable Go seams without live cloud credentials, microphone/speaker devices, Python, Node, shell TTS binaries, CGO, native shared libraries, or browser runtimes.",
         "The existing TTSRunner/text_to_speech schema and gateway MEDIA delivery behavior remain the public contract; the new backend is one provider adapter behind that seam."
       ],
       "not_ready_when": [
-        "The plan would embed large voice/model artifacts directly in git or the default binary instead of using checksum-verified cache/discovery helpers.",
-        "The proposed provider shells out to piper, edge-tts, Python, Node, or platform TTS and calls that a Go-owned backend.",
-        "The change rewrites gateway/channel media delivery or the model-facing text_to_speech schema before a provider adapter works behind the existing seam.",
-        "No benchmark budget exists for model load time, synthesis latency, memory, output format, and binary-size delta."
-      ],
-      "blocked_by": [
-        "WASI TTS engine runtime source selection"
+        "The plan embeds large voice/model artifacts directly in git or the default binary instead of using checksum-verified artifact cache/discovery helpers for future neural backends.",
+        "The provider shells out to piper, edge-tts, Python, Node, platform TTS, or a downloaded native command and calls that Go-owned.",
+        "The implementation depends on CGO, native ONNX Runtime shared libraries, WasmEdge host extensions, or browser/Emscripten APIs as the default runtime path.",
+        "The change rewrites gateway/channel media delivery or the model-facing text_to_speech schema before a provider adapter works behind the existing seam."
       ],
       "unblocks": [
         "Go-native continuous voice mode defaults",
@@ -1710,49 +1709,37 @@
         "Navivox BYO STT/TTS profile implementation"
       ],
       "acceptance": [
-        "A Go-owned provider such as `piper_wasm` or `local_wasm` registers in the existing TTS provider matrix and can be selected by `TTSConfig.Provider` / profile voice settings without changing the tool schema.",
-        "Unit tests prove the provider succeeds through fakeable Go runtime/model seams and writes a supported audio file without invoking shell commands, Python, Node, CGO, or live cloud APIs.",
-        "Missing model/voice/runtime cases return typed redacted evidence and do not fall through to command providers unless provider selection is `auto` and a compatibility fallback is explicitly available.",
-        "Model/voice cache helpers verify size and checksum, use atomic partial-file cleanup, and never place artifacts under git-tracked testdata.",
-        "Benchmark metadata captures load time, synthesis time, memory, output format, and binary-size delta before the provider can become the default local TTS choice."
+        "`internal/speech/tts` (or an equivalently named package) defines a small runtime interface, typed unavailable/synthesis errors, text limits, WAV output metadata, and redaction rules for Go-owned local synthesis.",
+        "A provider such as `local_fixture` or `local_go` registers in the existing TTS provider matrix and can be selected by `TTSConfig.Provider` / profile voice settings without changing the tool schema.",
+        "Unit tests prove the provider succeeds through Go-only fakeable runtime seams and writes a valid WAV file without invoking shell commands, Python, Node, CGO, native shared libraries, browser runtimes, or live cloud APIs.",
+        "Missing/disabled runtime cases return typed redacted evidence and do not fall through to command providers unless provider selection is `auto` and a compatibility fallback is explicitly available.",
+        "Benchmark metadata captures fixture load time, synthesis time, memory, output format, and binary-size delta; the row documents that neural-quality Piper/WASI remains a later upgrade, not the default local voice yet."
       ],
-      "note": "Owner direction 2026-05-24 supersedes the previous command-provider-only local TTS decision. This row is intentionally blocked until context sourcing selects a concrete engine/artifact and license; builders must not fake the provider with a shell-out wrapper.\n\n2026-05-24 source study: native Piper/sherpa Go bindings currently fail the default no-CGO/no-Python/static-binary gate, so the shared speech artifact cache shipped first. Remaining blocker is runtime execution source selection for a wazero/WASI-friendly or otherwise explicit optional engine.\n\n2026-05-24 planner pass: added structured blocker metadata so repo-only builder selection can auto-pivot away from this draft row until the runtime execution source is selected.",
-      "blocker": {
-        "title": "WASI TTS runtime source selection",
-        "type": "decision",
-        "status": "blocked",
-        "recorded_at": "2026-05-24 00:00:00 America/Monterrey",
-        "blocker": "The Go-owned TTS backend needs a sourced runtime execution path before implementation; current Piper and sherpa Go options either require CGO/native libraries, Python packaging, GPL redistribution planning, browser/Emscripten assumptions, or external commands.",
-        "evidence": "docs/content/building-gormes/strategy/go-native-tts-source-study.md rejects native Piper/sherpa/command-provider paths for the first provider and narrows the open question to a wazero/WASI-compatible fixture engine, explicit optional purego ONNX strategy, or deliberately low-quality fully Go-owned formant fallback.",
-        "unblocks_when": "A context-sourcing pass records one runtime execution choice with license, artifact/cache shape, fixture synthesis path, benchmark budget, and no hidden Python/Node/shell/CGO requirement, or intentionally narrows the row to a degraded fakeable runtime seam.",
-        "owner": "tools/speech runtime lane",
-        "pivot": "Keep cloud and command TTS providers as compatibility fallbacks, keep LazyLocalTTSProvider degraded, and work unblocked speech artifact/profile rows until the runtime source is selected.",
-        "next_check": "next Go-native speech source study or TTS context-sourcing pass",
-        "degraded": true
-      },
+      "note": "2026-05-26 planner pass: resolved the WASI TTS runtime source-selection blocker by narrowing the next builder slice to a Go-owned runtime seam plus deliberately low-quality pure-Go fixture/formant fallback. Web/Piper ONNX WASM, WasmEdge WASI-NN Piper, and purego ONNX remain useful references but are not selected as the default implementation because they require browser APIs, WasmEdge host extensions, native shared libraries, or unresolved redistribution/runtime work.",
       "write_scope": [
+        "internal/speech/tts/",
         "internal/tools/tts_tool.go",
         "internal/tools/tts_providers.go",
         "internal/tools/tts_provider_matrix_test.go",
         "internal/tools/tts_go_native_provider_test.go",
-        "internal/wasi/piper/",
-        "internal/speech/",
         "cmd/gormes/registry_audio.go",
         "internal/config/profile_config_v2.go",
         "internal/config/profile_voice_profile_test.go",
         "docs/content/building-gormes/strategy/tts-decision.md",
         "docs/content/building-gormes/strategy/go-native-speech-options.md",
+        "docs/content/building-gormes/strategy/go-native-tts-source-study.md",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
+        "go test ./internal/speech/tts -count=1",
         "go test ./internal/tools -run 'Test(TTSGoNative|TTSProviderMatrix|TextToSpeech)' -count=1",
         "go test ./internal/config -run TestProfileVoiceProfile -count=1",
-        "CGO_ENABLED=0 go test ./internal/tools ./cmd/gormes -run 'Test(TTS|TextToSpeech|RegistryAudio)' -count=1",
+        "CGO_ENABLED=0 go test ./internal/speech/tts ./internal/tools ./cmd/gormes -run 'Test(TTS|TextToSpeech|RegistryAudio)' -count=1",
         "go run ./cmd/progress validate",
         "git diff --check"
       ],
       "done_signal": [
-        "A user can configure a Go-owned local TTS provider, run text_to_speech, and receive an audio file synthesized without Python, Node, shell commands, CGO, or cloud credentials; missing artifacts degrade with typed evidence and benchmarks record the local provider cost."
+        "A user can configure a Go-owned local fixture TTS provider, run text_to_speech, and receive a valid WAV synthesized through Go code without Python, Node, shell commands, CGO, native shared libraries, browser runtimes, or cloud credentials; neural-quality backend work remains explicitly separated behind the same runtime seam."
       ],
       "provenance": {
         "origin_type": "hybrid",

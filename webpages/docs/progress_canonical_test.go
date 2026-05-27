@@ -2,6 +2,7 @@ package docs_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,13 +66,81 @@ func TestCanonicalProgressNavivoxPathsUseCurrentSiblingAppRoot(t *testing.T) {
 	}
 }
 
+func TestCompletionPlanCurrentFinishLedgerMatchesProgress(t *testing.T) {
+	p, err := progress.Load(canonicalProgressPath)
+	if err != nil {
+		t.Fatalf("progress.Load(%s): %v", canonicalProgressPath, err)
+	}
+	doc := readDoc(t, "content/building-gormes/architecture_plan/completion-plan.md")
+	stats := p.Stats()
+	expectedSummary := fmt.Sprintf("contains %s row objects: %s complete and %d planned", humanInt(stats.Items.Total), humanInt(stats.Items.Complete), stats.Items.Planned)
+	if !strings.Contains(doc, expectedSummary) {
+		t.Fatalf("completion-plan current ledger missing summary %q", expectedSummary)
+	}
+	for _, phaseID := range progressPhaseIDs(p) {
+		phase := p.Phases[phaseID]
+		nonComplete := 0
+		for _, subphase := range phase.Subphases {
+			for _, item := range subphase.Items {
+				if item.Status != progress.StatusComplete {
+					nonComplete++
+				}
+			}
+		}
+		expectedRow := fmt.Sprintf("| Phase %s", phaseID)
+		expectedCount := fmt.Sprintf("| %d |", nonComplete)
+		rowStart := strings.Index(doc, expectedRow)
+		if rowStart < 0 {
+			t.Fatalf("completion-plan current ledger missing row prefix %q", expectedRow)
+		}
+		rowEnd := strings.IndexByte(doc[rowStart:], '\n')
+		if rowEnd < 0 {
+			rowEnd = len(doc) - rowStart
+		}
+		row := doc[rowStart : rowStart+rowEnd]
+		if !strings.Contains(row, expectedCount) {
+			t.Fatalf("completion-plan phase %s row = %q, want count marker %q", phaseID, row, expectedCount)
+		}
+	}
+}
+
+func humanInt(n int) string {
+	if n < 1000 {
+		return fmt.Sprintf("%d", n)
+	}
+	s := fmt.Sprintf("%d", n)
+	out := make([]byte, 0, len(s)+len(s)/3)
+	prefix := len(s) % 3
+	if prefix == 0 {
+		prefix = 3
+	}
+	out = append(out, s[:prefix]...)
+	for i := prefix; i < len(s); i += 3 {
+		out = append(out, ',')
+		out = append(out, s[i:i+3]...)
+	}
+	return string(out)
+}
+
+func progressPhaseIDs(p *progress.Progress) []string {
+	ids := make([]string, 0, len(p.Phases))
+	for id := range p.Phases {
+		ids = append(ids, id)
+	}
+	for i := 1; i < len(ids); i++ {
+		for j := i; j > 0 && ids[j] < ids[j-1]; j-- {
+			ids[j], ids[j-1] = ids[j-1], ids[j]
+		}
+	}
+	return ids
+}
+
 func TestCanonicalProgressRowsWithActivePlannerBlockersUseStructuredBlockers(t *testing.T) {
 	var data any
 	if err := json.Unmarshal(canonicalProgressBytes(t, canonicalProgressPath), &data); err != nil {
 		t.Fatalf("decode canonical progress: %v", err)
 	}
 	for _, rowName := range []string{
-		"Go-owned WASM TTS backend",
 		"Engineering writeup #1: autonomous Hermes-porting loop",
 		"TD social presence connected to blog feed",
 	} {

@@ -1,7 +1,7 @@
 # Go-Native TTS Source Study
 
 Date: 2026-05-24
-Status: source-backed implementation guidance
+Status: source-backed implementation guidance (updated 2026-05-26)
 
 ## Question
 
@@ -20,12 +20,22 @@ reintroducing hidden Python, Node, shell, CGO, Docker, or cloud dependencies?
 | `GetcharZp/go-speech` | `README.md` describes Go + ONNX TTS/ASR; `tts/pipertts/engine.go` runs Piper ONNX through `onnxruntime_purego`; `onnx.go` requires a local ONNX Runtime dynamic library path. | Useful donor for Go-side Piper tensor flow and purego loading, but still requires external native dynamic libraries, so it is not the final single-binary path. |
 | `amitybell/piper` | `README.md` calls it an embedded distribution of Piper for Go; `go.mod` depends on platform-specific Piper binary and voice modules. | Good packaging lesson, but it embeds/ships native command binaries rather than owning synthesis in Go. |
 | `stnmrshx/go-piper` | `README.md` describes CGO bindings over Piper and requires submodules/native libraries. | Not compatible with the default no-CGO goal. |
+| `Mintplex-Labs/piper-tts-web` / `diffusion-studio/vits-web` | Browser Piper TTS through ONNX Runtime Web and local WASM paths; project notes it is a frontend library and will not work with NodeJS. | Good proof that Piper+ONNX can run in a web WASM environment, but not a wazero/WASI backend for Gormes. |
+| `second-state/WasmEdge-WASINN-examples/wasmedge-piper` | Piper example exists for WasmEdge WASI-NN. | Useful WASI-NN reference, but it depends on WasmEdge host extensions rather than the current wazero runtime. |
+| `shota3506/onnxruntime-purego` | Pure Go binding surface over ONNX Runtime using `purego`; README still requires an installed `libonnxruntime`/DLL/shared library. | Possible optional future strategy, but not the default static/no-native-library provider. |
+| eSpeak/formant synthesis | eSpeak documents compact formant synthesis, WAV output, many languages, and a small footprint, but is C/GPL. | Use only as concept evidence for a deliberately low-quality Go-owned fixture fallback; do not embed eSpeak code or data. |
 
 ## Decision For The Next Slice
 
-Do **not** pick a native/CGO Piper or sherpa-onnx Go package as the default
-Gormes provider yet. The safe next implementation is the shared speech artifact
-cache used by both STT and future TTS:
+Do **not** pick a native/CGO Piper, browser-only Piper WASM, WasmEdge
+WASI-NN Piper, or purego-ONNX shared-library path as the default Gormes
+provider yet. The safe implementation path is now two staged pieces. The first
+(shared speech artifact cache) is already complete. The next builder-ready slice
+is a Go-owned local TTS runtime seam plus a deliberately low-quality pure-Go
+fixture/formant fallback that proves synthesis, WAV output, provider selection,
+error redaction, and benchmark metadata without claiming neural Piper quality.
+
+The already-completed cache slice provides:
 
 - `internal/speech/artifact` owns checksum-verified model/voice artifact
   discovery and atomic partial-file cleanup.
@@ -35,9 +45,12 @@ cache used by both STT and future TTS:
   phonemizer data, WASM runtime, or voice packs without copying whisper-specific
   model-download code.
 
-This narrows the TTS engine blocker: the remaining open choice is **runtime
-execution** (a wazero/WASI-friendly TTS engine artifact or a constrained purego
-ONNX runtime strategy), not artifact lifecycle.
+This resolves the immediate builder-selection blocker by narrowing the runtime
+choice: implement the Go runtime interface and fixture-quality provider first;
+keep neural Piper/ONNX/WASI work as a later upgrade behind that same interface.
+The fixture provider is intentionally not the final voice-quality target, but it
+prevents the row from waiting on an unsourced external engine while preserving
+the no-Python/no-Node/no-shell/no-CGO contract.
 
 ## Rejected For First Provider
 
@@ -48,6 +61,26 @@ ONNX runtime strategy), not artifact lifecycle.
 - Python package embedding: conflicts with the no-venv/no-pip operator target.
 - GPL engine embedding without a release/legal plan: unsafe for default binary
   distribution.
+
+## Selected Runtime Source For Builder Handoff
+
+Selected for the next builder pass: **Gormes-owned fixture runtime seam**. The
+implementation should create an internal TTS runtime interface and a tiny
+Go-only synthesizer that writes valid WAV output for bounded text. It may be
+robotic/formant-like and English-only; quality is explicitly degraded. It must
+not import eSpeak code/data, native ONNX Runtime, browser WASM runtimes,
+WasmEdge-only extensions, command providers, Python, Node, or CGO.
+
+Builder acceptance should prove:
+
+1. provider selection reaches the new Go-owned provider through the existing
+   `TTSProvider`/`TTSRunner` seam;
+2. tests synthesize a valid WAV from Go code only;
+3. missing/disabled runtime paths return typed, redacted unavailable evidence;
+4. `Provider=auto` fallback behavior remains explicit and does not mask an
+   explicitly selected local provider failure;
+5. benchmark metadata records load time, synthesis time, memory, format, and
+   binary-size delta.
 
 ## Next Engine Sourcing Question
 

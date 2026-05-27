@@ -69,25 +69,32 @@ Use this page with:
 
 ## Current Finish Ledger
 
-As of the current `progress.json`, the remaining work is concentrated in the
-native agent spine, tool/security surface, release surface, learning loop, and
-paused channel backlog. Do not let Phase 7 channel expansion outrun the core
-agent, Goncho, tool, and release lanes.
+As of the 2026-05-26 `cmd/progress emit` scan, the split canonical backlog
+contains 1,178 row objects: 1,173 complete and 5 planned. The generated
+`Agent Queue` is empty because every planned row is gated by a dependency,
+operator decision, or external-access blocker. Treat old phase-open counts as
+historical context only; current implementation intent comes from the row
+objects and generated queue pages.
 
-| Phase | Open rows | Planner meaning |
+| Phase | Non-complete rows | Planner meaning |
 |---|---:|---|
 | Phase 1 — Dashboard / control plane | 0 | Skill-era control rows are complete: planning/building route through canonical development skills and symlink loader views instead of deleted loop binaries. |
-| Phase 2 — Gateway | 3 | Remaining work is narrow operator-surface polish: notify-to routing, channel directory invalidation, and mirror/sticker cache surfaces. |
-| Phase 3 — Memory | 0 | Current Goncho/Honcho memory closure rows are complete; future memory work lives in Phase 4 context/compression and Phase 6 learning. |
-| Phase 4 — Brain Transplant | 15 | Highest strategic pressure: provider adapters, context/compression, prompt assembly, model metadata, trajectory evidence, and native-agent-turn namespace closure. |
-| Phase 5 — Final Purge | 38 | Largest backlog: tool registry breadth, sandboxing, browser/media, security, CLI/API/TUI, packaging, code-execution policy, and release. Split umbrellas before building. |
-| Phase 6 — Learning Loop | 8 | Skill extraction, storage, retrieval, scoring, and operator surfaces remain planned; build after the skill rows are sharper. |
-| Phase 7 — Paused Channels | 11 | Explicit backlog. Build only fixture-ready slices or channel dependencies that unblock core gateway delivery. |
+| Phase 2 — Gateway | 0 | Gateway, channel, slash/skill/tool exposure, and operator-control rows are currently closed in the active backlog. New Hermes/Pi findings must become fresh rows before builder work. |
+| Phase 3 — Memory | 0 | Current Goncho/Honcho memory closure rows are complete; future memory work must be sourced from a new parity or product row. |
+| Phase 4 — Brain Transplant | 0 | Native-turn/provider/context rows in the active backlog are closed; regressions still need row-backed parity evidence before implementation. |
+| Phase 5 — Final Purge | 2 | `Goscrapling local crawler adapter gate for web_crawl` and `Go-owned WASM TTS backend` remain planned, but both are blocked on dependency/source-selection gates rather than builder-ready code work. |
+| Phase 6 — Learning Loop | 0 | Skill extraction, retrieval, scoring, and operator surfaces are closed in the active backlog; new learning-loop work starts with planner evidence. |
+| Phase 7 — Paused Channels | 0 | The paused channel backlog has no active non-complete rows. Do not expand channels without a fixture-ready progress row. |
+| Phase 8 — Reputation & Publication | 3 | Public-social, engineering-writeup, and agentic-porting-kit rows remain planned but operator/external-access gated. |
+| Phase 9 — Design & Security Hardening | 0 | Design/security hardening rows are currently closed; new findings need source-backed rows. |
 
-`Agent Queue` may still be empty with this ledger because most remaining rows
-are planned/draft rather than builder-ready. Empty queue means planner work is
-next: choose one row, sharpen its contract, and regenerate/validate the
-progress docs before assigning it to a builder.
+Structured blocker receipts remain attached to planned rows (five active
+blocker records plus one resolved release receipt), but blocker metadata is not
+builder-ready work. Empty queue means planner work is next: choose one planned
+row, either satisfy/remove its blocker or sharpen the contract, then validate
+progress before assigning it to a builder. The current best repo-local planner
+candidates are the WASI TTS runtime source selection, the Goscrapling release
+gate, or publication rows after operator input.
 
 The first closure target is not "all green"; it is a **Python-free normal
 agent turn** with local Goncho memory and tested tool-call continuation. That is
