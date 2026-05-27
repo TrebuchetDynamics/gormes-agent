@@ -229,7 +229,7 @@ name = "Main desk"
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("setup profiles: Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stdout.String()+stderr.String(), "Profile Control Center draft discarded") {
+	if !strings.Contains(stdout.String()+stderr.String(), "Setup profiles draft discarded") {
 		t.Fatalf("setup profiles did not apply Control Center result:\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
 	}
 }
@@ -367,7 +367,7 @@ func TestSetupProfilesControlCenterTUIKeyFlowStagesRenameCredentialsAndDiscard(t
 
 	view := m.View()
 	for _, want := range []string{
-		"Profile Control Center",
+		"Setup profiles",
 		"main",
 		"r rename display name",
 		"p assign provider credential/model",
@@ -499,7 +499,7 @@ name = ""
 	if string(after) != string(before) {
 		t.Fatalf("discard changed config.toml:\nbefore:\n%s\nafter:\n%s", before, after)
 	}
-	if out := stdout.String() + stderr.String(); !strings.Contains(out, "Profile Control Center draft discarded") {
+	if out := stdout.String() + stderr.String(); !strings.Contains(out, "Setup profiles draft discarded") {
 		t.Fatalf("discard output missing confirmation:\n%s", out)
 	}
 }
@@ -601,7 +601,7 @@ func TestSetupProfilesLegacyControlCenterMigrationAppliesViaInternalConfig(t *te
 	}
 
 	out := stdout.String() + stderr.String()
-	for _, want := range []string{"Profile Control Center migration:", "Applied legacy profile config migration", "Backup:"} {
+	for _, want := range []string{"Setup profiles migration:", "Applied legacy profile config migration", "Backup:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("migration apply output missing %q:\n%s", want, out)
 		}
@@ -781,7 +781,7 @@ name = ""
 	}
 
 	out := stdout.String() + stderr.String()
-	if !strings.Contains(out, "Profile Control Center draft:") || !strings.Contains(out, "Applied") {
+	if !strings.Contains(out, "Setup profiles draft:") || !strings.Contains(out, "Applied") {
 		t.Fatalf("v2 setup profiles must preview and apply the control center draft:\n%s", out)
 	}
 	if strings.Contains(out, "Active profile set") || strings.Contains(out, "profiles/tulin/config.toml") {

@@ -312,7 +312,7 @@ func buildSetupProfilesTUIState(pseams profileCommandSeams, known []string, acti
 func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Config, result setupProfilesTUIResult) error {
 	out := cmd.OutOrStdout()
 	if result.Discarded {
-		fmt.Fprintln(out, "Profile Control Center draft discarded; no config changes written.")
+		fmt.Fprintln(out, "Setup profiles draft discarded; no config changes written.")
 		return nil
 	}
 	if result.MigrateLegacyConfig {
@@ -381,7 +381,7 @@ func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Con
 		}
 	}
 	changes := draft.Preview()
-	fmt.Fprintln(out, "Profile Control Center draft:")
+	fmt.Fprintln(out, "Setup profiles draft:")
 	for _, line := range profilemodule.RenderControlCenterDraftPreview(changes) {
 		fmt.Fprintf(out, "  - %s\n", line)
 	}
@@ -428,7 +428,7 @@ func applySetupProfilesLegacyMigration(out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("apply legacy profile config migration: %w", err)
 	}
-	fmt.Fprintln(out, "Profile Control Center migration:")
+	fmt.Fprintln(out, "Setup profiles migration:")
 	for _, line := range result.Plan.PreviewLines {
 		fmt.Fprintf(out, "  - %s\n", line)
 	}
@@ -964,9 +964,9 @@ func (m setupProfilesModel) controlCenterView() string {
 		return m.controlCenterMigrationView()
 	}
 	var b strings.Builder
-	fmt.Fprintln(&b, "Profile Control Center")
+	fmt.Fprintln(&b, "Setup profiles")
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Profile services")
+	fmt.Fprintln(&b, "Profiles")
 	for i, profile := range m.state.Profiles {
 		prefix := " "
 		if i == m.selected {
@@ -1048,7 +1048,7 @@ func (m setupProfilesModel) controlCenterView() string {
 
 func (m setupProfilesModel) controlCenterMigrationView() string {
 	var b strings.Builder
-	fmt.Fprintln(&b, "Profile Control Center")
+	fmt.Fprintln(&b, "Setup profiles")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Migration preview")
 	for _, line := range m.state.MigrationPreviewLines {
