@@ -283,14 +283,14 @@ func TestUpdateCommandWritesUpdateLogAndLedgerForRealUpdate(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	logBody, err := os.ReadFile(filepath.Join(installHome, "update.log"))
+	logBody, err := os.ReadFile(filepath.Join(installHome, "lifecycle", "update.log"))
 	if err != nil {
 		t.Fatalf("read update.log: %v", err)
 	}
 	if !strings.Contains(string(logBody), "update_publish_completed") || !strings.Contains(string(logBody), "update_ledger_appended") {
 		t.Fatalf("update.log missing mirrored update report:\n%s", logBody)
 	}
-	ledgerBody, err := os.ReadFile(filepath.Join(installHome, "install.log.jsonl"))
+	ledgerBody, err := os.ReadFile(filepath.Join(installHome, "lifecycle", "install.log.jsonl"))
 	if err != nil {
 		t.Fatalf("read install.log.jsonl: %v", err)
 	}

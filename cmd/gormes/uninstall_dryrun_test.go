@@ -16,7 +16,8 @@ func TestUninstallDryRunDefault(t *testing.T) {
 	os.MkdirAll(home, 0o755)
 	os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]"), 0o644)
 	os.WriteFile(filepath.Join(home, "auth.json"), []byte(`{}`), 0o644)
-	os.WriteFile(filepath.Join(home, "gateway_state.json"), []byte(`{}`), 0o644)
+	os.WriteFile(filepath.Join(home, "runtime", "gateway_state.json"), []byte(`{}`), 0o644)
+	os.MkdirAll(filepath.Join(home, "runtime", "gateway-locks"), 0o755)
 
 	groups := collectArtifacts(home)
 

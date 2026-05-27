@@ -2111,8 +2111,14 @@ func CrashLogDir() string {
 }
 
 // SessionDBPath returns the default location of the bbolt sessions map.
+// When a profiles/main/ directory exists under GormesHome the path is
+// under that profile root; otherwise the legacy root location is returned.
 func SessionDBPath() string {
-	return filepath.Join(GormesHome(), "sessions.db")
+	home := GormesHome()
+	if dir := filepath.Join(home, "profiles", "main"); isDirectory(dir) {
+		return filepath.Join(dir, "sessions.db")
+	}
+	return filepath.Join(home, "sessions.db")
 }
 
 // SessionIndexMirrorPath returns the default location of the read-only YAML
@@ -2122,9 +2128,15 @@ func SessionIndexMirrorPath() string {
 }
 
 // MemoryDBPath returns the default location of the Phase-3.A SQLite
-// memory database.
+// memory database. When a profiles/main/ directory exists under GormesHome
+// the path is under that profile root; otherwise the legacy root location
+// is returned.
 func MemoryDBPath() string {
-	return filepath.Join(GormesHome(), "memory.db")
+	home := GormesHome()
+	if dir := filepath.Join(home, "profiles", "main"); isDirectory(dir) {
+		return filepath.Join(dir, "memory.db")
+	}
+	return filepath.Join(home, "memory.db")
 }
 
 // KanbanDBPath returns the native Gormes Kanban SQLite database path.
@@ -2262,13 +2274,13 @@ func HooksRoot() string {
 // GatewayRuntimeStatusPath returns the shared gateway_state.json read-model
 // path for live gateway lifecycle status.
 func GatewayRuntimeStatusPath() string {
-	return filepath.Join(GormesHome(), "gateway_state.json")
+	return filepath.Join(GormesHome(), "runtime", "gateway_state.json")
 }
 
 // GatewayLockDir returns the machine-local directory for token-scoped gateway
 // credential locks.
 func GatewayLockDir() string {
-	return filepath.Join(GormesHome(), "gateway-locks")
+	return filepath.Join(GormesHome(), "runtime", "gateway-locks")
 }
 
 // BootPath returns the BOOT.md path used by the built-in gateway startup hook.
@@ -2298,4 +2310,10 @@ func (d DelegationCfg) ResolvedRunLogPath() string {
 		return d.RunLogPath
 	}
 	return filepath.Join(GormesHome(), "subagents", "runs.jsonl")
+}
+
+// isDirectory returns true when path exists and is a directory.
+func isDirectory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }

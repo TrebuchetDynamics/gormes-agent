@@ -120,7 +120,7 @@ func runNavivoxPair(cmd *cobra.Command, opts navivoxPairOptions) error {
 	runtimeCfg = bridgeCfg
 	baseURL, wsURL := navivoxConnectInfoURLs(runtimeCfg.BindHost, runtimeCfg.Port)
 	descriptor := navivoxPairDescriptor(runtimeCfg, baseURL, wsURL)
-	qrPath := filepath.Join(config.GormesHome(), "navivox", "pairing.png")
+	qrPath := filepath.Join(config.GormesHome(), "cache", "navivox", "pairing.png")
 	if err := writeNavivoxPairQR(qrPath, descriptor); err != nil {
 		_ = stopNavivoxPairBridge(bridgeStop, bridgeDone)
 		return err

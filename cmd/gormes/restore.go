@@ -249,7 +249,7 @@ func runRestoreList(cmd *cobra.Command, seams restoreCommandSeams, asJSON bool) 
 }
 
 func defaultBackupsDir() string {
-	return filepath.Join(config.GormesHome(), "backups")
+	return filepath.Join(config.GormesHome(), "lifecycle", "backups")
 }
 
 // formatRestoreSize renders a byte count with the smallest unit that

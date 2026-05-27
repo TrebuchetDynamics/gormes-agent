@@ -1412,7 +1412,7 @@ func resolveUpdateLogPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve update log: %w", err)
 	}
-	return filepath.Join(home, "update.log"), nil
+	return filepath.Join(home, "lifecycle", "update.log"), nil
 }
 
 func resolveUpdateLedgerPath() (string, error) {
@@ -1420,7 +1420,7 @@ func resolveUpdateLedgerPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve update ledger: %w", err)
 	}
-	return filepath.Join(home, "install.log.jsonl"), nil
+	return filepath.Join(home, "lifecycle", "install.log.jsonl"), nil
 }
 
 // updateReportJSON shapes UpdateReport for machine-readable output.
@@ -1925,7 +1925,7 @@ func defaultBackupWriterFor() cli.BackupWriter {
 	keep := resolveBackupKeep()
 	return func(ctx context.Context) (cli.BackupResult, error) {
 		stamp := time.Now().UTC().Format("20060102T150405Z")
-		dest := filepath.Join(home, "backups", "pre-update-"+stamp+".zip")
+		dest := filepath.Join(home, "lifecycle", "backups", "pre-update-"+stamp+".zip")
 		res, err := cli.WriteBackupZip(ctx, home, dest)
 		if err != nil {
 			return res, err

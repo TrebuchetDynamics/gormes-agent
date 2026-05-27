@@ -648,7 +648,7 @@ func TestSetupGatewayNavivoxLocalModeWritesSafeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	qrPath := filepath.Join(home, "navivox", "pairing.png")
+	qrPath := filepath.Join(home, "cache", "navivox", "pairing.png")
 	for _, want := range []string{
 		"Record manual firewall-open intent? [n]:",
 		"Navivox gateway channel configured.",

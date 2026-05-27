@@ -186,7 +186,7 @@ func TestNavivoxPairOpenNavivoxMissingAMFallsBackToQR(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Open failed; use QR.",
-		"QR: " + filepath.Join(home, "navivox", "pairing.png"),
+		"QR: " + filepath.Join(home, "cache", "navivox", "pairing.png"),
 		"Token: " + token,
 		"Waiting for Navivox connection skipped (--no-wait).",
 	} {

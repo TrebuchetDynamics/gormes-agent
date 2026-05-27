@@ -32,7 +32,7 @@ func TestTokenScopedGatewayLockPathUsesGormesHomeHash(t *testing.T) {
 	if len(hash) != 64 {
 		t.Fatalf("TokenCredentialHash length = %d, want full sha256 hex", len(hash))
 	}
-	wantPath := filepath.Join(gormesHome, "gateway-locks", "telegram-"+hash+".lock")
+	wantPath := filepath.Join(gormesHome, "runtime", "gateway-locks", "telegram-"+hash+".lock")
 	if lock.Path() != wantPath {
 		t.Fatalf("lock path = %q, want %q", lock.Path(), wantPath)
 	}

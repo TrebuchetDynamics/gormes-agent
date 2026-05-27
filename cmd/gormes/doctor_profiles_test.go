@@ -58,7 +58,7 @@ func TestDoctorCommandEnumeratesNamedProfile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(profileDir, "config.toml"), []byte("[hermes]\nprovider = 'nous'\nmodel = 'moonshotai/kimi-k2.6'\n"), 0o600); err != nil {
 		t.Fatalf("write profile config: %v", err)
 	}
-	status := gateway.NewRuntimeStatusStore(filepath.Join(profileDir, "gateway_state.json"))
+	status := gateway.NewRuntimeStatusStore(filepath.Join(profileDir, "runtime", "gateway_state.json"))
 	if err := status.UpdateRuntimeStatus(context.Background(), gateway.RuntimeStatusUpdate{GatewayState: gateway.GatewayStateRunning}); err != nil {
 		t.Fatalf("write profile gateway state: %v", err)
 	}

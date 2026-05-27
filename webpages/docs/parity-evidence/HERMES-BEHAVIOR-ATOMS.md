@@ -601,8 +601,8 @@ file+line ref or explicit `missing`, and a classification.
 | Config env expansion | `hermes_cli/config.py` | `internal/config/` | covered | Env var expansion in config values. |
 | Config profile resolution | `hermes_cli/config.py` | `internal/config/` + `internal/cli/profileseed` | covered | Profile loading and merging. |
 | Config show command | `cli.py` | `cmd/gormes/config.go` | covered | `gormes config show`. |
-| Config edit command | `cli.py` | → `missing` | missing | Not ported. |
-| Config check command | `cli.py` | → `missing` | missing | Not ported. |
+| Config edit command | `cli.py` | `cmd/gormes/config.go` `newConfigEditCommand` + `config_closeout_test.go` | covered | Opens system editor for config file; creates file before opening; fallback editor chain EDITOR > VISUAL > common binaries. |
+| Config check command | `cli.py` | `cmd/gormes/config.go` `newConfigCheckCommand` + `config_closeout_test.go` | covered | Validates config syntax, reports version, dotenv availability, missing provider fields; redacts secrets; future version fails. |
 | Config migrate | `cli.py` | `internal/migrate/hermes/` | covered | Hermes → Gormes config migration. |
 | Config env-path | `cli.py` | `cmd/gormes/config.go` | covered | `gormes config env-path`. |
 | cli-config.yaml.example (51KB schema) | `cli-config.yaml.example` | → `missing` | missing | Not mirrored as canonical schema. |
@@ -757,12 +757,12 @@ file+line ref or explicit `missing`, and a classification.
 |---|---|---|---|---|
 | Hermes state constants | `hermes_constants.py` | `internal/hermes/` | partial | Not fully ported. |
 | Logging (redacted) | `hermes_logging.py` | `internal/audit/` + `internal/telemetry/` | covered | Audit and telemetry logging. |
-| Timezone resolution | `hermes_time.py` `_resolve_timezone_name` `get_timezone` | → `missing` | missing | Resolve local timezone. |
-| `now()` helper | `hermes_time.py` `now` | → `missing` | missing | Current time with timezone. |
-| `is_truthy_value` | `utils.py` `is_truthy_value` | → `missing` | missing | Boolean coercion for config/env. |
-| `env_var_enabled` | `utils.py` `env_var_enabled` | → `missing` | missing | Check env var enabled. |
-| `atomic_replace` | `utils.py` `atomic_replace` | → `missing` | missing | Atomic file replacement. |
-| `atomic_json_write` | `utils.py` `atomic_json_write` | → `missing` | missing | Atomic JSON file write. |
+| Timezone resolution | `hermes_time.py` `_resolve_timezone_name` `get_timezone` | `internal/hermes/time_helpers.go` `GetTimezone` | covered | Reads GORMES_TIMEZONE then HERMES_TIMEZONE; returns *time.Location or nil. |
+| `now()` helper | `hermes_time.py` `now` | `internal/hermes/time_helpers.go` `Now` | covered | Returns time.Now() in configured timezone or local. |
+| `is_truthy_value` | `utils.py` `is_truthy_value` | `internal/hermes/helpers.go` `IsTruthyValue` | covered | Boolean coercion for nil/bool/string values. |
+| `env_var_enabled` | `utils.py` `env_var_enabled` | `internal/hermes/helpers.go` `EnvVarEnabled` | covered | Check os.Getenv against truthy string set. |
+| `atomic_replace` | `utils.py` `atomic_replace` | `internal/tools/atomic_replace.go` `AtomicReplace` | covered | Atomic file replacement preserving symlinks. |
+| `atomic_json_write` | `utils.py` `atomic_json_write` | `internal/tools/atomic_replace.go` `AtomicWrite` | covered | Atomic file write using temp + rename. |
 
 ---
 

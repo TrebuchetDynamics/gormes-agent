@@ -39,8 +39,10 @@ var cloneAllDefaultExcludeRoot = map[string]struct{}{
 }
 
 var profileCloneAllStripRoot = []string{
-	"gateway.pid",
-	"gateway_state.json",
+	"runtime/gateway.pid",
+	"runtime/gateway_state.json",
+	"runtime/gateway-locks",
+	"runtime/gateway.log",
 	"processes.json",
 	"memory.db",
 	"memory.db-wal",

@@ -16,7 +16,7 @@ func TestCreateProfileCloneAllExcludesDefaultInfrastructure(t *testing.T) {
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "state.db"), "state")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "home", ".gitconfig"), "[user]\n\tname = Worker\n")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "sessions", "turn.json"), "{}")
-	mustWriteProfileFile(t, filepath.Join(defaultRoot, "logs", "gateway.log"), "log")
+	mustWriteProfileFile(t, filepath.Join(defaultRoot, "runtime", "gateway.log"), "log")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "skills", "my-skill", "SKILL.md"), "skill")
 
 	for _, path := range []string{
@@ -53,7 +53,6 @@ func TestCreateProfileCloneAllExcludesDefaultInfrastructure(t *testing.T) {
 		"state.db",
 		"home/.gitconfig",
 		"sessions/turn.json",
-		"logs/gateway.log",
 		"skills/my-skill/SKILL.md",
 	} {
 		if _, err := os.Stat(filepath.Join(target, path)); err != nil {
@@ -71,6 +70,7 @@ func TestCreateProfileCloneAllExcludesDefaultInfrastructure(t *testing.T) {
 		"skills/my-skill/module.pyo",
 		"skills/my-skill/data.sock",
 		"skills/my-skill/data.tmp",
+		"runtime/gateway.log",
 	} {
 		if _, err := os.Stat(filepath.Join(target, path)); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("expected excluded %s, stat err=%v", path, err)
@@ -126,8 +126,10 @@ func TestCreateProfileCloneAllStripsRuntimeFiles(t *testing.T) {
 	defaultRoot := filepath.Join(xdg, "gormes")
 	mustWriteProfileFile(t, filepath.Join(defaultRoot, "config.toml"), "model = \"gpt-4\"\n")
 	for _, path := range []string{
-		"gateway.pid",
-		"gateway_state.json",
+		"runtime/gateway.pid",
+		"runtime/gateway_state.json",
+		"runtime/gateway-locks",
+		"runtime/gateway.log",
 		"processes.json",
 		"memory.db",
 		"memory.db-wal",
@@ -148,8 +150,10 @@ func TestCreateProfileCloneAllStripsRuntimeFiles(t *testing.T) {
 		t.Fatalf("expected copied config: %v", err)
 	}
 	for _, path := range []string{
-		"gateway.pid",
-		"gateway_state.json",
+		"runtime/gateway.pid",
+		"runtime/gateway_state.json",
+		"runtime/gateway-locks",
+		"runtime/gateway.log",
 		"processes.json",
 		"memory.db",
 		"memory.db-wal",

@@ -765,7 +765,7 @@ func writeCredentialPoolAuthStore(hermesHome string, store credentialPoolAuthSto
 func credentialPoolHermesHome(input string) (string, error) {
 	home := strings.TrimSpace(input)
 	if home == "" {
-		home = GormesHome()
+		home = GormesBaseHome()
 	}
 	absHome, err := filepath.Abs(home)
 	if err != nil {

@@ -574,7 +574,7 @@ func doctorEffectiveProfileProviderModel(h config.HermesCfg) (string, string) {
 }
 
 func doctorProfileGatewaySummary(root string) doctor.DoctorProfileGateway {
-	snapshot, err := gateway.NewRuntimeStatusStore(filepath.Join(root, "gateway_state.json")).ReadRuntimeStatusSnapshot(context.Background())
+	snapshot, err := gateway.NewRuntimeStatusStore(filepath.Join(root, "runtime", "gateway_state.json")).ReadRuntimeStatusSnapshot(context.Background())
 	if err != nil {
 		return doctor.DoctorProfileGateway{Error: "gateway_state_unreadable"}
 	}

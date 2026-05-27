@@ -282,7 +282,7 @@ func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 }
 
 func navivoxSetupPairingQRPath() string {
-	return filepath.Join(config.GormesHome(), "navivox", "pairing.png")
+	return filepath.Join(config.GormesHome(), "cache", "navivox", "pairing.png")
 }
 
 func writeNavivoxSetupPairingQR(path, descriptor string) error {

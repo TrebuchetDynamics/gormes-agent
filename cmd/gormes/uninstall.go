@@ -175,8 +175,11 @@ func collectArtifacts(home string) []artifactGroup {
 			filepath.Join(home, ".env"), filepath.Join(home, "config.toml"), filepath.Join(home, "config.yaml"))},
 		{Name: "credentials", Paths: sortedExisting(filepath.Join(home, "auth.json"))},
 		{Name: "sessions", Paths: sortedExisting(config.SessionDBPath(), config.SessionIndexMirrorPath())},
-		{Name: "gateway-state", Paths: sortedExisting(filepath.Join(home, "gateway_state.json"),
-			filepath.Join(home, "gateway-locks"), filepath.Join(home, "gateway.pid"),
+		{Name: "gateway-state", Paths: sortedExisting(
+			config.GatewayRuntimeStatusPath(),
+			config.GatewayLockDir(),
+			filepath.Join(home, "runtime", "gateway.pid"),
+			filepath.Join(home, "runtime", "gateway.log"),
 			filepath.Join(home, "channel_directory_sources.json"))},
 		{Name: "memory", Paths: sortedExisting(config.MemoryDBPath(), filepath.Join(home, "memory"))},
 		// "logs" enumerates explicit log files only. The home-dir

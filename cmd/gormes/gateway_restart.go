@@ -468,7 +468,7 @@ func defaultGatewayRestartStartConfig() (gatewayRestartStartConfig, error) {
 		Command: command,
 		Args:    []string{"gateway"},
 		Env:     env,
-		LogPath: filepath.Join(home, "gateway.log"),
+		LogPath: filepath.Join(home, "runtime", "gateway.log"),
 	}, nil
 }
 

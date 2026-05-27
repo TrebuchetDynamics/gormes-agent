@@ -47,10 +47,10 @@ func TestUpdateCommandReleaseDryRunPrintsPlanWithoutLifecycleMutation(t *testing
 	if lifecycleCalled || checkoutDirCalled {
 		t.Fatalf("dry-run touched source lifecycle: lifecycle=%t checkoutDir=%t", lifecycleCalled, checkoutDirCalled)
 	}
-	if _, err := os.Stat(filepath.Join(installHome, "update.log")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(installHome, "lifecycle", "update.log")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("dry-run must not write update.log; stat err=%v", err)
 	}
-	if _, err := os.Stat(filepath.Join(installHome, "install.log.jsonl")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(installHome, "lifecycle", "install.log.jsonl")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("dry-run must not append install.log.jsonl; stat err=%v", err)
 	}
 

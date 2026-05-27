@@ -46,18 +46,27 @@ func TestProfileStorageContractProfileLocalPaths(t *testing.T) {
 		configPath  string
 		memoryPath  string
 		sessionPath string
+		workspace   string
+		cache       string
+		runtime     string
 	}{
 		{
 			name:        "default",
 			configPath:  filepath.Join(base, "profiles", "default", "config.toml"),
 			memoryPath:  filepath.Join(base, "profiles", "default", "memory.db"),
 			sessionPath: filepath.Join(base, "profiles", "default", "sessions.db"),
+			workspace:   filepath.Join(base, "profiles", "default", "workspace"),
+			cache:       filepath.Join(base, "profiles", "default", "cache"),
+			runtime:     filepath.Join(base, "profiles", "default", "runtime"),
 		},
 		{
 			name:        "coder",
 			configPath:  filepath.Join(base, "profiles", "coder", "config.toml"),
 			memoryPath:  filepath.Join(base, "profiles", "coder", "memory.db"),
 			sessionPath: filepath.Join(base, "profiles", "coder", "sessions.db"),
+			workspace:   filepath.Join(base, "profiles", "coder", "workspace"),
+			cache:       filepath.Join(base, "profiles", "coder", "cache"),
+			runtime:     filepath.Join(base, "profiles", "coder", "runtime"),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -69,6 +78,15 @@ func TestProfileStorageContractProfileLocalPaths(t *testing.T) {
 			}
 			if got, err := contract.ProfileSessionDBPath(tc.name); err != nil || got != tc.sessionPath {
 				t.Fatalf("ProfileSessionDBPath(%q) = %q, %v; want %q, nil", tc.name, got, err, tc.sessionPath)
+			}
+			if got, err := contract.ProfileWorkspaceDir(tc.name); err != nil || got != tc.workspace {
+				t.Fatalf("ProfileWorkspaceDir(%q) = %q, %v; want %q, nil", tc.name, got, err, tc.workspace)
+			}
+			if got, err := contract.ProfileCacheDir(tc.name); err != nil || got != tc.cache {
+				t.Fatalf("ProfileCacheDir(%q) = %q, %v; want %q, nil", tc.name, got, err, tc.cache)
+			}
+			if got, err := contract.ProfileRuntimeDir(tc.name); err != nil || got != tc.runtime {
+				t.Fatalf("ProfileRuntimeDir(%q) = %q, %v; want %q, nil", tc.name, got, err, tc.runtime)
 			}
 		})
 	}

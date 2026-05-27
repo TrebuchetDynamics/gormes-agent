@@ -1399,6 +1399,34 @@ func TestMemoryDBPath_DefaultsToHomeDotGormes(t *testing.T) {
 	}
 }
 
+func TestMemoryDBPath_UsesProfilesMainWhenMaterialized(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	profilesMain := filepath.Join(home, "profiles", "main")
+	if err := os.MkdirAll(profilesMain, 0o700); err != nil {
+		t.Fatalf("mkdir profiles/main: %v", err)
+	}
+	got := MemoryDBPath()
+	want := filepath.Join(profilesMain, "memory.db")
+	if got != want {
+		t.Errorf("MemoryDBPath() with materialized profiles/main = %q, want %q", got, want)
+	}
+}
+
+func TestSessionDBPath_UsesProfilesMainWhenMaterialized(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	profilesMain := filepath.Join(home, "profiles", "main")
+	if err := os.MkdirAll(profilesMain, 0o700); err != nil {
+		t.Fatalf("mkdir profiles/main: %v", err)
+	}
+	got := SessionDBPath()
+	want := filepath.Join(profilesMain, "sessions.db")
+	if got != want {
+		t.Errorf("SessionDBPath() with materialized profiles/main = %q, want %q", got, want)
+	}
+}
+
 func TestSkillsRoot_DefaultsToHomeDotGormes(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", "")
@@ -1449,7 +1477,7 @@ func TestGatewayRuntimeStatusPath_HonorsXDG(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/tmp/gormes-test-status")
 	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	got := GatewayRuntimeStatusPath()
-	want := "/tmp/gormes-test-home/gateway_state.json"
+	want := "/tmp/gormes-test-home/runtime/gateway_state.json"
 	if got != want {
 		t.Errorf("GatewayRuntimeStatusPath() = %q, want %q", got, want)
 	}
@@ -1459,7 +1487,7 @@ func TestGatewayLockDir_HonorsXDGStateHome(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", "/tmp/gormes-test-state")
 	t.Setenv("GORMES_HOME", "/tmp/gormes-test-home")
 	got := GatewayLockDir()
-	want := "/tmp/gormes-test-home/gateway-locks"
+	want := "/tmp/gormes-test-home/runtime/gateway-locks"
 	if got != want {
 		t.Errorf("GatewayLockDir() = %q, want %q", got, want)
 	}
@@ -1471,7 +1499,7 @@ func TestGatewayLockDir_DefaultsToHomeDotGormes(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	got := GatewayLockDir()
-	want := filepath.Join(home, ".gormes", "gateway-locks")
+	want := filepath.Join(home, ".gormes", "runtime", "gateway-locks")
 	if got != want {
 		t.Errorf("GatewayLockDir() default = %q, want %q", got, want)
 	}

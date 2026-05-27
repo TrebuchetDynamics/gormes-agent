@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -1415,7 +1414,7 @@ func TestGatewayRestartDetachedStartConfigUsesLogUnderGormesHome(t *testing.T) {
 	if !strings.HasSuffix(cfg.Args[0], "gateway") {
 		t.Fatalf("args = %#v, want gateway subcommand", cfg.Args)
 	}
-	if filepath.Dir(cfg.LogPath) != config.GormesHome() {
+	if !strings.HasPrefix(cfg.LogPath, config.GormesHome()) {
 		t.Fatalf("log path = %q, want under %q", cfg.LogPath, config.GormesHome())
 	}
 }

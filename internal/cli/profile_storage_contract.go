@@ -88,6 +88,38 @@ func (c ProfileStorageContract) ProfileSessionDBPath(name string) (string, error
 	return filepath.Join(root, "sessions.db"), nil
 }
 
+// ProfileWorkspaceDir returns the profile-local workspace directory for name.
+// This is the default first entry in a profile's workspace list. Additional
+// workspace paths are configured explicitly in profile config.
+func (c ProfileStorageContract) ProfileWorkspaceDir(name string) (string, error) {
+	root, err := c.ProfileRoot(name)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "workspace"), nil
+}
+
+// ProfileCacheDir returns the profile-local cache directory for name.
+// Subdirectories (audio, whisper) live under this root.
+func (c ProfileStorageContract) ProfileCacheDir(name string) (string, error) {
+	root, err := c.ProfileRoot(name)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "cache"), nil
+}
+
+// ProfileRuntimeDir returns the profile-local runtime directory for name.
+// Gateway lifecycle state (gateway_state.json, gateway.pid, gateway-locks, gateway.log)
+// lives under this root.
+func (c ProfileStorageContract) ProfileRuntimeDir(name string) (string, error) {
+	root, err := c.ProfileRoot(name)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "runtime"), nil
+}
+
 // ResolveProfileRuntimeRoot returns the runnable profile root for baseHome and
 // name without creating or migrating directories. The legacy default profile
 // name and the v2 default profile ID ("main") keep the baseHome root until

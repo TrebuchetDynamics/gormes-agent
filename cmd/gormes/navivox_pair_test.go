@@ -143,7 +143,7 @@ func TestNavivoxPairNoWaitCreatesLocalPairingHandoff(t *testing.T) {
 	if err != nil {
 		t.Fatalf("navivox pair --no-wait: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	qrPath := filepath.Join(home, "navivox", "pairing.png")
+	qrPath := filepath.Join(home, "cache", "navivox", "pairing.png")
 	for _, want := range []string{
 		"Navivox pairing ready.",
 		fmt.Sprintf("  URL: http://127.0.0.1:%d", port),
@@ -290,7 +290,7 @@ func TestNavivoxPairNarrowTermuxFallsBackToPNGQRCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("navivox pair --no-wait narrow: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	qrPath := filepath.Join(home, "navivox", "pairing.png")
+	qrPath := filepath.Join(home, "cache", "navivox", "pairing.png")
 	for _, want := range []string{
 		"  QR: " + qrPath,
 		"  Terminal QR hidden: 48 cols < ",
@@ -326,7 +326,7 @@ func TestNavivoxPairNarrowDesktopSuggestsDesktopOpenCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("navivox pair --no-wait narrow desktop: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	qrPath := filepath.Join(home, "navivox", "pairing.png")
+	qrPath := filepath.Join(home, "cache", "navivox", "pairing.png")
 	if !strings.Contains(stdout, "  Open: "+navivoxPairOpenQRCommand(qrPath)) {
 		t.Fatalf("narrow desktop output should suggest platform open command for QR path %s:\n%s", qrPath, stdout)
 	}

@@ -1849,7 +1849,7 @@ systemd_source_root_environment_line() {
 }
 
 install_ledger_path() {
-  printf '%s/install.log.jsonl\n' "$(managed_home_dir)"
+  printf '%s/lifecycle/install.log.jsonl\n' "$(managed_home_dir)"
 }
 
 append_install_ledger() {

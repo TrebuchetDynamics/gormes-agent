@@ -108,6 +108,7 @@ func ResolveBackupPolicy(flags BackupPolicyFlags) BackupDecision {
 var excludedDirComponents = map[string]struct{}{
 	"checkpoints": {},
 	"backups":     {},
+	"lifecycle":   {},
 }
 
 // excludedSuffixes are filename suffixes for transient SQLite sidecars that
