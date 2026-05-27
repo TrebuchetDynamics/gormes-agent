@@ -9,12 +9,48 @@
 package installtest
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
+
+// TestInstall_DryRunDefaultRestartGatewayAuto proves the operator-friendly
+// default: installs automatically restart an already-running gateway unless the
+// operator opts out with GORMES_RESTART_GATEWAY=never or --no-restart.
+func TestInstall_DryRunDefaultRestartGatewayAuto(t *testing.T) {
+	sb := t.TempDir()
+	out := runInstallDryRun(t, map[string]string{
+		"GORMES_INSTALL_HOME": filepath.Join(sb, "home"),
+		"GORMES_SKIP_SETUP":   "1",
+	})
+
+	if !strings.Contains(out, "restart_gateway: auto") {
+		t.Fatalf("dry-run plan should default gateway restart policy to auto; got:\n%s", out)
+	}
+}
+
+func TestInstall_DryRunExistingConfigSkipsSetupByDefault(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home")
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatalf("mkdir install home: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]\nprovider = 'openrouter'\nendpoint = 'https://openrouter.ai/api/v1'\n"), 0o644); err != nil {
+		t.Fatalf("write existing config: %v", err)
+	}
+	out := runInstallDryRun(t, map[string]string{
+		"GORMES_INSTALL_HOME": home,
+	})
+
+	if !strings.Contains(out, "setup_wizard: skipped (existing setup detected)") {
+		t.Fatalf("dry-run plan should skip setup by default when config already exists; got:\n%s", out)
+	}
+	if strings.Contains(out, "setup_wizard: navivox-recommended") {
+		t.Fatalf("dry-run plan should not recommend setup for an existing config; got:\n%s", out)
+	}
+}
 
 // TestInstall_DryRunDefaultPlatform_PrefersBinaryFetch proves the new default:
 // on a supported platform with no override flags, the dry-run plan reports
