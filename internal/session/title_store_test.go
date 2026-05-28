@@ -125,11 +125,6 @@ func (e *errMap) GetMetadata(_ context.Context, _ string) (Metadata, bool, error
 	return Metadata{}, false, e.err
 }
 
-// putMetadataDirecter is the write side used by SetTitle.
-type putMetadataDirecter interface {
-	PutMetadata(ctx context.Context, meta Metadata) error
-}
-
 // TestSessionTitleStore_TitleReturnsErrorOnStoreFailure proves that a read
 // error from the underlying store propagates out of Title().
 func TestSessionTitleStore_TitleReturnsErrorOnStoreFailure(t *testing.T) {

@@ -415,17 +415,6 @@ func proxyMessageByContent(t *testing.T, messages []map[string]any, content stri
 	return nil
 }
 
-func proxyMessageByContentPart(t *testing.T, messages []map[string]any, text string) map[string]any {
-	t.Helper()
-	for _, msg := range messages {
-		if proxyContentPartContainsText(msg, text) {
-			return msg
-		}
-	}
-	t.Fatalf("message with content part %q not found in %#v", text, messages)
-	return nil
-}
-
 func proxyMessageByRoleAndContentPart(t *testing.T, messages []map[string]any, role, text string) map[string]any {
 	t.Helper()
 	for _, msg := range messages {

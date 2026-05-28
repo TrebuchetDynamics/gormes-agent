@@ -136,30 +136,6 @@ func sourceAdjustment(sk Skill) (boost float64, damping float64) {
 }
 
 // cosineSimilarity returns the cosine similarity between two float32 vectors.
-func cosineSimilarity(a, b []float32) float64 {
-	if len(a) != len(b) || len(a) == 0 {
-		return 0
-	}
-	var dot, normA, normB float64
-	for i := range a {
-		dot += float64(a[i]) * float64(b[i])
-		normA += float64(a[i]) * float64(a[i])
-		normB += float64(b[i]) * float64(b[i])
-	}
-	if normA == 0 || normB == 0 {
-		return 0
-	}
-	return dot / (float64Len(normA) * float64Len(normB))
-}
-
-func float64Len(x float64) float64 {
-	v := x
-	for i := 0; i < 50 && v > 0; i++ {
-		v = (v + x/v) / 2
-	}
-	return v
-}
-
 // SkillSelectionEvidence produces a human-readable explanation.
 func (ss ScoredSkill) Evidence() string {
 	var parts []string

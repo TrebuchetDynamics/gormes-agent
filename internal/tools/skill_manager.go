@@ -17,29 +17,6 @@ import (
 const (
 	SkillManagerToolName       = "skill_manage"
 	skillManagerDefaultTimeout = 30 * time.Second
-
-	// Portable SKILL.md frontmatter fields for cross-agent skill sharing.
-	// Matching Hermes' skill_manager_tool.py contract with standard metadata.
-	skillFrontmatterRequired = `name|description`
-	skillFrontmatterOptional = `version|author|date|when|category|tags|requires`
-
-	// skillTemplate is the canonical SKILL.md template auto-populated on create
-	// when the agent omits optional fields.
-	skillTemplate = `---
-name: %s
-description: %s
-author: gormes-agent
-date: %s
-version: 1.0.0
----
-
-## Purpose
-
-## Instructions
-
-## Examples
-
-`
 )
 
 // SkillManagerToolConfig configures the skill management tool surface.

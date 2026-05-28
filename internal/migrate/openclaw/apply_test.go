@@ -90,11 +90,6 @@ func fixedNow(t *testing.T) func() time.Time {
 	return func() time.Time { return stamp }
 }
 
-func sourceRoot(t *testing.T) string {
-	t.Helper()
-	return filepath.Join(t.TempDir(), "openclaw-src")
-}
-
 func TestOpenClawMigrationApply_RequiresYes(t *testing.T) {
 	root := t.TempDir()
 	src := filepath.Join(root, "openclaw-src")

@@ -413,10 +413,6 @@ func numberedPrefix(i int) string {
 
 // boxify wraps body lines in a Unicode rounded box, using each line's own
 // length to size the box. Empty lines are preserved as visual gaps.
-func boxify(body []string) string {
-	return boxifyWithStyles(body, SkinStyles{}, false)
-}
-
 func boxifyWithStyles(body []string, styles SkinStyles, styled bool) string {
 	width := 0
 	for _, line := range body {

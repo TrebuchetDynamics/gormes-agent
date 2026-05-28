@@ -181,12 +181,6 @@ func (s *AgentsScreen) ShortHelp() []KeyHelp {
 	}
 }
 
-func (s *AgentsScreen) refresh(ctx context.Context) {
-	records, err := s.registry.List(ctx)
-	s.records = append([]goncho.AgentRecord(nil), records...)
-	s.err = err
-}
-
 func (s *AgentsScreen) refreshCmd() tea.Cmd {
 	registry := s.registry
 	return func() tea.Msg {

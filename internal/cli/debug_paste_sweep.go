@@ -4,10 +4,7 @@
 // evidence while retaining opportunistic CLI-only cleanup as a fallback.
 package cli
 
-import (
-	"errors"
-	"time"
-)
+import "time"
 
 // PasteEntry represents one pending paste deletion record.
 type PasteEntry struct {
@@ -70,9 +67,9 @@ type PasteSweeper struct {
 
 // SweepResult captures the outcome of one sweep pass.
 type SweepResult struct {
-	Deleted   int           `json:"deleted"`
-	Remaining int           `json:"remaining"`
-	Errors    []SweepError  `json:"errors,omitempty"`
+	Deleted   int          `json:"deleted"`
+	Remaining int          `json:"remaining"`
+	Errors    []SweepError `json:"errors,omitempty"`
 }
 
 // SweepError describes one delete failure with evidence.
@@ -81,8 +78,6 @@ type SweepError struct {
 	Evidence  string `json:"evidence"`
 	ExpiredAt string `json:"expired_at"`
 }
-
-var errOnlyPasteRsSupported = errors.New("only paste.rs URLs are supported")
 
 // PasteURLScheme extracts the paste service name from a URL for validation.
 // Only paste.rs is supported for deletion; dpaste.com expires automatically.

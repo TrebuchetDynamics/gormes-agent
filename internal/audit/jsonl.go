@@ -23,10 +23,7 @@ const (
 	maxAuditCollectionItems = 64
 )
 
-var (
-	auditSecretPattern   = regexp.MustCompile(`(?i)(bearer\s+)[a-z0-9._~+/=-]+|sk-[a-z0-9._-]{8,}|xox[abprs]-[a-z0-9._-]{8,}|\b[0-9]{6,}:[a-z0-9_-]{20,}\b|secret[-_a-z0-9]*|token[-_a-z0-9]*`)
-	auditHomePathPattern = regexp.MustCompile(`(?i)(?:/home|/users)/[a-z0-9._-]+(?:/[^\s"'<>]*)?`)
-)
+var auditHomePathPattern = regexp.MustCompile(`(?i)(?:/home|/users)/[a-z0-9._-]+(?:/[^\s"'<>]*)?`)
 
 // Recorder captures one tool-execution audit record.
 type Recorder interface {

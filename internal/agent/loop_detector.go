@@ -1,9 +1,6 @@
 package agent
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 type LoopType string
 
@@ -207,8 +204,4 @@ func slicesEqual(a, b []string) bool {
 		}
 	}
 	return true
-}
-
-func normalizeText(s string) string {
-	return strings.TrimSpace(strings.ToLower(s))
 }

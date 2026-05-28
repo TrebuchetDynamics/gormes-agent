@@ -38,13 +38,6 @@ func WithGatewayAddr(addr string) Option {
 	}
 }
 
-func applyOptions(cfg Config, opts ...Option) Config {
-	for _, opt := range opts {
-		opt(&cfg)
-	}
-	return cfg
-}
-
 func DefaultConfig() Config {
 	return Config{
 		BindHost:    DefaultBindHost,
@@ -173,40 +166,6 @@ func (s *Server) probeGateway(ctx context.Context) bool {
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode < 500
-}
-
-func (s *Server) startGateway(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.gatewayRunning {
-		return nil
-	}
-
-	bin := s.cfg.GormesBin
-	if bin == "" {
-		bin = "gormes"
-	}
-
-	cmd := exec.CommandContext(ctx, bin, "gateway")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start gateway: %w", err)
-	}
-
-	s.gatewayCmd = cmd
-	s.gatewayRunning = true
-
-	go func() {
-		_ = cmd.Wait()
-		s.mu.Lock()
-		s.gatewayRunning = false
-		s.mu.Unlock()
-	}()
-
-	return nil
 }
 
 func (s *Server) stopGateway(ctx context.Context) error {

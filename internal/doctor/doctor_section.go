@@ -275,10 +275,6 @@ func RenderSectionedReportWithStyle(results []CheckResult, style RenderStyle) st
 	return "\n" + b.String()
 }
 
-func formatSectionedCheck(c CheckResult) string {
-	return formatSectionedCheckStyled(c, sectionForCheck(c.Name), RenderStyle{})
-}
-
 func formatSectionedCheckStyled(c CheckResult, section string, style RenderStyle) string {
 	if c.Name == "Toolbox" {
 		return formatToolboxCheck(c, style)

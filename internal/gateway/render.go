@@ -732,14 +732,6 @@ func streamPreviewCursorActive(f kernel.RenderFrame) bool {
 	}
 }
 
-func formatToolTracePlain(text string) string {
-	return trace.FormatPlain(text)
-}
-
-func formatToolTraceBlockPlain(events []kernel.SoulEntry) string {
-	return formatToolTraceBlockPlainMode(events, "all")
-}
-
 func formatToolTraceBlockPlainMode(events []kernel.SoulEntry, mode string) string {
 	texts := make([]string, 0, len(events))
 	for _, event := range events {
@@ -841,75 +833,6 @@ func isKnownToolTraceName(name string) bool {
 	default:
 		return false
 	}
-}
-
-func toolTraceIcon(name string) string {
-	switch strings.TrimSpace(name) {
-	case "memory", "honcho_context", "honcho_search", "honcho_profile", "honcho_conclude", "session_search":
-		return "🧠"
-	case "skill_view", "skills_list", "skill_manage":
-		return "📚"
-	case "todo":
-		return "📋"
-	case "cronjob":
-		return "⏰"
-	case "search_files":
-		return "🔎"
-	case "web_search":
-		return "🔍"
-	case "web_extract":
-		return "📄"
-	case "web_crawl":
-		return "🕸️"
-	case "browser_navigate":
-		return "🌐"
-	case "browser_snapshot":
-		return "📸"
-	case "browser_click":
-		return "👆"
-	case "browser_type", "browser_press":
-		return "⌨️"
-	case "browser_scroll":
-		return "📜"
-	case "browser_back":
-		return "◀️"
-	case "browser_get_images":
-		return "🖼️"
-	case "browser_vision":
-		return "👁️"
-	case "browser_cdp", "browser_dialog":
-		return "🖥️"
-	case "read_file":
-		return "📖"
-	case "patch", "write_file":
-		return "🔧"
-	case "terminal", "process":
-		return "💻"
-	case "execute_code":
-		return "💻"
-	case "transcribe_audio":
-		return "🎙️"
-	case "text_to_speech":
-		return "🔊"
-	default:
-		return "🔧"
-	}
-}
-
-func quoteAndTruncate(s string, limit int) string {
-	s = strings.ReplaceAll(strings.TrimSpace(s), "\n", " ")
-	s = strings.Join(strings.Fields(s), " ")
-	if limit > 0 {
-		runes := []rune(s)
-		if len(runes) > limit {
-			if limit <= 3 {
-				s = string(runes[:limit])
-			} else {
-				s = string(runes[:limit-3]) + "..."
-			}
-		}
-	}
-	return `"` + s + `"`
 }
 
 func sanitizeProviderErrorText(s string) string {

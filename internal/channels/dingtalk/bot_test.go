@@ -2,7 +2,6 @@ package dingtalk
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -181,5 +180,3 @@ func assertNoInbound(t *testing.T, inbox <-chan gateway.InboundEvent) {
 	case <-time.After(50 * time.Millisecond):
 	}
 }
-
-var errSendFailed = errors.New("send failed")

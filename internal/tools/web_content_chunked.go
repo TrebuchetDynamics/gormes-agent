@@ -326,7 +326,6 @@ func (p *ChunkedWebContentProcessor) summarizeChunk(ctx context.Context, req Web
 // synthesizeSummaries combines multiple chunk summaries into one cohesive summary.
 func (p *ChunkedWebContentProcessor) synthesizeSummaries(ctx context.Context, req WebContentProcessRequest, summaries []chunkSummary) (string, error) {
 	// Build the combined summaries text, sorted by chunk index
-	type byIndex []chunkSummary
 	sorted := make([]chunkSummary, len(summaries))
 	copy(sorted, summaries)
 	for i := 0; i < len(sorted)-1; i++ {

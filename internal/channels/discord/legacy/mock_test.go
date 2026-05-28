@@ -146,12 +146,6 @@ func (m *mockClient) lastSentText() string {
 	return m.texts[len(m.texts)-1]
 }
 
-func (m *mockClient) typingCount() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.typingCalls
-}
-
 func (m *mockClient) sendCalls() []sendCall {
 	m.mu.Lock()
 	defer m.mu.Unlock()

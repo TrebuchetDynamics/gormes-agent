@@ -2,7 +2,6 @@ package skills_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -224,27 +223,6 @@ func stringSliceField(t *testing.T, value any, fieldName string) []string {
 		out = append(out, field.Index(i).String())
 	}
 	return out
-}
-
-func stringField(t *testing.T, value any, fieldName string) string {
-	t.Helper()
-	field := reflect.ValueOf(value).FieldByName(fieldName)
-	if !field.IsValid() {
-		t.Fatalf("Skill.%s field missing", fieldName)
-	}
-	if field.Kind() != reflect.String {
-		t.Fatalf("Skill.%s kind = %s, want string", fieldName, field.Kind())
-	}
-	return field.String()
-}
-
-func credentialGroupsString(t *testing.T, value any) string {
-	t.Helper()
-	field := reflect.ValueOf(value).FieldByName("CredentialGroups")
-	if !field.IsValid() {
-		t.Fatalf("Skill.CredentialGroups field missing")
-	}
-	return strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(fmt.Sprintf("%#v", field.Interface()), "\n", " "), "\t", " "))
 }
 
 func containsString(values []string, want string) bool {

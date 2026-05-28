@@ -216,18 +216,6 @@ func (r *runRegistry) subscribe(id string) ([]runEvent, <-chan runEvent, bool, b
 	return backlog, ch, true, false
 }
 
-// status reports whether the run is known and, if so, whether the
-// async turn has finished. Mirrors the lifecycle SSE callers see: a
-// run is `in_progress` until publish+finish, then `completed` until
-// it is removed (either after stream consumption or orphan sweep).
-func (r *runRegistry) status(id string) (string, bool) {
-	snapshot, ok := r.snapshot(id)
-	if !ok {
-		return "", false
-	}
-	return snapshot.Status, true
-}
-
 // runStatusSnapshot is the read-model returned to fleet automation
 // polling `/v1/runs/{run_id}`. CreatedAt is unix seconds; EventsCount
 // reflects every lifecycle event published so far. LastEventType is

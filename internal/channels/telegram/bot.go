@@ -544,10 +544,6 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 	return text, attachments
 }
 
-func telegramInboundTextAndAttachments(msg *tgbotapi.Message) (string, []gateway.Attachment) {
-	return New(Config{}, nil, nil).telegramInboundTextAndAttachments(context.Background(), msg)
-}
-
 func telegramAudioTranscriptMarker(kind, transcript string) string {
 	label := "voice message"
 	if strings.EqualFold(strings.TrimSpace(kind), "audio") {

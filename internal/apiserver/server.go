@@ -835,11 +835,6 @@ type contentNormalizeError struct {
 	message string
 }
 
-func normalizeChatContent(content any) (string, *contentNormalizeError) {
-	normalized, err := normalizeChatContentForTurn(content)
-	return normalized.Text, err
-}
-
 func normalizeChatContentForTurn(content any) (normalizedChatContent, *contentNormalizeError) {
 	return normalizeChatContentDepth(content, 0)
 }

@@ -559,10 +559,6 @@ func redactImageGenErrorForPrompt(text, prompt string) string {
 }
 
 // falAPIKeyPresent returns true if FAL_API_KEY is set in the environment.
-func falAPIKeyPresent() bool {
-	return os.Getenv("FAL_API_KEY") != ""
-}
-
 // FALGenImageProvider is the FAL.ai image generation provider.
 type FALGenImageProvider struct {
 	apiKey       string

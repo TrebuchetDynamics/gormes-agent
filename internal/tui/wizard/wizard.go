@@ -101,6 +101,7 @@ func (r *Runner) Run(ctx context.Context, steps ...Step) (Result, error) {
 		tea.WithContext(ctx),
 		tea.WithInput(in),
 		tea.WithOutput(out),
+		tea.WithAltScreen(),
 	)
 	final, err := program.Run()
 	if err != nil {

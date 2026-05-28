@@ -333,30 +333,6 @@ func (s *fakeSSEScanner) Scan() bool {
 func (s *fakeSSEScanner) Text() string { return string(s.buf) }
 func (s *fakeSSEScanner) Err() error   { return nil }
 
-func envelopeForDirect(t *testing.T, name, senderID, senderUUID, text string) string {
-	t.Helper()
-	env := map[string]any{
-		"envelope": map[string]any{
-			"source":     senderID,
-			"sourceName": name,
-			"sourceUuid": senderUUID,
-			"dataMessage": map[string]any{
-				"message": text,
-			},
-		},
-	}
-	return mustJSON(t, env)
-}
-
-func mustJSON(t *testing.T, v any) string {
-	t.Helper()
-	b, err := json.Marshal(v)
-	if err != nil {
-		t.Fatalf("json.Marshal: %v", err)
-	}
-	return string(b)
-}
-
 // ---------------------------------------------------------------------------
 // 3. TestSignalReconnectAndHealthMonitor
 // ---------------------------------------------------------------------------

@@ -310,14 +310,3 @@ func buildNavivoxSetupEntry(cfg config.NavivoxCfg) ChannelSetupEntry {
 	entry.PlannedWrites = []string{"profiles.<id>.channels.navivox.credential -> config.toml", "credentials.<id>.secret_ref -> profile-scoped .env when token auth is enabled", "navivox.enabled -> config.toml"}
 	return entry
 }
-
-func buildStaticSetupEntry(id, displayName string, required []string, nextCommand string) ChannelSetupEntry {
-	return ChannelSetupEntry{
-		ID:             id,
-		DisplayName:    displayName,
-		Status:         ChannelSetupStatusUnconfigured,
-		RequiredFields: append([]string(nil), required...),
-		PlannedWrites:  []string{nextCommand},
-		NextCommand:    nextCommand,
-	}
-}

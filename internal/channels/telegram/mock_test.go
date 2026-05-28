@@ -182,10 +182,6 @@ func (m *mockClient) uploadSuccess(msgID int) *tgbotapi.APIResponse {
 	return &tgbotapi.APIResponse{Ok: true, Result: result}
 }
 
-func (m *mockClient) closeUpdates() {
-	close(m.updatesCh)
-}
-
 func (m *mockClient) pushTextUpdate(chatID int64, text string) {
 	m.updatesCh <- tgbotapi.Update{
 		UpdateID: 0,
@@ -223,19 +219,6 @@ func (m *mockClient) pushAudioUpdate(chatID int64, caption string, audio tgbotap
 	}
 }
 
-func (m *mockClient) pushDocumentUpdate(chatID int64, messageID int, caption string, document tgbotapi.Document) {
-	m.updatesCh <- tgbotapi.Update{
-		UpdateID: 0,
-		Message: &tgbotapi.Message{
-			MessageID: messageID,
-			Caption:   caption,
-			Document:  &document,
-			Chat:      &tgbotapi.Chat{ID: chatID, Type: "private"},
-			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
-		},
-	}
-}
-
 func (m *mockClient) pushPhotoUpdate(chatID int64, messageID int, caption, mediaGroupID string, photos []tgbotapi.PhotoSize) {
 	m.updatesCh <- tgbotapi.Update{
 		UpdateID: 0,
@@ -246,19 +229,6 @@ func (m *mockClient) pushPhotoUpdate(chatID int64, messageID int, caption, media
 			MediaGroupID: mediaGroupID,
 			Chat:         &tgbotapi.Chat{ID: chatID, Type: "private"},
 			From:         &tgbotapi.User{ID: chatID, FirstName: "tester"},
-		},
-	}
-}
-
-func (m *mockClient) pushVideoUpdate(chatID int64, messageID int, caption string, video tgbotapi.Video) {
-	m.updatesCh <- tgbotapi.Update{
-		UpdateID: 0,
-		Message: &tgbotapi.Message{
-			MessageID: messageID,
-			Caption:   caption,
-			Video:     &video,
-			Chat:      &tgbotapi.Chat{ID: chatID, Type: "private"},
-			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
 		},
 	}
 }

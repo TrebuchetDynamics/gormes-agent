@@ -229,11 +229,6 @@ func welcomeContentWidth(width int) int {
 	return width
 }
 
-func welcomeSummary(ctx welcomeContext, toolCount int, toolsets []string, dimStyle, accentStyle lipgloss.Style) string {
-	lines := welcomeSummaryLines(ctx, toolCount, toolsets, 120, dimStyle, accentStyle)
-	return strings.Join(lines, "\n")
-}
-
 func welcomeSummaryLines(ctx welcomeContext, toolCount int, toolsets []string, width int, dimStyle, accentStyle lipgloss.Style) []string {
 	var parts []string
 	if model := strings.TrimSpace(ctx.Model); model != "" {

@@ -1975,23 +1975,11 @@ func boundStructuredLintOutput(output string) string {
 	return output[:maxStructuredLintOutput-len("...")] + "..."
 }
 
-func resolveWorkspaceFile(root, rawPath string) (string, string, error) {
-	workspaceRoot, err := resolveWorkspaceRoot(root)
-	if err != nil {
-		return "", "", err
-	}
-	return resolveWorkspacePath(workspaceRoot, rawPath)
-}
-
 func resolveFileTaskReadPath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
 	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessRead)
 }
 
 func resolveFileTaskWritePath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
-	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessWrite)
-}
-
-func resolveFileTaskPath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
 	return resolveFileTaskPathForAccess(cfg, rawPath, ProfileWorkspaceAccessWrite)
 }
 

@@ -5,12 +5,6 @@ import (
 	"testing"
 )
 
-type nilEmbedder struct{}
-
-func (n nilEmbedder) Embed(ctx interface{}, text string) ([]float32, error) {
-	return nil, nil
-}
-
 func TestHybridSelector_LexicalOnly(t *testing.T) {
 	s := &HybridSelector{Embedder: nil}
 	skills := []Skill{

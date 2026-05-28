@@ -518,7 +518,6 @@ func TestImageGenResultJSON(t *testing.T) {
 type fakeImageProvider struct {
 	available bool
 	calls     int
-	last      ImageGenRequest
 	lastReq   ImageProviderRequest
 	result    ImageProviderResult
 	err       error

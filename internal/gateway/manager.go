@@ -284,9 +284,6 @@ type Manager struct {
 
 	renderChan <-chan kernel.RenderFrame
 
-	typingStop func()
-	typingKey  string
-
 	liveTurnPromptSeams liveTurnPromptSeams
 	agentRouter         AgentRouter
 	agentRoutingEnabled bool
@@ -307,9 +304,8 @@ type Manager struct {
 	verboseHintMu   sync.Mutex
 	verboseHintSent map[string]bool
 
-	personalityMu          sync.Mutex
-	personalityPrompts     map[string]string
-	activePersonalityName  string
+	personalityPrompts    map[string]string
+	activePersonalityName string
 
 	kanbanDispatcherMu      sync.Mutex
 	kanbanDispatcherRunning bool
@@ -2410,33 +2406,6 @@ func defaultToolProgressModeForPlatform(platform string) string {
 	default:
 		return "all"
 	}
-}
-
-func (m *Manager) formatFinal(platform string, f kernel.RenderFrame) string {
-	if isTelegramPlatform(platform) {
-		return FormatFinalTelegram(f)
-	}
-	return FormatFinalPlain(f)
-}
-
-func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (string, []OutboundMedia) {
-	content := PrepareMediaDeliveryContent(FinalAssistantText(f))
-	text := content.Text
-	if strings.TrimSpace(text) == "" && len(content.Media) > 0 {
-		text = "Media attached."
-	}
-	if isTelegramPlatform(platform) {
-		return FormatFinalTelegramText(text), content.Media
-	}
-	return FormatFinalPlainText(text), content.Media
-}
-
-func (m *Manager) formatFinalDeliveryPages(platform string, f kernel.RenderFrame) ([]string, []OutboundMedia) {
-	text, media := m.formatFinalDelivery(platform, f)
-	if isTelegramPlatform(platform) {
-		return paginateTelegramText(text), media
-	}
-	return paginatePlainText(text), media
 }
 
 func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID, threadID string, media []OutboundMedia) {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -368,17 +367,4 @@ func anyString(value string) string {
 		return ""
 	}
 	return value
-}
-
-func stringifyAny(value any) string {
-	switch v := value.(type) {
-	case string:
-		return strings.TrimSpace(v)
-	case float64:
-		return strconv.FormatInt(int64(v), 10)
-	case int:
-		return strconv.Itoa(v)
-	default:
-		return strings.TrimSpace(fmt.Sprint(v))
-	}
 }

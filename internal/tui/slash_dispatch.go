@@ -323,22 +323,6 @@ func slashKnownUnhandledStatus(typed string, policy cli.CommandPolicy) string {
 	}
 }
 
-func slashAmbiguousStatus(matches []SlashCompletion) string {
-	limit := len(matches)
-	if limit > 6 {
-		limit = 6
-	}
-	names := make([]string, 0, limit)
-	for _, match := range matches[:limit] {
-		names = append(names, "/"+match.Name)
-	}
-	suffix := ""
-	if len(matches) > limit {
-		suffix = ", ..."
-	}
-	return "ambiguous command: " + strings.Join(names, ", ") + suffix
-}
-
 func slashAmbiguousNameStatus(matches []string) string {
 	limit := len(matches)
 	if limit > 6 {

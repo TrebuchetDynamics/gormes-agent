@@ -43,12 +43,6 @@ type AgentLister interface {
 	ListAgents(context.Context) ([]goncho.AgentRecord, error)
 }
 
-type agentListerFunc func(context.Context) ([]goncho.AgentRecord, error)
-
-func (f agentListerFunc) ListAgents(ctx context.Context) ([]goncho.AgentRecord, error) {
-	return f(ctx)
-}
-
 type chatLine struct {
 	role string
 	text string

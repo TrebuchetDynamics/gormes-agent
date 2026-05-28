@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -426,19 +425,4 @@ func postJSON(t *testing.T, h http.Handler, path string, body any, headers map[s
 	h.ServeHTTP(rec, req)
 	_, _ = io.Copy(io.Discard, rec.Result().Body)
 	return rec
-}
-
-func waitForKernelIdle(t *testing.T, frames <-chan kernel.RenderFrame) kernel.RenderFrame {
-	t.Helper()
-	deadline := time.After(3 * time.Second)
-	for {
-		select {
-		case f := <-frames:
-			if f.Phase == kernel.PhaseIdle && f.Seq > 1 {
-				return f
-			}
-		case <-deadline:
-			t.Fatal("timeout waiting for kernel idle")
-		}
-	}
 }

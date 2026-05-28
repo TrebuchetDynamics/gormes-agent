@@ -52,13 +52,6 @@ type TranscriptionProviderConfig struct {
 }
 
 // httpTimeout returns the effective request timeout.
-func (c TranscriptionProviderConfig) httpTimeout() time.Duration {
-	if c.Timeout > 0 {
-		return c.Timeout
-	}
-	return DefaultSTTTimeout
-}
-
 var builtinTranscriptionProviderOrder = []string{
 	ProviderNameDevice,
 	ProviderNameLocal,

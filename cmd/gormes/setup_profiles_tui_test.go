@@ -75,6 +75,7 @@ func TestSetupProfilesControlCenterShowsDefaultDisplayNameAndHelp(t *testing.T) 
 		"main — Gormes",
 		"Display name: Gormes",
 		"Workspaces: 2 total, primary: /srv/gormes",
+		"Setup progress:",
 		"Profiles are agents",
 		"Display name",
 		"Telegram/WhatsApp/Navivox",
@@ -85,6 +86,85 @@ func TestSetupProfilesControlCenterShowsDefaultDisplayNameAndHelp(t *testing.T) 
 	}
 	if strings.Contains(view, "Profile services") {
 		t.Fatalf("control center view used confusing Profile services wording:\n%s", view)
+	}
+}
+
+func TestSetupProfilesTextInputUsesBubblesEditing(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{Profiles: []setupProfileView{{Name: "main"}}})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m = updated.(setupProfilesModel)
+	for _, r := range "profile" {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = updated.(setupProfilesModel)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	m = updated.(setupProfilesModel)
+	for _, r := range "name" {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = updated.(setupProfilesModel)
+	}
+
+	if m.input != "profile name" || m.inputField.Value() != "profile name" {
+		t.Fatalf("setup textinput value = input %q field %q, want profile name", m.input, m.inputField.Value())
+	}
+}
+
+func TestSetupProfilesControlCenterInputUsesSharedChrome(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Profiles: []setupProfileView{{
+			Name:        "main",
+			DisplayName: "Gormes",
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 90, Height: 28})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	m = updated.(setupProfilesModel)
+	m.input = "Research Agent"
+
+	view := m.View()
+	for _, want := range []string{"Display name", "friendly name shown in channel routing", "Enter save", "Esc back", "Research Agent"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("control center input view missing %q:\n%s", want, view)
+		}
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if got := lipgloss.Width(line); got > 90 {
+			t.Fatalf("control center input line width %d exceeds 90:\n%q\n\n%s", got, line, view)
+		}
+	}
+}
+
+func TestSetupProfilesControlCenterInputModeIsCompact(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Profiles: []setupProfileView{{
+			Name:        "main",
+			DisplayName: "Gormes",
+			Workspaces:  []string{"/srv/gormes"},
+			Channels:    []string{"telegram"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 56, Height: 18})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m = updated.(setupProfilesModel)
+	m = m.setInput("mineru")
+
+	view := m.View()
+	if strings.Contains(view, "Tip: r rename") || strings.Contains(view, "[choose]") || strings.Contains(view, "Workspaces: 1 primary") {
+		t.Fatalf("input mode should not render browse command/details chrome:\n%s", view)
+	}
+	for _, want := range []string{"Profile Control Center", "Draft input", "New profile", "mineru"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("input mode missing %q:\n%s", want, view)
+		}
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if got := lipgloss.Width(line); got > 56 {
+			t.Fatalf("input mode line width %d exceeds 56:\n%q\n\n%s", got, line, view)
+		}
 	}
 }
 

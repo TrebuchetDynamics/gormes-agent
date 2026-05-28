@@ -316,19 +316,6 @@ func (m *mockSession) deliverThreadDelete(thread *discordgo.ThreadDelete) bool {
 	return false
 }
 
-func (m *mockSession) deliverInteraction(interaction *discordgo.InteractionCreate) bool {
-	m.mu.Lock()
-	handlers := append([]interface{}{}, m.handlers...)
-	m.mu.Unlock()
-	for _, h := range handlers {
-		if fn, ok := h.(func(*discordgo.Session, *discordgo.InteractionCreate)); ok {
-			fn(nil, interaction)
-			return true
-		}
-	}
-	return false
-}
-
 func (m *mockSession) applicationCommandsSnapshot() []*discordgo.ApplicationCommand {
 	m.mu.Lock()
 	defer m.mu.Unlock()

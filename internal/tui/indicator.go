@@ -11,8 +11,6 @@ const (
 	IndicatorStyleUnicode IndicatorStyle = "unicode"
 )
 
-var indicatorSubcommands = []string{"ascii", "emoji", "kaomoji", "unicode"}
-
 var indicatorEmojiFrames = []string{"⚕ ", "🌀", "🤔", "✨", "🍵", "🔮"}
 var indicatorASCIIFrames = []string{"|", "/", "-", "\\"}
 var indicatorUnicodeFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}

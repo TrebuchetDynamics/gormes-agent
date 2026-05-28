@@ -548,15 +548,6 @@ func candidateNames(candidates []Candidate) []string {
 	return names
 }
 
-func candidateHasBlocker(candidate Candidate, want string) bool {
-	for _, blocker := range candidate.BlockedBy {
-		if blocker == want {
-			return true
-		}
-	}
-	return false
-}
-
 func TestNormalizeCandidatesReturnsMalformedJSONError(t *testing.T) {
 	path := writeProgressJSON(t, `{"phases":`)
 

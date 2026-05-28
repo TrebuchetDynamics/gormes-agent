@@ -199,11 +199,3 @@ WHERE id = ? AND status = ?`,
 }
 
 func (t Task) FailureCount() int { return t.failureCount }
-
-func (s *Store) ensureTaskColumnFailureCount(ctx context.Context) error {
-	return s.ensureTaskColumn(ctx, "failure_count", "INTEGER NOT NULL DEFAULT 0")
-}
-
-func (s *Store) ensureTaskColumnHeartbeatAt(ctx context.Context) error {
-	return s.ensureTaskColumn(ctx, "heartbeat_at", "INTEGER NOT NULL DEFAULT 0")
-}

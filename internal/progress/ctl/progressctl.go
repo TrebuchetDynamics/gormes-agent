@@ -427,13 +427,6 @@ func Emit(stdout io.Writer, root string) error {
 	return err
 }
 
-type marker struct {
-	pathOf func(pathSet) string
-	kind   string
-	label  string
-	render func(*progress.Progress) string
-}
-
 type pathSet struct {
 	progressJSON       string
 	readme             string
@@ -495,25 +488,6 @@ func rewriteMarker(path, kind, body string) error {
 	return nil
 }
 
-func writeModuleRoadmapPages(p *progress.Progress, dir string) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", dir, err)
-	}
-	pages := map[string]string{
-		"_index.md": progress.RenderModuleRoadmapIndex(p),
-	}
-	for _, module := range progress.AllowedModules() {
-		pages[module+".md"] = progress.RenderModuleRoadmapPage(p, module)
-	}
-	for name, body := range pages {
-		path := filepath.Join(dir, name)
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", path, err)
-		}
-	}
-	return nil
-}
-
 // slimProgress returns a reduced copy of p containing exactly what the
 // landing renderer reads — phase/subphase names, deliverable, dependency
 // note, subphase priority/status/drift, and per-item Status — and nothing
@@ -565,20 +539,6 @@ func writeSlimProgress(p *progress.Progress, dst string) error {
 		return fmt.Errorf("mkdir %s: %w", filepath.Dir(dst), err)
 	}
 	if err := os.WriteFile(dst, append(b, '\n'), 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", dst, err)
-	}
-	return nil
-}
-
-func syncFile(src, dst string) error {
-	b, err := os.ReadFile(src)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", src, err)
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", filepath.Dir(dst), err)
-	}
-	if err := os.WriteFile(dst, b, 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", dst, err)
 	}
 	return nil

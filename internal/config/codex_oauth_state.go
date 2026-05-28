@@ -166,17 +166,6 @@ func (s *CodexOAuthStateStore) SaveTokens(tokens CodexOAuthTokens) (CodexOAuthAu
 	}, nil
 }
 
-func (s *CodexOAuthStateStore) codexCredentialEntries() ([]PooledCredential, error) {
-	pool, _, err := LoadCredentialPool(CredentialPoolOptions{
-		HermesHome: s.hermesHome,
-		Provider:   CodexOAuthProvider,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return pool.Entries(), nil
-}
-
 func (s *CodexOAuthStateStore) CheckAuth() (CodexOAuthAuthStatus, error) {
 	pool, evidence, err := LoadCredentialPool(CredentialPoolOptions{
 		HermesHome: s.hermesHome,

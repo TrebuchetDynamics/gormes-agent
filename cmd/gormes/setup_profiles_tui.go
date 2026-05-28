@@ -16,6 +16,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/provider"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/charmbracelet/bubbles/filepicker"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pelletier/go-toml/v2"
@@ -112,6 +119,7 @@ type setupProfilesModel struct {
 	selected                int
 	mode                    setupProfilesMode
 	input                   string
+	inputField              textinput.Model
 	width                   int
 	height                  int
 	channelDraft            map[string]bool
@@ -123,6 +131,8 @@ type setupProfilesModel struct {
 	workspaceBrowserPath    string
 	workspaceBrowserEntries []string
 	workspaceBrowserIndex   int
+	workspacePicker         filepicker.Model
+	channelList             list.Model
 	result                  setupProfilesTUIResult
 	err                     error
 }
@@ -140,6 +150,12 @@ var writeSetupProfilesControlCenterConfig = config.WriteProfileConfigV2
 var applySetupProfilesControlCenterMigration = config.ApplyProfileConfigV2Migration
 
 var setupProfilesChannelChoices = []string{"telegram", "whatsapp", "discord", "slack", "navivox"}
+
+type setupChannelListItem string
+
+func (i setupChannelListItem) FilterValue() string { return string(i) }
+func (i setupChannelListItem) Title() string       { return string(i) }
+func (i setupChannelListItem) Description() string { return "profile channel" }
 
 func maybeRunSetupProfilesTUI(cmd *cobra.Command, pseams profileCommandSeams, known []string, active string) (bool, error) {
 	stdin, ok := cmd.InOrStdin().(*os.File)
@@ -663,6 +679,7 @@ func runSetupProfilesTUIDefault(ctx context.Context, stdin *os.File, out io.Writ
 		tea.WithContext(ctx),
 		tea.WithInput(stdin),
 		tea.WithOutput(out),
+		tea.WithAltScreen(),
 	).Run()
 	if err != nil {
 		return setupProfilesTUIResult{}, err
@@ -672,6 +689,48 @@ func runSetupProfilesTUIDefault(ctx context.Context, stdin *os.File, out io.Writ
 		return setupProfilesTUIResult{}, fmt.Errorf("setup profiles TUI returned %T", model)
 	}
 	return profilesModel.result, profilesModel.err
+}
+
+func newSetupProfilesTextInput() textinput.Model {
+	input := textinput.New()
+	input.Prompt = ""
+	input.CharLimit = 0
+	input.Focus()
+	return input
+}
+
+func newSetupProfilesChannelList(width, height int) list.Model {
+	items := make([]list.Item, 0, len(setupProfilesChannelChoices))
+	for _, channel := range setupProfilesChannelChoices {
+		items = append(items, setupChannelListItem(channel))
+	}
+	delegate := list.NewDefaultDelegate()
+	delegate.ShowDescription = false
+	delegate.SetSpacing(0)
+	model := list.New(items, delegate, max(20, width), max(3, height))
+	model.Title = "Channels"
+	model.SetShowTitle(false)
+	model.SetShowStatusBar(false)
+	model.SetShowPagination(false)
+	model.SetFilteringEnabled(false)
+	model.SetShowHelp(false)
+	return model
+}
+
+func newSetupProfilesWorkspacePicker(path string, height int) filepicker.Model {
+	picker := filepicker.New()
+	picker.CurrentDirectory = path
+	picker.DirAllowed = true
+	picker.FileAllowed = false
+	picker.ShowPermissions = false
+	picker.ShowSize = false
+	picker.ShowHidden = false
+	picker.AutoHeight = false
+	picker.SetHeight(max(3, height))
+	picker.Cursor = "❯"
+	picker.KeyMap.Select = key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "select"))
+	picker.KeyMap.Open = key.NewBinding(key.WithKeys("enter", "l", "right"), key.WithHelp("enter", "open"))
+	return picker
 }
 
 func newSetupProfilesModel(state setupProfilesTUIState) setupProfilesModel {
@@ -692,9 +751,11 @@ func newSetupProfilesModel(state setupProfilesTUIState) setupProfilesModel {
 		state:        state,
 		selected:     selected,
 		mode:         setupProfilesModeBrowse,
+		inputField:   newSetupProfilesTextInput(),
 		width:        80,
 		height:       24,
 		channelDraft: make(map[string]bool),
+		channelList:  newSetupProfilesChannelList(80, 8),
 	}
 }
 
@@ -706,7 +767,16 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = size.Width
 		m.height = size.Height
+		m.channelList.SetSize(max(20, size.Width), max(3, min(8, size.Height-6)))
+		m.workspacePicker.SetHeight(max(3, min(10, size.Height-6)))
 		return m, nil
+	}
+	if m.mode == setupProfilesModeWorkspaceBrowser {
+		picker, cmd := m.workspacePicker.Update(msg)
+		m.workspacePicker = picker
+		if _, ok := msg.(tea.KeyMsg); !ok {
+			return m, cmd
+		}
 	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
@@ -719,39 +789,45 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyEsc:
 		if m.mode == setupProfilesModeWorkspaceBrowser || m.mode == setupProfilesModeWorkspacePath {
 			m.mode = setupProfilesModeWorkspaces
-			m.input = ""
+			m = m.setInput("")
 			return m, nil
 		}
 		if m.mode != setupProfilesModeBrowse {
 			m.mode = setupProfilesModeBrowse
-			m.input = ""
+			m = m.setInput("")
 			return m, nil
 		}
 		m.result.Cancelled = true
 		return m, tea.Quit
 	case tea.KeyEnter:
 		return m.handleEnter()
-	case tea.KeyBackspace:
-		if m.mode != setupProfilesModeBrowse && len(m.input) > 0 {
-			m.input = m.input[:len(m.input)-1]
-		}
-		return m, nil
+	}
+	if m.isTextInputMode() {
+		return m.updateInputField(key)
+	}
+	switch key.Type {
 	case tea.KeySpace:
 		if m.mode == setupProfilesModeWorkspaceBrowser {
+			if m.workspacePicker.Path != "" {
+				return m.selectWorkspaceBrowserPath(m.workspacePicker.Path), nil
+			}
 			return m.selectWorkspaceBrowserEntry(), nil
 		}
 		if m.mode == setupProfilesModeChannels {
-			channel := setupProfilesChannelChoices[m.channelIndex]
-			m.channelDraft[channel] = !m.channelDraft[channel]
+			channel := setupProfilesSelectedChannel(m.channelList)
+			if channel != "" {
+				m.channelDraft[channel] = !m.channelDraft[channel]
+			}
 		}
 		return m, nil
 	case tea.KeyUp:
 		if m.mode == setupProfilesModeWorkspaces && m.workspaceIndex > 0 {
 			m.workspaceIndex--
-		} else if m.mode == setupProfilesModeWorkspaceBrowser && m.workspaceBrowserIndex > 0 {
-			m.workspaceBrowserIndex--
-		} else if m.mode == setupProfilesModeChannels && m.channelIndex > 0 {
-			m.channelIndex--
+		} else if m.mode == setupProfilesModeChannels {
+			var cmd tea.Cmd
+			m.channelList, cmd = m.channelList.Update(key)
+			m.channelIndex = m.channelList.Index()
+			return m, cmd
 		} else if m.mode == setupProfilesModeBrowse && m.selected > 0 {
 			m.selected--
 		}
@@ -759,10 +835,11 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyDown:
 		if m.mode == setupProfilesModeWorkspaces && m.workspaceIndex < len(m.workspaceDraft)-1 {
 			m.workspaceIndex++
-		} else if m.mode == setupProfilesModeWorkspaceBrowser && m.workspaceBrowserIndex < len(m.workspaceBrowserEntries)-1 {
-			m.workspaceBrowserIndex++
-		} else if m.mode == setupProfilesModeChannels && m.channelIndex < len(setupProfilesChannelChoices)-1 {
-			m.channelIndex++
+		} else if m.mode == setupProfilesModeChannels {
+			var cmd tea.Cmd
+			m.channelList, cmd = m.channelList.Update(key)
+			m.channelIndex = m.channelList.Index()
+			return m, cmd
 		} else if m.mode == setupProfilesModeBrowse && m.selected < len(m.state.Profiles)-1 {
 			m.selected++
 		}
@@ -783,6 +860,40 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m setupProfilesModel) isTextInputMode() bool {
+	switch m.mode {
+	case setupProfilesModeAddProfile, setupProfilesModeDisplayName, setupProfilesModeWorkspacePath, setupProfilesModeProviderCredential, setupProfilesModeChannelCredential:
+		return true
+	default:
+		return false
+	}
+}
+
+func (m setupProfilesModel) updateInputField(msg tea.Msg) (tea.Model, tea.Cmd) {
+	input := m.inputField
+	input.Width = max(1, m.viewWidth()-4)
+	input.Focus()
+	if key, ok := msg.(tea.KeyMsg); ok && key.Type == tea.KeySpace {
+		input.SetValue(input.Value() + " ")
+		input.CursorEnd()
+		m.inputField = input
+		m.input = input.Value()
+		return m, nil
+	}
+	var cmd tea.Cmd
+	input, cmd = input.Update(msg)
+	m.inputField = input
+	m.input = input.Value()
+	return m, cmd
+}
+
+func (m setupProfilesModel) setInput(value string) setupProfilesModel {
+	m.input = value
+	m.inputField.SetValue(value)
+	m.inputField.CursorEnd()
+	return m
+}
+
 func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 	if m.mode == setupProfilesModeWorkspaces {
 		if len(runes) != 1 {
@@ -800,19 +911,19 @@ func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 		case 'a':
 			m.mode = setupProfilesModeWorkspacePath
 			m.workspaceEditingIndex = -1
-			m.input = ""
+			m = m.setInput("")
 		case 'e':
 			if len(m.workspaceDraft) > 0 {
 				m.mode = setupProfilesModeWorkspacePath
 				m.workspaceEditingIndex = m.workspaceIndex
-				m.input = m.workspaceDraft[m.workspaceIndex]
+				m = m.setInput(m.workspaceDraft[m.workspaceIndex])
 			}
 		case 'x':
 			m = m.removeSelectedWorkspace()
 		case 'p':
 			m = m.setSelectedWorkspacePrimary()
 		case 'f':
-			return m.openWorkspaceBrowserPath(m.initialWorkspaceBrowserPath()), nil
+			return m.openWorkspaceBrowserPath(m.initialWorkspaceBrowserPath())
 		case 'b':
 			m.mode = setupProfilesModeBrowse
 		}
@@ -823,41 +934,38 @@ func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch runes[0] {
-		case 'j':
-			if m.workspaceBrowserIndex < len(m.workspaceBrowserEntries)-1 {
-				m.workspaceBrowserIndex++
-			}
-		case 'k':
-			if m.workspaceBrowserIndex > 0 {
-				m.workspaceBrowserIndex--
-			}
 		case 'b', 'q':
 			m.mode = setupProfilesModeWorkspaces
+			return m, nil
 		case 'u':
-			return m.openWorkspaceBrowserPath(filepath.Dir(m.workspaceBrowserPath)), nil
+			return m.openWorkspaceBrowserPath(filepath.Dir(m.workspacePicker.CurrentDirectory))
+		default:
+			var cmd tea.Cmd
+			m.workspacePicker, cmd = m.workspacePicker.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: runes})
+			return m, cmd
 		}
-		return m, nil
 	}
 	if m.mode == setupProfilesModeChannels {
 		if len(runes) != 1 {
 			return m, nil
 		}
 		switch runes[0] {
-		case 'j':
-			if m.channelIndex < len(setupProfilesChannelChoices)-1 {
-				m.channelIndex++
+		case 'j', 'k':
+			msg := tea.KeyMsg{Type: tea.KeyDown}
+			if runes[0] == 'k' {
+				msg = tea.KeyMsg{Type: tea.KeyUp}
 			}
-		case 'k':
-			if m.channelIndex > 0 {
-				m.channelIndex--
-			}
+			var cmd tea.Cmd
+			m.channelList, cmd = m.channelList.Update(msg)
+			m.channelIndex = m.channelList.Index()
+			return m, cmd
 		case 'q':
 			m.mode = setupProfilesModeBrowse
 		}
 		return m, nil
 	}
 	if m.mode != setupProfilesModeBrowse {
-		m.input += string(runes)
+		m = m.setInput(m.input + string(runes))
 		return m, nil
 	}
 	if len(runes) != 1 {
@@ -874,11 +982,11 @@ func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 		}
 	case 'n':
 		m.mode = setupProfilesModeAddProfile
-		m.input = ""
+		m = m.setInput("")
 	case 'r':
 		if m.state.ControlCenter {
 			m.mode = setupProfilesModeDisplayName
-			m.input = strings.TrimSpace(m.currentProfile().DisplayName)
+			m = m.setInput(strings.TrimSpace(m.currentProfile().DisplayName))
 		}
 	case 'w':
 		m = m.openWorkspaceEditor()
@@ -892,12 +1000,12 @@ func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 	case 'p':
 		if m.state.ControlCenter {
 			m.mode = setupProfilesModeProviderCredential
-			m.input = ""
+			m = m.setInput("")
 		}
 	case 't':
 		if m.state.ControlCenter {
 			m.mode = setupProfilesModeChannelCredential
-			m.input = ""
+			m = m.setInput("")
 		}
 	case 'a':
 		if !m.state.ControlCenter {
@@ -969,15 +1077,12 @@ func (m setupProfilesModel) handleEnter() (tea.Model, tea.Cmd) {
 			}
 		}
 		m.mode = setupProfilesModeWorkspaces
-		m.input = ""
+		m = m.setInput("")
 		return m, nil
 	case setupProfilesModeWorkspaceBrowser:
-		if len(m.workspaceBrowserEntries) == 0 {
-			m.mode = setupProfilesModeWorkspaces
-			return m, nil
-		}
-		selected := filepath.Join(m.workspaceBrowserPath, m.workspaceBrowserEntries[m.workspaceBrowserIndex])
-		return m.openWorkspaceBrowserPath(selected), nil
+		var cmd tea.Cmd
+		m.workspacePicker, cmd = m.workspacePicker.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		return m, cmd
 	case setupProfilesModeChannels:
 		m.result.Selected = m.currentProfile().Name
 		m.result.ChannelsSet = true
@@ -1013,7 +1118,7 @@ func (m setupProfilesModel) handleEnter() (tea.Model, tea.Cmd) {
 		}
 	}
 	m.mode = setupProfilesModeBrowse
-	m.input = ""
+	m = m.setInput("")
 	return m, nil
 }
 
@@ -1109,9 +1214,32 @@ func (m setupProfilesModel) writeCommandBar(b *strings.Builder) {
 	fmt.Fprintln(b, strings.Join(parts, "  "))
 }
 
+func (m setupProfilesModel) writeInputChrome(b *strings.Builder, label string, hint string) {
+	fmt.Fprintln(b)
+	input := m.inputField
+	input.Width = max(1, m.viewWidth()-4)
+	input.Placeholder = "…"
+	input.SetValue(m.input)
+	if m.viewWidth() < 40 {
+		value := m.input
+		if strings.TrimSpace(value) == "" {
+			value = "…"
+		}
+		fmt.Fprintf(b, "%s: %s\n", label, value)
+		return
+	}
+	fmt.Fprintln(b, tui.RenderTextInputChrome(tui.TextInputChrome{
+		Width: m.viewWidth(),
+		Label: label,
+		Hint:  hint + " · Enter save · Esc back",
+		Value: input.View(),
+		Skin:  tui.DefaultHermesSkin(),
+	}))
+}
+
 func (m setupProfilesModel) openWorkspaceEditor() setupProfilesModel {
 	m.mode = setupProfilesModeWorkspaces
-	m.input = ""
+	m = m.setInput("")
 	m.workspaceDraft = append([]string(nil), m.currentProfile().Workspaces...)
 	m.workspaceIndex = 0
 	m.workspaceEditingIndex = -1
@@ -1165,7 +1293,7 @@ func (m setupProfilesModel) initialWorkspaceBrowserPath() string {
 	return config.GormesHome()
 }
 
-func (m setupProfilesModel) openWorkspaceBrowserPath(path string) setupProfilesModel {
+func (m setupProfilesModel) openWorkspaceBrowserPath(path string) (setupProfilesModel, tea.Cmd) {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		path = m.initialWorkspaceBrowserPath()
@@ -1178,7 +1306,7 @@ func (m setupProfilesModel) openWorkspaceBrowserPath(path string) setupProfilesM
 	if err != nil {
 		m.err = err
 		m.mode = setupProfilesModeWorkspaces
-		return m
+		return m, nil
 	}
 	m.workspaceBrowserPath = path
 	m.workspaceBrowserEntries = m.workspaceBrowserEntries[:0]
@@ -1189,9 +1317,10 @@ func (m setupProfilesModel) openWorkspaceBrowserPath(path string) setupProfilesM
 	}
 	sort.Strings(m.workspaceBrowserEntries)
 	m.workspaceBrowserIndex = 0
+	m.workspacePicker = newSetupProfilesWorkspacePicker(path, min(10, m.viewHeight()-6))
 	m.mode = setupProfilesModeWorkspaceBrowser
 	m.err = nil
-	return m
+	return m, m.workspacePicker.Init()
 }
 
 func (m setupProfilesModel) selectWorkspaceBrowserEntry() setupProfilesModel {
@@ -1199,10 +1328,18 @@ func (m setupProfilesModel) selectWorkspaceBrowserEntry() setupProfilesModel {
 		m.mode = setupProfilesModeWorkspaces
 		return m
 	}
-	selected := filepath.Join(m.workspaceBrowserPath, m.workspaceBrowserEntries[m.workspaceBrowserIndex])
+	return m.selectWorkspaceBrowserPath(filepath.Join(m.workspaceBrowserPath, m.workspaceBrowserEntries[m.workspaceBrowserIndex]))
+}
+
+func (m setupProfilesModel) selectWorkspaceBrowserPath(selected string) setupProfilesModel {
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		m.mode = setupProfilesModeWorkspaces
+		return m
+	}
 	m.workspaceDraft = append(m.workspaceDraft, selected)
 	m.workspaceIndex = len(m.workspaceDraft) - 1
-	m.input = ""
+	m = m.setInput("")
 	m.mode = setupProfilesModeWorkspaces
 	return m
 }
@@ -1237,21 +1374,54 @@ func setupWorkspaceLabel(path string) string {
 	return label
 }
 
+func (m setupProfilesModel) writeChannelsList(b *strings.Builder) {
+	fmt.Fprintln(b, "\nChannels")
+	fmt.Fprintln(b, "Space toggle  j/k or Up/Down move  Enter done  q back")
+	fmt.Fprintln(b, "Channels attach this profile agent to Gormes messaging channels. Navivox routes through the Gormes Navivox channel, not directly to Goncho.")
+	m.channelList.SetSize(max(20, m.viewWidth()), max(3, min(8, m.viewHeight()-8)))
+	view := strings.TrimRight(m.channelList.View(), "\n")
+	if strings.TrimSpace(view) != "" {
+		for _, line := range strings.Split(view, "\n") {
+			trimmed := strings.TrimSpace(line)
+			for _, channel := range setupProfilesChannelChoices {
+				if strings.Contains(trimmed, channel) && m.channelDraft[channel] {
+					line += "  ✓"
+					break
+				}
+			}
+			fmt.Fprintln(b, line)
+		}
+	}
+}
+
+func setupProfilesSelectedChannel(model list.Model) string {
+	item, ok := model.SelectedItem().(setupChannelListItem)
+	if !ok {
+		return ""
+	}
+	return string(item)
+}
+
 func (m setupProfilesModel) writeWorkspaceBrowser(b *strings.Builder) {
 	fmt.Fprintln(b, "\nWorkspace folder browser")
-	fmt.Fprintf(b, "Current folder: %s\n", m.workspaceBrowserPath)
-	fmt.Fprintln(b, "Use Up/Down or j/k to choose a folder, Enter to open it, Space to select it, u for parent, b/q or Esc to return.")
-	if len(m.workspaceBrowserEntries) == 0 {
-		fmt.Fprintln(b, "  (no child folders)")
+	fmt.Fprintf(b, "Current folder: %s\n", m.workspacePicker.CurrentDirectory)
+	fmt.Fprintln(b, "Use ↑/↓ or j/k to choose, Enter open, Space to select, u parent, b/q or Esc back.")
+	view := strings.TrimRight(m.workspacePicker.View(), "\n")
+	if strings.TrimSpace(view) == "" || strings.Contains(view, "No Files Found") {
+		if len(m.workspaceBrowserEntries) == 0 {
+			fmt.Fprintln(b, "  (no child folders)")
+			return
+		}
+		for i, entry := range m.workspaceBrowserEntries {
+			cursor := " "
+			if i == m.workspaceBrowserIndex {
+				cursor = ">"
+			}
+			fmt.Fprintf(b, "%s %s/\n", cursor, entry)
+		}
 		return
 	}
-	for i, entry := range m.workspaceBrowserEntries {
-		cursor := " "
-		if i == m.workspaceBrowserIndex {
-			cursor = ">"
-		}
-		fmt.Fprintf(b, "%s %s/\n", cursor, entry)
-	}
+	fmt.Fprintln(b, view)
 }
 
 func appendSetupWorkspaceInput(current, path string) string {
@@ -1305,35 +1475,21 @@ func (m setupProfilesModel) View() string {
 	m.writeCommandActions(&b)
 	switch m.mode {
 	case setupProfilesModeAddProfile:
-		fmt.Fprintf(&b, "\nNew profile: %s", m.input)
+		m.writeInputChrome(&b, "New profile", "profile-name | optional display name")
 	case setupProfilesModeDisplayName:
-		fmt.Fprintf(&b, "\nDisplay name: %s", m.input)
+		m.writeInputChrome(&b, "Display name", "friendly name shown in channel routing")
 	case setupProfilesModeWorkspaces:
 		m.writeWorkspaceEditor(&b)
 	case setupProfilesModeWorkspacePath:
-		fmt.Fprintf(&b, "\nWorkspace path: %s", m.input)
+		m.writeInputChrome(&b, "Workspace path", "absolute folder path · f browse")
 	case setupProfilesModeWorkspaceBrowser:
 		m.writeWorkspaceBrowser(&b)
 	case setupProfilesModeProviderCredential:
-		fmt.Fprintf(&b, "\nProvider credential provider:credential_id: %s", m.input)
+		m.writeInputChrome(&b, "Provider credential", "provider:credential_id")
 	case setupProfilesModeChannelCredential:
-		fmt.Fprintf(&b, "\nChannel credential channel:credential_id: %s", m.input)
+		m.writeInputChrome(&b, "Channel credential", "channel:credential_id")
 	case setupProfilesModeChannels:
-		fmt.Fprintln(&b, "\nChannels")
-		fmt.Fprintln(&b, "Space toggle  j/k or Up/Down move  Enter done  q back")
-		fmt.Fprintln(&b, "Channels attach this profile agent to Gormes messaging channels. Navivox routes through the Gormes Navivox channel, not directly to Goncho.")
-		for i, channel := range setupProfilesChannelChoices {
-			cursor := " "
-			if i == m.channelIndex {
-				cursor = ">"
-			}
-			marker := "[ ]"
-			if m.channelDraft[channel] {
-				marker = "[x]"
-			}
-			fmt.Fprintf(&b, "%s %s %s\n", cursor, marker, channel)
-		}
-		fmt.Fprintln(&b, "Space toggle  j/k or Up/Down move  Enter done  q back")
+		m.writeChannelsList(&b)
 	}
 	return setupProfilesWrapView(b.String(), m.viewWidth(), m.viewHeight())
 }
@@ -1341,6 +1497,9 @@ func (m setupProfilesModel) View() string {
 func (m setupProfilesModel) controlCenterView() string {
 	if m.state.MigrationAvailable {
 		return m.controlCenterMigrationView()
+	}
+	if m.isTextInputMode() {
+		return m.controlCenterInputView()
 	}
 	var b strings.Builder
 	profile := m.currentProfile()
@@ -1361,41 +1520,49 @@ func (m setupProfilesModel) controlCenterView() string {
 	fmt.Fprintf(&b, "Workspaces: %s\n", setupProfilesWorkspaceSummary(profile.Workspaces))
 	fmt.Fprintf(&b, "Channels: %s\n", setupProfilesChannelsSummary(profile.ChannelDetails, profile.Channels))
 	fmt.Fprintf(&b, "Providers: %s\n", setupProfilesProvidersSummary(profile.Providers))
+	fmt.Fprintf(&b, "Setup progress: %s\n", setupProfilesProgressBar(profile, max(12, m.viewWidth()-16)))
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Tip: r rename, w edit workspace list, c connect Telegram/WhatsApp/Navivox. Drafts save only on Apply.")
 	fmt.Fprintln(&b)
 	m.writeCommandBar(&b)
 	switch m.mode {
 	case setupProfilesModeAddProfile:
-		fmt.Fprintf(&b, "\nNew profile id|display name: %s", m.input)
+		m.writeInputChrome(&b, "New profile", "profile-name | optional display name")
 	case setupProfilesModeDisplayName:
-		fmt.Fprintf(&b, "\nDisplay name: %s", m.input)
+		m.writeInputChrome(&b, "Display name", "friendly name shown in channel routing")
 	case setupProfilesModeWorkspaces:
 		m.writeWorkspaceEditor(&b)
 	case setupProfilesModeWorkspacePath:
-		fmt.Fprintf(&b, "\nWorkspace path: %s", m.input)
+		m.writeInputChrome(&b, "Workspace path", "absolute folder path · f browse")
 	case setupProfilesModeWorkspaceBrowser:
 		m.writeWorkspaceBrowser(&b)
 	case setupProfilesModeProviderCredential:
-		fmt.Fprintf(&b, "\nProvider credential/model provider|credential_id|default_model|allowed_models: %s", m.input)
+		m.writeInputChrome(&b, "Provider credential/model", "provider|credential_id|default_model|allowed_models")
 	case setupProfilesModeChannelCredential:
-		fmt.Fprintf(&b, "\nChannel credential/policy channel|credential_id|allowed_chats|allowed_users|require_mention|tool_progress: %s", m.input)
+		m.writeInputChrome(&b, "Channel credential/policy", "channel|credential_id|allowed_chats|allowed_users|require_mention|tool_progress")
 	case setupProfilesModeChannels:
-		fmt.Fprintln(&b, "\nChannels")
-		fmt.Fprintln(&b, "Space toggle  j/k or Up/Down move  Enter done  q back")
-		fmt.Fprintln(&b, "Channels attach this profile agent to Gormes messaging channels. Navivox routes through the Gormes Navivox channel, not directly to Goncho.")
-		for i, channel := range setupProfilesChannelChoices {
-			cursor := " "
-			if i == m.channelIndex {
-				cursor = ">"
-			}
-			marker := "[ ]"
-			if m.channelDraft[channel] {
-				marker = "[x]"
-			}
-			fmt.Fprintf(&b, "%s %s %s\n", cursor, marker, channel)
-		}
-		fmt.Fprintln(&b, "Space toggle  j/k or Up/Down move  Enter done  q back")
+		m.writeChannelsList(&b)
+	}
+	return setupProfilesWrapView(b.String(), m.viewWidth(), m.viewHeight())
+}
+
+func (m setupProfilesModel) controlCenterInputView() string {
+	var b strings.Builder
+	profile := m.currentProfile()
+	fmt.Fprintln(&b, "Profile Control Center — Setup profiles")
+	fmt.Fprintf(&b, "Agent: %s — %s\n", profile.Name, setupProfilesDisplayName(profile))
+	fmt.Fprintln(&b, "Draft input — Enter save, Esc back")
+	switch m.mode {
+	case setupProfilesModeAddProfile:
+		m.writeInputChrome(&b, "New profile", "profile-name | optional display name")
+	case setupProfilesModeDisplayName:
+		m.writeInputChrome(&b, "Display name", "friendly name shown in channel routing")
+	case setupProfilesModeWorkspacePath:
+		m.writeInputChrome(&b, "Workspace path", "absolute folder path · f browse")
+	case setupProfilesModeProviderCredential:
+		m.writeInputChrome(&b, "Provider credential/model", "provider|credential_id|default_model|allowed_models")
+	case setupProfilesModeChannelCredential:
+		m.writeInputChrome(&b, "Channel credential/policy", "channel|credential_id|allowed_chats|allowed_users|require_mention|tool_progress")
 	}
 	return setupProfilesWrapView(b.String(), m.viewWidth(), m.viewHeight())
 }
@@ -1567,7 +1734,9 @@ func setupProfilesWrapView(view string, width, height int) string {
 		}
 		out[i] = line
 	}
-	return strings.Join(out, "\n")
+	vp := viewport.New(width, max(1, min(height, len(out))))
+	vp.SetContent(strings.Join(out, "\n"))
+	return vp.View()
 }
 
 func setupProfilesWrapLine(line string, width int) []string {
@@ -1647,7 +1816,7 @@ func setupProfilesClampHeight(lines []string, width, height int) []string {
 			tailStart = i - 1
 			break
 		}
-		if strings.Contains(lines[i], "Workspace") || strings.Contains(lines[i], "New profile:") {
+		if strings.Contains(lines[i], "Workspace") || strings.Contains(lines[i], "New profile") || strings.Contains(lines[i], "Display name") || strings.Contains(lines[i], "credential") {
 			tailStart = i
 			break
 		}
@@ -1683,7 +1852,8 @@ func setupProfilesClampHeight(lines []string, width, height int) []string {
 func setupProfilesCompactChannelTail(lines []string, width int) []string {
 	out := []string{"Channels"}
 	for _, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), ">") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, ">") || strings.HasPrefix(trimmed, "│") || setupProfilesLineMentionsChannel(trimmed) {
 			out = append(out, line)
 			break
 		}
@@ -1695,6 +1865,15 @@ func setupProfilesCompactChannelTail(lines []string, width int) []string {
 		}
 	}
 	return out
+}
+
+func setupProfilesLineMentionsChannel(line string) bool {
+	for _, channel := range setupProfilesChannelChoices {
+		if strings.Contains(line, channel) {
+			return true
+		}
+	}
+	return false
 }
 
 func setupProfilesTrimToWidth(text string, width int) string {
@@ -1754,6 +1933,33 @@ func setupProfilesWorkspaceListOrEmpty(values []string) string {
 		return "(none)"
 	}
 	return strings.Join(out, ", ")
+}
+
+func setupProfilesProgressBar(profile setupProfileView, width int) string {
+	checks := 0
+	complete := 0
+	checks++
+	if setupProfilesDisplayName(profile) != "" {
+		complete++
+	}
+	checks++
+	if len(normalizeSetupProfilesTUIValues(profile.Workspaces)) > 0 {
+		complete++
+	}
+	checks++
+	if len(profile.ChannelDetails) > 0 || len(normalizeSetupProfilesTUIValues(profile.Channels)) > 0 {
+		complete++
+	}
+	checks++
+	if len(profile.Providers) > 0 {
+		complete++
+	}
+	if checks == 0 {
+		return ""
+	}
+	bar := progress.New(progress.WithoutPercentage())
+	bar.Width = max(4, width)
+	return bar.ViewAs(float64(complete) / float64(checks))
 }
 
 func setupProfilesChannelsSummary(channelDetails []setupChannelView, fallback []string) string {

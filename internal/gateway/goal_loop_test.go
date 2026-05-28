@@ -43,22 +43,6 @@ func (j *stubGoalJudge) callCount() int {
 }
 
 // loadGoal loads the current goal state from the manager.
-func loadGoal(t *testing.T, m *Manager, ch *fakeChannel) *session.GoalState {
-	t.Helper()
-	store, ok := m.goalStore()
-	if !ok {
-		t.Fatal("no goal store")
-	}
-	state, ok, err := session.LoadGoal(context.Background(), store, "sess-goal-test")
-	if err != nil {
-		t.Fatalf("LoadGoal: %v", err)
-	}
-	if !ok || state == nil {
-		t.Fatalf("goal state not found")
-	}
-	return state
-}
-
 func TestGoalJudgeFailOpen(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {

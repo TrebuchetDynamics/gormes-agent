@@ -253,13 +253,6 @@ func unquoteTTSProviderDotenvValue(raw string) string {
 }
 
 // httpTimeout returns the effective request timeout.
-func (c TTSProviderConfig) httpTimeout() time.Duration {
-	if c.Timeout > 0 {
-		return c.Timeout
-	}
-	return 60 * time.Second
-}
-
 // edgeTTSBaseURL returns the base URL for Edge TTS, allowing override for testing.
 func (c TTSProviderConfig) edgeTTSBaseURL() string {
 	if baseURL, _ := lookupTTSProviderEnv(c, "GORMES_TTS_EDGE_BASE_URL"); baseURL != "" {

@@ -59,10 +59,3 @@ func (m Model) emitMouseModeCmd(enabled bool) tea.Cmd {
 	}
 	return defaultMouseModeCmd(enabled)
 }
-
-func (m Model) mouseStatus() string {
-	if m.mouseTracking {
-		return "mouse: on"
-	}
-	return "mouse: disabled"
-}

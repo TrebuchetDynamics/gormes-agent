@@ -1002,67 +1002,6 @@ func loadFile(cfg *Config) error {
 	return migrateConfig(cfg)
 }
 
-type hermesConfigYAML struct {
-	Model     hermesModelConfigYAML               `yaml:"model"`
-	Web       hermesWebConfigYAML                 `yaml:"web"`
-	Browser   hermesBrowserConfigYAML             `yaml:"browser"`
-	Display   hermesDisplayConfigYAML             `yaml:"display"`
-	Security  hermesSecurityConfigYAML            `yaml:"security"`
-	Platforms map[string]hermesPlatformConfigYAML `yaml:"platforms"`
-	Streaming hermesStreamingConfigYAML           `yaml:"streaming"`
-}
-
-type hermesModelConfigYAML struct {
-	Default  string `yaml:"default"`
-	Provider string `yaml:"provider"`
-}
-
-type hermesWebConfigYAML struct {
-	Backend    string `yaml:"backend"`
-	UseGateway bool   `yaml:"use_gateway"`
-}
-
-type hermesBrowserConfigYAML struct {
-	CDPURL string `yaml:"cdp_url"`
-}
-
-type hermesDisplayConfigYAML struct {
-	ToolProgress          interface{}                          `yaml:"tool_progress"`
-	ToolProgressCommand   bool                                 `yaml:"tool_progress_command"`
-	Platforms             map[string]hermesDisplayPlatformYAML `yaml:"platforms"`
-	ToolProgressOverrides map[string]interface{}               `yaml:"tool_progress_overrides"`
-}
-
-type hermesDisplayPlatformYAML struct {
-	ToolProgress interface{} `yaml:"tool_progress"`
-}
-
-type hermesSecurityConfigYAML struct {
-	WebsiteBlocklist hermesWebsiteBlocklistYAML `yaml:"website_blocklist"`
-}
-
-type hermesWebsiteBlocklistYAML struct {
-	Enabled     bool     `yaml:"enabled"`
-	Domains     []string `yaml:"domains"`
-	SharedFiles []string `yaml:"shared_files"`
-}
-
-type hermesPlatformConfigYAML struct {
-	Enabled     bool                   `yaml:"enabled"`
-	Token       string                 `yaml:"token"`
-	APIKey      string                 `yaml:"api_key"`
-	HomeChannel hermesHomeChannelYAML  `yaml:"home_channel"`
-	Extra       map[string]interface{} `yaml:"extra"`
-}
-
-type hermesHomeChannelYAML struct {
-	ChatID interface{} `yaml:"chat_id"`
-}
-
-type hermesStreamingConfigYAML struct {
-	FreshFinalAfterSeconds *float64 `yaml:"fresh_final_after_seconds"`
-}
-
 func normalizeDisplayPlatformKey(platform string) string {
 	return strings.ToLower(strings.TrimSpace(platform))
 }
@@ -2042,22 +1981,6 @@ func XDGConfigHome() string {
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config")
-}
-
-func xdgDataHome() string {
-	if v := os.Getenv("XDG_DATA_HOME"); v != "" {
-		return v
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share")
-}
-
-func xdgStateHome() string {
-	if v := os.Getenv("XDG_STATE_HOME"); v != "" {
-		return v
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "state")
 }
 
 // GormesHome returns the native Gormes state/config root. GORMES_HOME wins;

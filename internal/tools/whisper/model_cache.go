@@ -62,10 +62,6 @@ func EnsureModel(ctx context.Context, model ModelArtifact, cacheDir string, clie
 	return path, nil
 }
 
-func validateModelArtifact(model ModelArtifact) error {
-	return modelCacheError(artifact.Validate(model))
-}
-
 func verifyModelFile(path string, model ModelArtifact) error {
 	return modelCacheError(artifact.Verify(path, model))
 }

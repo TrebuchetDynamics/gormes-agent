@@ -18,12 +18,12 @@ import (
 // the configured path/error or invokes a side-effect (used by the partial
 // file test to seed a real file that the handler must os.Remove).
 type recordingExportFunc struct {
-	calls   int
-	gotCtx  context.Context
-	gotID   string
+	calls        int
+	gotCtx       context.Context
+	gotID        string
 	beforeReturn func()
-	path    string
-	err     error
+	path         string
+	err          error
 }
 
 func (r *recordingExportFunc) call(ctx context.Context, sessionID string) (string, error) {

@@ -42,7 +42,11 @@ func (m Model) View() string {
 	if editorHeight < 1 {
 		editorHeight = 1
 	}
-	editorBlockH := editorHeight
+	composerChromeWidth := m.width
+	if !showComposerInputChrome(m.width, m.height) {
+		composerChromeWidth = 0
+	}
+	editorBlockH := editorHeight + composerInputChromeExtraRows(composerChromeWidth)
 	hint := m.renderHermesHint()
 	hintOverhead := 0
 	if hint != "" {
@@ -66,7 +70,14 @@ func (m Model) View() string {
 		editorW = 10
 	}
 	editor.SetWidth(editorW)
-	prompt := m.renderComposerPrompt(editor)
+	prompt := RenderComposerInputChrome(ComposerInputChrome{
+		Width:     composerChromeWidth,
+		Prompt:    m.renderComposerPrompt(editor),
+		Draft:     editor.Value(),
+		Skin:      m.currentSkin(),
+		Focused:   m.composerChatFocused(),
+		Multiline: editorHeight > 1,
+	})
 
 	statusBar := ""
 	statusBarMode := normalizeStatusBarMode(m.statusBarMode)
@@ -136,14 +147,6 @@ func (m Model) renderHermesHint() string {
 		return renderHermesHintWithExtensionWorking(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle, working, skin)
 	}
 	return renderHermesHintWithIndicatorForSkin(m.frame, m.statusMessage, m.width, m.spinnerFrame, m.indicatorStyle, skin)
-}
-
-func renderHermesHint(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int) string {
-	return renderHermesHintWithIndicator(f, statusMessage, width, spinnerFrame, IndicatorStyleKaomoji)
-}
-
-func renderHermesHintWithIndicator(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle) string {
-	return renderHermesHintWithIndicatorForSkin(f, statusMessage, width, spinnerFrame, indicator, DefaultHermesSkin())
 }
 
 func renderHermesHintWithIndicatorForSkin(f kernel.RenderFrame, statusMessage string, width int, spinnerFrame int, indicator IndicatorStyle, skin HermesSkin) string {
@@ -385,19 +388,6 @@ func turnIsActive(p kernel.Phase) bool {
 
 // conversationThinkingBlock reuses thinking.go's RenderThinking (it is not
 // reimplemented here) to render the live "reasoning" indicator.
-func conversationThinkingBlock(compact bool) string {
-	return conversationThinkingBlockWithMode(compact, DetailsModeExpanded)
-}
-
-func conversationThinkingBlockWithMode(compact bool, mode DetailsMode) string {
-	_, styles := conversationChatStyles(DefaultHermesSkin())
-	return conversationThinkingBlockWithModeAndStyles(compact, mode, styles)
-}
-
-func conversationThinkingBlockWithModeAndStyles(compact bool, mode DetailsMode, styles chatStyles) string {
-	return conversationThinkingBlockWithModeAndSkin(compact, mode, DefaultHermesSkin(), styles)
-}
-
 func conversationThinkingBlockWithModeAndSkin(compact bool, mode DetailsMode, skin HermesSkin, styles chatStyles) string {
 	if mode == DetailsModeHidden {
 		return ""
@@ -434,15 +424,6 @@ func lastAssistantContent(history []hermes.Message) string {
 		}
 	}
 	return ""
-}
-
-func conversationToolProgressBlock(f kernel.RenderFrame, wrapWidth int, compact bool) string {
-	return conversationToolProgressBlockWithMode(f, wrapWidth, compact, DetailsModeExpanded)
-}
-
-func conversationToolProgressBlockWithMode(f kernel.RenderFrame, wrapWidth int, compact bool, mode DetailsMode) string {
-	_, styles := conversationChatStyles(DefaultHermesSkin())
-	return conversationToolProgressBlockWithModeAndStyles(f, wrapWidth, compact, mode, styles)
 }
 
 func conversationToolProgressBlockWithModeAndStyles(f kernel.RenderFrame, wrapWidth int, compact bool, mode DetailsMode, styles chatStyles) string {
@@ -553,11 +534,6 @@ func conversationMessageBlockWithSkin(msg hermes.Message, wrapWidth int, compact
 	return transcriptRowWithSkin(msg.Role, content, skin, styles)
 }
 
-func conversationMessageBlockAt(history []hermes.Message, idx, wrapWidth int, compact bool) string {
-	skin, styles := conversationChatStyles(DefaultHermesSkin())
-	return conversationMessageBlockAtWithSkin(history, idx, wrapWidth, compact, skin, styles)
-}
-
 func conversationMessageBlockAtWithSkin(history []hermes.Message, idx, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
 	block := conversationMessageBlockWithSkin(history[idx], wrapWidth, compact, skin, styles)
 	if !compact && conversationNeedsTurnSeparator(history, idx) {
@@ -576,11 +552,6 @@ func conversationNeedsTurnSeparator(history []hermes.Message, idx int) bool {
 		}
 	}
 	return false
-}
-
-func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool) string {
-	_, styles := conversationChatStyles(DefaultHermesSkin())
-	return conversationToolResultBlockWithStyles(msg, wrapWidth, compact, styles)
 }
 
 func conversationToolResultBlockWithStyles(msg hermes.Message, wrapWidth int, compact bool, styles chatStyles) string {
@@ -627,11 +598,6 @@ func conversationToolResultBlockWithStyles(msg hermes.Message, wrapWidth int, co
 	return styles.ToolOutput.Render(strings.Join(out, "\n"))
 }
 
-func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
-	skin, styles := conversationChatStyles(DefaultHermesSkin())
-	return conversationDraftBlockWithSkin(draft, wrapWidth, compact, skin, styles)
-}
-
 func conversationDraftBlockWithSkin(draft string, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
 	if compact {
 		draft = compactViewportText(draft)
@@ -639,11 +605,6 @@ func conversationDraftBlockWithSkin(draft string, wrapWidth int, compact bool, s
 		draft = RenderMarkdownSoftWrapTrim(draft, wrapWidth)
 	}
 	return transcriptRowWithSkin("assistant", draft, skin, styles)
-}
-
-func conversationErrorBlock(lastError string, wrapWidth int, compact bool) string {
-	_, styles := conversationChatStyles(DefaultHermesSkin())
-	return conversationErrorBlockWithStyles(lastError, wrapWidth, compact, styles)
 }
 
 func conversationErrorBlockWithStyles(lastError string, wrapWidth int, compact bool, styles chatStyles) string {
@@ -677,11 +638,6 @@ func compactViewportText(s string) string {
 	return truncateEllipsis(strings.Join(strings.Fields(s), " "), 48)
 }
 
-func omittedHistorySentinel(count, width int) string {
-	_, styles := conversationChatStyles(DefaultHermesSkin())
-	return omittedHistorySentinelWithStyles(count, width, styles)
-}
-
 func omittedHistorySentinelWithStyles(count, width int, styles chatStyles) string {
 	text := fmt.Sprintf("... %d earlier history messages omitted ...", count)
 	if width >= 20 {
@@ -695,10 +651,6 @@ func renderedLineCount(s string) int {
 		return 0
 	}
 	return strings.Count(s, "\n") + 1
-}
-
-func conversationEmptyIntro(f kernel.RenderFrame, width int, compact bool) string {
-	return conversationEmptyIntroWithSkin(f, width, compact, DefaultHermesSkin())
 }
 
 func conversationEmptyIntroWithSkin(f kernel.RenderFrame, width int, compact bool, skin HermesSkin) string {
@@ -733,11 +685,6 @@ func buildInfoVersion() string {
 	return v
 }
 
-func transcriptRow(role, content string) string {
-	skin, styles := conversationChatStyles(DefaultHermesSkin())
-	return transcriptRowWithSkin(role, content, skin, styles)
-}
-
 func transcriptRowWithSkin(role, content string, skin HermesSkin, styles chatStyles) string {
 	glyph := transcriptGlyphForSkin(role, skin)
 	style := transcriptGlyphStyleForStyles(role, styles)
@@ -756,10 +703,6 @@ func transcriptRowWithSkin(role, content string, skin HermesSkin, styles chatSty
 		lines[i] = continuation + line
 	}
 	return strings.Join(lines, "\n")
-}
-
-func transcriptGlyph(role string) string {
-	return transcriptGlyphForSkin(role, DefaultHermesSkin())
 }
 
 func transcriptGlyphForSkin(role string, skin HermesSkin) string {
@@ -784,11 +727,6 @@ func transcriptGlyphForSkin(role string, skin HermesSkin) string {
 		return "·"
 	}
 	return role
-}
-
-func transcriptGlyphStyle(role string) lipgloss.Style {
-	_, styles := conversationChatStyles(DefaultHermesSkin())
-	return transcriptGlyphStyleForStyles(role, styles)
 }
 
 func transcriptGlyphStyleForStyles(role string, styles chatStyles) lipgloss.Style {
@@ -821,13 +759,6 @@ func shortSessionID(id string) string {
 		return id
 	}
 	return id[:8] + "…"
-}
-
-func statusSuffix(message string) string {
-	if message == "" {
-		return ""
-	}
-	return " · " + message
 }
 
 func (m Model) renderTodoPanel(width int) string {

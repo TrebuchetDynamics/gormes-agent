@@ -308,19 +308,6 @@ func itemPtr(item progressItem) *progress.Item {
 	return &view
 }
 
-func phaseAboveMax(phaseID string, maxPhase int) bool {
-	if maxPhase < 1 {
-		return false
-	}
-
-	phaseNum, ok := phaseNumber(phaseID)
-	if !ok {
-		return false
-	}
-
-	return phaseNum > maxPhase
-}
-
 func phaseNumber(phaseID string) (int, bool) {
 	phaseNum, err := strconv.Atoi(strings.TrimSpace(phaseID))
 	if err != nil {
@@ -328,10 +315,6 @@ func phaseNumber(phaseID string) (int, bool) {
 	}
 
 	return phaseNum, true
-}
-
-func phasePaused(phaseID string) bool {
-	return strings.TrimSpace(phaseID) == "7"
 }
 
 func firstNonEmpty(vals ...string) string {

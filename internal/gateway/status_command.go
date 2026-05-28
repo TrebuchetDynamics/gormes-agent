@@ -170,10 +170,6 @@ func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, fra
 	return sessionID
 }
 
-func generateStatusSessionID(now time.Time, ev InboundEvent) string {
-	return generateStatusSessionIDForKey(now, ev, ev.ChatKey())
-}
-
 func generateStatusSessionIDForKey(now time.Time, ev InboundEvent, key string) string {
 	stamp := now.Format("20060102_150405")
 	h := fnv.New32a()

@@ -293,17 +293,3 @@ func normalizeToolSequence(tools []string) []string {
 func toolSequenceKey(tools []string) string {
 	return strings.Join(tools, "\x00")
 }
-
-func toolsEqual(a, b []string) bool {
-	a = normalizeToolSequence(a)
-	b = normalizeToolSequence(b)
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
