@@ -212,14 +212,14 @@ func Apply(seed string, opts ApplyOptions) (ApplyResult, error) {
 }
 
 func defaultCreateProfile(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
-	if name == "default" || name == "main" {
+	if name == "main" {
 		return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
 	}
 	baseHome := config.GormesBaseHome()
 	sourceRoot := ""
 	if cloneAll {
 		var err error
-		sourceRoot, err = cli.ResolveProfileRuntimeRoot(baseHome, "default")
+		sourceRoot, err = cli.ResolveProfileRuntimeRoot(baseHome, "main")
 		if err != nil {
 			return cli.ProfileCreateResult{}, err
 		}

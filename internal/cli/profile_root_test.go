@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-func TestResolveProfileRoot_DefaultProfile(t *testing.T) {
-	got, err := ResolveProfileRoot("default", "/tmp/cfg")
+func TestResolveProfileRoot_MainProfile(t *testing.T) {
+	got, err := ResolveProfileRoot("main", "/tmp/cfg")
 	if err != nil {
-		t.Fatalf("ResolveProfileRoot(default, /tmp/cfg) err = %v, want nil", err)
+		t.Fatalf("ResolveProfileRoot(main, /tmp/cfg) err = %v, want nil", err)
 	}
-	if want := "/tmp/cfg/gormes"; got != want {
-		t.Fatalf("ResolveProfileRoot(default, /tmp/cfg) = %q, want %q", got, want)
+	if want := "/tmp/cfg/gormes/profiles/main"; got != want {
+		t.Fatalf("ResolveProfileRoot(main, /tmp/cfg) = %q, want %q", got, want)
 	}
 }
 
@@ -22,6 +22,16 @@ func TestResolveProfileRoot_NamedProfile(t *testing.T) {
 	}
 	if want := "/tmp/cfg/gormes/profiles/coder"; got != want {
 		t.Fatalf("ResolveProfileRoot(coder, /tmp/cfg) = %q, want %q", got, want)
+	}
+}
+
+func TestResolveProfileRoot_RejectsDefaultProfileName(t *testing.T) {
+	got, err := ResolveProfileRoot("default", "/tmp/cfg")
+	if !errors.Is(err, ErrProfileNameReserved) {
+		t.Fatalf("ResolveProfileRoot(default, /tmp/cfg) err = %v, want ErrProfileNameReserved", err)
+	}
+	if got != "" {
+		t.Fatalf("ResolveProfileRoot(default, /tmp/cfg) path = %q, want empty string", got)
 	}
 }
 
@@ -36,12 +46,12 @@ func TestResolveProfileRoot_RejectsInvalidName(t *testing.T) {
 }
 
 func TestResolveProfileRoot_RejectsEmptyXDGRoot(t *testing.T) {
-	got, err := ResolveProfileRoot("default", "")
+	got, err := ResolveProfileRoot("main", "")
 	if !errors.Is(err, ErrProfileXDGRootRequired) {
-		t.Fatalf("ResolveProfileRoot(default, \"\") err = %v, want ErrProfileXDGRootRequired", err)
+		t.Fatalf("ResolveProfileRoot(main, \"\") err = %v, want ErrProfileXDGRootRequired", err)
 	}
 	if got != "" {
-		t.Fatalf("ResolveProfileRoot(default, \"\") path = %q, want empty string", got)
+		t.Fatalf("ResolveProfileRoot(main, \"\") path = %q, want empty string", got)
 	}
 }
 

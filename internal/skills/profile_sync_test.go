@@ -13,7 +13,7 @@ func TestBundledSkillProfileSyncWritesActiveAndNamedProfiles(t *testing.T) {
 	bundledRoot := t.TempDir()
 	writeProfileSyncSkill(t, bundledRoot, "productivity", "reviewer", "Review docs")
 
-	defaultRoot := filepath.Join(t.TempDir(), "default")
+	mainRoot := filepath.Join(t.TempDir(), "main")
 	activeRoot := filepath.Join(t.TempDir(), "active")
 	workRoot := filepath.Join(t.TempDir(), "work")
 
@@ -21,7 +21,7 @@ func TestBundledSkillProfileSyncWritesActiveAndNamedProfiles(t *testing.T) {
 		BundledRoot: bundledRoot,
 		Profiles: []SkillProfileRoot{
 			{Name: "active", Root: activeRoot},
-			{Name: "default", Root: defaultRoot},
+			{Name: "main", Root: mainRoot},
 			{Name: "work", Root: workRoot},
 		},
 	})
@@ -29,11 +29,11 @@ func TestBundledSkillProfileSyncWritesActiveAndNamedProfiles(t *testing.T) {
 		t.Fatalf("SyncBundledSkillsToProfiles() error = %v", err)
 	}
 
-	for _, root := range []string{activeRoot, defaultRoot, workRoot} {
+	for _, root := range []string{activeRoot, mainRoot, workRoot} {
 		assertProfileSkillBody(t, root, "productivity", "reviewer", "Review docs")
 	}
 	gotProfiles := profileSyncSummaryNames(report.Summaries)
-	wantProfiles := []string{"active", "default", "work"}
+	wantProfiles := []string{"active", "main", "work"}
 	if !reflect.DeepEqual(gotProfiles, wantProfiles) {
 		t.Fatalf("profiles = %#v, want %#v", gotProfiles, wantProfiles)
 	}

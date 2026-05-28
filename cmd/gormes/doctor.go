@@ -1134,7 +1134,7 @@ func doctorGonchoProfileName(home string) string {
 			return name
 		}
 	}
-	return "default"
+	return config.DefaultProfileID
 }
 
 func doctorGormesDisplayPath(path string) string {

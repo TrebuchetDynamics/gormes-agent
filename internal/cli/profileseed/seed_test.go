@@ -105,14 +105,14 @@ func TestProfileSeedDefaultCreateProfileUsesBaseHomeFromProfileScopedEnv(t *test
 	}
 }
 
-func TestProfileSeedDefaultCreateProfileCloneAllUsesMaterializedDefaultSource(t *testing.T) {
+func TestProfileSeedDefaultCreateProfileCloneAllUsesMaterializedMainSource(t *testing.T) {
 	base := filepath.Join(t.TempDir(), ".gormes")
-	materializedDefault := filepath.Join(base, "profiles", "default")
+	materializedDefault := filepath.Join(base, "profiles", "main")
 	if err := os.MkdirAll(materializedDefault, 0o700); err != nil {
-		t.Fatalf("mkdir materialized default profile: %v", err)
+		t.Fatalf("mkdir materialized main profile: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(materializedDefault, "config.toml"), []byte("model = 'materialized'\n"), 0o600); err != nil {
-		t.Fatalf("write materialized default config: %v", err)
+		t.Fatalf("write materialized main config: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(base, "legacy-only.txt"), []byte("legacy"), 0o600); err != nil {
 		t.Fatalf("write legacy marker: %v", err)

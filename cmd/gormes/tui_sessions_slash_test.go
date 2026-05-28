@@ -16,8 +16,10 @@ import (
 func TestTUISessionsSlashBindingLocalModelReceivesSessionDirectory(t *testing.T) {
 	seedSessionsCommandDB(t, []sessionCommandSeed{
 		{id: "sess-alpha", title: "Alpha Work", role: "user", content: "preview alpha", ts: 100},
-		{id: "sess-beta", title: "Beta Work", role: "user", content: "preview beta", ts: 200},
+		{id: "sess-beta", title: "Beta Work", role: "user", content: "preview beta", ts: 200, turnKey: "beta-user"},
+		{id: "sess-beta", title: "Beta Work", role: "user", content: "preview beta", ts: 200, chatID: "user"},
 	})
+	writeSessionMirrorIndex(t, "sess-beta", "telegram")
 	cfg, err := config.Load(nil)
 	if err != nil {
 		t.Fatalf("Load config: %v", err)
@@ -54,8 +56,8 @@ func TestTUISessionsSlashBindingLocalModelReceivesSessionDirectory(t *testing.T)
 	if len(entries) != 1 {
 		t.Fatalf("SessionDirectory returned %d entries, want limit 1: %+v", len(entries), entries)
 	}
-	if entries[0].ID != "sess-beta" || entries[0].Title != "Beta Work" || entries[0].Preview != "preview beta" || entries[0].MessageCount != 1 {
-		t.Fatalf("SessionDirectory entry = %+v, want newest Beta Work entry", entries[0])
+	if entries[0].ID != "sess-beta" || entries[0].Title != "Beta Work" || entries[0].Preview != "preview beta" || entries[0].Source != "telegram" || entries[0].MessageCount != 1 {
+		t.Fatalf("SessionDirectory entry = %+v, want newest deduped Telegram Beta Work entry", entries[0])
 	}
 }
 

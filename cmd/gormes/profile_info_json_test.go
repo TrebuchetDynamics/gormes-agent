@@ -20,7 +20,7 @@ import (
 func TestGormesProfileInfo_JSONEmitsStructuredManifest(t *testing.T) {
 	const root = "/home/operator-secret/.config/gormes/profiles/work"
 	fake := &profileCommandFakeSeams{
-		knownProfiles: []string{"default", "work"},
+		knownProfiles: []string{"main", "work"},
 		resolveProfileRoot: func(name string) (string, error) {
 			return root, nil
 		},
@@ -87,11 +87,11 @@ func TestGormesProfileInfo_JSONEmitsStructuredManifest(t *testing.T) {
 // `profile show --json`'s `omitempty` shape.
 func TestGormesProfileInfo_JSONOmitsDistributionWhenAbsent(t *testing.T) {
 	fake := &profileCommandFakeSeams{
-		knownProfiles: []string{"default"},
+		knownProfiles: []string{"main"},
 		// distributionByRoot left nil → ReadDistributionManifest returns
 		// hasManifest=false.
 	}
-	stdout, _, err := runProfileTestCommand(t, fake.defaults(), "info", "default", "--json")
+	stdout, _, err := runProfileTestCommand(t, fake.defaults(), "info", "main", "--json")
 	if err != nil {
 		t.Fatalf("profile info default --json (no manifest): %v", err)
 	}

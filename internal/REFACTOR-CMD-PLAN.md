@@ -4,9 +4,10 @@ Date: 2026-05-23
 
 Status: **primary consolidation closed on `development`.** The first-pass
 topology budgets are met and guarded by `internal/internal_topology_test.go`;
-the closeout guard now also keeps `cmd/gormes` at or below 34 direct
-`internal/...` imports after moving setup module ownership constants behind the
-`internal/cli/gormescli` surface. Stretch targets remain optional follow-up work;
+the closeout guard now also keeps `cmd/gormes` at or below 35 direct
+`internal/...` imports after adding the explicit `internal/tuiadapter` runtime
+adapter seam for TUI wiring and moving setup module ownership constants behind
+the `internal/cli/gormescli` surface. Stretch targets remain optional follow-up work;
 this file is not a side backlog and does not authorize runtime behavior changes.
 
 Branch rule: work only on `development`. Do not create feature branches or

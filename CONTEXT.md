@@ -82,6 +82,10 @@ _Avoid_: Pi parity, dual parity target, Pi compatibility contract
 The composer recall surface for submitted operator inputs; it is distinct from transcript viewing and never means browsing assistant messages.
 _Avoid_: transcript history, message history, shell history
 
+**TUI Runtime Adapter Bundle**:
+The local startup assembly for native TUI adapters that connect the chat TUI to runtime capabilities such as sessions, tools, skills, logs, model selection, account usage, voice, skin, and prompt templates. It preserves the TUI as a display/input module while concentrating runtime wiring outside the Bubble Tea model. It owns adapter wiring only; command startup, config loading, kernel construction, and Bubble Tea program creation remain outside the bundle. The first deepening slice should move one coherent adapter family rather than all TUI options at once; session adapters are the preferred first family, followed by model adapters and tool/skill adapters. Its first home is `internal/tuiadapter`, a command/runtime seam outside `internal/tui`, so the display module stays free of config, session database, and kernel construction knowledge. A bundle applies adapter families onto an existing `tui.Options` value so extraction can proceed incrementally. The session adapter family includes reset/resume functions provided by the already-built kernel because they are session-facing operator actions. Tests should first prove bundle application directly, then rely on existing startup characterization tests for end-to-end wiring.
+_Avoid_: scattered TUI option wiring, config-aware TUI model, slash adapter sprawl, kernel-owning TUI bundle
+
 ### Navivox Channel Contract
 
 **Navivox Capability Gate**:
@@ -168,13 +172,41 @@ Domain expert: "No. Up and Down operate on TUI Input History; transcript viewing
 
 ### Home Layout & Profile Storage
 
+**Main Profile**:
+The built-in first Gormes profile. Its identifier is `main`, its runnable home is `$GORMES_BASE_HOME/profiles/main/`, and Gormes-owned profile commands should use `main` rather than treating `default` as a profile alias.
+_Avoid_: default profile, root profile, base-home profile
+
+**Profile Identity Default**:
+The default profile identity used by Gormes-owned profile, setup, gateway, doctor, Navivox, chat, and profile-storage commands. It is always the Main Profile (`main`) and does not rename unrelated defaults such as skins, kanban boards, secret provider aliases, config fallback values, or upstream Hermes documentation examples.
+_Avoid_: global default rename, default profile alias, unrelated default cleanup
+
+**Reserved Profile Name**:
+A string Gormes refuses as a user-created profile id because it would blur the Main Profile contract or a command namespace. `default` is reserved and must not be created as a normal profile.
+_Avoid_: default alias, user profile named default, legacy profile recreation
+
 **Profile‑Rooted Database Path**:
-The convention for default `memory.db` and `sessions.db` paths: when a `profiles/main/` directory already exists on disk under `$GORMES_HOME`, default-path functions return paths under it (`profiles/main/memory.db`, etc.) instead of the root. This is a filesystem-probe trigger, not a directory-creation trigger, so existing default-profile users see no change until `gormes setup profiles` materialises the profile directory.
-_Avoid_: always-root DB paths, unconditional profile DB paths, automatic profile directory creation
+The convention for `memory.db` and `sessions.db` paths: profile runtime data lives under that profile's runnable home, including `profiles/main/memory.db` and `profiles/main/sessions.db` for the Main Profile.
+_Avoid_: root DB paths, filesystem-probe-triggered profile DBs, automatic sharing through base home
 
 **Profile Storage Contract**:
-The typed path resolver (`ProfileStorageContract`) used by gateway channels and profile commands to compute profile-local paths for memory DBs, session DBs, workspace dirs, cache dirs, and runtime state under `$GORMES_BASE_HOME/profiles/<name>/`. Since all profiles are active simultaneously and `GORMES_HOME` stays at the base home, the resolver is the canonical way to compute per-profile paths. Callers remain responsible for directory existence.
-_Avoid_: hardcoded path strings, per-command path resolution, GORMES_HOME-based profile scoping
+The typed path resolver (`ProfileStorageContract`) used by gateway channels and profile commands to compute profile-local paths for memory DBs, session DBs, workspace dirs, cache dirs, and runtime state under `$GORMES_BASE_HOME/profiles/<name>/`. Every runnable profile, including the Main Profile, uses this homogeneous layout. Callers remain responsible for directory existence.
+_Avoid_: hardcoded path strings, per-command path resolution, root-home runtime state
+
+**Profile Runtime Scope**:
+The complete active-profile boundary for a Gormes operation: profile identity, runnable home, runtime environment, memory DB, sessions DB, workspace default, channel ownership, and setup persistence. A command should enter exactly one Profile Runtime Scope before reading or writing profile-owned state. Pure global metadata commands may stay outside a scope; commands that inspect multiple profiles resolve one explicit scope per inspected profile.
+_Avoid_: scattered active-profile decisions, mixed profile roots, cross-profile runtime state
+
+**Multi-Profile Gateway Process**:
+One Gormes gateway OS process that can host multiple Profile Runtime Scopes at the same time. Profiles are isolation scopes inside the process, not one process per profile. The process keeps the base Gormes home as its global environment and resolves per-profile runtime scopes internally. A startup profile flag must not narrow gateway lifecycle commands; configured profile/channel bindings determine which profiles are hosted. Supplying a profile flag to a gateway lifecycle or gateway setup command is an operator error rather than a no-op; setup profile targeting belongs in setup/profile UI flows.
+_Avoid_: per-profile gateway process, one PID per profile, cross-profile state sharing, profile-home environment for gateway process state, single-profile gateway flag
+
+**Single-Profile Command Scope**:
+A command execution mode such as chat or TUI that operates as one profile. It may apply one Profile Runtime Scope to process environment for the duration of that command. Profile/config metadata commands and gateway lifecycle commands stay outside this mode.
+_Avoid_: multi-profile gateway mode, base-home-only runtime, unscoped profile state
+
+**Profile Runtime Scope Resolver**:
+The single Gormes service/API that derives a Profile Runtime Scope from operator input, sticky active profile state, and the Profile Storage Contract. It should be the only place that decides the runnable profile id and derived profile-owned paths for commands. It is pure path/identity resolution; command startup owns applying environment variables such as `GORMES_HOME`. It fails closed for invalid, reserved, or missing profile identities; setup and profile creation own materializing profile homes. A first-run startup path may explicitly ensure the Main Profile before resolution, but that creation is outside the resolver. Its first home is the existing CLI/profile boundary rather than a new package split. After the resolver-and-tests slice, the first callsite migration is process startup profile resolution because it mutates runtime environment for chat and gateway operations.
+_Avoid_: command-local profile resolution, duplicated active-profile fallback, ad hoc path derivation, hidden environment mutation, implicit runtime directory creation
 
 **Runtime Subdirectory**:
 `$GORMES_HOME/runtime/` — the canonical subdirectory for gateway lifecycle state (`gateway_state.json`, `gateway.pid`, `gateway-locks/*`, `gateway.log`). Separates transient runtime state from durable config and data.
@@ -193,7 +225,7 @@ A profile may declare multiple workspaces: a profile-local default (`$GORMES_HOM
 _Avoid_: single-workspace assumption, workspace as config-only path, template seeding into external repos
 
 **Profile Data Boundary**:
-The set of filesystem paths that are scoped per-profile: `memory/`, `sessions/`, `workspace/`, `cache/`, `runtime/`. These directories live under `$GORMES_HOME` (which is `$GORMES_BASE_HOME/profiles/<name>/` for named profiles) and are never shared between profiles.
+The set of filesystem paths that are scoped per-profile: `memory/`, `sessions/`, `workspace/`, `cache/`, `runtime/`. These directories live under the profile's runnable home (`$GORMES_BASE_HOME/profiles/<name>/`) and are never shared between profiles.
 _Avoid_: root-level data dirs, cross-profile data sharing
 
 **Credential Ownership Boundary**:

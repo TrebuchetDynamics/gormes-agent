@@ -1336,7 +1336,7 @@ fi
 			t.Fatalf("install output missing %q\n%s", want, out)
 		}
 	}
-	ledger, err := os.ReadFile(filepath.Join(home, ".gormes", "install.log.jsonl"))
+	ledger, err := os.ReadFile(filepath.Join(home, ".gormes", "lifecycle", "install.log.jsonl"))
 	if err != nil {
 		t.Fatalf("read install ledger: %v", err)
 	}
@@ -1440,7 +1440,7 @@ func TestInstallSH_RerunRestartsProfileGatewayServices(t *testing.T) {
 		}
 	}
 
-	ledger := readTextFile(t, filepath.Join(home, ".gormes", "install.log.jsonl"))
+	ledger := readTextFile(t, filepath.Join(home, ".gormes", "lifecycle", "install.log.jsonl"))
 	for _, want := range []string{
 		`"profile_gateways":[`,
 		`"unit":"gormes-gateway-mineru.service"`,

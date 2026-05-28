@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -173,6 +174,54 @@ func TestSessionListJSONEmptyDirectoryEmitsEmptyArray(t *testing.T) {
 	}
 }
 
+func TestSessionListAndExportDeduplicateMirroredChatRows(t *testing.T) {
+	seedSessionsCommandDB(t, []sessionCommandSeed{
+		{id: "sess-live", role: "user", content: "hello", ts: 100, turnKey: "turn-user"},
+		{id: "sess-live", role: "user", content: "hello", ts: 100, chatID: "user"},
+		{id: "sess-live", role: "assistant", content: "hi", ts: 101, turnKey: "turn-agent"},
+		{id: "sess-live", role: "assistant", content: "hi", ts: 101, chatID: "gormes"},
+	})
+	writeSessionMirrorIndex(t, "sess-live", "telegram")
+
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "list", "--json")
+	if err != nil {
+		t.Fatalf("session list --json: %v\nstderr=%s", err, stderr)
+	}
+	var list struct {
+		Sessions []struct {
+			ID           string `json:"id"`
+			Source       string `json:"source"`
+			MessageCount int    `json:"message_count"`
+		} `json:"sessions"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &list); err != nil {
+		t.Fatalf("list JSON: %v\nstdout=%s", err, stdout)
+	}
+	if len(list.Sessions) != 1 {
+		t.Fatalf("got %d sessions, want 1: %s", len(list.Sessions), stdout)
+	}
+	if list.Sessions[0].MessageCount != 2 {
+		t.Fatalf("message_count = %d, want deduped 2; stdout=%s", list.Sessions[0].MessageCount, stdout)
+	}
+	if list.Sessions[0].Source != "telegram" {
+		t.Fatalf("source = %q, want telegram from mirrored channel row", list.Sessions[0].Source)
+	}
+
+	export, stderr, err := runSessionsCommand(t, nil, "session", "export", "sess-live")
+	if err != nil {
+		t.Fatalf("session export: %v\nstderr=%s", err, stderr)
+	}
+	if !strings.Contains(export, "**Platform:** telegram") {
+		t.Fatalf("export should prefer session mirror source telegram:\n%s", export)
+	}
+	if !strings.Contains(export, "**Messages:** 2") {
+		t.Fatalf("export should report deduped message count 2:\n%s", export)
+	}
+	if strings.Contains(export, "## Turn 3") || strings.Count(export, "**User:** hello") != 1 || strings.Count(export, "**Agent:** hi") != 1 {
+		t.Fatalf("export contains duplicate mirrored turns:\n%s", export)
+	}
+}
+
 func TestSessionsBrowseFallback(t *testing.T) {
 	seedSessionsCommandDB(t, []sessionCommandSeed{
 		{id: "sess-alpha", title: "Alpha Work", role: "user", content: "preview alpha", ts: 100},
@@ -230,6 +279,8 @@ type sessionCommandSeed struct {
 	role    string
 	content string
 	ts      int64
+	chatID  string
+	turnKey string
 }
 
 // TestSessionDelete_JSONEmitsStructuredOutcome proves
@@ -359,6 +410,18 @@ func TestSessionPrune_JSONEmitsStructuredOutcome(t *testing.T) {
 	assertSessionCommandTurnCount(t, "old-session-2", 0)
 }
 
+func writeSessionMirrorIndex(t *testing.T, sessionID, source string) {
+	t.Helper()
+	path := config.SessionIndexMirrorPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("create session mirror dir: %v", err)
+	}
+	body := "# Auto-generated session index\nsessions:\n  " + source + ":42: " + sessionID + "\nlineage:\n  " + sessionID + ":\n    lineage_kind: primary\n    lineage_status: ok\n    source: " + source + "\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write session mirror: %v", err)
+	}
+}
+
 func seedSessionsCommandDB(t *testing.T, seeds []sessionCommandSeed) {
 	t.Helper()
 	dataHome := t.TempDir()
@@ -378,8 +441,8 @@ func seedSessionsCommandDB(t *testing.T, seeds []sessionCommandSeed) {
 			meta = `{"title":"` + seed.title + `"}`
 		}
 		if _, err := store.DB().Exec(
-			`INSERT INTO turns(session_id, role, content, ts_unix, chat_id, meta_json) VALUES (?, ?, ?, ?, '', NULLIF(?, ''))`,
-			seed.id, seed.role, seed.content, seed.ts, meta,
+			`INSERT INTO turns(session_id, role, content, ts_unix, chat_id, meta_json, turn_key) VALUES (?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''))`,
+			seed.id, seed.role, seed.content, seed.ts, seed.chatID, meta, seed.turnKey,
 		); err != nil {
 			t.Fatalf("seed session %s: %v", seed.id, err)
 		}

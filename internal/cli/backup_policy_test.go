@@ -77,7 +77,7 @@ func TestBackupManifestExclusions_SkipsCheckpointsAndSQLiteSidecars(t *testing.T
 		"sessions/abc/messages.db-journal",
 		"checkpoints/run-2025-04-29/state.json",
 		"checkpoints/cache.bin",
-		"profiles/default/config.toml",
+		"profiles/main/config.toml",
 		"memory/index.db",
 		"memory/index.db-wal",
 		"logs/gormes.log",
@@ -85,7 +85,7 @@ func TestBackupManifestExclusions_SkipsCheckpointsAndSQLiteSidecars(t *testing.T
 	}
 	wantIncluded := []string{
 		"sessions/abc/messages.db",
-		"profiles/default/config.toml",
+		"profiles/main/config.toml",
 		"memory/index.db",
 		"logs/gormes.log",
 	}

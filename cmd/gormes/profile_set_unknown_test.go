@@ -15,11 +15,11 @@ import (
 //
 // New contract: profile set must fail when the requested name is not
 // in ListKnownProfiles, with a hint listing the valid options.
-// "default" is always known (defaultListKnownProfiles guarantees it),
+// "main" is always known (defaultListKnownProfiles guarantees it),
 // so the existing happy path stays green.
 func TestGormesProfileSet_RejectsUnknownProfile(t *testing.T) {
 	fake := &profileCommandFakeSeams{
-		knownProfiles: []string{"default", "work"},
+		knownProfiles: []string{"main", "work"},
 	}
 	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "ghost")
 	if err == nil {
@@ -31,7 +31,7 @@ func TestGormesProfileSet_RejectsUnknownProfile(t *testing.T) {
 	}
 	// The error must mention at least one valid profile so operators
 	// can self-correct without a separate `profile list` lookup.
-	if !strings.Contains(combined, "default") {
+	if !strings.Contains(combined, "main") {
 		t.Errorf("error must list known profiles to guide the operator; got %s", combined)
 	}
 	// Must NOT have written the marker — the operator's previous
@@ -43,11 +43,11 @@ func TestGormesProfileSet_RejectsUnknownProfile(t *testing.T) {
 
 // TestGormesProfileSet_AcceptsKnownProfile is the regression fence:
 // the new validation must not break the happy path. Setting a known
-// profile (e.g. "default" or any directory under ~/.gormes/profiles)
+// profile (e.g. "main" or any directory under ~/.gormes/profiles)
 // must still succeed with exit 0 and write the marker.
 func TestGormesProfileSet_AcceptsKnownProfile(t *testing.T) {
 	fake := &profileCommandFakeSeams{
-		knownProfiles: []string{"default", "work"},
+		knownProfiles: []string{"main", "work"},
 	}
 	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "work")
 	if err != nil {
@@ -58,15 +58,15 @@ func TestGormesProfileSet_AcceptsKnownProfile(t *testing.T) {
 	}
 }
 
-// TestGormesProfileSet_DefaultProfileAlwaysAccepted: even when the
-// known list returned only "default" (fresh-install state), `profile
+// TestGormesProfileSet_MainProfileAlwaysAccepted: even when the
+// known list returned only "main" (fresh-install state), `profile
 // set default` must succeed. Guards against a regression that locks
 // operators out of the bootstrap profile.
-func TestGormesProfileSet_DefaultProfileAlwaysAccepted(t *testing.T) {
+func TestGormesProfileSet_MainProfileAlwaysAccepted(t *testing.T) {
 	fake := &profileCommandFakeSeams{
-		knownProfiles: []string{"default"},
+		knownProfiles: []string{"main"},
 	}
-	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "default")
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "main")
 	if err != nil {
 		t.Fatalf("profile set default must always succeed: %v\nstdout=%s stderr=%s", err, stdout, stderr)
 	}

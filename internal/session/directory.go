@@ -721,6 +721,7 @@ func ListDirectorySessions(ctx context.Context, db *sql.DB, filter DirectoryFilt
 	defer rows.Close()
 
 	byID := make(map[string]*DirectoryEntry)
+	seenTurns := make(map[string]struct{})
 	for rows.Next() {
 		var id, role, content, chatID, metaJSON string
 		var ts int64
@@ -750,15 +751,20 @@ func ListDirectorySessions(ctx context.Context, db *sql.DB, filter DirectoryFilt
 		if entry.Source == "" || entry.Source == "cli" {
 			entry.Source = sourceFromDirectoryChatID(chatID)
 		}
+		if entry.Title == "" {
+			entry.Title = titleFromDirectoryMeta(metaJSON)
+		}
+		dedupeKey := directoryTurnDedupeKey(id, role, content, ts)
+		if _, ok := seenTurns[dedupeKey]; ok {
+			continue
+		}
+		seenTurns[dedupeKey] = struct{}{}
 		entry.MessageCount++
 		if entry.Preview == "" && strings.TrimSpace(role) == "user" {
 			entry.Preview = strings.TrimSpace(content)
 		}
 		if entry.Preview == "" {
 			entry.Preview = strings.TrimSpace(content)
-		}
-		if entry.Title == "" {
-			entry.Title = titleFromDirectoryMeta(metaJSON)
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -866,6 +872,10 @@ func PruneDirectorySessions(ctx context.Context, db *sql.DB, cutoffUnix int64, s
 		}
 	}
 	return len(ids), nil
+}
+
+func directoryTurnDedupeKey(sessionID, role, content string, ts int64) string {
+	return strings.Join([]string{sessionID, strings.TrimSpace(role), fmt.Sprintf("%d", ts), content}, "\x00")
 }
 
 func sourceFromDirectoryChatID(chatID string) string {

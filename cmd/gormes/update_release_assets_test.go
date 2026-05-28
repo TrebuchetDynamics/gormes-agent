@@ -53,7 +53,7 @@ func TestUpdateReleaseAssetsCommandRunsAssetSkillSyncAfterBinaryUpdate(t *testin
 			return "/tmp/assets", nil
 		},
 		ReleaseSkillProfiles: func() ([]skills.SkillProfileRoot, error) {
-			return []skills.SkillProfileRoot{{Name: "default", Root: "/tmp/profile"}}, nil
+			return []skills.SkillProfileRoot{{Name: "main", Root: "/tmp/profile"}}, nil
 		},
 		RunReleaseAssetSkillSync: func(_ context.Context, opts cli.UpdateReleaseAssetSkillSyncOptions) cli.UpdateReleaseAssetSkillSyncReport {
 			syncCalled = true

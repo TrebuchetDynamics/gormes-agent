@@ -53,6 +53,10 @@ func DefaultFiles() []FileTemplate {
 }
 
 func ApplyDefaultTemplates(opts WriteOptions) (WriteResult, error) {
+	return ApplyTemplates(opts, DefaultFiles())
+}
+
+func ApplyTemplates(opts WriteOptions, files []FileTemplate) (WriteResult, error) {
 	target := strings.TrimSpace(opts.TargetDir)
 	if target == "" {
 		return WriteResult{}, ErrTargetRequired
@@ -60,10 +64,10 @@ func ApplyDefaultTemplates(opts WriteOptions) (WriteResult, error) {
 	target = filepath.Clean(target)
 	result := WriteResult{
 		TargetDir: target,
-		Files:     make([]FileResult, 0, len(defaultFiles)),
+		Files:     make([]FileResult, 0, len(files)),
 	}
 
-	for _, file := range defaultFiles {
+	for _, file := range files {
 		abs, err := templateTargetPath(target, file.Path)
 		if err != nil {
 			return result, err

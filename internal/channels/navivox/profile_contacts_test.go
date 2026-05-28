@@ -21,17 +21,18 @@ func TestNavivoxProfileContactSnapshotIsAuthBoundedAndRedacted(t *testing.T) {
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	defaultWorkspace := filepath.Join(home, "workspace-main")
+	defaultRoot := filepath.Join(home, "profiles", "main")
+	defaultWorkspace := filepath.Join(defaultRoot, "workspace-main")
 	if err := os.MkdirAll(defaultWorkspace, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte(`
+	if err := os.WriteFile(filepath.Join(defaultRoot, "config.toml"), []byte(`
 [hermes]
 provider = "openrouter"
 model = "openai/gpt-4o"
 
 [agents.defaults]
-workspaces = ["`+defaultWorkspace+`", "`+filepath.Join(home, "missing-secret-root")+`"]
+workspaces = ["`+defaultWorkspace+`", "`+filepath.Join(defaultRoot, "missing-secret-root")+`"]
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -63,8 +64,8 @@ workspace = "`+filepath.Join(workRoot, "workspace")+`"
 
 	var snapshot profileContactSnapshot
 	httpc.JSON(http.MethodGet, "/v1/navivox/profile-contacts", "", http.StatusOK, &snapshot)
-	if got := profileContactIDs(snapshot.Contacts); !slices.Equal(got, []string{"default", "work"}) {
-		t.Fatalf("contact IDs = %v, want default/work", got)
+	if got := profileContactIDs(snapshot.Contacts); !slices.Equal(got, []string{"main", "work"}) {
+		t.Fatalf("contact IDs = %v, want main/work", got)
 	}
 	defaultContact := snapshot.Contacts[0]
 	if defaultContact.WorkspaceRootCount != 2 || defaultContact.WorkspaceRootsWarning != 1 || defaultContact.WorkspaceRootsOK {
@@ -95,10 +96,10 @@ func TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview(t *testing.T
 	ch.loadContacts = func(context.Context) ([]ProfileContact, error) {
 		return []ProfileContact{{
 			ServerID:           navivoxDefaultServerID,
-			ProfileID:          "default",
-			DisplayName:        "Default profile",
+			ProfileID:          "main",
+			DisplayName:        "Gormes profile",
 			ServerLabel:        navivoxDefaultServerLabel,
-			AvatarSeed:         navivoxDefaultServerID + ":default",
+			AvatarSeed:         navivoxDefaultServerID + ":main",
 			LatestPreview:      "Ready",
 			LatestPreviewKind:  "status",
 			Health:             ProfileContactHealthOnline,
@@ -121,7 +122,7 @@ func TestNavivoxProfileContactWebSocketUpdateSanitizesLatestPreview(t *testing.T
 		Text:      secretText,
 		Metadata: map[string]any{
 			"server_id":  navivoxDefaultServerID,
-			"profile_id": "default",
+			"profile_id": "main",
 		},
 	}); err != nil {
 		t.Fatal(err)

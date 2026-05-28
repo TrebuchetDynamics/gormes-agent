@@ -35,6 +35,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tuiadapter"
 )
 
 func main() {
@@ -575,6 +576,13 @@ func emitJSONSubcommandRequired(cmd *cobra.Command) error {
 func applyProfileStartupFlag(cmd *cobra.Command) error {
 	baseHome := config.GormesBaseHome()
 	name := strings.TrimSpace(commandStringFlag(cmd, "profile"))
+	profileFlagSet := commandFlagChanged(cmd, "profile")
+	if commandIsGateway(cmd) {
+		if profileFlagSet {
+			return newExitCodeError(2, fmt.Errorf("gateway commands are process-scoped and do not accept --profile; configure hosted profiles through setup/profile channel bindings"))
+		}
+		return nil
+	}
 	if name == "" {
 		if commandSkipsStickyActiveProfile(cmd) {
 			return nil
@@ -612,7 +620,16 @@ func startupProfileRoot(baseHome, name string) (string, error) {
 func commandSkipsStickyActiveProfile(cmd *cobra.Command) bool {
 	for c := cmd; c != nil; c = c.Parent() {
 		switch c.Name() {
-		case "profile", "config":
+		case "profile", "config", "gateway":
+			return true
+		}
+	}
+	return false
+}
+
+func commandIsGateway(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		if c.Name() == "gateway" {
 			return true
 		}
 	}
@@ -866,6 +883,40 @@ func commandStringFlag(cmd *cobra.Command, name string) string {
 		}
 	}
 	return ""
+}
+
+func commandFlagChanged(cmd *cobra.Command, name string) bool {
+	if cmd == nil {
+		return false
+	}
+	if flags := cmd.Flags(); flags != nil {
+		if flag := flags.Lookup(name); flag != nil && flag.Changed {
+			return true
+		}
+	}
+	if flags := cmd.PersistentFlags(); flags != nil {
+		if flag := flags.Lookup(name); flag != nil && flag.Changed {
+			return true
+		}
+	}
+	if flags := cmd.InheritedFlags(); flags != nil {
+		if flag := flags.Lookup(name); flag != nil && flag.Changed {
+			return true
+		}
+	}
+	if root := cmd.Root(); root != nil && root != cmd {
+		if flags := root.Flags(); flags != nil {
+			if flag := flags.Lookup(name); flag != nil && flag.Changed {
+				return true
+			}
+		}
+		if flags := root.PersistentFlags(); flags != nil {
+			if flag := flags.Lookup(name); flag != nil && flag.Changed {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func forcedSkillNames(cmd *cobra.Command) []string {
@@ -1372,45 +1423,54 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	}
 
 	welcomeVersion, welcomeToolCount, welcomeToolsets := welcomeStartupSeed(registry)
-	model := tui.NewModelWithOptions(hookedFrames, submit, cancelTurn, tui.Options{
-		MouseTracking:  cfg.TUI.MouseTracking,
-		VoiceRecordKey: cfg.Voice.RecordKey,
-		VoiceToggle:    newTUIVoiceToggleFunc(cfg),
-		SkinName:       cfg.TUI.Theme,
-		SkinConfig:     newTUISkinConfigFunc(cfg),
-		SessionExport:  newTUISaveExportFunc(),
-		SessionBranch:  newTUIBranchFunc(rootCtx, boltMap, k.ResumeSession),
-		KanbanSlash: func(input string) (string, error) {
-			return runTUIKanbanSlashCommand(rootCtx, input)
+	tuiOptions := tui.Options{
+		MouseTracking:    cfg.TUI.MouseTracking,
+		KanbanSlash:      func(input string) (string, error) { return runTUIKanbanSlashCommand(rootCtx, input) },
+		PromptTemplates:  tuiPromptTemplateCatalog(cfg, "", promptTemplateCatalogOptions{Paths: invocation.PromptTemplatePaths, Disabled: invocation.NoPromptTemplates}),
+		GatewayLogTail:   readLogsTail,
+		AccountUsage:     newTUIAccountUsageFunc(cfg),
+		OfflineSmoke:     offline,
+		StartupNotice:    startupNotice,
+		BusyInputMode:    tui.HermesBusyInputMode(cfg.Display.BusyInputMode),
+		Steer:            steerTurn,
+		WelcomeVersion:   welcomeVersion,
+		WelcomeToolCount: welcomeToolCount,
+		WelcomeToolsets:  welcomeToolsets,
+	}
+	tuiadapter.RuntimeBundle{
+		Presentation: tuiadapter.PresentationBundle{
+			VoiceRecordKey: cfg.Voice.RecordKey,
+			VoiceToggle:    newTUIVoiceToggleFunc(cfg),
+			SkinName:       cfg.TUI.Theme,
+			SkinConfig:     newTUISkinConfigFunc(cfg),
 		},
-		SkillsCommand: func(input string) string {
-			return gateway.HandleSkillsCommandWithOptions(rootCtx, input, skillsCommandOptionsForConfig(cfg))
+		Model: tuiadapter.ModelBundle{
+			SetSessionModel: k.SetSessionModel,
+			Catalog:         tui.DefaultModelPickerCatalog,
+			Provider:        providerName,
+			Name:            modelName,
 		},
-		SkillSlashCommands:  tuiSkillSlashCommands(rootCtx, cfg),
-		SkillSlashReload:    tuiSkillSlashReloadFunc(cfg),
-		PromptTemplates:     tuiPromptTemplateCatalog(cfg, "", promptTemplateCatalogOptions{Paths: invocation.PromptTemplatePaths, Disabled: invocation.NoPromptTemplates}),
-		GatewayLogTail:      readLogsTail,
-		SessionTitle:        newTUITitleFunc(rootCtx, boltMap),
-		SessionDirectory:    newTUISessionDirectoryFunc(rootCtx),
-		SessionResume:       newTUIResumeSessionFunc(rootCtx, k.ResumeSession),
-		SessionTree:         newTUISessionTreeFunc(rootCtx, boltMap),
-		SessionTreeLabel:    newTUISessionTreeLabelFunc(rootCtx, boltMap),
-		SessionTreeRestore:  newTUISessionTreeRestoreFunc(rootCtx),
-		AccountUsage:        newTUIAccountUsageFunc(cfg),
-		ToolsConfigure:      newTUIToolsConfigureFunc(),
-		SetSessionModelFunc: k.SetSessionModel,
-		ModelPickerCatalog:  tui.DefaultModelPickerCatalog,
-		SessionReset:        k.ResetSession,
-		ModelProvider:       providerName,
-		ModelName:           modelName,
-		OfflineSmoke:        offline,
-		StartupNotice:       startupNotice,
-		BusyInputMode:       tui.HermesBusyInputMode(cfg.Display.BusyInputMode),
-		Steer:               steerTurn,
-		WelcomeVersion:      welcomeVersion,
-		WelcomeToolCount:    welcomeToolCount,
-		WelcomeToolsets:     welcomeToolsets,
-	})
+		ToolSkill: tuiadapter.ToolSkillBundle{
+			ToolsConfigure: newTUIToolsConfigureFunc(),
+			SkillsCommand: func(input string) string {
+				return gateway.HandleSkillsCommandWithOptions(rootCtx, input, skillsCommandOptionsForConfig(cfg))
+			},
+			SkillSlashCommands: tuiSkillSlashCommands(rootCtx, cfg),
+			SkillSlashReload:   tuiSkillSlashReloadFunc(cfg),
+		},
+		Session: tuiadapter.SessionBundle{
+			Export:      newTUISaveExportFunc(),
+			Branch:      newTUIBranchFunc(rootCtx, boltMap, k.ResumeSession),
+			Title:       newTUITitleFunc(rootCtx, boltMap),
+			Directory:   newTUISessionDirectoryFunc(rootCtx),
+			Resume:      newTUIResumeSessionFunc(rootCtx, k.ResumeSession),
+			Tree:        newTUISessionTreeFunc(rootCtx, boltMap),
+			TreeLabel:   newTUISessionTreeLabelFunc(rootCtx, boltMap),
+			TreeRestore: newTUISessionTreeRestoreFunc(rootCtx),
+			Reset:       k.ResetSession,
+		},
+	}.Apply(&tuiOptions)
+	model := tui.NewModelWithOptions(hookedFrames, submit, cancelTurn, tuiOptions)
 	// Hermes' current Ink TUI runs in an alternate screen by default. The
 	// Bubble Tea port mirrors that for the full-screen dashboard so repeated
 	// render ticks do not leave stale frame fragments in normal scrollback.

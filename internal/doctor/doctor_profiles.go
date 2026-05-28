@@ -19,9 +19,9 @@ import (
 // orphan-alias fabrication here.
 type DoctorProfileInventory struct {
 	// Known are the profile names from profileCommandSeams.ListKnownProfiles().
-	// "default" is added automatically if absent.
+	// "main" is added automatically if absent.
 	Known []string
-	// Active is the active profile name ("" or "default" → the default).
+	// Active is the active profile name ("" → "main").
 	Active string
 	// RootExists reports whether a profile's resolved root directory
 	// exists. nil → treated as unknown-but-present (no false WARN).
@@ -35,7 +35,7 @@ type DoctorProfileInventory struct {
 	Distribution func(name string) DoctorProfileDistribution
 	// Config reports the effective local provider/model read from the
 	// profile's own config files and defaults only. Missing provider/model
-	// warns for named profiles; default-only stays a clean orientation PASS.
+	// warns for named profiles; main-only stays a clean orientation PASS.
 	Config func(name string) DoctorProfileConfig
 	// Gateway reports the profile's recorded gateway_state.json state only.
 	// It is not live PID proof.
@@ -62,31 +62,31 @@ type DoctorProfileDistribution struct {
 }
 
 // CheckProfiles renders the Gormes-owned ◆ Profiles section content. With no
-// named profiles it is a single clean PASS ("default profile only") — never
-// WARN, since Gormes always has a usable default. With named profiles, the
-// inventory includes default plus each named profile. Missing profile roots,
+// named profiles it is a single clean PASS ("main profile only") — never
+// WARN, since Gormes always has a usable main profile. With named profiles, the
+// inventory includes main plus each named profile. Missing profile roots,
 // unreadable config, missing provider/model, invalid manifests, and corrupt
 // recorded gateway state warn for that item only. An absent distribution
 // manifest and absent gateway state are informational PASS details.
 func CheckProfiles(inv DoctorProfileInventory) CheckResult {
 	active := strings.TrimSpace(inv.Active)
 	if active == "" {
-		active = "default"
+		active = "main"
 	}
 
 	profiles := normalizeDoctorProfiles(inv.Known)
-	defaultOnly := len(profiles) == 1 && profiles[0] == "default"
-	if defaultOnly {
-		note := "default profile only (create more with `gormes profile create`)"
-		if detail := doctorProfileDetail("default", inv, true); detail != "" {
+	mainOnly := len(profiles) == 1 && profiles[0] == "main"
+	if mainOnly {
+		note := "main profile only (create more with `gormes profile create`)"
+		if detail := doctorProfileDetail("main", inv, true); detail != "" {
 			note += "; " + detail
 		}
 		return CheckResult{
 			Name:    "Profiles",
 			Status:  StatusPass,
-			Summary: "default profile only",
+			Summary: "main profile only",
 			Items: []ItemInfo{
-				{Name: "default", Status: StatusPass, Note: note},
+				{Name: "main", Status: StatusPass, Note: note},
 			},
 		}
 	}
@@ -118,11 +118,11 @@ func CheckProfiles(inv DoctorProfileInventory) CheckResult {
 }
 
 func normalizeDoctorProfiles(known []string) []string {
-	seen := map[string]struct{}{"default": {}}
+	seen := map[string]struct{}{"main": {}}
 	named := make([]string, 0, len(known))
 	for _, n := range known {
 		n = strings.TrimSpace(n)
-		if n == "" || n == "default" {
+		if n == "" || n == "main" {
 			continue
 		}
 		if _, ok := seen[n]; ok {
@@ -132,7 +132,7 @@ func normalizeDoctorProfiles(known []string) []string {
 		named = append(named, n)
 	}
 	sort.Strings(named)
-	return append([]string{"default"}, named...)
+	return append([]string{"main"}, named...)
 }
 
 func doctorProfileItemStatus(name string, inv DoctorProfileInventory, defaultOnly bool) (Status, string) {

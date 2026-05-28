@@ -130,7 +130,7 @@ func TestSecurityAdvisoriesSectionMappedAndRendersFirst(t *testing.T) {
 	out := RenderSectionedReport([]CheckResult{
 		{Name: "Goncho config", Status: StatusPass, Summary: "ok"},
 		CheckSecurityAdvisories(DoctorSecurityAdvisoryInventory{}),
-		{Name: "Profiles", Status: StatusPass, Summary: "default profile only"},
+		{Name: "Profiles", Status: StatusPass, Summary: "main profile only"},
 	})
 	advIdx := strings.Index(out, "◆ Security Advisories")
 	memIdx := strings.Index(out, "◆ Memory Provider")

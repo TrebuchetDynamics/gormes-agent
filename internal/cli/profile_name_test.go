@@ -8,7 +8,7 @@ import (
 
 func TestValidateProfileName_AcceptsValid(t *testing.T) {
 	cases := []string{
-		"default",
+		"main",
 		"coder",
 		"work-1",
 		"tier_2",
@@ -67,6 +67,7 @@ func TestValidateProfileName_RejectsInvalidChars(t *testing.T) {
 func TestValidateProfileName_RejectsReserved(t *testing.T) {
 	cases := []string{
 		"create",
+		"default",
 		"delete",
 		"list",
 		"use",

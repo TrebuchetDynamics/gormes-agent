@@ -10,11 +10,11 @@ func TestRenderDumpSummary_StableOrder(t *testing.T) {
 		Version:     "0.1.0",
 		OS:          "linux",
 		Arch:        "amd64",
-		ProfileName: "default",
+		ProfileName: "main",
 		Toolsets:    []string{"core", "web"},
 	}
 	got := RenderDumpSummary(in)
-	want := "version: 0.1.0\nos: linux\narch: amd64\nprofile: default\ntoolsets: core, web\n"
+	want := "version: 0.1.0\nos: linux\narch: amd64\nprofile: main\ntoolsets: core, web\n"
 	if got != want {
 		t.Fatalf("RenderDumpSummary stable order:\n got=%q\nwant=%q", got, want)
 	}
@@ -25,7 +25,7 @@ func TestRenderDumpSummary_RedactsSecrets(t *testing.T) {
 		Version:         "v1.0-sk-abcdef",
 		OS:              "linux",
 		Arch:            "amd64",
-		ProfileName:     "default",
+		ProfileName:     "main",
 		Toolsets:        []string{"core"},
 		SecretsLikeKeys: []string{"sk-abcdef"},
 	}
@@ -70,7 +70,7 @@ func TestRenderDumpSummary_NoTrailingWhitespace(t *testing.T) {
 		Version:     "0.1.0",
 		OS:          "linux",
 		Arch:        "amd64",
-		ProfileName: "default",
+		ProfileName: "main",
 		Toolsets:    []string{"core", "web"},
 	}
 	got := RenderDumpSummary(in)

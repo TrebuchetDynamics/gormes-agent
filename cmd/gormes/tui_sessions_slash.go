@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
@@ -29,6 +30,7 @@ func newTUISessionDirectoryFunc(ctx context.Context) tui.SessionDirectoryFunc {
 		if err != nil {
 			return nil, err
 		}
+		sessions = applySessionMirrorSources(sessions, config.SessionIndexMirrorPath())
 		out := make([]tui.SessionDirectoryEntry, 0, len(sessions))
 		for _, item := range sessions {
 			out = append(out, tui.SessionDirectoryEntry{

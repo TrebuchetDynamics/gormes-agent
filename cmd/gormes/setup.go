@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1971,13 +1972,54 @@ func runSetupAgentSection(cmd *cobra.Command, section string, seams setupCommand
 // (defaultProfileCommandSeams) for enumeration/creation and the real
 // internal/config TOML round-trip (config.WriteTOMLValue) to persist a
 // per-profile workspace LIST into the SELECTED profile's own config.toml.
-// Interactive only — non-interactive/no-TTY returns errSetupRequiresTTY so
-// the shipped chrome suppresses any false completion footer.
+// Interactive profile editing uses the rich TUI when available. Non-interactive
+// mode performs the safe main profile bootstrap so install/setup smoke tests
+// and headless hosts can reach a profile-rooted layout without prompting.
 func runSetupProfilesSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	if nonInteractive || !seams.IsTTY() {
+	if nonInteractive {
+		return runSetupProfilesNonInteractive(cmd)
+	}
+	if !seams.IsTTY() {
 		return errSetupRequiresTTY
 	}
 	return runSetupProfilesInteractive(cmd, defaultProfileCommandSeams())
+}
+
+func runSetupProfilesNonInteractive(cmd *cobra.Command) error {
+	restoreHome, err := scopeSetupProfilesBaseHome()
+	if err != nil {
+		return err
+	}
+	defer restoreHome()
+
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("setup profiles non-interactive: load config: %w", err)
+	}
+	if cfg.Profiles == nil {
+		cfg.Profiles = map[string]config.ProfileCfg{}
+	}
+	main := cfg.Profiles[config.DefaultProfileID]
+	if !main.Enabled {
+		main.Enabled = true
+	}
+	cfg.Profiles[config.DefaultProfileID] = main
+
+	if err := materializeSetupProfilesControlCenterMainProfile(); err != nil {
+		return err
+	}
+	if writeSetupProfilesControlCenterConfig == nil {
+		return fmt.Errorf("profile control center root config writer unavailable")
+	}
+	if err := writeSetupProfilesControlCenterConfig(config.ConfigPath(), cfg); err != nil {
+		return fmt.Errorf("setup profiles non-interactive: write config: %w", err)
+	}
+
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Setup profiles non-interactive:")
+	fmt.Fprintf(out, "  - materialized profile %q at %s\n", config.DefaultProfileID, setupRedactedFilePath(filepath.Join(config.GormesBaseHome(), "profiles", config.DefaultProfileID)))
+	fmt.Fprintf(out, "  - wrote profile registry to %s\n", setupRedactedProfileConfigPath(config.GormesHome()))
+	return nil
 }
 
 func scopeSetupProfilesBaseHome() (func(), error) {
@@ -2011,7 +2053,7 @@ func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams)
 	if err != nil {
 		return fmt.Errorf("list profiles: %w", err)
 	}
-	active := "default"
+	active := config.DefaultProfileID
 	if pseams.ReadActiveProfileName != nil {
 		if a, aerr := pseams.ReadActiveProfileName(); aerr == nil && strings.TrimSpace(a) != "" {
 			active = strings.TrimSpace(a)
@@ -2100,7 +2142,7 @@ func runSetupProfilesInteractive(cmd *cobra.Command, pseams profileCommandSeams)
 	}
 	validChannels, unknownChannels := parseSetupChannelList(chInput)
 	for _, u := range unknownChannels {
-		fmt.Fprintf(out, "Skipping unknown channel %q (known: telegram, whatsapp, discord, slack).\n", u)
+		fmt.Fprintf(out, "Skipping unknown channel %q (known: %s).\n", u, setupKnownChannelsLabel())
 	}
 	if len(validChannels) == 0 {
 		fmt.Fprintf(out, "No valid channels for profile %q.\n", selected)
@@ -2122,6 +2164,16 @@ var knownSetupChannels = map[string]struct{}{
 	"whatsapp": {},
 	"discord":  {},
 	"slack":    {},
+	"navivox":  {},
+}
+
+func setupKnownChannelsLabel() string {
+	channels := make([]string, 0, len(knownSetupChannels))
+	for channel := range knownSetupChannels {
+		channels = append(channels, channel)
+	}
+	sort.Strings(channels)
+	return strings.Join(channels, ", ")
 }
 
 // parseSetupChannelList splits comma-separated channel input (reusing the

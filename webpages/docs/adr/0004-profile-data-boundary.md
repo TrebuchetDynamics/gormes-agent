@@ -1,6 +1,6 @@
 # Profile data boundary scopes memory, sessions, workspace, cache, and runtime per profile
 
-When a named profile is active, `memory/`, `sessions/`, `workspace/`, `cache/`, and `runtime/` live under `$GORMES_HOME` (which resolves to `$GORMES_BASE_HOME/profiles/<name>/`) and are never shared between profiles. The default profile ("main") uses the base home root until its profile directory is materialised by setup or migration. `auth.json`, `config.toml`, and `.env` stay at `$GORMES_BASE_HOME` and are shared. Workspace is a list; the profile-local `workspace/` is the implicit first entry, with additional external paths configured in profile config.
+When a named profile is active, `memory/`, `sessions/`, `workspace/`, `cache/`, and `runtime/` live under `$GORMES_HOME` (which resolves to `$GORMES_BASE_HOME/profiles/<name>/`) and are never shared between profiles. The main profile uses `$GORMES_BASE_HOME/profiles/main/` like every other runnable profile. `auth.json`, `config.toml`, and `.env` stay at `$GORMES_BASE_HOME` and are shared. Workspace is a list; the profile-local `workspace/` is the implicit first entry, with additional external paths configured in profile config.
 
 **Status**: accepted
 

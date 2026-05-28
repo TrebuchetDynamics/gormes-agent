@@ -89,12 +89,12 @@ func TestUpdateReleaseAssetSyncAppliesVerifiedAssetsAndRollbackRestores(t *testi
 func TestUpdateReleaseSkillSyncSnapshotsProfilesAndRollbackPreservesPostUpdateEdits(t *testing.T) {
 	root := t.TempDir()
 	payloadRoot := filepath.Join(root, "payload")
-	defaultRoot := filepath.Join(root, "profiles", "default")
+	mainRoot := filepath.Join(root, "profiles", "main")
 	workRoot := filepath.Join(root, "profiles", "work")
 	oldBody := releaseSkillDoc("reviewer", "old review")
 	newBody := releaseSkillDoc("reviewer", "new review")
 	writeReleasePayloadFile(t, payloadRoot, "skills/reviewer/SKILL.md", newBody)
-	defaultTarget := writeReleasePayloadFile(t, defaultRoot, "skills/active/productivity/reviewer/SKILL.md", oldBody)
+	defaultTarget := writeReleasePayloadFile(t, mainRoot, "skills/active/productivity/reviewer/SKILL.md", oldBody)
 	workTarget := writeReleasePayloadFile(t, workRoot, "skills/active/productivity/reviewer/SKILL.md", "operator edited reviewer")
 	snapshotPath := filepath.Join(root, "snapshots", "skill-sync")
 
@@ -104,7 +104,7 @@ func TestUpdateReleaseSkillSyncSnapshotsProfilesAndRollbackPreservesPostUpdateEd
 		SnapshotPath: snapshotPath,
 		SkillProfiles: []skills.SkillProfileRoot{
 			{Name: "work", Root: workRoot},
-			{Name: "default", Root: defaultRoot},
+			{Name: "main", Root: mainRoot},
 		},
 		Manifest: UpdateReleaseManifest{
 			SchemaVersion: 1,
@@ -125,14 +125,14 @@ func TestUpdateReleaseSkillSyncSnapshotsProfilesAndRollbackPreservesPostUpdateEd
 	assertFileBody(t, workTarget, "operator edited reviewer")
 	conflictPath := filepath.Join(workRoot, "skills", ".bundled-conflicts", "reviewer", releaseTestSHA256(newBody)[:12], "productivity", "reviewer", "SKILL.md")
 	assertFileBody(t, conflictPath, newBody)
-	if report.SkillSummaries[0].Profile != "default" || report.SkillSummaries[0].Updated != 1 {
+	if report.SkillSummaries[0].Profile != "main" || report.SkillSummaries[0].Updated != 1 {
 		t.Fatalf("default skill summary = %+v, want one updated", report.SkillSummaries[0])
 	}
 	if report.SkillSummaries[1].Profile != "work" || report.SkillSummaries[1].ConflictCopies != 1 {
 		t.Fatalf("work skill summary = %+v, want one conflict copy", report.SkillSummaries[1])
 	}
 
-	writeReleasePayloadFile(t, defaultRoot, "skills/active/productivity/reviewer/SKILL.md", "post-update operator edit")
+	writeReleasePayloadFile(t, mainRoot, "skills/active/productivity/reviewer/SKILL.md", "post-update operator edit")
 	rollback := RunUpdateReleaseAssetSkillRollback(context.Background(), UpdateReleaseAssetSkillRollbackOptions{
 		SnapshotPath: snapshotPath,
 	})

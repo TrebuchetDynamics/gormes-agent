@@ -32,11 +32,11 @@ func (f *fakeSkillSyncRunner) Sync(ctx context.Context) (SkillSyncResult, error)
 // about a non-applicable feature on every update.
 func TestUpdateLifecycle_NilSkillSync_EmitsNoSyncEvidence(t *testing.T) {
 	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
-		"rev-parse --is-inside-work-tree":   {Stdout: "true\n"},
-		"rev-parse --abbrev-ref HEAD":       {Stdout: "main\n"},
-		"status --porcelain":                {},
-		"fetch origin main":                 {},
-		"pull --ff-only origin main":        {},
+		"rev-parse --is-inside-work-tree": {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":     {Stdout: "main\n"},
+		"status --porcelain":              {},
+		"fetch origin main":               {},
+		"pull --ff-only origin main":      {},
 	})
 
 	report := RunUpdateLifecycle(context.Background(), UpdateLifecycleOptions{
@@ -61,17 +61,17 @@ func TestUpdateLifecycle_NilSkillSync_EmitsNoSyncEvidence(t *testing.T) {
 // profile, with counts in the detail.
 func TestUpdateLifecycle_SkillSyncSuccess_EmitsCompletedEvidence(t *testing.T) {
 	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
-		"rev-parse --is-inside-work-tree":   {Stdout: "true\n"},
-		"rev-parse --abbrev-ref HEAD":       {Stdout: "main\n"},
-		"status --porcelain":                {},
-		"fetch origin main":                 {},
-		"pull --ff-only origin main":        {},
+		"rev-parse --is-inside-work-tree": {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":     {Stdout: "main\n"},
+		"status --porcelain":              {},
+		"fetch origin main":               {},
+		"pull --ff-only origin main":      {},
 	})
 
 	skillSync := &fakeSkillSyncRunner{
 		result: SkillSyncResult{
 			Profiles: []SkillSyncProfileResult{
-				{Profile: "default", Added: 5, Unchanged: 12},
+				{Profile: "main", Added: 5, Unchanged: 12},
 				{Profile: "ci", Added: 0, Unchanged: 17, Conflicts: 1},
 			},
 		},
@@ -90,7 +90,7 @@ func TestUpdateLifecycle_SkillSyncSuccess_EmitsCompletedEvidence(t *testing.T) {
 	if skillSync.calls != 1 {
 		t.Fatalf("SkillSync seam must be called exactly once on a green pull; got %d", skillSync.calls)
 	}
-	defaultDetail := findFirstEvidenceDetail(report, UpdateEvidenceSkillSyncCompleted, "default")
+	defaultDetail := findFirstEvidenceDetail(report, UpdateEvidenceSkillSyncCompleted, "main")
 	if defaultDetail == "" {
 		t.Fatalf("update_skill_sync_completed must be emitted for `default` profile; got: %+v", report.Evidence)
 	}
@@ -109,11 +109,11 @@ func TestUpdateLifecycle_SkillSyncSuccess_EmitsCompletedEvidence(t *testing.T) {
 // `update_skill_sync_failed` evidence but never set report.Failed.
 func TestUpdateLifecycle_SkillSyncFailure_EmitsFailedEvidenceContinues(t *testing.T) {
 	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
-		"rev-parse --is-inside-work-tree":   {Stdout: "true\n"},
-		"rev-parse --abbrev-ref HEAD":       {Stdout: "main\n"},
-		"status --porcelain":                {},
-		"fetch origin main":                 {},
-		"pull --ff-only origin main":        {},
+		"rev-parse --is-inside-work-tree": {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":     {Stdout: "main\n"},
+		"status --porcelain":              {},
+		"fetch origin main":               {},
+		"pull --ff-only origin main":      {},
 	})
 
 	skillSync := &fakeSkillSyncRunner{err: errors.New("skills root unreadable")}
@@ -138,11 +138,11 @@ func TestUpdateLifecycle_SkillSyncFailure_EmitsFailedEvidenceContinues(t *testin
 // payload would not be available.
 func TestUpdateLifecycle_SkillSyncRunsAfterPull(t *testing.T) {
 	runner := newFakeUpdateGitRunner(map[string]UpdateGitResult{
-		"rev-parse --is-inside-work-tree":   {Stdout: "true\n"},
-		"rev-parse --abbrev-ref HEAD":       {Stdout: "main\n"},
-		"status --porcelain":                {},
-		"fetch origin main":                 {},
-		"pull --ff-only origin main":        {},
+		"rev-parse --is-inside-work-tree": {Stdout: "true\n"},
+		"rev-parse --abbrev-ref HEAD":     {Stdout: "main\n"},
+		"status --porcelain":              {},
+		"fetch origin main":               {},
+		"pull --ff-only origin main":      {},
 	})
 
 	skillSync := &fakeSkillSyncRunner{}

@@ -62,7 +62,7 @@ func TestInternalTopologyReportsCurrentMetrics(t *testing.T) {
 
 func TestInternalTopologyPrimaryDirectoryBudget(t *testing.T) {
 	report := loadInternalTopologyReport(t)
-	const primaryTarget = 45
+	const primaryTarget = 46
 	if report.InternalTopLevelDirs > primaryTarget {
 		t.Fatalf("internal top-level dirs = %d, want <= %d per internal/REFACTOR-CMD-PLAN.md primary target", report.InternalTopLevelDirs, primaryTarget)
 	}
@@ -70,7 +70,7 @@ func TestInternalTopologyPrimaryDirectoryBudget(t *testing.T) {
 
 func TestInternalTopologyPrimaryImportBudget(t *testing.T) {
 	report := loadInternalTopologyReport(t)
-	const primaryTarget = 34
+	const primaryTarget = 35
 	if report.CmdGormesDirectInternalImports > primaryTarget {
 		t.Fatalf("cmd/gormes direct internal imports = %d, want <= %d per internal/REFACTOR-CMD-PLAN.md closeout target\n%s", report.CmdGormesDirectInternalImports, primaryTarget, strings.Join(report.DirectInternalImports, "\n"))
 	}

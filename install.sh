@@ -2154,6 +2154,17 @@ GORMESCFG
   log "Edit it to set your provider and gateway credentials."
 }
 
+bootstrap_profile_context() {
+  home=$(managed_home_dir)
+  build_bin="$(managed_bin_dir)/gormes"
+  [ -x "$build_bin" ] || return 0
+  if GORMES_HOME="$home" "$build_bin" profile materialize-main --json >/dev/null 2>&1; then
+    log "Bootstrapped ${home}/profiles/main context files and memory.db"
+    return 0
+  fi
+  fail "could not bootstrap ${home}/profiles/main context files"
+}
+
 print_summary() {
   bin_dir=$(pick_bin_dir)
   published_bin="${bin_dir}/gormes"
@@ -2656,6 +2667,7 @@ main() {
   prepare_gormes_binary
   publish_command_with_recovery
   bootstrap_config
+  bootstrap_profile_context
   verify_install
   run_setup_wizard
   restart_gateway_if_running "$PREVIOUS_GATEWAY_PID"

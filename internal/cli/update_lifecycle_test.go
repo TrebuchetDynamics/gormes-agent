@@ -353,7 +353,7 @@ func TestUpdateCommandPublishesBinaryBeforePostUpdateSteps(t *testing.T) {
 		},
 		SkillSync: func(context.Context) (SkillSyncResult, error) {
 			order = append(order, "skill")
-			return SkillSyncResult{Profiles: []SkillSyncProfileResult{{Profile: "default"}}}, nil
+			return SkillSyncResult{Profiles: []SkillSyncProfileResult{{Profile: "main"}}}, nil
 		},
 		WebBuild: func(context.Context) (WebBuildResult, error) {
 			order = append(order, "web")

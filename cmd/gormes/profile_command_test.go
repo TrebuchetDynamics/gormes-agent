@@ -119,7 +119,7 @@ func runProfileTestCommand(t *testing.T, seams profileCommandSeams, args ...stri
 
 func TestGormesProfileShowRendersActivePathRedacted(t *testing.T) {
 	fake := &profileCommandFakeSeams{
-		activeProfileName: "default",
+		activeProfileName: "main",
 		resolveProfileRoot: func(name string) (string, error) {
 			return "/home/operator-secret/.config/gormes", nil
 		},
@@ -128,7 +128,7 @@ func TestGormesProfileShowRendersActivePathRedacted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	if !strings.Contains(stdout, "default") {
+	if !strings.Contains(stdout, "main") {
 		t.Fatalf("show stdout missing profile name:\n%s", stdout)
 	}
 	for _, leak := range []string{"/home/operator-secret", "/home/operator-secret/.config/gormes"} {
@@ -214,7 +214,7 @@ func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 
 	t.Run("valid_name_writes_store_after_validation", func(t *testing.T) {
 		fake := &profileCommandFakeSeams{
-			knownProfiles: []string{"default", "work"},
+			knownProfiles: []string{"main", "work"},
 		}
 		stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "work")
 		if err != nil {
@@ -237,7 +237,7 @@ func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 
 func TestGormesProfileUseIsCanonicalAndSetRemainsAlias(t *testing.T) {
 	fake := &profileCommandFakeSeams{
-		knownProfiles: []string{"default", "work"},
+		knownProfiles: []string{"main", "work"},
 		resolveProfileRoot: func(name string) (string, error) {
 			return "/home/operator-secret/.config/gormes/profiles/" + name, nil
 		},
@@ -265,7 +265,7 @@ func TestGormesProfileUseIsCanonicalAndSetRemainsAlias(t *testing.T) {
 	}
 
 	aliasFake := &profileCommandFakeSeams{
-		knownProfiles: []string{"default", "work"},
+		knownProfiles: []string{"main", "work"},
 	}
 	stdout, stderr, err = runProfileTestCommand(t, aliasFake.defaults(), "set", "work", "--json")
 	if err != nil {
@@ -285,7 +285,7 @@ func TestGormesProfileUseIsCanonicalAndSetRemainsAlias(t *testing.T) {
 // matches the same secrets contract as `profile show`.
 func TestGormesProfileSet_JSONEmitsStructuredOutcome(t *testing.T) {
 	fake := &profileCommandFakeSeams{
-		knownProfiles: []string{"default", "work"},
+		knownProfiles: []string{"main", "work"},
 		resolveProfileRoot: func(name string) (string, error) {
 			return "/home/operator-secret/.config/gormes/profiles/" + name, nil
 		},
@@ -424,7 +424,7 @@ func TestGormesProfileCreateRejectsDefaultAndExistingTargets(t *testing.T) {
 	fake := &profileCommandFakeSeams{
 		createProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
 			switch name {
-			case "default":
+			case "main":
 				return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
 			case "work":
 				return cli.ProfileCreateResult{}, cli.ErrProfileCreateTargetExists
@@ -433,7 +433,7 @@ func TestGormesProfileCreateRejectsDefaultAndExistingTargets(t *testing.T) {
 			}
 		},
 	}
-	_, _, err := runProfileTestCommand(t, fake.defaults(), "create", "default", "--clone-all")
+	_, _, err := runProfileTestCommand(t, fake.defaults(), "create", "main", "--clone-all")
 	if !errors.Is(err, cli.ErrProfileCreateDefaultReserved) {
 		t.Fatalf("profile create default err = %v, want ErrProfileCreateDefaultReserved", err)
 	}
@@ -446,7 +446,7 @@ func TestGormesProfileCreateRejectsDefaultAndExistingTargets(t *testing.T) {
 func TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker(t *testing.T) {
 	fake := &profileCommandFakeSeams{
 		activeProfileName: "work",
-		knownProfiles:     []string{"default", "work", "research"},
+		knownProfiles:     []string{"main", "work", "research"},
 		resolveProfileRoot: func(name string) (string, error) {
 			return "/home/operator-secret/.config/gormes/profiles/" + name, nil
 		},
@@ -455,7 +455,7 @@ func TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker(t *testing.T)
 	if err != nil {
 		t.Fatalf("list: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	for _, name := range []string{"default", "work", "research"} {
+	for _, name := range []string{"main", "work", "research"} {
 		if !strings.Contains(stdout, name) {
 			t.Fatalf("list missing profile %q:\n%s", name, stdout)
 		}
@@ -469,7 +469,7 @@ func TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker(t *testing.T)
 		switch {
 		case strings.Contains(line, " work") || strings.HasSuffix(strings.TrimRight(line, " "), "work"):
 			workLine = line
-		case strings.Contains(line, "default") || strings.Contains(line, "research"):
+		case strings.Contains(line, "main") || strings.Contains(line, "research"):
 			otherLines = append(otherLines, line)
 		}
 	}
@@ -499,7 +499,7 @@ func TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker(t *testing.T)
 func TestGormesProfileListJSONEmitsStructuredInventory(t *testing.T) {
 	fake := &profileCommandFakeSeams{
 		activeProfileName: "work",
-		knownProfiles:     []string{"default", "work", "research"},
+		knownProfiles:     []string{"main", "work", "research"},
 	}
 	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "list", "--json")
 	if err != nil {
@@ -528,7 +528,7 @@ func TestGormesProfileListJSONEmitsStructuredInventory(t *testing.T) {
 	if len(got.Profiles) != 3 {
 		t.Fatalf("got %d profiles, want 3", len(got.Profiles))
 	}
-	wantOrder := []string{"default", "research", "work"} // sorted
+	wantOrder := []string{"main", "research", "work"} // sorted
 	for i, p := range got.Profiles {
 		if p.Name != wantOrder[i] {
 			t.Fatalf("profile[%d].Name = %q, want %q (sorted)", i, p.Name, wantOrder[i])
@@ -572,7 +572,7 @@ func TestGormesProfileListJSONNoProfilesEmitsEmptyArray(t *testing.T) {
 func TestGormesProfileSetUpdatesRootResolver(t *testing.T) {
 	t.Run("resolver_invoked_after_store_write_succeeds", func(t *testing.T) {
 		fake := &profileCommandFakeSeams{
-			knownProfiles: []string{"default", "research"},
+			knownProfiles: []string{"main", "research"},
 		}
 		var observedOrder []string
 		fake.writeActiveProfile = func(name string) error {
@@ -612,7 +612,7 @@ func TestGormesProfileSetUpdatesRootResolver(t *testing.T) {
 
 	t.Run("resolver_failure_after_write_surfaces_partial_failure", func(t *testing.T) {
 		fake := &profileCommandFakeSeams{
-			knownProfiles: []string{"default", "research"},
+			knownProfiles: []string{"main", "research"},
 		}
 		fake.resolveProfileRoot = func(name string) (string, error) {
 			return "", errors.New("disk full")
@@ -635,7 +635,7 @@ func TestGormesProfileSetUpdatesRootResolver(t *testing.T) {
 // refactors don't silently drift the contract.
 func TestGormesProfileSelectorWiring(t *testing.T) {
 	fake := &profileCommandFakeSeams{
-		activeProfileName: "default",
+		activeProfileName: "main",
 	}
 	seams := fake.defaults()
 	selector := cli.NewDefaultProfileSelector(cli.DefaultProfileSelectorOptions{
@@ -647,18 +647,18 @@ func TestGormesProfileSelectorWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Select: %v", err)
 	}
-	if profile.Name != "default" {
-		t.Fatalf("Profile.Name = %q, want default", profile.Name)
+	if profile.Name != "main" {
+		t.Fatalf("Profile.Name = %q, want main", profile.Name)
 	}
-	if !strings.Contains(profile.RootPath, "default") {
-		t.Fatalf("Profile.RootPath = %q, want a path containing 'default'", profile.RootPath)
+	if !strings.Contains(profile.RootPath, "main") {
+		t.Fatalf("Profile.RootPath = %q, want a path containing 'main'", profile.RootPath)
 	}
 }
 
 func TestGormesProfileListShowsDistributionMetadata(t *testing.T) {
 	fake := &profileCommandFakeSeams{
 		activeProfileName: "work",
-		knownProfiles:     []string{"default", "work", "research"},
+		knownProfiles:     []string{"main", "work", "research"},
 		distributionByRoot: map[string]cli.ProfileDistributionManifest{
 			"/tmp/gormes-test-home/profiles/work": {
 				Name:    "telemetry",

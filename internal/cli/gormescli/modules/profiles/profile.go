@@ -34,6 +34,7 @@ type Seams struct {
 	ReadDistributionManifest func(root string) (cli.ProfileDistributionManifest, bool, error)
 	ProviderReadiness        func() ([]provider.ProfileProviderReadiness, error)
 	ChannelReadiness         func() (gateway.ProfileChannelReadinessReport, error)
+	MaterializeMainProfile   func() (cli.ProfileContextScaffoldResult, error)
 }
 
 // Options carries binary-owned process metadata into the importable profile
@@ -95,6 +96,7 @@ func NewCommandWithSeams(seams Seams, opts ...Options) *cobra.Command {
 	cmd.AddCommand(newProfileListCommand(seams, options))
 	cmd.AddCommand(newProfileUseCommand(seams, options))
 	cmd.AddCommand(newProfileCreateCommand(seams, options))
+	cmd.AddCommand(newProfileMaterializeMainCommand(seams, options))
 	cmd.AddCommand(newProfileProvidersCommand(seams, options))
 	cmd.AddCommand(newProfileChannelsCommand(seams, options))
 	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
@@ -351,7 +353,7 @@ func newProfileCreateCommand(seams Seams, options Options) *cobra.Command {
 			return runProfileCreateCommand(cmd, seams, args[0], cloneAll, asJSON, options)
 		},
 	}
-	cmd.Flags().BoolVar(&cloneAll, "clone-all", false, "copy the default profile minus infrastructure and runtime files")
+	cmd.Flags().BoolVar(&cloneAll, "clone-all", false, "copy the main profile minus infrastructure and runtime files")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, action, name, root, clone_all}` with a redacted root")
 	return cmd
 }
@@ -499,7 +501,7 @@ func runProfileShowCommand(cmd *cobra.Command, seams Seams, asJSON bool, options
 			if asJSON {
 				return emitProfileShowJSON(cmd, "", "", nil, options)
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "active profile: <unset> (defaulting to 'default')")
+			fmt.Fprintln(cmd.OutOrStdout(), "active profile: <unset> (defaulting to 'main')")
 			return nil
 		}
 		return fmt.Errorf("gormes profile show: %w: %w", errActiveProfileCorrupt, err)
@@ -603,6 +605,50 @@ func runProfileSetCommand(cmd *cobra.Command, seams Seams, rawName string, actio
 		return err
 	}
 	writeProfileSummary(cmd, name, root)
+	return nil
+}
+
+func newProfileMaterializeMainCommand(seams Seams, options Options) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "materialize-main",
+		Short:  "Materialize the main profile runtime root",
+		Hidden: true,
+		Args:   cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			asJSON, _ := cmd.Flags().GetBool("json")
+			return runProfileMaterializeMainCommand(cmd, seams, asJSON, options)
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON")
+	return cmd
+}
+
+func runProfileMaterializeMainCommand(cmd *cobra.Command, seams Seams, asJSON bool, options Options) error {
+	if seams.MaterializeMainProfile == nil {
+		return fmt.Errorf("gormes profile materialize-main: %w", cli.ErrSelectorHelperUnavailable)
+	}
+	result, err := seams.MaterializeMainProfile()
+	if err != nil {
+		return fmt.Errorf("gormes profile materialize-main: %w", err)
+	}
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(map[string]any{
+			"build":     buildProvenance(options),
+			"action":    "materialized",
+			"name":      result.ProfileName,
+			"root":      redactProfileRootPath(result.Root),
+			"storage":   profileStorageContract(result.Root),
+			"memory_db": result.MemoryDB,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "materialized profile: %s\n", result.ProfileName)
+	fmt.Fprintf(cmd.OutOrStdout(), "root: %s\n", redactProfileRootPath(result.Root))
+	writeProfileStorageSummary(cmd, result.Root)
 	return nil
 }
 
@@ -968,13 +1014,13 @@ func DefaultSeams() Seams {
 			return cli.WriteActiveProfile(activePath, name)
 		},
 		CreateProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
-			if name == "default" || name == "main" {
+			if name == config.DefaultProfileID {
 				return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
 			}
 			sourceRoot := ""
 			if cloneAll {
 				var err error
-				sourceRoot, err = cli.ResolveProfileRuntimeRoot(baseHome, "default")
+				sourceRoot, err = cli.ResolveProfileRuntimeRoot(baseHome, config.DefaultProfileID)
 				if err != nil {
 					return cli.ProfileCreateResult{}, err
 				}
@@ -1004,6 +1050,9 @@ func DefaultSeams() Seams {
 			}
 			return gateway.BuildProfileChannelReadiness(cfg), nil
 		},
+		MaterializeMainProfile: func() (cli.ProfileContextScaffoldResult, error) {
+			return cli.MaterializeMainProfileContextScaffold(cli.ProfileContextScaffoldOptions{BaseHome: baseHome})
+		},
 	}
 }
 
@@ -1032,12 +1081,12 @@ func loadConfigFromBaseHome(baseHome string) (config.Config, error) {
 
 // DefaultListKnownProfiles enumerates known profiles from both the v2 root
 // config registry and the on-disk layout that ResolveProfileRoot produces. The
-// default profile is always reported even if no profile dir exists yet so
+// main profile is always reported even if no profile dir exists yet so
 // operators can always orient.
 func DefaultListKnownProfiles() ([]string, error) {
 	baseHome := config.GormesBaseHome()
-	known := []string{"default"}
-	seen := map[string]struct{}{"default": {}}
+	known := []string{config.DefaultProfileID}
+	seen := map[string]struct{}{config.DefaultProfileID: {}}
 	addName := func(name string) {
 		name = strings.TrimSpace(name)
 		if name == "" {

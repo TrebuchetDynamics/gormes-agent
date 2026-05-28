@@ -166,7 +166,7 @@ func normalizedSkillProfileRoots(in []SkillProfileRoot) []SkillProfileRoot {
 		profile.Name = strings.TrimSpace(profile.Name)
 		profile.Root = strings.TrimSpace(profile.Root)
 		if profile.Name == "" {
-			profile.Name = "default"
+			profile.Name = "main"
 		}
 		key := profile.Name + "\x00" + profile.Root
 		if seen[key] {

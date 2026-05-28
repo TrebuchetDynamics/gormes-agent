@@ -107,7 +107,7 @@ func (c *Channel) defaultProfileContacts(ctx context.Context) ([]ProfileContact,
 		return nil, err
 	}
 	seams := profilemodule.DefaultSeams()
-	known := []string{"default"}
+	known := []string{"main"}
 	if seams.ListKnownProfiles != nil {
 		if names, err := seams.ListKnownProfiles(); err == nil && len(names) > 0 {
 			known = names
@@ -302,7 +302,7 @@ func (c *Channel) broadcastProfileContact(contact ProfileContact) {
 
 func profileScopeFromMetadata(metadata map[string]any) (string, string) {
 	serverID := navivoxDefaultServerID
-	profileID := "default"
+	profileID := "main"
 	if metadata != nil {
 		if value := strings.TrimSpace(anyString(metadata["server_id"])); value != "" {
 			serverID = value
@@ -320,8 +320,8 @@ func normalizeProfileScope(serverID, profileID string) (string, string) {
 	if serverID == "" {
 		serverID = navivoxDefaultServerID
 	}
-	if profileID == "" {
-		profileID = "default"
+	if profileID == "" || profileID == "default" {
+		profileID = "main"
 	}
 	return serverID, profileID
 }
@@ -380,10 +380,10 @@ func mergeProfileContact(base, overlay ProfileContact) ProfileContact {
 
 func sortProfileContacts(contacts []ProfileContact) {
 	sort.SliceStable(contacts, func(i, j int) bool {
-		if contacts[i].ProfileID == "default" && contacts[j].ProfileID != "default" {
+		if contacts[i].ProfileID == "main" && contacts[j].ProfileID != "main" {
 			return true
 		}
-		if contacts[j].ProfileID == "default" && contacts[i].ProfileID != "default" {
+		if contacts[j].ProfileID == "main" && contacts[i].ProfileID != "main" {
 			return false
 		}
 		if contacts[i].ServerID != contacts[j].ServerID {
@@ -395,8 +395,8 @@ func sortProfileContacts(contacts []ProfileContact) {
 
 func profileDisplayName(profileID string) string {
 	profileID = strings.TrimSpace(profileID)
-	if profileID == "" || profileID == "default" {
-		return "Default profile"
+	if profileID == "" || profileID == "main" {
+		return "Gormes profile"
 	}
 	parts := strings.FieldsFunc(profileID, func(r rune) bool { return r == '-' || r == '_' || r == '.' })
 	for i, part := range parts {

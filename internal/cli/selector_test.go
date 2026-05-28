@@ -16,7 +16,7 @@ func TestModelSelectorContract(t *testing.T) {
 		return Selection{Provider: "anthropic", Model: "claude-sonnet-4", Account: "default"}, nil
 	})
 	var profileSelector ProfileSelector = ProfileSelectorFunc(func(ctx context.Context) (Profile, error) {
-		return Profile{Name: "default", RootPath: "/tmp/gormes"}, nil
+		return Profile{Name: "main", RootPath: "/tmp/gormes/profiles/main"}, nil
 	})
 
 	got, err := modelSelector.Select(context.Background(), SelectionKindModel)
@@ -32,7 +32,7 @@ func TestModelSelectorContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ProfileSelector.Select: unexpected error: %v", err)
 	}
-	wantProfile := Profile{Name: "default", RootPath: "/tmp/gormes"}
+	wantProfile := Profile{Name: "main", RootPath: "/tmp/gormes/profiles/main"}
 	if !reflect.DeepEqual(gotProfile, wantProfile) {
 		t.Fatalf("ProfileSelector.Select: got %+v want %+v", gotProfile, wantProfile)
 	}

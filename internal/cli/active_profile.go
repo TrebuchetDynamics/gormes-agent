@@ -9,7 +9,7 @@ import (
 
 // ErrActiveProfileUnset is returned by ReadActiveProfile when the active
 // profile file does not exist. Callers can use errors.Is to detect this
-// degraded mode and fall back to the default profile without surfacing a
+// degraded mode and fall back to the main profile without surfacing a
 // hard error.
 var ErrActiveProfileUnset = errors.New("active profile is unset")
 

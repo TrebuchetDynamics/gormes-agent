@@ -18,6 +18,7 @@ var (
 
 type ProfileCreateOptions struct {
 	Name          string
+	DisplayName   string
 	XDGConfigHome string
 	TargetRoot    string
 	SourceRoot    string
@@ -104,7 +105,7 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 			if xdgRoot == "" {
 				return ProfileCreateResult{}, ErrProfileXDGRootRequired
 			}
-			sourceRoot, err = ResolveProfileRuntimeRoot(filepath.Join(xdgRoot, "gormes"), "default")
+			sourceRoot, err = ResolveProfileRuntimeRoot(filepath.Join(xdgRoot, "gormes"), "main")
 			if err != nil {
 				return ProfileCreateResult{}, err
 			}
@@ -130,6 +131,10 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 			_ = os.RemoveAll(targetRoot)
 			return ProfileCreateResult{}, err
 		}
+		if _, err := ApplyProfileContextScaffold(ProfileContextScaffoldOptions{ProfileName: name, DisplayName: options.DisplayName, TargetRoot: targetRoot}); err != nil {
+			_ = os.RemoveAll(targetRoot)
+			return ProfileCreateResult{}, err
+		}
 		return ProfileCreateResult{Name: name, Root: targetRoot, CloneAll: true}, nil
 	}
 
@@ -137,6 +142,10 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 		return ProfileCreateResult{}, fmt.Errorf("profile create root: %w", err)
 	}
 	if err := ensureProfileDefaultDirs(targetRoot); err != nil {
+		_ = os.RemoveAll(targetRoot)
+		return ProfileCreateResult{}, err
+	}
+	if _, err := ApplyProfileContextScaffold(ProfileContextScaffoldOptions{ProfileName: name, DisplayName: options.DisplayName, TargetRoot: targetRoot}); err != nil {
 		_ = os.RemoveAll(targetRoot)
 		return ProfileCreateResult{}, err
 	}

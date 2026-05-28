@@ -1869,7 +1869,7 @@ func defaultSkillSyncFor(checkoutDir string) cli.SkillSyncRunner {
 		report, err := skills.SyncBundledSkillsToProfiles(ctx, skills.BundledSkillProfileSyncRequest{
 			BundledRoot: bundledRoot,
 			Profiles: []skills.SkillProfileRoot{
-				{Name: "default", Root: profileRoot},
+				{Name: config.DefaultProfileID, Root: profileRoot},
 			},
 		})
 		if err != nil {

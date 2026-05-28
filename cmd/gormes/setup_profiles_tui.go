@@ -100,29 +100,46 @@ const (
 	setupProfilesModeAddProfile         setupProfilesMode = "add_profile"
 	setupProfilesModeDisplayName        setupProfilesMode = "display_name"
 	setupProfilesModeWorkspaces         setupProfilesMode = "workspaces"
+	setupProfilesModeWorkspacePath      setupProfilesMode = "workspace_path"
+	setupProfilesModeWorkspaceBrowser   setupProfilesMode = "workspace_browser"
 	setupProfilesModeChannels           setupProfilesMode = "channels"
 	setupProfilesModeProviderCredential setupProfilesMode = "provider_credential"
 	setupProfilesModeChannelCredential  setupProfilesMode = "channel_credential"
 )
 
 type setupProfilesModel struct {
-	state        setupProfilesTUIState
-	selected     int
-	mode         setupProfilesMode
-	input        string
-	width        int
-	height       int
-	channelDraft map[string]bool
-	channelIndex int
-	result       setupProfilesTUIResult
-	err          error
+	state                   setupProfilesTUIState
+	selected                int
+	mode                    setupProfilesMode
+	input                   string
+	width                   int
+	height                  int
+	channelDraft            map[string]bool
+	channelIndex            int
+	commandCursor           int
+	workspaceDraft          []string
+	workspaceIndex          int
+	workspaceEditingIndex   int
+	workspaceBrowserPath    string
+	workspaceBrowserEntries []string
+	workspaceBrowserIndex   int
+	result                  setupProfilesTUIResult
+	err                     error
+}
+
+const setupProfilesCommandSaveSelected = "save_selected"
+
+type setupProfilesCommandAction struct {
+	key   rune
+	label string
+	id    string
 }
 
 var runSetupProfilesTUI = runSetupProfilesTUIDefault
 var writeSetupProfilesControlCenterConfig = config.WriteProfileConfigV2
 var applySetupProfilesControlCenterMigration = config.ApplyProfileConfigV2Migration
 
-var setupProfilesChannelChoices = []string{"telegram", "whatsapp", "discord", "slack"}
+var setupProfilesChannelChoices = []string{"telegram", "whatsapp", "discord", "slack", "navivox"}
 
 func maybeRunSetupProfilesTUI(cmd *cobra.Command, pseams profileCommandSeams, known []string, active string) (bool, error) {
 	stdin, ok := cmd.InOrStdin().(*os.File)
@@ -374,7 +391,7 @@ func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Con
 	if result.ChannelsSet {
 		validChannels, unknownChannels := parseSetupChannelList(strings.Join(result.Channels, ","))
 		for _, u := range unknownChannels {
-			fmt.Fprintf(out, "Skipping unknown channel %q (known: telegram, whatsapp, discord, slack).\n", u)
+			fmt.Fprintf(out, "Skipping unknown channel %q (known: %s).\n", u, setupKnownChannelsLabel())
 		}
 		if err := draft.SetProfileChannels(selected, validChannels); err != nil {
 			return err
@@ -396,6 +413,9 @@ func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Con
 	if writeSetupProfilesControlCenterConfig == nil {
 		return fmt.Errorf("profile control center root config writer unavailable")
 	}
+	if err := materializeSetupProfilesControlCenterMainProfile(); err != nil {
+		return err
+	}
 	if createName != "" {
 		if err := materializeSetupProfilesControlCenterProfile(createName); err != nil {
 			return err
@@ -406,6 +426,13 @@ func applySetupProfilesControlCenterTUIResult(cmd *cobra.Command, cfg config.Con
 		return fmt.Errorf("apply profile control center draft: %w", err)
 	}
 	fmt.Fprintf(out, "Applied %d profile control center change(s) to %s.\n", len(changes), setupRedactedProfileConfigPath(config.GormesHome()))
+	return nil
+}
+
+func materializeSetupProfilesControlCenterMainProfile() error {
+	if _, err := cli.MaterializeMainProfileContextScaffold(cli.ProfileContextScaffoldOptions{BaseHome: config.GormesBaseHome()}); err != nil {
+		return fmt.Errorf("materialize main profile context: %w", err)
+	}
 	return nil
 }
 
@@ -468,7 +495,7 @@ func applySetupProfilesTUIResult(cmd *cobra.Command, pseams profileCommandSeams,
 		selected = strings.TrimSpace(active)
 	}
 	if selected == "" {
-		selected = "default"
+		selected = config.DefaultProfileID
 	}
 	if pseams.ResolveProfileRoot == nil {
 		return fmt.Errorf("profile root seam unavailable")
@@ -505,7 +532,7 @@ func applySetupProfilesTUIResult(cmd *cobra.Command, pseams profileCommandSeams,
 	if result.ChannelsSet {
 		validChannels, unknownChannels := parseSetupChannelList(strings.Join(result.Channels, ","))
 		for _, u := range unknownChannels {
-			fmt.Fprintf(out, "Skipping unknown channel %q (known: telegram, whatsapp, discord, slack).\n", u)
+			fmt.Fprintf(out, "Skipping unknown channel %q (known: %s).\n", u, setupKnownChannelsLabel())
 		}
 		if len(validChannels) == 0 {
 			fmt.Fprintf(out, "No valid channels for profile %q.\n", selected)
@@ -649,10 +676,10 @@ func runSetupProfilesTUIDefault(ctx context.Context, stdin *os.File, out io.Writ
 
 func newSetupProfilesModel(state setupProfilesTUIState) setupProfilesModel {
 	if strings.TrimSpace(state.Active) == "" {
-		state.Active = "default"
+		state.Active = config.DefaultProfileID
 	}
 	if len(state.Profiles) == 0 {
-		state.Profiles = []setupProfileView{{Name: "default", Active: true}}
+		state.Profiles = []setupProfileView{{Name: config.DefaultProfileID, Active: true}}
 	}
 	selected := 0
 	for i := range state.Profiles {
@@ -686,7 +713,20 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	switch key.Type {
-	case tea.KeyCtrlC, tea.KeyEsc:
+	case tea.KeyCtrlC:
+		m.result.Cancelled = true
+		return m, tea.Quit
+	case tea.KeyEsc:
+		if m.mode == setupProfilesModeWorkspaceBrowser || m.mode == setupProfilesModeWorkspacePath {
+			m.mode = setupProfilesModeWorkspaces
+			m.input = ""
+			return m, nil
+		}
+		if m.mode != setupProfilesModeBrowse {
+			m.mode = setupProfilesModeBrowse
+			m.input = ""
+			return m, nil
+		}
 		m.result.Cancelled = true
 		return m, tea.Quit
 	case tea.KeyEnter:
@@ -697,23 +737,44 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeySpace:
+		if m.mode == setupProfilesModeWorkspaceBrowser {
+			return m.selectWorkspaceBrowserEntry(), nil
+		}
 		if m.mode == setupProfilesModeChannels {
 			channel := setupProfilesChannelChoices[m.channelIndex]
 			m.channelDraft[channel] = !m.channelDraft[channel]
 		}
 		return m, nil
 	case tea.KeyUp:
-		if m.mode == setupProfilesModeChannels && m.channelIndex > 0 {
+		if m.mode == setupProfilesModeWorkspaces && m.workspaceIndex > 0 {
+			m.workspaceIndex--
+		} else if m.mode == setupProfilesModeWorkspaceBrowser && m.workspaceBrowserIndex > 0 {
+			m.workspaceBrowserIndex--
+		} else if m.mode == setupProfilesModeChannels && m.channelIndex > 0 {
 			m.channelIndex--
 		} else if m.mode == setupProfilesModeBrowse && m.selected > 0 {
 			m.selected--
 		}
 		return m, nil
 	case tea.KeyDown:
-		if m.mode == setupProfilesModeChannels && m.channelIndex < len(setupProfilesChannelChoices)-1 {
+		if m.mode == setupProfilesModeWorkspaces && m.workspaceIndex < len(m.workspaceDraft)-1 {
+			m.workspaceIndex++
+		} else if m.mode == setupProfilesModeWorkspaceBrowser && m.workspaceBrowserIndex < len(m.workspaceBrowserEntries)-1 {
+			m.workspaceBrowserIndex++
+		} else if m.mode == setupProfilesModeChannels && m.channelIndex < len(setupProfilesChannelChoices)-1 {
 			m.channelIndex++
 		} else if m.mode == setupProfilesModeBrowse && m.selected < len(m.state.Profiles)-1 {
 			m.selected++
+		}
+		return m, nil
+	case tea.KeyLeft:
+		if m.mode == setupProfilesModeBrowse {
+			m = m.moveCommandCursor(-1)
+		}
+		return m, nil
+	case tea.KeyRight:
+		if m.mode == setupProfilesModeBrowse {
+			m = m.moveCommandCursor(1)
 		}
 		return m, nil
 	case tea.KeyRunes:
@@ -723,6 +784,60 @@ func (m setupProfilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
+	if m.mode == setupProfilesModeWorkspaces {
+		if len(runes) != 1 {
+			return m, nil
+		}
+		switch runes[0] {
+		case 'j':
+			if m.workspaceIndex < len(m.workspaceDraft)-1 {
+				m.workspaceIndex++
+			}
+		case 'k':
+			if m.workspaceIndex > 0 {
+				m.workspaceIndex--
+			}
+		case 'a':
+			m.mode = setupProfilesModeWorkspacePath
+			m.workspaceEditingIndex = -1
+			m.input = ""
+		case 'e':
+			if len(m.workspaceDraft) > 0 {
+				m.mode = setupProfilesModeWorkspacePath
+				m.workspaceEditingIndex = m.workspaceIndex
+				m.input = m.workspaceDraft[m.workspaceIndex]
+			}
+		case 'x':
+			m = m.removeSelectedWorkspace()
+		case 'p':
+			m = m.setSelectedWorkspacePrimary()
+		case 'f':
+			return m.openWorkspaceBrowserPath(m.initialWorkspaceBrowserPath()), nil
+		case 'b':
+			m.mode = setupProfilesModeBrowse
+		}
+		return m, nil
+	}
+	if m.mode == setupProfilesModeWorkspaceBrowser {
+		if len(runes) != 1 {
+			return m, nil
+		}
+		switch runes[0] {
+		case 'j':
+			if m.workspaceBrowserIndex < len(m.workspaceBrowserEntries)-1 {
+				m.workspaceBrowserIndex++
+			}
+		case 'k':
+			if m.workspaceBrowserIndex > 0 {
+				m.workspaceBrowserIndex--
+			}
+		case 'b', 'q':
+			m.mode = setupProfilesModeWorkspaces
+		case 'u':
+			return m.openWorkspaceBrowserPath(filepath.Dir(m.workspaceBrowserPath)), nil
+		}
+		return m, nil
+	}
 	if m.mode == setupProfilesModeChannels {
 		if len(runes) != 1 {
 			return m, nil
@@ -766,8 +881,7 @@ func (m setupProfilesModel) handleRunes(runes []rune) (tea.Model, tea.Cmd) {
 			m.input = strings.TrimSpace(m.currentProfile().DisplayName)
 		}
 	case 'w':
-		m.mode = setupProfilesModeWorkspaces
-		m.input = strings.Join(m.currentProfile().Workspaces, ",")
+		m = m.openWorkspaceEditor()
 	case 'c':
 		m.mode = setupProfilesModeChannels
 		m.channelIndex = 0
@@ -821,10 +935,7 @@ func (m setupProfilesModel) handleEnter() (tea.Model, tea.Cmd) {
 	value := strings.TrimSpace(m.input)
 	switch m.mode {
 	case setupProfilesModeBrowse:
-		if m.result.Selected == "" {
-			m.result.Selected = m.currentProfile().Name
-		}
-		return m, tea.Quit
+		return m.activateCommand(m.currentCommandAction())
 	case setupProfilesModeAddProfile:
 		if value != "" {
 			id, displayName := parseSetupProfilesNewProfileInput(value)
@@ -846,8 +957,27 @@ func (m setupProfilesModel) handleEnter() (tea.Model, tea.Cmd) {
 	case setupProfilesModeWorkspaces:
 		m.result.Selected = m.currentProfile().Name
 		m.result.WorkspacesSet = true
-		m.result.Workspaces = parseSetupWorkspaceList(value)
+		m.result.Workspaces = normalizeSetupProfilesTUIValues(m.workspaceDraft)
 		m.state.Profiles[m.selected].Workspaces = append([]string(nil), m.result.Workspaces...)
+	case setupProfilesModeWorkspacePath:
+		if value != "" {
+			if m.workspaceEditingIndex >= 0 && m.workspaceEditingIndex < len(m.workspaceDraft) {
+				m.workspaceDraft[m.workspaceEditingIndex] = value
+			} else {
+				m.workspaceDraft = append(m.workspaceDraft, value)
+				m.workspaceIndex = len(m.workspaceDraft) - 1
+			}
+		}
+		m.mode = setupProfilesModeWorkspaces
+		m.input = ""
+		return m, nil
+	case setupProfilesModeWorkspaceBrowser:
+		if len(m.workspaceBrowserEntries) == 0 {
+			m.mode = setupProfilesModeWorkspaces
+			return m, nil
+		}
+		selected := filepath.Join(m.workspaceBrowserPath, m.workspaceBrowserEntries[m.workspaceBrowserIndex])
+		return m.openWorkspaceBrowserPath(selected), nil
 	case setupProfilesModeChannels:
 		m.result.Selected = m.currentProfile().Name
 		m.result.ChannelsSet = true
@@ -887,6 +1017,255 @@ func (m setupProfilesModel) handleEnter() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m setupProfilesModel) moveCommandCursor(delta int) setupProfilesModel {
+	actions := m.commandActions()
+	if len(actions) == 0 {
+		m.commandCursor = 0
+		return m
+	}
+	m.commandCursor = (m.commandCursor + delta) % len(actions)
+	if m.commandCursor < 0 {
+		m.commandCursor += len(actions)
+	}
+	return m
+}
+
+func (m setupProfilesModel) currentCommandAction() setupProfilesCommandAction {
+	actions := m.commandActions()
+	if len(actions) == 0 {
+		return setupProfilesCommandAction{id: setupProfilesCommandSaveSelected, label: "Enter save selected profile"}
+	}
+	if m.commandCursor < 0 || m.commandCursor >= len(actions) {
+		return actions[0]
+	}
+	return actions[m.commandCursor]
+}
+
+func (m setupProfilesModel) commandActions() []setupProfilesCommandAction {
+	if m.state.ControlCenter {
+		actions := []setupProfilesCommandAction{
+			{id: setupProfilesCommandSaveSelected, label: "choose"},
+			{key: 'n', label: "n new"},
+			{key: 'r', label: "r rename"},
+			{key: 'w', label: "w workspaces"},
+			{key: 'c', label: "c channels"},
+			{key: 'p', label: "p provider"},
+			{key: 't', label: "t policy"},
+		}
+		if m.state.MigrationAvailable {
+			actions = append(actions, setupProfilesCommandAction{key: 'm', label: "m migrate"})
+		}
+		return append(actions,
+			setupProfilesCommandAction{key: 's', label: "s apply"},
+			setupProfilesCommandAction{key: 'd', label: "d discard"},
+			setupProfilesCommandAction{key: 'q', label: "q quit"},
+		)
+	}
+	return []setupProfilesCommandAction{
+		{id: setupProfilesCommandSaveSelected, label: "Enter save selected profile"},
+		{key: 'n', label: "n add profile"},
+		{key: 'w', label: "w edit workspaces"},
+		{key: 'c', label: "c edit channels"},
+		{key: 'a', label: "a set active"},
+		{key: 's', label: "s save"},
+		{key: 'q', label: "q cancel"},
+	}
+}
+
+func (m setupProfilesModel) activateCommand(action setupProfilesCommandAction) (tea.Model, tea.Cmd) {
+	if action.id == setupProfilesCommandSaveSelected {
+		if m.result.Selected == "" {
+			m.result.Selected = m.currentProfile().Name
+		}
+		return m, tea.Quit
+	}
+	if action.key == 0 {
+		return m, nil
+	}
+	return m.handleRunes([]rune{action.key})
+}
+
+func (m setupProfilesModel) writeCommandActions(b *strings.Builder) {
+	fmt.Fprintln(b, "Actions: ←/→ select, Enter run, ↑/↓ profile")
+	for i, action := range m.commandActions() {
+		cursor := " "
+		if i == m.commandCursor {
+			cursor = ">"
+		}
+		fmt.Fprintf(b, "%s %s\n", cursor, action.label)
+	}
+}
+
+func (m setupProfilesModel) writeCommandBar(b *strings.Builder) {
+	fmt.Fprintln(b, "Actions: ←/→ select, Enter run, ↑/↓ profile")
+	parts := make([]string, 0, len(m.commandActions()))
+	for i, action := range m.commandActions() {
+		label := action.label
+		if i == m.commandCursor {
+			label = "[" + label + "]"
+		}
+		parts = append(parts, label)
+	}
+	fmt.Fprintln(b, strings.Join(parts, "  "))
+}
+
+func (m setupProfilesModel) openWorkspaceEditor() setupProfilesModel {
+	m.mode = setupProfilesModeWorkspaces
+	m.input = ""
+	m.workspaceDraft = append([]string(nil), m.currentProfile().Workspaces...)
+	m.workspaceIndex = 0
+	m.workspaceEditingIndex = -1
+	return m
+}
+
+func (m setupProfilesModel) removeSelectedWorkspace() setupProfilesModel {
+	if len(m.workspaceDraft) == 0 || m.workspaceIndex < 0 || m.workspaceIndex >= len(m.workspaceDraft) {
+		return m
+	}
+	m.workspaceDraft = append(m.workspaceDraft[:m.workspaceIndex], m.workspaceDraft[m.workspaceIndex+1:]...)
+	if m.workspaceIndex >= len(m.workspaceDraft) && m.workspaceIndex > 0 {
+		m.workspaceIndex--
+	}
+	return m
+}
+
+func (m setupProfilesModel) setSelectedWorkspacePrimary() setupProfilesModel {
+	if len(m.workspaceDraft) == 0 || m.workspaceIndex <= 0 || m.workspaceIndex >= len(m.workspaceDraft) {
+		return m
+	}
+	selected := m.workspaceDraft[m.workspaceIndex]
+	copy(m.workspaceDraft[1:m.workspaceIndex+1], m.workspaceDraft[0:m.workspaceIndex])
+	m.workspaceDraft[0] = selected
+	m.workspaceIndex = 0
+	return m
+}
+
+func (m setupProfilesModel) initialWorkspaceBrowserPath() string {
+	workspaces := m.workspaceDraft
+	if len(workspaces) == 0 {
+		workspaces = m.currentProfile().Workspaces
+	}
+	for _, workspace := range workspaces {
+		workspace = strings.TrimSpace(workspace)
+		if workspace == "" {
+			continue
+		}
+		if info, err := os.Stat(workspace); err == nil && info.IsDir() {
+			return workspace
+		}
+		if parent := filepath.Dir(workspace); parent != "." {
+			if info, err := os.Stat(parent); err == nil && info.IsDir() {
+				return parent
+			}
+		}
+	}
+	if wd, err := os.Getwd(); err == nil && wd != "" {
+		return wd
+	}
+	return config.GormesHome()
+}
+
+func (m setupProfilesModel) openWorkspaceBrowserPath(path string) setupProfilesModel {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		path = m.initialWorkspaceBrowserPath()
+	}
+	abs, err := filepath.Abs(path)
+	if err == nil {
+		path = abs
+	}
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		m.err = err
+		m.mode = setupProfilesModeWorkspaces
+		return m
+	}
+	m.workspaceBrowserPath = path
+	m.workspaceBrowserEntries = m.workspaceBrowserEntries[:0]
+	for _, entry := range entries {
+		if entry.IsDir() {
+			m.workspaceBrowserEntries = append(m.workspaceBrowserEntries, entry.Name())
+		}
+	}
+	sort.Strings(m.workspaceBrowserEntries)
+	m.workspaceBrowserIndex = 0
+	m.mode = setupProfilesModeWorkspaceBrowser
+	m.err = nil
+	return m
+}
+
+func (m setupProfilesModel) selectWorkspaceBrowserEntry() setupProfilesModel {
+	if len(m.workspaceBrowserEntries) == 0 {
+		m.mode = setupProfilesModeWorkspaces
+		return m
+	}
+	selected := filepath.Join(m.workspaceBrowserPath, m.workspaceBrowserEntries[m.workspaceBrowserIndex])
+	m.workspaceDraft = append(m.workspaceDraft, selected)
+	m.workspaceIndex = len(m.workspaceDraft) - 1
+	m.input = ""
+	m.mode = setupProfilesModeWorkspaces
+	return m
+}
+
+func (m setupProfilesModel) writeWorkspaceEditor(b *strings.Builder) {
+	fmt.Fprintln(b, "\nWorkspace editor")
+	fmt.Fprintln(b, "A workspace is a project folder this profile can use. The first workspace is primary/default.")
+	fmt.Fprintln(b, "Labels use the folder basename until workspace label persistence is added to profile config.")
+	fmt.Fprintln(b, "Actions: a Add path, f Browse folders, e Edit path, x Remove, p Set primary, Up/Down or j/k move, Enter Save, b/Esc Back.")
+	if len(m.workspaceDraft) == 0 {
+		fmt.Fprintln(b, "  (no workspaces yet)")
+		return
+	}
+	for i, workspace := range m.workspaceDraft {
+		cursor := " "
+		if i == m.workspaceIndex {
+			cursor = ">"
+		}
+		primary := ""
+		if i == 0 {
+			primary = " (primary)"
+		}
+		fmt.Fprintf(b, "%s %s — %s%s\n", cursor, setupWorkspaceLabel(workspace), workspace, primary)
+	}
+}
+
+func setupWorkspaceLabel(path string) string {
+	label := strings.TrimSpace(filepath.Base(path))
+	if label == "" || label == "." || label == string(filepath.Separator) {
+		return path
+	}
+	return label
+}
+
+func (m setupProfilesModel) writeWorkspaceBrowser(b *strings.Builder) {
+	fmt.Fprintln(b, "\nWorkspace folder browser")
+	fmt.Fprintf(b, "Current folder: %s\n", m.workspaceBrowserPath)
+	fmt.Fprintln(b, "Use Up/Down or j/k to choose a folder, Enter to open it, Space to select it, u for parent, b/q or Esc to return.")
+	if len(m.workspaceBrowserEntries) == 0 {
+		fmt.Fprintln(b, "  (no child folders)")
+		return
+	}
+	for i, entry := range m.workspaceBrowserEntries {
+		cursor := " "
+		if i == m.workspaceBrowserIndex {
+			cursor = ">"
+		}
+		fmt.Fprintf(b, "%s %s/\n", cursor, entry)
+	}
+}
+
+func appendSetupWorkspaceInput(current, path string) string {
+	current = strings.TrimSpace(current)
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return current
+	}
+	if current == "" {
+		return path
+	}
+	return current + "," + path
+}
+
 func (m setupProfilesModel) View() string {
 	if m.state.ControlCenter {
 		return m.controlCenterView()
@@ -923,26 +1302,26 @@ func (m setupProfilesModel) View() string {
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Commands")
 	fmt.Fprintln(&b, "j/k or Up/Down move profile")
-	fmt.Fprintln(&b, "n add profile")
-	fmt.Fprintln(&b, "w edit workspaces")
-	fmt.Fprintln(&b, "c edit channels")
-	fmt.Fprintln(&b, "a set active")
-	fmt.Fprintln(&b, "s save")
-	fmt.Fprintln(&b, "Enter save selected profile")
-	fmt.Fprintln(&b, "q cancel")
+	m.writeCommandActions(&b)
 	switch m.mode {
 	case setupProfilesModeAddProfile:
 		fmt.Fprintf(&b, "\nNew profile: %s", m.input)
 	case setupProfilesModeDisplayName:
 		fmt.Fprintf(&b, "\nDisplay name: %s", m.input)
 	case setupProfilesModeWorkspaces:
-		fmt.Fprintf(&b, "\nWorkspace directories: %s", m.input)
+		m.writeWorkspaceEditor(&b)
+	case setupProfilesModeWorkspacePath:
+		fmt.Fprintf(&b, "\nWorkspace path: %s", m.input)
+	case setupProfilesModeWorkspaceBrowser:
+		m.writeWorkspaceBrowser(&b)
 	case setupProfilesModeProviderCredential:
 		fmt.Fprintf(&b, "\nProvider credential provider:credential_id: %s", m.input)
 	case setupProfilesModeChannelCredential:
 		fmt.Fprintf(&b, "\nChannel credential channel:credential_id: %s", m.input)
 	case setupProfilesModeChannels:
 		fmt.Fprintln(&b, "\nChannels")
+		fmt.Fprintln(&b, "Space toggle  j/k or Up/Down move  Enter done  q back")
+		fmt.Fprintln(&b, "Channels attach this profile agent to Gormes messaging channels. Navivox routes through the Gormes Navivox channel, not directly to Goncho.")
 		for i, channel := range setupProfilesChannelChoices {
 			cursor := " "
 			if i == m.channelIndex {
@@ -964,79 +1343,47 @@ func (m setupProfilesModel) controlCenterView() string {
 		return m.controlCenterMigrationView()
 	}
 	var b strings.Builder
-	fmt.Fprintln(&b, "Profile Control Center (Setup profiles)")
+	profile := m.currentProfile()
+	fmt.Fprintln(&b, "Profile Control Center — Setup profiles")
+	fmt.Fprintln(&b, "Profiles are agents: name them, attach workspaces, then connect channels.")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Profiles")
-	for i, profile := range m.state.Profiles {
+	for i, candidate := range m.state.Profiles {
 		prefix := " "
 		if i == m.selected {
 			prefix = ">"
 		}
-		fmt.Fprintf(&b, "%s %s — %s\n", prefix, profile.Name, setupProfilesDisplayName(profile))
+		fmt.Fprintf(&b, "%s %s — %s\n", prefix, candidate.Name, setupProfilesDisplayName(candidate))
 	}
-	profile := m.currentProfile()
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Selected profile")
-	fmt.Fprintf(&b, "ID: %s\n", profile.Name)
+	fmt.Fprintf(&b, "Agent: %s — %s\n", profile.Name, setupProfilesDisplayName(profile))
 	fmt.Fprintf(&b, "Display name: %s\n", setupProfilesDisplayName(profile))
-	fmt.Fprintf(&b, "Workspaces: %s\n", setupProfilesWorkspaceListOrEmpty(profile.Workspaces))
-	fmt.Fprintf(&b, "Channels: %s\n", setupProfilesChannelsListOrEmpty(profile.ChannelDetails, profile.Channels))
-	fmt.Fprintf(&b, "Providers: %s\n", setupProfilesProvidersListOrEmpty(profile.Providers))
-	for _, provider := range profile.Providers {
-		if len(provider.Models) > 0 {
-			fmt.Fprintf(&b, "provider models %s: %s\n", provider.ID, strings.Join(provider.Models, ", "))
-		}
-	}
+	fmt.Fprintf(&b, "Workspaces: %s\n", setupProfilesWorkspaceSummary(profile.Workspaces))
+	fmt.Fprintf(&b, "Channels: %s\n", setupProfilesChannelsSummary(profile.ChannelDetails, profile.Channels))
+	fmt.Fprintf(&b, "Providers: %s\n", setupProfilesProvidersSummary(profile.Providers))
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Help")
-	fmt.Fprintln(&b, "  Here you can create multiple Gormes profiles. Each profile is an agent with its own display name, workspace list, and channels.")
-	fmt.Fprintln(&b, "  Select a profile to edit its Display name, add workspaces, choose the primary workspace, or connect channels like Telegram and WhatsApp.")
+	fmt.Fprintln(&b, "Tip: r rename, w edit workspace list, c connect Telegram/WhatsApp/Navivox. Drafts save only on Apply.")
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Details")
-	fmt.Fprintln(&b, "  draft changes stay in memory until Apply")
-	fmt.Fprintln(&b, "  Apply writes one root config.toml transaction")
-	fmt.Fprintln(&b, "  Discard writes nothing")
-	if m.state.MigrationAvailable {
-		fmt.Fprintln(&b)
-		fmt.Fprintln(&b, "Migration preview")
-		for _, line := range m.state.MigrationPreviewLines {
-			fmt.Fprintf(&b, "  - %s\n", line)
-		}
-		if m.result.MigrateLegacyConfig {
-			fmt.Fprintln(&b, "legacy migration staged for Apply")
-		}
-	}
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "Commands")
-	fmt.Fprintln(&b, "j/k or Up/Down move profile")
-	fmt.Fprintln(&b, "n add profile as id|display name")
-	fmt.Fprintln(&b, "r rename display name")
-	fmt.Fprintln(&b, "w edit workspaces")
-	fmt.Fprintln(&b, "c edit channels")
-	fmt.Fprintln(&b, "p assign provider credential/model")
-	fmt.Fprintln(&b, "t assign channel credential/policy")
-	fmt.Fprintln(&b, "Enter save selected profile")
-	if m.state.MigrationAvailable {
-		fmt.Fprintln(&b, "m stage legacy migration")
-	}
-	fmt.Fprintln(&b, "s apply draft")
-	fmt.Fprintln(&b, "d discard draft")
-	fmt.Fprintln(&b, "q cancel")
+	m.writeCommandBar(&b)
 	switch m.mode {
 	case setupProfilesModeAddProfile:
 		fmt.Fprintf(&b, "\nNew profile id|display name: %s", m.input)
 	case setupProfilesModeDisplayName:
 		fmt.Fprintf(&b, "\nDisplay name: %s", m.input)
 	case setupProfilesModeWorkspaces:
-		fmt.Fprintln(&b, "\nWorkspace editor")
-		fmt.Fprintln(&b, "A workspace is a project folder this profile can use. Enter one or more paths separated by commas; the first path is the primary workspace.")
-		fmt.Fprintf(&b, "Workspace directories: %s", m.input)
+		m.writeWorkspaceEditor(&b)
+	case setupProfilesModeWorkspacePath:
+		fmt.Fprintf(&b, "\nWorkspace path: %s", m.input)
+	case setupProfilesModeWorkspaceBrowser:
+		m.writeWorkspaceBrowser(&b)
 	case setupProfilesModeProviderCredential:
 		fmt.Fprintf(&b, "\nProvider credential/model provider|credential_id|default_model|allowed_models: %s", m.input)
 	case setupProfilesModeChannelCredential:
 		fmt.Fprintf(&b, "\nChannel credential/policy channel|credential_id|allowed_chats|allowed_users|require_mention|tool_progress: %s", m.input)
 	case setupProfilesModeChannels:
 		fmt.Fprintln(&b, "\nChannels")
+		fmt.Fprintln(&b, "Space toggle  j/k or Up/Down move  Enter done  q back")
+		fmt.Fprintln(&b, "Channels attach this profile agent to Gormes messaging channels. Navivox routes through the Gormes Navivox channel, not directly to Goncho.")
 		for i, channel := range setupProfilesChannelChoices {
 			cursor := " "
 			if i == m.channelIndex {
@@ -1067,16 +1414,7 @@ func (m setupProfilesModel) controlCenterMigrationView() string {
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "Commands")
 	fmt.Fprintln(&b, "j/k or Up/Down move profile")
-	fmt.Fprintln(&b, "n add profile as id|display name")
-	fmt.Fprintln(&b, "r rename display name")
-	fmt.Fprintln(&b, "w edit workspaces")
-	fmt.Fprintln(&b, "c edit channels")
-	fmt.Fprintln(&b, "p assign provider credential/model")
-	fmt.Fprintln(&b, "t assign channel credential/policy")
-	fmt.Fprintln(&b, "m stage legacy migration")
-	fmt.Fprintln(&b, "s apply draft")
-	fmt.Fprintln(&b, "d discard draft")
-	fmt.Fprintln(&b, "q cancel")
+	m.writeCommandActions(&b)
 	return setupProfilesWrapView(b.String(), m.viewWidth(), m.viewHeight())
 }
 
@@ -1191,7 +1529,7 @@ func parseSetupProfilesCSV(value string) []string {
 
 func (m setupProfilesModel) currentProfile() setupProfileView {
 	if len(m.state.Profiles) == 0 {
-		return setupProfileView{Name: "default", Active: true}
+		return setupProfileView{Name: config.DefaultProfileID, Active: true}
 	}
 	if m.selected < 0 || m.selected >= len(m.state.Profiles) {
 		return m.state.Profiles[0]
@@ -1386,6 +1724,17 @@ func setupProfilesListOrEmpty(values []string) string {
 	return strings.Join(values, ", ")
 }
 
+func setupProfilesWorkspaceSummary(values []string) string {
+	clean := normalizeSetupProfilesTUIValues(values)
+	if len(clean) == 0 {
+		return "none — press w to add"
+	}
+	if len(clean) == 1 {
+		return fmt.Sprintf("1 primary: %s", clean[0])
+	}
+	return fmt.Sprintf("%d total, primary: %s", len(clean), clean[0])
+}
+
 func setupProfilesWorkspaceListOrEmpty(values []string) string {
 	if len(values) == 0 {
 		return "(none)"
@@ -1405,6 +1754,35 @@ func setupProfilesWorkspaceListOrEmpty(values []string) string {
 		return "(none)"
 	}
 	return strings.Join(out, ", ")
+}
+
+func setupProfilesChannelsSummary(channelDetails []setupChannelView, fallback []string) string {
+	if len(channelDetails) == 0 {
+		channels := normalizeSetupProfilesTUIValues(fallback)
+		if len(channels) == 0 {
+			return "none — press c to connect"
+		}
+		return strings.Join(channels, ", ")
+	}
+	ready, degraded := 0, 0
+	labels := make([]string, 0, len(channelDetails))
+	for _, channel := range channelDetails {
+		if channel.Status == "ready" {
+			ready++
+		} else {
+			degraded++
+		}
+		label := channel.ID
+		if channel.CredentialID != "" {
+			label += " ✓"
+		}
+		labels = append(labels, label)
+	}
+	status := fmt.Sprintf("%d ready", ready)
+	if degraded > 0 {
+		status += fmt.Sprintf(", %d needs setup", degraded)
+	}
+	return fmt.Sprintf("%s (%s)", strings.Join(labels, ", "), status)
 }
 
 func setupProfilesChannelsListOrEmpty(channelDetails []setupChannelView, fallback []string) string {
@@ -1430,6 +1808,31 @@ func setupProfilesChannelsListOrEmpty(channelDetails []setupChannelView, fallbac
 		parts = append(parts, part)
 	}
 	return strings.Join(parts, "; ")
+}
+
+func setupProfilesProvidersSummary(providers []setupProviderView) string {
+	if len(providers) == 0 {
+		return "none — press p to assign"
+	}
+	ready, degraded := 0, 0
+	labels := make([]string, 0, len(providers))
+	for _, provider := range providers {
+		if provider.Status == "ready" {
+			ready++
+		} else {
+			degraded++
+		}
+		label := provider.ID
+		if provider.DefaultModel != "" {
+			label += " " + provider.DefaultModel
+		}
+		labels = append(labels, label)
+	}
+	status := fmt.Sprintf("%d ready", ready)
+	if degraded > 0 {
+		status += fmt.Sprintf(", %d needs setup", degraded)
+	}
+	return fmt.Sprintf("%s (%s)", strings.Join(labels, ", "), status)
 }
 
 func setupProfilesProvidersListOrEmpty(providers []setupProviderView) string {

@@ -6,23 +6,23 @@ import (
 )
 
 // Owned divergence (parity intent hermes_cli/doctor.py@55c9f3206:1768):
-// Gormes always has a usable default. With no named profiles the ◆ Profiles
-// section is a single clean PASS "default profile only" — never WARN.
-func TestCheckProfilesDefaultOnlyIsCleanPass(t *testing.T) {
+// Gormes always has a usable main profile. With no named profiles the ◆ Profiles
+// section is a single clean PASS "main profile only" — never WARN.
+func TestCheckProfilesMainOnlyIsCleanPass(t *testing.T) {
 	r := CheckProfiles(DoctorProfileInventory{Known: nil, Active: ""})
 
 	if r.Name != "Profiles" {
 		t.Fatalf("CheckResult.Name = %q, want %q", r.Name, "Profiles")
 	}
 	if r.Status != StatusPass {
-		t.Fatalf("default-only profiles must be a clean PASS, got %v summary=%q", r.Status, r.Summary)
+		t.Fatalf("main-only profiles must be a clean PASS, got %v summary=%q", r.Status, r.Summary)
 	}
 	joined := r.Summary
 	for _, it := range r.Items {
 		joined += " | " + it.Name + " " + it.Note
 	}
-	if !strings.Contains(strings.ToLower(joined), "default profile only") {
-		t.Fatalf("default-only must report 'default profile only', got: %s", joined)
+	if !strings.Contains(strings.ToLower(joined), "main profile only") {
+		t.Fatalf("main-only must report 'main profile only', got: %s", joined)
 	}
 	for _, forbidden := range []string{"~/.hermes", "hermes ", "wrapper", "alias", "gateway running"} {
 		if strings.Contains(joined, forbidden) {
@@ -37,7 +37,7 @@ func TestCheckProfilesDefaultOnlyIsCleanPass(t *testing.T) {
 // no per-profile gateway_running or model[:30] is fabricated.
 func TestCheckProfilesNamedWithManifestPassesAndMarksActive(t *testing.T) {
 	r := CheckProfiles(DoctorProfileInventory{
-		Known:       []string{"work", "default", "play"},
+		Known:       []string{"work", "main", "play"},
 		Active:      "work",
 		RootExists:  func(string) bool { return true },
 		HasManifest: func(name string) bool { return name == "work" },
@@ -83,8 +83,8 @@ func TestCheckProfilesNamedWithManifestPassesAndMarksActive(t *testing.T) {
 	if play, ok := byName["play"]; !ok || play.Status != StatusPass {
 		t.Fatalf("non-active named profile must be a plain PASS item, got %+v", byName["play"])
 	}
-	if defaultItem, ok := byName["default"]; !ok || defaultItem.Status != StatusPass {
-		t.Fatalf("the default profile must be enumerated with named profiles: %+v", r.Items)
+	if mainItem, ok := byName["main"]; !ok || mainItem.Status != StatusPass {
+		t.Fatalf("the main profile must be enumerated with named profiles: %+v", r.Items)
 	}
 	for _, it := range r.Items {
 		if strings.Contains(strings.ToLower(it.Note), "gateway running") ||
@@ -102,7 +102,7 @@ func TestCheckProfilesNamedWithManifestPassesAndMarksActive(t *testing.T) {
 func TestCheckProfilesRootMissingWarnsButManifestAbsentIsNonActionable(t *testing.T) {
 	missing := CheckProfiles(DoctorProfileInventory{
 		Known:      []string{"ghost"},
-		Active:     "default",
+		Active:     "main",
 		RootExists: func(string) bool { return false },
 	})
 	if missing.Status != StatusWarn {
@@ -141,7 +141,7 @@ func TestCheckProfilesRootMissingWarnsButManifestAbsentIsNonActionable(t *testin
 
 func TestCheckProfilesNamedMissingConfigWarns(t *testing.T) {
 	r := CheckProfiles(DoctorProfileInventory{
-		Known:      []string{"default", "work"},
+		Known:      []string{"main", "work"},
 		Active:     "work",
 		RootExists: func(string) bool { return true },
 		Config: func(name string) DoctorProfileConfig {

@@ -116,6 +116,7 @@ func loadTurns(ctx context.Context, db *sql.DB, sessionID string) ([]turn, error
 	defer rows.Close()
 
 	var out []turn
+	seen := make(map[string]int)
 	for rows.Next() {
 		var row turn
 		var ts int64
@@ -123,12 +124,27 @@ func loadTurns(ctx context.Context, db *sql.DB, sessionID string) ([]turn, error
 			return nil, fmt.Errorf("transcript: scan session %q: %w", sessionID, err)
 		}
 		row.Timestamp = time.Unix(ts, 0).UTC()
+		dedupeKey := turnDedupeKey(row)
+		if idx, ok := seen[dedupeKey]; ok {
+			if out[idx].ChatID == "" && row.ChatID != "" {
+				out[idx].ChatID = row.ChatID
+			}
+			if out[idx].MetaJSON == "" && row.MetaJSON != "" {
+				out[idx].MetaJSON = row.MetaJSON
+			}
+			continue
+		}
+		seen[dedupeKey] = len(out)
 		out = append(out, row)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("transcript: iterate session %q: %w", sessionID, err)
 	}
 	return out, nil
+}
+
+func turnDedupeKey(t turn) string {
+	return strings.Join([]string{t.SessionID, strings.TrimSpace(t.Role), fmt.Sprintf("%d", t.Timestamp.Unix()), t.Content}, "\x00")
 }
 
 func formatTurnTimestamp(ts time.Time) string {

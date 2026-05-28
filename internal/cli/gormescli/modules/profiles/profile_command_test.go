@@ -17,7 +17,7 @@ import (
 func TestProfileModuleCommandUsesInjectedSeamsAndBuildProvenance(t *testing.T) {
 	var writes []string
 	cmd := NewCommandWithSeams(Seams{
-		ReadActiveProfileName: func() (string, error) { return "default", nil },
+		ReadActiveProfileName: func() (string, error) { return "main", nil },
 		ValidateProfileName:   cli.ValidateProfileName,
 		ResolveProfileRoot: func(name string) (string, error) {
 			return "/home/operator-secret/.gormes/profiles/" + name, nil
@@ -27,7 +27,7 @@ func TestProfileModuleCommandUsesInjectedSeamsAndBuildProvenance(t *testing.T) {
 			return nil
 		},
 		ListKnownProfiles: func() ([]string, error) {
-			return []string{"default", "work"}, nil
+			return []string{"main", "work"}, nil
 		},
 	}, Options{
 		BuildProvenance: func() gormescli.BuildProvenance {
@@ -142,7 +142,7 @@ enabled = true
 	if err != nil {
 		t.Fatalf("DefaultListKnownProfiles: %v", err)
 	}
-	for _, want := range []string{"default", "main", "tulin"} {
+	for _, want := range []string{"main", "tulin"} {
 		if !containsString(known, want) {
 			t.Fatalf("known profiles = %v, want %q from config-v2 profile registry", known, want)
 		}
@@ -151,8 +151,9 @@ enabled = true
 	if err != nil {
 		t.Fatalf("ResolveProfileRoot(main): %v", err)
 	}
-	if root != base {
-		t.Fatalf("ResolveProfileRoot(main) = %q, want v2 main base-home root %q", root, base)
+	wantMainRoot := filepath.Join(base, "profiles", "main")
+	if root != wantMainRoot {
+		t.Fatalf("ResolveProfileRoot(main) = %q, want profile root %q", root, wantMainRoot)
 	}
 }
 
@@ -202,7 +203,7 @@ func TestProfileModuleDefaultSeamsCreateProfileWithoutCloneAllDoesNotInspectDefa
 	if err := os.MkdirAll(profilesDir, 0o700); err != nil {
 		t.Fatalf("mkdir profiles dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(profilesDir, "default"), []byte("not-a-directory"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(profilesDir, "main"), []byte("not-a-directory"), 0o600); err != nil {
 		t.Fatalf("write bad materialized default marker: %v", err)
 	}
 	t.Setenv("GORMES_HOME", base)
@@ -216,14 +217,14 @@ func TestProfileModuleDefaultSeamsCreateProfileWithoutCloneAllDoesNotInspectDefa
 	}
 }
 
-func TestProfileModuleDefaultSeamsCreateCloneAllUsesMaterializedDefaultProfileSource(t *testing.T) {
+func TestProfileModuleDefaultSeamsCreateCloneAllUsesMaterializedMainProfileSource(t *testing.T) {
 	base := filepath.Join(t.TempDir(), ".gormes")
-	materializedDefault := filepath.Join(base, "profiles", "default")
+	materializedDefault := filepath.Join(base, "profiles", "main")
 	if err := os.MkdirAll(materializedDefault, 0o700); err != nil {
-		t.Fatalf("mkdir materialized default profile: %v", err)
+		t.Fatalf("mkdir materialized main profile: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(materializedDefault, "config.toml"), []byte("model = 'materialized'\n"), 0o600); err != nil {
-		t.Fatalf("write materialized default config: %v", err)
+		t.Fatalf("write materialized main config: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(base, "legacy-only.txt"), []byte("legacy"), 0o600); err != nil {
 		t.Fatalf("write legacy marker: %v", err)
@@ -243,21 +244,29 @@ func TestProfileModuleDefaultSeamsCreateCloneAllUsesMaterializedDefaultProfileSo
 	}
 }
 
-func TestProfileModuleDefaultSeamsUseMaterializedDefaultProfileRoot(t *testing.T) {
+func TestProfileModuleDefaultSeamsUseMainProfileRootEvenBeforeMaterialization(t *testing.T) {
 	base := filepath.Join(t.TempDir(), ".gormes")
-	materializedDefault := filepath.Join(base, "profiles", "default")
-	if err := os.MkdirAll(materializedDefault, 0o700); err != nil {
-		t.Fatalf("mkdir materialized default profile: %v", err)
+	if err := os.MkdirAll(base, 0o700); err != nil {
+		t.Fatalf("mkdir base home: %v", err)
 	}
 	t.Setenv("GORMES_HOME", base)
 
 	seams := DefaultSeams()
-	root, err := seams.ResolveProfileRoot("default")
+	root, err := seams.ResolveProfileRoot("main")
 	if err != nil {
 		t.Fatalf("ResolveProfileRoot(default): %v", err)
 	}
-	if root != materializedDefault {
-		t.Fatalf("ResolveProfileRoot(default) = %q, want materialized default root %q", root, materializedDefault)
+	wantDefault := filepath.Join(base, "profiles", "main")
+	if root != wantDefault {
+		t.Fatalf("ResolveProfileRoot(default) = %q, want profile root %q", root, wantDefault)
+	}
+	mainRoot, err := seams.ResolveProfileRoot("main")
+	if err != nil {
+		t.Fatalf("ResolveProfileRoot(main): %v", err)
+	}
+	wantMain := filepath.Join(base, "profiles", "main")
+	if mainRoot != wantMain {
+		t.Fatalf("ResolveProfileRoot(main) = %q, want profile root %q", mainRoot, wantMain)
 	}
 }
 

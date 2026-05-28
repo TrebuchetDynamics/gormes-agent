@@ -88,9 +88,10 @@ func TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad(t *testing.T) {
 	}
 }
 
-func TestChatCommandProfileFlagMainKeepsBaseRootWithoutMaterializedMain(t *testing.T) {
+func TestChatCommandProfileFlagMainUsesProfileRoot(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	baseHome := config.GormesHome()
+	wantProfileHome := filepath.Join(baseHome, "profiles", "main")
 
 	var gotHome string
 	var gotMemoryDB string
@@ -110,70 +111,34 @@ func TestChatCommandProfileFlagMainKeepsBaseRootWithoutMaterializedMain(t *testi
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
-	if gotHome != baseHome {
-		t.Fatalf("GORMES_HOME during main-profile chat = %q, want base root %q", gotHome, baseHome)
-	}
-	if want := filepath.Join(baseHome, "memory.db"); gotMemoryDB != want {
-		t.Fatalf("MemoryDBPath during main-profile chat = %q, want base memory db %q", gotMemoryDB, want)
-	}
-}
-
-func TestChatCommandProfileFlagDefaultKeepsLegacyRootWithoutMaterializedDefault(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
-	baseHome := config.GormesHome()
-
-	var gotHome string
-	cmd := newRootCommandWithRuntime(rootRuntime{
-		runOneshot: func(_ *cobra.Command, _ oneshotInvocation) error {
-			gotHome = os.Getenv("GORMES_HOME")
-			return nil
-		},
-		runResolvedTUI: func(*cobra.Command, tuiInvocation) error {
-			t.Fatal("runResolvedTUI was called for chat -q")
-			return nil
-		},
-	})
-
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-p", "default", "chat", "-q", "use legacy default profile")
-	if err != nil {
-		t.Fatalf("Execute() error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
-	}
-	if gotHome != baseHome {
-		t.Fatalf("GORMES_HOME during legacy default-profile chat = %q, want legacy base root %q", gotHome, baseHome)
-	}
-}
-
-func TestChatCommandProfileFlagDefaultUsesMaterializedDefaultProfileRoot(t *testing.T) {
-	setupOneshotFlagTestEnv(t)
-	baseHome := config.GormesHome()
-	wantProfileHome := filepath.Join(baseHome, "profiles", "default")
-	if err := os.MkdirAll(wantProfileHome, 0o755); err != nil {
-		t.Fatalf("create materialized default profile root: %v", err)
-	}
-
-	var gotHome string
-	var gotMemoryDB string
-	cmd := newRootCommandWithRuntime(rootRuntime{
-		runOneshot: func(_ *cobra.Command, _ oneshotInvocation) error {
-			gotHome = os.Getenv("GORMES_HOME")
-			gotMemoryDB = config.MemoryDBPath()
-			return nil
-		},
-		runResolvedTUI: func(*cobra.Command, tuiInvocation) error {
-			t.Fatal("runResolvedTUI was called for chat -q")
-			return nil
-		},
-	})
-
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-p", "default", "chat", "-q", "use migrated default profile")
-	if err != nil {
-		t.Fatalf("Execute() error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
-	}
 	if gotHome != wantProfileHome {
-		t.Fatalf("GORMES_HOME during default-profile chat = %q, want materialized default profile root %q", gotHome, wantProfileHome)
+		t.Fatalf("GORMES_HOME during main-profile chat = %q, want profile root %q", gotHome, wantProfileHome)
 	}
 	if want := filepath.Join(wantProfileHome, "memory.db"); gotMemoryDB != want {
-		t.Fatalf("MemoryDBPath during default-profile chat = %q, want profile memory db %q", gotMemoryDB, want)
+		t.Fatalf("MemoryDBPath during main-profile chat = %q, want profile memory db %q", gotMemoryDB, want)
+	}
+}
+
+func TestChatCommandProfileFlagDefaultIsRejected(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runOneshot: func(_ *cobra.Command, _ oneshotInvocation) error {
+			t.Fatal("runOneshot must not run for reserved profile name")
+			return nil
+		},
+		runResolvedTUI: func(*cobra.Command, tuiInvocation) error {
+			t.Fatal("runResolvedTUI must not run for reserved profile name")
+			return nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-p", "default", "chat", "-q", "use default profile")
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want reserved profile failure\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if combined := err.Error() + stderr; !strings.Contains(combined, "profile_name_invalid") || !strings.Contains(combined, "reserved") {
+		t.Fatalf("reserved profile error missing expected context: %s", combined)
 	}
 }
 

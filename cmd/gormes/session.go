@@ -66,10 +66,12 @@ func runSessionListCommand(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	defer db.Close()
-	sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
+	sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{})
 	if err != nil {
 		return err
 	}
+	sessions = applySessionMirrorSources(sessions, config.SessionIndexMirrorPath())
+	sessions = filterSessionDirectoryBySource(sessions, source, limit)
 	if asJSON {
 		return emitSessionListJSON(cmd, sessions)
 	}
@@ -182,6 +184,7 @@ func runSessionExportCommand(cmd *cobra.Command, args []string) error {
 		}
 		return err
 	}
+	out = applySessionExportMirrorSource(out, resolved, config.SessionIndexMirrorPath())
 
 	if asJSON {
 		body, marshalErr := json.MarshalIndent(sessionExportReportJSON{
@@ -413,6 +416,102 @@ func resolveContinueSessionFlag(raw string) (string, error) {
 		return "", err
 	}
 	return resolved, nil
+}
+
+func applySessionMirrorSources(entries []sessionpkg.DirectoryEntry, mirrorPath string) []sessionpkg.DirectoryEntry {
+	sources := readSessionMirrorSources(mirrorPath)
+	if len(sources) == 0 {
+		return entries
+	}
+	out := append([]sessionpkg.DirectoryEntry(nil), entries...)
+	for i := range out {
+		if source := strings.TrimSpace(sources[out[i].ID]); source != "" {
+			out[i].Source = source
+		}
+	}
+	return out
+}
+
+func filterSessionDirectoryBySource(entries []sessionpkg.DirectoryEntry, source string, limit int) []sessionpkg.DirectoryEntry {
+	source = strings.ToLower(strings.TrimSpace(source))
+	if source == "" && limit <= 0 {
+		return entries
+	}
+	out := make([]sessionpkg.DirectoryEntry, 0, len(entries))
+	for _, entry := range entries {
+		if source != "" && strings.ToLower(strings.TrimSpace(entry.Source)) != source {
+			continue
+		}
+		out = append(out, entry)
+		if limit > 0 && len(out) >= limit {
+			break
+		}
+	}
+	return out
+}
+
+func applySessionExportMirrorSource(markdown, sessionID, mirrorPath string) string {
+	source := strings.TrimSpace(readSessionMirrorSources(mirrorPath)[sessionID])
+	if source == "" {
+		return markdown
+	}
+	lines := strings.Split(markdown, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "**Platform:** ") {
+			lines[i] = "**Platform:** " + source + "  "
+			return strings.Join(lines, "\n")
+		}
+	}
+	return markdown
+}
+
+func readSessionMirrorSources(path string) map[string]string {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	out := make(map[string]string)
+	section := ""
+	currentID := ""
+	for _, raw := range strings.Split(string(body), "\n") {
+		line := strings.TrimRight(raw, " \t")
+		trimmed := strings.TrimSpace(line)
+		switch trimmed {
+		case "sessions:":
+			section = "sessions"
+			currentID = ""
+			continue
+		case "lineage:":
+			section = "lineage"
+			currentID = ""
+			continue
+		}
+		if section == "sessions" && strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+			key, sessionID, ok := strings.Cut(trimmed, ": ")
+			if !ok || strings.TrimSpace(sessionID) == "" {
+				continue
+			}
+			source, _, _ := strings.Cut(key, ":")
+			if source = strings.ToLower(strings.TrimSpace(source)); source != "" {
+				out[strings.TrimSpace(sessionID)] = source
+			}
+			continue
+		}
+		if section != "lineage" {
+			continue
+		}
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && strings.HasSuffix(trimmed, ":") {
+			currentID = strings.TrimSuffix(trimmed, ":")
+			continue
+		}
+		if currentID != "" && strings.HasPrefix(line, "    source: ") {
+			source := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(trimmed, "source: ")))
+			if source != "" {
+				out[currentID] = source
+			}
+		}
+	}
+	return out
 }
 
 func renderSessionDirectoryList(w io.Writer, sessions []sessionpkg.DirectoryEntry) {

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -14,7 +13,7 @@ func TestProfileStorageContractHomogeneousRoots(t *testing.T) {
 		t.Fatalf("NewProfileStorageContract() error = %v, want nil", err)
 	}
 
-	for _, name := range []string{"default", "coder"} {
+	for _, name := range []string{"main", "coder"} {
 		t.Run(name, func(t *testing.T) {
 			got, err := contract.ProfileRoot(name)
 			if err != nil {
@@ -51,13 +50,13 @@ func TestProfileStorageContractProfileLocalPaths(t *testing.T) {
 		runtime     string
 	}{
 		{
-			name:        "default",
-			configPath:  filepath.Join(base, "profiles", "default", "config.toml"),
-			memoryPath:  filepath.Join(base, "profiles", "default", "memory.db"),
-			sessionPath: filepath.Join(base, "profiles", "default", "sessions.db"),
-			workspace:   filepath.Join(base, "profiles", "default", "workspace"),
-			cache:       filepath.Join(base, "profiles", "default", "cache"),
-			runtime:     filepath.Join(base, "profiles", "default", "runtime"),
+			name:        "main",
+			configPath:  filepath.Join(base, "profiles", "main", "config.toml"),
+			memoryPath:  filepath.Join(base, "profiles", "main", "memory.db"),
+			sessionPath: filepath.Join(base, "profiles", "main", "sessions.db"),
+			workspace:   filepath.Join(base, "profiles", "main", "workspace"),
+			cache:       filepath.Join(base, "profiles", "main", "cache"),
+			runtime:     filepath.Join(base, "profiles", "main", "runtime"),
 		},
 		{
 			name:        "coder",
@@ -96,8 +95,8 @@ func TestProfileStorageContractRejectsInvalidInputs(t *testing.T) {
 	if _, err := NewProfileStorageContract(" "); !errors.Is(err, ErrProfileBaseHomeRequired) {
 		t.Fatalf("NewProfileStorageContract(blank) error = %v, want ErrProfileBaseHomeRequired", err)
 	}
-	if got, err := (ProfileStorageContract{}).ProfileRoot("default"); !errors.Is(err, ErrProfileBaseHomeRequired) || got != "" {
-		t.Fatalf("zero-value ProfileRoot(default) = %q, %v; want empty path and ErrProfileBaseHomeRequired", got, err)
+	if got, err := (ProfileStorageContract{}).ProfileRoot("main"); !errors.Is(err, ErrProfileBaseHomeRequired) || got != "" {
+		t.Fatalf("zero-value ProfileRoot(main) = %q, %v; want empty path and ErrProfileBaseHomeRequired", got, err)
 	}
 
 	contract, err := NewProfileStorageContract(filepath.Join(t.TempDir(), ".gormes"))
@@ -111,51 +110,24 @@ func TestProfileStorageContractRejectsInvalidInputs(t *testing.T) {
 	if got != "" {
 		t.Fatalf("ProfileRoot(Coder) = %q, want empty string on validation failure", got)
 	}
-}
-
-func TestResolveProfileRuntimeRootDefaultKeepsLegacyUntilMaterialized(t *testing.T) {
-	base := filepath.Join(t.TempDir(), ".gormes")
-	legacyRoot, err := ResolveProfileRuntimeRoot(base, "default")
-	if err != nil {
-		t.Fatalf("ResolveProfileRuntimeRoot(default) before materialization error = %v, want nil", err)
+	got, err = contract.ProfileRoot("default")
+	if !errors.Is(err, ErrProfileNameReserved) {
+		t.Fatalf("ProfileRoot(default) error = %v, want ErrProfileNameReserved", err)
 	}
-	if legacyRoot != base {
-		t.Fatalf("ResolveProfileRuntimeRoot(default) before materialization = %q, want legacy root %q", legacyRoot, base)
-	}
-
-	materializedDefault := filepath.Join(base, "profiles", "default")
-	if err := os.MkdirAll(materializedDefault, 0o700); err != nil {
-		t.Fatalf("mkdir materialized default profile: %v", err)
-	}
-	got, err := ResolveProfileRuntimeRoot(base, "default")
-	if err != nil {
-		t.Fatalf("ResolveProfileRuntimeRoot(default) after materialization error = %v, want nil", err)
-	}
-	if got != materializedDefault {
-		t.Fatalf("ResolveProfileRuntimeRoot(default) after materialization = %q, want %q", got, materializedDefault)
+	if got != "" {
+		t.Fatalf("ProfileRoot(default) = %q, want empty string on validation failure", got)
 	}
 }
 
-func TestResolveProfileRuntimeRootMainKeepsBaseUntilMaterialized(t *testing.T) {
+func TestResolveProfileRuntimeRootMainUsesProfilesRoot(t *testing.T) {
 	base := filepath.Join(t.TempDir(), ".gormes")
-	legacyRoot, err := ResolveProfileRuntimeRoot(base, "main")
-	if err != nil {
-		t.Fatalf("ResolveProfileRuntimeRoot(main) before materialization error = %v, want nil", err)
-	}
-	if legacyRoot != base {
-		t.Fatalf("ResolveProfileRuntimeRoot(main) before materialization = %q, want base root %q", legacyRoot, base)
-	}
-
-	materializedMain := filepath.Join(base, "profiles", "main")
-	if err := os.MkdirAll(materializedMain, 0o700); err != nil {
-		t.Fatalf("mkdir materialized main profile: %v", err)
-	}
 	got, err := ResolveProfileRuntimeRoot(base, "main")
 	if err != nil {
-		t.Fatalf("ResolveProfileRuntimeRoot(main) after materialization error = %v, want nil", err)
+		t.Fatalf("ResolveProfileRuntimeRoot(main) error = %v, want nil", err)
 	}
-	if got != materializedMain {
-		t.Fatalf("ResolveProfileRuntimeRoot(main) after materialization = %q, want %q", got, materializedMain)
+	want := filepath.Join(base, "profiles", "main")
+	if got != want {
+		t.Fatalf("ResolveProfileRuntimeRoot(main) = %q, want %q", got, want)
 	}
 }
 
@@ -176,11 +148,11 @@ func TestProfileStorageContractNoFilesystemAccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewProfileStorageContract(nonexistent) error = %v, want nil", err)
 	}
-	got, err := contract.ProfileRoot("default")
+	got, err := contract.ProfileRoot("main")
 	if err != nil {
-		t.Fatalf("ProfileRoot(default) under nonexistent base error = %v, want nil", err)
+		t.Fatalf("ProfileRoot(main) under nonexistent base error = %v, want nil", err)
 	}
-	if want := filepath.Join(nonexistent, "profiles", "default"); got != want {
-		t.Fatalf("ProfileRoot(default) under nonexistent base = %q, want %q", got, want)
+	if want := filepath.Join(nonexistent, "profiles", "main"); got != want {
+		t.Fatalf("ProfileRoot(main) under nonexistent base = %q, want %q", got, want)
 	}
 }

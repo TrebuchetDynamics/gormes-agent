@@ -30,8 +30,8 @@ func (c *Channel) handleMemoryOverview(w http.ResponseWriter, r *http.Request, _
 		return
 	}
 	profileID := strings.TrimSpace(r.URL.Query().Get("profile_id"))
-	if profileID == "" {
-		profileID = "default"
+	if profileID == "" || profileID == "default" {
+		profileID = "main"
 	}
 	overview := readMemoryOverview(r.Context(), navivoxMemoryDBPath(), profileID)
 	writeNavivoxJSON(w, http.StatusOK, overview)

@@ -8,23 +8,23 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
-func TestSetupGatewayProfileBindingMaterializedDefaultUsesMainProfileID(t *testing.T) {
+func TestSetupGatewayProfileBindingMaterializedMainUsesMainProfileID(t *testing.T) {
 	base := filepath.Join(t.TempDir(), ".gormes")
-	defaultRoot := filepath.Join(base, "profiles", "default")
-	if err := os.MkdirAll(defaultRoot, 0o700); err != nil {
-		t.Fatalf("mkdir materialized default profile: %v", err)
+	mainRoot := filepath.Join(base, "profiles", config.DefaultProfileID)
+	if err := os.MkdirAll(mainRoot, 0o700); err != nil {
+		t.Fatalf("mkdir materialized main profile: %v", err)
 	}
-	t.Setenv("GORMES_HOME", defaultRoot)
+	t.Setenv("GORMES_HOME", mainRoot)
 
 	binding, err := writeSetupGatewayProfileChannelBinding(setupGatewayProfileChannelOptions{ChannelID: "telegram"})
 	if err != nil {
 		t.Fatalf("writeSetupGatewayProfileChannelBinding: %v", err)
 	}
 	if binding.ProfileID != config.DefaultProfileID {
-		t.Fatalf("binding profile id = %q, want config default profile id %q", binding.ProfileID, config.DefaultProfileID)
+		t.Fatalf("binding profile id = %q, want main profile id %q", binding.ProfileID, config.DefaultProfileID)
 	}
 	if binding.CredentialID != "main-telegram" || binding.SecretEnvName != "GORMES_MAIN_TELEGRAM_BOT_TOKEN" {
-		t.Fatalf("binding = %+v, want main/default-profile credential naming", binding)
+		t.Fatalf("binding = %+v, want main-profile credential naming", binding)
 	}
 
 	cfg, err := loadSetupGatewayProfileRegistry(filepath.Join(base, "config.toml"))
@@ -35,7 +35,7 @@ func TestSetupGatewayProfileBindingMaterializedDefaultUsesMainProfileID(t *testi
 		t.Fatalf("profiles.%s missing from gateway profile registry: %+v", config.DefaultProfileID, cfg.Profiles)
 	}
 	if _, ok := cfg.Profiles["default"]; ok {
-		t.Fatalf("gateway setup created profiles.default for materialized default profile; want profiles.%s only: %+v", config.DefaultProfileID, cfg.Profiles)
+		t.Fatalf("gateway setup created profiles.default for materialized main profile; want profiles.%s only: %+v", config.DefaultProfileID, cfg.Profiles)
 	}
 	if cred := cfg.Credentials["main-telegram"]; cred.Kind != "channel" || cred.Channel != "telegram" || cred.OwnerProfile != config.DefaultProfileID {
 		t.Fatalf("credentials.main-telegram = %+v, want channel credential owned by %s", cred, config.DefaultProfileID)

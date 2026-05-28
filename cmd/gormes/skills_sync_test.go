@@ -22,7 +22,7 @@ func TestSkillsSyncCommandRunsProfileSyncWithFakeRoots(t *testing.T) {
 		},
 		Profiles: func() ([]skills.SkillProfileRoot, error) {
 			return []skills.SkillProfileRoot{
-				{Name: "default", Root: "/fixture/default"},
+				{Name: "main", Root: "/fixture/main"},
 				{Name: "work", Root: "/fixture/work"},
 			}, nil
 		},
@@ -30,7 +30,7 @@ func TestSkillsSyncCommandRunsProfileSyncWithFakeRoots(t *testing.T) {
 			gotReq = req
 			return skills.BundledSkillProfileSyncReport{
 				Summaries: []skills.SkillProfileSyncSummary{
-					{Profile: "default", Added: 1},
+					{Profile: "main", Added: 1},
 					{Profile: "work", Unchanged: 1},
 				},
 			}, nil
@@ -43,7 +43,7 @@ func TestSkillsSyncCommandRunsProfileSyncWithFakeRoots(t *testing.T) {
 	}
 
 	wantProfiles := []skills.SkillProfileRoot{
-		{Name: "default", Root: "/fixture/default"},
+		{Name: "main", Root: "/fixture/main"},
 		{Name: "work", Root: "/fixture/work"},
 	}
 	if gotReq.BundledRoot != "/fixture/bundled" {
@@ -52,7 +52,7 @@ func TestSkillsSyncCommandRunsProfileSyncWithFakeRoots(t *testing.T) {
 	if !reflect.DeepEqual(gotReq.Profiles, wantProfiles) {
 		t.Fatalf("Profiles = %#v, want %#v", gotReq.Profiles, wantProfiles)
 	}
-	for _, want := range []string{"default\tadded=1", "work\tadded=0 unchanged=1"} {
+	for _, want := range []string{"main\tadded=1", "work\tadded=0 unchanged=1"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -72,14 +72,14 @@ func TestSkillsSyncCommand_JSONEmitsStructuredReport(t *testing.T) {
 		BundledRoot: func() string { return "/fixture/bundled" },
 		Profiles: func() ([]skills.SkillProfileRoot, error) {
 			return []skills.SkillProfileRoot{
-				{Name: "default", Root: "/fixture/default"},
+				{Name: "main", Root: "/fixture/main"},
 				{Name: "work", Root: "/fixture/work"},
 			}, nil
 		},
 		Sync: func(ctx context.Context, req skills.BundledSkillProfileSyncRequest) (skills.BundledSkillProfileSyncReport, error) {
 			return skills.BundledSkillProfileSyncReport{
 				Summaries: []skills.SkillProfileSyncSummary{
-					{Profile: "default", Added: 2, Unchanged: 3, Conflicts: 1, Failed: 0},
+					{Profile: "main", Added: 2, Unchanged: 3, Conflicts: 1, Failed: 0},
 					{Profile: "work", Added: 0, Unchanged: 5},
 				},
 			}, nil
@@ -113,7 +113,7 @@ func TestSkillsSyncCommand_JSONEmitsStructuredReport(t *testing.T) {
 	if len(got.Summaries) != 2 {
 		t.Fatalf("summaries len = %d, want 2; got %+v", len(got.Summaries), got.Summaries)
 	}
-	if got.Summaries[0].Profile != "default" || got.Summaries[0].Added != 2 || got.Summaries[0].Conflicts != 1 {
+	if got.Summaries[0].Profile != "main" || got.Summaries[0].Added != 2 || got.Summaries[0].Conflicts != 1 {
 		t.Errorf("summaries[0] = %+v", got.Summaries[0])
 	}
 	if got.Summaries[1].Profile != "work" || got.Summaries[1].Unchanged != 5 {
@@ -127,9 +127,9 @@ func TestSkillsSyncCommand_JSONEmitsStructuredReport(t *testing.T) {
 
 func TestDefaultSkillSyncProfilesUsesBaseHomeFromProfileScopedProcess(t *testing.T) {
 	base := filepath.Join(t.TempDir(), ".gormes")
-	defaultRoot := filepath.Join(base, "profiles", "default")
+	mainRoot := filepath.Join(base, "profiles", "main")
 	workRoot := filepath.Join(base, "profiles", "work")
-	for _, root := range []string{defaultRoot, workRoot} {
+	for _, root := range []string{mainRoot, workRoot} {
 		if err := os.MkdirAll(root, 0o700); err != nil {
 			t.Fatalf("mkdir profile root %s: %v", root, err)
 		}
@@ -144,8 +144,8 @@ func TestDefaultSkillSyncProfilesUsesBaseHomeFromProfileScopedProcess(t *testing
 	for _, profile := range profiles {
 		got[profile.Name] = profile.Root
 	}
-	if got["default"] != defaultRoot {
-		t.Fatalf("default skill-sync root = %q, want materialized base-home default root %q; profiles=%+v", got["default"], defaultRoot, profiles)
+	if got["main"] != mainRoot {
+		t.Fatalf("default skill-sync root = %q, want materialized base-home default root %q; profiles=%+v", got["main"], mainRoot, profiles)
 	}
 	if got["work"] != workRoot {
 		t.Fatalf("work skill-sync root = %q, want base-home profile root %q; profiles=%+v", got["work"], workRoot, profiles)

@@ -18,20 +18,21 @@ var (
 var profileNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
 var reservedProfileNames = map[string]struct{}{
-	"create": {},
-	"delete": {},
-	"list":   {},
-	"use":    {},
-	"export": {},
-	"import": {},
-	"show":   {},
+	"create":  {},
+	"default": {},
+	"delete":  {},
+	"list":    {},
+	"use":     {},
+	"export":  {},
+	"import":  {},
+	"show":    {},
 }
 
 // ValidateProfileName reports whether name is a valid profile identifier.
 //
-// The reserved alias "default" is always accepted. Other names must match
-// [a-z0-9][a-z0-9_-]{0,63} and must not collide with the CLI subcommand names
-// listed in reservedProfileNames.
+// Names must match [a-z0-9][a-z0-9_-]{0,63} and must not collide with
+// reserved CLI subcommand names or the retired built-in profile name
+// "default".
 func ValidateProfileName(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return ErrProfileNameEmpty

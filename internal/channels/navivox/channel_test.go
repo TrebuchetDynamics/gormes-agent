@@ -1160,15 +1160,15 @@ func TestNewChannel_LocalExposureUnaffectedByVPNCheck(t *testing.T) {
 func TestMergeProfileContact_PreservesLoaderHealth(t *testing.T) {
 	base := ProfileContact{
 		ServerID:         "navivox-gateway",
-		ProfileID:        "default",
-		DisplayName:      "Default profile",
+		ProfileID:        "main",
+		DisplayName:      "Gormes profile",
 		Health:           ProfileContactHealthWarning,
 		AttentionBadges:  []string{"config", "workspace"},
 		WorkspaceRootsOK: false,
 	}
 	overlay := ProfileContact{
 		ServerID:        "navivox-gateway",
-		ProfileID:       "default",
+		ProfileID:       "main",
 		LatestPreview:   "active turn",
 		ActiveTurnState: ProfileContactTurnActive,
 		Health:          ProfileContactHealthOnline,

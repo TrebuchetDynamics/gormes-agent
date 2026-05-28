@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,10 +19,10 @@ import (
 
 func TestSetupProfilesTUIRendersManagerSurface(t *testing.T) {
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{
 			{
-				Name:       "default",
+				Name:       "main",
 				Root:       "/home/operator/.gormes",
 				Active:     true,
 				Workspaces: []string{"/srv/alpha", "/srv/beta"},
@@ -41,7 +42,7 @@ func TestSetupProfilesTUIRendersManagerSurface(t *testing.T) {
 		"Gormes profile setup",
 		"Profiles",
 		"Selected profile",
-		"default",
+		"main",
 		"/srv/alpha (primary)",
 		"telegram",
 		"n add profile",
@@ -73,11 +74,10 @@ func TestSetupProfilesControlCenterShowsDefaultDisplayNameAndHelp(t *testing.T) 
 		"Profile Control Center",
 		"main — Gormes",
 		"Display name: Gormes",
-		"/srv/gormes (primary)",
-		"Here you can create multiple Gormes profiles",
-		"Each profile is an agent",
+		"Workspaces: 2 total, primary: /srv/gormes",
+		"Profiles are agents",
 		"Display name",
-		"Telegram and WhatsApp",
+		"Telegram/WhatsApp/Navivox",
 	} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("control center view missing %q:\n%s", want, view)
@@ -88,11 +88,228 @@ func TestSetupProfilesControlCenterShowsDefaultDisplayNameAndHelp(t *testing.T) 
 	}
 }
 
+func TestSetupProfilesControlCenterMainScreenFitsWithoutOmission(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Profiles: []setupProfileView{{
+			Name:        "main",
+			DisplayName: "Gormes",
+			Channels:    []string{"telegram"},
+			Workspaces:  []string{"/srv/gormes"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = updated.(setupProfilesModel)
+
+	view := m.View()
+	if strings.Contains(view, "omitted; resize") || strings.Contains(view, "highlighted action") {
+		t.Fatalf("control center main screen is still cramped/truncated:\n%s", view)
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if got := lipgloss.Width(line); got > 80 {
+			t.Fatalf("control center line width %d exceeds 80:\n%q\n\n%s", got, line, view)
+		}
+	}
+	for _, want := range []string{
+		"Profile Control Center",
+		"Profiles are agents",
+		"Agent: main — Gormes",
+		"Workspaces: 1 primary: /srv/gormes",
+		"Actions: ←/→ select, Enter run, ↑/↓ profile",
+		"[choose]",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("control center compact view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestSetupProfilesTUICommandActionsAreArrowSelectable(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Active:        "main",
+		Profiles: []setupProfileView{{
+			Name:        "main",
+			DisplayName: "Gormes",
+			Workspaces:  []string{"/srv/gormes"},
+		}},
+	})
+
+	view := m.View()
+	for _, want := range []string{
+		"[choose]",
+		"Actions: ←/→ select, Enter run, ↑/↓ profile",
+		"r rename",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("profile TUI command view missing %q:\n%s", want, view)
+		}
+	}
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	m = updated.(setupProfilesModel)
+	view = m.View()
+	if !strings.Contains(view, "[r rename]") {
+		t.Fatalf("Right arrow did not highlight display-name action:\n%s", view)
+	}
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(setupProfilesModel)
+	if cmd != nil {
+		t.Fatalf("Enter on display-name action returned command %T, want in-TUI editor", cmd)
+	}
+	if m.mode != setupProfilesModeDisplayName {
+		t.Fatalf("Enter on highlighted display-name action mode = %q, want display_name", m.mode)
+	}
+	if m.input != "Gormes" {
+		t.Fatalf("display-name editor input = %q, want current display name", m.input)
+	}
+}
+
+func TestSetupProfilesChannelEditorIncludesNavivoxRoutingHelp(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Profiles: []setupProfileView{{
+			Name:     "main",
+			Channels: []string{"telegram"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 140, Height: 80})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m = updated.(setupProfilesModel)
+
+	view := m.View()
+	for _, want := range []string{
+		"Channels attach this profile agent to Gormes messaging channels",
+		"Navivox routes through the Gormes Navivox channel, not directly to Goncho",
+		"navivox",
+	} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("channel editor missing %q:\n%s", want, view)
+		}
+	}
+
+	for setupProfilesChannelChoices[m.channelIndex] != "navivox" {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+		m = updated.(setupProfilesModel)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(setupProfilesModel)
+	if !m.result.ChannelsSet || !containsString(m.result.Channels, "telegram") || !containsString(m.result.Channels, "navivox") {
+		t.Fatalf("channels result = %+v, want telegram and navivox", m.result)
+	}
+}
+
+func TestSetupProfilesWorkspaceEditorManagesListAndPrimary(t *testing.T) {
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Profiles: []setupProfileView{{
+			Name:       "main",
+			Workspaces: []string{"/srv/guides", "/srv/salma"},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 140, Height: 80})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	m = updated.(setupProfilesModel)
+	view := m.View()
+	for _, want := range []string{"guides — /srv/guides (primary)", "salma — /srv/salma", "x Remove", "p Set primary", "a Add path"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("workspace editor missing %q:\n%s", want, view)
+		}
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	m = updated.(setupProfilesModel)
+	if got := m.workspaceDraft; len(got) != 2 || got[0] != "/srv/salma" || got[1] != "/srv/guides" {
+		t.Fatalf("after set primary workspaceDraft = %#v", got)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	m = updated.(setupProfilesModel)
+	if got := m.workspaceDraft; len(got) != 1 || got[0] != "/srv/salma" {
+		t.Fatalf("after remove workspaceDraft = %#v", got)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(setupProfilesModel)
+	if m.mode != setupProfilesModeWorkspacePath {
+		t.Fatalf("add path mode = %q, want workspace_path", m.mode)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/srv/monorepo")})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(setupProfilesModel)
+	if got, want := m.result.Workspaces, []string{"/srv/salma", "/srv/monorepo"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("saved workspaces = %#v, want %#v", got, want)
+	}
+}
+
+func TestSetupProfilesWorkspaceEditorCanBrowseAndSelectFolder(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "guides"), 0o755); err != nil {
+		t.Fatalf("mkdir guides: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "salma"), 0o755); err != nil {
+		t.Fatalf("mkdir salma: %v", err)
+	}
+	m := newSetupProfilesModel(setupProfilesTUIState{
+		ControlCenter: true,
+		Profiles: []setupProfileView{{
+			Name:       "main",
+			Workspaces: []string{root},
+		}},
+	})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 140, Height: 80})
+	m = updated.(setupProfilesModel)
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	m = updated.(setupProfilesModel)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+	m = updated.(setupProfilesModel)
+	if m.mode != setupProfilesModeWorkspaceBrowser {
+		t.Fatalf("f in workspace editor mode = %q, want workspace_browser", m.mode)
+	}
+	view := m.View()
+	for _, want := range []string{"Workspace folder browser", "Space to select", "guides/", "salma/"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("workspace browser missing %q:\n%s", want, view)
+		}
+	}
+
+	if len(m.workspaceBrowserEntries) == 0 || m.workspaceBrowserEntries[m.workspaceBrowserIndex] != "guides" {
+		t.Fatalf("workspace browser entries = %#v index=%d, want guides first", m.workspaceBrowserEntries, m.workspaceBrowserIndex)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	m = updated.(setupProfilesModel)
+	if m.mode != setupProfilesModeWorkspaces {
+		t.Fatalf("Space select mode = %q, want workspaces", m.mode)
+	}
+	if !containsString(m.workspaceDraft, filepath.Join(root, "guides")) {
+		t.Fatalf("workspace draft = %#v, want selected guides path", m.workspaceDraft)
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(setupProfilesModel)
+	if !m.result.WorkspacesSet || len(m.result.Workspaces) == 0 || m.result.Workspaces[len(m.result.Workspaces)-1] != filepath.Join(root, "guides") {
+		t.Fatalf("result workspaces = %#v set=%v, want selected guides", m.result.Workspaces, m.result.WorkspacesSet)
+	}
+}
+
 func TestSetupProfilesTUIBrowseAdvertisesAndSupportsEnterSave(t *testing.T) {
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{
-			{Name: "default", Root: "/home/operator/.gormes", Active: true},
+			{Name: "main", Root: "/home/operator/.gormes", Active: true},
 			{Name: "work", Root: "/home/operator/.gormes/profiles/work"},
 		},
 	})
@@ -127,16 +344,16 @@ func TestSetupProfilesTUIBrowseAdvertisesAndSupportsEnterSave(t *testing.T) {
 
 func TestSetupProfilesTUIFramesPadRowsToClearStaleProfileCells(t *testing.T) {
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{
-			{Name: "default", Root: "/home/operator/.gormes", Active: true},
+			{Name: "main", Root: "/home/operator/.gormes", Active: true},
 			{Name: "mineru", Root: "/home/operator/.gormes/profiles/mineru"},
 		},
 	})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 40})
 	m = updated.(setupProfilesModel)
-	if first := m.View(); !strings.Contains(first, "Name: default") {
-		t.Fatalf("initial frame missing default profile name:\n%s", first)
+	if first := m.View(); !strings.Contains(first, "Name: main") {
+		t.Fatalf("initial frame missing main profile name:\n%s", first)
 	}
 
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
@@ -154,9 +371,9 @@ func TestSetupProfilesTUIFramesPadRowsToClearStaleProfileCells(t *testing.T) {
 
 func TestSetupProfilesTUIBrowseSupportsVimNavigation(t *testing.T) {
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{
-			{Name: "default", Root: "/home/operator/.gormes", Active: true},
+			{Name: "main", Root: "/home/operator/.gormes", Active: true},
 			{Name: "work", Root: "/home/operator/.gormes/profiles/work"},
 			{Name: "ops", Root: "/home/operator/.gormes/profiles/ops"},
 		},
@@ -194,9 +411,9 @@ func TestSetupProfilesTUIBrowseSupportsVimNavigation(t *testing.T) {
 
 func TestSetupProfilesTUIChannelModeAdvertisesExistingShortcuts(t *testing.T) {
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{{
-			Name:     "default",
+			Name:     "main",
 			Root:     "/home/operator/.gormes",
 			Active:   true,
 			Channels: []string{"telegram"},
@@ -238,7 +455,7 @@ func TestSetupProfilesTUIHardeningBoundsLongOperatorContent(t *testing.T) {
 		Profiles: []setupProfileView{
 			{
 				Name:       "default-" + long,
-				Root:       "/home/operator/.gormes/profiles/default-" + long,
+				Root:       "/home/operator/.gormes/profiles/main-" + long,
 				Active:     true,
 				Workspaces: []string{"/srv/alpha-" + long, "/srv/beta-" + long},
 				Channels:   []string{"telegram", "discord"},
@@ -250,8 +467,8 @@ func TestSetupProfilesTUIHardeningBoundsLongOperatorContent(t *testing.T) {
 		t.Run(strings.Join([]string{strconv.Itoa(size.width), strconv.Itoa(size.height)}, "x"), func(t *testing.T) {
 			updated, _ := m.Update(tea.WindowSizeMsg{Width: size.width, Height: size.height})
 			m := updated.(setupProfilesModel)
-			m.mode = setupProfilesModeWorkspaces
-			m.input = "/tmp/new-workspace-" + long
+			m = m.openWorkspaceEditor()
+			m.workspaceDraft = append(m.workspaceDraft, "/tmp/new-workspace-"+long)
 
 			view := m.View()
 			if strings.TrimSpace(view) == "" {
@@ -263,7 +480,7 @@ func TestSetupProfilesTUIHardeningBoundsLongOperatorContent(t *testing.T) {
 				}
 			}
 			collapsed := strings.Join(strings.Fields(view), " ")
-			for _, want := range []string{"Gormes profile setup", "omitted", "resize", "Workspace directories"} {
+			for _, want := range []string{"Gormes profile setup", "omitted", "resize", "Workspace editor"} {
 				if !strings.Contains(collapsed, want) {
 					t.Fatalf("setup profiles view missing %q:\n%s", want, view)
 				}
@@ -275,16 +492,16 @@ func TestSetupProfilesTUIHardeningBoundsLongOperatorContent(t *testing.T) {
 func TestSetupProfilesTUIHardeningBoundsShortTerminalHeight(t *testing.T) {
 	long := strings.Repeat("x", 240)
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{
-			{Name: "default", Root: "/home/operator/.gormes", Active: true, Workspaces: []string{"/srv/" + long}},
+			{Name: "main", Root: "/home/operator/.gormes", Active: true, Workspaces: []string{"/srv/" + long}},
 			{Name: "very-long-profile-" + long, Root: "/tmp/" + long},
 		},
 	})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 24, Height: 8})
 	m = updated.(setupProfilesModel)
-	m.mode = setupProfilesModeWorkspaces
-	m.input = "/tmp/new-workspace-" + long
+	m = m.openWorkspaceEditor()
+	m.workspaceDraft = append(m.workspaceDraft, "/tmp/new-workspace-"+long)
 
 	view := m.View()
 	lines := strings.Split(view, "\n")
@@ -297,7 +514,7 @@ func TestSetupProfilesTUIHardeningBoundsShortTerminalHeight(t *testing.T) {
 		}
 	}
 	collapsed := strings.Join(strings.Fields(view), " ")
-	for _, want := range []string{"Gormes profile setup", "omitted", "resize", "Workspace directories"} {
+	for _, want := range []string{"Gormes profile setup", "omitted", "resize", "Workspace editor"} {
 		if !strings.Contains(collapsed, want) {
 			t.Fatalf("setup profiles short view missing %q:\n%s", want, view)
 		}
@@ -307,10 +524,10 @@ func TestSetupProfilesTUIHardeningBoundsShortTerminalHeight(t *testing.T) {
 func TestSetupProfilesTUIHardeningBoundsShortChannelPicker(t *testing.T) {
 	long := strings.Repeat("x", 180)
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{{
-			Name:       "default",
-			Root:       "/home/operator/.gormes/profiles/default-" + long,
+			Name:       "main",
+			Root:       "/home/operator/.gormes/profiles/main-" + long,
 			Active:     true,
 			Workspaces: []string{"/srv/" + long},
 			Channels:   []string{"telegram"},
@@ -342,10 +559,10 @@ func TestSetupProfilesTUIHardeningBoundsShortChannelPicker(t *testing.T) {
 func TestSetupProfilesTUIHardeningBoundsShortAddProfile(t *testing.T) {
 	long := strings.Repeat("x", 180)
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{{
-			Name:       "default",
-			Root:       "/home/operator/.gormes/profiles/default-" + long,
+			Name:       "main",
+			Root:       "/home/operator/.gormes/profiles/main-" + long,
 			Active:     true,
 			Workspaces: []string{"/srv/" + long},
 			Channels:   []string{"telegram"},
@@ -377,9 +594,9 @@ func TestSetupProfilesTUIHardeningBoundsShortAddProfile(t *testing.T) {
 
 func TestSetupProfilesTUIAddsEditsAndReturnsSelection(t *testing.T) {
 	m := newSetupProfilesModel(setupProfilesTUIState{
-		Active: "default",
+		Active: "main",
 		Profiles: []setupProfileView{
-			{Name: "default", Root: "/home/operator/.gormes", Active: true},
+			{Name: "main", Root: "/home/operator/.gormes", Active: true},
 		},
 	})
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(100, 30))
@@ -388,7 +605,9 @@ func TestSetupProfilesTUIAddsEditsAndReturnsSelection(t *testing.T) {
 	tm.Type("work")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	tm.Type("/srv/work")
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
 	tm.Send(tea.KeyMsg{Type: tea.KeySpace})
@@ -433,8 +652,8 @@ func TestSetupProfilesUsesRichTUIWhenTTY(t *testing.T) {
 		if gotStdin != stdin {
 			t.Fatalf("TUI stdin = %v, want injected stdin", gotStdin)
 		}
-		if len(state.Profiles) == 0 || state.Profiles[0].Name != "default" || !state.Profiles[0].Active {
-			t.Fatalf("TUI state = %+v, want active default profile", state)
+		if len(state.Profiles) == 0 || state.Profiles[0].Name != "main" || !state.Profiles[0].Active {
+			t.Fatalf("TUI state = %+v, want active main profile", state)
 		}
 		return setupProfilesTUIResult{
 			CreateName:    "work",

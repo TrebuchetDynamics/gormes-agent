@@ -15,16 +15,16 @@ func TestSyncBundledSkillsFromManifestUsesDigestThreeWayAndConflictCopies(t *tes
 	newBody := profileSyncSkillDoc("reviewer", "Review new docs")
 	writeProfileSyncRawFile(t, payloadRoot, "skills/reviewer/SKILL.md", newBody)
 
-	defaultRoot := t.TempDir()
+	mainRoot := t.TempDir()
 	workRoot := t.TempDir()
-	assertWriteProfileSkill(t, defaultRoot, "productivity", "reviewer", oldBody)
+	assertWriteProfileSkill(t, mainRoot, "productivity", "reviewer", oldBody)
 	assertWriteProfileSkill(t, workRoot, "productivity", "reviewer", "operator edited reviewer")
 
 	report, err := SyncBundledSkillsFromManifest(context.Background(), BundledSkillManifestSyncRequest{
 		PayloadRoot: payloadRoot,
 		Profiles: []SkillProfileRoot{
 			{Name: "work", Root: workRoot},
-			{Name: "default", Root: defaultRoot},
+			{Name: "main", Root: mainRoot},
 		},
 		Entries: []BundledSkillManifestEntry{{
 			Name:           "reviewer",
@@ -38,11 +38,11 @@ func TestSyncBundledSkillsFromManifestUsesDigestThreeWayAndConflictCopies(t *tes
 		t.Fatalf("SyncBundledSkillsFromManifest() error = %v", err)
 	}
 
-	assertFileText(t, profileSkillPath(defaultRoot, "productivity", "reviewer"), newBody)
+	assertFileText(t, profileSkillPath(mainRoot, "productivity", "reviewer"), newBody)
 	assertFileText(t, profileSkillPath(workRoot, "productivity", "reviewer"), "operator edited reviewer")
 	conflictPath := filepath.Join(workRoot, "skills", ".bundled-conflicts", "reviewer", releaseSkillTestSHA256(newBody)[:12], "productivity", "reviewer", "SKILL.md")
 	assertFileText(t, conflictPath, newBody)
-	if report.Summaries[0].Profile != "default" || report.Summaries[0].Updated != 1 {
+	if report.Summaries[0].Profile != "main" || report.Summaries[0].Updated != 1 {
 		t.Fatalf("default summary = %+v, want one updated", report.Summaries[0])
 	}
 	if report.Summaries[1].Profile != "work" || report.Summaries[1].Conflicts != 1 || report.Summaries[1].ConflictCopies != 1 {
@@ -52,14 +52,14 @@ func TestSyncBundledSkillsFromManifestUsesDigestThreeWayAndConflictCopies(t *tes
 
 func TestSyncBundledSkillsFromManifestRemovesOnlyUnmodifiedSkills(t *testing.T) {
 	oldBody := profileSyncSkillDoc("legacy", "Legacy skill")
-	defaultRoot := t.TempDir()
+	mainRoot := t.TempDir()
 	workRoot := t.TempDir()
-	assertWriteProfileSkill(t, defaultRoot, "ops", "legacy", oldBody)
+	assertWriteProfileSkill(t, mainRoot, "ops", "legacy", oldBody)
 	assertWriteProfileSkill(t, workRoot, "ops", "legacy", "operator kept legacy")
 
 	report, err := SyncBundledSkillsFromManifest(context.Background(), BundledSkillManifestSyncRequest{
 		Profiles: []SkillProfileRoot{
-			{Name: "default", Root: defaultRoot},
+			{Name: "main", Root: mainRoot},
 			{Name: "work", Root: workRoot},
 		},
 		Entries: []BundledSkillManifestEntry{{
@@ -73,9 +73,9 @@ func TestSyncBundledSkillsFromManifestRemovesOnlyUnmodifiedSkills(t *testing.T) 
 		t.Fatalf("SyncBundledSkillsFromManifest() error = %v", err)
 	}
 
-	assertProfileSkillMissing(t, defaultRoot, "ops", "legacy")
+	assertProfileSkillMissing(t, mainRoot, "ops", "legacy")
 	assertFileText(t, profileSkillPath(workRoot, "ops", "legacy"), "operator kept legacy")
-	if report.Summaries[0].Profile != "default" || report.Summaries[0].Removed != 1 {
+	if report.Summaries[0].Profile != "main" || report.Summaries[0].Removed != 1 {
 		t.Fatalf("default summary = %+v, want one removed", report.Summaries[0])
 	}
 	if report.Summaries[1].Profile != "work" || report.Summaries[1].Orphaned != 1 {
