@@ -187,7 +187,7 @@ func TestLoadDotenvFiles_DefaultHomeDotGormes(t *testing.T) {
 }
 
 func TestLoadDotenvFilesSanitizesCredentialValues(t *testing.T) {
-	resetCredentialSanitizerWarningsForTest()
+	resetCredentialSanitizerWarnings()
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
 	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))

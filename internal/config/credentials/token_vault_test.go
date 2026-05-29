@@ -1,4 +1,4 @@
-package config
+package credentials
 
 import (
 	"os"

@@ -1,12 +1,6 @@
 package config
 
-import (
-	"encoding/base64"
-	"encoding/json"
-	"strings"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials"
 
 const (
 	CodexOAuthProvider = credentials.CodexOAuthProvider
@@ -37,20 +31,4 @@ type CodexCLIImportRequest = credentials.CodexCLIImportRequest
 
 func NewCodexOAuthStateStore(opts CodexOAuthStateStoreOptions) *CodexOAuthStateStore {
 	return credentials.NewCodexOAuthStateStore(opts)
-}
-
-func decodeJWTClaims(token string) (map[string]any, bool) {
-	parts := strings.Split(token, ".")
-	if len(parts) < 2 {
-		return nil, false
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, false
-	}
-	var claims map[string]any
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil, false
-	}
-	return claims, true
 }

@@ -1,4 +1,4 @@
-package config
+package credentials
 
 import (
 	"encoding/base64"

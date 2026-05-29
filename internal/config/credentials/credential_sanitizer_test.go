@@ -1,4 +1,4 @@
-package config
+package credentials
 
 import (
 	"slices"
@@ -7,7 +7,7 @@ import (
 )
 
 func resetCredentialSanitizerWarningsForTest() {
-	resetCredentialSanitizerWarnings()
+	ResetDefaultCredentialSanitizerWarnings()
 }
 
 func TestCredentialSanitizerStripsUnicodeLookalikes(t *testing.T) {
