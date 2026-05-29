@@ -1,4 +1,4 @@
-package config
+package credentials
 
 import (
 	"encoding/json"
@@ -47,7 +47,7 @@ func TestCredentialPoolLoadRoundTrip(t *testing.T) {
 func TestCredentialPoolLoadFiltersByOwnerProfile(t *testing.T) {
 	hermesHome := t.TempDir()
 	entries := []PooledCredential{
-		{ID: "main-provider", Label: "Main provider", AuthType: CredentialAuthAPIKey, Priority: 0, Source: "fixture", OwnerProfile: DefaultProfileID, AccessToken: "main-token"},
+		{ID: "main-provider", Label: "Main provider", AuthType: CredentialAuthAPIKey, Priority: 0, Source: "fixture", OwnerProfile: DefaultOwnerProfile, AccessToken: "main-token"},
 		{ID: "alpha-provider", Label: "Alpha provider", AuthType: CredentialAuthAPIKey, Priority: 1, Source: "fixture", OwnerProfile: "alpha", AccessToken: "alpha-token"},
 		{ID: "beta-provider", Label: "Beta provider", AuthType: CredentialAuthAPIKey, Priority: 2, Source: "fixture", OwnerProfile: "beta", AccessToken: "beta-token"},
 		{ID: "legacy-provider", Label: "Legacy provider", AuthType: CredentialAuthAPIKey, Priority: 3, Source: "fixture", AccessToken: "legacy-token"},
@@ -143,7 +143,7 @@ func TestCredentialPoolStatusIncludesRedactedOwnerProfile(t *testing.T) {
 }
 
 func TestCredentialPoolStatusSanitizesTokenFields(t *testing.T) {
-	resetCredentialSanitizerWarningsForTest()
+	ResetDefaultCredentialSanitizerWarnings()
 	hermesHome := t.TempDir()
 	entries := []PooledCredential{
 		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthOAuth, Source: "fixture", AccessToken: "tok\u028ben", RefreshToken: "ref\u00e9resh"},

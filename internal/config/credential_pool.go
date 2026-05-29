@@ -1,10 +1,6 @@
 package config
 
-import (
-	"time"
-
-	"github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials"
-)
+import "github.com/TrebuchetDynamics/gormes-agent/internal/config/credentials"
 
 const (
 	CredentialAuthAPIKey = credentials.CredentialAuthAPIKey
@@ -54,18 +50,10 @@ func LoadCredentialPool(opts CredentialPoolOptions) (*CredentialPool, Credential
 	return credentials.LoadCredentialPool(opts)
 }
 
-func RecordCredentialSuccess(opts CredentialPoolOptions, id string) error {
-	return credentials.RecordCredentialSuccess(opts, id)
+func ListCredentialPoolProviders(opts CredentialPoolOptions) ([]string, error) {
+	return credentials.ListCredentialPoolProviders(opts)
 }
 
-func RecordCredentialExhaustion(opts CredentialPoolOptions, id string, exhaustion CredentialExhaustion) error {
-	return credentials.RecordCredentialExhaustion(opts, id, exhaustion)
-}
-
-func LoadCredentialPoolStatus(opts CredentialPoolOptions) (CredentialPoolStatus, CredentialPoolEvidence, error) {
-	return credentials.LoadCredentialPoolStatus(opts)
-}
-
-func CredentialResetTimeFromSeconds(seconds int64) time.Time {
-	return credentials.CredentialResetTimeFromSeconds(seconds)
+func LoadNousOAuthCredentials(opts CredentialPoolOptions) (NousOAuthCredentials, error) {
+	return credentials.LoadNousOAuthCredentials(opts)
 }
