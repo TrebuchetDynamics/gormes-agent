@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/sessiontree"
 )
 
 const sessionTreeTimeout = 5 * time.Second
@@ -162,10 +164,10 @@ func parseTreeSlashFilter(args []string) string {
 	switch {
 	case first == "--filter" || first == "filter":
 		if len(args) > 1 {
-			return normalizeTreeSlashFilter(args[1])
+			return sessiontree.NormalizeFilter(args[1])
 		}
 	case strings.HasPrefix(first, "--filter="):
-		return normalizeTreeSlashFilter(strings.TrimPrefix(first, "--filter="))
+		return sessiontree.NormalizeFilter(strings.TrimPrefix(first, "--filter="))
 	}
-	return normalizeTreeSlashFilter(first)
+	return sessiontree.NormalizeFilter(first)
 }
