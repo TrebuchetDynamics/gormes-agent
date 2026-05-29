@@ -1,106 +1,45 @@
 package tui
 
-type SpinnerKind string
+import "github.com/TrebuchetDynamics/gormes-agent/internal/tui/spinner"
+
+type SpinnerKind = spinner.Kind
 
 const (
-	SpinnerDots    SpinnerKind = "dots"
-	SpinnerBounce  SpinnerKind = "bounce"
-	SpinnerGrow    SpinnerKind = "grow"
-	SpinnerArrows  SpinnerKind = "arrows"
-	SpinnerStar    SpinnerKind = "star"
-	SpinnerMoon    SpinnerKind = "moon"
-	SpinnerPulse   SpinnerKind = "pulse"
-	SpinnerBrain   SpinnerKind = "brain"
-	SpinnerSparkle SpinnerKind = "sparkle"
-	SpinnerEmoji   SpinnerKind = "emoji"
-	SpinnerKaomoji SpinnerKind = "kaomoji"
+	SpinnerDots    SpinnerKind = spinner.Dots
+	SpinnerBounce  SpinnerKind = spinner.Bounce
+	SpinnerGrow    SpinnerKind = spinner.Grow
+	SpinnerArrows  SpinnerKind = spinner.Arrows
+	SpinnerStar    SpinnerKind = spinner.Star
+	SpinnerMoon    SpinnerKind = spinner.Moon
+	SpinnerPulse   SpinnerKind = spinner.Pulse
+	SpinnerBrain   SpinnerKind = spinner.Brain
+	SpinnerSparkle SpinnerKind = spinner.Sparkle
+	SpinnerEmoji   SpinnerKind = spinner.Emoji
+	SpinnerKaomoji SpinnerKind = spinner.Kaomoji
 )
 
-var spinnerFrames = map[SpinnerKind][]string{
-	SpinnerDots:    {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
-	SpinnerBounce:  {"⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"},
-	SpinnerGrow:    {"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█", "▇", "▆", "▅", "▄", "▃", "▂"},
-	SpinnerArrows:  {"←", "↖", "↑", "↗", "→", "↘", "↓", "↙"},
-	SpinnerStar:    {"✶", "✷", "✸", "✹", "✺", "✹", "✸", "✷"},
-	SpinnerMoon:    {"🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"},
-	SpinnerPulse:   {"◜", "◠", "◝", "◞", "◡", "◟"},
-	SpinnerBrain:   {"🧠", "💭", "💡", "✨", "💫", "🌟", "💡", "💭"},
-	SpinnerSparkle: {"⁺", "˚", "*", "✧", "✦", "✧", "*", "˚"},
-	SpinnerEmoji:   {"⚕", "⚌", "🤔", "✨", "🍵", "🔮"},
-	SpinnerKaomoji: {"(｡•́︿•̀｡)", "(◕‿◕✿)", "(≧◡≦)", "٩(◕‿◕｡)۶", "(★ω★)"},
-}
-
-var kawaiiWaitingFaces = []string{
-	"(｡◕‿◕｡)", "(◕‿◕✿)", "٩(◕‿◕｡)۶", "(✿◠‿◠)", "( ˘▽˘)っ",
-	"♪(´ε` )", "(◕ᴗ◕✿)", "ヾ(＾∇＾)", "(≧◡≦)", "(★ω★)",
-}
-
-var kawaiiThinkingFaces = []string{
-	"(｡•́︿•̀｡)", "(◔_◔)", "(¬‿¬)", "( •_•)>⌐■-■", "(⌐■_■)",
-	"(´･_･`)", "◉_◉", "(°ロ°)", "( ˘⌣˘)♡", "ヽ(>∀<☆)☆",
-	"٩(๑❛ᴗ❛๑)۶", "(⊙_⊙)", "(¬_¬)", "( ͡° ͜ʖ ͡°)", "ಠ_ಠ",
-}
-
-var thinkingVerbs = []string{
-	"pondering", "contemplating", "musing", "cogitating", "ruminating",
-	"deliberating", "mulling", "reflecting", "processing", "reasoning",
-	"analyzing", "computing", "synthesizing", "formulating", "brainstorming",
-}
-
-type SpinnerWing struct{ Left, Right string }
+type SpinnerWing = spinner.Wing
 
 func SpinnerFrames(kind SpinnerKind) []string {
-	if f, ok := spinnerFrames[kind]; ok {
-		return f
-	}
-	return spinnerFrames[SpinnerDots]
+	return spinner.Frames(kind)
 }
 
 func WaitingFace(idx int) string {
-	return kawaiiWaitingFaces[idx%len(kawaiiWaitingFaces)]
+	return spinner.WaitingFace(idx)
 }
 
 func ThinkingFace(idx int) string {
-	return kawaiiThinkingFaces[idx%len(kawaiiThinkingFaces)]
+	return spinner.ThinkingFace(idx)
 }
 
 func ThinkingVerb(idx int) string {
-	return thinkingVerbs[idx%len(thinkingVerbs)]
+	return spinner.ThinkingVerb(idx)
 }
 
 func SpinnerWingsForSkin(skinName string) []SpinnerWing {
-	switch skinName {
-	case "ares":
-		return []SpinnerWing{
-			{"⟪⚔", "⚔⟫"}, {"⟪▲", "▲⟫"}, {"⟪╸", "╺⟫"}, {"⟪⛨", "⛨⟫"},
-		}
-	case "poseidon":
-		return []SpinnerWing{
-			{"⟪≈", "≈⟫"}, {"⟪Ψ", "Ψ⟫"}, {"⟪∿", "∿⟫"}, {"⟪◌", "◌⟫"},
-		}
-	case "sisyphus":
-		return []SpinnerWing{
-			{"⟪◉", "◉⟫"}, {"⟪◬", "◬⟫"}, {"⟪◌", "◌⟫"}, {"⟪⬤", "⬤⟫"},
-		}
-	case "charizard":
-		return []SpinnerWing{
-			{"⟪✦", "✦⟫"}, {"⟪▲", "▲⟫"}, {"⟪◌", "◌⟫"}, {"⟪◇", "◇⟫"},
-		}
-	default:
-		return nil
-	}
+	return spinner.WingsForSkin(skinName)
 }
 
 func SpinnerRender(kind SpinnerKind, tick int, faceIdx int, verbIdx int, wingIdx int, skinName string, elapsed string) string {
-	frames := SpinnerFrames(kind)
-	frame := frames[tick%len(frames)]
-	face := ThinkingFace(faceIdx)
-	verb := ThinkingVerb(verbIdx)
-	wings := SpinnerWingsForSkin(skinName)
-
-	if len(wings) > 0 && wingIdx < len(wings) {
-		w := wings[wingIdx%len(wings)]
-		return "  " + w.Left + " " + frame + " " + verb + " " + face + " " + w.Right + " (" + elapsed + "s)"
-	}
-	return "  " + frame + " " + verb + " " + face + " (" + elapsed + "s)"
+	return spinner.Render(kind, tick, faceIdx, verbIdx, wingIdx, skinName, elapsed)
 }

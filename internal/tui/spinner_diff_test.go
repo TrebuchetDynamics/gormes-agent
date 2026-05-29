@@ -19,7 +19,7 @@ func TestSpinnerFrames_AllKinds(t *testing.T) {
 
 func TestSpinnerFrames_UnknownDefaults(t *testing.T) {
 	f := SpinnerFrames("nonexistent")
-	if len(f) != len(spinnerFrames[SpinnerDots]) {
+	if len(f) != len(SpinnerFrames(SpinnerDots)) {
 		t.Fatal("unknown spinner should default to dots")
 	}
 }
