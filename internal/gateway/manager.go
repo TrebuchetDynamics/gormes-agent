@@ -12,9 +12,9 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -160,16 +160,16 @@ type ManagerConfig struct {
 	LiveTurnActiveProvider func() string
 	// ImageInputMode honors agent.image_input_mode for channel-attached images.
 	// Empty is Hermes auto mode.
-	ImageInputMode hermes.ImageInputMode
+	ImageInputMode llm.ImageInputMode
 	// AuxiliaryVision mirrors auxiliary.vision. Any explicit provider/model/base
 	// URL routes auto image input mode through text fallback instead of native
 	// image content parts.
-	AuxiliaryVision hermes.AuxiliaryVisionConfig
+	AuxiliaryVision llm.AuxiliaryVisionConfig
 	// TitleModel is the provider boundary for auto-title generation. It is
 	// called at most once per PhaseIdle frame for sessions without an existing
 	// title. Nil disables the LLM call; PerformAutoTitle surfaces
 	// AutoTitleCodeProviderFailed evidence through AuxiliaryFailureSink.
-	TitleModel hermes.TitleModelFunc
+	TitleModel llm.TitleModelFunc
 	// TitleStore is the persistence boundary for auto-title generation. When
 	// non-nil it is used directly; when nil and SessionMap is non-nil the
 	// production wiring constructs a MetadataTitleStore at startup and injects
@@ -2744,7 +2744,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	return true
 }
 
-func (m *Manager) imageModeSubmitPayload(userText, submitText string, attachments []Attachment, route agentRuntimeRoute) (string, []hermes.MessageContentPart) {
+func (m *Manager) imageModeSubmitPayload(userText, submitText string, attachments []Attachment, route agentRuntimeRoute) (string, []llm.MessageContentPart) {
 	model := strings.TrimSpace(route.Decision.Model)
 	if model == "" && m.cfg.LiveTurnActiveModel != nil {
 		model = strings.TrimSpace(m.cfg.LiveTurnActiveModel())

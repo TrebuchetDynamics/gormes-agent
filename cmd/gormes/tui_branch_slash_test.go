@@ -9,9 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -61,17 +61,17 @@ func TestTUIBranchSlashAdapterForksTranscriptAndResumesKernelSession(t *testing.
 	defer boltMap.Close()
 
 	var resumedSession string
-	var resumedHistory []hermes.Message
-	branch := newTUIBranchFuncWithID(context.Background(), boltMap, func(sessionID string, history []hermes.Message) error {
+	var resumedHistory []llm.Message
+	branch := newTUIBranchFuncWithID(context.Background(), boltMap, func(sessionID string, history []llm.Message) error {
 		resumedSession = sessionID
-		resumedHistory = append([]hermes.Message(nil), history...)
+		resumedHistory = append([]llm.Message(nil), history...)
 		return nil
 	}, func() string { return "sess-child" })
 
 	result, err := branch(context.Background(), tui.BranchRequest{
 		ParentSessionID: "sess-parent",
 		Title:           "branch title",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "visible question"},
 			{Role: "assistant", Content: "visible answer"},
 		},
@@ -110,9 +110,9 @@ func TestTUIBranchSlashAdapterFallsBackToCopiedTranscriptWhenVisibleHistoryEmpty
 	}
 	defer boltMap.Close()
 
-	var resumedHistory []hermes.Message
-	branch := newTUIBranchFuncWithID(context.Background(), boltMap, func(_ string, history []hermes.Message) error {
-		resumedHistory = append([]hermes.Message(nil), history...)
+	var resumedHistory []llm.Message
+	branch := newTUIBranchFuncWithID(context.Background(), boltMap, func(_ string, history []llm.Message) error {
+		resumedHistory = append([]llm.Message(nil), history...)
 		return nil
 	}, func() string { return "sess-child" })
 

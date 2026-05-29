@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestGormesChatModelView_UserReportHardening(t *testing.T) {
@@ -28,7 +28,7 @@ func TestGormesChatModelView_UserReportHardening(t *testing.T) {
 			frame: kernel.RenderFrame{
 				Phase:   kernel.PhaseIdle,
 				Model:   "anthropic/claude-sonnet-4-20250514",
-				History: []hermes.Message{{Role: "assistant", Content: "ready for next task"}},
+				History: []llm.Message{{Role: "assistant", Content: "ready for next task"}},
 			},
 			draft:  "please inspect " + longToken,
 			status: "runtime notice " + longToken,
@@ -39,7 +39,7 @@ func TestGormesChatModelView_UserReportHardening(t *testing.T) {
 			frame: kernel.RenderFrame{
 				Phase:   kernel.PhaseStreaming,
 				Model:   "openai/gpt-4.1",
-				History: []hermes.Message{{Role: "user", Content: "start a long running task"}},
+				History: []llm.Message{{Role: "user", Content: "start a long running task"}},
 			},
 			draft: "queued follow up",
 			want:  []string{"start a long running task", "running", "queued follow up"},
@@ -50,7 +50,7 @@ func TestGormesChatModelView_UserReportHardening(t *testing.T) {
 				Phase:     kernel.PhaseIdle,
 				Model:     "local/test-model",
 				DraftText: final,
-				History: []hermes.Message{
+				History: []llm.Message{
 					{Role: "user", Content: "finish"},
 					{Role: "assistant", Content: final},
 				},

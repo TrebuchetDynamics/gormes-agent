@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type structuredToolProgressFakeChannel struct {
@@ -109,7 +109,7 @@ func TestManager_Outbound_NavivoxToolProgressUsesStructuredEvents(t *testing.T) 
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "open the internal dashboard"},
 			{Role: "assistant", Content: "The dashboard is open."},
 		},

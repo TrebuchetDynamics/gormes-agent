@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,17 +14,17 @@ import (
 	"github.com/spf13/cobra"
 
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
+	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
 // newTelegramCommand returns a fresh telegram bot adapter command.
@@ -56,13 +57,17 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Phase 2.C — open the session map before the kernel so we can prime it.
-	smap, err := session.OpenBolt(config.SessionDBPath())
+	smap, boltMap, sessionNotice, err := openTelegramSessionMap()
 	if err != nil {
 		return fmt.Errorf("session map: %w", err)
 	}
 	defer smap.Close()
-	sessionMirror := startSessionIndexMirror(smap, slog.Default())
-	defer sessionMirror.Stop()
+	if sessionNotice != "" {
+		slog.Warn(sessionNotice, "sessions_db", config.SessionDBPath(), "action", "answering Telegram with in-memory session state; stop the other gormes owner or use `gormes gateway status` / `gormes gateway stop` to restore persistence")
+	}
+	if sessionMirror := startSessionIndexMirror(boltMap, slog.Default()); sessionMirror != nil {
+		defer sessionMirror.Stop()
+	}
 
 	ctx := context.Background()
 	var key string
@@ -107,14 +112,18 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		Logger:   slog.Default(),
 	})
 
-	hc := hermes.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
+	hc := llm.NewHTTPClient(cfg.Hermes.Endpoint, cfg.Hermes.APIKey)
 
 	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	gonchoCfg := cfg.Goncho.RuntimeConfig()
-	gonchoCfg.SessionDirectory = &internalgoncho.SessionDirectoryAdapter{Map: smap}
+	if boltMap != nil {
+		gonchoCfg.SessionDirectory = &internalgoncho.SessionDirectoryAdapter{Map: boltMap}
+	} else {
+		slog.Warn("goncho cross-session metadata disabled while sessions.db is locked", "sessions_db", config.SessionDBPath())
+	}
 	svc := newChannelGonchoService(mstore.DB(), gonchoCfg, slog.Default(), hc, cfg.Hermes.Model)
 	registerChannelGonchoTools(reg, svc)
 
@@ -229,45 +238,49 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	// cfg.Cron.Enabled). No-op when disabled — zero goroutines, zero
 	// bbolt bucket, zero RAM.
 	if cfg.Cron.Enabled && cfg.Telegram.AllowedChatID != 0 {
-		// Reuse the existing session.db for the cron_jobs bucket.
-		cronStore, err := cron.NewStore(smap.DB())
-		if err != nil {
-			return fmt.Errorf("cron: init store: %w", err)
+		if boltMap == nil {
+			slog.Warn("cron disabled while sessions.db is locked", "sessions_db", config.SessionDBPath())
+		} else {
+			// Reuse the existing session.db for the cron_jobs bucket.
+			cronStore, err := cron.NewStore(boltMap.DB())
+			if err != nil {
+				return fmt.Errorf("cron: init store: %w", err)
+			}
+			cronRunStore := cron.NewRunStore(mstore.DB())
+
+			sink := newTelegramDeliverySink(bot, cfg.Telegram.AllowedChatID)
+
+			cronExec := cron.NewExecutor(cron.ExecutorConfig{
+				Kernel:           k,
+				JobStore:         cronStore,
+				RunStore:         cronRunStore,
+				Sink:             sink,
+				CallTimeout:      cfg.Cron.CallTimeout,
+				CronApprovalMode: cfg.Approvals.CronMode,
+			}, slog.Default())
+
+			cronSched := cron.NewScheduler(cron.SchedulerConfig{
+				Store:    cronStore,
+				Executor: cronExec,
+			}, slog.Default())
+
+			if err := cronSched.Start(rootCtx); err != nil {
+				return fmt.Errorf("cron: start scheduler: %w", err)
+			}
+			defer func() {
+				shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+				defer cancelShutdown()
+				cronSched.Stop(shutdownCtx)
+			}()
+
+			cronMirror := cron.NewMirror(cron.MirrorConfig{
+				JobStore: cronStore,
+				RunStore: cronRunStore,
+				Path:     cfg.CronMirrorPath(),
+				Interval: cfg.Cron.MirrorInterval,
+			}, slog.Default())
+			go cronMirror.Run(rootCtx)
 		}
-		cronRunStore := cron.NewRunStore(mstore.DB())
-
-		sink := newTelegramDeliverySink(bot, cfg.Telegram.AllowedChatID)
-
-		cronExec := cron.NewExecutor(cron.ExecutorConfig{
-			Kernel:           k,
-			JobStore:         cronStore,
-			RunStore:         cronRunStore,
-			Sink:             sink,
-			CallTimeout:      cfg.Cron.CallTimeout,
-			CronApprovalMode: cfg.Approvals.CronMode,
-		}, slog.Default())
-
-		cronSched := cron.NewScheduler(cron.SchedulerConfig{
-			Store:    cronStore,
-			Executor: cronExec,
-		}, slog.Default())
-
-		if err := cronSched.Start(rootCtx); err != nil {
-			return fmt.Errorf("cron: start scheduler: %w", err)
-		}
-		defer func() {
-			shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
-			defer cancelShutdown()
-			cronSched.Stop(shutdownCtx)
-		}()
-
-		cronMirror := cron.NewMirror(cron.MirrorConfig{
-			JobStore: cronStore,
-			RunStore: cronRunStore,
-			Path:     cfg.CronMirrorPath(),
-			Interval: cfg.Cron.MirrorInterval,
-		}, slog.Default())
-		go cronMirror.Run(rootCtx)
 	}
 
 	go func() {
@@ -327,6 +340,18 @@ func newTelegramDeliverySink(bot telegramBotSender, chatID int64) cron.DeliveryS
 	return cron.FuncSink(func(ctx context.Context, text string) error {
 		return bot.SendToChat(ctx, chatID, text)
 	})
+}
+
+func openTelegramSessionMap() (session.Map, *session.BoltMap, string, error) {
+	path := config.SessionDBPath()
+	smap, err := session.OpenBolt(path)
+	if err == nil {
+		return smap, smap, "", nil
+	}
+	if errors.Is(err, session.ErrDBLocked) {
+		return session.NewMemMap(), nil, "telegram session state: in-memory (sessions.db locked)", nil
+	}
+	return nil, nil, "", err
 }
 
 func telegramManagerConfig(cfg config.Config, smap session.Map) gateway.ManagerConfig {

@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestHermesSlashDispatchBehavior_LocalHandlersStillRun(t *testing.T) {
@@ -28,7 +28,7 @@ func TestHermesSlashDispatchBehavior_LocalHandlersStillRun(t *testing.T) {
 			sub := &nopSubmitter{}
 			m := newSlashDispatchBehaviorModel(sub)
 			if tt.withHistory {
-				m.frame.History = []hermes.Message{{Role: "user", Content: "hello"}}
+				m.frame.History = []llm.Message{{Role: "user", Content: "hello"}}
 				m.frame.SessionID = "sess-parent"
 			}
 
@@ -50,7 +50,7 @@ func TestHermesSlashDispatchBehavior_LocalHandlersStillRun(t *testing.T) {
 func TestHermesSlashDispatchBehavior_RedrawClearsVisibleFrameLocally(t *testing.T) {
 	sub := &nopSubmitter{}
 	m := newSlashDispatchBehaviorModel(sub)
-	m.frame.History = []hermes.Message{{Role: "user", Content: "keep in kernel, clear from view"}}
+	m.frame.History = []llm.Message{{Role: "user", Content: "keep in kernel, clear from view"}}
 	m.frame.DraftText = "streaming draft"
 	m.frame.LastError = "stale terminal error"
 	m.frame.SessionID = "sess-redraw"

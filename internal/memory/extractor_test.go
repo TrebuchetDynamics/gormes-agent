@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
-// fakeLLM implements hermes.Client with scripted responses. Each
+// fakeLLM implements llm.Client with scripted responses. Each
 // OpenStream call returns the next scripted response (or a default
 // empty-graph JSON when scripts are exhausted).
 type fakeLLM struct {
@@ -37,7 +37,7 @@ func (f *fakeLLM) script(body string, err error) {
 
 func (f *fakeLLM) Health(ctx context.Context) error { return nil }
 
-func (f *fakeLLM) OpenStream(ctx context.Context, _ hermes.ChatRequest) (hermes.Stream, error) {
+func (f *fakeLLM) OpenStream(ctx context.Context, _ llm.ChatRequest) (llm.Stream, error) {
 	f.openCalls.Add(1)
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -52,8 +52,8 @@ func (f *fakeLLM) OpenStream(ctx context.Context, _ hermes.ChatRequest) (hermes.
 	return &fakeStream{body: r.body}, nil
 }
 
-func (f *fakeLLM) OpenRunEvents(ctx context.Context, _ string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (f *fakeLLM) OpenRunEvents(ctx context.Context, _ string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 type fakeStream struct {
@@ -63,17 +63,17 @@ type fakeStream struct {
 
 func (s *fakeStream) SessionID() string { return "" }
 func (s *fakeStream) Close() error      { return nil }
-func (s *fakeStream) Recv(ctx context.Context) (hermes.Event, error) {
+func (s *fakeStream) Recv(ctx context.Context) (llm.Event, error) {
 	select {
 	case <-ctx.Done():
-		return hermes.Event{}, ctx.Err()
+		return llm.Event{}, ctx.Err()
 	default:
 	}
 	if !s.emit {
 		s.emit = true
-		return hermes.Event{Kind: hermes.EventToken, Token: s.body}, nil
+		return llm.Event{Kind: llm.EventToken, Token: s.body}, nil
 	}
-	return hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"}, errStreamEOF
+	return llm.Event{Kind: llm.EventDone, FinishReason: "stop"}, errStreamEOF
 }
 
 var errStreamEOF = errors.New("eof")

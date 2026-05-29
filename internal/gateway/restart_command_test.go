@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func TestGatewayRestartCommand_RegistryCarriesGatewaySafeActiveTurnPolicy(t *testing.T) {

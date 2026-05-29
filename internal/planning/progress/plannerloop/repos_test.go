@@ -29,7 +29,7 @@ func TestConfigFromEnvDefaultsExternalRepoURLs(t *testing.T) {
 
 func TestConfigFromEnvReadsExternalRepoURLOverrides(t *testing.T) {
 	cfg, err := ConfigFromEnv(filepath.Join("tmp", "repo"), MapEnv(map[string]string{
-		"HERMES_REPO_URL": "https://example.test/hermes.git",
+		"HERMES_REPO_URL": "https://example.test/llm.git",
 		"HONCHO_REPO_URL": "https://example.test/honcho.git",
 	}))
 	if err != nil {
@@ -37,7 +37,7 @@ func TestConfigFromEnvReadsExternalRepoURLOverrides(t *testing.T) {
 	}
 
 	got := cfg.ExternalRepos()
-	if got[0].CloneURL != "https://example.test/hermes.git" {
+	if got[0].CloneURL != "https://example.test/llm.git" {
 		t.Fatalf("Hermes CloneURL = %q", got[0].CloneURL)
 	}
 	if got[1].CloneURL != "https://example.test/honcho.git" {
@@ -50,7 +50,7 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 	cfg, err := ConfigFromEnv(filepath.Join(root, "gormes-agent"), MapEnv(map[string]string{
 		"HERMES_DIR":      filepath.Join(root, "hermes-agent"),
 		"HONCHO_DIR":      filepath.Join(root, "honcho"),
-		"HERMES_REPO_URL": "https://example.test/hermes.git",
+		"HERMES_REPO_URL": "https://example.test/llm.git",
 		"HONCHO_REPO_URL": "https://example.test/honcho.git",
 	}))
 	if err != nil {
@@ -80,7 +80,7 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 	}
 
 	wantResults := []RepoSyncResult{
-		{Name: "hermes-agent", Path: cfg.HermesDir, Action: "pull", CloneURL: "https://example.test/hermes.git", Output: "Already up to date."},
+		{Name: "hermes-agent", Path: cfg.HermesDir, Action: "pull", CloneURL: "https://example.test/llm.git", Output: "Already up to date."},
 		{Name: "honcho", Path: cfg.HonchoDir, Action: "pull", CloneURL: "https://example.test/honcho.git", Output: "Updating abc123..def456"},
 	}
 	if !reflect.DeepEqual(results, wantResults) {

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func TestStartSessionIndexMirror_WritesToGormesHomePath(t *testing.T) {

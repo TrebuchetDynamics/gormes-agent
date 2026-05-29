@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
@@ -93,10 +93,10 @@ func TestCompletedTurnMemorySyncsAndExtractorStillRuns(t *testing.T) {
 	}
 	defer memStore.Close(context.Background())
 
-	client := hermes.NewMockClient()
-	client.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "finished response"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	client := llm.NewMockClient()
+	client.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "finished response"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-completed-sync")
 
 	k := kernel.New(kernel.Config{
@@ -148,12 +148,12 @@ type blockingTurnClient struct {
 
 func (c *blockingTurnClient) Health(ctx context.Context) error { return nil }
 
-func (c *blockingTurnClient) OpenStream(ctx context.Context, _ hermes.ChatRequest) (hermes.Stream, error) {
+func (c *blockingTurnClient) OpenStream(ctx context.Context, _ llm.ChatRequest) (llm.Stream, error) {
 	return &blockingTurnStream{started: c.started, sessionID: "sess-interrupted-sync"}, nil
 }
 
-func (c *blockingTurnClient) OpenRunEvents(ctx context.Context, _ string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *blockingTurnClient) OpenRunEvents(ctx context.Context, _ string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 type blockingTurnStream struct {
@@ -165,17 +165,17 @@ type blockingTurnStream struct {
 func (s *blockingTurnStream) SessionID() string { return s.sessionID }
 func (s *blockingTurnStream) Close() error      { return nil }
 
-func (s *blockingTurnStream) Recv(ctx context.Context) (hermes.Event, error) {
+func (s *blockingTurnStream) Recv(ctx context.Context) (llm.Event, error) {
 	if !s.emitted {
 		s.emitted = true
 		select {
 		case s.started <- struct{}{}:
 		default:
 		}
-		return hermes.Event{Kind: hermes.EventToken, Token: "partial response"}, nil
+		return llm.Event{Kind: llm.EventToken, Token: "partial response"}, nil
 	}
 	<-ctx.Done()
-	return hermes.Event{}, ctx.Err()
+	return llm.Event{}, ctx.Err()
 }
 
 type fakeLLM struct {
@@ -197,7 +197,7 @@ func (f *fakeLLM) script(body string, err error) {
 
 func (f *fakeLLM) Health(ctx context.Context) error { return nil }
 
-func (f *fakeLLM) OpenStream(ctx context.Context, _ hermes.ChatRequest) (hermes.Stream, error) {
+func (f *fakeLLM) OpenStream(ctx context.Context, _ llm.ChatRequest) (llm.Stream, error) {
 	f.openCalls.Add(1)
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -212,8 +212,8 @@ func (f *fakeLLM) OpenStream(ctx context.Context, _ hermes.ChatRequest) (hermes.
 	return &fakeStream{body: r.body}, nil
 }
 
-func (f *fakeLLM) OpenRunEvents(ctx context.Context, _ string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (f *fakeLLM) OpenRunEvents(ctx context.Context, _ string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 type fakeStream struct {
@@ -224,17 +224,17 @@ type fakeStream struct {
 func (s *fakeStream) SessionID() string { return "" }
 func (s *fakeStream) Close() error      { return nil }
 
-func (s *fakeStream) Recv(ctx context.Context) (hermes.Event, error) {
+func (s *fakeStream) Recv(ctx context.Context) (llm.Event, error) {
 	select {
 	case <-ctx.Done():
-		return hermes.Event{}, ctx.Err()
+		return llm.Event{}, ctx.Err()
 	default:
 	}
 	if !s.emit {
 		s.emit = true
-		return hermes.Event{Kind: hermes.EventToken, Token: s.body}, nil
+		return llm.Event{Kind: llm.EventToken, Token: s.body}, nil
 	}
-	return hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"}, errors.New("eof")
+	return llm.Event{Kind: llm.EventDone, FinishReason: "stop"}, errors.New("eof")
 }
 
 func waitForTurnMemorySyncStatus(t *testing.T, db *sql.DB, content, want string) {

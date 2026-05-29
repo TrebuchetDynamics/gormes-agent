@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func TestSessionSearchToolExecution_SameChatDefault(t *testing.T) {

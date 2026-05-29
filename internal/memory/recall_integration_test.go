@@ -37,7 +37,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/support/testutil/ollama"
 )
 
@@ -73,7 +73,7 @@ func TestRecall_Integration_Ollama_SecondTurnSeesFirstTurnEntities(t *testing.T)
 	}
 
 	// ── Phase B: run the real extractor against Ollama ────────────────
-	hc := hermes.NewHTTPClient(endpoint, "")
+	hc := llm.NewHTTPClient(endpoint, "")
 	ext := NewExtractor(store, hc, ExtractorConfig{
 		Model:        model,
 		PollInterval: 500 * time.Millisecond,

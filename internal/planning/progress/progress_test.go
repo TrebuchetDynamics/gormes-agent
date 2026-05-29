@@ -487,7 +487,7 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if minionPolicy.ContractStatus != ContractStatusValidated || minionPolicy.SliceSize != SliceSizeSmall || minionPolicy.ExecutionOwner != ExecutionOwnerOrchestrator {
 		t.Fatalf("Phase 2.E.1 minion policy metadata = status %q size %q owner %q, want validated/small/orchestrator", minionPolicy.ContractStatus, minionPolicy.SliceSize, minionPolicy.ExecutionOwner)
 	}
-	if !containsString(minionPolicy.SourceRefs, "internal/subagent/minion_policy.go") || !containsString(minionPolicy.Unblocks, "Durable subagent/job ledger") {
+	if !containsString(minionPolicy.SourceRefs, "internal/core/subagent/minion_policy.go") || !containsString(minionPolicy.Unblocks, "Durable subagent/job ledger") {
 		t.Fatalf("Phase 2.E.1 routing policy refs/unblocks = refs %v unblocks %v, want policy source ref and durable ledger unblock", minionPolicy.SourceRefs, minionPolicy.Unblocks)
 	}
 	durableLedger := e1Items["Durable subagent/job ledger"]
@@ -1266,7 +1266,7 @@ func TestLoad_RealFile_Phase3ExecutionQueue(t *testing.T) {
 	if userID.Status != StatusComplete {
 		t.Fatalf("Phase 3.E.7 user_id status = %q, want complete", userID.Status)
 	}
-	if !strings.Contains(userID.Note, "internal/session") || !strings.Contains(userID.Note, "chat-to-user merges") {
+	if !strings.Contains(userID.Note, "internal/persistence/session") || !strings.Contains(userID.Note, "chat-to-user merges") {
 		t.Fatalf("Phase 3.E.7 user_id note = %q, want session metadata + conflict detail", userID.Note)
 	}
 	sameChatFence := crossChatItems["Same-chat default recall fence"]

@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolWhenEndpointEmpty(t *testing.T) {
@@ -50,9 +50,9 @@ func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolWhenEndpointEmpty(t *tes
 		t.Fatalf("newProviderHTTPClient: %v", err)
 	}
 
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    "gpt-5.5",
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream error = %v", err)
@@ -62,7 +62,7 @@ func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolWhenEndpointEmpty(t *tes
 	if err != nil {
 		t.Fatalf("Recv token error = %v", err)
 	}
-	if event.Kind != hermes.EventToken || event.Token != "ok from codex pool" {
+	if event.Kind != llm.EventToken || event.Token != "ok from codex pool" {
 		t.Fatalf("event = %+v, want codex pool token event", event)
 	}
 	if !sawResponsesPath {
@@ -108,9 +108,9 @@ func TestProviderHTTPClientWithCredentialHome_FallsBackToGlobalCodexOAuthWhenAge
 		t.Fatalf("newProviderHTTPClientWithCredentialHome: %v", err)
 	}
 
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    "gpt-5.5",
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream error = %v", err)
@@ -120,7 +120,7 @@ func TestProviderHTTPClientWithCredentialHome_FallsBackToGlobalCodexOAuthWhenAge
 	if err != nil {
 		t.Fatalf("Recv token error = %v", err)
 	}
-	if event.Kind != hermes.EventToken || event.Token != "ok from global fallback" {
+	if event.Kind != llm.EventToken || event.Token != "ok from global fallback" {
 		t.Fatalf("event = %+v, want global fallback token event", event)
 	}
 	if !sawRequest {
@@ -173,9 +173,9 @@ func TestProviderHTTPClientWithCredentialHome_PrefersAgentCodexOAuthCredential(t
 		t.Fatalf("newProviderHTTPClientWithCredentialHome: %v", err)
 	}
 
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    "gpt-5.5",
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream error = %v", err)
@@ -340,9 +340,9 @@ func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolTokenWhenEndpointConfigu
 		t.Fatalf("newProviderHTTPClient: %v", err)
 	}
 
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    "gpt-5.5",
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream error = %v", err)
@@ -352,7 +352,7 @@ func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolTokenWhenEndpointConfigu
 	if err != nil {
 		t.Fatalf("Recv token error = %v", err)
 	}
-	if event.Kind != hermes.EventToken || event.Token != "ok from configured codex endpoint" {
+	if event.Kind != llm.EventToken || event.Token != "ok from configured codex endpoint" {
 		t.Fatalf("event = %+v, want configured Codex endpoint token event", event)
 	}
 	if !sawResponsesPath {
@@ -446,10 +446,10 @@ func TestProviderHTTPClient_AnthropicProviderUsesMessagesAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newProviderHTTPClient: %v", err)
 	}
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:     "claude-sonnet-4",
 		MaxTokens: 512,
-		Messages:  []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages:  []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream error = %v", err)
@@ -472,7 +472,7 @@ func TestProviderHTTPClient_OpenRouterDefaultRuntimeUsesOpenRouterKey(t *testing
 	if err != nil {
 		t.Fatalf("resolveProviderHTTPClientCredentials: %v", err)
 	}
-	if endpoint != hermes.OpenRouterDefaultBaseURL {
+	if endpoint != llm.OpenRouterDefaultBaseURL {
 		t.Fatalf("endpoint = %q, want OpenRouter default", endpoint)
 	}
 	if apiKey != "or-test-key" {
@@ -611,7 +611,7 @@ func TestProviderHTTPClient_CustomOpenRouterBaseUsesOpenRouterKey(t *testing.T) 
 	if err != nil {
 		t.Fatalf("resolveProviderHTTPClientCredentials: %v", err)
 	}
-	if endpoint != hermes.OpenRouterDefaultBaseURL {
+	if endpoint != llm.OpenRouterDefaultBaseURL {
 		t.Fatalf("endpoint = %q, want OpenRouter endpoint preserved", endpoint)
 	}
 	if apiKey != "or-test-key" {
@@ -647,9 +647,9 @@ func TestProviderHTTPClient_OpenRouterRequestsCarryAttribution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newProviderHTTPClient: %v", err)
 	}
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    "anthropic/claude-sonnet-4",
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream: %v", err)

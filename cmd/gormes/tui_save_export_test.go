@@ -11,7 +11,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 )
 
 func TestTUISaveExportHelper_WritesUnderGormesHome(t *testing.T) {

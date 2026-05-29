@@ -9,8 +9,8 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 )
 
@@ -417,7 +417,7 @@ func draftDuplicatesFinalAssistant(f kernel.RenderFrame) bool {
 	return draft == strings.TrimSpace(lastAssistantContent(f.History))
 }
 
-func lastAssistantContent(history []hermes.Message) string {
+func lastAssistantContent(history []llm.Message) string {
 	for i := len(history) - 1; i >= 0; i-- {
 		if history[i].Role == "assistant" {
 			return history[i].Content
@@ -516,12 +516,12 @@ func toolTrailEvent(text string) (string, string, ToolCallStatus, bool) {
 	}
 }
 
-func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) string {
+func conversationMessageBlock(msg llm.Message, wrapWidth int, compact bool) string {
 	skin, styles := conversationChatStyles(DefaultHermesSkin())
 	return conversationMessageBlockWithSkin(msg, wrapWidth, compact, skin, styles)
 }
 
-func conversationMessageBlockWithSkin(msg hermes.Message, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
+func conversationMessageBlockWithSkin(msg llm.Message, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
 	if msg.Role == "tool" {
 		return conversationToolResultBlockWithStyles(msg, wrapWidth, compact, styles)
 	}
@@ -534,7 +534,7 @@ func conversationMessageBlockWithSkin(msg hermes.Message, wrapWidth int, compact
 	return transcriptRowWithSkin(msg.Role, content, skin, styles)
 }
 
-func conversationMessageBlockAtWithSkin(history []hermes.Message, idx, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
+func conversationMessageBlockAtWithSkin(history []llm.Message, idx, wrapWidth int, compact bool, skin HermesSkin, styles chatStyles) string {
 	block := conversationMessageBlockWithSkin(history[idx], wrapWidth, compact, skin, styles)
 	if !compact && conversationNeedsTurnSeparator(history, idx) {
 		return styles.Separator.Render("───") + "\n\n" + block
@@ -542,7 +542,7 @@ func conversationMessageBlockAtWithSkin(history []hermes.Message, idx, wrapWidth
 	return block
 }
 
-func conversationNeedsTurnSeparator(history []hermes.Message, idx int) bool {
+func conversationNeedsTurnSeparator(history []llm.Message, idx int) bool {
 	if idx < 0 || idx >= len(history) || history[idx].Role != "user" {
 		return false
 	}
@@ -554,7 +554,7 @@ func conversationNeedsTurnSeparator(history []hermes.Message, idx int) bool {
 	return false
 }
 
-func conversationToolResultBlockWithStyles(msg hermes.Message, wrapWidth int, compact bool, styles chatStyles) string {
+func conversationToolResultBlockWithStyles(msg llm.Message, wrapWidth int, compact bool, styles chatStyles) string {
 	name := strings.TrimSpace(msg.Name)
 	if name == "" {
 		name = "tool"

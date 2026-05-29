@@ -12,9 +12,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func TestBot_Name(t *testing.T) {
@@ -286,7 +286,7 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 	k.frames <- kernel.RenderFrame{Phase: kernel.PhaseStreaming, DraftText: "partial"}
 	k.frames <- kernel.RenderFrame{
 		Phase:   kernel.PhaseIdle,
-		History: []hermes.Message{{Role: "assistant", Content: "done"}},
+		History: []llm.Message{{Role: "assistant", Content: "done"}},
 	}
 
 	waitForDiscord(t, 30*time.Second, func() bool {

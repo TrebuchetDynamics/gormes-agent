@@ -32,8 +32,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // promptSentinel / statusSentinel are presentation-agnostic markers we feed
@@ -49,7 +49,7 @@ func TestHermesBehavioralFidelity_InkTranscriptOrder(t *testing.T) {
 		Phase:     kernel.PhaseStreaming,
 		Model:     "anthropic/claude-sonnet-4-20250514",
 		SessionID: "sess-ink-order",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "inspect the renderer"},
 		},
 		SoulEvents: []kernel.SoulEntry{
@@ -79,7 +79,7 @@ func TestHermesBehavioralFidelity_InkTranscriptOrder(t *testing.T) {
 func TestHermesBehavioralFidelity_ToolTrailAndResultBox(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseStreaming,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "read the TUI renderer"},
 			{Role: "tool", Name: "read_file", Content: "package tui\n\nfunc View() string"},
 		},
@@ -128,7 +128,7 @@ func TestHermesBehavioralFidelity_QueuedMessagesAndStickyPrompt(t *testing.T) {
 func TestHermesBehavioralFidelity_NoLegacyPromptToolkitChrome(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hello"},
 			{Role: "assistant", Content: "done"},
 		},
@@ -180,7 +180,7 @@ func TestHermesBehavioralFidelity_EmptyTranscriptIntro(t *testing.T) {
 func TestHermesBehavioralFidelity_InkTurnSeparators(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "first prompt"},
 			{Role: "assistant", Content: "first response"},
 			{Role: "user", Content: "second prompt"},
@@ -207,7 +207,7 @@ func TestHermesBehavioralFidelity_FinalAssistantNotDuplicated(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase:     kernel.PhaseIdle,
 		DraftText: final,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "use tools until the budget is exhausted"},
 			{Role: "assistant", Content: final},
 		},

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // TestThinking_RenderEmpty verifies that RenderThinking returns empty for invisible state.
@@ -506,7 +506,7 @@ func TestConversationForcedBlocksRendersToolTrailStatusIcons(t *testing.T) {
 			{Text: "tool: patch: internal/tui/view.go"},
 			{Text: "tool error: patch: no match"},
 		},
-		History: []hermes.Message{{Role: "tool", Name: "read_file", Content: "ok"}},
+		History: []llm.Message{{Role: "tool", Name: "read_file", Content: "ok"}},
 	}
 	blocks := conversationForcedBlocks(f, 100, false)
 	got := strings.Join(blocks, "\n")

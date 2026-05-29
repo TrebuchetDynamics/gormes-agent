@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestTitleFailureCallback_KernelAuxiliaryWarningFrame(t *testing.T) {
@@ -16,17 +16,17 @@ func TestTitleFailureCallback_KernelAuxiliaryWarningFrame(t *testing.T) {
 	var warning RenderFrame
 	foreground := RenderFrame{
 		Phase: PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "assistant", Content: "foreground answer survived"},
 		},
 	}
 
-	result := hermes.GenerateTitle(context.Background(), hermes.TitleRequest{
-		History: []hermes.TitleMessage{
+	result := llm.GenerateTitle(context.Background(), llm.TitleRequest{
+		History: []llm.TitleMessage{
 			{Role: "user", Content: "please name this turn"},
 			{Role: "assistant", Content: "foreground answer survived"},
 		},
-		FailureCallback: func(ctx context.Context, evidence hermes.TitleEvidence) error {
+		FailureCallback: func(ctx context.Context, evidence llm.TitleEvidence) error {
 			warning = RenderFrame{
 				Phase:      PhaseIdle,
 				StatusText: string(evidence.Kind),
@@ -35,18 +35,18 @@ func TestTitleFailureCallback_KernelAuxiliaryWarningFrame(t *testing.T) {
 			}
 			return nil
 		},
-	}, func(ctx context.Context, req hermes.TitleModelRequest) (string, error) {
+	}, func(ctx context.Context, req llm.TitleModelRequest) (string, error) {
 		return "", providerErr
 	})
 
 	if result.Title != "" {
 		t.Fatalf("Title = %q; want empty title", result.Title)
 	}
-	if result.Status != hermes.TitleStatusProviderFailed {
-		t.Fatalf("Status = %q; want %q", result.Status, hermes.TitleStatusProviderFailed)
+	if result.Status != llm.TitleStatusProviderFailed {
+		t.Fatalf("Status = %q; want %q", result.Status, llm.TitleStatusProviderFailed)
 	}
-	if warning.StatusText != string(hermes.TitleStatusProviderFailed) {
-		t.Fatalf("warning StatusText = %q; want %q", warning.StatusText, hermes.TitleStatusProviderFailed)
+	if warning.StatusText != string(llm.TitleStatusProviderFailed) {
+		t.Fatalf("warning StatusText = %q; want %q", warning.StatusText, llm.TitleStatusProviderFailed)
 	}
 	if !strings.Contains(warning.LastError, "openrouter 402") {
 		t.Fatalf("warning LastError = %q; want provider failure detail", warning.LastError)

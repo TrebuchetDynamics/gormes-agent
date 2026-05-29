@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestStartBootHookSkipsMissingBootFile(t *testing.T) {
-	client := hermes.NewMockClient()
+	client := llm.NewMockClient()
 
 	started := StartBootHook(context.Background(), BootHookConfig{
 		Path:   filepath.Join(t.TempDir(), "BOOT.md"),
@@ -35,10 +35,10 @@ func TestStartBootHookSkipsMissingBootFile(t *testing.T) {
 func TestStartBootHookRunsWrappedBootPromptInBackground(t *testing.T) {
 	path := writeBootFile(t, "# Startup Checklist\n\n1. Check overnight failures.")
 
-	client := hermes.NewMockClient()
-	client.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "[SILENT]"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	client := llm.NewMockClient()
+	client.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "[SILENT]"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "")
 
 	started := StartBootHook(context.Background(), BootHookConfig{
@@ -115,7 +115,7 @@ func TestStartBootHookDoesNotBlockStartupOnBootFailure(t *testing.T) {
 
 type blockingBootClient struct {
 	mu       sync.Mutex
-	requests []hermes.ChatRequest
+	requests []llm.ChatRequest
 	entered  chan struct{}
 	release  chan struct{}
 	done     chan struct{}
@@ -132,7 +132,7 @@ func newBlockingBootClient(openErr error) *blockingBootClient {
 	}
 }
 
-func (c *blockingBootClient) OpenStream(ctx context.Context, req hermes.ChatRequest) (hermes.Stream, error) {
+func (c *blockingBootClient) OpenStream(ctx context.Context, req llm.ChatRequest) (llm.Stream, error) {
 	c.mu.Lock()
 	c.requests = append(c.requests, req)
 	c.mu.Unlock()
@@ -145,11 +145,11 @@ func (c *blockingBootClient) OpenStream(ctx context.Context, req hermes.ChatRequ
 	}
 
 	close(c.done)
-	return &hermes.MockStream{}, c.openErr
+	return &llm.MockStream{}, c.openErr
 }
 
-func (*blockingBootClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (*blockingBootClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (*blockingBootClient) Health(context.Context) error { return nil }

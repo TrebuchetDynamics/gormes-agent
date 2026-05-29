@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestAgentLifecycleHook_StartEndFiresOnSimpleTurn(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "hello"},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: 5},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "hello"},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 10, TokensOut: 5},
 	}, "ses-01")
 
 	var mu sync.Mutex
@@ -76,15 +76,15 @@ func TestAgentLifecycleHook_StartEndFiresOnSimpleTurn(t *testing.T) {
 }
 
 func TestAgentLifecycleHook_StepFiresOnToolTurn(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "tool_calls", ToolCalls: []hermes.ToolCall{
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "tool_calls", ToolCalls: []llm.ToolCall{
 			{Name: "echo", ID: "t1", Arguments: json.RawMessage(`{"msg":"hi"}`)},
 		}},
 	}, "ses-02")
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "done"},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 20, TokensOut: 8},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "done"},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 20, TokensOut: 8},
 	}, "ses-02")
 
 	var mu sync.Mutex
@@ -218,24 +218,24 @@ type streamErrorClient struct {
 	err error
 }
 
-func (c *streamErrorClient) ProviderStatus() hermes.ProviderStatus {
-	return hermes.ProviderStatus{Provider: "mock", Runtime: "test"}
+func (c *streamErrorClient) ProviderStatus() llm.ProviderStatus {
+	return llm.ProviderStatus{Provider: "mock", Runtime: "test"}
 }
 
 func (c *streamErrorClient) Health(ctx context.Context) error { return nil }
 
-func (c *streamErrorClient) OpenStream(ctx context.Context, req hermes.ChatRequest) (hermes.Stream, error) {
+func (c *streamErrorClient) OpenStream(ctx context.Context, req llm.ChatRequest) (llm.Stream, error) {
 	return nil, c.err
 }
 
-func (c *streamErrorClient) OpenRunEvents(ctx context.Context, sessionID string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *streamErrorClient) OpenRunEvents(ctx context.Context, sessionID string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func TestAgentLifecycleHook_NilHookNoPanic(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 5, TokensOut: 3},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 5, TokensOut: 3},
 	}, "ses-nil")
 
 	k := New(Config{

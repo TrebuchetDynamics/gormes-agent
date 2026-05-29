@@ -8,8 +8,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestUserReportHardening_RenderConvPathologicalFrames(t *testing.T) {
@@ -21,14 +21,14 @@ func TestUserReportHardening_RenderConvPathologicalFrames(t *testing.T) {
 	}{
 		{
 			name: "long unbroken user and assistant content",
-			frame: kernel.RenderFrame{History: []hermes.Message{
+			frame: kernel.RenderFrame{History: []llm.Message{
 				{Role: "user", Content: "please inspect " + longToken},
 				{Role: "assistant", Content: "result " + longToken},
 			}},
 		},
 		{
 			name: "ansi and control-like transcript text is bounded",
-			frame: kernel.RenderFrame{History: []hermes.Message{
+			frame: kernel.RenderFrame{History: []llm.Message{
 				{Role: "user", Content: "show colors"},
 				{Role: "assistant", Content: "\x1b[31mred\x1b[0m\n\x1b]52;c;secret\x07"},
 			}},
@@ -37,14 +37,14 @@ func TestUserReportHardening_RenderConvPathologicalFrames(t *testing.T) {
 			name: "active quiet turn keeps latest prompt visible",
 			frame: kernel.RenderFrame{
 				Phase:   kernel.PhaseStreaming,
-				History: []hermes.Message{{Role: "user", Content: "do not leave me wondering"}},
+				History: []llm.Message{{Role: "user", Content: "do not leave me wondering"}},
 			},
 		},
 		{
 			name: "tool output and progress are bounded",
 			frame: kernel.RenderFrame{
 				Phase: kernel.PhaseStreaming,
-				History: []hermes.Message{
+				History: []llm.Message{
 					{Role: "user", Content: "run verbose tool"},
 					{Role: "tool", Name: "terminal", Content: strings.Repeat("tool line with lots of output\n", 40)},
 				},
@@ -56,7 +56,7 @@ func TestUserReportHardening_RenderConvPathologicalFrames(t *testing.T) {
 			frame: kernel.RenderFrame{
 				Phase:     kernel.PhaseIdle,
 				DraftText: final,
-				History: []hermes.Message{
+				History: []llm.Message{
 					{Role: "user", Content: "summarize"},
 					{Role: "assistant", Content: final},
 				},

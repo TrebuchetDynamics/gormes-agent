@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type SessionModelOverride struct {
@@ -86,7 +86,7 @@ func NewModelPickerResolver(ov *SessionModelOverride) ModelPickerResolver {
 }
 
 func (r *gatewayModelPickerResolver) PickerProviders() []string {
-	providers := hermes.ListPickerProviders()
+	providers := llm.ListPickerProviders()
 	out := make([]string, len(providers))
 	for i, p := range providers {
 		out[i] = p.Slug
@@ -95,7 +95,7 @@ func (r *gatewayModelPickerResolver) PickerProviders() []string {
 }
 
 func (r *gatewayModelPickerResolver) PickerModels(providerSlug string) []string {
-	manifest := hermes.HermesProviderRegistryManifest()
+	manifest := llm.HermesProviderRegistryManifest()
 	for _, entry := range manifest {
 		if entry.ID == providerSlug {
 			if entry.ModelsDevID != "" {
@@ -108,7 +108,7 @@ func (r *gatewayModelPickerResolver) PickerModels(providerSlug string) []string 
 }
 
 func (r *gatewayModelPickerResolver) OpenModelPicker(ctx context.Context, req ModelPickerRequest) (ModelPickerResponse, error) {
-	providers := hermes.ListPickerProviders()
+	providers := llm.ListPickerProviders()
 	list := make([]string, len(providers))
 	slugs := make([]string, len(providers))
 	for i, p := range providers {
@@ -144,7 +144,7 @@ func (r *gatewayModelPickerResolver) HandleModelPickerCallback(ctx context.Conte
 
 func (r *gatewayModelPickerResolver) handleProviderSelection(cb ModelPickerCallback, state modelPickerState) (ModelPickerResponse, error) {
 	slug := cb.Value
-	providers := hermes.ListPickerProviders()
+	providers := llm.ListPickerProviders()
 	var label string
 	for _, p := range providers {
 		if p.Slug == slug {

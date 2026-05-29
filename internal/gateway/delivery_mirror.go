@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 )
 
 const (

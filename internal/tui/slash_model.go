@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // ModelPickerCatalogProvider is the TUI-local provider/model catalog shape
@@ -31,7 +31,7 @@ type modelSessionSetMsg struct {
 // curated model suggestions into the pure renderer entries used by
 // ModelPickerState.
 func DefaultModelPickerCatalog() ([]ModelPickerCatalogProvider, error) {
-	providers := hermes.ListPickerProviders()
+	providers := llm.ListPickerProviders()
 	out := make([]ModelPickerCatalogProvider, 0, len(providers))
 	for _, provider := range providers {
 		id := strings.TrimSpace(provider.Slug)
@@ -40,7 +40,7 @@ func DefaultModelPickerCatalog() ([]ModelPickerCatalogProvider, error) {
 		}
 		modelIDs := provider.Models
 		if len(modelIDs) == 0 {
-			modelIDs = hermes.ProviderModelCatalogSuggestions(id, nil)
+			modelIDs = llm.ProviderModelCatalogSuggestions(id, nil)
 		}
 		models := make([]ModelEntry, 0, len(modelIDs))
 		for _, modelID := range modelIDs {

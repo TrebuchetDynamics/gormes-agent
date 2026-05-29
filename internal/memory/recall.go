@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // RecallConfig controls the seed + CTE parameters.

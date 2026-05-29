@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // sessionMetadataLister is optionally implemented by session maps that can

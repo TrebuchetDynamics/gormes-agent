@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 // TestKernel_HandlesMidStreamNetworkDrop exercises the Route-B reconnect
@@ -86,7 +86,7 @@ func TestKernel_HandlesMidStreamNetworkDrop(t *testing.T) {
 	}, 30*time.Second)
 
 	// ASSERT 4: final history has exactly one assistant message == "yyyyyyyyyy".
-	var assistants []hermes.Message
+	var assistants []llm.Message
 	for _, m := range final.History {
 		if m.Role == "assistant" {
 			assistants = append(assistants, m)
@@ -111,7 +111,7 @@ func TestKernel_ReconnectTimeBudgetExhausted(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := hermes.NewHTTPClient(srv.URL, "")
+	client := llm.NewHTTPClient(srv.URL, "")
 	k := New(Config{
 		Model:                "hermes-agent",
 		Endpoint:             srv.URL,

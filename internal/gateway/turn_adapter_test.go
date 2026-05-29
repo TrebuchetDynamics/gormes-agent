@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // fakeSubmitter captures the kernel.PlatformEvent handed to Submit so tests
@@ -194,7 +194,7 @@ func TestTurnAdapter_Dispatch_MultiplePhotoAttachmentsBecomeMultipleImageURLPart
 	wantA := "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(bytesA)
 	wantB := "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(bytesB)
 
-	var imageParts []hermes.MessageContentPart
+	var imageParts []llm.MessageContentPart
 	for _, part := range ev.ContentParts {
 		if part.Type == "image_url" {
 			imageParts = append(imageParts, part)

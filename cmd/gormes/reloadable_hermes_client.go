@@ -5,27 +5,27 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type reloadableHermesClient struct {
 	mu      sync.RWMutex
-	current hermes.Client
+	current llm.Client
 }
 
-var _ hermes.Client = (*reloadableHermesClient)(nil)
+var _ llm.Client = (*reloadableHermesClient)(nil)
 
-func newReloadableHermesClient(current hermes.Client) *reloadableHermesClient {
+func newReloadableHermesClient(current llm.Client) *reloadableHermesClient {
 	return &reloadableHermesClient{current: current}
 }
 
-func (c *reloadableHermesClient) Set(current hermes.Client) {
+func (c *reloadableHermesClient) Set(current llm.Client) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.current = current
 }
 
-func (c *reloadableHermesClient) OpenStream(ctx context.Context, req hermes.ChatRequest) (hermes.Stream, error) {
+func (c *reloadableHermesClient) OpenStream(ctx context.Context, req llm.ChatRequest) (llm.Stream, error) {
 	current := c.get()
 	if current == nil {
 		return nil, errors.New("gateway_client_unavailable: gateway provider client is not configured")
@@ -33,7 +33,7 @@ func (c *reloadableHermesClient) OpenStream(ctx context.Context, req hermes.Chat
 	return current.OpenStream(ctx, req)
 }
 
-func (c *reloadableHermesClient) OpenRunEvents(ctx context.Context, runID string) (hermes.RunEventStream, error) {
+func (c *reloadableHermesClient) OpenRunEvents(ctx context.Context, runID string) (llm.RunEventStream, error) {
 	current := c.get()
 	if current == nil {
 		return nil, errors.New("gateway_client_unavailable: gateway provider client is not configured")
@@ -49,7 +49,7 @@ func (c *reloadableHermesClient) Health(ctx context.Context) error {
 	return current.Health(ctx)
 }
 
-func (c *reloadableHermesClient) get() hermes.Client {
+func (c *reloadableHermesClient) get() llm.Client {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.current

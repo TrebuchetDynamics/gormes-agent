@@ -4,11 +4,11 @@ import (
 	"context"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
-// buildTitleModelFunc wraps a hermes.Client as a hermes.TitleModelFunc. It
+// buildTitleModelFunc wraps a llm.Client as a llm.TitleModelFunc. It
 // opens an SSE stream, collects EventToken fragments until EventDone, and
 // returns the concatenated text. The call is bounded by ctx; provider errors
 // surface as non-nil errors so PerformAutoTitle records provider_failed
@@ -16,13 +16,13 @@ import (
 //
 // model is used as the ChatRequest model when non-empty; an empty model falls
 // back to the server-configured default.
-func buildTitleModelFunc(client hermes.Client, model string) hermes.TitleModelFunc {
-	return func(ctx context.Context, req hermes.TitleModelRequest) (string, error) {
-		msgs := make([]hermes.Message, 0, len(req.Messages))
+func buildTitleModelFunc(client llm.Client, model string) llm.TitleModelFunc {
+	return func(ctx context.Context, req llm.TitleModelRequest) (string, error) {
+		msgs := make([]llm.Message, 0, len(req.Messages))
 		for _, m := range req.Messages {
-			msgs = append(msgs, hermes.Message{Role: m.Role, Content: m.Content})
+			msgs = append(msgs, llm.Message{Role: m.Role, Content: m.Content})
 		}
-		chatReq := hermes.ChatRequest{
+		chatReq := llm.ChatRequest{
 			Model:    model,
 			Messages: msgs,
 			Stream:   true,
@@ -40,9 +40,9 @@ func buildTitleModelFunc(client hermes.Client, model string) hermes.TitleModelFu
 				return "", err
 			}
 			switch ev.Kind {
-			case hermes.EventToken:
+			case llm.EventToken:
 				buf.WriteString(ev.Token)
-			case hermes.EventDone:
+			case llm.EventDone:
 				return buf.String(), nil
 			}
 		}
@@ -53,7 +53,7 @@ func buildTitleModelFunc(client hermes.Client, model string) hermes.TitleModelFu
 // the live session.Map and provider client. The store is nil when smap is not
 // a *session.BoltMap (e.g., MemMap in tests); in that case auto-title
 // silently skips via the nil-store short-circuit in maybeRunAutoTitle.
-func buildGatewayTitleSeam(ctx context.Context, smap session.Map, client hermes.Client, model string) (session.SessionTitleStore, hermes.TitleModelFunc) {
+func buildGatewayTitleSeam(ctx context.Context, smap session.Map, client llm.Client, model string) (session.SessionTitleStore, llm.TitleModelFunc) {
 	boltMap, ok := smap.(*session.BoltMap)
 	if !ok {
 		return nil, nil

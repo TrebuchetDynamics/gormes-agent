@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // runtimeWithKey is a tiny helper that builds a deterministic runtime
@@ -12,9 +12,9 @@ import (
 // reuse it so each test can focus on the variant under inspection
 // (probe transport, manual fallback, context known/unknown) without
 // re-asserting the unchanged credential-resolution path.
-func runtimeWithKey(probe hermes.AzureProbeResult, model string) hermes.AzureFoundryRuntime {
-	return hermes.ResolveAzureFoundryRuntime(hermes.AzureFoundryRuntimeInput{
-		Config: hermes.AzureFoundryConfig{
+func runtimeWithKey(probe llm.AzureProbeResult, model string) llm.AzureFoundryRuntime {
+	return llm.ResolveAzureFoundryRuntime(llm.AzureFoundryRuntimeInput{
+		Config: llm.AzureFoundryConfig{
 			BaseURL: "https://res.openai.azure.com/openai/v1",
 			Model:   model,
 		},
@@ -39,8 +39,8 @@ func joinStatusLines(s AzureFoundryStatus) string {
 // requests; the status must keep the OpenAI-style probe classification
 // visible in that case.
 func TestAzureFoundryStatus_DetectedOpenAIStyle(t *testing.T) {
-	probe := hermes.AzureProbeResult{
-		Transport: hermes.AzureTransportOpenAI,
+	probe := llm.AzureProbeResult{
+		Transport: llm.AzureTransportOpenAI,
 		Models:    []string{"gpt-5.4", "gpt-5.4-mini"},
 		Reason:    "GET /models returned 2 model(s) - OpenAI-style endpoint",
 		Evidence:  []string{"GET /models -> 200", "model_id=gpt-5.4", "model_id=gpt-5.4-mini"},
@@ -80,8 +80,8 @@ func TestAzureFoundryStatus_DetectedOpenAIStyle(t *testing.T) {
 // surface as a distinct label so operators can tell the two endpoint
 // shapes apart from the rendered status alone.
 func TestAzureFoundryStatus_DetectedAnthropicStyle(t *testing.T) {
-	probe := hermes.AzureProbeResult{
-		Transport: hermes.AzureTransportAnthropic,
+	probe := llm.AzureProbeResult{
+		Transport: llm.AzureTransportAnthropic,
 		Reason:    "POST /v1/messages returned 400 with Anthropic-shaped error",
 		Evidence:  []string{"POST /v1/messages -> 400", "anthropic_probe_shape_match"},
 	}
@@ -112,8 +112,8 @@ func TestAzureFoundryStatus_DetectedAnthropicStyle(t *testing.T) {
 // degraded_mode contract requires azure_detect_manual_required and
 // azure_models_probe_failed evidence in this state.
 func TestAzureFoundryStatus_ManualRequiredFallback(t *testing.T) {
-	probe := hermes.AzureProbeResult{
-		Transport: hermes.AzureTransportUnknown,
+	probe := llm.AzureProbeResult{
+		Transport: llm.AzureTransportUnknown,
 		Reason:    "manual_required",
 		Evidence: []string{
 			"GET https://res.openai.azure.com/openai/v1/models -> 403",
@@ -126,9 +126,9 @@ func TestAzureFoundryStatus_ManualRequiredFallback(t *testing.T) {
 		Runtime: runtimeWithKey(probe, ""),
 		Probe:   probe,
 		ManualOptions: AzureFoundryManualOptions{
-			APIModes: []hermes.AzureTransport{
-				hermes.AzureTransportOpenAI,
-				hermes.AzureTransportAnthropic,
+			APIModes: []llm.AzureTransport{
+				llm.AzureTransportOpenAI,
+				llm.AzureTransportAnthropic,
 			},
 			ModelHint: "e.g. gpt-5.4, claude-sonnet-4-6",
 		},
@@ -160,8 +160,8 @@ func TestAzureFoundryStatus_ManualRequiredFallback(t *testing.T) {
 // label so operators can tell which env/config layer supplied the key.
 func TestAzureFoundryStatus_RedactsAPIKeyAndNamesSource(t *testing.T) {
 	const secret = "azfk-supersecret-doNOTleak-7890"
-	runtime := hermes.ResolveAzureFoundryRuntime(hermes.AzureFoundryRuntimeInput{
-		Config: hermes.AzureFoundryConfig{
+	runtime := llm.ResolveAzureFoundryRuntime(llm.AzureFoundryRuntimeInput{
+		Config: llm.AzureFoundryConfig{
 			BaseURL: "https://res.openai.azure.com/openai/v1",
 			Model:   "gpt-5.4",
 		},
@@ -171,12 +171,12 @@ func TestAzureFoundryStatus_RedactsAPIKeyAndNamesSource(t *testing.T) {
 			}
 			return "", false
 		},
-		Probe: hermes.AzureProbeResult{Transport: hermes.AzureTransportOpenAI},
+		Probe: llm.AzureProbeResult{Transport: llm.AzureTransportOpenAI},
 	})
 
 	got := RenderAzureFoundryStatus(AzureFoundryStatusInput{
 		Runtime: runtime,
-		Probe:   hermes.AzureProbeResult{Transport: hermes.AzureTransportOpenAI},
+		Probe:   llm.AzureProbeResult{Transport: llm.AzureTransportOpenAI},
 	})
 
 	joined := joinStatusLines(got)
@@ -200,8 +200,8 @@ func TestAzureFoundryStatus_RedactsAPIKeyAndNamesSource(t *testing.T) {
 // It also asserts that no spurious azure_secret_redacted evidence is
 // emitted when there is no key to redact.
 func TestAzureFoundryStatus_MissingKeyKeepsManualEntry(t *testing.T) {
-	runtime := hermes.ResolveAzureFoundryRuntime(hermes.AzureFoundryRuntimeInput{
-		Config: hermes.AzureFoundryConfig{
+	runtime := llm.ResolveAzureFoundryRuntime(llm.AzureFoundryRuntimeInput{
+		Config: llm.AzureFoundryConfig{
 			BaseURL: "https://res.openai.azure.com/openai/v1",
 			Model:   "gpt-5.4",
 		},
@@ -210,7 +210,7 @@ func TestAzureFoundryStatus_MissingKeyKeepsManualEntry(t *testing.T) {
 
 	got := RenderAzureFoundryStatus(AzureFoundryStatusInput{
 		Runtime: runtime,
-		Probe:   hermes.AzureProbeResult{Reason: "manual_required"},
+		Probe:   llm.AzureProbeResult{Reason: "manual_required"},
 	})
 
 	joined := joinStatusLines(got)
@@ -230,9 +230,9 @@ func TestAzureFoundryStatus_MissingKeyKeepsManualEntry(t *testing.T) {
 // resolve a context length so an operator can see the gap from the
 // status line alone.
 func TestAzureFoundryStatus_ContextUnknownPropagated(t *testing.T) {
-	probe := hermes.AzureProbeResult{Transport: hermes.AzureTransportOpenAI}
-	runtime := hermes.ResolveAzureFoundryRuntime(hermes.AzureFoundryRuntimeInput{
-		Config: hermes.AzureFoundryConfig{
+	probe := llm.AzureProbeResult{Transport: llm.AzureTransportOpenAI}
+	runtime := llm.ResolveAzureFoundryRuntime(llm.AzureFoundryRuntimeInput{
+		Config: llm.AzureFoundryConfig{
 			BaseURL: "https://res.openai.azure.com/openai/v1",
 			Model:   "private-deployment",
 		},

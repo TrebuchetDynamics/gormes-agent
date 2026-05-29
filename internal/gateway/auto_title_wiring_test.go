@@ -9,9 +9,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // titleModelCallCount is a thread-safe counter used by tests to assert the
@@ -62,7 +62,7 @@ func buildAutoTitleManager(
 	t *testing.T,
 	ctx context.Context,
 	sessionID string,
-	titleModel hermes.TitleModelFunc,
+	titleModel llm.TitleModelFunc,
 	sink AutoTitleAuxiliarySink,
 ) (*Manager, *session.MemMap, *fakeChannel) {
 	t.Helper()
@@ -105,7 +105,7 @@ func dispatchIdleFrame(t *testing.T, m *Manager, sessionID, userText, assistantT
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase:     kernel.PhaseIdle,
 		SessionID: sessionID,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: userText},
 			{Role: "assistant", Content: assistantText},
 		},
@@ -120,7 +120,7 @@ func TestAutoTitleWiring_FirstUserAssistantPairTriggersGeneration(t *testing.T) 
 	const sessionID = "sess-autotitle-001"
 
 	calls := &titleModelCallCount{}
-	titleModel := hermes.TitleModelFunc(func(_ context.Context, _ hermes.TitleModelRequest) (string, error) {
+	titleModel := llm.TitleModelFunc(func(_ context.Context, _ llm.TitleModelRequest) (string, error) {
 		calls.inc()
 		return "Friendly Test Title", nil
 	})
@@ -162,7 +162,7 @@ func TestAutoTitleWiring_ManualTitledSessionShortCircuits(t *testing.T) {
 	const sessionID = "sess-autotitle-manual"
 
 	calls := &titleModelCallCount{}
-	titleModel := hermes.TitleModelFunc(func(_ context.Context, _ hermes.TitleModelRequest) (string, error) {
+	titleModel := llm.TitleModelFunc(func(_ context.Context, _ llm.TitleModelRequest) (string, error) {
 		calls.inc()
 		return "Should Not Be Called", nil
 	})
@@ -204,7 +204,7 @@ func TestAutoTitleWiring_AlreadyTitledNonManualSessionShortCircuits(t *testing.T
 	const sessionID = "sess-autotitle-skipped"
 
 	calls := &titleModelCallCount{}
-	titleModel := hermes.TitleModelFunc(func(_ context.Context, _ hermes.TitleModelRequest) (string, error) {
+	titleModel := llm.TitleModelFunc(func(_ context.Context, _ llm.TitleModelRequest) (string, error) {
 		calls.inc()
 		return "Should Not Be Called", nil
 	})
@@ -243,7 +243,7 @@ func TestAutoTitleWiring_ProviderFailureRoutesAuxiliaryEvidence(t *testing.T) {
 	ctx := context.Background()
 	const sessionID = "sess-autotitle-provfail"
 
-	titleModel := hermes.TitleModelFunc(func(_ context.Context, _ hermes.TitleModelRequest) (string, error) {
+	titleModel := llm.TitleModelFunc(func(_ context.Context, _ llm.TitleModelRequest) (string, error) {
 		return "", errors.New("boom")
 	})
 	sink := &fakeAuxSink{}
@@ -272,7 +272,7 @@ func TestAutoTitleWiring_BlankResultRoutesEvidence(t *testing.T) {
 	ctx := context.Background()
 	const sessionID = "sess-autotitle-blank"
 
-	titleModel := hermes.TitleModelFunc(func(_ context.Context, _ hermes.TitleModelRequest) (string, error) {
+	titleModel := llm.TitleModelFunc(func(_ context.Context, _ llm.TitleModelRequest) (string, error) {
 		return "", nil
 	})
 	sink := &fakeAuxSink{}
@@ -311,7 +311,7 @@ func TestAutoTitleWiring_OneCallPerTurnNoDoubleFire(t *testing.T) {
 	const sessionID = "sess-autotitle-once"
 
 	calls := &titleModelCallCount{}
-	titleModel := hermes.TitleModelFunc(func(_ context.Context, _ hermes.TitleModelRequest) (string, error) {
+	titleModel := llm.TitleModelFunc(func(_ context.Context, _ llm.TitleModelRequest) (string, error) {
 		calls.inc()
 		return "First Turn Title", nil
 	})

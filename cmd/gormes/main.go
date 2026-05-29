@@ -25,15 +25,15 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
@@ -1022,7 +1022,7 @@ func resolveStaticStartupInference(resolution config.InferenceResolution) config
 	if resolution.Model == "" {
 		return resolution
 	}
-	metadata := hermes.LookupModelMetadata(hermes.ModelRegistryQuery{
+	metadata := llm.LookupModelMetadata(llm.ModelRegistryQuery{
 		Provider: resolution.Provider,
 		Model:    resolution.Model,
 	})
@@ -1037,10 +1037,10 @@ func resolveStaticStartupInference(resolution config.InferenceResolution) config
 	return resolution
 }
 
-type oneshotClientFactory func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error)
+type oneshotClientFactory func(context.Context, config.Config, oneshotInvocation) (llm.Client, error)
 type oneshotKernelConfigurer func(*kernel.Config)
 
-func newOneshotHTTPClient(_ context.Context, cfg config.Config, invocation oneshotInvocation) (hermes.Client, error) {
+func newOneshotHTTPClient(_ context.Context, cfg config.Config, invocation oneshotInvocation) (llm.Client, error) {
 	return getOrCreateProviderClient(cfg, invocation.Inference.Provider)
 }
 
@@ -1195,7 +1195,7 @@ func waitForOneshotFinalFrame(ctx context.Context, frames <-chan kernel.RenderFr
 	}
 }
 
-func finalAssistantContent(history []hermes.Message) (string, bool) {
+func finalAssistantContent(history []llm.Message) (string, bool) {
 	for i := len(history) - 1; i >= 0; i-- {
 		if history[i].Role == "assistant" {
 			return history[i].Content, true
@@ -1240,7 +1240,7 @@ func welcomeStartupSeed(reg *tools.Registry) (string, int, []string) {
 	return Version, len(descs), welcomeToolsets(descs)
 }
 
-func welcomeToolsets(descs []hermes.ToolDescriptor) []string {
+func welcomeToolsets(descs []llm.ToolDescriptor) []string {
 	seen := map[string]struct{}{}
 	for _, desc := range descs {
 		for _, toolset := range toolsetsForToolName(desc.Name) {
@@ -1320,7 +1320,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	providerName := firstNonEmpty(invocation.Inference.Provider, cfg.Hermes.Provider)
 
 	offline, _ := cmd.Flags().GetBool("offline")
-	c := hermes.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, providerName)
+	c := llm.NewHTTPClientWithProvider(cfg.Hermes.Endpoint, cfg.Hermes.APIKey, providerName)
 	if !offline {
 		var err error
 		c, err = newProviderHTTPClient(cfg, providerName)

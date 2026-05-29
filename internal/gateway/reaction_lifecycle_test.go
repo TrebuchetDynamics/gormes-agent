@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type reactionLifecycleChannel struct {
@@ -92,7 +92,7 @@ func TestReactionLifecycle_ManagerStartAndSuccess(t *testing.T) {
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hello"},
 			{Role: "assistant", Content: "hi"},
 		},
@@ -190,7 +190,7 @@ func TestReactionLifecycle_ReactionErrorsDoNotBlockFinalDelivery(t *testing.T) {
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hello"},
 			{Role: "assistant", Content: "final answer still sends"},
 		},

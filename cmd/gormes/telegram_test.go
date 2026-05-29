@@ -11,12 +11,39 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
+
+func TestTelegramStartupFallsBackWhenSessionDBLocked(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+
+	locked, err := session.OpenBolt(config.SessionDBPath())
+	if err != nil {
+		t.Fatalf("lock session DB: %v", err)
+	}
+	defer locked.Close()
+
+	smap, boltMap, notice, err := openTelegramSessionMap()
+	if err != nil {
+		t.Fatalf("openTelegramSessionMap: %v", err)
+	}
+	defer smap.Close()
+	if boltMap != nil {
+		t.Fatalf("boltMap = %#v, want nil fallback while sessions.db is locked", boltMap)
+	}
+	if _, ok := smap.(*session.MemMap); !ok {
+		t.Fatalf("session map = %T, want *session.MemMap fallback", smap)
+	}
+	for _, want := range []string{"telegram session state: in-memory", "sessions.db locked"} {
+		if !strings.Contains(notice, want) {
+			t.Fatalf("notice missing %q: %q", want, notice)
+		}
+	}
+}
 
 func TestTelegramManagerConfig_LiveTurnMetadataProductionWiring(t *testing.T) {
 	mgrCfg := telegramManagerConfig(
@@ -56,10 +83,10 @@ func TestTelegramProductionProviderPayloadIncludesOperatorContext(t *testing.T) 
 	t.Setenv("GORMES_HOME", filepath.Join(t.TempDir(), "empty-gormes-home"))
 	t.Setenv("HERMES_HOME", "")
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "I am Gormes."},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "I am Gormes."},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-provider")
 	k := kernel.New(kernel.Config{
 		Model:     "gpt-5.5",
@@ -164,10 +191,10 @@ func TestTelegramProductionProviderPayloadUsesConfiguredTerminalWorkspace(t *tes
 	t.Setenv("GORMES_HOME", filepath.Join(root, "gormes-home"))
 	t.Setenv("HERMES_HOME", "")
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "workspace ok"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "workspace ok"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-provider")
 	k := kernel.New(kernel.Config{
 		Model:     "gpt-5.5",
@@ -246,10 +273,10 @@ func TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates(t *tes
 		t.Fatalf("ensureGatewayAgentTemplates: %v", err)
 	}
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "seeded context ok"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "seeded context ok"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-provider")
 	k := kernel.New(kernel.Config{
 		Model:     "gpt-5.5",
@@ -291,7 +318,7 @@ func TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates(t *tes
 	system := req.Messages[0].Content
 	for _, want := range []string{
 		"Active workspace: `" + workspace + "`",
-		hermes.DefaultSoulMD,
+		llm.DefaultSoulMD,
 		"## AGENTS.md",
 		"## IDENTITY.md",
 		"## TOOLS.md",

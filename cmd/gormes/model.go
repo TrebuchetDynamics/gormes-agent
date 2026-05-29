@@ -17,7 +17,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
@@ -159,7 +159,7 @@ func promptProviderChoiceText(in *os.File, out io.Writer, entries []cli.Provider
 }
 
 func defaultModelCatalogSuggestions(provider string) []string {
-	return hermes.ProviderModelCatalogSuggestions(provider, nil)
+	return llm.ProviderModelCatalogSuggestions(provider, nil)
 }
 
 func defaultModelPickerSuggestions(provider string) []string {
@@ -174,7 +174,7 @@ func defaultModelPickerSuggestionSet(provider string) modelPickerSuggestionSet {
 		}
 	}
 	foundProvider := false
-	for _, entry := range hermes.ListPickerProviders() {
+	for _, entry := range llm.ListPickerProviders() {
 		if !strings.EqualFold(entry.Slug, provider) {
 			continue
 		}
@@ -223,7 +223,7 @@ func fetchOpenRouterModelCatalog(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	entries, err := hermes.ParseOpenRouterModelRegistry(raw, "openrouter-models-api")
+	entries, err := llm.ParseOpenRouterModelRegistry(raw, "openrouter-models-api")
 	if err != nil {
 		return nil, err
 	}

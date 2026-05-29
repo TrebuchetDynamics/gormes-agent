@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestKernel_OpenStreamContextCanceledDoesNotRetry(t *testing.T) {
@@ -84,48 +84,48 @@ func TestKernel_MidStreamContextCanceledDoesNotRetry(t *testing.T) {
 
 type openCancelClient struct{ calls int }
 
-func (c *openCancelClient) ProviderStatus() hermes.ProviderStatus {
-	return hermes.ProviderStatus{Provider: "mock", Runtime: "test"}
+func (c *openCancelClient) ProviderStatus() llm.ProviderStatus {
+	return llm.ProviderStatus{Provider: "mock", Runtime: "test"}
 }
 
 func (c *openCancelClient) Health(context.Context) error { return nil }
 
-func (c *openCancelClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (c *openCancelClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	c.calls++
 	return nil, context.Canceled
 }
 
-func (c *openCancelClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *openCancelClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 type singleStreamClient struct {
-	stream hermes.Stream
+	stream llm.Stream
 	calls  int
 }
 
-func (c *singleStreamClient) ProviderStatus() hermes.ProviderStatus {
-	return hermes.ProviderStatus{Provider: "mock", Runtime: "test"}
+func (c *singleStreamClient) ProviderStatus() llm.ProviderStatus {
+	return llm.ProviderStatus{Provider: "mock", Runtime: "test"}
 }
 
 func (c *singleStreamClient) Health(context.Context) error { return nil }
 
-func (c *singleStreamClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (c *singleStreamClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	c.calls++
 	return c.stream, nil
 }
 
-func (c *singleStreamClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *singleStreamClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 type cancelStream struct{ err error }
 
-func (s *cancelStream) Recv(context.Context) (hermes.Event, error) {
+func (s *cancelStream) Recv(context.Context) (llm.Event, error) {
 	if s.err == nil {
-		return hermes.Event{}, io.EOF
+		return llm.Event{}, io.EOF
 	}
-	return hermes.Event{}, s.err
+	return llm.Event{}, s.err
 }
 
 func (s *cancelStream) SessionID() string { return "" }

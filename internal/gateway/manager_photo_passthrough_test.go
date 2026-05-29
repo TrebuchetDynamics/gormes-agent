@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // writeFixtureJPEGForManager mirrors writeFixtureJPEG in turn_adapter_test.go

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	pluginmeta "github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/kanban"
 )
 
@@ -161,12 +161,12 @@ type Server struct {
 
 // ChatMessage is the normalized text shape passed from HTTP into gateway turns.
 type ChatMessage struct {
-	Role         string                      `json:"role"`
-	Content      string                      `json:"content"`
-	ContentParts []hermes.MessageContentPart `json:"content_parts,omitempty"`
-	ToolCalls    []ToolCall                  `json:"tool_calls,omitempty"`
-	ToolCallID   string                      `json:"tool_call_id,omitempty"`
-	Name         string                      `json:"name,omitempty"`
+	Role         string                   `json:"role"`
+	Content      string                   `json:"content"`
+	ContentParts []llm.MessageContentPart `json:"content_parts,omitempty"`
+	ToolCalls    []ToolCall               `json:"tool_calls,omitempty"`
+	ToolCallID   string                   `json:"tool_call_id,omitempty"`
+	Name         string                   `json:"name,omitempty"`
 }
 
 // ToolCall is the OpenAI function-call metadata preserved in response chains.
@@ -181,7 +181,7 @@ type ToolCall struct {
 type TurnRequest struct {
 	Model            string
 	UserMessage      string
-	UserContentParts []hermes.MessageContentPart
+	UserContentParts []llm.MessageContentPart
 	History          []ChatMessage
 	SystemPrompt     string
 	SessionID        string
@@ -827,7 +827,7 @@ func (s *Server) buildTurnRequest(r *http.Request, req chatCompletionRequest) (T
 
 type normalizedChatContent struct {
 	Text  string
-	Parts []hermes.MessageContentPart
+	Parts []llm.MessageContentPart
 }
 
 type contentNormalizeError struct {
@@ -852,7 +852,7 @@ func normalizeChatContentDepth(content any, depth int) (normalizedChatContent, *
 			limit = maxContentListSize
 		}
 		textParts := make([]string, 0, limit)
-		contentParts := make([]hermes.MessageContentPart, 0, limit)
+		contentParts := make([]llm.MessageContentPart, 0, limit)
 		total := 0
 		for _, item := range v[:limit] {
 			var normalized normalizedChatContent
@@ -877,7 +877,7 @@ func normalizeChatContentDepth(content any, depth int) (normalizedChatContent, *
 			if len(normalized.Parts) > 0 {
 				contentParts = append(contentParts, normalized.Parts...)
 			} else if normalized.Text != "" {
-				contentParts = append(contentParts, hermes.MessageContentPart{Type: "text", Text: truncateText(normalized.Text)})
+				contentParts = append(contentParts, llm.MessageContentPart{Type: "text", Text: truncateText(normalized.Text)})
 			}
 			if normalized.Text != "" {
 				trimmed := truncateText(normalized.Text)
@@ -910,13 +910,13 @@ func normalizeContentPart(part map[string]any) (normalizedChatContent, *contentN
 		if !ok || text == nil {
 			return normalizedChatContent{}, nil
 		}
-		return normalizedChatContent{Text: fmt.Sprint(text), Parts: []hermes.MessageContentPart{{Type: "text", Text: fmt.Sprint(text)}}}, nil
+		return normalizedChatContent{Text: fmt.Sprint(text), Parts: []llm.MessageContentPart{{Type: "text", Text: fmt.Sprint(text)}}}, nil
 	case "image_url", "input_image":
 		image, err := normalizeImageContentPart(partType, part)
 		if err != nil {
 			return normalizedChatContent{}, err
 		}
-		return normalizedChatContent{Parts: []hermes.MessageContentPart{image}}, nil
+		return normalizedChatContent{Parts: []llm.MessageContentPart{image}}, nil
 	case "file", "input_file":
 		return normalizedChatContent{}, &contentNormalizeError{
 			code:    "unsupported_content_type",
@@ -935,7 +935,7 @@ func normalizeContentPart(part map[string]any) (normalizedChatContent, *contentN
 	}
 }
 
-func normalizeImageContentPart(partType string, part map[string]any) (hermes.MessageContentPart, *contentNormalizeError) {
+func normalizeImageContentPart(partType string, part map[string]any) (llm.MessageContentPart, *contentNormalizeError) {
 	imageURL, detail := "", ""
 	switch raw := part["image_url"].(type) {
 	case string:
@@ -961,44 +961,44 @@ func normalizeImageContentPart(partType string, part map[string]any) (hermes.Mes
 		detail = strings.TrimSpace(fmt.Sprint(part["detail"]))
 	}
 	if imageURL == "" {
-		return hermes.MessageContentPart{}, &contentNormalizeError{
+		return llm.MessageContentPart{}, &contentNormalizeError{
 			code:    "invalid_image_url",
 			message: "Image content parts must include an image_url.url value.",
 		}
 	}
 	if strings.HasPrefix(imageURL, "data:") && !strings.HasPrefix(strings.ToLower(imageURL), "data:image/") {
-		return hermes.MessageContentPart{}, &contentNormalizeError{
+		return llm.MessageContentPart{}, &contentNormalizeError{
 			code:    "unsupported_content_type",
 			message: "Only image data URLs are supported on this endpoint.",
 		}
 	}
 	if strings.Contains(imageURL, "://") && !(strings.HasPrefix(strings.ToLower(imageURL), "http://") || strings.HasPrefix(strings.ToLower(imageURL), "https://")) {
-		return hermes.MessageContentPart{}, &contentNormalizeError{
+		return llm.MessageContentPart{}, &contentNormalizeError{
 			code:    "invalid_image_url",
 			message: "Image URLs must use http, https, or data:image schemes.",
 		}
 	}
-	return hermes.MessageContentPart{Type: "image_url", ImageURL: imageURL, Detail: detail}, nil
+	return llm.MessageContentPart{Type: "image_url", ImageURL: imageURL, Detail: detail}, nil
 }
 
-func normalizeTextParts(parts []hermes.MessageContentPart) []hermes.MessageContentPart {
-	out := make([]hermes.MessageContentPart, 0, len(parts))
+func normalizeTextParts(parts []llm.MessageContentPart) []llm.MessageContentPart {
+	out := make([]llm.MessageContentPart, 0, len(parts))
 	for _, part := range parts {
 		switch strings.ToLower(strings.TrimSpace(part.Type)) {
 		case "text", "input_text", "output_text":
 			if part.Text != "" {
-				out = append(out, hermes.MessageContentPart{Type: "text", Text: truncateText(part.Text)})
+				out = append(out, llm.MessageContentPart{Type: "text", Text: truncateText(part.Text)})
 			}
 		case "image_url", "input_image":
 			if part.ImageURL != "" {
-				out = append(out, hermes.MessageContentPart{Type: "image_url", ImageURL: part.ImageURL, Detail: strings.TrimSpace(part.Detail)})
+				out = append(out, llm.MessageContentPart{Type: "image_url", ImageURL: part.ImageURL, Detail: strings.TrimSpace(part.Detail)})
 			}
 		}
 	}
 	return out
 }
 
-func hasImageContentPart(parts []hermes.MessageContentPart) bool {
+func hasImageContentPart(parts []llm.MessageContentPart) bool {
 	for _, part := range parts {
 		partType := strings.ToLower(strings.TrimSpace(part.Type))
 		if (partType == "image_url" || partType == "input_image") && strings.TrimSpace(part.ImageURL) != "" {
@@ -1046,11 +1046,11 @@ func chatContentFingerprint(msg ChatMessage) string {
 	return strings.Join(parts, "\n")
 }
 
-func cloneContentParts(parts []hermes.MessageContentPart) []hermes.MessageContentPart {
+func cloneContentParts(parts []llm.MessageContentPart) []llm.MessageContentPart {
 	if len(parts) == 0 {
 		return nil
 	}
-	return append([]hermes.MessageContentPart(nil), parts...)
+	return append([]llm.MessageContentPart(nil), parts...)
 }
 
 func deriveChatSessionID(systemPrompt, firstUserMessage string) string {

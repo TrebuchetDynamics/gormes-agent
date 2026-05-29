@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestKernelResumeSessionSwitchesResidentSessionAndHistory(t *testing.T) {
@@ -16,7 +16,7 @@ func TestKernelResumeSessionSwitchesResidentSessionAndHistory(t *testing.T) {
 	go func() { _ = k.Run(ctx) }()
 	<-k.Render()
 
-	history := []hermes.Message{
+	history := []llm.Message{
 		{Role: "user", Content: "previous question"},
 		{Role: "assistant", Content: "previous answer"},
 	}

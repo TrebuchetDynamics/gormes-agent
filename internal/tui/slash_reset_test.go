@@ -7,8 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type recordingSessionReset struct {
@@ -33,7 +33,7 @@ func TestSessionSlashClearAndNewResetWithoutSubmitting(t *testing.T) {
 			reset := &recordingSessionReset{}
 			sub := &nopSubmitter{}
 			m := newSessionResetModel(sub, reset.call)
-			m.frame.History = []hermes.Message{{Role: "user", Content: "hello"}, {Role: "assistant", Content: "hi"}}
+			m.frame.History = []llm.Message{{Role: "user", Content: "hello"}, {Role: "assistant", Content: "hi"}}
 			m.frame.DraftText = "draft"
 			m.frame.LastError = "boom"
 			m.frame.SessionID = "sess-frame"
@@ -81,7 +81,7 @@ func TestSessionSlashResetUnavailableAndErrorsDoNotLeak(t *testing.T) {
 				resetFn = tt.reset.call
 			}
 			m := newSessionResetModel(sub, resetFn)
-			m.frame.History = []hermes.Message{{Role: "user", Content: "keep me"}}
+			m.frame.History = []llm.Message{{Role: "user", Content: "keep me"}}
 			m.frame.SessionID = "sess-frame"
 
 			m = enterSlashDispatchBehavior(t, m, tt.input)
@@ -108,7 +108,7 @@ func TestSessionSlashResetRejectedWhileTurnRunning(t *testing.T) {
 	m := newSessionResetModel(sub, reset.call)
 	m.inFlight = true
 	m.frame.Phase = kernel.PhaseStreaming
-	m.frame.History = []hermes.Message{{Role: "user", Content: "keep me"}}
+	m.frame.History = []llm.Message{{Role: "user", Content: "keep me"}}
 
 	m = enterSlashDispatchBehavior(t, m, "/new")
 

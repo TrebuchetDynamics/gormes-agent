@@ -4,30 +4,30 @@ import (
 	"context"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type turnRequestAssemblyInput struct {
 	Model          string
 	SessionID      string
 	UserText       string
-	UserMessage    hermes.Message
+	UserMessage    llm.Message
 	SessionContext string
-	Reasoning      hermes.ReasoningEffortEvidence
+	Reasoning      llm.ReasoningEffortEvidence
 }
 
-func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInput) hermes.ChatRequest {
-	msgs := []hermes.Message{in.UserMessage}
-	systemMsgs := make([]hermes.Message, 0, 8)
+func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInput) llm.ChatRequest {
+	msgs := []llm.Message{in.UserMessage}
+	systemMsgs := make([]llm.Message, 0, 8)
 
 	if gonchoCtx := k.gonchoContext(ctx); gonchoCtx != "" {
-		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: gonchoCtx})
+		systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: gonchoCtx})
 	}
 	if in.SessionContext != "" {
-		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: in.SessionContext})
+		systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: in.SessionContext})
 	}
 	for _, guidance := range k.liveTurnGuidanceBlocks(in.Model) {
-		systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: guidance})
+		systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: guidance})
 	}
 	if k.cfg.Recall != nil {
 		deadline := k.cfg.RecallDeadline
@@ -42,7 +42,7 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 		})
 		recallCancel()
 		if ctxStr != "" {
-			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: hermes.MemoryGuidance + "\n\n" + ctxStr})
+			systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: llm.MemoryGuidance + "\n\n" + ctxStr})
 		}
 	}
 	if k.cfg.Skills != nil {
@@ -50,8 +50,8 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 		if err != nil {
 			k.log.Warn("kernel: skill runtime failed; continuing without skills", "err", err)
 		} else if block != "" {
-			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: hermes.SkillsGuidance})
-			systemMsgs = append(systemMsgs, hermes.Message{Role: "system", Content: block})
+			systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: llm.SkillsGuidance})
+			systemMsgs = append(systemMsgs, llm.Message{Role: "system", Content: block})
 			if len(skillNames) > 0 && k.cfg.SkillUsage != nil {
 				if err := k.cfg.SkillUsage.RecordSkillUsage(ctx, skillNames); err != nil {
 					k.log.Warn("kernel: record skill usage failed", "err", err)
@@ -66,7 +66,7 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 		msgs = append(systemMsgs, msgs...)
 	}
 
-	request := hermes.ChatRequest{
+	request := llm.ChatRequest{
 		Model:     in.Model,
 		SessionID: in.SessionID,
 		Stream:    true,
@@ -78,9 +78,9 @@ func (k *Kernel) buildTurnRequest(ctx context.Context, in turnRequestAssemblyInp
 	}
 	if k.cfg.Tools != nil {
 		descs := k.cfg.Tools.Descriptors()
-		wireDescs := make([]hermes.ToolDescriptor, len(descs))
+		wireDescs := make([]llm.ToolDescriptor, len(descs))
 		for i, d := range descs {
-			wireDescs[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
+			wireDescs[i] = llm.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
 		}
 		request.Tools = wireDescs
 	}

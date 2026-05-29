@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 

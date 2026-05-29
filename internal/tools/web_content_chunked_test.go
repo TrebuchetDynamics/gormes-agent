@@ -5,14 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestChunkedWebContentProcessor_Process_SmallContent(t *testing.T) {
-	mockClient := hermes.NewMockClient()
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Small content summary"},
-		{Kind: hermes.EventDone},
+	mockClient := llm.NewMockClient()
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Small content summary"},
+		{Kind: llm.EventDone},
 	}, "test-session")
 
 	cfg := ChunkedWebContentProcessorConfig{
@@ -43,7 +43,7 @@ func TestChunkedWebContentProcessor_Process_SmallContent(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_Process_BelowMinLength(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 	cfg := DefaultChunkedWebContentProcessorConfig()
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
 	if processor == nil {
@@ -71,7 +71,7 @@ func TestChunkedWebContentProcessor_Process_BelowMinLength(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_Process_ExceedsMaxSize(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 	cfg := DefaultChunkedWebContentProcessorConfig()
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
 	if processor == nil {
@@ -102,7 +102,7 @@ func TestChunkedWebContentProcessor_Process_NilClient(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_Process_ChunkedFlow(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 
 	// Content that creates exactly 3 chunks with ChunkSize=50 and threshold=100
 	// Each "Word. " is 5 chars. 15 * 5 = 75 chars per sentence.
@@ -115,9 +115,9 @@ func TestChunkedWebContentProcessor_Process_ChunkedFlow(t *testing.T) {
 
 	// Provide enough mock streams (5 chunks + 1 synthesis)
 	for i := 0; i < 6; i++ {
-		mockClient.Script([]hermes.Event{
-			{Kind: hermes.EventToken, Token: "Summary"},
-			{Kind: hermes.EventDone},
+		mockClient.Script([]llm.Event{
+			{Kind: llm.EventToken, Token: "Summary"},
+			{Kind: llm.EventDone},
 		}, "session")
 	}
 
@@ -155,12 +155,12 @@ func TestChunkedWebContentProcessor_Process_ChunkedFlow(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_Process_SingleChunkSuccess(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 
 	// Only 1 chunk succeeds, so no synthesis needed
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Single chunk summary"},
-		{Kind: hermes.EventDone},
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Single chunk summary"},
+		{Kind: llm.EventDone},
 	}, "session-1")
 
 	cfg := ChunkedWebContentProcessorConfig{
@@ -189,19 +189,19 @@ func TestChunkedWebContentProcessor_Process_SingleChunkSuccess(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_Process_SynthesisFailureFallback(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 
 	// Chunk summaries succeed
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "First chunk summary"},
-		{Kind: hermes.EventDone},
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "First chunk summary"},
+		{Kind: llm.EventDone},
 	}, "session-1")
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Second chunk summary"},
-		{Kind: hermes.EventDone},
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Second chunk summary"},
+		{Kind: llm.EventDone},
 	}, "session-2")
 	// Synthesis fails (empty events = EOF error)
-	mockClient.Script([]hermes.Event{}, "session-3")
+	mockClient.Script([]llm.Event{}, "session-3")
 
 	cfg := ChunkedWebContentProcessorConfig{
 		MaxContentSize: 2_000_000,
@@ -229,7 +229,7 @@ func TestChunkedWebContentProcessor_Process_SynthesisFailureFallback(t *testing.
 }
 
 func TestChunkedWebContentProcessor_Process_EmptyContent(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 	cfg := DefaultChunkedWebContentProcessorConfig()
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
 
@@ -248,7 +248,7 @@ func TestChunkedWebContentProcessor_Process_EmptyContent(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_DefaultConfig(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 	cfg := DefaultChunkedWebContentProcessorConfig()
 
 	if cfg.MaxContentSize != 2_000_000 {
@@ -277,7 +277,7 @@ func TestChunkedWebContentProcessor_DefaultConfig(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_ConfigZeros(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 	// Passing zero values should use defaults
 	cfg := ChunkedWebContentProcessorConfig{}
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
@@ -300,19 +300,19 @@ func TestChunkedWebContentProcessor_ConfigZeros(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_ParallelismLimit(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 
 	// Add many chunk streams
 	for i := 0; i < 10; i++ {
-		mockClient.Script([]hermes.Event{
-			{Kind: hermes.EventToken, Token: "Summary"},
-			{Kind: hermes.EventDone},
+		mockClient.Script([]llm.Event{
+			{Kind: llm.EventToken, Token: "Summary"},
+			{Kind: llm.EventDone},
 		}, "session")
 	}
 	// Plus synthesis
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Final"},
-		{Kind: hermes.EventDone},
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Final"},
+		{Kind: llm.EventDone},
 	}, "session")
 
 	cfg := ChunkedWebContentProcessorConfig{
@@ -338,10 +338,10 @@ func TestChunkedWebContentProcessor_ParallelismLimit(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_RequestContents(t *testing.T) {
-	mockClient := hermes.NewMockClient()
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Summary"},
-		{Kind: hermes.EventDone},
+	mockClient := llm.NewMockClient()
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Summary"},
+		{Kind: llm.EventDone},
 	}, "session")
 
 	cfg := ChunkedWebContentProcessorConfig{
@@ -391,7 +391,7 @@ func TestChunkedWebContentProcessor_RequestContents(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_ChunkSystemPrompt(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 
 	cfg := ChunkedWebContentProcessorConfig{
 		MaxContentSize: 2_000_000,
@@ -404,13 +404,13 @@ func TestChunkedWebContentProcessor_ChunkSystemPrompt(t *testing.T) {
 	processor := NewChunkedWebContentProcessor(mockClient, "test-model", cfg)
 
 	// Provide 2 chunk streams
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Summary"},
-		{Kind: hermes.EventDone},
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Summary"},
+		{Kind: llm.EventDone},
 	}, "session-1")
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Summary"},
-		{Kind: hermes.EventDone},
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Summary"},
+		{Kind: llm.EventDone},
 	}, "session-2")
 
 	// Need content that splits into multiple chunks
@@ -439,15 +439,15 @@ func TestChunkedWebContentProcessor_ChunkSystemPrompt(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_SynthesisSystemPrompt(t *testing.T) {
-	mockClient := hermes.NewMockClient()
+	mockClient := llm.NewMockClient()
 
 	// We need enough chunks to trigger synthesis.
 	// With ChunkSize=20 and content ~150 chars, we'll get ~7-8 chunks.
 	// Plus 1 synthesis call.
 	for i := 0; i < 9; i++ {
-		mockClient.Script([]hermes.Event{
-			{Kind: hermes.EventToken, Token: "Chunk"},
-			{Kind: hermes.EventDone},
+		mockClient.Script([]llm.Event{
+			{Kind: llm.EventToken, Token: "Chunk"},
+			{Kind: llm.EventDone},
 		}, "session")
 	}
 
@@ -487,10 +487,10 @@ func TestChunkedWebContentProcessor_SynthesisSystemPrompt(t *testing.T) {
 }
 
 func TestChunkedWebContentProcessor_SinglePassSystemPrompt(t *testing.T) {
-	mockClient := hermes.NewMockClient()
-	mockClient.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Summary"},
-		{Kind: hermes.EventDone},
+	mockClient := llm.NewMockClient()
+	mockClient.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Summary"},
+		{Kind: llm.EventDone},
 	}, "session")
 
 	cfg := ChunkedWebContentProcessorConfig{

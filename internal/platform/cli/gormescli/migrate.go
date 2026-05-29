@@ -1,8 +1,8 @@
 package gormescli
 
 import (
-	migratehermes "github.com/TrebuchetDynamics/gormes-agent/internal/migrate/hermes"
-	openclawmigrate "github.com/TrebuchetDynamics/gormes-agent/internal/migrate/openclaw"
+	migratehermes "github.com/TrebuchetDynamics/gormes-agent/internal/platform/migrate/hermes"
+	openclawmigrate "github.com/TrebuchetDynamics/gormes-agent/internal/platform/migrate/openclaw"
 )
 
 type MigrateHermesManifest = migratehermes.Manifest

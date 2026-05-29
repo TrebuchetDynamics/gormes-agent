@@ -45,7 +45,7 @@ func TestAPIServerCapabilities_BuildAttribution(t *testing.T) {
 		t.Errorf("build.git_commit = %q, want feedfade", got.Build.GitCommit)
 	}
 	if got.Object != "hermes.api_server.capabilities" {
-		t.Errorf("object = %q, want hermes.api_server.capabilities (still addressable)", got.Object)
+		t.Errorf("object = %q, want llm.api_server.capabilities (still addressable)", got.Object)
 	}
 }
 
@@ -2106,7 +2106,7 @@ func TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract(t *tes
 		t.Fatalf("decode capabilities: %v; body=%s", err, rec.Body.String())
 	}
 	if got.Object != "hermes.api_server.capabilities" {
-		t.Fatalf("object = %q, want hermes.api_server.capabilities", got.Object)
+		t.Fatalf("object = %q, want llm.api_server.capabilities", got.Object)
 	}
 	if got.Platform != "gormes-agent" || got.Model != "gormes-agent" {
 		t.Fatalf("platform/model = %q/%q, want gormes-agent/gormes-agent", got.Platform, got.Model)

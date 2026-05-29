@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestSlackGatewayE2EAccountChannelRoutesAndDeliversFinal(t *testing.T) {
@@ -21,10 +21,10 @@ func TestSlackGatewayE2EAccountChannelRoutesAndDeliversFinal(t *testing.T) {
 		t.Fatalf("channel name = %q, want account-scoped platform", got)
 	}
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Slack account final"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Slack account final"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-slack-e2e")
 	k := kernel.New(kernel.Config{
 		Model:     "mock-slack-model",

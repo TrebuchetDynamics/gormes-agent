@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
@@ -59,7 +59,7 @@ func renderAllProviderSetupGuidance(cmd *cobra.Command) error {
 
 func renderProviderSetupGuidance(cmd *cobra.Command, rawProvider string) error {
 	provider := strings.ToLower(strings.TrimSpace(rawProvider))
-	entry, ok := hermes.ResolveProviderManifestEntry(provider)
+	entry, ok := llm.ResolveProviderManifestEntry(provider)
 	if !ok {
 		return gormescli.NewExitCodeError(1, fmt.Errorf("unknown_provider: %s", provider))
 	}
@@ -86,17 +86,17 @@ func renderProviderSetupGuidance(cmd *cobra.Command, rawProvider string) error {
 	if len(entry.Aliases) > 0 {
 		fmt.Fprintf(out, "  Aliases: %s\n", strings.Join(entry.Aliases, ", "))
 	}
-	if entry.ImplementationStatus == hermes.ProviderRowBacked {
+	if entry.ImplementationStatus == llm.ProviderRowBacked {
 		fmt.Fprintln(out, "  Backlog: row-backed provider; setup commands record intent, but full runtime parity may still depend on the provider row.")
 	}
-	if entry.ImplementationStatus == hermes.ProviderExcluded {
+	if entry.ImplementationStatus == llm.ProviderExcluded {
 		fmt.Fprintln(out, "  Note: excluded provider; no runtime setup path is currently advertised.")
 	}
 	return nil
 }
 
 func providerManifestIDs() []string {
-	entries := hermes.HermesProviderRegistryManifest()
+	entries := llm.HermesProviderRegistryManifest()
 	ids := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		ids = append(ids, entry.ID)
@@ -134,8 +134,8 @@ func providerDisplayName(provider string) string {
 	return strings.Join(parts, " ")
 }
 
-func providerNonInteractiveSetupCommand(entry hermes.ProviderManifestEntry) string {
-	if entry.ImplementationStatus == hermes.ProviderExcluded || !providerSupportsNonInteractiveSetup(entry) {
+func providerNonInteractiveSetupCommand(entry llm.ProviderManifestEntry) string {
+	if entry.ImplementationStatus == llm.ProviderExcluded || !providerSupportsNonInteractiveSetup(entry) {
 		return ""
 	}
 	parts := []string{"GORMES_INFERENCE_PROVIDER=" + entry.ID}
@@ -149,7 +149,7 @@ func providerNonInteractiveSetupCommand(entry hermes.ProviderManifestEntry) stri
 	return strings.Join(parts, " ")
 }
 
-func providerSupportsNonInteractiveSetup(entry hermes.ProviderManifestEntry) bool {
+func providerSupportsNonInteractiveSetup(entry llm.ProviderManifestEntry) bool {
 	switch strings.TrimSpace(entry.AuthType) {
 	case "api_key", "oauth_external", "oauth_device_code", "oauth_minimax":
 		return true
@@ -158,11 +158,11 @@ func providerSupportsNonInteractiveSetup(entry hermes.ProviderManifestEntry) boo
 	}
 }
 
-func providerNeedsExplicitEndpoint(entry hermes.ProviderManifestEntry) bool {
+func providerNeedsExplicitEndpoint(entry llm.ProviderManifestEntry) bool {
 	return strings.TrimSpace(entry.BaseURLOverride) == ""
 }
 
-func providerNeedsAPIKeyForSetup(entry hermes.ProviderManifestEntry) bool {
+func providerNeedsAPIKeyForSetup(entry llm.ProviderManifestEntry) bool {
 	switch strings.TrimSpace(entry.AuthType) {
 	case "api_key":
 		return true
@@ -171,7 +171,7 @@ func providerNeedsAPIKeyForSetup(entry hermes.ProviderManifestEntry) bool {
 	}
 }
 
-func providerSetupAPIKeyEnv(entry hermes.ProviderManifestEntry) string {
+func providerSetupAPIKeyEnv(entry llm.ProviderManifestEntry) string {
 	for _, envName := range entry.EnvVars {
 		envName = strings.TrimSpace(envName)
 		if envName != "" && !strings.EqualFold(envName, "CLAUDE_CODE_OAUTH_TOKEN") {
@@ -181,7 +181,7 @@ func providerSetupAPIKeyEnv(entry hermes.ProviderManifestEntry) string {
 	return "GORMES_API_KEY"
 }
 
-func providerCredentialGuidance(entry hermes.ProviderManifestEntry) []string {
+func providerCredentialGuidance(entry llm.ProviderManifestEntry) []string {
 	switch strings.TrimSpace(entry.AuthType) {
 	case "api_key":
 		return providerAPIKeyCredentialGuidance(entry)
@@ -201,8 +201,8 @@ func providerCredentialGuidance(entry hermes.ProviderManifestEntry) []string {
 	}
 }
 
-func providerManualConfigGuidance(entry hermes.ProviderManifestEntry) []string {
-	if entry.ImplementationStatus == hermes.ProviderExcluded {
+func providerManualConfigGuidance(entry llm.ProviderManifestEntry) []string {
+	if entry.ImplementationStatus == llm.ProviderExcluded {
 		return nil
 	}
 	lines := []string{fmt.Sprintf("Config: gormes config set hermes.provider %s", entry.ID)}
@@ -219,7 +219,7 @@ func providerManualConfigGuidance(entry hermes.ProviderManifestEntry) []string {
 	return lines
 }
 
-func providerAPIKeyCredentialGuidance(entry hermes.ProviderManifestEntry) []string {
+func providerAPIKeyCredentialGuidance(entry llm.ProviderManifestEntry) []string {
 	cmd := fmt.Sprintf("Credentials: gormes auth add %s --type api-key --api-key <token>", entry.ID)
 	if endpoint := providerCredentialInferenceURL(entry); endpoint != "" {
 		cmd += " --inference-url " + endpoint
@@ -233,7 +233,7 @@ func providerAPIKeyCredentialGuidance(entry hermes.ProviderManifestEntry) []stri
 	return lines
 }
 
-func providerCredentialInferenceURL(entry hermes.ProviderManifestEntry) string {
+func providerCredentialInferenceURL(entry llm.ProviderManifestEntry) string {
 	if endpoint := strings.TrimRight(strings.TrimSpace(entry.BaseURLOverride), "/"); endpoint != "" {
 		return endpoint
 	}
@@ -250,6 +250,6 @@ func providerOAuthAdapterReady(provider string) bool {
 }
 
 func providerDefaultModel(provider string) string {
-	resolution := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{})
+	resolution := llm.ResolveProviderDefaultModel(provider, llm.ProviderDefaultModelOptions{})
 	return strings.TrimSpace(resolution.Model)
 }

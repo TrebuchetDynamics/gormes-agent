@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 )
 
 // fakeCronJobMutator is a hermetic stand-in for the bbolt-backed cron.Store
@@ -183,7 +183,7 @@ func (r *recordingAuditor) snapshot() []CronAdminAuditEvent {
 }
 
 // cronJobFromSpec converts a spec to a cron.Job for the fake store.
-// Production code uses internal/cron Validate seams; this helper is test-only.
+// Production code uses internal/automation/cron Validate seams; this helper is test-only.
 func cronJobFromSpec(spec CronJobSpec) cron.Job {
 	return cron.Job{
 		Name:            spec.Name,

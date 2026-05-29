@@ -9,7 +9,7 @@ import (
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 )
 
 func TestMaterializeMainProfileContextScaffoldSeedsDefaultFiles(t *testing.T) {

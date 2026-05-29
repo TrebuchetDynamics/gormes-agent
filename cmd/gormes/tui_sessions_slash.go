@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -46,7 +46,7 @@ func newTUISessionDirectoryFunc(ctx context.Context) tui.SessionDirectoryFunc {
 	}
 }
 
-func newTUIResumeSessionFunc(rootCtx context.Context, resume func(string, []hermes.Message) error) tui.SessionResumeFunc {
+func newTUIResumeSessionFunc(rootCtx context.Context, resume func(string, []llm.Message) error) tui.SessionResumeFunc {
 	switcher := newTUIResidentSessionSwitcher(rootCtx, resume)
 	return func(ctx context.Context, query string) (tui.SessionResumeResult, error) {
 		ctx = switcher.context(ctx)

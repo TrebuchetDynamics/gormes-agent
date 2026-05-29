@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/compact"
 )
@@ -614,10 +614,10 @@ func TestBuildDefaultRegistryWiresWebContentProcessor(t *testing.T) {
 	t.Setenv("FIRECRAWL_API_KEY", "fire-secret")
 	t.Setenv("FIRECRAWL_API_URL", srv.URL)
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "registry summary"},
-		{Kind: hermes.EventDone},
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "registry summary"},
+		{Kind: llm.EventDone},
 	}, "summary-session")
 
 	reg := buildDefaultRegistry(context.Background(), config.Config{}, mock, "summary-model")
@@ -664,10 +664,10 @@ func TestBuildDefaultRegistryWiresWebContentProcessorToWebCrawl(t *testing.T) {
 	t.Setenv("FIRECRAWL_API_KEY", "fire-secret")
 	t.Setenv("FIRECRAWL_API_URL", srv.URL)
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "crawl registry summary"},
-		{Kind: hermes.EventDone},
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "crawl registry summary"},
+		{Kind: llm.EventDone},
 	}, "summary-session")
 
 	reg := buildDefaultRegistry(context.Background(), config.Config{}, mock, "summary-model")

@@ -13,10 +13,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 type fakeTurnLoop struct {
@@ -201,11 +201,11 @@ func TestChatCompletions_ContentNormalizationFailureDoesNotStartTurn(t *testing.
 }
 
 func TestChatCompletions_NonStreamingUsesNativeKernelAndReturnsSessionHeader(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Hello"},
-		{Kind: hermes.EventToken, Token: " from kernel"},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 3, TokensOut: 2},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Hello"},
+		{Kind: llm.EventToken, Token: " from kernel"},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 3, TokensOut: 2},
 	}, "sess-native-1")
 	k := kernel.New(kernel.Config{
 		Model:     "gormes-agent",
@@ -261,9 +261,9 @@ func TestChatCompletions_NonStreamingUsesNativeKernelAndReturnsSessionHeader(t *
 }
 
 func TestChatCompletions_SessionHeaderContinuesNativeKernelSession(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventToken, Token: "one"}, {Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-shared")
-	mc.Script([]hermes.Event{{Kind: hermes.EventToken, Token: "two"}, {Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-shared")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventToken, Token: "one"}, {Kind: llm.EventDone, FinishReason: "stop"}}, "sess-shared")
+	mc.Script([]llm.Event{{Kind: llm.EventToken, Token: "two"}, {Kind: llm.EventDone, FinishReason: "stop"}}, "sess-shared")
 	k := kernel.New(kernel.Config{
 		Model:     "gormes-agent",
 		Endpoint:  "http://mock",

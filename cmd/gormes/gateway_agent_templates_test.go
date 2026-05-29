@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestGatewayAgentTemplateTargetPrefersConfiguredTerminalWorkspace(t *testing.T) {
@@ -82,12 +82,12 @@ func TestEnsureGatewayAgentTemplatesCreatesMissingRuntimeContextAndPromptLoadsIt
 		t.Fatalf("runtime seeding should target the configured workspace, not GORMES_HOME; stat err=%v", err)
 	}
 
-	contextBlock, _ := hermes.BuildContextFilesPrompt(hermes.ContextFilesOptions{
+	contextBlock, _ := llm.BuildContextFilesPrompt(llm.ContextFilesOptions{
 		ProfileDir: workspace,
 		CWD:        workspace,
 	})
 	for _, want := range []string{
-		hermes.DefaultSoulMD,
+		llm.DefaultSoulMD,
 		"## AGENTS.md",
 		"## IDENTITY.md",
 		"## TOOLS.md",
@@ -96,7 +96,7 @@ func TestEnsureGatewayAgentTemplatesCreatesMissingRuntimeContextAndPromptLoadsIt
 			t.Fatalf("seeded context block missing %q:\n%s", want, contextBlock)
 		}
 	}
-	durableBlock, _ := hermes.BuildDurableUserContextPrompt(hermes.DurableUserContextOptions{
+	durableBlock, _ := llm.BuildDurableUserContextPrompt(llm.DurableUserContextOptions{
 		MemoryDir: filepath.Join(workspace, "memory"),
 	})
 	for _, want := range []string{"# User", "# Memory"} {

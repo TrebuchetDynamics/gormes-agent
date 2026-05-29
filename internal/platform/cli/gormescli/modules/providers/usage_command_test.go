@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 )
 
 func TestUsageCommandUsesInjectedSeamsAndBuildProvenance(t *testing.T) {
-	var requests []hermes.AccountUsageFetchRequest
+	var requests []llm.AccountUsageFetchRequest
 	cmd := NewUsageCommandWithSeams(UsageSeams{
 		LoadConfig: func() (config.Config, error) {
 			return config.Config{
@@ -22,15 +22,15 @@ func TestUsageCommandUsesInjectedSeamsAndBuildProvenance(t *testing.T) {
 				},
 			}, nil
 		},
-		FetchAccountUsage: func(_ context.Context, req hermes.AccountUsageFetchRequest) (hermes.AccountUsageSnapshot, error) {
+		FetchAccountUsage: func(_ context.Context, req llm.AccountUsageFetchRequest) (llm.AccountUsageSnapshot, error) {
 			requests = append(requests, req)
-			return hermes.AccountUsageSnapshot{
+			return llm.AccountUsageSnapshot{
 				Provider:  req.Provider,
 				AccountID: "acct-fixture",
 				Plan:      "Pro",
 				Source:    "fixture",
 				FetchedAt: time.Date(2026, 5, 17, 12, 0, 0, 0, time.UTC),
-				Windows: []hermes.AccountUsageWindow{{
+				Windows: []llm.AccountUsageWindow{{
 					Label:       "Session",
 					UsedPercent: floatPtr(25),
 				}},

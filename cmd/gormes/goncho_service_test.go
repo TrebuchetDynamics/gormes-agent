@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/goncho/service"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 
@@ -15,7 +15,7 @@ func TestNewChannelGonchoServiceInstallsHermesDialecticCaller(t *testing.T) {
 	}
 	defer store.Close(t.Context())
 
-	svc := newChannelGonchoService(store.DB(), goncho.Config{WorkspaceID: "default", ObserverPeerID: "gormes"}, nil, hermes.NewMockClient(), "gpt-test")
+	svc := newChannelGonchoService(store.DB(), goncho.Config{WorkspaceID: "default", ObserverPeerID: "gormes"}, nil, llm.NewMockClient(), "gpt-test")
 	if svc.DialecticCaller() == nil {
 		t.Fatal("DialecticCaller = nil, want native provider-backed caller installed")
 	}

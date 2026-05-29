@@ -375,7 +375,7 @@ func TestMemoryStatusCommand_JSONEmitsProfileAwareInventory(t *testing.T) {
 		t.Fatalf("durable_markdown.user.state = %q, want present", got.Inventory.DurableMarkdown.User.State)
 	}
 	if got.Inventory.LegacyHermes.User.State != "present" {
-		t.Fatalf("legacy_hermes.user.state = %q, want present", got.Inventory.LegacyHermes.User.State)
+		t.Fatalf("legacy_llm.user.state = %q, want present", got.Inventory.LegacyHermes.User.State)
 	}
 	if got.Inventory.SelectedPromptMemoryDir != "memory" {
 		t.Fatalf("selected_prompt_memory_dir = %q, want memory", got.Inventory.SelectedPromptMemoryDir)

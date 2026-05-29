@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // AccountUsageProvider is the gateway seam for provider account-limit usage.
 // Implementations must be fakeable and must not mutate provider/client state.
-type AccountUsageProvider func(context.Context, InboundEvent) (hermes.AccountUsageSnapshot, error)
+type AccountUsageProvider func(context.Context, InboundEvent) (llm.AccountUsageSnapshot, error)
 
 type usageFrameSource string
 
@@ -43,7 +43,7 @@ func (m *Manager) handleUsageCommand(ctx context.Context, ch Channel, ev Inbound
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, strings.Join(lines, "\n"))
 		return
 	}
-	lines = append(lines, hermes.RenderAccountUsageLines(snapshot, hermes.AccountUsageRenderOptions{})...)
+	lines = append(lines, llm.RenderAccountUsageLines(snapshot, llm.AccountUsageRenderOptions{})...)
 	_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, strings.Join(lines, "\n"))
 }
 

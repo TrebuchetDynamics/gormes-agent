@@ -12,8 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 )
 
@@ -79,7 +79,7 @@ type SessionDirectoryFunc func(limit int) ([]SessionDirectoryEntry, error)
 // adapter. History is already ordered for direct render-frame replacement.
 type SessionResumeResult struct {
 	SessionID string
-	History   []hermes.Message
+	History   []llm.Message
 }
 
 // SessionResumeFunc resolves an operator-supplied id/prefix and switches the
@@ -90,7 +90,7 @@ type SessionResumeFunc func(ctx context.Context, query string) (SessionResumeRes
 // AccountUsageFunc fetches provider account-usage evidence for /usage. It is
 // injected so internal/tui can render provider limits/cost evidence without
 // knowing config paths, credentials, HTTP clients, or provider-specific policy.
-type AccountUsageFunc func(ctx context.Context) (hermes.AccountUsageSnapshot, error)
+type AccountUsageFunc func(ctx context.Context) (llm.AccountUsageSnapshot, error)
 
 // ToolsConfigureRequest is the TUI-local request shape for /tools enable|disable.
 // Production callers own config persistence and MCP/server policy; internal/tui
@@ -196,7 +196,7 @@ type Options struct {
 	BusyGuard BusyInputEvaluator
 	// SessionExport is the injected canonical-transcript export helper
 	// invoked by the /save slash command. The implementation is expected
-	// to delegate to internal/transcript.ExportMarkdown over the
+	// to delegate to internal/persistence/transcript.ExportMarkdown over the
 	// persisted session store; nil disables /save (handler returns
 	// `save: store unavailable`). cmd/gormes wires the real
 	// MemoryDBPath-backed implementation in main.go so the TUI never

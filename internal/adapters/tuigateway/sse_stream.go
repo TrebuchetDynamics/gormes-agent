@@ -400,7 +400,7 @@ func (rc *RemoteClient) run(ctx context.Context, initial *http.Response) {
 
 // consume reads the SSE body until EOF or ctx cancellation, decoding
 // frame events into kernel.RenderFrames. The local parser mirrors the
-// minimal subset already used in internal/hermes/sse.go: lines beginning
+// minimal subset already used in internal/llm/sse.go: lines beginning
 // with "event: " set the discriminator, "data: " accumulates payload,
 // blank lines flush.
 func (rc *RemoteClient) consume(ctx context.Context, body io.Reader) {

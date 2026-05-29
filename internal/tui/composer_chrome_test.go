@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestRenderTextInputChromeAddsReusableLabelAndHint(t *testing.T) {
@@ -121,7 +121,7 @@ func TestViewShowsComposerAffordanceOnlyWhenRoomy(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
 		Model: "test/model",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hello"},
 			{Role: "assistant", Content: "done"},
 		},

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type capturedProxyRequest struct {
@@ -55,12 +55,12 @@ func TestProxySubmitter_ForwardsSessionHeaderAndFiltersUnsafeHistory(t *testing.
 		BaseURL: srv.URL + "/",
 		APIKey:  "secret-key",
 		Model:   "gormes-agent",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "previous user"},
-			{Role: "assistant", ToolCalls: []hermes.ToolCall{{ID: "call_1", Name: "search"}}},
+			{Role: "assistant", ToolCalls: []llm.ToolCall{{ID: "call_1", Name: "search"}}},
 			{Role: "tool", Content: "tool result", ToolCallID: "call_1", Name: "search"},
 			{Role: "assistant", Content: "  "},
-			{Role: "assistant", Content: "previous assistant", ToolCalls: []hermes.ToolCall{{ID: "call_2", Name: "ignored"}}},
+			{Role: "assistant", Content: "previous assistant", ToolCalls: []llm.ToolCall{{ID: "call_2", Name: "ignored"}}},
 		},
 	})
 	if err != nil {
@@ -153,12 +153,12 @@ func TestProxySubmitter_PreservesAssistantReplayMetadata(t *testing.T) {
 	proxy, err := NewProxySubmitter(ProxySubmitterConfig{
 		BaseURL: srv.URL,
 		Model:   "deepseek/deepseek-reasoner",
-		History: []hermes.Message{
-			{Role: "assistant", Content: "reasoned answer", Reasoning: &hermes.ReasoningContent{Text: "storage-only reasoning"}, ReasoningContent: &structuredReasoning},
+		History: []llm.Message{
+			{Role: "assistant", Content: "reasoned answer", Reasoning: &llm.ReasoningContent{Text: "storage-only reasoning"}, ReasoningContent: &structuredReasoning},
 			{Role: "assistant", Content: "empty sentinel", ReasoningContent: &emptyReasoning},
-			{Role: "assistant", ContentParts: []hermes.MessageContentPart{{Type: "text", Text: "content part survived"}}},
-			{Role: "assistant", Content: "cached answer", CacheControl: &hermes.CacheControl{Type: "ephemeral"}},
-			{Role: "assistant", Content: "unsafe tool-call carrier", ToolCalls: []hermes.ToolCall{{ID: "call_1", Name: "lookup"}}},
+			{Role: "assistant", ContentParts: []llm.MessageContentPart{{Type: "text", Text: "content part survived"}}},
+			{Role: "assistant", Content: "cached answer", CacheControl: &llm.CacheControl{Type: "ephemeral"}},
+			{Role: "assistant", Content: "unsafe tool-call carrier", ToolCalls: []llm.ToolCall{{ID: "call_1", Name: "lookup"}}},
 			{Role: "tool", Content: "tool result", ToolCallID: "call_1", Name: "lookup"},
 		},
 	})
@@ -231,20 +231,20 @@ func TestProxySubmitter_PreservesAssistantReplayMetadata(t *testing.T) {
 }
 
 func TestProxySubmitter_PreservesAssistantReplayMetadataForClientRequest(t *testing.T) {
-	client := hermes.NewMockClient()
-	client.Script([]hermes.Event{{Kind: hermes.EventToken, Token: "client metadata ok"}}, "sess-client-replay")
+	client := llm.NewMockClient()
+	client.Script([]llm.Event{{Kind: llm.EventToken, Token: "client metadata ok"}}, "sess-client-replay")
 
 	structuredReasoning := "structured provider reasoning"
 	emptyReasoning := ""
 	proxy, err := NewProxySubmitter(ProxySubmitterConfig{
 		Client: client,
 		Model:  "deepseek/deepseek-reasoner",
-		History: []hermes.Message{
-			{Role: "assistant", Content: "reasoned answer", Reasoning: &hermes.ReasoningContent{Text: "storage-only reasoning"}, ReasoningContent: &structuredReasoning},
+		History: []llm.Message{
+			{Role: "assistant", Content: "reasoned answer", Reasoning: &llm.ReasoningContent{Text: "storage-only reasoning"}, ReasoningContent: &structuredReasoning},
 			{Role: "assistant", Content: "empty sentinel", ReasoningContent: &emptyReasoning},
-			{Role: "assistant", ContentParts: []hermes.MessageContentPart{{Type: "text", Text: "content part survived"}}},
-			{Role: "assistant", Content: "cached answer", CacheControl: &hermes.CacheControl{Type: "ephemeral"}},
-			{Role: "assistant", Content: "unsafe tool-call carrier", ToolCalls: []hermes.ToolCall{{ID: "call_1", Name: "lookup"}}},
+			{Role: "assistant", ContentParts: []llm.MessageContentPart{{Type: "text", Text: "content part survived"}}},
+			{Role: "assistant", Content: "cached answer", CacheControl: &llm.CacheControl{Type: "ephemeral"}},
+			{Role: "assistant", Content: "unsafe tool-call carrier", ToolCalls: []llm.ToolCall{{ID: "call_1", Name: "lookup"}}},
 			{Role: "tool", Content: "tool result", ToolCallID: "call_1", Name: "lookup"},
 		},
 	})
@@ -426,7 +426,7 @@ func proxyMessageByRoleAndContentPart(t *testing.T, messages []map[string]any, r
 	return nil
 }
 
-func proxyClientMessageByContent(t *testing.T, messages []hermes.Message, content string) hermes.Message {
+func proxyClientMessageByContent(t *testing.T, messages []llm.Message, content string) llm.Message {
 	t.Helper()
 	for _, msg := range messages {
 		if msg.Content == content {
@@ -434,10 +434,10 @@ func proxyClientMessageByContent(t *testing.T, messages []hermes.Message, conten
 		}
 	}
 	t.Fatalf("client message with content %q not found in %#v", content, messages)
-	return hermes.Message{}
+	return llm.Message{}
 }
 
-func proxyClientMessageByContentPart(t *testing.T, messages []hermes.Message, text string) hermes.Message {
+func proxyClientMessageByContentPart(t *testing.T, messages []llm.Message, text string) llm.Message {
 	t.Helper()
 	for _, msg := range messages {
 		for _, part := range msg.ContentParts {
@@ -447,7 +447,7 @@ func proxyClientMessageByContentPart(t *testing.T, messages []hermes.Message, te
 		}
 	}
 	t.Fatalf("client message with content part %q not found in %#v", text, messages)
-	return hermes.Message{}
+	return llm.Message{}
 }
 
 func proxyContentPartContainsText(msg map[string]any, text string) bool {

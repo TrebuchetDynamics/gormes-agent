@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -15,7 +15,7 @@ type DelegationToolOptions struct {
 	ParentCtx   context.Context
 	Config      config.Config
 	Registry    *tools.Registry
-	ChildClient hermes.Client
+	ChildClient llm.Client
 	ChildModel  string
 }
 
@@ -53,11 +53,11 @@ func RegisterDelegationTool(opts DelegationToolOptions) {
 	reg.MustRegister(subagent.NewDelegateTool(subagent.NewManager(managerOpts), drafter))
 }
 
-func registryDescriptors(reg *tools.Registry) []hermes.ToolDescriptor {
+func registryDescriptors(reg *tools.Registry) []llm.ToolDescriptor {
 	descs := reg.Descriptors()
-	out := make([]hermes.ToolDescriptor, len(descs))
+	out := make([]llm.ToolDescriptor, len(descs))
 	for i, d := range descs {
-		out[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
+		out[i] = llm.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
 	}
 	return out
 }

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 const (
@@ -434,7 +434,7 @@ func buildStatus(routes []Route) Status {
 
 func canonicalProvider(provider string) string {
 	provider = strings.ReplaceAll(strings.ToLower(strings.TrimSpace(provider)), "_", "-")
-	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		return entry.ID
 	}
 	return provider
@@ -443,7 +443,7 @@ func canonicalProvider(provider string) string {
 func normalizeTransport(transport, provider string) string {
 	transport = strings.ToLower(strings.TrimSpace(transport))
 	if transport == "" {
-		entry, ok := hermes.ResolveProviderManifestEntry(provider)
+		entry, ok := llm.ResolveProviderManifestEntry(provider)
 		if !ok || entry.TransportFamily == "" || entry.TransportFamily == "openai_chat" {
 			return DefaultTransport
 		}
@@ -458,7 +458,7 @@ func normalizeTransport(transport, provider string) string {
 }
 
 func manifestBaseURL(provider string) string {
-	entry, ok := hermes.ResolveProviderManifestEntry(provider)
+	entry, ok := llm.ResolveProviderManifestEntry(provider)
 	if !ok {
 		return ""
 	}

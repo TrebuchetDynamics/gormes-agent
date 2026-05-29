@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 )
 
 const (

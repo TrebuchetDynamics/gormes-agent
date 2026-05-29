@@ -9,7 +9,7 @@ import (
 
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	"github.com/TrebuchetDynamics/goncho/service"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/goncho"
 )
@@ -18,7 +18,7 @@ import (
 // use. It attaches a Hermes-backed DialecticCaller when a provider client is
 // available, enabling in-process honcho_reasoning without an external Honcho
 // process.
-func newChannelGonchoService(db *sql.DB, cfg goncho.Config, log *slog.Logger, client hermes.Client, model string) *goncho.Service {
+func newChannelGonchoService(db *sql.DB, cfg goncho.Config, log *slog.Logger, client llm.Client, model string) *goncho.Service {
 	svc := goncho.NewService(db, cfg, log)
 	if client != nil {
 		svc.SetDialecticCaller(NewHermesDialecticCaller(client, model))

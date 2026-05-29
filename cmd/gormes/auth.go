@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
@@ -528,7 +528,7 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 
 func updateConfigForCodexOAuthProvider(inferenceURL string) error {
 	provider := config.CodexOAuthProvider
-	model := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{}).Model
+	model := llm.ResolveProviderDefaultModel(provider, llm.ProviderDefaultModelOptions{}).Model
 	if cfg, err := config.Load(nil); err == nil && normalizeAuthProvider(cfg.Hermes.Provider) == provider {
 		current := strings.TrimSpace(cfg.Hermes.Model)
 		if current != "" && !strings.EqualFold(current, "hermes-agent") {

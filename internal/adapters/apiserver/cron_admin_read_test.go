@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 )
 
 // fakeCronJobReader is a hermetic stand-in for the bbolt-backed cron.Store

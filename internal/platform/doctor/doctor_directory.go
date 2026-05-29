@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 )
 
 // gormesHomeSubdirs is the Gormes-OWNED ~/.gormes runtime layout - NOT

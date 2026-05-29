@@ -10,7 +10,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent"
 )
 
 func CheckDurableLedger(ctx context.Context, ledger *subagent.DurableLedger, runLogPath string) CheckResult {

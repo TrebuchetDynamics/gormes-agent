@@ -613,13 +613,13 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 								"execution_owner": "provider",
 								"trust_class": ["system"],
 								"degraded_mode": "provider status reports missing fixtures",
-								"fixture": "internal/hermes/testdata/provider_transcripts",
+								"fixture": "internal/llm/testdata/provider_transcripts",
 								"source_refs": ["docs/content/upstream-hermes/source-study.md"],
 								"ready_when": ["fixtures replay"],
 								"not_ready_when": ["live provider call required"],
-								"acceptance": ["go test ./internal/hermes passes"],
-								"write_scope": ["internal/hermes/"],
-								"test_commands": ["go test ./internal/hermes -count=1"],
+								"acceptance": ["go test ./internal/llm passes"],
+								"write_scope": ["internal/llm/"],
+								"test_commands": ["go test ./internal/llm -count=1"],
 								"done_signal": ["provider transcript replay passes"],
 								"unblocks": ["Bedrock adapter"],
 								"note": "Use captured transcript fixtures."
@@ -667,7 +667,7 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 		"Selection reason: P0 handoff",
 		"Contract: Provider-neutral transcript contract",
 		"Contract status: fixture_ready",
-		"Fixture: internal/hermes/testdata/provider_transcripts",
+		"Fixture: internal/llm/testdata/provider_transcripts",
 		"Trust class:",
 		"- system",
 		"Ready when:",
@@ -679,13 +679,13 @@ func TestRunOncePassesExecutionMetadataPromptToBackend(t *testing.T) {
 		"Unblocks:",
 		"- Bedrock adapter",
 		"Allowed write scope:",
-		"- internal/hermes/",
+		"- internal/llm/",
 		"Required test commands:",
-		"- go test ./internal/hermes -count=1",
+		"- go test ./internal/llm -count=1",
 		"Done signal:",
 		"- provider transcript replay passes",
 		"Acceptance:",
-		"- go test ./internal/hermes passes",
+		"- go test ./internal/llm passes",
 		"Source references:",
 		"- docs/content/upstream-hermes/source-study.md",
 		"Degraded mode: provider status reports missing fixtures",
@@ -883,7 +883,7 @@ func TestRunOnceRecordsSelfImprovementUserFeatureMix(t *testing.T) {
 					},
 					"5.B": {
 						"items": [
-							{"name": "provider feature surface", "status": "planned", "contract": "provider contract", "contract_status": "draft", "execution_owner": "provider", "write_scope": ["internal/hermes/client.go"], "no_test_required": "health mix fixture"}
+							{"name": "provider feature surface", "status": "planned", "contract": "provider contract", "contract_status": "draft", "execution_owner": "provider", "write_scope": ["internal/llm/client.go"], "no_test_required": "health mix fixture"}
 						]
 					}
 				}

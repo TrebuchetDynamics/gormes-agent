@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
@@ -73,9 +73,9 @@ func TestGatewayBoot_OpenAICodexProvider_DefaultsModel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newProviderHTTPClient: %v", err)
 	}
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    cfg.Hermes.Model,
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream: %v", err)

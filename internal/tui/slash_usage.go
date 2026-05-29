@@ -8,8 +8,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -51,7 +51,7 @@ func (m *Model) usageAccountCmd() tea.Cmd {
 		if err != nil {
 			return usageAccountMsg{Err: err}
 		}
-		return usageAccountMsg{Lines: hermes.RenderAccountUsageLines(snapshot, hermes.AccountUsageRenderOptions{})}
+		return usageAccountMsg{Lines: llm.RenderAccountUsageLines(snapshot, llm.AccountUsageRenderOptions{})}
 	}
 }
 
@@ -134,7 +134,7 @@ func usageTelemetryPresent(t telemetry.Snapshot) bool {
 	return t.TokensInTotal > 0 || t.TokensOutTotal > 0
 }
 
-func usageContextLine(status hermes.ContextStatus) string {
+func usageContextLine(status llm.ContextStatus) string {
 	if status.ContextLength <= 0 && status.LastTotalTokens <= 0 {
 		return ""
 	}

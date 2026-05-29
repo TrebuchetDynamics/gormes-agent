@@ -17,11 +17,11 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func runResolvedRPC(cmd *cobra.Command, invocation rpcInvocation) error {
@@ -275,7 +275,7 @@ func (r *kernelRPCRuntime) sessionIDLocked() string {
 	return "rpc"
 }
 
-func rpcMessagesFromHermes(messages []hermes.Message) []gateway.RPCRecord {
+func rpcMessagesFromHermes(messages []llm.Message) []gateway.RPCRecord {
 	out := make([]gateway.RPCRecord, 0, len(messages))
 	for _, msg := range messages {
 		rec := gateway.RPCRecord{"role": msg.Role, "content": msg.Content}

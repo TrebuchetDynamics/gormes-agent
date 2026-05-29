@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"go.etcd.io/bbolt"
 )

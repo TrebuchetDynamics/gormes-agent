@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -57,7 +57,7 @@ func BuildStatusPage(frame kernel.RenderFrame, sessionID string) TransientPageSt
 	return TransientPageState{Title: "Status", Body: strings.Join(lines, "\n")}
 }
 
-func formatStatusReasoning(r hermes.ReasoningEffortEvidence) string {
+func formatStatusReasoning(r llm.ReasoningEffortEvidence) string {
 	effort := strings.TrimSpace(r.Requested)
 	if effort == "" && r.Effort != "" {
 		effort = string(r.Effort)
@@ -74,7 +74,7 @@ func formatStatusReasoning(r hermes.ReasoningEffortEvidence) string {
 	return effort
 }
 
-func formatStatusContext(status hermes.ContextStatus) string {
+func formatStatusContext(status llm.ContextStatus) string {
 	line := fmt.Sprintf("Context: %d / %d tokens", status.LastTotalTokens, status.ContextLength)
 	if status.UsagePercent > 0 {
 		line += fmt.Sprintf(" (%.1f%%)", status.UsagePercent)
@@ -85,7 +85,7 @@ func formatStatusContext(status hermes.ContextStatus) string {
 	return line
 }
 
-func formatStatusContextBudget(status hermes.ContextStatus) string {
+func formatStatusContextBudget(status llm.ContextStatus) string {
 	parts := make([]string, 0, 2)
 	if strings.TrimSpace(status.Budget.State) != "" {
 		parts = append(parts, status.Budget.State)

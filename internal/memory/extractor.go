@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // ExtractorConfig controls the Brain worker's polling + retry behavior.
@@ -51,7 +51,7 @@ func (c *ExtractorConfig) withDefaults() {
 // through the shared *SqliteStore *sql.DB (SetMaxOpenConns(1) pool).
 type Extractor struct {
 	store *SqliteStore
-	llm   hermes.Client
+	llm   llm.Client
 	cfg   ExtractorConfig
 	log   *slog.Logger
 
@@ -64,7 +64,7 @@ type Extractor struct {
 
 // NewExtractor constructs an Extractor. Caller drives lifecycle via
 // Run(ctx) and Close(ctx).
-func NewExtractor(s *SqliteStore, llm hermes.Client, cfg ExtractorConfig, log *slog.Logger) *Extractor {
+func NewExtractor(s *SqliteStore, llm llm.Client, cfg ExtractorConfig, log *slog.Logger) *Extractor {
 	cfg.withDefaults()
 	if log == nil {
 		log = slog.Default()
@@ -265,13 +265,13 @@ func (e *Extractor) advanceBackoff() {
 	}
 }
 
-// callLLM sends the extractor prompt to the hermes.Client and collects
+// callLLM sends the extractor prompt to the llm.Client and collects
 // the full streamed response. Returns raw JSON (not yet validated).
 func (e *Extractor) callLLM(ctx context.Context, batch []turnRow) ([]byte, error) {
-	req := hermes.ChatRequest{
+	req := llm.ChatRequest{
 		Model:  e.cfg.Model,
 		Stream: true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{Role: "system", Content: extractorSystemPrompt},
 			{Role: "user", Content: formatBatchPrompt(batch)},
 		},
@@ -285,7 +285,7 @@ func (e *Extractor) callLLM(ctx context.Context, batch []turnRow) ([]byte, error
 	var b strings.Builder
 	for {
 		ev, err := stream.Recv(ctx)
-		if errors.Is(err, io.EOF) || ev.Kind == hermes.EventDone {
+		if errors.Is(err, io.EOF) || ev.Kind == llm.EventDone {
 			if ev.Token != "" {
 				b.WriteString(ev.Token)
 			}

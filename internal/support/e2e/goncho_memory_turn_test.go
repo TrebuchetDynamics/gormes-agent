@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/goncho/service"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
 )
 
 const (
@@ -523,21 +523,21 @@ func gonchoGoldenTraceID(trace goncho.RecallTrace) string {
 
 type gonchoGoldenProvider struct {
 	mu       sync.Mutex
-	requests []hermes.ChatRequest
+	requests []llm.ChatRequest
 	calls    int
 }
 
 func (p *gonchoGoldenProvider) Health(context.Context) error { return nil }
 
-func (p *gonchoGoldenProvider) ProviderStatus() hermes.ProviderStatus {
-	return hermes.ProviderStatus{Provider: "goncho-golden", Runtime: "test_harness"}
+func (p *gonchoGoldenProvider) ProviderStatus() llm.ProviderStatus {
+	return llm.ProviderStatus{Provider: "goncho-golden", Runtime: "test_harness"}
 }
 
-func (p *gonchoGoldenProvider) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (p *gonchoGoldenProvider) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
-func (p *gonchoGoldenProvider) OpenStream(_ context.Context, req hermes.ChatRequest) (hermes.Stream, error) {
+func (p *gonchoGoldenProvider) OpenStream(_ context.Context, req llm.ChatRequest) (llm.Stream, error) {
 	p.mu.Lock()
 	p.calls++
 	call := p.calls
@@ -559,24 +559,24 @@ func (p *gonchoGoldenProvider) OpenStream(_ context.Context, req hermes.ChatRequ
 	}
 	return &gonchoGoldenStream{
 		sessionID: req.SessionID,
-		events: []hermes.Event{
-			{Kind: hermes.EventToken, Token: answer, TokensOut: len(strings.Fields(answer))},
-			{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 64, TokensOut: len(strings.Fields(answer))},
+		events: []llm.Event{
+			{Kind: llm.EventToken, Token: answer, TokensOut: len(strings.Fields(answer))},
+			{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 64, TokensOut: len(strings.Fields(answer))},
 		},
 	}, nil
 }
 
-func (p *gonchoGoldenProvider) Requests() []hermes.ChatRequest {
+func (p *gonchoGoldenProvider) Requests() []llm.ChatRequest {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	out := make([]hermes.ChatRequest, len(p.requests))
+	out := make([]llm.ChatRequest, len(p.requests))
 	copy(out, p.requests)
 	return out
 }
 
 type gonchoGoldenStream struct {
 	sessionID string
-	events    []hermes.Event
+	events    []llm.Event
 	pos       int
 	closed    bool
 	mu        sync.Mutex
@@ -591,23 +591,23 @@ func (s *gonchoGoldenStream) Close() error {
 	return nil
 }
 
-func (s *gonchoGoldenStream) Recv(ctx context.Context) (hermes.Event, error) {
+func (s *gonchoGoldenStream) Recv(ctx context.Context) (llm.Event, error) {
 	select {
 	case <-ctx.Done():
-		return hermes.Event{}, ctx.Err()
+		return llm.Event{}, ctx.Err()
 	default:
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed || s.pos >= len(s.events) {
-		return hermes.Event{}, io.EOF
+		return llm.Event{}, io.EOF
 	}
 	event := s.events[s.pos]
 	s.pos++
 	return event, nil
 }
 
-func requestContains(req hermes.ChatRequest, needle string) bool {
+func requestContains(req llm.ChatRequest, needle string) bool {
 	for _, msg := range req.Messages {
 		if strings.Contains(msg.Content, needle) {
 			return true
@@ -616,7 +616,7 @@ func requestContains(req hermes.ChatRequest, needle string) bool {
 	return false
 }
 
-func summarizeGonchoGoldenRequests(requests []hermes.ChatRequest) []gonchoGoldenProviderRequest {
+func summarizeGonchoGoldenRequests(requests []llm.ChatRequest) []gonchoGoldenProviderRequest {
 	out := make([]gonchoGoldenProviderRequest, 0, len(requests))
 	for i, req := range requests {
 		terms := gonchoGoldenRecallTerms(req)
@@ -633,7 +633,7 @@ func summarizeGonchoGoldenRequests(requests []hermes.ChatRequest) []gonchoGolden
 	return out
 }
 
-func gonchoGoldenRecallTerms(req hermes.ChatRequest) []string {
+func gonchoGoldenRecallTerms(req llm.ChatRequest) []string {
 	var combined strings.Builder
 	for _, msg := range req.Messages {
 		if msg.Role == "system" {
@@ -654,7 +654,7 @@ func gonchoGoldenRecallTerms(req hermes.ChatRequest) []string {
 	return terms
 }
 
-func lastUserMessage(messages []hermes.Message) string {
+func lastUserMessage(messages []llm.Message) string {
 	for i := len(messages) - 1; i >= 0; i-- {
 		if messages[i].Role == "user" {
 			return messages[i].Content

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 const (
@@ -27,8 +27,8 @@ type ProxySubmitterConfig struct {
 	BaseURL       string
 	APIKey        string
 	Model         string
-	History       []hermes.Message
-	Client        hermes.Client
+	History       []llm.Message
+	Client        llm.Client
 	RuntimeStatus RuntimeStatusWriter
 }
 
@@ -38,12 +38,12 @@ type ProxySubmitter struct {
 	baseURL string
 	apiKey  string
 	model   string
-	client  hermes.Client
+	client  llm.Client
 	status  RuntimeStatusWriter
 	frames  chan kernel.RenderFrame
 
 	mu         sync.Mutex
-	history    []hermes.Message
+	history    []llm.Message
 	active     bool
 	generation uint64
 }
@@ -61,7 +61,7 @@ func NewProxySubmitter(cfg ProxySubmitterConfig) (*ProxySubmitter, error) {
 	}
 	client := cfg.Client
 	if client == nil {
-		client = hermes.NewHTTPClient(baseURL, strings.TrimSpace(cfg.APIKey))
+		client = llm.NewHTTPClient(baseURL, strings.TrimSpace(cfg.APIKey))
 	}
 	return &ProxySubmitter{
 		baseURL: baseURL,
@@ -70,7 +70,7 @@ func NewProxySubmitter(cfg ProxySubmitterConfig) (*ProxySubmitter, error) {
 		client:  client,
 		status:  cfg.RuntimeStatus,
 		frames:  make(chan kernel.RenderFrame, 16),
-		history: append([]hermes.Message(nil), cfg.History...),
+		history: append([]llm.Message(nil), cfg.History...),
 	}, nil
 }
 
@@ -94,7 +94,7 @@ func (p *ProxySubmitter) Submit(ev kernel.PlatformEvent) error {
 		p.active = true
 		p.generation++
 		generation := p.generation
-		history := append([]hermes.Message(nil), p.history...)
+		history := append([]llm.Message(nil), p.history...)
 		p.mu.Unlock()
 
 		go p.runTurn(context.Background(), generation, ev, history)
@@ -130,10 +130,10 @@ func (p *ProxySubmitter) Render() <-chan kernel.RenderFrame {
 	return p.frames
 }
 
-func (p *ProxySubmitter) runTurn(ctx context.Context, generation uint64, ev kernel.PlatformEvent, history []hermes.Message) {
-	userMessage := hermes.Message{Role: "user", Content: ev.Text}
+func (p *ProxySubmitter) runTurn(ctx context.Context, generation uint64, ev kernel.PlatformEvent, history []llm.Message) {
+	userMessage := llm.Message{Role: "user", Content: ev.Text}
 	safeHistory := safeProxyHistory(history)
-	historyWithUser := append(append([]hermes.Message(nil), safeHistory...), userMessage)
+	historyWithUser := append(append([]llm.Message(nil), safeHistory...), userMessage)
 
 	p.emitIfCurrent(generation, kernel.RenderFrame{
 		Phase:     kernel.PhaseConnecting,
@@ -142,16 +142,16 @@ func (p *ProxySubmitter) runTurn(ctx context.Context, generation uint64, ev kern
 		Model:     p.model,
 	})
 
-	messages := make([]hermes.Message, 0, len(safeHistory)+2)
+	messages := make([]llm.Message, 0, len(safeHistory)+2)
 	if contextPrompt := strings.TrimSpace(ev.SessionContext); contextPrompt != "" {
-		messages = append(messages, hermes.Message{Role: "system", Content: ev.SessionContext})
+		messages = append(messages, llm.Message{Role: "system", Content: ev.SessionContext})
 	}
 	messages = append(messages, safeHistory...)
 	if strings.TrimSpace(ev.Text) != "" {
 		messages = append(messages, userMessage)
 	}
 
-	stream, err := p.client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := p.client.OpenStream(ctx, llm.ChatRequest{
 		Model:     p.model,
 		SessionID: ev.SessionID,
 		Stream:    true,
@@ -182,7 +182,7 @@ func (p *ProxySubmitter) runTurn(ctx context.Context, generation uint64, ev kern
 			p.finishProxyError(generation, sessionID, historyWithUser, err)
 			return
 		}
-		if event.Kind != hermes.EventToken || event.Token == "" {
+		if event.Kind != llm.EventToken || event.Token == "" {
 			continue
 		}
 		draft.WriteString(event.Token)
@@ -199,9 +199,9 @@ func (p *ProxySubmitter) runTurn(ctx context.Context, generation uint64, ev kern
 		p.finishStale(generation, sessionID)
 		return
 	}
-	finalHistory := append(historyWithUser, hermes.Message{Role: "assistant", Content: draft.String()})
+	finalHistory := append(historyWithUser, llm.Message{Role: "assistant", Content: draft.String()})
 	p.mu.Lock()
-	p.history = append([]hermes.Message(nil), finalHistory...)
+	p.history = append([]llm.Message(nil), finalHistory...)
 	p.active = false
 	p.mu.Unlock()
 
@@ -214,8 +214,8 @@ func (p *ProxySubmitter) runTurn(ctx context.Context, generation uint64, ev kern
 	}
 }
 
-func safeProxyHistory(history []hermes.Message) []hermes.Message {
-	out := make([]hermes.Message, 0, len(history))
+func safeProxyHistory(history []llm.Message) []llm.Message {
+	out := make([]llm.Message, 0, len(history))
 	for _, msg := range history {
 		role := strings.ToLower(strings.TrimSpace(msg.Role))
 		switch role {
@@ -226,9 +226,9 @@ func safeProxyHistory(history []hermes.Message) []hermes.Message {
 		if strings.TrimSpace(msg.Content) == "" && !hasSafeProxyContentParts(msg.ContentParts) {
 			continue
 		}
-		safe := hermes.Message{Role: role, Content: msg.Content}
+		safe := llm.Message{Role: role, Content: msg.Content}
 		if len(msg.ContentParts) > 0 {
-			safe.ContentParts = append([]hermes.MessageContentPart(nil), msg.ContentParts...)
+			safe.ContentParts = append([]llm.MessageContentPart(nil), msg.ContentParts...)
 		}
 		if msg.CacheControl != nil {
 			cache := *msg.CacheControl
@@ -249,7 +249,7 @@ func safeProxyHistory(history []hermes.Message) []hermes.Message {
 	return out
 }
 
-func hasSafeProxyContentParts(parts []hermes.MessageContentPart) bool {
+func hasSafeProxyContentParts(parts []llm.MessageContentPart) bool {
 	for _, part := range parts {
 		switch strings.ToLower(strings.TrimSpace(part.Type)) {
 		case "text", "input_text", "output_text":
@@ -265,11 +265,11 @@ func hasSafeProxyContentParts(parts []hermes.MessageContentPart) bool {
 	return false
 }
 
-func (p *ProxySubmitter) finishProxyError(generation uint64, sessionID string, history []hermes.Message, err error) {
+func (p *ProxySubmitter) finishProxyError(generation uint64, sessionID string, history []llm.Message, err error) {
 	message := p.degradedErrorMessage(err)
 	p.mu.Lock()
 	if p.generation == generation {
-		p.history = append([]hermes.Message(nil), history...)
+		p.history = append([]llm.Message(nil), history...)
 	}
 	p.active = false
 	p.mu.Unlock()
@@ -285,8 +285,8 @@ func (p *ProxySubmitter) finishProxyError(generation uint64, sessionID string, h
 }
 
 func (p *ProxySubmitter) degradedErrorMessage(err error) string {
-	classification := hermes.ClassifyProviderError(err)
-	if classification.Kind == hermes.ProviderErrorAuth && strings.TrimSpace(p.apiKey) == "" {
+	classification := llm.ClassifyProviderError(err)
+	if classification.Kind == llm.ProviderErrorAuth && strings.TrimSpace(p.apiKey) == "" {
 		return "missing proxy credentials: remote API rejected the proxy request"
 	}
 	if classification.Status > 0 {
@@ -299,7 +299,7 @@ func (p *ProxySubmitter) finishStale(generation uint64, sessionID string) {
 	message := fmt.Sprintf("stale generation: ignored proxy response for generation %d", generation)
 	p.mu.Lock()
 	p.active = false
-	history := append([]hermes.Message(nil), p.history...)
+	history := append([]llm.Message(nil), p.history...)
 	p.mu.Unlock()
 
 	p.writeProxyStatus(proxyStateDegraded, message)

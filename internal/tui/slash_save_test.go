@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 )
 
 // recordingExportFunc captures invocations of SessionExportFunc and returns
@@ -36,7 +36,7 @@ func (r *recordingExportFunc) call(ctx context.Context, sessionID string) (strin
 	return r.path, r.err
 }
 
-func newSaveTestModel(t *testing.T, history []hermes.Message, frameSessionID string, fn SessionExportFunc, sub Submitter) Model {
+func newSaveTestModel(t *testing.T, history []llm.Message, frameSessionID string, fn SessionExportFunc, sub Submitter) Model {
 	t.Helper()
 	frames := make(chan kernel.RenderFrame, 1)
 	if sub == nil {
@@ -73,7 +73,7 @@ func TestSlashSave_NoConversationReturnsStatus(t *testing.T) {
 }
 
 func TestSlashSave_NoActiveSessionReturnsStatus(t *testing.T) {
-	history := []hermes.Message{{Role: "user", Content: "hi"}}
+	history := []llm.Message{{Role: "user", Content: "hi"}}
 	rec := &recordingExportFunc{path: "/should/not/be/used.md"}
 	sub := &nopSubmitter{}
 	m := newSaveTestModel(t, history, "", rec.call, sub.submit)
@@ -96,7 +96,7 @@ func TestSlashSave_NoActiveSessionReturnsStatus(t *testing.T) {
 
 func TestSlashSave_HappyPathReturnsWrittenPath(t *testing.T) {
 	const wantPath = "/tmp/sess-export-fixture.md"
-	history := []hermes.Message{
+	history := []llm.Message{
 		{Role: "user", Content: "first"},
 		{Role: "assistant", Content: "ack"},
 	}
@@ -124,7 +124,7 @@ func TestSlashSave_HappyPathReturnsWrittenPath(t *testing.T) {
 }
 
 func TestSlashSave_ExportFailureRemovesPartialFile(t *testing.T) {
-	history := []hermes.Message{{Role: "user", Content: "hi"}}
+	history := []llm.Message{{Role: "user", Content: "hi"}}
 
 	tmp := t.TempDir()
 	partialPath := filepath.Join(tmp, "partial.md")
@@ -165,7 +165,7 @@ func TestSlashSave_ExportFailureRemovesPartialFile(t *testing.T) {
 }
 
 func TestSlashSave_ErrSessionNotFoundReturnsStoreUnavailable(t *testing.T) {
-	history := []hermes.Message{{Role: "user", Content: "hi"}}
+	history := []llm.Message{{Role: "user", Content: "hi"}}
 	rec := &recordingExportFunc{err: transcript.ErrSessionNotFound}
 	sub := &nopSubmitter{}
 	m := newSaveTestModel(t, history, "sess-missing", rec.call, sub.submit)

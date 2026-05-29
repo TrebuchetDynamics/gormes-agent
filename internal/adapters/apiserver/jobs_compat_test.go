@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 )
 
 // TestAPIServerJobsCompatBuildAttribution proves the legacy

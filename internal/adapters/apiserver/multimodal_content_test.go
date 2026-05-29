@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestAPIServerNormalizeMultimodal_TextOnlyCollapses(t *testing.T) {
@@ -51,7 +51,7 @@ func TestAPIServerNormalizeMultimodal_ImageURLPreserved(t *testing.T) {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
 	call := loop.lastCall()
-	want := []hermes.MessageContentPart{
+	want := []llm.MessageContentPart{
 		{Type: "text", Text: "describe this"},
 		{Type: "image_url", ImageURL: "https://example.com/cat.png", Detail: "high"},
 	}
@@ -80,7 +80,7 @@ func TestAPIServerNormalizeMultimodal_InputImageCanonicalized(t *testing.T) {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
 	call := loop.lastCall()
-	want := []hermes.MessageContentPart{
+	want := []llm.MessageContentPart{
 		{Type: "text", Text: "Describe."},
 		{Type: "image_url", ImageURL: "https://example.com/cat.png"},
 	}
@@ -104,7 +104,7 @@ func TestAPIServerNormalizeMultimodal_ImageOnlyVisiblePayload(t *testing.T) {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
 	call := loop.lastCall()
-	want := []hermes.MessageContentPart{{Type: "image_url", ImageURL: "data:image/png;base64,AAAA"}}
+	want := []llm.MessageContentPart{{Type: "image_url", ImageURL: "data:image/png;base64,AAAA"}}
 	assertContentParts(t, call.UserContentParts, want)
 	if call.UserMessage != "" {
 		t.Fatalf("UserMessage = %q, want empty text for image-only input", call.UserMessage)
@@ -182,7 +182,7 @@ func TestAPIServerNormalizeMultimodal_RejectsFilesAndBadSchemes(t *testing.T) {
 	}
 }
 
-func assertContentParts(t *testing.T, got, want []hermes.MessageContentPart) {
+func assertContentParts(t *testing.T, got, want []llm.MessageContentPart) {
 	t.Helper()
 	if len(got) != len(want) {
 		t.Fatalf("len(ContentParts) = %d, want %d: %+v", len(got), len(want), got)

@@ -5,20 +5,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestKernel_InjectsPrefillMessagesAfterSystemBeforeUser(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-prefill")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-prefill")
 
 	k := New(Config{
 		Model:     "gpt-5",
 		Endpoint:  "http://mock",
 		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
-		PrefillMessages: []hermes.Message{
+		PrefillMessages: []llm.Message{
 			{Role: "user", Content: "example request"},
 			{Role: "assistant", Content: "example answer"},
 		},
@@ -64,14 +64,14 @@ func TestKernel_InjectsPrefillMessagesAfterSystemBeforeUser(t *testing.T) {
 }
 
 func TestKernel_PrefillMessagesAreNotPersistedInVisibleHistory(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventToken, Token: "done"}, {Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-prefill-history")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventToken, Token: "done"}, {Kind: llm.EventDone, FinishReason: "stop"}}, "sess-prefill-history")
 
 	k := New(Config{
 		Model:     "hermes-agent",
 		Endpoint:  "http://mock",
 		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
-		PrefillMessages: []hermes.Message{
+		PrefillMessages: []llm.Message{
 			{Role: "user", Content: "hidden example"},
 			{Role: "assistant", Content: "hidden answer"},
 		},

@@ -6,33 +6,33 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestFallbackActivationAfterEmptyResponses(t *testing.T) {
-	primary := hermes.NewMockClient()
+	primary := llm.NewMockClient()
 	for i := 0; i < 4; i++ {
-		primary.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "")
+		primary.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "")
 	}
 
-	fallback := hermes.NewMockClient()
-	fallback.SetProviderStatus(hermes.ProviderStatus{Provider: "anthropic", Runtime: "chat_completions"})
-	fallback.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Fallback answer."},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensOut: 1},
+	fallback := llm.NewMockClient()
+	fallback.SetProviderStatus(llm.ProviderStatus{Provider: "anthropic", Runtime: "chat_completions"})
+	fallback.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Fallback answer."},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensOut: 1},
 	}, "sess-fallback")
 
 	k := New(Config{
 		Model:     "primary-model",
 		Endpoint:  "http://mock",
 		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
-		Fallback: hermes.NormalizeFallbackModelConfig(map[string]any{
+		Fallback: llm.NormalizeFallbackModelConfig(map[string]any{
 			"provider": "anthropic",
 			"model":    "claude-opus-4-20250514",
 		}),
-		FallbackClientFactory: func(_ context.Context, route hermes.ModelRoute) (hermes.Client, error) {
+		FallbackClientFactory: func(_ context.Context, route llm.ModelRoute) (llm.Client, error) {
 			if route.Provider != "anthropic" || route.Model != "claude-opus-4-20250514" {
 				t.Fatalf("fallback route = %#v, want anthropic claude-opus-4-20250514", route)
 			}
@@ -66,29 +66,29 @@ func TestFallbackActivationAfterEmptyResponses(t *testing.T) {
 
 func TestFallbackActivationResolvesCredentialAlias(t *testing.T) {
 	t.Setenv("MY_GOOGLE_KEY", "google-secret-from-env")
-	primary := hermes.NewMockClient()
+	primary := llm.NewMockClient()
 	for i := 0; i < 4; i++ {
-		primary.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "")
+		primary.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "")
 	}
 
-	fallback := hermes.NewMockClient()
-	fallback.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Fallback answer."},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensOut: 1},
+	fallback := llm.NewMockClient()
+	fallback.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Fallback answer."},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensOut: 1},
 	}, "sess-fallback")
 
-	var captured hermes.ModelRoute
+	var captured llm.ModelRoute
 	k := New(Config{
 		Model:     "primary-model",
 		Endpoint:  "http://mock",
 		Admission: Admission{MaxBytes: 200_000, MaxLines: 10_000},
-		Fallback: hermes.NormalizeFallbackModelConfig(map[string]any{
+		Fallback: llm.NormalizeFallbackModelConfig(map[string]any{
 			"provider":    "custom",
 			"model":       "gemini-flash",
 			"base_url":    "https://generativelanguage.googleapis.com/v1beta/openai",
 			"api_key_env": "MY_GOOGLE_KEY",
 		}),
-		FallbackClientFactory: func(_ context.Context, route hermes.ModelRoute) (hermes.Client, error) {
+		FallbackClientFactory: func(_ context.Context, route llm.ModelRoute) (llm.Client, error) {
 			captured = route
 			return fallback, nil
 		},
@@ -119,14 +119,14 @@ func TestFallbackActivationResolvesCredentialAlias(t *testing.T) {
 }
 
 func TestCompressorBudgetUpdatesAfterFallback(t *testing.T) {
-	primary := hermes.NewMockClient()
+	primary := llm.NewMockClient()
 	for i := 0; i < 4; i++ {
-		primary.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "")
+		primary.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "")
 	}
-	fallback := hermes.NewMockClient()
-	fallback.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	fallback := llm.NewMockClient()
+	fallback.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "ok"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-fallback")
 	engine := &fakeContextEngine{}
 
@@ -135,11 +135,11 @@ func TestCompressorBudgetUpdatesAfterFallback(t *testing.T) {
 		Endpoint:      "http://mock",
 		Admission:     Admission{MaxBytes: 200_000, MaxLines: 10_000},
 		ContextEngine: engine,
-		Fallback: hermes.FallbackModelPolicy{
+		Fallback: llm.FallbackModelPolicy{
 			Enabled: true,
-			Routes:  []hermes.ModelRoute{{Provider: "openai-codex", Model: "gpt-5.5"}},
+			Routes:  []llm.ModelRoute{{Provider: "openai-codex", Model: "gpt-5.5"}},
 		},
-		FallbackClientFactory: func(context.Context, hermes.ModelRoute) (hermes.Client, error) {
+		FallbackClientFactory: func(context.Context, llm.ModelRoute) (llm.Client, error) {
 			return fallback, nil
 		},
 	}, primary, store.NewNoop(), telemetry.New(), nil)

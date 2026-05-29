@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/goncho/service"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
 )
 
 func TestNormalTurnGoldenTranscripts(t *testing.T) {
@@ -30,9 +30,9 @@ func TestNormalTurnGoldenTranscripts(t *testing.T) {
 			UserInput:  "Answer with a plain text-only final response.",
 			FinalText:  "Plain text-only final response.",
 			ProviderID: "provider-text",
-			Scripts: [][]hermes.Event{{
-				{Kind: hermes.EventToken, Token: "Plain text-only final response.", TokensOut: 5},
-				{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 12, TokensOut: 5},
+			Scripts: [][]llm.Event{{
+				{Kind: llm.EventToken, Token: "Plain text-only final response.", TokensOut: 5},
+				{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 12, TokensOut: 5},
 			}},
 		},
 		{
@@ -43,15 +43,15 @@ func TestNormalTurnGoldenTranscripts(t *testing.T) {
 			FinalText:   "The fixture tool returned a stable observation.",
 			ProviderID:  "provider-tool",
 			EnableTools: true,
-			Scripts: [][]hermes.Event{
+			Scripts: [][]llm.Event{
 				{
-					{Kind: hermes.EventToken, Token: "Inspecting fixture. ", TokensOut: 3},
+					{Kind: llm.EventToken, Token: "Inspecting fixture. ", TokensOut: 3},
 					{
-						Kind:         hermes.EventDone,
+						Kind:         llm.EventDone,
 						FinishReason: "tool_calls",
 						TokensIn:     18,
 						TokensOut:    3,
-						ToolCalls: []hermes.ToolCall{{
+						ToolCalls: []llm.ToolCall{{
 							ID:        "call_golden_echo",
 							Name:      "golden_echo",
 							Arguments: json.RawMessage(`{"query":"fixture observation"}`),
@@ -59,8 +59,8 @@ func TestNormalTurnGoldenTranscripts(t *testing.T) {
 					},
 				},
 				{
-					{Kind: hermes.EventToken, Token: "The fixture tool returned a stable observation.", TokensOut: 7},
-					{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 31, TokensOut: 7},
+					{Kind: llm.EventToken, Token: "The fixture tool returned a stable observation.", TokensOut: 7},
+					{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 31, TokensOut: 7},
 				},
 			},
 		},
@@ -72,9 +72,9 @@ func TestNormalTurnGoldenTranscripts(t *testing.T) {
 			FinalText:    "Goncho memory says the user prefers exact evidence-first reports.",
 			ProviderID:   "provider-memory",
 			EnableGoncho: true,
-			Scripts: [][]hermes.Event{{
-				{Kind: hermes.EventToken, Token: "Goncho memory says the user prefers exact evidence-first reports.", TokensOut: 9},
-				{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 24, TokensOut: 9},
+			Scripts: [][]llm.Event{{
+				{Kind: llm.EventToken, Token: "Goncho memory says the user prefers exact evidence-first reports.", TokensOut: 9},
+				{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 24, TokensOut: 9},
 			}},
 		},
 	} {
@@ -94,7 +94,7 @@ type goldenScenario struct {
 	ProviderID   string
 	EnableTools  bool
 	EnableGoncho bool
-	Scripts      [][]hermes.Event
+	Scripts      [][]llm.Event
 }
 
 type goldenTranscript struct {
@@ -202,7 +202,7 @@ func runGoldenScenario(t *testing.T, scenario goldenScenario) goldenTranscript {
 		registry.MustRegister(goldenEchoTool{})
 	}
 
-	provider := hermes.NewMockClient()
+	provider := llm.NewMockClient()
 	for _, script := range scenario.Scripts {
 		provider.Script(script, scenario.ProviderID)
 	}
@@ -309,7 +309,7 @@ func assertGoldenTranscript(t *testing.T, name string, got goldenTranscript) {
 	}
 }
 
-func normalizeGoldenRequests(requests []hermes.ChatRequest) []goldenProviderRequest {
+func normalizeGoldenRequests(requests []llm.ChatRequest) []goldenProviderRequest {
 	out := make([]goldenProviderRequest, 0, len(requests))
 	for _, req := range requests {
 		tools := make([]string, 0, len(req.Tools))
@@ -442,7 +442,7 @@ func toolCallsFromMeta(t *testing.T, meta string) []goldenToolCall {
 		return nil
 	}
 	var decoded struct {
-		ToolCalls []hermes.ToolCall `json:"tool_calls"`
+		ToolCalls []llm.ToolCall `json:"tool_calls"`
 	}
 	if err := json.Unmarshal([]byte(meta), &decoded); err != nil {
 		t.Fatalf("decode persisted meta_json: %v", err)
@@ -450,7 +450,7 @@ func toolCallsFromMeta(t *testing.T, meta string) []goldenToolCall {
 	return normalizeGoldenToolCalls(decoded.ToolCalls)
 }
 
-func normalizeGoldenToolCalls(calls []hermes.ToolCall) []goldenToolCall {
+func normalizeGoldenToolCalls(calls []llm.ToolCall) []goldenToolCall {
 	out := make([]goldenToolCall, 0, len(calls))
 	for _, call := range calls {
 		out = append(out, goldenToolCall{

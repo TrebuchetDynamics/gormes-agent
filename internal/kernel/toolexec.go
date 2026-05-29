@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -19,7 +19,7 @@ type toolResult struct {
 	ID           string
 	Name         string
 	Content      string // JSON string or text fallback — errors are JSON-encoded {"error":"..."}
-	ContentParts []hermes.MessageContentPart
+	ContentParts []llm.MessageContentPart
 }
 
 type toolBatchOutcome struct {
@@ -43,7 +43,7 @@ const toolExecutionCancelledContent = `{"error":"tool execution cancelled"}`
 // It preserves result order for the model-facing transcript. Existing unit
 // tests call this wrapper directly; runTurn uses executeToolCallsInterruptible
 // so a PlatformEventCancel can stop the active tool batch.
-func (k *Kernel) executeToolCalls(runCtx context.Context, calls []hermes.ToolCall) []toolResult {
+func (k *Kernel) executeToolCalls(runCtx context.Context, calls []llm.ToolCall) []toolResult {
 	return k.executeToolCallsInterruptible(runCtx, calls, "").Results
 }
 
@@ -52,7 +52,7 @@ func (k *Kernel) executeToolCalls(runCtx context.Context, calls []hermes.ToolCal
 // function while workers run, so it can keep servicing k.events and propagate a
 // single interrupt to every in-flight worker before returning one coherent
 // cancellation envelope per call.
-func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []hermes.ToolCall, turnKey string) toolBatchOutcome {
+func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []llm.ToolCall, turnKey string) toolBatchOutcome {
 	results := make([]toolResult, len(calls))
 	auditRecords := make([]*audit.Record, len(calls))
 	if len(calls) == 0 {
@@ -66,7 +66,7 @@ func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []h
 	for i, call := range calls {
 		k.addSoul(toolCallSoulText(call))
 		k.emitFrame("executing tool: " + call.Name)
-		go func(index int, toolCall hermes.ToolCall, sessionID string) {
+		go func(index int, toolCall llm.ToolCall, sessionID string) {
 			resultCh <- k.executeOneToolCall(execCtx, index, toolCall, sessionID, turnKey)
 		}(i, call, k.sessionID)
 	}
@@ -128,7 +128,7 @@ func (k *Kernel) executeToolCallsInterruptible(runCtx context.Context, calls []h
 	return toolBatchOutcome{Results: results, Cancelled: cancelled}
 }
 
-func toolCallSoulText(call hermes.ToolCall) string {
+func toolCallSoulText(call llm.ToolCall) string {
 	name := strings.TrimSpace(call.Name)
 	if name == "" {
 		name = "unknown"
@@ -266,7 +266,7 @@ func truncatePreviewToken(s string, n int) string {
 	return string(runes[:n])
 }
 
-func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.ToolCall, sessionID, turnKey string) indexedToolResult {
+func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call llm.ToolCall, sessionID, turnKey string) indexedToolResult {
 	start := time.Now()
 	buildAudit := func(status string, result json.RawMessage, err error) *audit.Record {
 		if k.cfg.ToolAudit == nil {
@@ -336,7 +336,7 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 	}
 
 	executeContextEngineTool := func() indexedToolResult {
-		payload, err := k.cfg.ContextEngine.HandleToolCall(ctx, call.Name, call.Arguments, hermes.ContextToolCallOptions{})
+		payload, err := k.cfg.ContextEngine.HandleToolCall(ctx, call.Name, call.Arguments, llm.ContextToolCallOptions{})
 		if len(payload) == 0 && err != nil {
 			payload = json.RawMessage(fmt.Sprintf(`{"error":%q}`, err.Error()))
 		}
@@ -437,7 +437,7 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 	})
 }
 
-func (k *Kernel) observeGonchoToolCall(ctx context.Context, call hermes.ToolCall, sessionID, turnKey string) {
+func (k *Kernel) observeGonchoToolCall(ctx context.Context, call llm.ToolCall, sessionID, turnKey string) {
 	k.observeGoncho(ctx, GonchoObservation{
 		Kind:       GonchoObservationToolCall,
 		PeerID:     "gormes",
@@ -449,7 +449,7 @@ func (k *Kernel) observeGonchoToolCall(ctx context.Context, call hermes.ToolCall
 	})
 }
 
-func (k *Kernel) observeGonchoToolOutcome(ctx context.Context, call hermes.ToolCall, sessionID, turnKey string, res indexedToolResult) {
+func (k *Kernel) observeGonchoToolOutcome(ctx context.Context, call llm.ToolCall, sessionID, turnKey string, res indexedToolResult) {
 	success := res.Status == "completed"
 	kind := GonchoObservationToolResult
 	if !success {
@@ -483,7 +483,7 @@ func gonchoToolContextID(turnKey, callID string) string {
 	}
 }
 
-func gonchoToolMetadata(call hermes.ToolCall, turnKey, status string) map[string]string {
+func gonchoToolMetadata(call llm.ToolCall, turnKey, status string) map[string]string {
 	metadata := map[string]string{
 		"source":       "kernel",
 		"tool_name":    call.Name,
@@ -498,11 +498,11 @@ func gonchoToolMetadata(call hermes.ToolCall, turnKey, status string) map[string
 	return metadata
 }
 
-func cancelledToolResult(call hermes.ToolCall) toolResult {
+func cancelledToolResult(call llm.ToolCall) toolResult {
 	return toolResult{ID: call.ID, Name: call.Name, Content: toolExecutionCancelledContent}
 }
 
-func newToolResult(call hermes.ToolCall, payload json.RawMessage) toolResult {
+func newToolResult(call llm.ToolCall, payload json.RawMessage) toolResult {
 	result := toolResult{ID: call.ID, Name: call.Name, Content: string(payload)}
 	if summary, parts, ok := multimodalToolResult(payload); ok {
 		result.Content = summary
@@ -511,7 +511,7 @@ func newToolResult(call hermes.ToolCall, payload json.RawMessage) toolResult {
 	return result
 }
 
-func multimodalToolResult(payload json.RawMessage) (string, []hermes.MessageContentPart, bool) {
+func multimodalToolResult(payload json.RawMessage) (string, []llm.MessageContentPart, bool) {
 	var envelope struct {
 		Multimodal  bool              `json:"_multimodal"`
 		TextSummary string            `json:"text_summary"`
@@ -520,7 +520,7 @@ func multimodalToolResult(payload json.RawMessage) (string, []hermes.MessageCont
 	if err := json.Unmarshal(payload, &envelope); err != nil || !envelope.Multimodal || len(envelope.Content) == 0 {
 		return "", nil, false
 	}
-	parts := make([]hermes.MessageContentPart, 0, len(envelope.Content))
+	parts := make([]llm.MessageContentPart, 0, len(envelope.Content))
 	for _, raw := range envelope.Content {
 		part, ok := multimodalContentPart(raw)
 		if ok {
@@ -545,27 +545,27 @@ func multimodalToolResult(payload json.RawMessage) (string, []hermes.MessageCont
 	return summary, parts, true
 }
 
-func multimodalContentPart(raw json.RawMessage) (hermes.MessageContentPart, bool) {
+func multimodalContentPart(raw json.RawMessage) (llm.MessageContentPart, bool) {
 	var node map[string]any
 	if err := json.Unmarshal(raw, &node); err != nil {
-		return hermes.MessageContentPart{}, false
+		return llm.MessageContentPart{}, false
 	}
 	partType := strings.ToLower(strings.TrimSpace(asString(node["type"])))
 	switch partType {
 	case "text", "input_text", "output_text":
 		text := asString(node["text"])
 		if strings.TrimSpace(text) == "" {
-			return hermes.MessageContentPart{}, false
+			return llm.MessageContentPart{}, false
 		}
-		return hermes.MessageContentPart{Type: "text", Text: text}, true
+		return llm.MessageContentPart{Type: "text", Text: text}, true
 	case "image_url", "input_image", "image":
 		url, detail := imageURLPart(node)
 		if strings.TrimSpace(url) == "" {
-			return hermes.MessageContentPart{}, false
+			return llm.MessageContentPart{}, false
 		}
-		return hermes.MessageContentPart{Type: "image_url", ImageURL: url, Detail: detail}, true
+		return llm.MessageContentPart{Type: "image_url", ImageURL: url, Detail: detail}, true
 	default:
-		return hermes.MessageContentPart{}, false
+		return llm.MessageContentPart{}, false
 	}
 }
 

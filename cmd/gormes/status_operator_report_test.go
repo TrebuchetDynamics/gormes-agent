@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 )
 
 func TestStatusRendersLatestOperatorRunReport(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestCompactSlashTogglesTranscriptRenderingWithoutSubmitting(t *testing.T) {
@@ -130,8 +130,8 @@ func newCompactSlashModel(sub *nopSubmitter, compact bool) Model {
 	return m
 }
 
-func compactSlashHistory() []hermes.Message {
-	return []hermes.Message{
+func compactSlashHistory() []llm.Message {
+	return []llm.Message{
 		{Role: "user", Content: "first question"},
 		{Role: "assistant", Content: "first answer"},
 		{Role: "user", Content: "second question with enough words to make compact mode visibly collapse the transcript row into one line"},

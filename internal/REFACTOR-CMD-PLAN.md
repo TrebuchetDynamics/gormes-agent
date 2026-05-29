@@ -90,7 +90,7 @@ Current Gormes topology facts:
 - `cmd/gormes` directly imports 55 internal paths, including
   `internal/app/gormescli`, `internal/app/gormescli/modules/*`,
   `internal/toolcompact`, `internal/gonchotools`, `internal/kanbantools`,
-  `internal/sessionsearchtool`, `internal/slack`, and many deep runtime
+  `internal/persistence/sessionsearchtool`, `internal/slack`, and many deep runtime
   modules.
 - `internal/app/gormescli/root.go` already centralizes root Cobra assembly and
   top-level command ordering, but it lives under a shallow `internal/app`
@@ -155,7 +155,7 @@ contracts for future rows; they are not standalone implementation tasks.
   alias lookup, user-overrides-bundled precedence, and legacy single-file
   provider fallback. Gormes provider topology should preserve the split between
   provider profile discovery (`internal/provider` / plugin registry) and wire
-  inference transports (`internal/hermes`).
+  inference transports (`internal/llm`).
 - `tools/registry.py` is a self-registering tool registry with dynamic module
   discovery, toolset aliases, toolset availability checks, TTL-cached external
   probes, registry generation counters, and MCP refresh support. Gormes
@@ -171,11 +171,11 @@ contracts for future rows; they are not standalone implementation tasks.
 - `acp_adapter/server.py` and `acp_registry/agent.json` make ACP a separate
   editor/protocol surface: server implementation, session/resource conversion,
   auth methods, tool progress events, and package metadata are not generic CLI
-  glue. Gormes' `internal/acp` should remain a domain owner, with only command
+  glue. Gormes' `internal/protocols/acp` should remain a domain owner, with only command
   presentation in `cmd/gormes`/`internal/cli`.
 - `cron/scheduler.py` owns unattended job execution, file locking, per-job and
   per-platform toolset resolution, delivery targets, prompt-injection blocking,
-  and plugin platform delivery env-var lookup. Gormes `internal/cron` remains a
+  and plugin platform delivery env-var lookup. Gormes `internal/automation/cron` remains a
   domain owner; do not bury cron mechanics under gateway or generic runtime just
   to reduce top-level directories.
 - `ui-tui/src/app.tsx` composes a Gateway-backed TUI (`GatewayProvider`,
@@ -206,14 +206,14 @@ monolith level.
 | `hermes_cli/_parser.py`, `hermes_cli/main.py` | `cmd/gormes` + `internal/cli/surface` + `internal/cli/commands/*` | Keep process entry in `cmd/gormes`; move reusable command construction and command-surface contracts under `internal/cli`. |
 | `hermes_cli/commands.py` | `internal/cli/command_registry.go` plus `internal/cli/surface` manifests | One registry feeds slash semantics, TUI completion, gateway command policy, and visible command ownership. |
 | `hermes_cli/config.py` | `internal/config` and config-facing `internal/cli` helpers | Config loading/secrets stay in `internal/config`; CLI presentation stays near `internal/cli`. |
-| `hermes_cli/claw.py` | `internal/migrate/openclaw` and `cmd/gormes migrate/openclaw` adapters | Migration is its own domain, not generic CLI glue. |
+| `hermes_cli/claw.py` | `internal/platform/migrate/openclaw` and `cmd/gormes migrate/openclaw` adapters | Migration is its own domain, not generic CLI glue. |
 | `gateway/run.py`, `gateway/platforms/*` | `internal/gateway` + `internal/channels/<platform>` | Gateway owns lifecycle/session/coalescing; channel adapters own platform transport and rendering. |
-| `agent/*` | `internal/kernel`, `internal/hermes`, `internal/agent`, `internal/memory`, `internal/store` | Preserve Gormes' deeper Go seams; do not merge into one `agent` package just to match Python. |
+| `agent/*` | `internal/kernel`, `internal/llm`, `internal/agent`, `internal/memory`, `internal/persistence/store` | Preserve Gormes' deeper Go seams; do not merge into one `agent` package just to match Python. |
 | `tools/*` | `internal/tools/*` | Tool adapters/helpers live behind the tool registry seam; plugin-defined tools enter through the same registry, not through top-level helper packages. |
-| `providers/*` and `plugins/model-providers/*` | `internal/hermes` + `internal/provider` + `internal/plugins` | Provider wire/model behavior stays out of CLI and gateway modules; profile discovery/override semantics stay separate from HTTP transports. |
+| `providers/*` and `plugins/model-providers/*` | `internal/llm` + `internal/provider` + `internal/plugins` | Provider wire/model behavior stays out of CLI and gateway modules; profile discovery/override semantics stay separate from HTTP transports. |
 | `hermes_cli/plugins.py`, `plugins/*`, `agent/*_registry.py` | `internal/plugins` plus domain registries under `internal/provider`, `internal/tools`, `internal/channels`, `internal/memory`, and media/browser modules | Plugin discovery, manifests, hooks, CLI command registration, platform registration, provider registration, and tool registration are runtime extension contracts, not command-package cleanup targets. |
-| `acp_adapter/*`, `acp_registry/agent.json` | `internal/acp` + thin `cmd/gormes`/`internal/cli` presentation | ACP is an editor/protocol surface with its own auth/session/resource/tool-progress contracts; keep it out of generic CLI/runtime buckets. |
-| `cron/*` | `internal/cron` | Cron owns unattended job scheduling, locks, toolset resolution, delivery, and prompt-injection safety; gateway may trigger ticks but should not own cron policy. |
+| `acp_adapter/*`, `acp_registry/agent.json` | `internal/protocols/acp` + thin `cmd/gormes`/`internal/cli` presentation | ACP is an editor/protocol surface with its own auth/session/resource/tool-progress contracts; keep it out of generic CLI/runtime buckets. |
+| `cron/*` | `internal/automation/cron` | Cron owns unattended job scheduling, locks, toolset resolution, delivery, and prompt-injection safety; gateway may trigger ticks but should not own cron policy. |
 | `ui-tui/*`, dashboard/web gateway clients | `internal/tui` + `internal/tuigateway` + `internal/apiserver` | Preserve the transport/UI boundary: TUI widgets, gateway event transport, and dashboard/API surfaces are related but not one package. |
 | `skills/*`, `optional-skills/*`, skill tools in `tools/*` | `internal/skills` plus bundled skill assets/sync surfaces | Skills remain a deep runtime module; distribution/sync/catalog surfaces stay explicit and command presentation routes through CLI modules only. |
 | Gormes-only progress delivery | `internal/progress/*` | This has no Hermes analog; keep it explicitly Gormes-owned and away from runtime agent modules. |
@@ -271,7 +271,7 @@ internal/
     lsp/                          moved from internal/lsp
     goncho/                       moved from internal/gonchotools
     kanban/                       moved from internal/kanbantools
-    sessionsearch/                moved from internal/sessionsearchtool
+    sessionsearch/                moved from internal/persistence/sessionsearchtool
     whisper/                      optional move from internal/wasi/whisper after audio check
 
   progress/                       Gormes-owned delivery/control-plane module
@@ -534,7 +534,7 @@ Files/packages:
 
 - `internal/gonchotools`
 - `internal/kanbantools`
-- `internal/sessionsearchtool`
+- `internal/persistence/sessionsearchtool`
 - `internal/toolcompact`
 - `internal/tooltrace`
 - `internal/lsp`
@@ -720,7 +720,7 @@ Focused validation:
 
 ```sh
 go test ./cmd/progress ./cmd/repoctl ./internal/progress/... ./internal/runtime/... -count=1
-go test ./internal/acp ./cmd/gormes -run 'ACP|Progress|Repo|Fidelity' -count=1
+go test ./internal/protocols/acp ./cmd/gormes -run 'ACP|Progress|Repo|Fidelity' -count=1
 go run ./cmd/progress validate
 git diff --check
 ```
@@ -777,7 +777,7 @@ First safe TDD slice:
 Focused validation:
 
 ```sh
-go test ./internal/runtime/... ./internal/acp ./internal/plannerloop ./internal/builderloop -run 'Command|Runner|Timeout|ACP|Loop' -count=1
+go test ./internal/runtime/... ./internal/protocols/acp ./internal/plannerloop ./internal/builderloop -run 'Command|Runner|Timeout|ACP|Loop' -count=1
 go run ./cmd/progress validate
 git diff --check
 ```
@@ -941,7 +941,7 @@ write_scope:
   - internal/lsp
   - internal/gonchotools
   - internal/kanbantools
-  - internal/sessionsearchtool
+  - internal/persistence/sessionsearchtool
   - internal/tools
   - cmd/gormes/registry.go
 source_refs:
@@ -1010,7 +1010,7 @@ write_scope:
   - internal/runtime
   - cmd/progress
   - cmd/repoctl
-  - internal/acp
+  - internal/protocols/acp
 source_refs:
   - cmd/progress/main.go
   - internal/progressctl/progressctl.go
@@ -1021,7 +1021,7 @@ source_refs:
   - internal/repoctl
 test_commands:
   - go test ./cmd/progress ./cmd/repoctl ./internal/progress/... ./internal/runtime/... -count=1
-  - go test ./internal/acp ./cmd/gormes -run 'ACP|Progress|Repo|Fidelity' -count=1
+  - go test ./internal/protocols/acp ./cmd/gormes -run 'ACP|Progress|Repo|Fidelity' -count=1
   - go run ./cmd/progress validate
   - git diff --check
 ```
@@ -1034,7 +1034,7 @@ test_commands:
 | Tool helper move | descriptor/execution/render test fails when old helper path or behavior drifts | `go test ./internal/tools ./cmd/gormes -run 'Compact|Terminal|ExecuteCode|Registry|SessionSearch|Kanban|Goncho' -count=1` |
 | Channel adapter move | platform manifest/transcript fixture fails on old channel surface | `go test ./internal/channels/<platform> ./internal/gateway ./cmd/gormes -run '<Platform>|Gateway|Doctor' -count=1` |
 | Progress delivery move | progress command fixture fails on old import path or doc behavior | `go test ./cmd/progress ./cmd/repoctl ./internal/progress/... ./internal/runtime/... -count=1` |
-| Runtime process move | public caller test proves timeout/stdout/stderr semantics before move | `go test ./internal/runtime/... ./internal/acp -run 'Command|Runner|Timeout|ACP' -count=1` |
+| Runtime process move | public caller test proves timeout/stdout/stderr semantics before move | `go test ./internal/runtime/... ./internal/protocols/acp -run 'Command|Runner|Timeout|ACP' -count=1` |
 | Any progress row edit | `go run ./cmd/progress validate` before edit | `go run ./cmd/progress write && go run ./cmd/progress validate` |
 | Any slice | `git diff --check` | `git diff --check` |
 

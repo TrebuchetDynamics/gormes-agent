@@ -10,10 +10,10 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestTelegramGatewayE2EAccountChannelRoutesAndFormatsFinal(t *testing.T) {
@@ -23,10 +23,10 @@ func TestTelegramGatewayE2EAccountChannelRoutesAndFormatsFinal(t *testing.T) {
 		t.Fatalf("bot name = %q, want account-scoped platform", got)
 	}
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Use a_b(c)!"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Use a_b(c)!"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-telegram-e2e")
 	k := kernel.New(kernel.Config{
 		Model:     "mock-telegram-model",

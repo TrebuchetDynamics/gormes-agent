@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/spf13/cobra"

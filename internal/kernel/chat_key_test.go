@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 // TestKernel_ChatKeyPropagatesToStorePayload proves that setting
@@ -17,9 +17,9 @@ import (
 // has data to filter against.
 func TestKernel_ChatKeyPropagatesToStorePayload(t *testing.T) {
 	rec := store.NewRecording()
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-chat-key-test")
 
 	k := New(Config{

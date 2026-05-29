@@ -10,8 +10,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestChatPalette_SkinDerivedAndRoleDistinct(t *testing.T) {
@@ -165,12 +165,12 @@ func TestModelViewGlobalChromeSmokeAcrossBuiltInSkins(t *testing.T) {
 		Phase:     kernel.PhaseStreaming,
 		Model:     "anthropic/claude-sonnet-4-20250514",
 		SessionID: "sess-global-skin-smoke",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "please improve the global TUI styling"},
 			{Role: "assistant", Content: "# Styling pass\n\nUse shared skin tokens for `gormes` chrome."},
 			{Role: "tool", Name: "bash", Content: "go test ./internal/tui -count=1"},
 		},
-		ContextStatus: &hermes.ContextStatus{ContextLength: 200_000, LastTotalTokens: 123_456},
+		ContextStatus: &llm.ContextStatus{ContextLength: 200_000, LastTotalTokens: 123_456},
 	}
 	skins := BuiltinSkins()
 	names := make([]string, 0, len(skins))
@@ -254,7 +254,7 @@ func TestTUISurfaceColorsRouteThroughSharedStyles(t *testing.T) {
 func TestConversationViewportTail_UsesActiveSkinGlyphs(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "invoke ares"},
 			{Role: "assistant", Content: "ares response"},
 		},
@@ -276,7 +276,7 @@ func TestConversationViewportTail_UsesActiveSkinGlyphs(t *testing.T) {
 func TestView_RoleDifferentiationSurvivesStyleRefactor(t *testing.T) {
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "first ask"},
 			{Role: "assistant", Content: "the answer"},
 			{Role: "tool", Name: "search_files", Content: "hit one\nhit two"},

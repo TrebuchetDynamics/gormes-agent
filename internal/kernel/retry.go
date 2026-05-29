@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // RetryBudget implements the Route-B reconnect schedule from spec §9.2:
@@ -134,14 +134,14 @@ func Wait(ctx context.Context, d time.Duration) error {
 }
 
 func providerRetryAfter(err error) time.Duration {
-	var httpErr *hermes.HTTPError
+	var httpErr *llm.HTTPError
 	if errors.As(err, &httpErr) {
 		return httpErr.RetryAfter
 	}
 	return 0
 }
 
-func retryStatusWithDecision(status RetryStatus, decision RetryDelayDecision, classification hermes.ProviderErrorClassification) RetryStatus {
+func retryStatusWithDecision(status RetryStatus, decision RetryDelayDecision, classification llm.ProviderErrorClassification) RetryStatus {
 	if len(status.Schedule) == 0 {
 		status = NewRetryStatus()
 	}

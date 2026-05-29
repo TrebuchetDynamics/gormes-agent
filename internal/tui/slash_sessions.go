@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 const sessionResumeTimeout = 5 * time.Second
@@ -91,14 +91,14 @@ func resumeSuccessStatus(sessionID string, messages int) string {
 	return fmt.Sprintf("resumed %s (%s)", sessionID, messageCountLabel(messages))
 }
 
-func cloneResumeHistory(in []hermes.Message) []hermes.Message {
+func cloneResumeHistory(in []llm.Message) []llm.Message {
 	if len(in) == 0 {
 		return nil
 	}
-	out := make([]hermes.Message, len(in))
+	out := make([]llm.Message, len(in))
 	for i, msg := range in {
 		out[i] = msg
-		out[i].ContentParts = append([]hermes.MessageContentPart(nil), msg.ContentParts...)
+		out[i].ContentParts = append([]llm.MessageContentPart(nil), msg.ContentParts...)
 	}
 	return out
 }

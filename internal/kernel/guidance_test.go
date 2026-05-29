@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
-func captureGuidanceRequest(t *testing.T, cfg Config, text string) hermes.ChatRequest {
+func captureGuidanceRequest(t *testing.T, cfg Config, text string) llm.ChatRequest {
 	t.Helper()
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-guidance")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-guidance")
 	if cfg.Model == "" {
 		cfg.Model = "hermes-agent"
 	}
@@ -61,12 +61,12 @@ func TestKernel_LiveTurnGuidanceGatedByCapabilities(t *testing.T) {
 	}
 	joined := joinSystemMessages(req.Messages)
 	for _, want := range []string{
-		hermes.MemoryGuidance,
-		hermes.SessionSearchGuidance,
-		hermes.SkillsGuidance,
-		hermes.ToolUseEnforcementGuidance,
-		hermes.OpenAIModelExecutionGuidance,
-		hermes.ResearchQualityGuidance,
+		llm.MemoryGuidance,
+		llm.SessionSearchGuidance,
+		llm.SkillsGuidance,
+		llm.ToolUseEnforcementGuidance,
+		llm.OpenAIModelExecutionGuidance,
+		llm.ResearchQualityGuidance,
 		"<memory-context>remembered</memory-context>",
 		"gormes-tdd-slice",
 	} {
@@ -75,13 +75,13 @@ func TestKernel_LiveTurnGuidanceGatedByCapabilities(t *testing.T) {
 		}
 	}
 	assertGuidanceOrder(t, joined, []string{
-		hermes.SessionSearchGuidance,
-		hermes.ToolUseEnforcementGuidance,
-		hermes.OpenAIModelExecutionGuidance,
-		hermes.ResearchQualityGuidance,
-		hermes.MemoryGuidance,
+		llm.SessionSearchGuidance,
+		llm.ToolUseEnforcementGuidance,
+		llm.OpenAIModelExecutionGuidance,
+		llm.ResearchQualityGuidance,
+		llm.MemoryGuidance,
 		"<memory-context>remembered</memory-context>",
-		hermes.SkillsGuidance,
+		llm.SkillsGuidance,
 		"gormes-tdd-slice",
 	})
 	last := req.Messages[len(req.Messages)-1]
@@ -94,12 +94,12 @@ func TestKernel_LiveTurnGuidanceOmitsUnavailableCapabilities(t *testing.T) {
 	req := captureGuidanceRequest(t, Config{Model: "claude-opus-4-7"}, "plain turn")
 	joined := joinSystemMessages(req.Messages)
 	for _, notWant := range []string{
-		hermes.MemoryGuidance,
-		hermes.SessionSearchGuidance,
-		hermes.SkillsGuidance,
-		hermes.ToolUseEnforcementGuidance,
-		hermes.OpenAIModelExecutionGuidance,
-		hermes.ResearchQualityGuidance,
+		llm.MemoryGuidance,
+		llm.SessionSearchGuidance,
+		llm.SkillsGuidance,
+		llm.ToolUseEnforcementGuidance,
+		llm.OpenAIModelExecutionGuidance,
+		llm.ResearchQualityGuidance,
 	} {
 		if strings.Contains(joined, notWant) {
 			t.Fatalf("provider system guidance unexpectedly contains %q in:\n%s", notWant, joined)
@@ -110,7 +110,7 @@ func TestKernel_LiveTurnGuidanceOmitsUnavailableCapabilities(t *testing.T) {
 	}
 }
 
-func joinSystemMessages(messages []hermes.Message) string {
+func joinSystemMessages(messages []llm.Message) string {
 	var parts []string
 	for _, msg := range messages {
 		if msg.Role == "system" {

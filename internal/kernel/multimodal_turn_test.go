@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestKernel_SubmitPreservesMultimodalContentParts(t *testing.T) {
-	client := hermes.NewMockClient()
-	client.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "A cat"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	client := llm.NewMockClient()
+	client.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "A cat"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-multimodal")
 	k := New(Config{
 		Model:     "gormes-agent",
@@ -27,7 +27,7 @@ func TestKernel_SubmitPreservesMultimodalContentParts(t *testing.T) {
 	go func() { _ = k.Run(ctx) }()
 	initial := <-k.Render()
 
-	parts := []hermes.MessageContentPart{
+	parts := []llm.MessageContentPart{
 		{Type: "text", Text: "describe this"},
 		{Type: "image_url", ImageURL: "https://example.com/cat.png", Detail: "high"},
 	}
@@ -52,10 +52,10 @@ func TestKernel_SubmitPreservesMultimodalContentParts(t *testing.T) {
 }
 
 func TestKernel_SubmitAllowsImageOnlyContentParts(t *testing.T) {
-	client := hermes.NewMockClient()
-	client.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Image received"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	client := llm.NewMockClient()
+	client.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Image received"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-image-only")
 	k := New(Config{
 		Model:     "gormes-agent",
@@ -67,7 +67,7 @@ func TestKernel_SubmitAllowsImageOnlyContentParts(t *testing.T) {
 	go func() { _ = k.Run(ctx) }()
 	initial := <-k.Render()
 
-	parts := []hermes.MessageContentPart{{Type: "image_url", ImageURL: "data:image/png;base64,AAAA"}}
+	parts := []llm.MessageContentPart{{Type: "image_url", ImageURL: "data:image/png;base64,AAAA"}}
 	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, ContentParts: parts}); err != nil {
 		t.Fatalf("Submit: %v", err)
 	}

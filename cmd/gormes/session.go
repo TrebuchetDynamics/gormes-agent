@@ -17,9 +17,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 	sessionsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/sessions"
-	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
@@ -85,7 +85,7 @@ func runSessionListCommand(cmd *cobra.Command, _ []string) error {
 
 // sessionListReportJSON is the wire shape for `gormes session list --json`.
 // Build provenance leads, then the sessions array — same convention as
-// the rest of the --json arc. internal/session.DirectoryEntry is
+// the rest of the --json arc. internal/persistence/session.DirectoryEntry is
 // tag-free; mirroring it here keeps presentation concerns out of the
 // session package.
 type sessionListReportJSON struct {

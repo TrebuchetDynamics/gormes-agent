@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // liveTurnPromptSeams is the test seam for live-turn prompt assembly.
@@ -35,14 +35,14 @@ type liveTurnPromptSeams struct {
 	ProfileDir   func() string
 	CWD          func() string
 	MemoryDir    func() string
-	Build        func(opts hermes.ContextFilesOptions) (string, hermes.ContextFilesReport)
-	BuildDurable func(opts hermes.DurableUserContextOptions) (string, hermes.DurableUserContextReport)
+	Build        func(opts llm.ContextFilesOptions) (string, llm.ContextFilesReport)
+	BuildDurable func(opts llm.DurableUserContextOptions) (string, llm.DurableUserContextReport)
 
 	// Slice 4: turn-metadata seams.
 	Now            func() time.Time
 	ActiveModel    func() string
 	ActiveProvider func() string
-	BuildMetadata  func(opts hermes.TurnMetadataOptions) string
+	BuildMetadata  func(opts llm.TurnMetadataOptions) string
 
 	// Slice 4: self-help guidance gate.
 	SelfHelpGate func(submitText string) (string, bool)
@@ -56,7 +56,7 @@ type liveTurnPromptSeams struct {
 // The slice-4 metadata clock and active model/provider getters default to nil
 // so callers that have not configured them produce an empty metadata block.
 // The default SelfHelpGate uses the shipped helper.
-// BuildMetadata always points at hermes.BuildTurnMetadataBlock so the gate
+// BuildMetadata always points at llm.BuildTurnMetadataBlock so the gate
 // (Now != zero or any field set) is the only switch that controls whether
 // the block actually appears.
 func defaultLiveTurnPromptSeams() liveTurnPromptSeams {
@@ -64,10 +64,10 @@ func defaultLiveTurnPromptSeams() liveTurnPromptSeams {
 		ProfileDir:    func() string { return defaultLiveTurnProfileDir(defaultLiveTurnCWD()) },
 		CWD:           defaultLiveTurnCWD,
 		MemoryDir:     func() string { return defaultLiveTurnMemoryDir(defaultLiveTurnCWD()) },
-		Build:         hermes.BuildContextFilesPrompt,
-		BuildDurable:  hermes.BuildDurableUserContextPrompt,
-		BuildMetadata: hermes.BuildTurnMetadataBlock,
-		SelfHelpGate:  hermes.GormesSelfHelpGuidanceForPrompt,
+		Build:         llm.BuildContextFilesPrompt,
+		BuildDurable:  llm.BuildDurableUserContextPrompt,
+		BuildMetadata: llm.BuildTurnMetadataBlock,
+		SelfHelpGate:  llm.GormesSelfHelpGuidanceForPrompt,
 	}
 }
 
@@ -215,12 +215,12 @@ func hasLiveTurnFile(dir, name string) bool {
 // when neither the metadata seams nor the self-help gate produce content.
 // When all pieces are empty the result is "" (callers pass sessionBlock != ""
 // in production).
-func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, activeSessionID, sessionBlock string) (string, hermes.ContextFilesReport, hermes.DurableUserContextReport) {
+func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, activeSessionID, sessionBlock string) (string, llm.ContextFilesReport, llm.DurableUserContextReport) {
 	var (
 		contextBlock  string
-		contextReport hermes.ContextFilesReport
+		contextReport llm.ContextFilesReport
 		durableBlock  string
-		durableReport hermes.DurableUserContextReport
+		durableReport llm.DurableUserContextReport
 		profileDir    string
 		cwd           string
 		memoryDir     string
@@ -237,12 +237,12 @@ func assembleLiveTurnPrompt(seams liveTurnPromptSeams, submitText, activeSession
 	}
 
 	if seams.Build != nil {
-		opts := hermes.ContextFilesOptions{ProfileDir: profileDir, CWD: cwd}
+		opts := llm.ContextFilesOptions{ProfileDir: profileDir, CWD: cwd}
 		contextBlock, contextReport = seams.Build(opts)
 	}
 
 	if seams.BuildDurable != nil {
-		opts := hermes.DurableUserContextOptions{MemoryDir: memoryDir}
+		opts := llm.DurableUserContextOptions{MemoryDir: memoryDir}
 		durableBlock, durableReport = seams.BuildDurable(opts)
 	}
 
@@ -345,7 +345,7 @@ func buildMetadataFromSeams(seams liveTurnPromptSeams, activeSessionID string) s
 	if seams.Now == nil && seams.ActiveModel == nil && seams.ActiveProvider == nil {
 		return ""
 	}
-	opts := hermes.TurnMetadataOptions{SessionID: strings.TrimSpace(activeSessionID)}
+	opts := llm.TurnMetadataOptions{SessionID: strings.TrimSpace(activeSessionID)}
 	if seams.Now != nil {
 		opts.Now = seams.Now()
 	}
@@ -380,11 +380,11 @@ func buildToolUseEnforcementBlock(seams liveTurnPromptSeams) string {
 	if !modelMatchesToolUseEnforcement(model) {
 		return ""
 	}
-	return hermes.ToolUseEnforcementGuidance
+	return llm.ToolUseEnforcementGuidance
 }
 
 func modelMatchesToolUseEnforcement(model string) bool {
-	for _, prefix := range hermes.ToolUseEnforcementModels {
+	for _, prefix := range llm.ToolUseEnforcementModels {
 		if strings.Contains(model, strings.ToLower(prefix)) {
 			return true
 		}

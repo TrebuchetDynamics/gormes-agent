@@ -102,7 +102,7 @@ func SecretEnvName(key string) string {
 
 // WriteTOMLValue persists a single dotted key/value pair into the TOML file
 // at path. The dotted key may be a top-level field (interpreted as
-// hermes.<name> for the small Hermes-aliased set) or a `<section>.<field>`
+// llm.<name> for the small Hermes-aliased set) or a `<section>.<field>`
 // pair. Unknown top-level sections are rejected before any write so a typo
 // cannot create an unbounded namespace.
 func WriteTOMLValue(path, key, value string) error {

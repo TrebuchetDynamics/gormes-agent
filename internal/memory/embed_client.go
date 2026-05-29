@@ -18,7 +18,7 @@ import (
 var errEmbedModelNotFound = errors.New("memory: embed model not loaded")
 
 // embedClient is a narrow HTTP client for the OpenAI-compatible
-// /v1/embeddings endpoint. Deliberately separate from hermes.Client —
+// /v1/embeddings endpoint. Deliberately separate from llm.Client —
 // the kernel's Client interface is focused on chat streaming; mixing
 // embedding concerns in would widen that surface for a feature only
 // the memory package uses.

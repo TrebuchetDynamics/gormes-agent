@@ -11,8 +11,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 	"github.com/charmbracelet/lipgloss"

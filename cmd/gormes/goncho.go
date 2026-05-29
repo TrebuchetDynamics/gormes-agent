@@ -16,11 +16,11 @@ import (
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/TrebuchetDynamics/goncho/service"
+	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	internalgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/goncho"
 )

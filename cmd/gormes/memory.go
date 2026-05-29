@@ -129,7 +129,7 @@ func newMemoryStatusCommand() *cobra.Command {
 // memoryStatusReportJSON is the wire shape for `memory status --json`.
 // Build provenance leads, then the two status sub-blocks the human
 // surface renders. Cmd-side mapping (rather than tagging the internal
-// types directly) keeps internal/memory and internal/goncho package
+// types directly) keeps internal/memory and internal/adapters/goncho packages
 // types tag-free and isolates the JSON wire contract here.
 type memoryStatusReportJSON struct {
 	Build       buildProvenanceJSON `json:"build"`

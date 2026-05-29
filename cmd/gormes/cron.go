@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func newCronCommand() *cobra.Command {

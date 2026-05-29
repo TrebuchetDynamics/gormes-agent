@@ -229,7 +229,7 @@ type InboundEvent struct {
 
 const AllowlistBypassTelegramGuestMention = "telegram_guest_mention"
 
-// ChatKey returns the internal/session map key shape for this event.
+// ChatKey returns the internal/persistence/session map key shape for this event.
 func (e InboundEvent) ChatKey() string {
 	return e.Platform + ":" + e.ChatID
 }

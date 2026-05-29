@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // TrustClass names the caller boundary used by noninteractive tool-safety
@@ -25,7 +25,7 @@ const (
 // lookup or execution. A denied decision is returned to the model as a normal
 // role=tool result so the turn can continue without blocking for UI approval.
 type ToolSafetyPolicy interface {
-	DecideToolCall(call hermes.ToolCall) ToolSafetyDecision
+	DecideToolCall(call llm.ToolCall) ToolSafetyDecision
 }
 
 type ToolSafetyDecision struct {
@@ -95,7 +95,7 @@ func NewAgentToolSafetyPolicy(opts AgentToolSafetyOptions) ToolSafetyPolicy {
 	}
 }
 
-func (p compositeToolSafetyPolicy) DecideToolCall(call hermes.ToolCall) ToolSafetyDecision {
+func (p compositeToolSafetyPolicy) DecideToolCall(call llm.ToolCall) ToolSafetyDecision {
 	for _, policy := range p.policies {
 		if policy == nil {
 			continue
@@ -108,7 +108,7 @@ func (p compositeToolSafetyPolicy) DecideToolCall(call hermes.ToolCall) ToolSafe
 	return ToolSafetyDecision{Allow: true}
 }
 
-func (p AgentToolSafetyPolicy) DecideToolCall(call hermes.ToolCall) ToolSafetyDecision {
+func (p AgentToolSafetyPolicy) DecideToolCall(call llm.ToolCall) ToolSafetyDecision {
 	name := normalizeToolPolicyName(call.Name)
 	if name == "" {
 		return ToolSafetyDecision{Allow: true}
@@ -124,7 +124,7 @@ func (p AgentToolSafetyPolicy) DecideToolCall(call hermes.ToolCall) ToolSafetyDe
 	return ToolSafetyDecision{Allow: true}
 }
 
-func (p AgentToolSafetyPolicy) denyDecision(call hermes.ToolCall, reason string) ToolSafetyDecision {
+func (p AgentToolSafetyPolicy) denyDecision(call llm.ToolCall, reason string) ToolSafetyDecision {
 	payload, _ := json.Marshal(map[string]any{
 		"status":   "agent_tool_policy_denied",
 		"agent_id": p.agentID,
@@ -186,7 +186,7 @@ func (p *OneshotToolSafetyPolicy) ApprovalMode() string {
 	return "default_block"
 }
 
-func (p *OneshotToolSafetyPolicy) DecideToolCall(call hermes.ToolCall) ToolSafetyDecision {
+func (p *OneshotToolSafetyPolicy) DecideToolCall(call llm.ToolCall) ToolSafetyDecision {
 	if p == nil {
 		return ToolSafetyDecision{Allow: true}
 	}
@@ -218,7 +218,7 @@ func isClarifyTool(name string) bool {
 	return strings.EqualFold(strings.TrimSpace(name), "clarify")
 }
 
-func (p *OneshotToolSafetyPolicy) clarifyPayload(call hermes.ToolCall) json.RawMessage {
+func (p *OneshotToolSafetyPolicy) clarifyPayload(call llm.ToolCall) json.RawMessage {
 	args := decodeObject(call.Arguments)
 	question, _ := args["question"].(string)
 	choices := stringSlice(args["choices"])
@@ -257,7 +257,7 @@ func (p *OneshotToolSafetyPolicy) blockedApprovalPayload(toolName, kind, command
 	return out
 }
 
-func dangerousApprovalRequest(call hermes.ToolCall) (bool, string, string) {
+func dangerousApprovalRequest(call llm.ToolCall) (bool, string, string) {
 	name := strings.ToLower(strings.TrimSpace(call.Name))
 	if name == "" {
 		return false, "", ""

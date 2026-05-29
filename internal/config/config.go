@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/goncho/service"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -70,7 +70,7 @@ type Config struct {
 	Goncho        GonchoCfg                `toml:"goncho" yaml:"goncho"`
 	Updates       UpdatesCfg               `toml:"updates" yaml:"updates"`
 	// Resume is set only via the --resume CLI flag; intentionally not
-	// a TOML field. Empty means "use whatever internal/session had
+	// a TOML field. Empty means "use whatever internal/persistence/session had
 	// persisted for this binary's default key."
 	Resume string `toml:"-"`
 }
@@ -714,7 +714,7 @@ func resolveProviderDefaultModel(cfg *Config) {
 		}
 		return
 	}
-	resolution := hermes.ResolveProviderDefaultModel(cfg.Hermes.Provider, hermes.ProviderDefaultModelOptions{})
+	resolution := llm.ResolveProviderDefaultModel(cfg.Hermes.Provider, llm.ProviderDefaultModelOptions{})
 	if strings.TrimSpace(resolution.Model) == "" {
 		return
 	}
@@ -727,7 +727,7 @@ func resolveInferenceProviderDefaultModel(resolution *InferenceResolution) {
 	if resolution == nil || !shouldResolveProviderDefaultModel(resolution.Provider, resolution.Model) {
 		return
 	}
-	defaultModel := hermes.ResolveProviderDefaultModel(resolution.Provider, hermes.ProviderDefaultModelOptions{})
+	defaultModel := llm.ResolveProviderDefaultModel(resolution.Provider, llm.ProviderDefaultModelOptions{})
 	if strings.TrimSpace(defaultModel.Model) == "" {
 		return
 	}
@@ -2046,7 +2046,7 @@ func ConfigPath() string {
 // prefill messages from the configured agent.prefill_messages_file path. The
 // HERMES_PREFILL_MESSAGES_FILE/GORMES_PREFILL_MESSAGES_FILE environment
 // overrides are applied by Load before this helper is called.
-func LoadConfiguredPrefillMessages(cfg Config) ([]hermes.Message, error) {
+func LoadConfiguredPrefillMessages(cfg Config) ([]llm.Message, error) {
 	return LoadPrefillMessages(cfg.Agent.PrefillMessagesFile)
 }
 
@@ -2054,7 +2054,7 @@ func LoadConfiguredPrefillMessages(cfg Config) ([]hermes.Message, error) {
 // invalid, or non-array files degrade to no prefill messages, matching Hermes'
 // nonfatal behavior. Relative paths resolve from GormesHome, the Go-native
 // equivalent of Hermes resolving from ~/.hermes.
-func LoadPrefillMessages(filePath string) ([]hermes.Message, error) {
+func LoadPrefillMessages(filePath string) ([]llm.Message, error) {
 	filePath = strings.TrimSpace(filePath)
 	if filePath == "" {
 		return nil, nil
@@ -2075,7 +2075,7 @@ func LoadPrefillMessages(filePath string) ([]hermes.Message, error) {
 		}
 		return nil, nil
 	}
-	var messages []hermes.Message
+	var messages []llm.Message
 	if err := json.Unmarshal(data, &messages); err != nil {
 		return nil, nil
 	}

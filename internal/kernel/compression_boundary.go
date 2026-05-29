@@ -3,7 +3,7 @@ package kernel
 import (
 	"context"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // NotifyCompressionBoundary calls the ContextEngine boundary callback when
@@ -13,7 +13,7 @@ func (k *Kernel) NotifyCompressionBoundary(ctx context.Context, reason string) e
 	if k.cfg.ContextEngine == nil {
 		return nil
 	}
-	return k.cfg.ContextEngine.OnCompressionBoundary(ctx, hermes.CompressionBoundary{
+	return k.cfg.ContextEngine.OnCompressionBoundary(ctx, llm.CompressionBoundary{
 		OldSessionID: k.sessionID,
 		NewSessionID: k.sessionID,
 		Reason:       reason,

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // ChunkedWebContentProcessorConfig holds configuration for chunked processing.
@@ -44,14 +44,14 @@ func DefaultChunkedWebContentProcessorConfig() ChunkedWebContentProcessorConfig 
 // for large content. It splits content into chunks, summarizes each in parallel,
 // then synthesizes a final summary.
 type ChunkedWebContentProcessor struct {
-	client hermes.Client
+	client llm.Client
 	model  string
 	cfg    ChunkedWebContentProcessorConfig
 }
 
 // NewChunkedWebContentProcessor creates a new ChunkedWebContentProcessor.
 // Returns nil if client is nil.
-func NewChunkedWebContentProcessor(client hermes.Client, model string, cfg ChunkedWebContentProcessorConfig) WebContentProcessor {
+func NewChunkedWebContentProcessor(client llm.Client, model string, cfg ChunkedWebContentProcessorConfig) WebContentProcessor {
 	if client == nil {
 		return nil
 	}
@@ -106,10 +106,10 @@ func (p *ChunkedWebContentProcessor) ProcessWebContent(ctx context.Context, req 
 
 // singlePassProcess handles content below the chunk threshold.
 func (p *ChunkedWebContentProcessor) singlePassProcess(ctx context.Context, req WebContentProcessRequest) (string, error) {
-	stream, err := p.client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := p.client.OpenStream(ctx, llm.ChatRequest{
 		Model:  p.model,
 		Stream: true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{
 				Role:    "system",
 				Content: "You are an expert content analyst. Produce a concise markdown summary that preserves key facts, figures, quotes, code snippets, and actionable details.",
@@ -298,10 +298,10 @@ func (p *ChunkedWebContentProcessor) summarizeChunks(ctx context.Context, req We
 
 // summarizeChunk produces a summary for one chunk using a chunk-specific prompt.
 func (p *ChunkedWebContentProcessor) summarizeChunk(ctx context.Context, req WebContentProcessRequest, chunkIndex int, chunkContent string) (string, error) {
-	stream, err := p.client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := p.client.OpenStream(ctx, llm.ChatRequest{
 		Model:  p.model,
 		Stream: true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{
 				Role:    "system",
 				Content: "You are an expert content analyst processing a SECTION of a larger document. Do NOT write introductions or conclusions. Focus on extracting ALL key facts, figures, data points. Preserve quotes and code snippets verbatim. Use bullet points.",
@@ -343,10 +343,10 @@ func (p *ChunkedWebContentProcessor) synthesizeSummaries(ctx context.Context, re
 
 	combined := strings.Join(summaryTexts, "\n\n---\n\n")
 
-	stream, err := p.client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := p.client.OpenStream(ctx, llm.ChatRequest{
 		Model:  p.model,
 		Stream: true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{
 				Role:    "system",
 				Content: "You have been given summaries of different sections of a large document. Synthesize these into ONE cohesive, comprehensive summary that removes redundancy, preserves all key facts, and is well-organized with clear structure.",
@@ -402,7 +402,7 @@ func (p *ChunkedWebContentProcessor) fallbackSummaries(summaries []chunkSummary)
 }
 
 // readStreamToString reads all tokens from a stream and returns them as a string.
-func (p *ChunkedWebContentProcessor) readStreamToString(ctx context.Context, stream hermes.Stream) (string, error) {
+func (p *ChunkedWebContentProcessor) readStreamToString(ctx context.Context, stream llm.Stream) (string, error) {
 	var out strings.Builder
 	for {
 		ev, err := stream.Recv(ctx)
@@ -413,9 +413,9 @@ func (p *ChunkedWebContentProcessor) readStreamToString(ctx context.Context, str
 			return "", err
 		}
 		switch ev.Kind {
-		case hermes.EventToken:
+		case llm.EventToken:
 			out.WriteString(ev.Token)
-		case hermes.EventDone:
+		case llm.EventDone:
 			return out.String(), nil
 		}
 	}

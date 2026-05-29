@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -34,20 +34,20 @@ func TestKernelTurnRequestAssemblyPreservesGuidancePrefillToolAndUsageOrder(t *t
 		ChatKey:        "telegram:42",
 		Skills:         skills,
 		SkillUsage:     usage,
-		PrefillMessages: []hermes.Message{
+		PrefillMessages: []llm.Message{
 			{Role: "user", Content: "example request"},
 			{Role: "assistant", Content: "example answer"},
 		},
-	}, hermes.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+	}, llm.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
 	k.sessionID = "sess-request-assembly"
 
 	request := k.buildTurnRequest(context.Background(), turnRequestAssemblyInput{
 		Model:          "gpt-5.5-codex",
 		SessionID:      k.sessionID,
 		UserText:       "ship the slice",
-		UserMessage:    hermes.Message{Role: "user", Content: "ship the slice"},
+		UserMessage:    llm.Message{Role: "user", Content: "ship the slice"},
 		SessionContext: "<session-context>active</session-context>",
-		Reasoning:      hermes.ReasoningEffortEvidence{Forwarded: true, Effort: "medium"},
+		Reasoning:      llm.ReasoningEffortEvidence{Forwarded: true, Effort: "medium"},
 	})
 
 	if request.Model != "gpt-5.5-codex" || request.SessionID != "sess-request-assembly" || !request.Stream {
@@ -66,13 +66,13 @@ func TestKernelTurnRequestAssemblyPreservesGuidancePrefillToolAndUsageOrder(t *t
 		t.Fatalf("message roles = %#v, want %#v\nmessages=%#v", gotRoles, wantRoles, messages)
 	}
 	assertMessageContains(t, messages[0], "<session-context>active</session-context>")
-	assertMessageContains(t, messages[1], hermes.SessionSearchGuidance)
-	assertMessageContains(t, messages[2], hermes.ToolUseEnforcementGuidance)
-	assertMessageContains(t, messages[3], hermes.OpenAIModelExecutionGuidance)
-	assertMessageContains(t, messages[4], hermes.ResearchQualityGuidance)
-	assertMessageContains(t, messages[5], hermes.MemoryGuidance)
+	assertMessageContains(t, messages[1], llm.SessionSearchGuidance)
+	assertMessageContains(t, messages[2], llm.ToolUseEnforcementGuidance)
+	assertMessageContains(t, messages[3], llm.OpenAIModelExecutionGuidance)
+	assertMessageContains(t, messages[4], llm.ResearchQualityGuidance)
+	assertMessageContains(t, messages[5], llm.MemoryGuidance)
 	assertMessageContains(t, messages[5], "<memory-context>remembered</memory-context>")
-	assertMessageContains(t, messages[6], hermes.SkillsGuidance)
+	assertMessageContains(t, messages[6], llm.SkillsGuidance)
 	assertMessageContains(t, messages[7], "gormes-tdd-slice")
 	if messages[8].Content != "example request" || messages[9].Content != "example answer" || messages[10].Content != "ship the slice" {
 		t.Fatalf("tail messages = %#v, want prefill before current user", messages[8:])
@@ -85,7 +85,7 @@ func TestKernelTurnRequestAssemblyPreservesGuidancePrefillToolAndUsageOrder(t *t
 	}
 }
 
-func messageRoles(messages []hermes.Message) []string {
+func messageRoles(messages []llm.Message) []string {
 	roles := make([]string, len(messages))
 	for i, msg := range messages {
 		roles[i] = msg.Role
@@ -93,7 +93,7 @@ func messageRoles(messages []hermes.Message) []string {
 	return roles
 }
 
-func assertMessageContains(t *testing.T, msg hermes.Message, want string) {
+func assertMessageContains(t *testing.T, msg llm.Message, want string) {
 	t.Helper()
 	if msg.Role != "system" || !strings.Contains(msg.Content, want) {
 		t.Fatalf("message = %#v, want system message containing %q", msg, want)

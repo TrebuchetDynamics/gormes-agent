@@ -279,10 +279,10 @@
           "system"
         ],
         "degraded_mode": "Unsupported ACP provider, missing auth, session key not found, or permission prompt timeout returns explicit acp_client_row_backed evidence with available fallback modes.",
-        "fixture": "internal/acp/client_test.go",
+        "fixture": "internal/protocols/acp/client_test.go",
         "source_refs": [
           "openclaw acp client CLI surface",
-          "internal/acp/server_manifest_test.go",
+          "internal/protocols/acp/server_manifest_test.go",
           "docs/content/building-gormes/openclaw-platform-parity-audit.md"
         ],
         "ready_when": [
@@ -304,13 +304,13 @@
           "--require-existing fails when session does not exist."
         ],
         "write_scope": [
-          "internal/acp/client.go",
-          "internal/acp/client_test.go",
+          "internal/protocols/acp/client.go",
+          "internal/protocols/acp/client_test.go",
           "cmd/gormes/acp.go",
           "docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
-          "go test ./internal/acp -run TestClient -count=1",
+          "go test ./internal/protocols/acp -run TestClient -count=1",
           "go run ./cmd/progress validate"
         ],
         "done_signal": [
@@ -389,7 +389,7 @@
           "system"
         ],
         "degraded_mode": "Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.",
-        "fixture": "internal/hermes/prompt_fragments_test.go",
+        "fixture": "internal/llm/prompt_fragments_test.go",
         "source_refs": [
           "agent-zero prompts/ (72 fragment files)",
           "agent-zero agent.py:prepare_prompt",
@@ -414,13 +414,13 @@
           "Fragment cache invalidates on file change."
         ],
         "write_scope": [
-          "internal/hermes/prompt_fragments.go",
-          "internal/hermes/prompt_fragments_test.go",
+          "internal/llm/prompt_fragments.go",
+          "internal/llm/prompt_fragments_test.go",
           "prompts/*.md",
           "docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
-          "go test ./internal/hermes -run TestPromptFragments -count=1",
+          "go test ./internal/llm -run TestPromptFragments -count=1",
           "go run ./cmd/progress validate"
         ],
         "done_signal": [

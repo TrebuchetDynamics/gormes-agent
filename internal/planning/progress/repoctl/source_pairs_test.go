@@ -16,7 +16,7 @@ func TestValidateSourcePairsRejectsCoveredWithoutTests(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/default_soul.go"],
+      "gormes_targets": ["internal/llm/default_soul.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
       "last_checked_hermes_sha": "abcdef123456"
@@ -38,10 +38,10 @@ func TestValidateSourcePairsRejectsMissingTarget(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/missing.go"],
+      "gormes_targets": ["internal/llm/missing.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
-      "tests": ["go test ./internal/hermes -run TestDefaultSoul -count=1"],
+      "tests": ["go test ./internal/llm -run TestDefaultSoul -count=1"],
       "last_checked_hermes_sha": "abcdef123456"
     }
   ]
@@ -61,10 +61,10 @@ func TestValidateSourcePairsRejectsStaleHermesSHA(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/default_soul.go"],
+      "gormes_targets": ["internal/llm/default_soul.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
-      "tests": ["go test ./internal/hermes -run TestDefaultSoul -count=1"],
+      "tests": ["go test ./internal/llm -run TestDefaultSoul -count=1"],
       "last_checked_hermes_sha": "deadbeef"
     }
   ]
@@ -88,10 +88,10 @@ func TestValidateSourcePairsRejectsUnmappedHighPriorityFile(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/default_soul.go"],
+      "gormes_targets": ["internal/llm/default_soul.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
-      "tests": ["go test ./internal/hermes -run TestDefaultSoul -count=1"],
+      "tests": ["go test ./internal/llm -run TestDefaultSoul -count=1"],
       "last_checked_hermes_sha": "abcdef123456"
     }
   ]
@@ -111,10 +111,10 @@ func TestRenderSourcePairsReportSummarizesCounts(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/default_soul.go"],
+      "gormes_targets": ["internal/llm/default_soul.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
-      "tests": ["go test ./internal/hermes -run TestDefaultSoul -count=1"],
+      "tests": ["go test ./internal/llm -run TestDefaultSoul -count=1"],
       "progress_rows": ["Default agent identity / SOUL.md loader"],
       "upstream_tests": ["tests/hermes_cli/test_config.py"],
       "last_checked_hermes_sha": "abcdef123456",
@@ -141,7 +141,7 @@ func TestRenderSourcePairsReportSummarizesCounts(t *testing.T) {
 		"- `covered`: 1",
 		"- `partial`: 1",
 		"| `hermes_cli/default_soul.py` | `covered` |",
-		"`internal/hermes/default_soul.go`",
+		"`internal/llm/default_soul.go`",
 	} {
 		if !strings.Contains(report, want) {
 			t.Fatalf("report missing %q:\n%s", want, report)
@@ -157,10 +157,10 @@ func TestSyncSourcePairsSHAUpdatesManifestRows(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/default_soul.go"],
+      "gormes_targets": ["internal/llm/default_soul.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
-      "tests": ["go test ./internal/hermes -run TestDefaultSoul -count=1"],
+      "tests": ["go test ./internal/llm -run TestDefaultSoul -count=1"],
       "last_checked_hermes_sha": "abcdef123456"
     }
   ]
@@ -194,10 +194,10 @@ func TestSyncSourcePairsSHADemotesCoveredChangedSource(t *testing.T) {
   "pairs": [
     {
       "hermes_file": "hermes_cli/default_soul.py",
-      "gormes_targets": ["internal/hermes/default_soul.go"],
+      "gormes_targets": ["internal/llm/default_soul.go"],
       "status": "covered",
       "contract": "Default SOUL.md seed text",
-      "tests": ["go test ./internal/hermes -run TestDefaultSoul -count=1"],
+      "tests": ["go test ./internal/llm -run TestDefaultSoul -count=1"],
       "last_checked_hermes_sha": "`+oldSHA+`"
     }
   ]
@@ -229,7 +229,7 @@ func sourcePairFixtureRoot(t *testing.T) string {
 		"hermes-agent/hermes_cli/default_soul.py",
 		"hermes-agent/hermes_cli/config.py",
 		"hermes-agent/tests/hermes_cli/test_config.py",
-		"internal/hermes/default_soul.go",
+		"internal/llm/default_soul.go",
 		"internal/config/placeholder.go",
 	} {
 		abs := filepath.Join(root, path)

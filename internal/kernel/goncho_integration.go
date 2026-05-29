@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 var ErrGonchoUnavailable = errors.New("goncho not configured")
@@ -14,7 +14,7 @@ var ErrGonchoUnavailable = errors.New("goncho not configured")
 type GonchoStore interface {
 	AppendTurn(ctx context.Context, peer, sessionKey, role, content string) error
 	GetContext(ctx context.Context, sessionKey string, maxTokens int) (string, error)
-	OnSessionEnd(ctx context.Context, sessionKey string, messages []hermes.Message) error
+	OnSessionEnd(ctx context.Context, sessionKey string, messages []llm.Message) error
 	Observe(ctx context.Context, obs GonchoObservation) error
 }
 

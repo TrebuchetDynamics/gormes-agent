@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestKernel_SubmitAcceptedAfterProviderOpenStreamFailure(t *testing.T) {
@@ -60,16 +60,16 @@ type providerFailureThenSuccessClient struct {
 	calls int
 }
 
-func (c *providerFailureThenSuccessClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (c *providerFailureThenSuccessClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.calls++
 	if c.calls == 1 {
 		return nil, c.err
 	}
-	return &singleTurnStream{events: []hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensOut: 1},
+	return &singleTurnStream{events: []llm.Event{
+		{Kind: llm.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensOut: 1},
 	}}, nil
 }
 
@@ -79,23 +79,23 @@ func (c *providerFailureThenSuccessClient) OpenStreamCalls() int {
 	return c.calls
 }
 
-func (c *providerFailureThenSuccessClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *providerFailureThenSuccessClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (c *providerFailureThenSuccessClient) Health(context.Context) error { return nil }
 
 type singleTurnStream struct {
 	mu     sync.Mutex
-	events []hermes.Event
+	events []llm.Event
 	pos    int
 }
 
-func (s *singleTurnStream) Recv(context.Context) (hermes.Event, error) {
+func (s *singleTurnStream) Recv(context.Context) (llm.Event, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.pos >= len(s.events) {
-		return hermes.Event{}, io.EOF
+		return llm.Event{}, io.EOF
 	}
 	ev := s.events[s.pos]
 	s.pos++

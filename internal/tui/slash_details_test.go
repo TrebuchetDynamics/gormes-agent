@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestDetailsStateMatchesHermesSectionDefaults(t *testing.T) {
@@ -146,7 +146,7 @@ func newDetailsSlashModel(sub *nopSubmitter) Model {
 		Phase:     kernel.PhaseStreaming,
 		Model:     "openai/gpt-4.1",
 		SessionID: "sess-details",
-		History:   []hermes.Message{{Role: "user", Content: "inspect details"}},
+		History:   []llm.Message{{Role: "user", Content: "inspect details"}},
 		SoulEvents: []kernel.SoulEntry{
 			{Text: "tool: terminal: ls -la"},
 		},

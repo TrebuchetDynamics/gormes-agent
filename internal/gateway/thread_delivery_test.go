@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type threadAwareFakeChannel struct {
@@ -183,7 +183,7 @@ func TestThreadAwareFinalPageUsesPinnedTurnThread(t *testing.T) {
 	var coCancel context.CancelFunc
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "assistant", Content: "threaded final answer"},
 		},
 	}, &co, &coCancel)

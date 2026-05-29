@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 // TestKernel_ResetSession_IdleSucceeds: after a completed turn, history
@@ -18,10 +18,10 @@ import (
 // Calling ResetSession when the kernel is Idle clears all of it and
 // returns nil.
 func TestKernel_ResetSession_IdleSucceeds(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
 	}, "sess-to-reset")
 
 	k := New(Config{
@@ -129,12 +129,12 @@ type blockingResetClient struct {
 	stream *blockingResetStream
 }
 
-func (c *blockingResetClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (c *blockingResetClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	return c.stream, nil
 }
 
-func (*blockingResetClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (*blockingResetClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (*blockingResetClient) Health(context.Context) error { return nil }
@@ -148,11 +148,11 @@ type blockingResetStream struct {
 	closed bool
 }
 
-func (s *blockingResetStream) Recv(ctx context.Context) (hermes.Event, error) {
+func (s *blockingResetStream) Recv(ctx context.Context) (llm.Event, error) {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return hermes.Event{}, io.EOF
+		return llm.Event{}, io.EOF
 	}
 	pos := s.pos
 	s.pos++
@@ -160,16 +160,16 @@ func (s *blockingResetStream) Recv(ctx context.Context) (hermes.Event, error) {
 
 	switch pos {
 	case 0:
-		return hermes.Event{Kind: hermes.EventToken, Token: "t", TokensOut: 1}, nil
+		return llm.Event{Kind: llm.EventToken, Token: "t", TokensOut: 1}, nil
 	case 1:
 		select {
 		case <-s.release:
-			return hermes.Event{Kind: hermes.EventDone, FinishReason: "stop"}, nil
+			return llm.Event{Kind: llm.EventDone, FinishReason: "stop"}, nil
 		case <-ctx.Done():
-			return hermes.Event{}, ctx.Err()
+			return llm.Event{}, ctx.Err()
 		}
 	default:
-		return hermes.Event{}, io.EOF
+		return llm.Event{}, io.EOF
 	}
 }
 

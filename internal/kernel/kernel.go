@@ -16,12 +16,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -34,7 +34,7 @@ var ErrEventMailboxFull = errors.New("kernel: event mailbox full")
 const DefaultMaxToolIterations = 90
 const defaultMaxEmptyResponseRetries = 3
 
-type FallbackClientFactory func(context.Context, hermes.ModelRoute) (hermes.Client, error)
+type FallbackClientFactory func(context.Context, llm.ModelRoute) (llm.Client, error)
 
 type Config struct {
 	Model    string
@@ -49,7 +49,7 @@ type Config struct {
 	MaxToolIterations int             // default DefaultMaxToolIterations when zero
 	MaxToolDuration   time.Duration   // default 30s when zero
 	// InitialSessionID primes k.sessionID at New() — used by adapters that
-	// load a persisted session handle from internal/session before starting
+	// load a persisted session handle from internal/persistence/session before starting
 	// the kernel. Zero value preserves pre-Phase-2.C behavior (fresh session).
 	InitialSessionID string
 	// ChatKey (Phase 3.C): "<platform>:<chat_id>" scope for memory recall.
@@ -70,7 +70,7 @@ type Config struct {
 	// PrefillMessages are ephemeral few-shot messages inserted into provider
 	// requests after system/context messages and before visible conversation.
 	// They are never appended to kernel history or persisted.
-	PrefillMessages []hermes.Message
+	PrefillMessages []llm.Message
 	// SkillUsage records selected skill names for later analysis. Nil disables
 	// usage logging.
 	SkillUsage SkillUsageRecorder
@@ -79,7 +79,7 @@ type Config struct {
 	// ToolSafety can deterministically deny interactive or approval-gated tool
 	// calls before registry lookup/execution.
 	ToolSafety    ToolSafetyPolicy
-	ContextEngine hermes.ContextEngine
+	ContextEngine llm.ContextEngine
 	Goncho        GonchoStore
 	// MaxReconnectDuration caps the total wall-clock time spent retrying
 	// per stream attempt (Route-B reconnect). Default 30s when zero.
@@ -88,7 +88,7 @@ type Config struct {
 	// Fallback activates a Hermes-compatible fallback model/provider after
 	// repeated empty provider responses. The factory is injected so tests and
 	// runtime wiring can create provider clients without importing config here.
-	Fallback                hermes.FallbackModelPolicy
+	Fallback                llm.FallbackModelPolicy
 	FallbackClientFactory   FallbackClientFactory
 	MaxEmptyResponseRetries int
 	// AgentLifecycleHook, when non-nil, is called at agent:start (before the
@@ -143,7 +143,7 @@ type memorySyncSkipper interface {
 
 type Kernel struct {
 	cfg    Config
-	client hermes.Client
+	client llm.Client
 	store  store.Store
 	tm     telemetry.Telemetry
 	log    *slog.Logger
@@ -159,11 +159,11 @@ type Kernel struct {
 	// handshake. Violating this invariant is a race.
 	phase           Phase
 	draft           string
-	history         []hermes.Message
+	history         []llm.Message
 	soul            []SoulEntry
 	sessionID       string
 	activeModel     string
-	activeReasoning hermes.ReasoningEffortEvidence
+	activeReasoning llm.ReasoningEffortEvidence
 	lastError       string
 	retryStatus     RetryStatus
 	pendingSteers   []string
@@ -177,13 +177,13 @@ type Kernel struct {
 	sessionProvider string
 }
 
-func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log *slog.Logger) *Kernel {
+func New(cfg Config, c llm.Client, s store.Store, tm telemetry.Telemetry, log *slog.Logger) *Kernel {
 	if log == nil {
 		log = slog.Default()
 	}
 	tm.SetModel(cfg.Model)
 	if cfg.ContextEngine != nil {
-		cfg.ContextEngine.UpdateModelContext(hermes.ContextModelContext{Model: cfg.Model})
+		cfg.ContextEngine.UpdateModelContext(llm.ContextModelContext{Model: cfg.Model})
 	}
 	return &Kernel{
 		cfg:         cfg,
@@ -202,22 +202,22 @@ func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log
 func (k *Kernel) liveTurnGuidanceBlocks(model string) []string {
 	blocks := make([]string, 0, 6)
 	if k.toolRegistered("memory") {
-		blocks = append(blocks, hermes.MemoryGuidance)
+		blocks = append(blocks, llm.MemoryGuidance)
 	}
 	if k.toolRegistered("session_search") {
-		blocks = append(blocks, hermes.SessionSearchGuidance)
+		blocks = append(blocks, llm.SessionSearchGuidance)
 	}
 	modelLower := strings.ToLower(strings.TrimSpace(model))
-	if modelMatchesAny(modelLower, hermes.ToolUseEnforcementModels) {
-		blocks = append(blocks, hermes.ToolUseEnforcementGuidance)
+	if modelMatchesAny(modelLower, llm.ToolUseEnforcementModels) {
+		blocks = append(blocks, llm.ToolUseEnforcementGuidance)
 	}
 	if modelMatchesAny(modelLower, []string{"gpt", "codex", "o1", "o3", "o4"}) {
-		blocks = append(blocks, hermes.OpenAIModelExecutionGuidance)
+		blocks = append(blocks, llm.OpenAIModelExecutionGuidance)
 	} else if modelMatchesAny(modelLower, []string{"gemini", "gemma"}) {
-		blocks = append(blocks, hermes.GoogleModelOperationalGuidance)
+		blocks = append(blocks, llm.GoogleModelOperationalGuidance)
 	}
 	if k.toolRegistered(tools.WebToolSearch) {
-		blocks = append(blocks, hermes.ResearchQualityGuidance)
+		blocks = append(blocks, llm.ResearchQualityGuidance)
 	}
 	return blocks
 }
@@ -254,7 +254,7 @@ func (k *Kernel) applySessionModel(ctx context.Context, e PlatformEvent) error {
 	// ResetSession): the conversation continues against the switched model.
 	k.tm.SetModel(k.residentModel())
 	if k.cfg.ContextEngine != nil {
-		k.cfg.ContextEngine.UpdateModelContext(hermes.ContextModelContext{Model: k.residentModel()})
+		k.cfg.ContextEngine.UpdateModelContext(llm.ContextModelContext{Model: k.residentModel()})
 	}
 	return nil
 }
@@ -265,15 +265,15 @@ func (k *Kernel) shouldSwapSessionProvider(next string) bool {
 	return next != "" && next != current
 }
 
-func sessionModelRoute(provider, model string) (hermes.ModelRoute, bool) {
-	entry, ok := hermes.ResolveProviderManifestEntry(provider)
+func sessionModelRoute(provider, model string) (llm.ModelRoute, bool) {
+	entry, ok := llm.ResolveProviderManifestEntry(provider)
 	if !ok {
-		return hermes.ModelRoute{}, false
+		return llm.ModelRoute{}, false
 	}
-	if entry.ImplementationStatus != hermes.ProviderImplemented && entry.ImplementationStatus != hermes.ProviderOwned {
-		return hermes.ModelRoute{}, false
+	if entry.ImplementationStatus != llm.ProviderImplemented && entry.ImplementationStatus != llm.ProviderOwned {
+		return llm.ModelRoute{}, false
 	}
-	route := hermes.ModelRoute{
+	route := llm.ModelRoute{
 		Provider:  strings.ToLower(strings.TrimSpace(entry.ID)),
 		Model:     strings.TrimSpace(model),
 		BaseURL:   strings.TrimSpace(entry.BaseURLOverride),
@@ -392,7 +392,7 @@ func (k *Kernel) SetSessionModel(provider, model string) error {
 // ResumeSession installs a resident session id and replayed visible history.
 // It preserves the single-owner invariant by asking the Run loop to mutate
 // state synchronously, and refuses to run while a turn is active.
-func (k *Kernel) ResumeSession(sessionID string, history []hermes.Message) error {
+func (k *Kernel) ResumeSession(sessionID string, history []llm.Message) error {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
 		return ErrResumeSessionIDRequired
@@ -471,7 +471,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 					continue
 				}
 				if k.cfg.ContextEngine != nil {
-					outgoingHistory := append([]hermes.Message(nil), k.history...)
+					outgoingHistory := append([]llm.Message(nil), k.history...)
 					_ = k.cfg.ContextEngine.OnSessionEnd(ctx, k.sessionID, outgoingHistory)
 					k.cfg.ContextEngine.OnSessionReset()
 				}
@@ -517,7 +517,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 					continue
 				}
 				if k.cfg.ContextEngine != nil {
-					outgoingHistory := append([]hermes.Message(nil), k.history...)
+					outgoingHistory := append([]llm.Message(nil), k.history...)
 					_ = k.cfg.ContextEngine.OnSessionEnd(ctx, k.sessionID, outgoingHistory)
 					k.cfg.ContextEngine.OnSessionReset()
 				}
@@ -546,7 +546,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 // goroutine — this is part of the single-owner invariant.
 // cronJobID is non-empty for Phase 2.D cron-fired turns; it is passed through
 // to the store.Command payload and is otherwise opaque to the kernel.
-func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes.MessageContentPart, sessionContext, cronJobID, model, reasoningOverride string) {
+func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []llm.MessageContentPart, sessionContext, cronJobID, model, reasoningOverride string) {
 	prov := newProvenance(k.cfg.Endpoint)
 	defer func() { k.pendingSteers = nil }()
 
@@ -586,7 +586,7 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 	}
 	turnKey := prov.LocalRunID
 	model = selectTurnModel(k.cfg.Model, model)
-	providerStatus := hermes.ProviderStatusOf(k.client)
+	providerStatus := llm.ProviderStatusOf(k.client)
 	reasoningEvidence := selectTurnReasoningEffort(k.cfg.ReasoningEffort, reasoningOverride, providerStatus)
 	k.soul = nil
 
@@ -597,7 +597,7 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 		return
 	}
 	prov.LogAdmitted(k.log)
-	userMsg := hermes.Message{Role: "user", Content: text, ContentParts: cloneMessageContentParts(contentParts)}
+	userMsg := llm.Message{Role: "user", Content: text, ContentParts: cloneMessageContentParts(contentParts)}
 
 	// 2. Persist user turn with hard 250ms ack deadline (spec §7.8 store row).
 	storeCtx, storeCancel := context.WithTimeout(ctx, StoreAckDeadline)
@@ -649,7 +649,7 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 	})
 	primaryClient := k.client
 	defer func() { k.client = primaryClient }()
-	fallbackRoutes := append([]hermes.ModelRoute(nil), k.cfg.Fallback.Routes...)
+	fallbackRoutes := append([]llm.ModelRoute(nil), k.cfg.Fallback.Routes...)
 	if !k.cfg.Fallback.Enabled {
 		fallbackRoutes = nil
 	}
@@ -664,11 +664,11 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 	var (
 		cancelled       bool
 		fatalErr        error
-		finalDelta      hermes.Event
+		finalDelta      llm.Event
 		gotFinal        bool
 		latestSessionID string
 		toolIteration   = 0
-		toolCallsSeen   []hermes.ToolCall
+		toolCallsSeen   []llm.ToolCall
 	)
 
 	start := time.Now()
@@ -699,8 +699,8 @@ toolLoop:
 			stream, err := k.client.OpenStream(runCtx, request)
 			if err != nil {
 				cancelRun()
-				classification := hermes.ClassifyProviderError(err)
-				if classification.Class == hermes.ClassRetryable && !retryBudget.Exhausted() && time.Since(reconnectStart) < maxReconnect {
+				classification := llm.ClassifyProviderError(err)
+				if classification.Class == llm.ClassRetryable && !retryBudget.Exhausted() && time.Since(reconnectStart) < maxReconnect {
 					if k.retryInterrupted(ctx) {
 						cancelled = true
 						break toolLoop
@@ -708,7 +708,7 @@ toolLoop:
 					decision := retryBudget.NextDelayDecision(err)
 					k.retryStatus = retryStatusWithDecision(k.retryStatus, decision, classification)
 					k.phase = PhaseReconnecting
-					k.emitStreamDropRetryFrame(err, decision, classification, false, hermes.StreamDiagnosticsFromError(err))
+					k.emitStreamDropRetryFrame(err, decision, classification, false, llm.StreamDiagnosticsFromError(err))
 					if k.waitForRetryDelay(ctx, decision.Delay) {
 						cancelled = true
 						break toolLoop
@@ -716,7 +716,7 @@ toolLoop:
 					replaceOnNextToken = true
 					continue retryLoop
 				}
-				if classification.Class == hermes.ClassRetryable && time.Since(reconnectStart) >= maxReconnect {
+				if classification.Class == llm.ClassRetryable && time.Since(reconnectStart) >= maxReconnect {
 					k.retryStatus.LastDecision = RetryDecisionBudgetExhaust
 					k.phase = PhaseFailed
 					k.lastError = "reconnect time budget exhausted"
@@ -727,13 +727,13 @@ toolLoop:
 					)
 					return
 				}
-				prov.ErrorClass = hermes.Classify(err).String()
+				prov.ErrorClass = llm.Classify(err).String()
 				prov.ErrorText = err.Error()
 				prov.LogError(k.log)
 				k.phase = PhaseFailed
 				k.lastError = err.Error()
 				k.activeModel = k.cfg.Model
-				k.activeReasoning = hermes.ReasoningEffortEvidence{}
+				k.activeReasoning = llm.ReasoningEffortEvidence{}
 				k.emitFrame("open stream failed")
 				return
 			}
@@ -742,7 +742,7 @@ toolLoop:
 			k.emitFrame("streaming")
 
 			var streamRetryErr error
-			var streamRetryDiag hermes.StreamDiagnostics
+			var streamRetryDiag llm.StreamDiagnostics
 			outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken, &streamRetryErr, &streamRetryDiag)
 			_ = stream.Close()
 			if sid := stream.SessionID(); sid != "" {
@@ -804,7 +804,7 @@ toolLoop:
 			emptyResponses++
 			if emptyResponses <= maxEmptyResponses {
 				gotFinal = false
-				finalDelta = hermes.Event{}
+				finalDelta = llm.Event{}
 				k.phase = PhaseReconnecting
 				k.emitFrame("empty response retry")
 				continue toolLoop
@@ -812,7 +812,7 @@ toolLoop:
 			if k.activateFallback(ctx, &request, fallbackRoutes, &fallbackIndex) {
 				emptyResponses = 0
 				gotFinal = false
-				finalDelta = hermes.Event{}
+				finalDelta = llm.Event{}
 				continue toolLoop
 			}
 		}
@@ -865,14 +865,14 @@ toolLoop:
 		// Append the assistant's tool-requesting message plus one tool-result
 		// message per call. The draft so far is captured in the assistant
 		// message.
-		assistantMsg := hermes.Message{
+		assistantMsg := llm.Message{
 			Role:      "assistant",
 			Content:   k.draft,
 			ToolCalls: finalDelta.ToolCalls,
 		}
 		request.Messages = append(request.Messages, assistantMsg)
 		for _, r := range results {
-			request.Messages = append(request.Messages, hermes.Message{
+			request.Messages = append(request.Messages, llm.Message{
 				Role:         "tool",
 				ToolCallID:   r.ID,
 				Name:         r.Name,
@@ -886,7 +886,7 @@ toolLoop:
 		// what we had so far.
 		k.draft = ""
 		gotFinal = false
-		finalDelta = hermes.Event{}
+		finalDelta = llm.Event{}
 		k.emitFrame("executing tools")
 	}
 
@@ -896,13 +896,13 @@ toolLoop:
 	prov.LatencyMs = int(latency / time.Millisecond)
 
 	if fatalErr != nil {
-		prov.ErrorClass = hermes.Classify(fatalErr).String()
+		prov.ErrorClass = llm.Classify(fatalErr).String()
 		prov.ErrorText = fatalErr.Error()
 		prov.LogError(k.log)
 		k.phase = PhaseFailed
 		k.lastError = fatalErr.Error()
 		k.activeModel = k.cfg.Model
-		k.activeReasoning = hermes.ReasoningEffortEvidence{}
+		k.activeReasoning = llm.ReasoningEffortEvidence{}
 		k.emitFrame("stream error")
 		return
 	}
@@ -939,7 +939,7 @@ toolLoop:
 				Platform:     platformFromChatKey(k.cfg.ChatKey),
 			})
 		}
-		k.history = append(k.history, hermes.Message{Role: "assistant", Content: finalContent})
+		k.history = append(k.history, llm.Message{Role: "assistant", Content: finalContent})
 		k.draft = ""
 		// Phase 3.A: finalize in the memory store. Fire-and-forget — the worker
 		// handles I/O off the hot path. 250ms context bound kept as a safety net
@@ -970,12 +970,12 @@ toolLoop:
 	k.client = primaryClient
 	k.phase = PhaseIdle
 	k.activeModel = k.cfg.Model
-	k.activeReasoning = hermes.ReasoningEffortEvidence{}
+	k.activeReasoning = llm.ReasoningEffortEvidence{}
 	k.pendingSteers = nil
 	k.emitFrame("idle")
 }
 
-func validateTurnAdmission(admission Admission, text string, parts []hermes.MessageContentPart) error {
+func validateTurnAdmission(admission Admission, text string, parts []llm.MessageContentPart) error {
 	payload := text
 	hasImage := false
 	for _, part := range parts {
@@ -1004,18 +1004,18 @@ func validateTurnAdmission(admission Admission, text string, parts []hermes.Mess
 	return nil
 }
 
-func cloneMessageContentParts(parts []hermes.MessageContentPart) []hermes.MessageContentPart {
+func cloneMessageContentParts(parts []llm.MessageContentPart) []llm.MessageContentPart {
 	if len(parts) == 0 {
 		return nil
 	}
-	return append([]hermes.MessageContentPart(nil), parts...)
+	return append([]llm.MessageContentPart(nil), parts...)
 }
 
-func cloneKernelMessages(messages []hermes.Message) []hermes.Message {
+func cloneKernelMessages(messages []llm.Message) []llm.Message {
 	if len(messages) == 0 {
 		return nil
 	}
-	out := make([]hermes.Message, len(messages))
+	out := make([]llm.Message, len(messages))
 	for i, msg := range messages {
 		out[i] = msg
 		out[i].ContentParts = cloneMessageContentParts(msg.ContentParts)
@@ -1025,11 +1025,11 @@ func cloneKernelMessages(messages []hermes.Message) []hermes.Message {
 
 const maxIterationSummaryRequest = "You've reached the maximum number of tool-calling iterations allowed. Please provide a final response summarizing what you've found and accomplished so far, without calling any more tools."
 
-func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base hermes.ChatRequest, maxIter int) (hermes.Event, bool, string, bool) {
+func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base llm.ChatRequest, maxIter int) (llm.Event, bool, string, bool) {
 	req := base
 	req.Stream = true
 	req.Tools = nil
-	req.Messages = append(append([]hermes.Message(nil), base.Messages...), hermes.Message{
+	req.Messages = append(append([]llm.Message(nil), base.Messages...), llm.Message{
 		Role:    "user",
 		Content: maxIterationSummaryRequest,
 	})
@@ -1044,13 +1044,13 @@ func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base hermes.Cha
 		cancelRun()
 		k.draft = fmt.Sprintf("I reached the maximum iterations (%d) but couldn't summarize. Error: %s", maxIter, err)
 		k.emitFrame("iteration summary failed")
-		return hermes.Event{}, false, "", false
+		return llm.Event{}, false, "", false
 	}
 
 	k.phase = PhaseStreaming
 	k.emitFrame("streaming iteration summary")
 	var (
-		finalDelta         hermes.Event
+		finalDelta         llm.Event
 		gotFinal           bool
 		fatalErr           error
 		cancelled          bool
@@ -1066,7 +1066,7 @@ func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base hermes.Cha
 	if fatalErr != nil && strings.TrimSpace(k.draft) == "" {
 		k.draft = fmt.Sprintf("I reached the maximum iterations (%d) but couldn't summarize. Error: %s", maxIter, fatalErr)
 		k.emitFrame("iteration summary failed")
-		return hermes.Event{}, false, summarySessionID, false
+		return llm.Event{}, false, summarySessionID, false
 	}
 	if strings.TrimSpace(k.draft) == "" {
 		k.draft = "I reached the iteration limit and couldn't generate a summary."
@@ -1104,12 +1104,12 @@ func (k *Kernel) applyPendingSteersToToolResults(results []toolResult) {
 	k.emitFrame("steer applied")
 }
 
-func (k *Kernel) updateContextEngineUsage(ev hermes.Event) {
+func (k *Kernel) updateContextEngineUsage(ev llm.Event) {
 	if k.cfg.ContextEngine == nil {
 		return
 	}
 	total := ev.TokensIn + ev.TokensOut
-	k.cfg.ContextEngine.UpdateFromResponse(hermes.ContextUsage{
+	k.cfg.ContextEngine.UpdateFromResponse(llm.ContextUsage{
 		PromptTokens:     ev.TokensIn,
 		CompletionTokens: ev.TokensOut,
 		TotalTokens:      total,
@@ -1189,7 +1189,7 @@ func (k *Kernel) handleRetryEvent(e PlatformEvent) bool {
 	return false
 }
 
-func (k *Kernel) emitStreamDropRetryFrame(err error, decision RetryDelayDecision, classification hermes.ProviderErrorClassification, midStream bool, diag hermes.StreamDiagnostics) {
+func (k *Kernel) emitStreamDropRetryFrame(err error, decision RetryDelayDecision, classification llm.ProviderErrorClassification, midStream bool, diag llm.StreamDiagnostics) {
 	provider := k.streamDropProviderName()
 	errorType := streamDropErrorType(err)
 	errorText := streamDropErrorText(err)
@@ -1247,7 +1247,7 @@ func (k *Kernel) emitStreamDropRetryFrame(err error, decision RetryDelayDecision
 }
 
 func (k *Kernel) streamDropProviderName() string {
-	status := hermes.ProviderStatusOf(k.client)
+	status := llm.ProviderStatusOf(k.client)
 	provider := strings.TrimSpace(status.Provider)
 	if provider == "" {
 		return "provider"
@@ -1255,14 +1255,14 @@ func (k *Kernel) streamDropProviderName() string {
 	return provider
 }
 
-func streamDropRetryClassification(err error) hermes.ProviderErrorClassification {
-	classification := hermes.ClassifyProviderError(err)
-	if classification.Class == hermes.ClassRetryable {
+func streamDropRetryClassification(err error) llm.ProviderErrorClassification {
+	classification := llm.ClassifyProviderError(err)
+	if classification.Class == llm.ClassRetryable {
 		return classification
 	}
-	return hermes.ProviderErrorClassification{
-		Kind:      hermes.ProviderErrorRetryable,
-		Class:     hermes.ClassRetryable,
+	return llm.ProviderErrorClassification{
+		Kind:      llm.ProviderErrorRetryable,
+		Class:     llm.ClassRetryable,
 		Retryable: true,
 	}
 }
@@ -1271,7 +1271,7 @@ func streamDropErrorType(err error) string {
 	if err == nil {
 		return "unknown"
 	}
-	var httpErr *hermes.HTTPError
+	var httpErr *llm.HTTPError
 	if errors.As(err, &httpErr) {
 		return "HTTPError"
 	}
@@ -1342,7 +1342,7 @@ func streamDropErrorText(err error) string {
 	return text
 }
 
-// streamInner runs one stream attempt. Pumps events from hermes.Stream.Recv
+// streamInner runs one stream attempt. Pumps events from llm.Stream.Recv
 // into a bounded channel, multiplexes over the kernel's platform events and
 // a 16ms flush ticker, and returns a classified outcome so the retry-loop
 // caller knows what to do next.
@@ -1354,17 +1354,17 @@ func streamDropErrorText(err error) string {
 func (k *Kernel) streamInner(
 	ctx, runCtx context.Context,
 	cancelRun context.CancelFunc,
-	stream hermes.Stream,
-	finalDelta *hermes.Event,
+	stream llm.Stream,
+	finalDelta *llm.Event,
 	gotFinal *bool,
 	fatalErr *error,
 	cancelled *bool,
 	replaceOnNextToken *bool,
 	retryErr *error,
-	retryDiag *hermes.StreamDiagnostics,
+	retryDiag *llm.StreamDiagnostics,
 ) streamOutcome {
 	type streamResult struct {
-		event hermes.Event
+		event llm.Event
 		err   error
 	}
 	deltaCh := make(chan streamResult, 8)
@@ -1396,7 +1396,7 @@ func (k *Kernel) streamInner(
 			*retryErr = err
 		}
 		if retryDiag != nil && err != nil {
-			*retryDiag = hermes.StreamDiagnosticsOf(stream)
+			*retryDiag = llm.StreamDiagnosticsOf(stream)
 		}
 	}
 
@@ -1470,7 +1470,7 @@ streamLoop:
 					break streamLoop
 				}
 				// Classify the error: Retryable → caller retries; otherwise fatal.
-				if hermes.Classify(res.err) == hermes.ClassRetryable {
+				if llm.Classify(res.err) == llm.ClassRetryable {
 					setRetryErr(res.err)
 					outcome = streamOutcomeRetryable
 				} else {
@@ -1481,7 +1481,7 @@ streamLoop:
 			}
 			ev := res.event
 			switch ev.Kind {
-			case hermes.EventToken:
+			case llm.EventToken:
 				if *replaceOnNextToken {
 					k.draft = ""
 					*replaceOnNextToken = false
@@ -1489,14 +1489,14 @@ streamLoop:
 				k.draft += ev.Token
 				k.tm.Tick(ev.TokensOut)
 				dirty = true
-			case hermes.EventReasoning:
+			case llm.EventReasoning:
 				if *replaceOnNextToken {
 					// Reasoning doesn't count as visible content; the NEXT EventToken
 					// still clears the draft. Do NOT flip replaceOnNextToken here.
 				}
 				k.addSoul("reasoning: " + truncate(ev.Reasoning, 60))
 				dirty = true
-			case hermes.EventDone:
+			case llm.EventDone:
 				*finalDelta = ev
 				*gotFinal = true
 				outcome = streamOutcomeDone
@@ -1531,17 +1531,17 @@ func (k *Kernel) addSoul(text string) {
 // in the capacity-1 buffer, drain it and drop it before enqueueing the new
 // one. This is what keeps a slow TUI from backpressuring the kernel.
 func (k *Kernel) emitFrame(status string) {
-	var contextStatus *hermes.ContextStatus
+	var contextStatus *llm.ContextStatus
 	if k.cfg.ContextEngine != nil {
 		snapshot := k.cfg.ContextEngine.Status()
 		contextStatus = &snapshot
 	}
-	providerStatus := hermes.ProviderStatusOf(k.client)
+	providerStatus := llm.ProviderStatusOf(k.client)
 	frame := RenderFrame{
 		Seq:             k.seq.Add(1),
 		Phase:           k.phase,
 		DraftText:       k.draft,
-		History:         append([]hermes.Message(nil), k.history...),
+		History:         append([]llm.Message(nil), k.history...),
 		Telemetry:       k.tm.Snapshot(),
 		StatusText:      status,
 		SessionID:       k.sessionID,
@@ -1586,11 +1586,11 @@ func (k *Kernel) displayModel() string {
 	return k.cfg.Model
 }
 
-func (k *Kernel) displayReasoningEffort(status hermes.ProviderStatus) hermes.ReasoningEffortEvidence {
+func (k *Kernel) displayReasoningEffort(status llm.ProviderStatus) llm.ReasoningEffortEvidence {
 	if k.activeReasoning.State != "" {
 		return k.activeReasoning
 	}
-	return hermes.ResolveReasoningEffort(k.cfg.ReasoningEffort, hermes.ReasoningEffortSourceConfigDefault, status)
+	return llm.ResolveReasoningEffort(k.cfg.ReasoningEffort, llm.ReasoningEffortSourceConfigDefault, status)
 }
 
 func selectTurnModel(residentModel, override string) string {
@@ -1600,11 +1600,11 @@ func selectTurnModel(residentModel, override string) string {
 	return residentModel
 }
 
-func selectTurnReasoningEffort(residentEffort, override string, status hermes.ProviderStatus) hermes.ReasoningEffortEvidence {
+func selectTurnReasoningEffort(residentEffort, override string, status llm.ProviderStatus) llm.ReasoningEffortEvidence {
 	if effort := strings.TrimSpace(override); effort != "" {
-		return hermes.ResolveReasoningEffort(effort, hermes.ReasoningEffortSourceTurnOverride, status)
+		return llm.ResolveReasoningEffort(effort, llm.ReasoningEffortSourceTurnOverride, status)
 	}
-	return hermes.ResolveReasoningEffort(residentEffort, hermes.ReasoningEffortSourceConfigDefault, status)
+	return llm.ResolveReasoningEffort(residentEffort, llm.ReasoningEffortSourceConfigDefault, status)
 }
 
 // cronFlag returns 1 when the turn carries a cron_job_id (Phase 2.D),

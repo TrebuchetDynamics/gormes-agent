@@ -7,20 +7,20 @@ import (
 	"io"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // HermesDialecticCaller adapts Gormes' native provider client to the Goncho
 // DialecticCaller seam. It keeps honcho_reasoning fully in-process: no Python
 // hermes-agent or external Honcho runtime is launched for synthesis.
 type HermesDialecticCaller struct {
-	client hermes.Client
+	client llm.Client
 	model  string
 }
 
 // NewHermesDialecticCaller returns a DialecticCaller backed by the native
 // Hermes-compatible chat client used elsewhere in Gormes.
-func NewHermesDialecticCaller(client hermes.Client, model string) *HermesDialecticCaller {
+func NewHermesDialecticCaller(client llm.Client, model string) *HermesDialecticCaller {
 	return &HermesDialecticCaller{client: client, model: strings.TrimSpace(model)}
 }
 
@@ -30,11 +30,11 @@ func (c *HermesDialecticCaller) Chat(ctx context.Context, peer string, systemPro
 	if c == nil || c.client == nil {
 		return "", errors.New("goncho: dialectic caller client is nil")
 	}
-	stream, err := c.client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := c.client.OpenStream(ctx, llm.ChatRequest{
 		Model:     c.model,
 		Stream:    true,
 		SessionID: dialecticSessionID(peer),
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: query},
 		},
@@ -53,7 +53,7 @@ func (c *HermesDialecticCaller) Chat(ctx context.Context, peer string, systemPro
 			}
 			return "", fmt.Errorf("goncho: dialectic provider recv: %w", err)
 		}
-		if ev.Kind == hermes.EventToken {
+		if ev.Kind == llm.EventToken {
 			answer.WriteString(ev.Token)
 		}
 	}

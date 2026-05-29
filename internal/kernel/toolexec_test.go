@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -23,13 +23,13 @@ func newKernelWithRegistry(t *testing.T, reg *tools.Registry) *Kernel {
 		Tools:             reg,
 		MaxToolIterations: 10,
 		MaxToolDuration:   30 * time.Second,
-	}, hermes.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+	}, llm.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
 }
 
 func TestExecuteToolCalls_UnknownToolReturnsErrorResult(t *testing.T) {
 	reg := tools.NewRegistry()
 	k := newKernelWithRegistry(t, reg)
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "c1", Name: "not_registered", Arguments: json.RawMessage(`{}`)},
 	})
 	if len(res) != 1 {
@@ -49,7 +49,7 @@ func TestExecuteToolCalls_PanicRecovered(t *testing.T) {
 		},
 	})
 	k := newKernelWithRegistry(t, reg)
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "c1", Name: "boom", Arguments: json.RawMessage(`{}`)},
 	})
 	if !strings.Contains(res[0].Content, "panicked") {
@@ -64,7 +64,7 @@ func TestExecuteToolCalls_AppendsToolPreviewSoulEvent(t *testing.T) {
 	}
 	k := newKernelWithRegistry(t, reg)
 
-	_ = k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	_ = k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{
 			ID:        "c1",
 			Name:      "terminal",
@@ -95,7 +95,7 @@ func TestExecuteToolCalls_TodoMergePreviewUsesUpdatingWording(t *testing.T) {
 	reg.MustRegister(&tools.MockTool{NameStr: "todo"})
 	k := newKernelWithRegistry(t, reg)
 
-	_ = k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	_ = k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "todo-merge", Name: "todo", Arguments: json.RawMessage(`{"merge":true,"todos":[{"id":"1","content":"first","status":"pending"},{"id":"2","content":"second","status":"in_progress"}]}`)},
 	})
 
@@ -137,7 +137,7 @@ func TestExecuteToolCalls_TimeoutHonoured(t *testing.T) {
 	})
 	k := newKernelWithRegistry(t, reg)
 	start := time.Now()
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "c1", Name: "slow", Arguments: json.RawMessage(`{}`)},
 	})
 	elapsed := time.Since(start)
@@ -158,7 +158,7 @@ func TestExecuteToolCalls_CancelBetweenCalls(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	res := k.executeToolCalls(ctx, []hermes.ToolCall{
+	res := k.executeToolCalls(ctx, []llm.ToolCall{
 		{ID: "1", Name: "a", Arguments: json.RawMessage(`{}`)},
 		{ID: "2", Name: "b", Arguments: json.RawMessage(`{}`)},
 	})
@@ -192,7 +192,7 @@ func TestExecuteToolCalls_ContextCancelCancelsEveryConcurrentWorker(t *testing.T
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan []toolResult, 1)
 	go func() {
-		done <- k.executeToolCalls(ctx, []hermes.ToolCall{
+		done <- k.executeToolCalls(ctx, []llm.ToolCall{
 			{ID: "call_alpha", Name: "alpha", Arguments: json.RawMessage(`{}`)},
 			{ID: "call_bravo", Name: "bravo", Arguments: json.RawMessage(`{}`)},
 			{ID: "call_charlie", Name: "charlie", Arguments: json.RawMessage(`{}`)},

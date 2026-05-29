@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
@@ -37,30 +37,30 @@ func TestComplexE2E_MultiStepToolChainAuditAndPersistence(t *testing.T) {
 	reg.MustRegister(complexE2ETool{name: "summarize_fixture", response: `{"summary":"fixture ready with low risk"}`})
 	reg.MustRegister(complexE2ETool{name: "persist_decision", response: `{"stored":true,"decision":"ship"}`})
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_inspect", Name: "inspect_fixture", Arguments: json.RawMessage(`{"target":"complex-e2e"}`)},
 			{ID: "call_summarize", Name: "summarize_fixture", Arguments: json.RawMessage(`{"style":"evidence-first"}`)},
 		},
 		TokensIn:  50,
 		TokensOut: 3,
 	}}, "complex-provider-session")
-	provider.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	provider.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_persist", Name: "persist_decision", Arguments: json.RawMessage(`{"decision":"ship","because":"tools agreed"}`)},
 		},
 		TokensIn:  80,
 		TokensOut: 2,
 	}}, "complex-provider-session")
 	finalText := "Complex E2E completed: fixture ready, low risk, decision stored."
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: finalText, TokensOut: 10},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 110, TokensOut: 10},
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: finalText, TokensOut: 10},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 110, TokensOut: 10},
 	}, "complex-provider-session")
 
 	auditPath := filepath.Join(dir, "tool-audit.jsonl")
@@ -133,11 +133,11 @@ func TestComplexE2E_MixedToolBatchPreservesEveryOutcomeAndRecovers(t *testing.T)
 	reg.MustRegister(complexE2ETool{name: "stable_fixture", response: `{"status":"ok","value":"alpha"}`})
 	reg.MustRegister(complexE2ETool{name: "failing_fixture", err: errors.New("fixture failed after partial work")})
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_stable", Name: "stable_fixture", Arguments: json.RawMessage(`{"target":"mixed-success"}`)},
 			{ID: "call_failing", Name: "failing_fixture", Arguments: json.RawMessage(`{"target":"mixed-failure"}`)},
 			{ID: "call_missing", Name: "missing_fixture", Arguments: json.RawMessage(`{"target":"unknown"}`)},
@@ -146,9 +146,9 @@ func TestComplexE2E_MixedToolBatchPreservesEveryOutcomeAndRecovers(t *testing.T)
 		TokensOut: 4,
 	}}, "mixed-tool-session")
 	finalText := "Mixed tool batch recovered: one success, two failures, no raw tool noise leaked."
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: finalText, TokensOut: 12},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 120, TokensOut: 12},
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: finalText, TokensOut: 12},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 120, TokensOut: 12},
 	}, "mixed-tool-session")
 
 	auditPath := filepath.Join(dir, "tool-audit.jsonl")
@@ -228,11 +228,11 @@ func TestComplexE2E_ConcurrentToolBatchPreservesCallOrderDespiteSlowCompletion(t
 	reg.MustRegister(complexE2ETool{name: "fast_second_fixture", response: `{"rank":2,"completed":"fast"}`})
 	reg.MustRegister(complexE2ETool{name: "slow_third_fixture", response: `{"rank":3,"completed":"slow"}`, delay: 40 * time.Millisecond})
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_slow_first", Name: "slow_first_fixture", Arguments: json.RawMessage(`{"rank":1}`)},
 			{ID: "call_fast_second", Name: "fast_second_fixture", Arguments: json.RawMessage(`{"rank":2}`)},
 			{ID: "call_slow_third", Name: "slow_third_fixture", Arguments: json.RawMessage(`{"rank":3}`)},
@@ -241,9 +241,9 @@ func TestComplexE2E_ConcurrentToolBatchPreservesCallOrderDespiteSlowCompletion(t
 		TokensOut: 4,
 	}}, "ordered-tool-session")
 	finalText := "Concurrent tool batch preserved provider call order while executing safely."
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: finalText, TokensOut: 9},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 130, TokensOut: 9},
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: finalText, TokensOut: 9},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 130, TokensOut: 9},
 	}, "ordered-tool-session")
 
 	auditPath := filepath.Join(dir, "tool-audit.jsonl")
@@ -316,11 +316,11 @@ func TestComplexE2E_ToolFailureIsAuditedAndConversationRecovers(t *testing.T) {
 	reg := tools.NewRegistry()
 	reg.MustRegister(complexE2ETool{name: "unstable_fixture", err: errors.New("fixture unavailable")})
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_unstable",
 			Name:      "unstable_fixture",
 			Arguments: json.RawMessage(`{"target":"negative-path"}`),
@@ -329,9 +329,9 @@ func TestComplexE2E_ToolFailureIsAuditedAndConversationRecovers(t *testing.T) {
 		TokensOut: 1,
 	}}, "complex-failure-session")
 	finalText := "Recovered from the fixture failure and reported it safely."
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: finalText, TokensOut: 9},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 75, TokensOut: 9},
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: finalText, TokensOut: 9},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 75, TokensOut: 9},
 	}, "complex-failure-session")
 
 	auditPath := filepath.Join(dir, "tool-audit.jsonl")
@@ -411,7 +411,7 @@ func (t complexE2ETool) Execute(ctx context.Context, _ json.RawMessage) (json.Ra
 	return json.RawMessage(t.response), nil
 }
 
-func assertComplexInitialRequest(t *testing.T, req hermes.ChatRequest, userInput string) {
+func assertComplexInitialRequest(t *testing.T, req llm.ChatRequest, userInput string) {
 	t.Helper()
 	for _, name := range []string{"inspect_fixture", "summarize_fixture", "persist_decision"} {
 		if !hasToolDescriptor(req.Tools, name) {
@@ -423,7 +423,7 @@ func assertComplexInitialRequest(t *testing.T, req hermes.ChatRequest, userInput
 	}
 }
 
-func assertComplexContinuation(t *testing.T, req hermes.ChatRequest, wantToolReplies []string) {
+func assertComplexContinuation(t *testing.T, req llm.ChatRequest, wantToolReplies []string) {
 	t.Helper()
 	seen := map[string]string{}
 	for _, msg := range req.Messages {
@@ -442,7 +442,7 @@ func assertComplexContinuation(t *testing.T, req hermes.ChatRequest, wantToolRep
 	}
 }
 
-func assertComplexToolReplyOrder(t *testing.T, req hermes.ChatRequest, want []string) {
+func assertComplexToolReplyOrder(t *testing.T, req llm.ChatRequest, want []string) {
 	t.Helper()
 	var got []string
 	for _, msg := range req.Messages {
@@ -455,7 +455,7 @@ func assertComplexToolReplyOrder(t *testing.T, req hermes.ChatRequest, want []st
 	}
 }
 
-func assertComplexToolReplyContains(t *testing.T, req hermes.ChatRequest, callID, want string) {
+func assertComplexToolReplyContains(t *testing.T, req llm.ChatRequest, callID, want string) {
 	t.Helper()
 	for _, msg := range req.Messages {
 		if msg.Role == "tool" && msg.ToolCallID == callID {

@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // TurnRequest is the channel-neutral turn dispatch envelope every channel
@@ -126,18 +126,18 @@ const externalChannelSafeBusyReply = "Busy — try again in a second."
 const visionPreAnalysisUnavailableMarker = "vision_pre_analysis_unavailable"
 
 type imageInputModeOptions struct {
-	Mode            hermes.ImageInputMode
-	AuxiliaryVision hermes.AuxiliaryVisionConfig
+	Mode            llm.ImageInputMode
+	AuxiliaryVision llm.AuxiliaryVisionConfig
 	Provider        string
 	Model           string
 }
 
-func imagePayloadFromAttachments(userText, submitText string, attachments []Attachment, opts imageInputModeOptions) (string, []hermes.MessageContentPart) {
+func imagePayloadFromAttachments(userText, submitText string, attachments []Attachment, opts imageInputModeOptions) (string, []llm.MessageContentPart) {
 	if !hasPhotoAttachments(attachments) {
 		return submitText, nil
 	}
 	mode := decideImageInputModeForTurn(opts)
-	if mode == hermes.ImageInputModeNative {
+	if mode == llm.ImageInputModeNative {
 		return submitText, imageContentPartsFromAttachments(userText, attachments)
 	}
 	slog.Info("image_input_mode_text_degraded",
@@ -147,12 +147,12 @@ func imagePayloadFromAttachments(userText, submitText string, attachments []Atta
 	return degradedVisionSubmitText(submitText), nil
 }
 
-func decideImageInputModeForTurn(opts imageInputModeOptions) hermes.ImageInputMode {
-	metadata := hermes.LookupModelMetadata(hermes.ModelRegistryQuery{
+func decideImageInputModeForTurn(opts imageInputModeOptions) llm.ImageInputMode {
+	metadata := llm.LookupModelMetadata(llm.ModelRegistryQuery{
 		Provider: opts.Provider,
 		Model:    opts.Model,
 	})
-	return hermes.DecideImageInputMode(hermes.ImageRoutingConfig{
+	return llm.DecideImageInputMode(llm.ImageRoutingConfig{
 		Mode:                  opts.Mode,
 		AuxiliaryVision:       opts.AuxiliaryVision,
 		ModelVisionCapability: metadata.Capabilities.Vision,
@@ -187,7 +187,7 @@ func hasPhotoAttachments(attachments []Attachment) bool {
 // Unreadable files are skipped so the kernel never receives a broken image_url.
 // Non-photo attachments are skipped — voice has its own transcriber resolver
 // and documents lack a defined multimodal contract today.
-func imageContentPartsFromAttachments(userText string, attachments []Attachment) []hermes.MessageContentPart {
+func imageContentPartsFromAttachments(userText string, attachments []Attachment) []llm.MessageContentPart {
 	if len(attachments) == 0 {
 		return nil
 	}
@@ -207,7 +207,7 @@ func imageContentPartsFromAttachments(userText string, attachments []Attachment)
 	if len(imagePaths) == 0 && emptyPaths == 0 {
 		return nil
 	}
-	parts, skipped := hermes.BuildNativeImageContentParts(userText, imagePaths)
+	parts, skipped := llm.BuildNativeImageContentParts(userText, imagePaths)
 	if len(parts) > 0 || len(skipped) > 0 || emptyPaths > 0 {
 		slog.Info("imageContentPartsFromAttachments",
 			"image_parts", countImageURLContentParts(parts),
@@ -217,7 +217,7 @@ func imageContentPartsFromAttachments(userText string, attachments []Attachment)
 	return parts
 }
 
-func countImageURLContentParts(parts []hermes.MessageContentPart) int {
+func countImageURLContentParts(parts []llm.MessageContentPart) int {
 	count := 0
 	for _, part := range parts {
 		if part.Type == "image_url" {

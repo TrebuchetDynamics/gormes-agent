@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 func openProviderWithRichGraph(t *testing.T) (*SqliteStore, *Provider) {

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type providerCredentialResolution struct {
@@ -59,7 +59,7 @@ func resolveSecretRefCredential(ref config.SecretRef, lookupEnv func(string) (st
 }
 
 func providerManifestCredential(provider string, lookupEnv func(string) (string, bool)) (string, bool) {
-	entry, ok := hermes.ResolveProviderManifestEntry(provider)
+	entry, ok := llm.ResolveProviderManifestEntry(provider)
 	if !ok {
 		return "", false
 	}

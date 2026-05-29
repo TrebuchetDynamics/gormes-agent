@@ -8,8 +8,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 )
 
@@ -25,7 +25,7 @@ func TestUsageSlashOpensFrameUsagePageWithoutSubmitting(t *testing.T) {
 			LatencyMsLast:  890,
 			TokensPerSec:   12.34,
 		},
-		ContextStatus: &hermes.ContextStatus{
+		ContextStatus: &llm.ContextStatus{
 			ContextLength:    200000,
 			LastTotalTokens:  18000,
 			UsagePercent:     9.0,
@@ -71,16 +71,16 @@ func TestUsageSlashFetchesAccountUsageAsynchronously(t *testing.T) {
 		Telemetry: telemetry.Snapshot{TokensInTotal: 10, TokensOutTotal: 5},
 	}, Options{
 		MouseTracking: true,
-		AccountUsage: func(ctx context.Context) (hermes.AccountUsageSnapshot, error) {
+		AccountUsage: func(ctx context.Context) (llm.AccountUsageSnapshot, error) {
 			if ctx == nil {
 				t.Fatal("AccountUsage context is nil")
 			}
 			requested = true
-			return hermes.AccountUsageSnapshot{
+			return llm.AccountUsageSnapshot{
 				Provider:  "openrouter",
 				Plan:      "Team",
 				FetchedAt: time.Date(2026, 5, 23, 12, 0, 0, 0, time.UTC),
-				Windows: []hermes.AccountUsageWindow{{
+				Windows: []llm.AccountUsageWindow{{
 					Label:       "Session",
 					UsedPercent: &used,
 				}},

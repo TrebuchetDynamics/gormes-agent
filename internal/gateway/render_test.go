@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestFormatStreamPlain_DraftPassThrough(t *testing.T) {
@@ -32,7 +32,7 @@ func TestFormatStreamTelegram_ActivePreviewAddsHermesCursor(t *testing.T) {
 
 func TestFormatFinalPlain_DoesNotIncludeStreamingCursor(t *testing.T) {
 	f := kernel.RenderFrame{
-		History: []hermes.Message{{Role: "assistant", Content: "final answer"}},
+		History: []llm.Message{{Role: "assistant", Content: "final answer"}},
 	}
 	if got := FormatFinalPlain(f); strings.Contains(got, "▉") {
 		t.Fatalf("FormatFinalPlain = %q, want no streaming cursor", got)
@@ -233,7 +233,7 @@ func TestFormatToolProgressPlain_MineruGatewayTranscriptShape(t *testing.T) {
 
 func TestFormatFinalPlain_LastAssistant(t *testing.T) {
 	f := kernel.RenderFrame{
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "hi"},
 			{Role: "assistant", Content: "the answer"},
 		},

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 )
 
 // saveExportTimeout caps how long /save waits on the injected helper. The
@@ -19,7 +19,7 @@ const saveExportTimeout = 30 * time.Second
 
 // SessionExportFunc is the injection point for the TUI /save command. The
 // implementation produced by cmd/gormes opens config.MemoryDBPath(), calls
-// internal/transcript.ExportMarkdown to build the canonical persisted
+// internal/persistence/transcript.ExportMarkdown to build the canonical persisted
 // transcript, writes the result to disk, and returns the file path. Tests
 // wire fakes; the unit tests in this package never open a real DB.
 //

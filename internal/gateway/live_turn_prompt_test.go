@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 // liveTurnHarness wires a Manager with a fakeKernel and a fake channel and
@@ -149,7 +149,7 @@ func TestLiveTurn_SystemPrompt_ChannelNeutral(t *testing.T) {
 	cwd := writeProject(t, body)
 
 	// Build the expected context-files block once with the same fixtures.
-	wantBlock, _ := hermes.BuildContextFilesPrompt(hermes.ContextFilesOptions{
+	wantBlock, _ := llm.BuildContextFilesPrompt(llm.ContextFilesOptions{
 		ProfileDir: profile,
 		CWD:        cwd,
 	})
@@ -372,7 +372,7 @@ func TestLiveTurn_SystemPrompt_DurableUserBlockChannelNeutral(t *testing.T) {
 	emptyProfile := t.TempDir()
 	emptyCWD := t.TempDir()
 
-	wantBlock, _ := hermes.BuildDurableUserContextPrompt(hermes.DurableUserContextOptions{MemoryDir: memDir})
+	wantBlock, _ := llm.BuildDurableUserContextPrompt(llm.DurableUserContextOptions{MemoryDir: memDir})
 	if wantBlock == "" {
 		t.Fatalf("expected non-empty durable user-context block from fixtures")
 	}
@@ -500,7 +500,7 @@ func turnMetadataFixtureClock() time.Time {
 }
 
 func turnMetadataFixtureBlock() string {
-	return hermes.BuildTurnMetadataBlock(hermes.TurnMetadataOptions{
+	return llm.BuildTurnMetadataBlock(llm.TurnMetadataOptions{
 		Now:       turnMetadataFixtureClock(),
 		SessionID: "sess-1",
 		Model:     "claude-opus-4-7",
@@ -606,7 +606,7 @@ func TestLiveTurn_SystemPrompt_TurnMetadataMissingNoPanic(t *testing.T) {
 
 func TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateOpen(t *testing.T) {
 	prompt := "How do I configure Gormes?"
-	wantGuidance, ok := hermes.GormesSelfHelpGuidanceForPrompt(prompt)
+	wantGuidance, ok := llm.GormesSelfHelpGuidanceForPrompt(prompt)
 	if !ok || wantGuidance == "" {
 		t.Fatalf("self-help gate must open for %q (slice-4 fixture); got ok=%v guidance=%q", prompt, ok, wantGuidance)
 	}
@@ -620,14 +620,14 @@ func TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateOpen(t *testing.T) {
 
 func TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateClosed(t *testing.T) {
 	// "Write a Go unit test for JSON parsing." is proven gate=false by
-	// internal/hermes/self_help_guidance_test.go (TestGormesSelfHelpGuidanceGateMatchesSetupQuestions/unrelated).
+	// internal/llm/self_help_guidance_test.go (TestGormesSelfHelpGuidanceGateMatchesSetupQuestions/unrelated).
 	prompt := "Write a Go unit test for JSON parsing."
-	if guidance, ok := hermes.GormesSelfHelpGuidanceForPrompt(prompt); ok {
+	if guidance, ok := llm.GormesSelfHelpGuidanceForPrompt(prompt); ok {
 		t.Fatalf("precondition: self-help gate must be closed for %q; got ok=true guidance=%q", prompt, guidance)
 	}
 	// Use the open-gate body as the not-want substring; it must be absent
 	// when the gate rejects the inbound prompt.
-	openBody, _ := hermes.GormesSelfHelpGuidanceForPrompt("How do I configure Gormes?")
+	openBody, _ := llm.GormesSelfHelpGuidanceForPrompt("How do I configure Gormes?")
 	if openBody == "" {
 		t.Fatalf("precondition: open-gate body must be non-empty")
 	}
@@ -718,7 +718,7 @@ func TestLiveTurn_SystemPrompt_ToolUseEnforcementGrokSubstringMatch(t *testing.T
 
 func TestLiveTurn_SystemPrompt_SelfHelpGuidanceChannelNeutral(t *testing.T) {
 	prompt := "How do I configure Gormes?"
-	wantGuidance, ok := hermes.GormesSelfHelpGuidanceForPrompt(prompt)
+	wantGuidance, ok := llm.GormesSelfHelpGuidanceForPrompt(prompt)
 	if !ok || wantGuidance == "" {
 		t.Fatalf("self-help gate must open for %q", prompt)
 	}
@@ -765,10 +765,10 @@ func TestLiveTurn_TelegramFinalProviderRequestIncludesOperatorContext(t *testing
 	t.Setenv("GORMES_HOME", filepath.Join(t.TempDir(), "empty-gormes-home"))
 	t.Setenv("HERMES_HOME", "")
 
-	provider := hermes.NewMockClient()
-	provider.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "ok"},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	provider := llm.NewMockClient()
+	provider.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "ok"},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "sess-provider")
 	k := kernel.New(kernel.Config{
 		Model:     "gpt-5.5",

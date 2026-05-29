@@ -8,19 +8,19 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/transcript"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/transcript"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
 type tuiBranchIDFunc func() string
 
-func newTUIBranchFunc(rootCtx context.Context, metadata sessionpkg.MetadataWriter, resume func(string, []hermes.Message) error) tui.SessionBranchFunc {
+func newTUIBranchFunc(rootCtx context.Context, metadata sessionpkg.MetadataWriter, resume func(string, []llm.Message) error) tui.SessionBranchFunc {
 	return newTUIBranchFuncWithID(rootCtx, metadata, resume, newTUIBranchSessionID)
 }
 
-func newTUIBranchFuncWithID(rootCtx context.Context, metadata sessionpkg.MetadataWriter, resume func(string, []hermes.Message) error, newID tuiBranchIDFunc) tui.SessionBranchFunc {
+func newTUIBranchFuncWithID(rootCtx context.Context, metadata sessionpkg.MetadataWriter, resume func(string, []llm.Message) error, newID tuiBranchIDFunc) tui.SessionBranchFunc {
 	switcher := newTUIResidentSessionSwitcher(rootCtx, resume)
 	return func(ctx context.Context, req tui.BranchRequest) (tui.BranchResult, error) {
 		ctx = switcher.context(ctx)

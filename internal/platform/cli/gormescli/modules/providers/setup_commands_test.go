@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestProvidersSetupSubcommandPrintsSetupGuidance(t *testing.T) {
@@ -38,7 +38,7 @@ func TestProvidersSetupSubcommandPrintsSetupGuidance(t *testing.T) {
 }
 
 func TestProvidersSetupSubcommandSupportsEveryManifestProvider(t *testing.T) {
-	for _, entry := range hermes.HermesProviderRegistryManifest() {
+	for _, entry := range llm.HermesProviderRegistryManifest() {
 		t.Run(entry.ID, func(t *testing.T) {
 			cmd := NewProvidersCommand(Options{})
 			var stdout bytes.Buffer
@@ -88,7 +88,7 @@ func TestProvidersSetupSubcommandListsAllSetupEntrypoints(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
 		}
 	}
-	for _, entry := range hermes.HermesProviderRegistryManifest() {
+	for _, entry := range llm.HermesProviderRegistryManifest() {
 		if !strings.Contains(stdout.String(), entry.ID) {
 			t.Fatalf("known manifest providers missing %s:\n%s", entry.ID, stdout.String())
 		}

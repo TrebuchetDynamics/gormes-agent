@@ -118,7 +118,7 @@ func TestRunPostPromotionVerificationLogsCommandJobs(t *testing.T) {
 		RepoRoot: dir,
 		RunRoot:  filepath.Join(dir, "runroot"),
 		PostPromotionVerifyCommands: []string{
-			"go test ./internal/hermes -count=1",
+			"go test ./internal/llm -count=1",
 			"go run ./cmd/progress validate",
 		},
 	}

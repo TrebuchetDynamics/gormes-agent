@@ -22,20 +22,20 @@ import (
 	dynamicagents "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	gormesgoncho "github.com/TrebuchetDynamics/goncho/integration/gormes"
 	"github.com/TrebuchetDynamics/goncho/service"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	channelsmodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/channels"
 	gatewaymodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -535,7 +535,7 @@ func activateGatewaySecretRuntime(ctx context.Context, cfg config.Config, resolv
 	return activation.Config, activation.Snapshot, err
 }
 
-func newGatewayHermesClient(cfg config.Config) (hermes.Client, error) {
+func newGatewayHermesClient(cfg config.Config) (llm.Client, error) {
 	return newProviderHTTPClient(cfg, cfg.Hermes.Provider)
 }
 
@@ -592,7 +592,7 @@ func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
 	return time.Duration(cfg.Telegram.FreshFinalAfterSeconds * float64(time.Second))
 }
 
-func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map, hc hermes.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map, hc llm.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
 	titleStore, titleModel := buildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
 		AllowedChats:               allowedChats,
@@ -626,8 +626,8 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
 			return firstUsageString(resolution.Provider, cfg.Hermes.Provider)
 		},
-		ImageInputMode: hermes.ImageInputMode(cfg.Agent.ImageInputMode),
-		AuxiliaryVision: hermes.AuxiliaryVisionConfig{
+		ImageInputMode: llm.ImageInputMode(cfg.Agent.ImageInputMode),
+		AuxiliaryVision: llm.AuxiliaryVisionConfig{
 			Provider: cfg.Auxiliary.Vision.Provider,
 			Model:    cfg.Auxiliary.Vision.Model,
 			BaseURL:  cfg.Auxiliary.Vision.BaseURL,
@@ -635,14 +635,14 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		SessionResetPolicy:      cfg.Runtime.SessionResetPolicy,
 		SessionResetIdleMinutes: cfg.Runtime.SessionResetAfterMinutes,
 		SessionResetDailyHour:   cfg.Runtime.SessionResetDailyHour,
-		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (hermes.AccountUsageSnapshot, error) {
+		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (llm.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
 			provider := inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))
 			if provider == "" {
 				provider = "openai-codex"
 			}
-			fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
-			return fetcher.Fetch(ctx, hermes.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
+			fetcher := llm.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
+			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}
 }
@@ -1076,7 +1076,7 @@ func (a *gonchoAdapter) GetContext(ctx context.Context, sessionKey string, maxTo
 	return b.String(), nil
 }
 
-func (a *gonchoAdapter) OnSessionEnd(ctx context.Context, sessionKey string, messages []hermes.Message) error {
+func (a *gonchoAdapter) OnSessionEnd(ctx context.Context, sessionKey string, messages []llm.Message) error {
 	if a.svc == nil || sessionKey == "" {
 		return nil
 	}

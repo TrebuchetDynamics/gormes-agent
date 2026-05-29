@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 var ErrUserScopeDenied = errors.New("memory: user scope denied")

@@ -19,7 +19,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	profilemodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/profiles"
@@ -1145,7 +1145,7 @@ func setupModelSeedForProvider(current cli.ProviderModel, provider string) strin
 	if strings.EqualFold(strings.TrimSpace(current.Provider), provider) && strings.TrimSpace(current.Model) != "" {
 		return strings.TrimSpace(current.Model)
 	}
-	if resolved := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{}); strings.TrimSpace(resolved.Model) != "" {
+	if resolved := llm.ResolveProviderDefaultModel(provider, llm.ProviderDefaultModelOptions{}); strings.TrimSpace(resolved.Model) != "" {
 		return strings.TrimSpace(resolved.Model)
 	}
 	return strings.TrimSpace(current.Model)
@@ -1235,7 +1235,7 @@ func runSetupActiveProviderModelPicker(cmd *cobra.Command, current cli.ProviderM
 	if err != nil {
 		return err
 	}
-	model = hermes.NormalizeProviderModelID(provider, model)
+	model = llm.NormalizeProviderModelID(provider, model)
 	if err := persistModelSelectionToConfig(cli.Selection{Provider: provider, Model: model}); err != nil {
 		return err
 	}
@@ -1290,7 +1290,7 @@ func setupProviderDisplayLabel(provider string) string {
 	case "qwen-oauth":
 		return "Qwen OAuth"
 	}
-	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		provider = entry.ID
 	}
 	parts := strings.Fields(strings.ReplaceAll(provider, "-", " "))
@@ -1457,7 +1457,7 @@ func setupProviderAutoDetectEnvProvider() string {
 	if strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")) != "" || strings.TrimSpace(os.Getenv("OPENAI_API_KEY")) != "" {
 		return "openrouter"
 	}
-	for _, entry := range hermes.HermesProviderRegistryManifest() {
+	for _, entry := range llm.HermesProviderRegistryManifest() {
 		if entry.ID == "github-copilot" {
 			// GH_TOKEN/GITHUB_TOKEN are often present for git tooling and Hermes
 			// intentionally avoids treating them as provider setup by default.
@@ -1490,7 +1490,7 @@ func setupProviderShouldUseOAuth(provider, apiKey string) bool {
 
 func setupProviderSupportsAPIKey(provider string) bool {
 	provider = setupCanonicalProviderID(provider)
-	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		return strings.EqualFold(strings.TrimSpace(entry.AuthType), "api_key")
 	}
 	return !authProviderDefaultsToOAuth(provider)
@@ -1513,7 +1513,7 @@ func setupProviderAPIKeyDefault(provider string) (string, []string) {
 func setupProviderAPIKeyEnvNames(provider string) []string {
 	envNames := make([]string, 0, 4)
 	addSetupEnvName(&envNames, "GORMES_API_KEY")
-	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		for _, envName := range entry.EnvVars {
 			if setupProviderImplicitAPIKeyEnv(envName) {
 				continue
@@ -1527,7 +1527,7 @@ func setupProviderAPIKeyEnvNames(provider string) []string {
 func setupProviderEndpointEnvNames(provider string) []string {
 	envNames := make([]string, 0, 2)
 	addSetupEnvName(&envNames, "GORMES_ENDPOINT")
-	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		addSetupEnvName(&envNames, entry.BaseURLEnvVar)
 	}
 	return envNames
@@ -1635,7 +1635,7 @@ func setupProviderInteractive(cmd *cobra.Command, seams setupCommandSeams) error
 		}
 		return err
 	}
-	model = hermes.NormalizeProviderModelID(provider, model)
+	model = llm.NormalizeProviderModelID(provider, model)
 
 	return writeProviderConfig(cmd, provider, endpoint, apiKey, model)
 }
@@ -1671,7 +1671,7 @@ func setupCanonicalProviderID(provider string) string {
 	if provider == "custom-endpoint" {
 		return "custom"
 	}
-	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		return strings.TrimSpace(entry.ID)
 	}
 	return provider
@@ -1688,7 +1688,7 @@ func setupProviderEndpointDefault(provider string) string {
 	if endpoint := knownProviderEndpoints[provider]; strings.TrimSpace(endpoint) != "" {
 		return cleanSetupProviderEndpoint(endpoint)
 	}
-	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		if endpoint := setupProviderEndpointEnvDefault(entry.ID); endpoint != "" {
 			return endpoint
 		}
@@ -1706,7 +1706,7 @@ func setupProviderEndpointDefault(provider string) string {
 }
 
 func setupProviderEndpointEnvDefault(provider string) string {
-	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+	if entry, ok := llm.ResolveProviderManifestEntry(provider); ok {
 		if endpoint := cleanSetupProviderEndpoint(os.Getenv(entry.BaseURLEnvVar)); endpoint != "" {
 			return endpoint
 		}
@@ -1723,7 +1723,7 @@ func setupProviderModelDefault(current cli.ProviderModel, provider string) strin
 	if strings.EqualFold(setupCanonicalProviderID(current.Provider), provider) && strings.TrimSpace(current.Model) != "" {
 		return strings.TrimSpace(current.Model)
 	}
-	if resolved := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{}); strings.TrimSpace(resolved.Model) != "" {
+	if resolved := llm.ResolveProviderDefaultModel(provider, llm.ProviderDefaultModelOptions{}); strings.TrimSpace(resolved.Model) != "" {
 		return strings.TrimSpace(resolved.Model)
 	}
 	if model := knownProviderModels[provider]; strings.TrimSpace(model) != "" {
@@ -2386,7 +2386,7 @@ func runSetupFallbackAdd(cmd *cobra.Command, seams setupCommandSeams) error {
 		}
 		return err
 	}
-	model = hermes.NormalizeProviderModelID(provider, model)
+	model = llm.NormalizeProviderModelID(provider, model)
 
 	wrote, err := providermodule.AppendFallbackSelection(config.ConfigPath(), cli.Selection{
 		Provider: provider,

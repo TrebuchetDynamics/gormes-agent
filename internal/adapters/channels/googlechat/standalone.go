@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/automation/cron"
 )
 
 var (

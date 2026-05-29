@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // SessionSource describes the gateway-facing origin of a turn.

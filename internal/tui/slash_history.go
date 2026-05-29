@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func historySlashHandler(input string, model *Model) SlashResult {
@@ -35,11 +35,11 @@ func historyPreviewLimit(input string) int {
 	return preview
 }
 
-func BuildHistoryPage(history []hermes.Message, preview int) (TransientPageState, bool) {
+func BuildHistoryPage(history []llm.Message, preview int) (TransientPageState, bool) {
 	if preview < 80 {
 		preview = 80
 	}
-	items := make([]hermes.Message, 0, len(history))
+	items := make([]llm.Message, 0, len(history))
 	for _, msg := range history {
 		switch msg.Role {
 		case "user", "assistant":
@@ -70,7 +70,7 @@ func BuildHistoryPage(history []hermes.Message, preview int) (TransientPageState
 	return TransientPageState{Title: "History", Body: strings.Join(blocks, "\n\n")}, true
 }
 
-func historyMessageText(msg hermes.Message) string {
+func historyMessageText(msg llm.Message) string {
 	if strings.TrimSpace(msg.Content) != "" {
 		return msg.Content
 	}

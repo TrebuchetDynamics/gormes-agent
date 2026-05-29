@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +32,7 @@ func (o Options) buildProvenance() gormescli.BuildProvenance {
 // hermetic command tests.
 type UsageSeams struct {
 	LoadConfig        func() (config.Config, error)
-	FetchAccountUsage func(context.Context, hermes.AccountUsageFetchRequest) (hermes.AccountUsageSnapshot, error)
+	FetchAccountUsage func(context.Context, llm.AccountUsageFetchRequest) (llm.AccountUsageSnapshot, error)
 }
 
 // DefaultUsageSeams returns the production usage-command seams.
@@ -41,8 +41,8 @@ func DefaultUsageSeams() UsageSeams {
 		LoadConfig: func() (config.Config, error) {
 			return config.Load(nil)
 		},
-		FetchAccountUsage: func(ctx context.Context, req hermes.AccountUsageFetchRequest) (hermes.AccountUsageSnapshot, error) {
-			fetcher := hermes.NewAccountUsageFetcher(AccountUsageHTTPClient{Client: UsageHTTPClient}, func() time.Time { return time.Now().UTC() })
+		FetchAccountUsage: func(ctx context.Context, req llm.AccountUsageFetchRequest) (llm.AccountUsageSnapshot, error) {
+			fetcher := llm.NewAccountUsageFetcher(AccountUsageHTTPClient{Client: UsageHTTPClient}, func() time.Time { return time.Now().UTC() })
 			return fetcher.Fetch(ctx, req)
 		},
 	}
@@ -67,7 +67,7 @@ func (s UsageSeams) withDefaults() UsageSeams {
 // tags.
 type UsageReportJSON struct {
 	Build gormescli.BuildProvenance `json:"build"`
-	hermes.AccountUsageSnapshot
+	llm.AccountUsageSnapshot
 }
 
 // NewUsageCommand creates the provider account-usage command.
@@ -129,7 +129,7 @@ func runUsageCommand(cmd *cobra.Command, invocation UsageInvocation, seams Usage
 	}
 	key := FirstUsageString(invocation.APIKey, cfg.Hermes.APIKey)
 	baseURL := FirstUsageString(invocation.BaseURL, cfg.Hermes.Endpoint)
-	snapshot, err := seams.FetchAccountUsage(cmd.Context(), hermes.AccountUsageFetchRequest{
+	snapshot, err := seams.FetchAccountUsage(cmd.Context(), llm.AccountUsageFetchRequest{
 		Provider:  provider,
 		BaseURL:   baseURL,
 		APIKey:    key,
@@ -150,23 +150,23 @@ func runUsageCommand(cmd *cobra.Command, invocation UsageInvocation, seams Usage
 		fmt.Fprintln(cmd.OutOrStdout(), string(body))
 		return nil
 	}
-	for _, line := range hermes.RenderAccountUsageLines(snapshot, hermes.AccountUsageRenderOptions{}) {
+	for _, line := range llm.RenderAccountUsageLines(snapshot, llm.AccountUsageRenderOptions{}) {
 		fmt.Fprintln(cmd.OutOrStdout(), line)
 	}
 	return nil
 }
 
-// AccountUsageHTTPClient adapts net/http to hermes.AccountUsageHTTPClient.
+// AccountUsageHTTPClient adapts net/http to llm.AccountUsageHTTPClient.
 type AccountUsageHTTPClient struct{ Client *http.Client }
 
-func (c AccountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req hermes.AccountUsageHTTPRequest) (hermes.AccountUsageHTTPResponse, error) {
+func (c AccountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req llm.AccountUsageHTTPRequest) (llm.AccountUsageHTTPResponse, error) {
 	client := c.Client
 	if client == nil {
 		client = http.DefaultClient
 	}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, req.URL, nil)
 	if err != nil {
-		return hermes.AccountUsageHTTPResponse{}, err
+		return llm.AccountUsageHTTPResponse{}, err
 	}
 	for key, value := range req.Headers {
 		if strings.TrimSpace(value) != "" {
@@ -175,14 +175,14 @@ func (c AccountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req h
 	}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		return hermes.AccountUsageHTTPResponse{}, err
+		return llm.AccountUsageHTTPResponse{}, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return hermes.AccountUsageHTTPResponse{}, err
+		return llm.AccountUsageHTTPResponse{}, err
 	}
-	return hermes.AccountUsageHTTPResponse{StatusCode: resp.StatusCode, Body: body}, nil
+	return llm.AccountUsageHTTPResponse{StatusCode: resp.StatusCode, Body: body}, nil
 }
 
 // InferUsageProvider infers the provider from configured provider/model
@@ -197,7 +197,7 @@ func InferUsageProvider(configuredProvider, model string) string {
 		return ""
 	}
 	for _, candidate := range []string{"openai-codex", "anthropic", "openai", "openrouter"} {
-		if metadata := hermes.LookupModelMetadata(hermes.ModelRegistryQuery{Provider: candidate, Model: model}); metadata.Found {
+		if metadata := llm.LookupModelMetadata(llm.ModelRegistryQuery{Provider: candidate, Model: model}); metadata.Found {
 			return metadata.Provider
 		}
 	}

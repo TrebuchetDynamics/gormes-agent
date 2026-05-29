@@ -12,7 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/events"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -22,13 +22,13 @@ func TestEventBusIntegration_TelegramTurnToolReplyFlow(t *testing.T) {
 
 	topics := []string{
 		gateway.TopicMessageReceived,
-		hermes.TopicTurnStart,
-		hermes.TopicTurnAction,
+		llm.TopicTurnStart,
+		llm.TopicTurnAction,
 		tools.TopicToolStart,
 		tools.TopicToolOutput,
 		tools.TopicToolComplete,
-		hermes.TopicTurnObserve,
-		hermes.TopicTurnComplete,
+		llm.TopicTurnObserve,
+		llm.TopicTurnComplete,
 		gateway.TopicMessageSent,
 	}
 	gatewayView := newEventFlowRecorder(bus, topics)
@@ -36,7 +36,7 @@ func TestEventBusIntegration_TelegramTurnToolReplyFlow(t *testing.T) {
 
 	dispatcher := gateway.NewEventDispatcher(bus)
 	adapter := telegram.NewBusAdapter(dispatcher)
-	turns := hermes.NewTurnEventEmitter(bus)
+	turns := llm.NewTurnEventEmitter(bus)
 	executor := tools.NewEventingToolExecutor(integrationToolExecutor{}, bus, "agent")
 
 	traceID := "trace-tg-42-99"
@@ -102,13 +102,13 @@ func TestEventBusIntegration_TelegramTurnToolReplyFlow(t *testing.T) {
 
 	wantTopics := []string{
 		gateway.TopicMessageReceived,
-		hermes.TopicTurnStart,
-		hermes.TopicTurnAction,
+		llm.TopicTurnStart,
+		llm.TopicTurnAction,
 		tools.TopicToolStart,
 		tools.TopicToolOutput,
 		tools.TopicToolComplete,
-		hermes.TopicTurnObserve,
-		hermes.TopicTurnComplete,
+		llm.TopicTurnObserve,
+		llm.TopicTurnComplete,
 		gateway.TopicMessageSent,
 	}
 	assertEventTopics(t, "gateway subscriber", gatewayEvents, wantTopics)

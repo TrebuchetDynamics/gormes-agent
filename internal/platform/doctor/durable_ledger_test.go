@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
 )
 
 func TestCheckDurableLedgerReportsAppendOnlyRunLogDegradedMode(t *testing.T) {

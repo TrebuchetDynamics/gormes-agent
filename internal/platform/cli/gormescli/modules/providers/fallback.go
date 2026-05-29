@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
@@ -133,7 +133,7 @@ func runFallbackAdd(cmd *cobra.Command, seams ModelCommandSeams) error {
 			if err != nil {
 				return "", err
 			}
-			return hermes.NormalizeProviderModelID(provider, model), nil
+			return llm.NormalizeProviderModelID(provider, model), nil
 		}
 	}
 	var selection cli.Selection

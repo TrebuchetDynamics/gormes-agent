@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -20,13 +20,13 @@ import (
 func TestOneshotChatComplexE2E_MultiRoundToolsPrintsOnlyFinalAnswer(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "planning text must not reach stdout", TokensOut: 6},
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "planning text must not reach stdout", TokensOut: 6},
 		{
-			Kind:         hermes.EventDone,
+			Kind:         llm.EventDone,
 			FinishReason: "tool_calls",
-			ToolCalls: []hermes.ToolCall{
+			ToolCalls: []llm.ToolCall{
 				{ID: "call_alpha", Name: "alpha_probe", Arguments: json.RawMessage(`{"target":"alpha"}`)},
 				{ID: "call_beta", Name: "beta_probe", Arguments: json.RawMessage(`{"target":"beta"}`)},
 			},
@@ -34,18 +34,18 @@ func TestOneshotChatComplexE2E_MultiRoundToolsPrintsOnlyFinalAnswer(t *testing.T
 			TokensOut: 6,
 		},
 	}, "sess-complex-round-1")
-	mock.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mock.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_gamma", Name: "gamma_probe", Arguments: json.RawMessage(`{"target":"gamma","depends_on":["alpha","beta"]}`)},
 		},
 		TokensIn:  70,
 		TokensOut: 2,
 	}}, "sess-complex-round-2")
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "final clean chat answer", TokensOut: 4},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 100, TokensOut: 4},
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "final clean chat answer", TokensOut: 4},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 100, TokensOut: 4},
 	}, "sess-complex-final")
 
 	reg := tools.NewRegistry()
@@ -58,7 +58,7 @@ func TestOneshotChatComplexE2E_MultiRoundToolsPrintsOnlyFinalAnswer(t *testing.T
 			t.Fatal("runTUI was called for oneshot")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return mock, nil
 		},
 		configureOneshotKernel: func(cfg *kernel.Config) {
@@ -105,10 +105,10 @@ func TestOneshotChatComplexE2E_ForcedSkillsInjectOnlyAllowlistedProcedures(t *te
 	writeChatCommandSkill(t, skillsRoot, "stdout-leak-auditor")
 	writeChatCommandSkill(t, skillsRoot, "unrelated-skill")
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "skill constrained final", TokensOut: 3},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 45, TokensOut: 3},
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "skill constrained final", TokensOut: 3},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 45, TokensOut: 3},
 	}, "sess-forced-skills")
 
 	cmd := newRootCommandWithRuntime(rootRuntime{
@@ -116,7 +116,7 @@ func TestOneshotChatComplexE2E_ForcedSkillsInjectOnlyAllowlistedProcedures(t *te
 			t.Fatal("runTUI was called for forced-skill oneshot")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return mock, nil
 		},
 	})
@@ -168,28 +168,28 @@ func TestOneshotChatComplexE2E_ForcedSkillsInjectOnlyAllowlistedProcedures(t *te
 func TestOneshotChatComplexE2E_ToolBudgetSummaryFallbackStaysClean(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_first", Name: "loop_probe", Arguments: json.RawMessage(`{"step":1}`)},
 		},
 		TokensIn:  20,
 		TokensOut: 1,
 	}}, "sess-budget-first")
-	mock.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mock.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_second_forbidden_by_budget", Name: "loop_probe", Arguments: json.RawMessage(`{"step":2}`)},
 		},
 		TokensIn:  40,
 		TokensOut: 1,
 	}}, "sess-budget-second")
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "budget-safe operator summary", TokensOut: 4},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 80, TokensOut: 4},
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "budget-safe operator summary", TokensOut: 4},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 80, TokensOut: 4},
 	}, "sess-budget-summary")
 
 	reg := tools.NewRegistry()
@@ -200,7 +200,7 @@ func TestOneshotChatComplexE2E_ToolBudgetSummaryFallbackStaysClean(t *testing.T)
 			t.Fatal("runTUI was called for budget oneshot")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return mock, nil
 		},
 		configureOneshotKernel: func(cfg *kernel.Config) {
@@ -246,13 +246,13 @@ func TestOneshotChatComplexE2E_ToolBudgetSummaryFallbackStaysClean(t *testing.T)
 func TestOneshotChatComplexE2E_AdmissionRejectsHugePromptBeforeProvider(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	mock := hermes.NewMockClient()
+	mock := llm.NewMockClient()
 	cmd := newRootCommandWithRuntime(rootRuntime{
 		runTUI: func(*cobra.Command, []string) error {
 			t.Fatal("runTUI was called for rejected oneshot prompt")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return mock, nil
 		},
 		configureOneshotKernel: func(cfg *kernel.Config) {
@@ -290,7 +290,7 @@ func TestOneshotChatComplexE2E_StreamFailureRedactsSecretAndDropsPartialTokens(t
 	setupOneshotFlagTestEnv(t)
 	secret := "sk-stream-secret-must-not-leak"
 	client := &oneshotFailingStreamClient{
-		events: []hermes.Event{{Kind: hermes.EventToken, Token: "partial provider text must not print", TokensOut: 5}},
+		events: []llm.Event{{Kind: llm.EventToken, Token: "partial provider text must not print", TokensOut: 5}},
 		err:    errors.New("provider stream crashed after Authorization Bearer " + secret),
 	}
 
@@ -299,7 +299,7 @@ func TestOneshotChatComplexE2E_StreamFailureRedactsSecretAndDropsPartialTokens(t
 			t.Fatal("runTUI was called for stream-failure oneshot")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return client, nil
 		},
 	})
@@ -338,7 +338,7 @@ func TestOneshotChatComplexE2E_ProviderSetupFailureRedactsAPIKeyFlag(t *testing.
 			t.Fatal("runTUI was called for oneshot provider failure")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return nil, errors.New("upstream rejected Authorization Bearer " + secret)
 		},
 	})
@@ -369,39 +369,39 @@ func TestOneshotChatComplexE2E_ProviderSetupFailureRedactsAPIKeyFlag(t *testing.
 }
 
 type oneshotFailingStreamClient struct {
-	events          []hermes.Event
+	events          []llm.Event
 	err             error
 	openStreamCalls int
 }
 
-func (c *oneshotFailingStreamClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (c *oneshotFailingStreamClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	c.openStreamCalls++
-	return &oneshotFailingStream{events: append([]hermes.Event(nil), c.events...), err: c.err}, nil
+	return &oneshotFailingStream{events: append([]llm.Event(nil), c.events...), err: c.err}, nil
 }
 
-func (*oneshotFailingStreamClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (*oneshotFailingStreamClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (*oneshotFailingStreamClient) Health(context.Context) error { return nil }
 
 type oneshotFailingStream struct {
-	events []hermes.Event
+	events []llm.Event
 	err    error
 	pos    int
 	closed bool
 }
 
-func (s *oneshotFailingStream) Recv(context.Context) (hermes.Event, error) {
+func (s *oneshotFailingStream) Recv(context.Context) (llm.Event, error) {
 	if s.closed {
-		return hermes.Event{}, s.err
+		return llm.Event{}, s.err
 	}
 	if s.pos < len(s.events) {
 		event := s.events[s.pos]
 		s.pos++
 		return event, nil
 	}
-	return hermes.Event{}, s.err
+	return llm.Event{}, s.err
 }
 
 func (*oneshotFailingStream) SessionID() string { return "sess-stream-failure" }
@@ -417,7 +417,7 @@ func staticJSONToolResult(body string) func(context.Context, json.RawMessage) (j
 	}
 }
 
-func assertOneshotToolMessageOrder(t *testing.T, messages []hermes.Message, want []string) {
+func assertOneshotToolMessageOrder(t *testing.T, messages []llm.Message, want []string) {
 	t.Helper()
 	var got []string
 	for _, msg := range messages {
@@ -430,7 +430,7 @@ func assertOneshotToolMessageOrder(t *testing.T, messages []hermes.Message, want
 	}
 }
 
-func assertOneshotToolMessageContains(t *testing.T, messages []hermes.Message, callID, want string) {
+func assertOneshotToolMessageContains(t *testing.T, messages []llm.Message, callID, want string) {
 	t.Helper()
 	for _, msg := range messages {
 		if msg.Role == "tool" && msg.ToolCallID == callID {

@@ -6,20 +6,20 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestHistorySlashRendersCurrentTranscriptPageWithoutSubmitting(t *testing.T) {
 	sub := &nopSubmitter{}
 	m := newHistorySlashModel(sub)
 	longAssistant := "assistant " + strings.Repeat("x", 96)
-	m.frame.History = []hermes.Message{
+	m.frame.History = []llm.Message{
 		{Role: "system", Content: "hidden system row"},
 		{Role: "user", Content: "hello from Juan"},
 		{Role: "assistant", Content: longAssistant},
 		{Role: "tool", Name: "read_file", Content: "tool output stays out of /history"},
-		{Role: "assistant", ToolCalls: []hermes.ToolCall{{Name: "read_file"}}},
+		{Role: "assistant", ToolCalls: []llm.ToolCall{{Name: "read_file"}}},
 	}
 
 	m = enterSlashDispatchBehavior(t, m, "/history 12")
@@ -72,7 +72,7 @@ func TestHistorySlashEmptyConversationAndDismiss(t *testing.T) {
 		t.Fatalf("empty /history status = %q, want no conversation evidence", m.statusMessage)
 	}
 
-	m.frame.History = []hermes.Message{{Role: "user", Content: "keep visible until dismissed"}}
+	m.frame.History = []llm.Message{{Role: "user", Content: "keep visible until dismissed"}}
 	m = enterSlashDispatchBehavior(t, m, "/history")
 	if m.transientPage == nil {
 		t.Fatal("/history with conversation did not open a transient page")

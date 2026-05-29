@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestRetryBudget_NextDelay_ExponentialWithJitter(t *testing.T) {
@@ -60,7 +60,7 @@ func TestRetryBudget_WaitRespectsContextCancel(t *testing.T) {
 
 func TestRetryBudget_NextDelayForUsesCappedRetryAfterHint(t *testing.T) {
 	b := NewRetryBudget()
-	err := &hermes.HTTPError{Status: http.StatusTooManyRequests, RetryAfter: time.Hour}
+	err := &llm.HTTPError{Status: http.StatusTooManyRequests, RetryAfter: time.Hour}
 
 	if got := b.NextDelayFor(err); got != 16*time.Second {
 		t.Fatalf("NextDelayFor = %v, want capped 16s provider hint", got)
@@ -70,7 +70,7 @@ func TestRetryBudget_NextDelayForUsesCappedRetryAfterHint(t *testing.T) {
 func TestRetryBudget_NextDelayForFallsBackToJitteredSchedule(t *testing.T) {
 	b := NewRetryBudget()
 
-	got := b.NextDelayFor(&hermes.HTTPError{Status: http.StatusTooManyRequests})
+	got := b.NextDelayFor(&llm.HTTPError{Status: http.StatusTooManyRequests})
 	if got < 800*time.Millisecond || got > 1200*time.Millisecond {
 		t.Fatalf("NextDelayFor = %v, want first jittered schedule delay", got)
 	}
@@ -78,7 +78,7 @@ func TestRetryBudget_NextDelayForFallsBackToJitteredSchedule(t *testing.T) {
 
 func TestKernel_OpenStreamRetryUsesProviderRetryAfterHint(t *testing.T) {
 	client := &retryAfterClient{
-		firstErr: &hermes.HTTPError{
+		firstErr: &llm.HTTPError{
 			Status:     http.StatusTooManyRequests,
 			Body:       "slow down",
 			RetryAfter: time.Millisecond,
@@ -118,13 +118,13 @@ func TestKernel_OpenStreamRetryUsesProviderRetryAfterHint(t *testing.T) {
 }
 
 func TestKernel_InitialFrameExposesProviderCapabilitiesAndRetrySchedule(t *testing.T) {
-	client := &statusClient{status: hermes.ProviderStatus{
+	client := &statusClient{status: llm.ProviderStatus{
 		Provider: "fixture-provider",
 		Runtime:  "fixture-runtime",
-		Capabilities: hermes.ProviderCapabilities{
-			PromptCache:     hermes.CapabilityStatus{Available: false, Reason: "fixture cache disabled"},
-			RateGuard:       hermes.CapabilityStatus{Available: false, Reason: "fixture rate guard unavailable"},
-			BudgetTelemetry: hermes.CapabilityStatus{Available: false, Reason: "fixture budget telemetry unavailable"},
+		Capabilities: llm.ProviderCapabilities{
+			PromptCache:     llm.CapabilityStatus{Available: false, Reason: "fixture cache disabled"},
+			RateGuard:       llm.CapabilityStatus{Available: false, Reason: "fixture rate guard unavailable"},
+			BudgetTelemetry: llm.CapabilityStatus{Available: false, Reason: "fixture budget telemetry unavailable"},
 		},
 	}}
 	k := New(Config{
@@ -161,7 +161,7 @@ func TestKernel_InitialFrameExposesProviderCapabilitiesAndRetrySchedule(t *testi
 
 func TestKernel_ReconnectingFrameReportsProviderRetryAfterDecision(t *testing.T) {
 	client := &retryAfterClient{
-		firstErr: &hermes.HTTPError{
+		firstErr: &llm.HTTPError{
 			Status:     http.StatusTooManyRequests,
 			Body:       `{"error":{"message":"slow down","code":"rate_limit"}}`,
 			RetryAfter: 25 * time.Millisecond,
@@ -202,10 +202,10 @@ func TestKernel_ReconnectingFrameReportsProviderRetryAfterDecision(t *testing.T)
 		reconnecting.RetryStatus.LastScheduledDelay > 1200*time.Millisecond {
 		t.Fatalf("LastScheduledDelay = %v, want first jittered backoff envelope", reconnecting.RetryStatus.LastScheduledDelay)
 	}
-	if reconnecting.RetryStatus.LastErrorKind != hermes.ProviderErrorRateLimit.String() {
-		t.Fatalf("LastErrorKind = %q, want %q", reconnecting.RetryStatus.LastErrorKind, hermes.ProviderErrorRateLimit)
+	if reconnecting.RetryStatus.LastErrorKind != llm.ProviderErrorRateLimit.String() {
+		t.Fatalf("LastErrorKind = %q, want %q", reconnecting.RetryStatus.LastErrorKind, llm.ProviderErrorRateLimit)
 	}
-	if reconnecting.RetryStatus.LastErrorClass != hermes.ClassRetryable.String() {
+	if reconnecting.RetryStatus.LastErrorClass != llm.ClassRetryable.String() {
 		t.Fatalf("LastErrorClass = %q, want retryable", reconnecting.RetryStatus.LastErrorClass)
 	}
 }
@@ -215,49 +215,49 @@ type retryAfterClient struct {
 	calls    int
 }
 
-func (c *retryAfterClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (c *retryAfterClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	c.calls++
 	if c.calls == 1 {
 		return nil, c.firstErr
 	}
 	return &retryAfterStream{
-		events: []hermes.Event{
-			{Kind: hermes.EventToken, Token: "ok"},
-			{Kind: hermes.EventDone, FinishReason: "stop"},
+		events: []llm.Event{
+			{Kind: llm.EventToken, Token: "ok"},
+			{Kind: llm.EventDone, FinishReason: "stop"},
 		},
 	}, nil
 }
 
-func (c *retryAfterClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *retryAfterClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (c *retryAfterClient) Health(context.Context) error { return nil }
 
 type statusClient struct {
-	status hermes.ProviderStatus
+	status llm.ProviderStatus
 }
 
-func (c *statusClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (c *statusClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	return nil, io.EOF
 }
 
-func (c *statusClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *statusClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (c *statusClient) Health(context.Context) error { return nil }
 
-func (c *statusClient) ProviderStatus() hermes.ProviderStatus { return c.status }
+func (c *statusClient) ProviderStatus() llm.ProviderStatus { return c.status }
 
 type retryAfterStream struct {
-	events []hermes.Event
+	events []llm.Event
 	pos    int
 }
 
-func (s *retryAfterStream) Recv(context.Context) (hermes.Event, error) {
+func (s *retryAfterStream) Recv(context.Context) (llm.Event, error) {
 	if s.pos >= len(s.events) {
-		return hermes.Event{}, io.EOF
+		return llm.Event{}, io.EOF
 	}
 	ev := s.events[s.pos]
 	s.pos++

@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
 	"github.com/charmbracelet/bubbles/textinput"

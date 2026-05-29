@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 const triageSpecifierSystemPrompt = `You are the Kanban triage specifier for the Gormes board.
@@ -98,7 +98,7 @@ func SpecifyTriageTask(ctx context.Context, store *Store, taskID string, specifi
 }
 
 type HermesTriageSpecifier struct {
-	Client      hermes.Client
+	Client      llm.Client
 	Model       string
 	MaxTokens   int
 	Temperature float64
@@ -126,12 +126,12 @@ func (s HermesTriageSpecifier) CompleteTriageSpec(ctx context.Context, req Triag
 	if maxTokens <= 0 {
 		maxTokens = 1500
 	}
-	stream, err := s.Client.OpenStream(ctx, hermes.ChatRequest{
+	stream, err := s.Client.OpenStream(ctx, llm.ChatRequest{
 		Model:       model,
 		MaxTokens:   maxTokens,
 		Temperature: &temp,
 		Stream:      true,
-		Messages: []hermes.Message{
+		Messages: []llm.Message{
 			{Role: "system", Content: triageSpecifierSystemPrompt},
 			{Role: "user", Content: formatTriageSpecifierUserMessage(req)},
 		},
@@ -150,7 +150,7 @@ func (s HermesTriageSpecifier) CompleteTriageSpec(ctx context.Context, req Triag
 		if err != nil {
 			return "", err
 		}
-		if ev.Kind == hermes.EventToken {
+		if ev.Kind == llm.EventToken {
 			b.WriteString(ev.Token)
 		}
 	}

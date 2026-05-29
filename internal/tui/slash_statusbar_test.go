@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestStatusBarSlashTogglesChromePlacementWithoutSubmitting(t *testing.T) {
@@ -120,7 +120,7 @@ func newStatusBarSlashModel(sub *nopSubmitter) Model {
 		Phase:     kernel.PhaseIdle,
 		Model:     "anthropic/claude-sonnet-4-20250514",
 		SessionID: "sess-statusbar",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "show chrome"},
 			{Role: "assistant", Content: "chrome visible"},
 		},

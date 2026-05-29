@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/spf13/cobra"
 )
 
@@ -66,7 +66,7 @@ model = "config-model"
 			t.Fatal("runTUI was called for oneshot")
 			return nil
 		},
-		newOneshotClient: func(_ context.Context, cfg config.Config, invocation oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(_ context.Context, cfg config.Config, invocation oneshotInvocation) (llm.Client, error) {
 			gotCfg = cfg
 			gotInvocation = invocation
 			return nil, errors.New("stop before kernel")
@@ -160,7 +160,7 @@ func TestProviderFlagResolution_RedactsAPIKeyFromReturnedErrorsAndStderr(t *test
 	const secret = "sk-redact-me-123456"
 
 	cmd := newRootCommandWithRuntime(rootRuntime{
-		newOneshotClient: func(_ context.Context, cfg config.Config, _ oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(_ context.Context, cfg config.Config, _ oneshotInvocation) (llm.Client, error) {
 			return nil, errors.New("provider rejected api_key=" + cfg.Hermes.APIKey)
 		},
 	})

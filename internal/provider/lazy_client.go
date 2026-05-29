@@ -8,25 +8,25 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
-// ClientFactory constructs a hermes.Client for a named provider.
-type ClientFactory func() (hermes.Client, error)
+// ClientFactory constructs a llm.Client for a named provider.
+type ClientFactory func() (llm.Client, error)
 
 // ClientPool holds registered provider factories and lazily constructs
 // clients on first access. It is safe for concurrent use.
 type ClientPool struct {
 	mu        sync.Mutex
 	factories map[string]ClientFactory
-	clients   map[string]hermes.Client
+	clients   map[string]llm.Client
 }
 
 // NewClientPool returns an empty ClientPool ready for registration.
 func NewClientPool() *ClientPool {
 	return &ClientPool{
 		factories: make(map[string]ClientFactory),
-		clients:   make(map[string]hermes.Client),
+		clients:   make(map[string]llm.Client),
 	}
 }
 
@@ -39,11 +39,11 @@ func (p *ClientPool) Register(name string, factory ClientFactory) {
 	p.factories[name] = factory
 }
 
-// Get returns the hermes.Client for the named provider, constructing it
+// Get returns the llm.Client for the named provider, constructing it
 // via the registered factory on first access. Subsequent calls return the
 // same instance. It returns an error if the provider is not registered or
 // if the factory fails.
-func (p *ClientPool) Get(name string) (hermes.Client, error) {
+func (p *ClientPool) Get(name string) (llm.Client, error) {
 	// Fast path: client already constructed.
 	p.mu.Lock()
 	c, ok := p.clients[name]
@@ -81,7 +81,7 @@ func (p *ClientPool) Get(name string) (hermes.Client, error) {
 func (p *ClientPool) Reset() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.clients = make(map[string]hermes.Client)
+	p.clients = make(map[string]llm.Client)
 }
 
 // Invalidate removes the cached client for a single provider so the next

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/agenttemplate"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/core/agenttemplate"
 )
 
 func ensureGatewayAgentTemplates(cfg config.Config, log *slog.Logger) (agenttemplate.WriteResult, error) {

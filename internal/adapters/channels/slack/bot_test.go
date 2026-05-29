@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	slackapi "github.com/slack-go/slack"
 	slackevents "github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
@@ -27,12 +27,12 @@ func (m failingSessionMap) Put(context.Context, string, string) error   { return
 func (m failingSessionMap) Close() error                                { return nil }
 
 func newSlackKernel(reply, sid string) *kernel.Kernel {
-	hc := hermes.NewMockClient()
-	events := make([]hermes.Event, 0, len(reply)+1)
+	hc := llm.NewMockClient()
+	events := make([]llm.Event, 0, len(reply)+1)
 	for _, ch := range reply {
-		events = append(events, hermes.Event{Kind: hermes.EventToken, Token: string(ch), TokensOut: 1})
+		events = append(events, llm.Event{Kind: llm.EventToken, Token: string(ch), TokensOut: 1})
 	}
-	events = append(events, hermes.Event{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: len(reply)})
+	events = append(events, llm.Event{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: len(reply)})
 	hc.Script(events, sid)
 	return kernel.New(kernel.Config{
 		Model:             "hermes-agent",
@@ -50,7 +50,7 @@ func newIdleSlackKernel() *kernel.Kernel {
 		Admission:         kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
 		MaxToolIterations: 10,
 		MaxToolDuration:   5 * time.Second,
-	}, hermes.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+	}, llm.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
 }
 
 type failingStore struct {
@@ -68,7 +68,7 @@ func newFailingSlackKernel(err error) *kernel.Kernel {
 		Admission:         kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
 		MaxToolIterations: 10,
 		MaxToolDuration:   5 * time.Second,
-	}, hermes.NewMockClient(), failingStore{err: err}, telemetry.New(), nil)
+	}, llm.NewMockClient(), failingStore{err: err}, telemetry.New(), nil)
 }
 
 func waitForSlackOutput(t *testing.T, mc *mockClient, needle string) {

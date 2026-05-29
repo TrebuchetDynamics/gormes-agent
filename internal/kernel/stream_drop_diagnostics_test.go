@@ -12,16 +12,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 func TestKernel_StreamDropDiagnosticsForOpenStreamRetry(t *testing.T) {
 	var logs bytes.Buffer
 	client := &streamDropDiagnosticsClient{
-		status: hermes.ProviderStatus{Provider: "openrouter", Runtime: "chat_completions"},
-		openErrs: []error{&hermes.HTTPError{
+		status: llm.ProviderStatus{Provider: "openrouter", Runtime: "chat_completions"},
+		openErrs: []error{&llm.HTTPError{
 			Status:     http.StatusServiceUnavailable,
 			Body:       "provider stream connection lost",
 			RetryAfter: 50 * time.Millisecond,
@@ -31,9 +31,9 @@ func TestKernel_StreamDropDiagnosticsForOpenStreamRetry(t *testing.T) {
 				"authorization":         "Bearer should-not-leak",
 			},
 		}},
-		streams: []hermes.Stream{&streamDropDiagnosticsStream{events: []hermes.Event{
-			{Kind: hermes.EventToken, Token: "recovered"},
-			{Kind: hermes.EventDone, FinishReason: "stop"},
+		streams: []llm.Stream{&streamDropDiagnosticsStream{events: []llm.Event{
+			{Kind: llm.EventToken, Token: "recovered"},
+			{Kind: llm.EventDone, FinishReason: "stop"},
 		}}},
 	}
 	k := New(Config{
@@ -93,18 +93,18 @@ func TestKernel_StreamDropDiagnosticsForOpenStreamRetry(t *testing.T) {
 
 func TestKernel_StreamDropDiagnosticsForMidStreamRetry(t *testing.T) {
 	var logs bytes.Buffer
-	wrappedErr := fmt.Errorf("provider wrapper: %w", &hermes.HTTPError{
+	wrappedErr := fmt.Errorf("provider wrapper: %w", &llm.HTTPError{
 		Status:     http.StatusServiceUnavailable,
 		Body:       "stream reset",
 		RetryAfter: 50 * time.Millisecond,
 	})
 	client := &streamDropDiagnosticsClient{
-		status: hermes.ProviderStatus{Provider: "anthropic", Runtime: "messages"},
-		streams: []hermes.Stream{
+		status: llm.ProviderStatus{Provider: "anthropic", Runtime: "messages"},
+		streams: []llm.Stream{
 			&streamDropDiagnosticsStream{
-				events: []hermes.Event{{Kind: hermes.EventToken, Token: "partial"}},
+				events: []llm.Event{{Kind: llm.EventToken, Token: "partial"}},
 				err:    wrappedErr,
-				diag: hermes.StreamDiagnostics{
+				diag: llm.StreamDiagnostics{
 					HTTPStatus:      http.StatusOK,
 					Headers:         map[string]string{"x-request-id": "req-midstream", "cookie": "secret-cookie"},
 					Bytes:           4096,
@@ -113,9 +113,9 @@ func TestKernel_StreamDropDiagnosticsForMidStreamRetry(t *testing.T) {
 					TimeToFirstByte: 400 * time.Millisecond,
 				},
 			},
-			&streamDropDiagnosticsStream{events: []hermes.Event{
-				{Kind: hermes.EventToken, Token: "fresh answer"},
-				{Kind: hermes.EventDone, FinishReason: "stop"},
+			&streamDropDiagnosticsStream{events: []llm.Event{
+				{Kind: llm.EventToken, Token: "fresh answer"},
+				{Kind: llm.EventDone, FinishReason: "stop"},
 			}},
 		},
 	}
@@ -170,13 +170,13 @@ func TestKernel_StreamDropDiagnosticsForMidStreamRetry(t *testing.T) {
 
 type streamDropDiagnosticsClient struct {
 	mu       sync.Mutex
-	status   hermes.ProviderStatus
+	status   llm.ProviderStatus
 	openErrs []error
-	streams  []hermes.Stream
+	streams  []llm.Stream
 	calls    int
 }
 
-func (c *streamDropDiagnosticsClient) OpenStream(context.Context, hermes.ChatRequest) (hermes.Stream, error) {
+func (c *streamDropDiagnosticsClient) OpenStream(context.Context, llm.ChatRequest) (llm.Stream, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.calls++
@@ -193,24 +193,24 @@ func (c *streamDropDiagnosticsClient) OpenStream(context.Context, hermes.ChatReq
 	return stream, nil
 }
 
-func (c *streamDropDiagnosticsClient) OpenRunEvents(context.Context, string) (hermes.RunEventStream, error) {
-	return nil, hermes.ErrRunEventsNotSupported
+func (c *streamDropDiagnosticsClient) OpenRunEvents(context.Context, string) (llm.RunEventStream, error) {
+	return nil, llm.ErrRunEventsNotSupported
 }
 
 func (c *streamDropDiagnosticsClient) Health(context.Context) error { return nil }
 
-func (c *streamDropDiagnosticsClient) ProviderStatus() hermes.ProviderStatus {
+func (c *streamDropDiagnosticsClient) ProviderStatus() llm.ProviderStatus {
 	return c.status
 }
 
 type streamDropDiagnosticsStream struct {
-	events []hermes.Event
+	events []llm.Event
 	err    error
-	diag   hermes.StreamDiagnostics
+	diag   llm.StreamDiagnostics
 	pos    int
 }
 
-func (s *streamDropDiagnosticsStream) Recv(context.Context) (hermes.Event, error) {
+func (s *streamDropDiagnosticsStream) Recv(context.Context) (llm.Event, error) {
 	if s.pos < len(s.events) {
 		ev := s.events[s.pos]
 		s.pos++
@@ -219,14 +219,14 @@ func (s *streamDropDiagnosticsStream) Recv(context.Context) (hermes.Event, error
 	if s.err != nil {
 		err := s.err
 		s.err = nil
-		return hermes.Event{}, err
+		return llm.Event{}, err
 	}
-	return hermes.Event{}, io.EOF
+	return llm.Event{}, io.EOF
 }
 
 func (s *streamDropDiagnosticsStream) SessionID() string { return "" }
 func (s *streamDropDiagnosticsStream) Close() error      { return nil }
 
-func (s *streamDropDiagnosticsStream) StreamDiagnostics() hermes.StreamDiagnostics {
+func (s *streamDropDiagnosticsStream) StreamDiagnostics() llm.StreamDiagnostics {
 	return s.diag
 }

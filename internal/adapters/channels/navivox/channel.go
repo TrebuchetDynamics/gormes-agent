@@ -16,9 +16,9 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/profileseed"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/network/vpnhost"
-	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
 const PlatformName = "navivox"

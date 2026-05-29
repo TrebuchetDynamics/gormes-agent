@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 const (
@@ -55,7 +55,7 @@ func ResolveAuthStatus(ctx context.Context, providerInput string, opts AuthStatu
 	if provider == "" {
 		return ProviderAuthStatus{}, fmt.Errorf("auth status: provider is required")
 	}
-	entry, ok := hermes.ResolveProviderManifestEntry(provider)
+	entry, ok := llm.ResolveProviderManifestEntry(provider)
 	if !ok {
 		return ProviderAuthStatus{}, fmt.Errorf("auth status: unknown provider %q", providerInput)
 	}

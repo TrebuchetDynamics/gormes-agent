@@ -18,8 +18,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -316,9 +316,9 @@ func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newGatewayHermesClient error = %v", err)
 	}
-	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+	stream, err := client.OpenStream(context.Background(), llm.ChatRequest{
 		Model:    "gpt-5.5",
-		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+		Messages: []llm.Message{{Role: "user", Content: "hello"}},
 	})
 	if err != nil {
 		t.Fatalf("OpenStream error = %v", err)
@@ -328,14 +328,14 @@ func TestNewGatewayHermesClient_UsesConfiguredProviderTransport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Recv error = %v", err)
 	}
-	if event.Kind != hermes.EventToken || event.Token != "ok from codex" {
+	if event.Kind != llm.EventToken || event.Token != "ok from codex" {
 		t.Fatalf("event = %+v, want codex token event", event)
 	}
 	done, err := stream.Recv(context.Background())
 	if err != nil {
 		t.Fatalf("Recv done error = %v", err)
 	}
-	if done.Kind != hermes.EventDone || done.FinishReason != "stop" {
+	if done.Kind != llm.EventDone || done.FinishReason != "stop" {
 		t.Fatalf("done event = %+v, want stop", done)
 	}
 	if _, err := stream.Recv(context.Background()); err != io.EOF {
@@ -612,7 +612,7 @@ func TestGatewayManagerConfig_TitleModelNonNilWithBoltMap(t *testing.T) {
 	}))
 	defer stub.Close()
 
-	hc := hermes.NewHTTPClientWithProvider(stub.URL, "stub-key", "openai")
+	hc := llm.NewHTTPClientWithProvider(stub.URL, "stub-key", "openai")
 	mgrCfg := gatewayManagerConfig(
 		config.Config{Hermes: config.HermesCfg{Endpoint: stub.URL, Model: "stub-model"}},
 		map[string]string{},

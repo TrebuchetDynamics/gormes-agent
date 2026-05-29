@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // branchForkTimeout caps how long /branch waits on the injected helper.
@@ -28,7 +28,7 @@ type BranchRequest struct {
 	// History is the visible in-memory transcript at fork time. Production
 	// adapters use it to switch the resident kernel immediately, even when the
 	// durable transcript store is incomplete or behind the current frame.
-	History []hermes.Message
+	History []llm.Message
 }
 
 // BranchResult is the helper's response. SessionID is the freshly minted

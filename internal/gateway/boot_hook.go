@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -18,7 +18,7 @@ import (
 type BootHookConfig struct {
 	Path   string
 	Model  string
-	Client hermes.Client
+	Client llm.Client
 	Tools  *tools.Registry
 	Log    *slog.Logger
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
@@ -32,7 +32,7 @@ func withSessionSearch(db *sql.DB, sessions gormescli.SessionSearchDirectory) re
 // their runtime gate is active. Consumer forks that want to add domain-specific
 // tools call reg.Register on the returned *Registry before passing it into the
 // kernel Config.
-func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childClient hermes.Client, childModel string, opts ...registryOpt) *tools.Registry {
+func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childClient llm.Client, childModel string, opts ...registryOpt) *tools.Registry {
 	var o registryOptions
 	for _, opt := range opts {
 		opt(&o)
@@ -170,11 +170,11 @@ func browserCDPEnv(cfg config.Config) map[string]string {
 	}
 }
 
-func registryDescriptors(reg *tools.Registry) []hermes.ToolDescriptor {
+func registryDescriptors(reg *tools.Registry) []llm.ToolDescriptor {
 	descs := reg.Descriptors()
-	out := make([]hermes.ToolDescriptor, len(descs))
+	out := make([]llm.ToolDescriptor, len(descs))
 	for i, d := range descs {
-		out[i] = hermes.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
+		out[i] = llm.ToolDescriptor{Name: d.Name, Description: d.Description, Schema: d.Schema}
 	}
 	return out
 }

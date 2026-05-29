@@ -1372,7 +1372,7 @@
           ]
         },
         {
-          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/session",
+          "source": "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session",
           "specifiers": [
             "sessionpkg"
           ]

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func newHermesChromeFrame() kernel.RenderFrame {
@@ -14,7 +14,7 @@ func newHermesChromeFrame() kernel.RenderFrame {
 		Phase:     kernel.PhaseIdle,
 		Model:     "anthropic/claude-sonnet-4-20250514",
 		SessionID: "sess-hermes-chrome",
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "ping from operator"},
 			{Role: "assistant", Content: "pong from hermes"},
 		},
@@ -143,9 +143,9 @@ func TestHermesChrome_BottomPinnedOrder_View(t *testing.T) {
 }
 
 func TestHermesChrome_IdleViewDoesNotReserveEmptyHintRow(t *testing.T) {
-	history := make([]hermes.Message, 0, 10)
+	history := make([]llm.Message, 0, 10)
 	for i := 1; i <= 10; i++ {
-		history = append(history, hermes.Message{Role: "user", Content: fmt.Sprintf("probe-user-%02d", i)})
+		history = append(history, llm.Message{Role: "user", Content: fmt.Sprintf("probe-user-%02d", i)})
 	}
 	f := kernel.RenderFrame{Phase: kernel.PhaseIdle, Model: "test/model", History: history}
 	m := NewModel(make(chan kernel.RenderFrame), func(string) {}, func() {})

@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -44,9 +44,9 @@ func TestExecuteToolCalls_AppendsAuditRecordsForSuccessAndFailure(t *testing.T) 
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  "sess_123",
 		ToolAudit:         audit.NewJSONLWriter(path),
-	}, hermes.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
+	}, llm.NewMockClient(), store.NewNoop(), telemetry.New(), nil)
 
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "call_1", Name: "echo", Arguments: json.RawMessage(`{"text":"hi"}`)},
 		{ID: "call_2", Name: "boom", Arguments: json.RawMessage(`{"task":"fail"}`)},
 	})

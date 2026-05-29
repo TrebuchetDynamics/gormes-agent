@@ -472,11 +472,11 @@
           "system"
         ],
         "degraded_mode": "Session file too large to export cleanly, corrupt session state, or rollover failure reports session_rollover_failed with specific path/error and keeps original session intact.",
-        "fixture": "internal/session/rollover_test.go",
+        "fixture": "internal/persistence/session/rollover_test.go",
         "source_refs": [
           "workspace-link/AGENTS.md",
           "workspace-mineru/AGENTS.md",
-          "internal/session/session.go",
+          "internal/persistence/session/session.go",
           "internal/goncho/service.go",
           "docs/content/building-gormes/fleet-operational-patterns.md",
           "docs/content/building-gormes/fleet-integration-plan.md"
@@ -499,13 +499,13 @@
           "Original session preserved after rollover."
         ],
         "write_scope": [
-          "internal/session/rollover.go",
-          "internal/session/rollover_test.go",
+          "internal/persistence/session/rollover.go",
+          "internal/persistence/session/rollover_test.go",
           "cmd/gormes/session_rollover.go",
           "docs/content/building-gormes/architecture_plan/progress.json"
         ],
         "test_commands": [
-          "go test ./internal/session -run TestRollover -count=1",
+          "go test ./internal/persistence/session -run TestRollover -count=1",
           "go run ./cmd/progress validate"
         ],
         "done_signal": [

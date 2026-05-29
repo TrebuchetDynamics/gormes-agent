@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/goncho/service"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
@@ -88,7 +88,7 @@ func TestPythonFreeNormalAgentTurn(t *testing.T) {
 
 type normalTurnHarness struct {
 	memory    *memory.SqliteStore
-	provider  *hermes.MockClient
+	provider  *llm.MockClient
 	auditPath string
 	e         *turnEvidence
 	cancel    context.CancelFunc
@@ -160,11 +160,11 @@ func newNormalTurnHarness(t *testing.T, enableGoncho bool) *normalTurnHarness {
 		reg.MustRegister(staticContextTool{})
 	}
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_goncho_context",
 			Name:      "honcho_context",
 			Arguments: json.RawMessage(`{"peer":"telegram:6586915095","query":"evidence-first","session_key":"sess-e2e","max_tokens":400}`),
@@ -172,9 +172,9 @@ func newNormalTurnHarness(t *testing.T, enableGoncho bool) *normalTurnHarness {
 		TokensIn:  42,
 		TokensOut: 1,
 	}}, "provider-session-1")
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: e2eFinalText, TokensOut: 12},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 96, TokensOut: 12},
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: e2eFinalText, TokensOut: 12},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 96, TokensOut: 12},
 	}, "provider-session-1")
 
 	evidence := &turnEvidence{}
@@ -305,7 +305,7 @@ func seedGonchoState(t *testing.T, db *sql.DB, svc *goncho.Service) {
 	}
 }
 
-func assertInitialRequest(t *testing.T, req hermes.ChatRequest) {
+func assertInitialRequest(t *testing.T, req llm.ChatRequest) {
 	t.Helper()
 	if !req.Stream {
 		t.Fatal("initial request Stream = false, want true")
@@ -334,13 +334,13 @@ func assertInitialRequest(t *testing.T, req hermes.ChatRequest) {
 	}
 }
 
-func assertContinuationRequest(t *testing.T, req hermes.ChatRequest) {
+func assertContinuationRequest(t *testing.T, req llm.ChatRequest) {
 	t.Helper()
 	if len(req.Messages) < 4 {
 		t.Fatalf("continuation messages len = %d, want at least 4", len(req.Messages))
 	}
 	var assistantTool bool
-	var toolReply *hermes.Message
+	var toolReply *llm.Message
 	for i := range req.Messages {
 		msg := req.Messages[i]
 		if msg.Role == "assistant" && len(msg.ToolCalls) == 1 && msg.ToolCalls[0].Name == "honcho_context" {
@@ -424,7 +424,7 @@ func readAuditRecords(t *testing.T, path string) []audit.Record {
 	return records
 }
 
-func hasToolDescriptor(descs []hermes.ToolDescriptor, name string) bool {
+func hasToolDescriptor(descs []llm.ToolDescriptor, name string) bool {
 	for _, desc := range descs {
 		if desc.Name == name {
 			return true

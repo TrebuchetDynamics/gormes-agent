@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestIterationLimitFinalization_GatewaySendsOneSummaryFinal(t *testing.T) {
@@ -36,7 +36,7 @@ func TestIterationLimitFinalization_GatewaySendsOneSummaryFinal(t *testing.T) {
 	final := "I reached the tool budget, so here is the useful summary."
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "use tools until the budget is exhausted"},
 			{Role: "assistant", Content: final},
 		},
@@ -86,7 +86,7 @@ func TestIterationLimitFinalization_ToolProgressClearedAfterFinal(t *testing.T) 
 
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "assistant", Content: "Final summary after tool budget."},
 		},
 	}, &co, &coCancel)
@@ -118,7 +118,7 @@ func TestIterationLimitFinalization_SummaryFailureIsBoundedDegradedText(t *testi
 	degraded := "I reached the maximum iterations (1) but couldn't summarize. Error: provider unavailable"
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "assistant", Content: degraded},
 		},
 	}, &co, &coCancel)

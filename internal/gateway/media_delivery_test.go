@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestPrepareMediaDeliveryContentExtractsHermesTags(t *testing.T) {
@@ -169,7 +169,7 @@ func TestManagerFinalResponseDeliversMediaWithoutLeakingTag(t *testing.T) {
 
 	frames <- kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "speak this"},
 			{Role: "assistant", Content: "Here are the files.\n[[audio_as_voice]]\nMEDIA:" + audioPath + "\nMEDIA:" + photoPath + "\nMEDIA:" + reportPath},
 		},

@@ -12,7 +12,7 @@ import (
 
 	goncho "github.com/TrebuchetDynamics/goncho/dynamicagents"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -23,7 +23,7 @@ import (
 type ChatRequest struct {
 	AgentID  string
 	Prompt   string
-	Messages []hermes.Message
+	Messages []llm.Message
 }
 
 // ChatResponder handles one submitted chat turn.
@@ -195,13 +195,13 @@ func (s *ChatScreen) submit() (Screen, tea.Cmd) {
 	s.lines = append(s.lines, chatLine{role: "you", text: prompt})
 	s.sending = true
 	s.status = "sending"
-	messages := make([]hermes.Message, 0, len(s.lines))
+	messages := make([]llm.Message, 0, len(s.lines))
 	for _, line := range s.lines {
 		role := line.role
 		if role == "you" {
 			role = "user"
 		}
-		messages = append(messages, hermes.Message{Role: role, Content: line.text})
+		messages = append(messages, llm.Message{Role: role, Content: line.text})
 	}
 	req := ChatRequest{
 		AgentID:  s.activeAgent,
@@ -292,8 +292,8 @@ func (providerChatResponder) Respond(ctx context.Context, req ChatRequest) (stri
 	if model == "" {
 		model = "hermes-agent"
 	}
-	client := hermes.NewHTTPClientWithProvider(endpoint, apiKey, provider)
-	stream, err := client.OpenStream(ctx, hermes.ChatRequest{
+	client := llm.NewHTTPClientWithProvider(endpoint, apiKey, provider)
+	stream, err := client.OpenStream(ctx, llm.ChatRequest{
 		Model:    model,
 		Messages: req.Messages,
 		Stream:   true,
@@ -312,9 +312,9 @@ func (providerChatResponder) Respond(ctx context.Context, req ChatRequest) (stri
 			return "", err
 		}
 		switch ev.Kind {
-		case hermes.EventToken:
+		case llm.EventToken:
 			b.WriteString(ev.Token)
-		case hermes.EventDone:
+		case llm.EventDone:
 			return strings.TrimSpace(b.String()), nil
 		}
 	}

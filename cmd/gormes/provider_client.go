@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 )
 
@@ -16,11 +16,11 @@ import (
 // construction of unselected providers during scripted chat.
 var providerPool = provider.NewClientPool()
 
-// getOrCreateProviderClient returns a hermes.Client for the given provider,
+// getOrCreateProviderClient returns a llm.Client for the given provider,
 // constructing it on first access via newProviderHTTPClient. Subsequent
 // calls for the same provider return the cached instance.
-func getOrCreateProviderClient(cfg config.Config, providerName string) (hermes.Client, error) {
-	providerPool.Register(providerName, func() (hermes.Client, error) {
+func getOrCreateProviderClient(cfg config.Config, providerName string) (llm.Client, error) {
+	providerPool.Register(providerName, func() (llm.Client, error) {
 		client, err := newProviderHTTPClient(cfg, providerName)
 		if err != nil {
 			return nil, err
@@ -29,7 +29,7 @@ func getOrCreateProviderClient(cfg config.Config, providerName string) (hermes.C
 		// exhausted in the pool and invalidate the cached client so the next
 		// request selects a fresh credential.
 		normalized := normalizeProviderName(providerName)
-		hermes.SetOnCredentialExhausted(client, func(statusCode int, reason string, _ http.Header) {
+		llm.SetOnCredentialExhausted(client, func(statusCode int, reason string, _ http.Header) {
 			pool, _, loadErr := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: normalized})
 			if loadErr != nil {
 				return
@@ -51,34 +51,34 @@ func resetProviderPoolForTesting() {
 	providerPool.Reset()
 }
 
-func newProviderHTTPClient(cfg config.Config, provider string) (hermes.Client, error) {
+func newProviderHTTPClient(cfg config.Config, provider string) (llm.Client, error) {
 	endpoint, apiKey, err := resolveProviderHTTPClientCredentials(cfg, provider)
 	if err != nil {
 		return nil, err
 	}
 	if providerUsesAnthropicMessages(provider) {
-		return hermes.NewAnthropicClient(normalizeAnthropicMessagesEndpoint(endpoint), apiKey), nil
+		return llm.NewAnthropicClient(normalizeAnthropicMessagesEndpoint(endpoint), apiKey), nil
 	}
-	return hermes.NewHTTPClientWithProvider(endpoint, apiKey, provider), nil
+	return llm.NewHTTPClientWithProvider(endpoint, apiKey, provider), nil
 }
 
 func resolveProviderHTTPClientCredentials(cfg config.Config, provider string) (endpoint, apiKey string, err error) {
 	return resolveProviderHTTPClientCredentialsWithHome(cfg, provider, "")
 }
 
-func newProviderHTTPClientWithCredentialHome(cfg config.Config, provider, credentialHome string) (hermes.Client, error) {
+func newProviderHTTPClientWithCredentialHome(cfg config.Config, provider, credentialHome string) (llm.Client, error) {
 	endpoint, apiKey, err := resolveProviderHTTPClientCredentialsWithHome(cfg, provider, credentialHome)
 	if err != nil {
 		return nil, err
 	}
 	if providerUsesAnthropicMessages(provider) {
-		return hermes.NewAnthropicClient(normalizeAnthropicMessagesEndpoint(endpoint), apiKey), nil
+		return llm.NewAnthropicClient(normalizeAnthropicMessagesEndpoint(endpoint), apiKey), nil
 	}
-	return hermes.NewHTTPClientWithProvider(endpoint, apiKey, provider), nil
+	return llm.NewHTTPClientWithProvider(endpoint, apiKey, provider), nil
 }
 
 func providerUsesAnthropicMessages(provider string) bool {
-	entry, ok := hermes.ResolveProviderManifestEntry(provider)
+	entry, ok := llm.ResolveProviderManifestEntry(provider)
 	return ok && entry.TransportFamily == "anthropic_messages"
 }
 
@@ -91,7 +91,7 @@ func resolveProviderHTTPClientCredentialsWithHome(cfg config.Config, provider, c
 	endpoint = strings.TrimSpace(cfg.Hermes.Endpoint)
 	apiKey = strings.TrimSpace(cfg.Hermes.APIKey)
 	provider = normalizeProviderName(provider)
-	if provider == "openrouter" || hermes.IsOpenRouterBaseURL(endpoint) {
+	if provider == "openrouter" || llm.IsOpenRouterBaseURL(endpoint) {
 		if provider != "" && (endpoint == "" || apiKey == "") {
 			credential, evidence, err := selectProviderCredential(provider, credentialHome)
 			if err != nil && endpoint == "" && apiKey == "" {
@@ -102,7 +102,7 @@ func resolveProviderHTTPClientCredentialsWithHome(cfg config.Config, provider, c
 				apiKey = firstNonEmpty(apiKey, credentialAPIKey(*credential))
 			}
 		}
-		runtime := hermes.ResolveOpenRouterRuntime(hermes.OpenRouterRuntimeRequest{
+		runtime := llm.ResolveOpenRouterRuntime(llm.OpenRouterRuntimeRequest{
 			Provider: provider,
 			BaseURL:  endpoint,
 			APIKey:   apiKey,

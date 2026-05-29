@@ -23,7 +23,7 @@ import (
 const CronjobToolName = "cronjob"
 
 // CronjobToolConfig wires the cronjob public tool to the native cron Store.
-// Store is intentionally accepted as any to avoid an import cycle: internal/cron
+// Store is intentionally accepted as any to avoid an import cycle: internal/automation/cron
 // imports internal/kernel, and internal/kernel imports internal/tools.
 type CronjobToolConfig struct {
 	Store             any

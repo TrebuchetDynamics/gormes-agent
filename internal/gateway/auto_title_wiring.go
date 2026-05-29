@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
 )
 
 // AutoTitleAuxiliarySink receives AutoTitleEvidence for non-complete outcomes
@@ -76,16 +76,16 @@ func (m *Manager) maybeRunAutoTitle(ctx context.Context, f kernel.RenderFrame, s
 	runAutoTitle(ctx, store, gen, sessionID, lastUserText, finalAssistantText, m.cfg.AuxiliaryFailureSink)
 }
 
-// titleModelToGenerator adapts a hermes.TitleModelFunc to the session.TitleGenerator
+// titleModelToGenerator adapts a llm.TitleModelFunc to the session.TitleGenerator
 // signature expected by PerformAutoTitle. It maps session.TitleTurn slices to
-// hermes.TitleModelRequest messages so the title model boundary is
+// llm.TitleModelRequest messages so the title model boundary is
 // platform-independent.
-func titleModelToGenerator(ctx context.Context, fn hermes.TitleModelFunc, transcript []session.TitleTurn) (string, error) {
-	msgs := make([]hermes.TitleModelMessage, 0, len(transcript))
+func titleModelToGenerator(ctx context.Context, fn llm.TitleModelFunc, transcript []session.TitleTurn) (string, error) {
+	msgs := make([]llm.TitleModelMessage, 0, len(transcript))
 	for _, t := range transcript {
-		msgs = append(msgs, hermes.TitleModelMessage{Role: t.Role, Content: t.Content})
+		msgs = append(msgs, llm.TitleModelMessage{Role: t.Role, Content: t.Content})
 	}
-	return fn(ctx, hermes.TitleModelRequest{
+	return fn(ctx, llm.TitleModelRequest{
 		Messages:    msgs,
 		MaxTokens:   500,
 		Temperature: 0.3,

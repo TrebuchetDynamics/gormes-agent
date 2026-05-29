@@ -8,18 +8,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func TestKernelEmitsGonchoObservationsForTurnAndToolEvidence(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_echo_observe",
 			Name:      "echo",
 			Arguments: json.RawMessage(`{"text":"observation payload"}`),
@@ -27,9 +27,9 @@ func TestKernelEmitsGonchoObservationsForTurnAndToolEvidence(t *testing.T) {
 	}}, "sess-observe")
 
 	finalAnswer := "captured observation evidence"
-	mc.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: finalAnswer, TokensOut: len(finalAnswer)},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 25, TokensOut: len(finalAnswer)},
+	mc.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: finalAnswer, TokensOut: len(finalAnswer)},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 25, TokensOut: len(finalAnswer)},
 	}, "sess-observe")
 
 	reg := tools.NewRegistry()
@@ -94,7 +94,7 @@ func (r *recordingGonchoStore) GetContext(context.Context, string, int) (string,
 	return "", nil
 }
 
-func (r *recordingGonchoStore) OnSessionEnd(context.Context, string, []hermes.Message) error {
+func (r *recordingGonchoStore) OnSessionEnd(context.Context, string, []llm.Message) error {
 	return nil
 }
 

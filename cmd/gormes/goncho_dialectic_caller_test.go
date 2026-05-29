@@ -5,15 +5,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestHermesDialecticCaller_StreamsLLMAnswerAndSendsContextPrompt(t *testing.T) {
-	client := hermes.NewMockClient()
-	client.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: "Use "},
-		{Kind: hermes.EventToken, Token: "exact evidence."},
-		{Kind: hermes.EventDone, FinishReason: "stop"},
+	client := llm.NewMockClient()
+	client.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: "Use "},
+		{Kind: llm.EventToken, Token: "exact evidence."},
+		{Kind: llm.EventDone, FinishReason: "stop"},
 	}, "dialectic-session")
 
 	caller := NewHermesDialecticCaller(client, "gpt-test")
@@ -51,7 +51,7 @@ func TestHermesDialecticCaller_StreamsLLMAnswerAndSendsContextPrompt(t *testing.
 }
 
 func TestHermesDialecticCaller_PropagatesProviderFailure(t *testing.T) {
-	client := hermes.NewMockClient()
+	client := llm.NewMockClient()
 
 	caller := NewHermesDialecticCaller(client, "gpt-test")
 	_, err := caller.Chat(context.Background(), "user", "context", "query")

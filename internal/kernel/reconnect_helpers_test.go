@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 )
 
 // stableProxy listens on a fixed local port and forwards traffic to whatever
@@ -139,12 +139,12 @@ func tenTokenHandler() http.HandlerFunc {
 	}
 }
 
-// newRealKernel constructs a kernel wired to a real hermes.NewHTTPClient
+// newRealKernel constructs a kernel wired to a real llm.NewHTTPClient
 // pointed at endpoint. Used by Route-B tests that need the genuine HTTP
 // path, not MockClient.
 func newRealKernel(t *testing.T, endpoint string) *Kernel {
 	t.Helper()
-	client := hermes.NewHTTPClient(endpoint, "")
+	client := llm.NewHTTPClient(endpoint, "")
 	return New(Config{
 		Model:     "hermes-agent",
 		Endpoint:  endpoint,

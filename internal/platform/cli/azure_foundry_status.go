@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 // AzureFoundryManualOptions describes the manual fallback choices the
@@ -16,7 +16,7 @@ type AzureFoundryManualOptions struct {
 	// the probe yields manual_required. Empty means the CLI should fall
 	// back to the canonical pair (openai_chat_completions,
 	// anthropic_messages) so manual entry is always viable.
-	APIModes []hermes.AzureTransport
+	APIModes []llm.AzureTransport
 	// ModelHint is an example deployment / model string surfaced in the
 	// manual-entry guidance line. Empty values render a generic hint.
 	ModelHint string
@@ -26,8 +26,8 @@ type AzureFoundryManualOptions struct {
 // CLI status surface. Both fields are pre-resolved read models - the
 // renderer never contacts Azure, never reads files, and never prompts.
 type AzureFoundryStatusInput struct {
-	Runtime       hermes.AzureFoundryRuntime
-	Probe         hermes.AzureProbeResult
+	Runtime       llm.AzureFoundryRuntime
+	Probe         llm.AzureProbeResult
 	ManualOptions AzureFoundryManualOptions
 }
 
@@ -75,11 +75,11 @@ func RenderAzureFoundryStatus(in AzureFoundryStatusInput) AzureFoundryStatus {
 	switch {
 	case manualRequired:
 		out.Lines = append(out.Lines, "Manual entry required: probe could not classify endpoint")
-	case in.Runtime.APIMode == hermes.AzureTransportOpenAI:
+	case in.Runtime.APIMode == llm.AzureTransportOpenAI:
 		out.Lines = append(out.Lines, "Detected: OpenAI-style (POST /v1/chat/completions)")
-	case in.Runtime.APIMode == hermes.AzureTransportCodexResponses:
+	case in.Runtime.APIMode == llm.AzureTransportCodexResponses:
 		out.Lines = append(out.Lines, "Detected: OpenAI-style (POST /v1/responses)")
-	case in.Runtime.APIMode == hermes.AzureTransportAnthropic:
+	case in.Runtime.APIMode == llm.AzureTransportAnthropic:
 		out.Lines = append(out.Lines, "Detected: Anthropic-style (POST /v1/messages)")
 	default:
 		out.Lines = append(out.Lines, "Manual entry required: probe could not classify endpoint")
@@ -144,7 +144,7 @@ func isManualRequired(in AzureFoundryStatusInput) bool {
 		return true
 	}
 	mode := in.Runtime.APIMode
-	if mode == "" || mode == hermes.AzureTransportUnknown {
+	if mode == "" || mode == llm.AzureTransportUnknown {
 		return true
 	}
 	return false
@@ -155,8 +155,8 @@ func isManualRequired(in AzureFoundryStatusInput) bool {
 // a /models failure because the OpenAI catalog probe ran first; this
 // keeps the evidence aligned with the upstream wizard's "models probe
 // failed" diagnostic.
-func modelsProbeFailed(probe hermes.AzureProbeResult) bool {
-	if probe.Transport == hermes.AzureTransportOpenAI {
+func modelsProbeFailed(probe llm.AzureProbeResult) bool {
+	if probe.Transport == llm.AzureTransportOpenAI {
 		return false
 	}
 	for _, line := range probe.Evidence {
@@ -174,12 +174,12 @@ func modelsProbeFailed(probe hermes.AzureProbeResult) bool {
 // canonical pair so manual entry is always viable - the degraded_mode
 // contract requires "manual api_mode entry" to stay available even when
 // no upstream config has been written.
-func manualAPIModes(configured []hermes.AzureTransport) []hermes.AzureTransport {
+func manualAPIModes(configured []llm.AzureTransport) []llm.AzureTransport {
 	if len(configured) > 0 {
 		return configured
 	}
-	return []hermes.AzureTransport{
-		hermes.AzureTransportOpenAI,
-		hermes.AzureTransportAnthropic,
+	return []llm.AzureTransport{
+		llm.AzureTransportOpenAI,
+		llm.AzureTransportAnthropic,
 	}
 }

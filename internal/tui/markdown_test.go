@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestRenderMarkdown_FencedCodeBlocks(t *testing.T) {
@@ -427,7 +427,7 @@ func TestRenderMarkdownSoftWrapTrim_PreservesLeadingIndentation(t *testing.T) {
 }
 
 func TestConversationMessageBlock_UsesSoftWrapTrim(t *testing.T) {
-	got := conversationMessageBlock(hermes.Message{Role: "assistant", Content: "Let me"}, 5, false)
+	got := conversationMessageBlock(llm.Message{Role: "assistant", Content: "Let me"}, 5, false)
 	if strings.Contains(got, "\n   me") {
 		t.Fatalf("conversationMessageBlock() kept a boundary space on continuation line: %q", got)
 	}

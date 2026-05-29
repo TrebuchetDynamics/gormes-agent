@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
@@ -17,7 +17,7 @@ func NewModelCommandWithSeams(seams ModelCommandSeams) *cobra.Command {
 			if err != nil {
 				return "", err
 			}
-			return hermes.NormalizeProviderModelID(provider, model), nil
+			return llm.NormalizeProviderModelID(provider, model), nil
 		}
 	}
 	cmd := &cobra.Command{

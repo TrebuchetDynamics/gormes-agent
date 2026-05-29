@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -29,7 +29,7 @@ func TestAgentToolPolicyBlocksBeforeExecution(t *testing.T) {
 		Deny:    []string{"terminal"},
 	})
 
-	res := k.executeToolCalls(context.Background(), []hermes.ToolCall{
+	res := k.executeToolCalls(context.Background(), []llm.ToolCall{
 		{ID: "call-terminal", Name: "terminal", Arguments: json.RawMessage(`{"command":"id"}`)},
 	})
 	if calls != 0 {
@@ -41,8 +41,8 @@ func TestAgentToolPolicyBlocksBeforeExecution(t *testing.T) {
 }
 
 func TestAgentPlatformEventFiltersPromptVisibleToolDescriptors(t *testing.T) {
-	mc := hermes.NewMockClient()
-	mc.Script([]hermes.Event{{Kind: hermes.EventDone, FinishReason: "stop"}}, "sess-agent-tools")
+	mc := llm.NewMockClient()
+	mc.Script([]llm.Event{{Kind: llm.EventDone, FinishReason: "stop"}}, "sess-agent-tools")
 
 	full := tools.NewRegistry()
 	full.MustRegister(&tools.MockTool{NameStr: "echo"})

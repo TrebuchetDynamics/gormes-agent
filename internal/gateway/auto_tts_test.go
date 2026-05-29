@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -73,7 +73,7 @@ func TestManagerFinalDeliveryAddsTTSMediaForAudioRequestedTurn(t *testing.T) {
 	m := NewManagerWithSubmitter(ManagerConfig{ToolRegistry: reg}, &fakeKernel{}, slog.Default())
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{{
+		History: []llm.Message{{
 			Role:    "assistant",
 			Content: "Written answer for the operator.",
 		}},
@@ -102,7 +102,7 @@ func TestManagerFinalDeliveryAddsTTSMediaWhenSessionTTSEnabled(t *testing.T) {
 	m.setTTSConfig("telegram:42", TTSConfig{Enabled: true})
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{{
+		History: []llm.Message{{
 			Role:    "assistant",
 			Content: "Read this response aloud.",
 		}},
@@ -149,7 +149,7 @@ func TestManagerFinalDeliveryAddsTTSMediaByDefault(t *testing.T) {
 	m := NewManagerWithSubmitter(ManagerConfig{ToolRegistry: reg}, &fakeKernel{}, slog.Default())
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{{
+		History: []llm.Message{{
 			Role:    "assistant",
 			Content: "Default speech output.",
 		}},
@@ -170,7 +170,7 @@ func TestGatewayAutoTTSPassesSessionEngineToTool(t *testing.T) {
 	m.setTTSConfig("telegram:42", TTSConfig{Enabled: true, Engine: TTSEngineOpenAI})
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{{
+		History: []llm.Message{{
 			Role:    "assistant",
 			Content: "Use configured provider.",
 		}},
@@ -194,7 +194,7 @@ func TestGatewayAutoTTSPassesSessionVoiceAndSpeedToTool(t *testing.T) {
 	m.setTTSConfig("telegram:42", TTSConfig{Enabled: true, Engine: TTSEngineEdge, Voice: "en-US-JennyNeural", Speed: TTSSpeedFast})
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{{
+		History: []llm.Message{{
 			Role:    "assistant",
 			Content: "Use voice settings.",
 		}},
@@ -254,7 +254,7 @@ func TestDisabledTTSEngineSkipsAudioRequestedSynthesis(t *testing.T) {
 	m.setTTSConfig("telegram:42", TTSConfig{Enabled: true, Engine: TTSEngineDisabled})
 	frame := kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{{
+		History: []llm.Message{{
 			Role:    "assistant",
 			Content: "Do not synthesize this.",
 		}},

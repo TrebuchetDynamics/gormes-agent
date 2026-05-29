@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 type typingActionFakeChannel struct {
@@ -210,7 +210,7 @@ func TestTypingAction_StopsOnPhaseIdle(t *testing.T) {
 	now = now.Add(5 * time.Second)
 	m.dispatchFrame(context.Background(), kernel.RenderFrame{
 		Phase: kernel.PhaseIdle,
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "assistant", Content: "done"},
 		},
 	}, &co, &coCancel)

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 )
 
@@ -23,7 +23,7 @@ const coldStartBudget = 5 * time.Millisecond
 // (e.g. TLS config, credential resolution). We use a small sleep so the
 // benchmark can distinguish lazy from eager construction.
 func slowFactory(name string) provider.ClientFactory {
-	return func() (hermes.Client, error) {
+	return func() (llm.Client, error) {
 		time.Sleep(50 * time.Microsecond)
 		return &stubRuntimeClient{name: name}, nil
 	}
@@ -33,10 +33,10 @@ type stubRuntimeClient struct {
 	name string
 }
 
-func (s *stubRuntimeClient) OpenStream(_ context.Context, _ hermes.ChatRequest) (hermes.Stream, error) {
+func (s *stubRuntimeClient) OpenStream(_ context.Context, _ llm.ChatRequest) (llm.Stream, error) {
 	return nil, nil
 }
-func (s *stubRuntimeClient) OpenRunEvents(_ context.Context, _ string) (hermes.RunEventStream, error) {
+func (s *stubRuntimeClient) OpenRunEvents(_ context.Context, _ string) (llm.RunEventStream, error) {
 	return nil, nil
 }
 func (s *stubRuntimeClient) Health(_ context.Context) error { return nil }

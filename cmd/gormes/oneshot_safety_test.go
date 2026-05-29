@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/spf13/cobra"
@@ -19,11 +19,11 @@ import (
 func TestOneshotSafety_ClarifyToolCallReturnsNoninteractiveAssumptionWithoutStdoutLeak(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_clarify",
 			Name:      "clarify",
 			Arguments: json.RawMessage(`{"question":"Pick deployment region","choices":["us-east","eu-west"]}`),
@@ -36,7 +36,7 @@ func TestOneshotSafety_ClarifyToolCallReturnsNoninteractiveAssumptionWithoutStdo
 			t.Fatal("runTUI was called for oneshot")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return mock, nil
 		},
 	})
@@ -89,11 +89,11 @@ func TestOneshotSafety_ClarifyToolCallReturnsNoninteractiveAssumptionWithoutStdo
 func TestOneshotSafety_DangerousCommandBlockedAuditedAndToolNotExecuted(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
-	mock := hermes.NewMockClient()
-	mock.Script([]hermes.Event{{
-		Kind:         hermes.EventDone,
+	mock := llm.NewMockClient()
+	mock.Script([]llm.Event{{
+		Kind:         llm.EventDone,
 		FinishReason: "tool_calls",
-		ToolCalls: []hermes.ToolCall{{
+		ToolCalls: []llm.ToolCall{{
 			ID:        "call_exec",
 			Name:      "execute_code",
 			Arguments: json.RawMessage(`{"language":"sh","code":"rm -rf /tmp/gormes-oneshot-fixture"}`),
@@ -116,7 +116,7 @@ func TestOneshotSafety_DangerousCommandBlockedAuditedAndToolNotExecuted(t *testi
 			t.Fatal("runTUI was called for oneshot")
 			return nil
 		},
-		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (hermes.Client, error) {
+		newOneshotClient: func(context.Context, config.Config, oneshotInvocation) (llm.Client, error) {
 			return mock, nil
 		},
 		configureOneshotKernel: func(cfg *kernel.Config) {
@@ -206,14 +206,14 @@ func TestOneshotSafety_ApprovalBypassPolicyIsOperatorLocal(t *testing.T) {
 	}
 }
 
-func scriptOneshotFinal(mock *hermes.MockClient, content string) {
-	mock.Script([]hermes.Event{
-		{Kind: hermes.EventToken, Token: content},
-		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+func scriptOneshotFinal(mock *llm.MockClient, content string) {
+	mock.Script([]llm.Event{
+		{Kind: llm.EventToken, Token: content},
+		{Kind: llm.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
 	}, "sess-final")
 }
 
-func requireToolMessage(t *testing.T, messages []hermes.Message, name string) hermes.Message {
+func requireToolMessage(t *testing.T, messages []llm.Message, name string) llm.Message {
 	t.Helper()
 	for _, msg := range messages {
 		if msg.Role == "tool" && msg.Name == name {
@@ -221,7 +221,7 @@ func requireToolMessage(t *testing.T, messages []hermes.Message, name string) he
 		}
 	}
 	t.Fatalf("tool message %q not found in %#v", name, messages)
-	return hermes.Message{}
+	return llm.Message{}
 }
 
 func readOneshotAuditRecords(t *testing.T) []audit.Record {

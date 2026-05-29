@@ -15,14 +15,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/acp"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/adapters/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/doctor"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/protocols/acp"
 	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/pelletier/go-toml/v2"
@@ -564,7 +564,7 @@ func doctorEffectiveProfileProviderModel(h config.HermesCfg) (string, string) {
 		model = ""
 	}
 	if provider != "" && (model == "" || strings.EqualFold(model, "hermes-agent")) {
-		resolved := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{})
+		resolved := llm.ResolveProviderDefaultModel(provider, llm.ProviderDefaultModelOptions{})
 		if strings.TrimSpace(resolved.Model) != "" {
 			provider = strings.TrimSpace(resolved.Provider)
 			model = strings.TrimSpace(resolved.Model)

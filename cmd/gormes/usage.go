@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli"
 	providermodule "github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli/gormescli/modules/providers"
 )
@@ -19,7 +19,7 @@ var usageHTTPClient = providermodule.UsageHTTPClient
 var inferUsageProvider = providermodule.InferUsageProvider
 var firstUsageString = providermodule.FirstUsageString
 
-func (c accountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req hermes.AccountUsageHTTPRequest) (hermes.AccountUsageHTTPResponse, error) {
+func (c accountUsageHTTPClient) DoAccountUsageRequest(ctx context.Context, req llm.AccountUsageHTTPRequest) (llm.AccountUsageHTTPResponse, error) {
 	return providermodule.AccountUsageHTTPClient{Client: c.client}.DoAccountUsageRequest(ctx, req)
 }
 

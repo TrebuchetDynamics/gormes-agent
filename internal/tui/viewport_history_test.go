@@ -6,18 +6,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
 func TestConversationViewportTail_OmitsEarlierHistory(t *testing.T) {
-	history := make([]hermes.Message, 0, 120)
+	history := make([]llm.Message, 0, 120)
 	for i := 0; i < 120; i++ {
 		role := "user"
 		if i%2 == 1 {
 			role = "assistant"
 		}
-		history = append(history, hermes.Message{
+		history = append(history, llm.Message{
 			Role:    role,
 			Content: fmt.Sprintf("turn-%03d-body-marker", i),
 		})
@@ -43,9 +43,9 @@ func TestConversationViewportTail_OmitsEarlierHistory(t *testing.T) {
 }
 
 func TestConversationViewportTail_AlwaysIncludesDraftAndLastError(t *testing.T) {
-	history := make([]hermes.Message, 0, 80)
+	history := make([]llm.Message, 0, 80)
 	for i := 0; i < 80; i++ {
-		history = append(history, hermes.Message{
+		history = append(history, llm.Message{
 			Role:    "user",
 			Content: fmt.Sprintf("history-%03d", i),
 		})
@@ -71,7 +71,7 @@ func TestConversationViewportTail_AlwaysIncludesDraftAndLastError(t *testing.T) 
 
 func TestConversationViewportTail_RendersHermesToolProgress(t *testing.T) {
 	frame := kernel.RenderFrame{
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "run the parity check"},
 		},
 		SoulEvents: []kernel.SoulEntry{
@@ -102,7 +102,7 @@ func TestConversationViewportTail_RendersHermesToolProgress(t *testing.T) {
 
 func TestConversationViewportTail_HeightAndWidthClamp(t *testing.T) {
 	frame := kernel.RenderFrame{
-		History: []hermes.Message{
+		History: []llm.Message{
 			{Role: "user", Content: "earliest body should stay hidden"},
 			{Role: "assistant", Content: "latest tiny terminal marker"},
 		},
@@ -127,9 +127,9 @@ func TestConversationViewportTail_HeightAndWidthClamp(t *testing.T) {
 }
 
 func TestConversationViewportTail_RenderedLineBudget(t *testing.T) {
-	history := make([]hermes.Message, 0, 120)
+	history := make([]llm.Message, 0, 120)
 	for i := 0; i < 120; i++ {
-		history = append(history, hermes.Message{
+		history = append(history, llm.Message{
 			Role:    "assistant",
 			Content: fmt.Sprintf("budget-turn-%03d", i),
 		})
