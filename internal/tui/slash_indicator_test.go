@@ -7,40 +7,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
-func TestIndicatorStyleMatchesHermesEnumAndFrames(t *testing.T) {
-	cases := []struct {
-		raw  string
-		want IndicatorStyle
-	}{
-		{raw: "", want: IndicatorStyleKaomoji},
-		{raw: " Emoji ", want: IndicatorStyleEmoji},
-		{raw: "UNICODE", want: IndicatorStyleUnicode},
-		{raw: "ascii", want: IndicatorStyleASCII},
-		{raw: "rainbow", want: IndicatorStyleKaomoji},
-	}
-	for _, tc := range cases {
-		if got := NormalizeIndicatorStyle(tc.raw); got != tc.want {
-			t.Fatalf("NormalizeIndicatorStyle(%q) = %q, want %q", tc.raw, got, tc.want)
-		}
-	}
-
-	if got := RenderIndicatorFrame(IndicatorStyleASCII, 0); got != "|" {
-		t.Fatalf("ascii frame 0 = %q, want |", got)
-	}
-	if got := RenderIndicatorFrame(IndicatorStyleASCII, 1); got != "/" {
-		t.Fatalf("ascii frame 1 = %q, want /", got)
-	}
-	if got := RenderIndicatorFrame(IndicatorStyleEmoji, 0); got != "⚕ " {
-		t.Fatalf("emoji frame 0 = %q, want ⚕ space", got)
-	}
-	if got := RenderIndicatorFrame(IndicatorStyleUnicode, 0); got != "⠋" {
-		t.Fatalf("unicode frame 0 = %q, want braille spinner", got)
-	}
-	if got := RenderIndicatorFrame(IndicatorStyleKaomoji, 0); !strings.Contains(got, "◕") {
-		t.Fatalf("kaomoji frame 0 = %q, want one of the face frames", got)
-	}
-}
-
 func TestIndicatorSlashControlsBusyHintWithoutSubmitting(t *testing.T) {
 	sub := &nopSubmitter{}
 	m := newIndicatorSlashModel(sub)

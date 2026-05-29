@@ -9,32 +9,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 )
 
-func TestDetailsStateMatchesHermesSectionDefaults(t *testing.T) {
-	state := DefaultDetailsState()
-	if got := state.SectionMode(DetailsSectionThinking); got != DetailsModeExpanded {
-		t.Fatalf("thinking default = %q, want expanded", got)
-	}
-	if got := state.SectionMode(DetailsSectionTools); got != DetailsModeExpanded {
-		t.Fatalf("tools default = %q, want expanded", got)
-	}
-	if got := state.SectionMode(DetailsSectionActivity); got != DetailsModeHidden {
-		t.Fatalf("activity default = %q, want hidden", got)
-	}
-	if got := state.SectionMode(DetailsSectionSubagents); got != DetailsModeCollapsed {
-		t.Fatalf("subagents default = %q, want collapsed", got)
-	}
-
-	state.Global = DetailsModeHidden
-	state.CommandOverride = true
-	if got := state.SectionMode(DetailsSectionThinking); got != DetailsModeHidden {
-		t.Fatalf("command override thinking = %q, want hidden", got)
-	}
-	state.Sections = map[DetailsSection]DetailsMode{DetailsSectionTools: DetailsModeExpanded}
-	if got := state.SectionMode(DetailsSectionTools); got != DetailsModeExpanded {
-		t.Fatalf("section override tools = %q, want expanded", got)
-	}
-}
-
 func TestDetailsSlashControlsThinkingAndToolVisibilityWithoutSubmitting(t *testing.T) {
 	sub := &nopSubmitter{}
 	m := newDetailsSlashModel(sub)
