@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	gatewayplatforms "github.com/TrebuchetDynamics/gormes-agent/internal/gateway/platforms"
 )
 
 const (
@@ -328,7 +330,7 @@ func firstNonNilError(values ...error) error {
 }
 
 func normalizePlatformID(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	return gatewayplatforms.NormalizePlatformID(value)
 }
 
 // PlatformPauseThresholdFromEnv resolves the per-platform circuit-breaker
