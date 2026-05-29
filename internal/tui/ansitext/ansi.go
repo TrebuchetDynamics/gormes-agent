@@ -1,6 +1,10 @@
 package ansitext
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 const ansiESC = byte(0x1b)
 
@@ -18,6 +22,33 @@ func SanitizeForRender(s string) string {
 
 func HasANSI(s string) bool {
 	return strings.Contains(s, "\x1b")
+}
+
+// TrimToWidth trims text to fit within maxWidth using lipgloss display width.
+func TrimToWidth(text string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return ""
+	}
+	if lipgloss.Width(text) <= maxWidth {
+		return text
+	}
+	const ellipsis = "…"
+	ellipsisWidth := lipgloss.Width(ellipsis)
+	if maxWidth <= ellipsisWidth {
+		return strings.Repeat(".", maxWidth)
+	}
+
+	var b strings.Builder
+	used := 0
+	for _, r := range text {
+		rw := lipgloss.Width(string(r))
+		if used+rw+ellipsisWidth > maxWidth {
+			break
+		}
+		b.WriteRune(r)
+		used += rw
+	}
+	return b.String() + ellipsis
 }
 
 func sanitize(s string, keepSGR bool) string {
