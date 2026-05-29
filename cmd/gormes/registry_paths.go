@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/platform/cli"
 )
 
 func defaultBrowserArtifactDir() string {
@@ -31,10 +30,7 @@ func profileAudioCacheDir(profileID string) string {
 	if profileID == "" {
 		return defaultAudioCacheDir()
 	}
-	contract, err := cli.NewProfileStorageContract(config.GormesBaseHome())
-	if err != nil {
-		return defaultAudioCacheDir()
-	}
+	contract := config.NewProfileStorageContract(config.GormesBaseHome())
 	root, err := contract.ProfileCacheDir(profileID)
 	if err != nil {
 		return defaultAudioCacheDir()
@@ -59,10 +55,7 @@ func profileTranscriptionCacheDir(profileID string) string {
 	if profileID == "" {
 		return defaultTranscriptionCacheDir()
 	}
-	contract, err := cli.NewProfileStorageContract(config.GormesBaseHome())
-	if err != nil {
-		return defaultTranscriptionCacheDir()
-	}
+	contract := config.NewProfileStorageContract(config.GormesBaseHome())
 	root, err := contract.ProfileCacheDir(profileID)
 	if err != nil {
 		return defaultTranscriptionCacheDir()

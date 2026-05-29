@@ -2106,11 +2106,7 @@ func CrashLogDir() string {
 // When a profiles/main/ directory exists under GormesHome the path is
 // under that profile root; otherwise the legacy root location is returned.
 func SessionDBPath() string {
-	home := GormesHome()
-	if dir := filepath.Join(home, "profiles", "main"); isDirectory(dir) {
-		return filepath.Join(dir, "sessions.db")
-	}
-	return filepath.Join(home, "sessions.db")
+	return CurrentProfileStorageContract().SessionDBPath
 }
 
 // SessionIndexMirrorPath returns the default location of the read-only YAML
@@ -2124,11 +2120,7 @@ func SessionIndexMirrorPath() string {
 // the path is under that profile root; otherwise the legacy root location
 // is returned.
 func MemoryDBPath() string {
-	home := GormesHome()
-	if dir := filepath.Join(home, "profiles", "main"); isDirectory(dir) {
-		return filepath.Join(dir, "memory.db")
-	}
-	return filepath.Join(home, "memory.db")
+	return CurrentProfileStorageContract().MemoryDBPath
 }
 
 // KanbanDBPath returns the native Gormes Kanban SQLite database path.
