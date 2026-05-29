@@ -294,18 +294,6 @@ func navivoxRoutingStrings(values []string) []string {
 	return values
 }
 
-func DefaultConfigDocumentV2() map[string]any {
-	return map[string]any{
-		"config_version": int64(CurrentConfigVersion),
-		"profiles": map[string]any{
-			DefaultProfileID: map[string]any{
-				"enabled": true,
-				"name":    "",
-			},
-		},
-	}
-}
-
 // WriteProfileConfigV2 writes the canonical profile-service and credential
 // registry portions of cfg into path as one root TOML transaction. Existing
 // non-profile sections are preserved in the root document; profile data never

@@ -19,11 +19,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// CurrentConfigVersion is the schema version this binary writes + accepts.
-// When a breaking change to the TOML schema lands, bump this constant and
-// add a migration in runMigrations() so older files stay readable.
-const CurrentConfigVersion = 2
-
 type Config struct {
 	// ConfigVersion is the canonical schema version of the loaded TOML file.
 	// Absent in TOML is treated as legacy v1. LegacyConfigVersion keeps

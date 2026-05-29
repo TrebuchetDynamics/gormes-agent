@@ -81,25 +81,6 @@ func Check() (CheckReport, error) {
 	return report, nil
 }
 
-func readConfigVersion(raw map[string]any) int {
-	v, ok := raw["config_version"]
-	if !ok {
-		v, ok = raw["_config_version"]
-	}
-	if !ok {
-		return 0
-	}
-	switch n := v.(type) {
-	case int64:
-		return int(n)
-	case int:
-		return n
-	case float64:
-		return int(n)
-	}
-	return 0
-}
-
 // hermesProviderIssues classifies the [hermes] table for missing or
 // configured-but-empty endpoint and model fields. Missing means the key was
 // absent from the file; configured-but-empty means the key was set to the
@@ -192,37 +173,4 @@ func MigrateConfigFile(path string) (MigrateResult, error) {
 	}
 	result.Wrote = true
 	return result, nil
-}
-
-func hasMainProfile(raw map[string]any) bool {
-	profiles, ok := raw["profiles"].(map[string]any)
-	if !ok {
-		return false
-	}
-	main, ok := profiles[DefaultProfileID].(map[string]any)
-	if !ok {
-		return false
-	}
-	_, hasEnabled := main["enabled"]
-	_, hasName := main["name"]
-	return hasEnabled && hasName
-}
-
-func ensureMainProfile(raw map[string]any) {
-	profiles, ok := raw["profiles"].(map[string]any)
-	if !ok {
-		profiles = map[string]any{}
-	}
-	main, ok := profiles[DefaultProfileID].(map[string]any)
-	if !ok {
-		main = map[string]any{}
-	}
-	if _, ok := main["enabled"]; !ok {
-		main["enabled"] = true
-	}
-	if _, ok := main["name"]; !ok {
-		main["name"] = ""
-	}
-	profiles[DefaultProfileID] = main
-	raw["profiles"] = profiles
 }

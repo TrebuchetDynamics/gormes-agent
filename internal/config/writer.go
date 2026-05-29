@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -17,41 +16,6 @@ import (
 // EnvPath returns the Gormes-native dotenv file path under GormesHome.
 func EnvPath() string {
 	return filepath.Join(GormesHome(), ".env")
-}
-
-// allowedTOMLSections is the closed set of top-level TOML tables this binary
-// writes. Hermes parity work that introduces a new section must add it here.
-// Keep in sync with the Config struct in config.go.
-var allowedTOMLSections = map[string]struct{}{
-	"hermes":      {},
-	"router":      {},
-	"profiles":    {},
-	"credentials": {},
-	"runtime":     {},
-	"tts":         {},
-	"image_gen":   {},
-	"terminal":    {},
-	"gateway":     {},
-	"tui":         {},
-	"input":       {},
-	"voice":       {},
-	"telegram":    {},
-	"discord":     {},
-	"slack":       {},
-	"yuanbao":     {},
-	"web":         {},
-	"navivox":     {},
-	"browser":     {},
-	"security":    {},
-	"secrets":     {},
-	"agents":      {},
-	"bindings":    {},
-	"cron":        {},
-	"skills":      {},
-	"delegation":  {},
-	"goncho":      {},
-	"display":     {},
-	"updates":     {},
 }
 
 // secretAliases maps user-typed secret aliases (e.g. `api_key`) to the
@@ -110,7 +74,7 @@ func WriteTOMLValue(path, key, value string) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := allowedTOMLSections[section]; !ok {
+	if !configSchemaAllowsSection(section) {
 		return fmt.Errorf("config: unknown section %q in key %q (allowed: %s)", section, key, allowedSectionsList())
 	}
 
@@ -229,15 +193,6 @@ func setNestedTOMLValue(root map[string]any, fields []string, value any) {
 		table = next
 	}
 	table[fields[len(fields)-1]] = value
-}
-
-func allowedSectionsList() string {
-	names := make([]string, 0, len(allowedTOMLSections))
-	for n := range allowedTOMLSections {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	return strings.Join(names, ", ")
 }
 
 func readTOMLDoc(path string) (map[string]any, error) {
